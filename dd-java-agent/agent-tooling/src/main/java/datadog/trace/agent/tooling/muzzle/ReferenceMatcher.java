@@ -242,7 +242,7 @@ public final class ReferenceMatcher {
       final List<Reference.Mismatch> flagMismatches) {
     if (!fieldsToFind.isEmpty()) {
       for (final FieldDescription.InDefinedShape fieldType : typeOnClasspath.getDeclaredFields()) {
-        String descriptor = fixupDescriptor(fieldType.getType().asErasure().getDescriptor());
+        String descriptor = fieldType.getType().asErasure().getDescriptor();
         Pair<String, String> key = Pair.of(fieldType.getInternalName(), descriptor);
         Reference.Field found = fieldsToFind.remove(key);
         if (null != found) {
@@ -265,32 +265,6 @@ public final class ReferenceMatcher {
         }
       }
     }
-  }
-
-  private static String fixupDescriptor(String orig) {
-    // see https://github.com/raphw/byte-buddy/issues/1083
-    // arrays of primitive types need no substitution
-    if (orig.contains("/") || orig.charAt(0) == '[') {
-      return orig;
-    }
-    if ("byte".equals(orig)) {
-      return "B";
-    } else if ("char".equals(orig)) {
-      return "C";
-    } else if ("double".equals(orig)) {
-      return "D";
-    } else if ("float".equals(orig)) {
-      return "F";
-    } else if ("int".equals(orig)) {
-      return "I";
-    } else if ("long".equals(orig)) {
-      return "J";
-    } else if ("short".equals(orig)) {
-      return "S";
-    } else if ("boolean".equals(orig)) {
-      return "Z";
-    }
-    return orig;
   }
 
   private static void findInterfaceMethods(
