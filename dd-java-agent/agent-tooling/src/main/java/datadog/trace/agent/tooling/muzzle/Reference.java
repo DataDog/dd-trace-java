@@ -32,8 +32,8 @@ public class Reference {
       final Set<Method> methods) {
     this.sources = sources;
     this.flags = flags;
-    this.className = Strings.getClassName(className);
-    this.superName = null == superName ? null : Strings.getClassName(superName);
+    this.className = className;
+    this.superName = superName;
     this.interfaces = interfaces;
     this.methods = methods;
     this.fields = fields;
@@ -49,13 +49,11 @@ public class Reference {
     if (!anotherReference.className.equals(className)) {
       throw new IllegalStateException("illegal merge " + this + " != " + anotherReference);
     }
-    final String superName = null == this.superName ? anotherReference.superName : this.superName;
-
     return new Reference(
         merge(sources, anotherReference.sources),
         mergeFlags(flags, anotherReference.flags),
         className,
-        superName,
+        null != this.superName ? this.superName : anotherReference.superName,
         merge(interfaces, anotherReference.interfaces),
         mergeFields(fields, anotherReference.fields),
         mergeMethods(methods, anotherReference.methods));
@@ -565,8 +563,8 @@ public class Reference {
       return new Reference(
           sources,
           flags,
-          className,
-          superName,
+          Strings.getClassName(className),
+          null != superName ? Strings.getClassName(superName) : null,
           interfaces,
           new LinkedHashSet<>(fields),
           new LinkedHashSet<>(methods));
