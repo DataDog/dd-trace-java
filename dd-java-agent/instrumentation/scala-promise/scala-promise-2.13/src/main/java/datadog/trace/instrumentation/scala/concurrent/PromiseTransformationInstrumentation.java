@@ -99,18 +99,22 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
           InstrumentationContext.get(Transformation.class, State.class);
       AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
       AgentSpan activeSpan = activeSpan();
-      TraceScope scope =
-          AdviceUtils.startTaskScope(
-              InstrumentationContext.get(Transformation.class, State.class), task);
       if (capturedSpan != null && !capturedSpan.equals(activeSpan)) {
+        // the active span is changed - signal span resume
         capturedSpan.finishThreadMigration();
       }
-      return scope;
+      return AdviceUtils.startTaskScope(
+              InstrumentationContext.get(Transformation.class, State.class), task);;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
       if (scope instanceof AgentScope) {
+        /*
+        Normally, this would be handled by `endTaskScope(scope)` - but for that to work
+        one needs to 'migrate' continuation and introducing that into the current promise
+        instrumentation is much harder than just working it around here.
+        */
         ((AgentScope) scope).span().finishWork();
       }
       AdviceUtils.endTaskScope(scope);

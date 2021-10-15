@@ -35,7 +35,6 @@ public class PlayAdvice {
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
-    span.startThreadMigration();
     return scope;
   }
 
