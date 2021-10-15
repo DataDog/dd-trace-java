@@ -537,6 +537,17 @@ public class Agent {
           public void withTracer(Tracer tracer) {
             log.debug("Registering CWS scope tracker");
             try {
+              if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+                ScopeListener scopeListener =
+                (ScopeListener)
+                    AGENT_CLASSLOADER
+                        .loadClass("datadog.cws.tls.CwsTlsScopeListener")
+                        .getDeclaredConstructor()
+                        .newInstance();
+            tracer.addScopeListener(scopeListener);
+            log.debug("Scope event factory {} has been registered", scopeListener);
+
+              } else if (tracer instanceof AgentTracer.TracerAPI) {
               SpanCheckpointer checkpointer =
               (SpanCheckpointer)
                   AGENT_CLASSLOADER
@@ -546,6 +557,7 @@ public class Agent {
 
               ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(checkpointer);
               log.debug("Checkpointer {} has been registered", checkpointer);
+              }
             } catch (Throwable e) {
               if (e instanceof InvocationTargetException) {
                 e = e.getCause();
@@ -594,16 +606,15 @@ public class Agent {
                   } else if (tracer instanceof AgentTracer.TracerAPI) {
                     log.debug("Registering checkpointer");
                     SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create();
-                    ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(samplingCheckpointer);
-
                     Checkpointer checkpointer =
                         (Checkpointer)
                             AGENT_CLASSLOADER
                                 .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                                 .getDeclaredConstructor()
                                 .newInstance();
-
                     samplingCheckpointer.register(checkpointer);
+
+                    ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(samplingCheckpointer);
                     log.debug("Checkpointer {} has been registered", checkpointer);
                   }
                 } catch (Throwable e) {
