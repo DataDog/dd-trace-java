@@ -1,35 +1,34 @@
 package datadog.cws.tls
 
-import com.sun.jna.Native
-
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
 class TlsTest extends DDSpecification {
-  def "register trace and span to tls"() {
+  def "track span scopelistener"(){
     setup:
-    DummyErpcTls tls = new DummyErpcTls(1000)
+    DummyTls tls = new DummyTls()
+    TlsScopeListener listener = new TlsScopeListener(tls)
+
+    AgentSpan parent = Stub(AgentSpan)
+    parent.getTraceId() >> DDId.from(11L)
+    parent.getSpanId() >> DDId.from(12L)
+
+    AgentSpan span = Stub(AgentSpan)
+    span.getTraceId() >> DDId.from(21L)
+    span.getSpanId() >> DDId.from(22L)
 
     when:
-    DDId traceId = DDId.from(789L)
-    DDId spanId = DDId.from(456L)
-    tls.registerSpan(123, traceId, spanId)
-
+    listener.afterScopeActivated(DDId.from(11L), DDId.from(12L))
+    listener.afterScopeActivated(DDId.from(21L), DDId.from(22L))
     then:
-    tls.getTraceId(123) == traceId
-    tls.getSpanId(123) == spanId
-    tls.getTraceId(222) ==  DDId.from(0L)
-    tls.getSpanId(111) == DDId.from(0L)
-  }
+    tls.getTraceId() == DDId.from(21L)
+    tls.getSpanId() == DDId.from(22L)
 
-  def "register tls"(){
     when:
-    DummyErpcTls tls = new DummyErpcTls(1000)
-
+    listener.afterScopeClosed()
     then:
-    tls.lastRequest.getOpCode() == tls.REGISTER_SPAN_TLS_OP
-    tls.lastRequest.getDataPointer().getLong(0) == tls.TLS_FORMAT
-    tls.lastRequest.getDataPointer().getLong(Native.LONG_SIZE) == 1000
-    tls.lastRequest.getDataPointer().getPointer(Native.LONG_SIZE*2) == tls.getTlsPointer()
+    tls.getTraceId() == DDId.from(11L)
+    tls.getSpanId() == DDId.from(12L)
   }
 }

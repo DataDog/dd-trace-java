@@ -544,9 +544,8 @@ public class Agent {
                         .loadClass("datadog.cws.tls.TlsScopeListener")
                         .getDeclaredConstructor()
                         .newInstance();
-            tracer.addScopeListener(scopeListener);
-            log.debug("Scope event factory {} has been registered", scopeListener);
-
+                tracer.addScopeListener(scopeListener);
+                log.debug("Scope event factory {} has been registered", scopeListener);
               } else if (tracer instanceof AgentTracer.TracerAPI) {
               SpanCheckpointer checkpointer =
               (SpanCheckpointer)
@@ -554,9 +553,8 @@ public class Agent {
                       .loadClass("datadog.cws.tls.TlsCheckpointer")
                       .getDeclaredConstructor()
                       .newInstance();
-
-              ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(checkpointer);
-              log.debug("Checkpointer {} has been registered", checkpointer);
+                ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(checkpointer);
+                log.debug("Checkpointer {} has been registered", checkpointer);
               }
             } catch (Throwable e) {
               if (e instanceof InvocationTargetException) {
@@ -605,16 +603,13 @@ public class Agent {
                     log.debug("Scope event factory {} has been registered", scopeListener);
                   } else if (tracer instanceof AgentTracer.TracerAPI) {
                     log.debug("Registering checkpointer");
-                    SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create();
                     Checkpointer checkpointer =
                         (Checkpointer)
                             AGENT_CLASSLOADER
                                 .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                                 .getDeclaredConstructor()
                                 .newInstance();
-                    samplingCheckpointer.register(checkpointer);
-
-                    ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(samplingCheckpointer);
+                    ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(new SamplingCheckpointer(checkpointer));
                     log.debug("Checkpointer {} has been registered", checkpointer);
                   }
                 } catch (Throwable e) {

@@ -105,11 +105,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  SamplingCheckpointer TEST_SAMPLING_CHECKPOINTER = SamplingCheckpointer.create()
+  TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
   @SuppressWarnings('PropertyName')
   @Shared
-  TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
+  SamplingCheckpointer TEST_SAMPLING_CHECKPOINTER = new SamplingCheckpointer(TEST_CHECKPOINTER)
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -149,8 +149,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .build())
-
-    TEST_SAMPLING_CHECKPOINTER.register(TEST_CHECKPOINTER)
     TEST_TRACER.registerSpanCheckpointer(TEST_SAMPLING_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 

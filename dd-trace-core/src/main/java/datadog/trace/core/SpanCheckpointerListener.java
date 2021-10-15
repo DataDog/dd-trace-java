@@ -1,4 +1,4 @@
-package datadog.trace.core.checkpointermanager;
+package datadog.trace.core;
 
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -8,12 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class SpanCheckpointerManager implements SpanCheckpointer {
-    private static final Logger log = LoggerFactory.getLogger(SpanCheckpointerManager.class);
+public class SpanCheckpointerListener implements SpanCheckpointer {
+    private static final Logger log = LoggerFactory.getLogger(SpanCheckpointerListener.class);
 
     private final List<SpanCheckpointer> spanCheckpointers;
 
-    public SpanCheckpointerManager() {
+    public SpanCheckpointerListener() {
         spanCheckpointers = new CopyOnWriteArrayList<>();
     }
 

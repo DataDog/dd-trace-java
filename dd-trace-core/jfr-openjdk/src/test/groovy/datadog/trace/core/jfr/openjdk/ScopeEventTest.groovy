@@ -322,10 +322,7 @@ class ScopeEventTest extends DDSpecification {
     addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
-    SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create()
-    samplingCheckpointer.register(new JFRCheckpointer(new ConstantSampler(true), ConfigProvider.getInstance()))
-
-    tracer.registerSpanCheckpointer(samplingCheckpointer)
+    tracer.registerSpanCheckpointer(new SamplingCheckpointer(new JFRCheckpointer(new ConstantSampler(true), ConfigProvider.getInstance())))
 
     when: "span goes through lifecycle without activation"
     AgentSpan span = tracer.startSpan("test", true)

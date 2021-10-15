@@ -26,3 +26,7 @@ shadowJar {
     exclude(project(':internal-api'))
   }
 }
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}

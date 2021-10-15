@@ -37,7 +37,6 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.checkpointermanager.SpanCheckpointerManager;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -94,7 +93,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
-  final SpanCheckpointerManager checkpointerManager;
+  final SpanCheckpointerListener checkpointerListener;
 
   final MetricsAggregator metricsAggregator;
 
@@ -150,42 +149,42 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void checkpoint(AgentSpan span, int flags) {
-    checkpointerManager.checkpoint(span, flags);
+    checkpointerListener.checkpoint(span, flags);
   }
 
   @Override
   public void onStart(AgentSpan span) {
-    checkpointerManager.onStart(span);
+    checkpointerListener.onStart(span);
   }
 
   @Override
   public void onStartWork(AgentSpan span) {
-    checkpointerManager.onStartWork(span);
+    checkpointerListener.onStartWork(span);
   }
 
   @Override
   public void onFinishWork(AgentSpan span) {
-    checkpointerManager.onFinishWork(span);
+    checkpointerListener.onFinishWork(span);
   }
 
   @Override
   public void onStartThreadMigration(AgentSpan span) {
-    checkpointerManager.onStartThreadMigration(span);
+    checkpointerListener.onStartThreadMigration(span);
   }
 
   @Override
   public void onFinishThreadMigration(AgentSpan span) {
-    checkpointerManager.onFinishThreadMigration(span);
+    checkpointerListener.onFinishThreadMigration(span);
   }
 
   @Override
   public void onFinish(AgentSpan span) {
-    checkpointerManager.onFinish(span);
+    checkpointerListener.onFinish(span);
   }
 
   @Override
   public void onRootSpan(AgentSpan root, boolean published) {
-    checkpointerManager.onRootSpan(root, published);
+    checkpointerListener.onRootSpan(root, published);
   }
 
   public static class CoreTracerBuilder {
@@ -421,7 +420,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.scopeManager = scopeManager;
     }
 
-    checkpointerManager = new SpanCheckpointerManager();
+    checkpointerListener = new SpanCheckpointerListener();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -755,7 +754,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerSpanCheckpointer(final SpanCheckpointer checkpointer) {
-    checkpointerManager.register(checkpointer);
+    checkpointerListener.register(checkpointer);
   }
 
   @Override
