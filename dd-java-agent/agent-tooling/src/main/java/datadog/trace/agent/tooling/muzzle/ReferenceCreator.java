@@ -166,12 +166,12 @@ public class ReferenceCreator extends ClassVisitor {
   }
 
   private void addReference(final Reference ref) {
-    if (!ref.getClassName().startsWith("java.")) {
-      Reference reference = references.get(ref.getClassName());
+    if (!ref.className.startsWith("java.")) {
+      Reference reference = references.get(ref.className);
       if (null == reference) {
-        references.put(ref.getClassName(), ref);
+        references.put(ref.className, ref);
       } else {
-        references.put(ref.getClassName(), reference.merge(ref));
+        references.put(ref.className, reference.merge(ref));
       }
     }
   }

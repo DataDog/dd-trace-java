@@ -183,32 +183,32 @@ public class MuzzleVersionScanPlugin {
   }
 
   private static String prettyPrint(final String prefix, final Reference ref) {
-    final StringBuilder builder = new StringBuilder(prefix).append(ref.getClassName());
-    if (ref.getSuperName() != null) {
-      builder.append(" extends<").append(ref.getSuperName()).append(">");
+    final StringBuilder builder = new StringBuilder(prefix).append(ref.className);
+    if (ref.superName != null) {
+      builder.append(" extends<").append(ref.superName).append(">");
     }
-    if (!ref.getInterfaces().isEmpty()) {
+    if (!ref.interfaces.isEmpty()) {
       builder.append(" implements ");
-      for (final String iface : ref.getInterfaces()) {
+      for (final String iface : ref.interfaces) {
         builder.append(" <").append(iface).append(">");
       }
     }
-    for (final Reference.Source source : ref.getSources()) {
+    for (final Reference.Source source : ref.sources) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Source: ").append(source.toString());
     }
-    for (final Reference.Field field : ref.getFields()) {
+    for (final Reference.Field field : ref.fields) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Field: ");
-      for (final Reference.Flag flag : field.getFlags()) {
+      for (final Reference.Flag flag : field.flags) {
         builder.append(flag).append(" ");
       }
       builder.append(field.toString());
     }
-    for (final Reference.Method method : ref.getMethods()) {
+    for (final Reference.Method method : ref.methods) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Method: ");
-      for (final Reference.Flag flag : method.getFlags()) {
+      for (final Reference.Flag flag : method.flags) {
         builder.append(flag).append(" ");
       }
       builder.append(method.toString());

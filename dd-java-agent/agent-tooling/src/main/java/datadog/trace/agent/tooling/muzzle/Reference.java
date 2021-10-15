@@ -14,13 +14,13 @@ import net.bytebuddy.jar.asm.Type;
 
 /** An immutable reference to a jvm class. */
 public class Reference {
-  private final Set<Source> sources;
-  private final Set<Flag> flags;
-  private final String className;
-  private final String superName;
-  private final Set<String> interfaces;
-  private final Set<Field> fields;
-  private final Set<Method> methods;
+  public final Set<Source> sources;
+  public final Set<Flag> flags;
+  public final String className;
+  public final String superName;
+  public final Set<String> interfaces;
+  public final Set<Field> fields;
+  public final Set<Method> methods;
 
   private Reference(
       final Set<Source> sources,
@@ -39,34 +39,6 @@ public class Reference {
     this.fields = fields;
   }
 
-  public String getClassName() {
-    return className;
-  }
-
-  public String getSuperName() {
-    return superName;
-  }
-
-  public Set<String> getInterfaces() {
-    return interfaces;
-  }
-
-  public Set<Source> getSources() {
-    return sources;
-  }
-
-  public Set<Flag> getFlags() {
-    return flags;
-  }
-
-  public Set<Method> getMethods() {
-    return methods;
-  }
-
-  public Set<Field> getFields() {
-    return fields;
-  }
-
   /**
    * Create a new reference which combines this reference with another reference of the same type.
    *
@@ -74,7 +46,7 @@ public class Reference {
    * @return a new Reference which merges the two references
    */
   public Reference merge(final Reference anotherReference) {
-    if (!anotherReference.getClassName().equals(className)) {
+    if (!anotherReference.className.equals(className)) {
       throw new IllegalStateException("illegal merge " + this + " != " + anotherReference);
     }
     final String superName = null == this.superName ? anotherReference.superName : this.superName;
@@ -88,14 +60,15 @@ public class Reference {
         mergeFields(fields, anotherReference.fields),
         mergeMethods(methods, anotherReference.methods));
   }
+
   @Override
   public String toString() {
     return "Reference<" + className + ">";
   }
 
   public static class Source {
-    private final String name;
-    private final int line;
+    public final String name;
+    public final int line;
 
     public Source(final String name, final int line) {
       this.name = name;
@@ -104,15 +77,7 @@ public class Reference {
 
     @Override
     public String toString() {
-      return getName() + ":" + getLine();
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public int getLine() {
-      return line;
+      return name + ":" + line;
     }
 
     @Override
@@ -259,10 +224,10 @@ public class Reference {
   }
 
   public static class Field {
-    private final Set<Source> sources;
-    private final Set<Flag> flags;
-    private final String name;
-    private final String type;
+    public final Set<Source> sources;
+    public final Set<Flag> flags;
+    public final String name;
+    public final String fieldType;
 
     public Field(
         final Source[] sources, final Flag[] flags, final String name, final Type fieldType) {
@@ -274,39 +239,23 @@ public class Reference {
       this.sources = new LinkedHashSet<>(Arrays.asList(sources));
       this.flags = new LinkedHashSet<>(Arrays.asList(flags));
       this.name = name;
-      type = fieldType;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public Set<Source> getSources() {
-      return sources;
-    }
-
-    public Set<Flag> getFlags() {
-      return flags;
-    }
-
-    public String getFieldType() {
-      return type;
+      this.fieldType = fieldType;
     }
 
     public Field merge(final Field anotherField) {
-      if (!equals(anotherField) || !type.equals(anotherField.type)) {
+      if (!equals(anotherField) || !fieldType.equals(anotherField.fieldType)) {
         throw new IllegalStateException("illegal merge " + this + " != " + anotherField);
       }
       return new Field(
           Reference.merge(sources, anotherField.sources).toArray(new Source[0]),
           mergeFlags(flags, anotherField.flags).toArray(new Flag[0]),
           name,
-          type);
+          fieldType);
     }
 
     @Override
     public String toString() {
-      return "FieldRef:" + name + type;
+      return "FieldRef:" + name + fieldType;
     }
 
     @Override
@@ -325,11 +274,11 @@ public class Reference {
   }
 
   public static class Method {
-    private final Set<Source> sources;
-    private final Set<Flag> flags;
-    private final String name;
-    private final String returnType;
-    private final List<String> parameterTypes;
+    public final Set<Source> sources;
+    public final Set<Flag> flags;
+    public final String name;
+    public final String returnType;
+    public final List<String> parameterTypes;
 
     public Method(final String name, final String descriptor) {
       this(
@@ -374,26 +323,6 @@ public class Reference {
       this.name = name;
       this.returnType = returnType;
       this.parameterTypes = parameterTypes;
-    }
-
-    public Set<Source> getSources() {
-      return sources;
-    }
-
-    public Set<Flag> getFlags() {
-      return flags;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public String getReturnType() {
-      return returnType;
-    }
-
-    public List<String> getParameterTypes() {
-      return parameterTypes;
     }
 
     public Method merge(final Method anotherMethod) {
@@ -670,7 +599,6 @@ public class Reference {
           new LinkedHashSet<>(methods));
     }
   }
-
 
   private static <T> Set<T> merge(final Set<T> set1, final Set<T> set2) {
     final Set<T> set = new LinkedHashSet<>((set1.size() + set2.size()) * 4 / 3);
