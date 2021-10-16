@@ -279,7 +279,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           }
           for (Reference.Field field : references[i].fields) {
             { // sources
-              mv.visitLdcInsn(field.sources.size());
+              mv.visitLdcInsn(field.sources.length);
               mv.visitTypeInsn(
                   Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference$Source");
 
@@ -306,7 +306,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
             }
 
             { // flags
-              mv.visitLdcInsn(field.flags.size());
+              mv.visitLdcInsn(field.flags.length);
               mv.visitTypeInsn(
                   Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference$Flag");
 
@@ -341,7 +341,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
                 false);
           }
           for (Reference.Method method : references[i].methods) {
-            mv.visitLdcInsn(method.sources.size());
+            mv.visitLdcInsn(method.sources.length);
             mv.visitTypeInsn(
                 Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference$Source");
             int j = 0;
@@ -364,7 +364,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
               ++j;
             }
 
-            mv.visitLdcInsn(method.flags.size());
+            mv.visitLdcInsn(method.flags.length);
             mv.visitTypeInsn(
                 Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference$Flag");
             j = 0;

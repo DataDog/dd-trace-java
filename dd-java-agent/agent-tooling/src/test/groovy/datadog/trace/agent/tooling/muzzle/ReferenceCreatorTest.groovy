@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.muzzle
 
+import datadog.trace.agent.tooling.muzzle.Reference.Flag
+import datadog.trace.agent.tooling.muzzle.Reference.Source
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 
@@ -38,7 +40,7 @@ class ReferenceCreatorTest extends DDSpecification {
     findMethod(bMethods, "aStaticMethod", "()V").flags.contains(Reference.Flag.STATIC)
 
     // field refs
-    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').fields.isEmpty()
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').fields.length == 0
     Set<Reference.Field> aFieldRefs = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A').fields
     findField(aFieldRefs, "b").flags.contains(Reference.Flag.PACKAGE_OR_HIGHER)
     findField(aFieldRefs, "b").flags.contains(Reference.Flag.NON_STATIC)
@@ -104,7 +106,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   private static Reference.Method findMethod(Set<Reference.Method> methods, String methodName, String methodDesc) {
     for (Reference.Method method : methods) {
-      if (method == new Reference.Method([] as Set, [] as Set, methodName, methodDesc)) {
+      if (method == new Reference.Method(new Source[0], new Flag[0], methodName, methodDesc)) {
         return method
       }
     }

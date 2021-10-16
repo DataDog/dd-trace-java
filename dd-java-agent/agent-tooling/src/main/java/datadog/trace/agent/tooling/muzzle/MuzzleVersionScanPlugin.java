@@ -187,7 +187,7 @@ public class MuzzleVersionScanPlugin {
     if (ref.superName != null) {
       builder.append(" extends<").append(ref.superName).append(">");
     }
-    if (!ref.interfaces.isEmpty()) {
+    if (ref.interfaces.length > 0) {
       builder.append(" implements ");
       for (final String iface : ref.interfaces) {
         builder.append(" <").append(iface).append(">");

@@ -1,10 +1,12 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static java.util.Arrays.asList;
+
 import datadog.trace.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,22 +16,22 @@ import net.bytebuddy.jar.asm.Type;
 
 /** An immutable reference to a jvm class. */
 public class Reference {
-  public final Set<Source> sources;
-  public final Set<Flag> flags;
+  public final Source[] sources;
+  public final Flag[] flags;
   public final String className;
   public final String superName;
-  public final Set<String> interfaces;
-  public final Set<Field> fields;
-  public final Set<Method> methods;
+  public final String[] interfaces;
+  public final Field[] fields;
+  public final Method[] methods;
 
-  private Reference(
-      final Set<Source> sources,
-      final Set<Flag> flags,
+  public Reference(
+      final Source[] sources,
+      final Flag[] flags,
       final String className,
       final String superName,
-      final Set<String> interfaces,
-      final Set<Field> fields,
-      final Set<Method> methods) {
+      final String[] interfaces,
+      final Field[] fields,
+      final Method[] methods) {
     this.sources = sources;
     this.flags = flags;
     this.className = className;
@@ -50,11 +52,11 @@ public class Reference {
       throw new IllegalStateException("illegal merge " + this + " != " + anotherReference);
     }
     return new Reference(
-        merge(sources, anotherReference.sources),
+        Reference.merge(sources, anotherReference.sources),
         mergeFlags(flags, anotherReference.flags),
         className,
         null != this.superName ? this.superName : anotherReference.superName,
-        merge(interfaces, anotherReference.interfaces),
+        Reference.merge(interfaces, anotherReference.interfaces),
         mergeFields(fields, anotherReference.fields),
         mergeMethods(methods, anotherReference.methods));
   }
@@ -89,7 +91,7 @@ public class Reference {
 
     @Override
     public int hashCode() {
-      return name.hashCode() + line;
+      return toString().hashCode();
     }
   }
 
@@ -222,15 +224,15 @@ public class Reference {
   }
 
   public static class Field {
-    public final Set<Source> sources;
-    public final Set<Flag> flags;
+    public final Source[] sources;
+    public final Flag[] flags;
     public final String name;
     public final String fieldType;
 
     public Field(
         final Source[] sources, final Flag[] flags, final String name, final String fieldType) {
-      this.sources = new LinkedHashSet<>(Arrays.asList(sources));
-      this.flags = new LinkedHashSet<>(Arrays.asList(flags));
+      this.sources = sources;
+      this.flags = flags;
       this.name = name;
       this.fieldType = fieldType;
     }
@@ -240,8 +242,8 @@ public class Reference {
         throw new IllegalStateException("illegal merge " + this + " != " + anotherField);
       }
       return new Field(
-          Reference.merge(sources, anotherField.sources).toArray(new Source[0]),
-          mergeFlags(flags, anotherField.flags).toArray(new Flag[0]),
+          Reference.merge(sources, anotherField.sources),
+          mergeFlags(flags, anotherField.flags),
           name,
           fieldType);
     }
@@ -267,25 +269,13 @@ public class Reference {
   }
 
   public static class Method {
-    public final Set<Source> sources;
-    public final Set<Flag> flags;
+    public final Source[] sources;
+    public final Flag[] flags;
     public final String name;
     public final String methodType;
 
     public Method(
         final Source[] sources, final Flag[] flags, final String name, final String methodType) {
-      this(
-          new LinkedHashSet<>(Arrays.asList(sources)),
-          new LinkedHashSet<>(Arrays.asList(flags)),
-          name,
-          methodType);
-    }
-
-    public Method(
-        final Set<Source> sources,
-        final Set<Flag> flags,
-        final String name,
-        final String methodType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -296,16 +286,11 @@ public class Reference {
       if (!equals(anotherMethod)) {
         throw new IllegalStateException("illegal merge " + this + " != " + anotherMethod);
       }
-
-      final Set<Source> mergedSources = new LinkedHashSet<>();
-      mergedSources.addAll(sources);
-      mergedSources.addAll(anotherMethod.sources);
-
-      final Set<Flag> mergedFlags = new LinkedHashSet<>();
-      mergedFlags.addAll(flags);
-      mergedFlags.addAll(anotherMethod.flags);
-
-      return new Method(mergedSources, mergedFlags, name, methodType);
+      return new Method(
+          Reference.merge(sources, anotherMethod.sources),
+          Reference.merge(flags, anotherMethod.flags),
+          name,
+          methodType);
     }
 
     @Override
@@ -561,38 +546,31 @@ public class Reference {
 
     public Reference build() {
       return new Reference(
-          sources,
-          flags,
+          sources.toArray(new Source[sources.size()]),
+          flags.toArray(new Flag[flags.size()]),
           Strings.getClassName(className),
           null != superName ? Strings.getClassName(superName) : null,
-          interfaces,
-          new LinkedHashSet<>(fields),
-          new LinkedHashSet<>(methods));
+          interfaces.toArray(new String[interfaces.size()]),
+          fields.toArray(new Field[fields.size()]),
+          methods.toArray(new Method[methods.size()]));
     }
   }
 
-  private static <T> Set<T> merge(final Set<T> set1, final Set<T> set2) {
-    final Set<T> set = new LinkedHashSet<>((set1.size() + set2.size()) * 4 / 3);
-    set.addAll(set1);
-    set.addAll(set2);
-    return set;
+  private static <E> E[] merge(final E[] array1, final E[] array2) {
+    final Set<E> set = new LinkedHashSet<>((array1.length + array2.length) * 4 / 3);
+    set.addAll(asList(array1));
+    set.addAll(asList(array2));
+    return set.toArray((E[]) Array.newInstance(array1.getClass().getComponentType(), set.size()));
   }
 
-  private static Set<Method> mergeMethods(final Set<Method> methods1, final Set<Method> methods2) {
-    final List<Method> merged = new ArrayList<>(methods1);
-    for (final Method method : methods2) {
-      final int i = merged.indexOf(method);
-      if (i == -1) {
-        merged.add(method);
-      } else {
-        merged.set(i, merged.get(i).merge(method));
-      }
-    }
-    return new LinkedHashSet<>(merged);
+  private static Flag[] mergeFlags(final Flag[] flags1, final Flag[] flags2) {
+    // TODO: Assert flags are non-contradictory and resolve
+    // public > protected > package-private > private
+    return merge(flags1, flags2);
   }
 
-  private static Set<Field> mergeFields(final Set<Field> fields1, final Set<Field> fields2) {
-    final List<Field> merged = new ArrayList<>(fields1);
+  private static Field[] mergeFields(final Field[] fields1, final Field[] fields2) {
+    final List<Field> merged = new ArrayList<>(asList(fields1));
     for (final Field field : fields2) {
       final int i = merged.indexOf(field);
       if (i == -1) {
@@ -601,14 +579,20 @@ public class Reference {
         merged.set(i, merged.get(i).merge(field));
       }
     }
-    return new LinkedHashSet<>(merged);
+    return merged.toArray(new Field[merged.size()]);
   }
 
-  private static Set<Flag> mergeFlags(final Set<Flag> flags1, final Set<Flag> flags2) {
-    final Set<Flag> merged = merge(flags1, flags2);
-    // TODO: Assert flags are non-contradictory and resolve
-    // public > protected > package-private > private
-    return merged;
+  private static Method[] mergeMethods(final Method[] methods1, final Method[] methods2) {
+    final List<Method> merged = new ArrayList<>(asList(methods1));
+    for (final Method method : methods2) {
+      final int i = merged.indexOf(method);
+      if (i == -1) {
+        merged.add(method);
+      } else {
+        merged.set(i, merged.get(i).merge(method));
+      }
+    }
+    return merged.toArray(new Method[merged.size()]);
   }
 
   private static String getDescriptor(Type type) {
