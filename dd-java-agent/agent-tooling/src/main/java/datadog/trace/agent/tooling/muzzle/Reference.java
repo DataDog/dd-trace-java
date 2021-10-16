@@ -16,7 +16,7 @@ import net.bytebuddy.jar.asm.Type;
 
 /** An immutable reference to a jvm class. */
 public class Reference {
-  public final Source[] sources;
+  public final String[] sources;
   public final Flag[] flags;
   public final String className;
   public final String superName;
@@ -25,7 +25,7 @@ public class Reference {
   public final Method[] methods;
 
   public Reference(
-      final Source[] sources,
+      final String[] sources,
       final Flag[] flags,
       final String className,
       final String superName,
@@ -64,35 +64,6 @@ public class Reference {
   @Override
   public String toString() {
     return "Reference<" + className + ">";
-  }
-
-  public static class Source {
-    public final String name;
-    public final int line;
-
-    public Source(final String name, final int line) {
-      this.name = name;
-      this.line = line;
-    }
-
-    @Override
-    public String toString() {
-      return name + ":" + line;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (o instanceof Source) {
-        final Source other = (Source) o;
-        return name.equals(other.name) && line == other.line;
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return toString().hashCode();
-    }
   }
 
   /** Expected flag (or lack of flag) on a class, method, or field reference. */
@@ -224,13 +195,13 @@ public class Reference {
   }
 
   public static class Field {
-    public final Source[] sources;
+    public final String[] sources;
     public final Flag[] flags;
     public final String name;
     public final String fieldType;
 
     public Field(
-        final Source[] sources, final Flag[] flags, final String name, final String fieldType) {
+        final String[] sources, final Flag[] flags, final String name, final String fieldType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -269,13 +240,13 @@ public class Reference {
   }
 
   public static class Method {
-    public final Source[] sources;
+    public final String[] sources;
     public final Flag[] flags;
     public final String name;
     public final String methodType;
 
     public Method(
-        final Source[] sources, final Flag[] flags, final String name, final String methodType) {
+        final String[] sources, final Flag[] flags, final String name, final String methodType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -321,16 +292,16 @@ public class Reference {
    */
   public abstract static class Mismatch {
     /** Instrumentation sources which caused the mismatch. */
-    private final Source[] mismatchSources;
+    private final String[] mismatchSources;
 
-    Mismatch(final Source[] mismatchSources) {
+    Mismatch(final String[] mismatchSources) {
       this.mismatchSources = mismatchSources;
     }
 
     @Override
     public String toString() {
       if (mismatchSources.length > 0) {
-        return mismatchSources[0].toString() + " " + getMismatchDetails();
+        return mismatchSources[0] + " " + getMismatchDetails();
       } else {
         return "<no-source> " + getMismatchDetails();
       }
@@ -342,7 +313,7 @@ public class Reference {
     public static class MissingClass extends Mismatch {
       private final String className;
 
-      public MissingClass(final Source[] sources, final String className) {
+      public MissingClass(final String[] sources, final String className) {
         super(sources);
         this.className = className;
       }
@@ -359,7 +330,7 @@ public class Reference {
       private final int foundAccess;
 
       public MissingFlag(
-          final Source[] sources,
+          final String[] sources,
           final String classMethodOrFieldDesc,
           final Flag expectedFlag,
           final int foundAccess) {
@@ -381,7 +352,7 @@ public class Reference {
       private final String fieldDesc;
 
       public MissingField(
-          final Source[] sources,
+          final String[] sources,
           final String className,
           final String fieldName,
           final String fieldDesc) {
@@ -401,7 +372,7 @@ public class Reference {
       private final String className;
       private final String method;
 
-      public MissingMethod(final Source[] sources, final String className, final String method) {
+      public MissingMethod(final String[] sources, final String className, final String method) {
         super(sources);
         this.className = className;
         this.method = method;
@@ -423,7 +394,7 @@ public class Reference {
           final Exception referenceCheckException,
           final Reference referenceBeingChecked,
           final ClassLoader classLoaderBeingChecked) {
-        super(new Source[0]);
+        super(new String[0]);
         this.referenceCheckException = referenceCheckException;
         this.referenceBeingChecked = referenceBeingChecked;
         this.classLoaderBeingChecked = classLoaderBeingChecked;
@@ -446,7 +417,7 @@ public class Reference {
   }
 
   public static class Builder {
-    private final Set<Source> sources = new LinkedHashSet<>();
+    private final Set<String> sources = new LinkedHashSet<>();
     private final Set<Flag> flags = EnumSet.noneOf(Flag.class);
     private final String className;
     private String superName = null;
@@ -469,7 +440,7 @@ public class Reference {
     }
 
     public Builder withSource(final String sourceName, final int line) {
-      sources.add(new Source(sourceName, line));
+      sources.add(sourceName + ":" + line);
       return this;
     }
 
@@ -479,7 +450,7 @@ public class Reference {
     }
 
     public Builder withField(
-        final Source[] sources,
+        final String[] sources,
         final Flag[] fieldFlags,
         final String fieldName,
         final Type fieldType) {
@@ -487,7 +458,7 @@ public class Reference {
     }
 
     public Builder withField(
-        final Source[] sources,
+        final String[] sources,
         final Flag[] fieldFlags,
         final String fieldName,
         final String fieldType) {
@@ -502,7 +473,7 @@ public class Reference {
     }
 
     public Builder withMethod(
-        final Source[] sources,
+        final String[] sources,
         final Flag[] methodFlags,
         final String methodName,
         final Type returnType,
@@ -516,7 +487,7 @@ public class Reference {
     }
 
     public Builder withMethod(
-        final Source[] sources,
+        final String[] sources,
         final Flag[] methodFlags,
         final String methodName,
         final String returnType,
@@ -546,7 +517,7 @@ public class Reference {
 
     public Reference build() {
       return new Reference(
-          sources.toArray(new Source[sources.size()]),
+          sources.toArray(new String[sources.size()]),
           flags.toArray(new Flag[flags.size()]),
           Strings.getClassName(className),
           null != superName ? Strings.getClassName(superName) : null,

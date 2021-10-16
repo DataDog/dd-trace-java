@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.agent.tooling.muzzle.Reference.Flag
-import datadog.trace.agent.tooling.muzzle.Reference.Source
 import datadog.trace.agent.tooling.muzzle.TestAdviceClasses.MethodBodyAdvice
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.jar.asm.Type
@@ -117,7 +116,7 @@ class ReferenceMatcherTest extends DDSpecification {
     setup:
     Type methodType = Type.getMethodType(methodDesc)
     Reference reference = new Reference.Builder(classToCheck.getName())
-      .withMethod(new Source[0], methodFlags as Flag[], methodName, methodType.getReturnType(), methodType.getArgumentTypes())
+      .withMethod(new String[0], methodFlags as Flag[], methodName, methodType.getReturnType(), methodType.getArgumentTypes())
       .build()
     List<Reference.Mismatch> mismatches = new ArrayList<>()
 
@@ -144,7 +143,7 @@ class ReferenceMatcherTest extends DDSpecification {
   def "field match #fieldTestDesc"() {
     setup:
     Reference reference = new Reference.Builder(classToCheck.getName())
-      .withField(new Source[0], fieldFlags as Flag[], fieldName, Type.getType(fieldType))
+      .withField(new String[0], fieldFlags as Flag[], fieldName, Type.getType(fieldType))
       .build()
     List<Reference.Mismatch> mismatches = new ArrayList<>()
 

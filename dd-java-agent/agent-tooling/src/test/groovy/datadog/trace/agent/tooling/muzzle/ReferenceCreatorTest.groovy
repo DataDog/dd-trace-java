@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.agent.tooling.muzzle.Reference.Flag
-import datadog.trace.agent.tooling.muzzle.Reference.Source
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 
@@ -106,7 +105,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   private static Reference.Method findMethod(Set<Reference.Method> methods, String methodName, String methodDesc) {
     for (Reference.Method method : methods) {
-      if (method == new Reference.Method(new Source[0], new Flag[0], methodName, methodDesc)) {
+      if (method == new Reference.Method(new String[0], new Flag[0], methodName, methodDesc)) {
         return method
       }
     }

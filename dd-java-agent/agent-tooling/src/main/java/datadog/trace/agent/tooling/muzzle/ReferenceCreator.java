@@ -276,9 +276,7 @@ public class ReferenceCreator extends ClassVisitor {
               .withSource(refSourceClassName, currentLineNumber)
               .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
               .withField(
-                  new Reference.Source[] {
-                    new Reference.Source(refSourceClassName, currentLineNumber)
-                  },
+                  new String[] {refSourceClassName + ":" + currentLineNumber},
                   fieldFlags.toArray(new Reference.Flag[0]),
                   name,
                   fieldType)
@@ -363,9 +361,7 @@ public class ReferenceCreator extends ClassVisitor {
               .withFlag(isInterface ? Reference.Flag.INTERFACE : Reference.Flag.NON_INTERFACE)
               .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
               .withMethod(
-                  new Reference.Source[] {
-                    new Reference.Source(refSourceClassName, currentLineNumber)
-                  },
+                  new String[] {refSourceClassName + ":" + currentLineNumber},
                   methodFlags.toArray(new Reference.Flag[0]),
                   name,
                   methodType.getReturnType(),

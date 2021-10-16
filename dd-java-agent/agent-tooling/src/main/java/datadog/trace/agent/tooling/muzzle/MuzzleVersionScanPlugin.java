@@ -193,9 +193,9 @@ public class MuzzleVersionScanPlugin {
         builder.append(" <").append(iface).append(">");
       }
     }
-    for (final Reference.Source source : ref.sources) {
+    for (final String source : ref.sources) {
       builder.append("\n").append(prefix).append(prefix);
-      builder.append("Source: ").append(source.toString());
+      builder.append("Source: ").append(source);
     }
     for (final Reference.Field field : ref.fields) {
       builder.append("\n").append(prefix).append(prefix);
@@ -203,7 +203,7 @@ public class MuzzleVersionScanPlugin {
       for (final Reference.Flag flag : field.flags) {
         builder.append(flag).append(" ");
       }
-      builder.append(field.toString());
+      builder.append(field);
     }
     for (final Reference.Method method : ref.methods) {
       builder.append("\n").append(prefix).append(prefix);
@@ -211,7 +211,7 @@ public class MuzzleVersionScanPlugin {
       for (final Reference.Flag flag : method.flags) {
         builder.append(flag).append(" ");
       }
-      builder.append(method.toString());
+      builder.append(method);
     }
     return builder.toString();
   }

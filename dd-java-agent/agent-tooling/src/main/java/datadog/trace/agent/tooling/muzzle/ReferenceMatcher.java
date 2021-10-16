@@ -114,8 +114,7 @@ public final class ReferenceMatcher {
     try {
       final TypePool.Resolution resolution = typePool.describe(reference.className);
       if (!resolution.isResolved()) {
-        mismatches.add(
-            new Mismatch.MissingClass(reference.sources, reference.className));
+        mismatches.add(new Mismatch.MissingClass(reference.sources, reference.className));
         return false;
       }
       return checkMatch(reference, resolution.resolve(), mismatches);
@@ -124,8 +123,7 @@ public final class ReferenceMatcher {
         // bytebuddy throws an illegal state exception with this message if it cannot resolve types
         // TODO: handle missing type resolutions without catching bytebuddy's exceptions
         final String className = e.getMessage().replace("Cannot resolve type description for ", "");
-        mismatches.add(
-            new Mismatch.MissingClass(reference.sources, className));
+        mismatches.add(new Mismatch.MissingClass(reference.sources, className));
         return false;
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
@@ -145,10 +143,7 @@ public final class ReferenceMatcher {
         final String desc = reference.className;
         mismatches.add(
             new Mismatch.MissingFlag(
-                reference.sources,
-                desc,
-                flag,
-                typeOnClasspath.getModifiers()));
+                reference.sources, desc, flag, typeOnClasspath.getModifiers()));
       }
     }
 
@@ -188,9 +183,7 @@ public final class ReferenceMatcher {
     for (Reference.Method missingMethod : indexedMethods.values()) {
       mismatches.add(
           new Reference.Mismatch.MissingMethod(
-              missingMethod.sources,
-              missingMethod.name,
-              missingMethod.methodType));
+              missingMethod.sources, missingMethod.name, missingMethod.methodType));
     }
 
     return mismatches.isEmpty();
@@ -246,8 +239,7 @@ public final class ReferenceMatcher {
             if (!flag.matches(fieldType.getModifiers())) {
               final String desc = reference.className + "#" + found.name + found.fieldType;
               flagMismatches.add(
-                  new Mismatch.MissingFlag(
-                      found.sources, desc, flag, fieldType.getModifiers()));
+                  new Mismatch.MissingFlag(found.sources, desc, flag, fieldType.getModifiers()));
               break;
             }
           }
@@ -298,10 +290,7 @@ public final class ReferenceMatcher {
               final String desc = reference.className + "#" + found.name + found.methodType;
               flagMismatches.add(
                   new Mismatch.MissingFlag(
-                      found.sources,
-                      desc,
-                      flag,
-                      methodDescription.getModifiers()));
+                      found.sources, desc, flag, methodDescription.getModifiers()));
               break;
             }
           }
