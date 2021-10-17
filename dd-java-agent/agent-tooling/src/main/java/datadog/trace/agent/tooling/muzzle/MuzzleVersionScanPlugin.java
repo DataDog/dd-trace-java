@@ -183,7 +183,9 @@ public class MuzzleVersionScanPlugin {
   }
 
   private static String prettyPrint(final String prefix, final Reference ref) {
-    final StringBuilder builder = new StringBuilder(prefix).append(ref.className);
+    final StringBuilder builder = new StringBuilder(prefix);
+    builder.append(Reference.prettyPrint(ref.flags));
+    builder.append(ref.className);
     if (ref.superName != null) {
       builder.append(" extends<").append(ref.superName).append(">");
     }
@@ -200,17 +202,13 @@ public class MuzzleVersionScanPlugin {
     for (final Reference.Field field : ref.fields) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Field: ");
-      for (final Reference.Flag flag : field.flags) {
-        builder.append(flag).append(" ");
-      }
+      builder.append(Reference.prettyPrint(field.flags));
       builder.append(field);
     }
     for (final Reference.Method method : ref.methods) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Method: ");
-      for (final Reference.Flag flag : method.flags) {
-        builder.append(flag).append(" ");
-      }
+      builder.append(Reference.prettyPrint(method.flags));
       builder.append(method);
     }
     return builder.toString();

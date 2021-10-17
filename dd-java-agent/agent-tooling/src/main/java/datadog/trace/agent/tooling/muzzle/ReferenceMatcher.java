@@ -138,13 +138,11 @@ public final class ReferenceMatcher {
       final TypeDescription typeOnClasspath,
       final List<Mismatch> mismatches) {
 
-    for (final Reference.Flag flag : reference.flags) {
-      if (!flag.matches(typeOnClasspath.getModifiers())) {
-        final String desc = reference.className;
-        mismatches.add(
-            new Mismatch.MissingFlag(
-                reference.sources, desc, flag, typeOnClasspath.getModifiers()));
-      }
+    if (!Reference.matches(reference.flags, typeOnClasspath.getModifiers())) {
+      final String desc = reference.className;
+      mismatches.add(
+          new Mismatch.MissingFlag(
+              reference.sources, desc, reference.flags, typeOnClasspath.getModifiers()));
     }
 
     // we match the fields and methods we are looking for by name, type or descriptor, and flags.
@@ -235,13 +233,12 @@ public final class ReferenceMatcher {
         Pair<String, String> key = Pair.of(fieldType.getInternalName(), descriptor);
         Reference.Field found = fieldsToFind.remove(key);
         if (null != found) {
-          for (final Reference.Flag flag : found.flags) {
-            if (!flag.matches(fieldType.getModifiers())) {
-              final String desc = reference.className + "#" + found.name + found.fieldType;
-              flagMismatches.add(
-                  new Mismatch.MissingFlag(found.sources, desc, flag, fieldType.getModifiers()));
-              break;
-            }
+          if (!Reference.matches(found.flags, fieldType.getModifiers())) {
+            final String desc = reference.className + "#" + found.name + found.fieldType;
+            flagMismatches.add(
+                new Mismatch.MissingFlag(
+                    found.sources, desc, found.flags, fieldType.getModifiers()));
+            break;
           }
         }
         if (fieldsToFind.isEmpty()) {
@@ -285,14 +282,12 @@ public final class ReferenceMatcher {
         Reference.Method found = methodsToFind.remove(key);
         if (null != found) {
           // will stop looking for this one now, but check it has the right flags
-          for (final Reference.Flag flag : found.flags) {
-            if (!flag.matches(methodDescription.getModifiers())) {
-              final String desc = reference.className + "#" + found.name + found.methodType;
-              flagMismatches.add(
-                  new Mismatch.MissingFlag(
-                      found.sources, desc, flag, methodDescription.getModifiers()));
-              break;
-            }
+          if (!Reference.matches(found.flags, methodDescription.getModifiers())) {
+            final String desc = reference.className + "#" + found.name + found.methodType;
+            flagMismatches.add(
+                new Mismatch.MissingFlag(
+                    found.sources, desc, found.flags, methodDescription.getModifiers()));
+            break;
           }
         }
         if (methodsToFind.isEmpty()) {

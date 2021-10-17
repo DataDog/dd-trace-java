@@ -1,12 +1,17 @@
 package datadog.trace.agent.tooling.muzzle
 
-import datadog.trace.agent.tooling.muzzle.Reference.Flag
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 
 import static TestAdviceClasses.InstanceofAdvice
 import static TestAdviceClasses.LdcAdvice
 import static TestAdviceClasses.MethodBodyAdvice
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_INTERFACE
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_INTERFACE
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC_OR_PROTECTED
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_PRIVATE
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_STATIC
 
 class ReferenceCreatorTest extends DDSpecification {
   def "method body creates references"() {
@@ -21,12 +26,12 @@ class ReferenceCreatorTest extends DDSpecification {
     references.keySet().size() == 4
 
     // interface flags
-    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').flags.contains(Reference.Flag.NON_INTERFACE)
-    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeInterface').flags.contains(Reference.Flag.INTERFACE)
+    (references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').flags & EXPECTS_NON_INTERFACE) != 0
+    (references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeInterface').flags & EXPECTS_INTERFACE) != 0
 
     // class access flags
-    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A').flags.contains(Reference.Flag.PACKAGE_OR_HIGHER)
-    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').flags.contains(Reference.Flag.PACKAGE_OR_HIGHER)
+    (references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A').flags & EXPECTS_NON_PRIVATE) != 0
+    (references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').flags & EXPECTS_NON_PRIVATE) != 0
 
     // method refs
     Set<Reference.Method> bMethods = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').methods
@@ -35,16 +40,16 @@ class ReferenceCreatorTest extends DDSpecification {
     findMethod(bMethods, "aStaticMethod", "()V") != null
     findMethod(bMethods, "aMethodWithArrays", "([Ljava/lang/String;)[Ljava/lang/Object;") != null
 
-    findMethod(bMethods, "aMethod", "(Ljava/lang/String;)Ljava/lang/String;").flags.contains(Reference.Flag.NON_STATIC)
-    findMethod(bMethods, "aStaticMethod", "()V").flags.contains(Reference.Flag.STATIC)
+    (findMethod(bMethods, "aMethod", "(Ljava/lang/String;)Ljava/lang/String;").flags & EXPECTS_NON_STATIC) != 0
+    (findMethod(bMethods, "aStaticMethod", "()V").flags & EXPECTS_STATIC) != 0
 
     // field refs
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').fields.length == 0
     Set<Reference.Field> aFieldRefs = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A').fields
-    findField(aFieldRefs, "b").flags.contains(Reference.Flag.PACKAGE_OR_HIGHER)
-    findField(aFieldRefs, "b").flags.contains(Reference.Flag.NON_STATIC)
-    findField(aFieldRefs, "staticB").flags.contains(Reference.Flag.PACKAGE_OR_HIGHER)
-    findField(aFieldRefs, "staticB").flags.contains(Reference.Flag.STATIC)
+    (findField(aFieldRefs, "b").flags & EXPECTS_NON_PRIVATE) != 0
+    (findField(aFieldRefs, "b").flags & EXPECTS_NON_STATIC) != 0
+    (findField(aFieldRefs, "staticB").flags & EXPECTS_NON_PRIVATE) != 0
+    (findField(aFieldRefs, "staticB").flags & EXPECTS_STATIC) != 0
     aFieldRefs.size() == 2
   }
 
@@ -55,7 +60,7 @@ class ReferenceCreatorTest extends DDSpecification {
     expect:
     Set<Reference.Method> bMethods = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').methods
     findMethod(bMethods, "protectedMethod", "()V") != null
-    findMethod(bMethods, "protectedMethod", "()V").flags.contains(Reference.Flag.PROTECTED_OR_HIGHER)
+    (findMethod(bMethods, "protectedMethod", "()V").flags & EXPECTS_PUBLIC_OR_PROTECTED) != 0
   }
 
   def "ldc creates references"() {
@@ -105,7 +110,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   private static Reference.Method findMethod(Set<Reference.Method> methods, String methodName, String methodDesc) {
     for (Reference.Method method : methods) {
-      if (method == new Reference.Method(new String[0], new Flag[0], methodName, methodDesc)) {
+      if (method == new Reference.Method(new String[0], 0, methodName, methodDesc)) {
         return method
       }
     }

@@ -6,8 +6,8 @@ import datadog.trace.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Array;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,7 +17,7 @@ import net.bytebuddy.jar.asm.Type;
 /** An immutable reference to a jvm class. */
 public class Reference {
   public final String[] sources;
-  public final Flag[] flags;
+  public final int flags;
   public final String className;
   public final String superName;
   public final String[] interfaces;
@@ -26,7 +26,7 @@ public class Reference {
 
   public Reference(
       final String[] sources,
-      final Flag[] flags,
+      final int flags,
       final String className,
       final String superName,
       final String[] interfaces,
@@ -66,82 +66,42 @@ public class Reference {
     return "Reference<" + className + ">";
   }
 
-  /** Expected flag (or lack of flag) on a class, method, or field reference. */
-  public enum Flag {
-    PUBLIC {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_PUBLIC & asmFlags) != 0;
-      }
-    },
-    PACKAGE_OR_HIGHER {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_PUBLIC & asmFlags) != 0
-            || ((Opcodes.ACC_PRIVATE & asmFlags) == 0 && (Opcodes.ACC_PROTECTED & asmFlags) == 0);
-      }
-    },
-    PROTECTED_OR_HIGHER {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return PUBLIC.matches(asmFlags) || (Opcodes.ACC_PROTECTED & asmFlags) != 0;
-      }
-    },
-    PRIVATE_OR_HIGHER {
-      @Override
-      public boolean matches(final int asmFlags) {
-        // you can't out-private a private
-        return true;
-      }
-    },
-    NON_FINAL {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_FINAL & asmFlags) == 0;
-      }
-    },
-    FINAL {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_FINAL & asmFlags) != 0;
-      }
-    },
-    STATIC {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_STATIC & asmFlags) != 0;
-      }
-    },
-    NON_STATIC {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_STATIC & asmFlags) == 0;
-      }
-    },
-    INTERFACE {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_INTERFACE & asmFlags) != 0;
-      }
-    },
-    NON_INTERFACE {
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_INTERFACE & asmFlags) == 0;
-      }
-    };
+  public static final int EXPECTS_PUBLIC = 1;
+  public static final int EXPECTS_PUBLIC_OR_PROTECTED = 2;
+  public static final int EXPECTS_NON_PRIVATE = 4;
+  public static final int EXPECTS_STATIC = 8;
+  public static final int EXPECTS_NON_STATIC = 16;
+  public static final int EXPECTS_INTERFACE = 32;
+  public static final int EXPECTS_NON_INTERFACE = 64;
 
-    public abstract boolean matches(int asmFlags);
+  public static boolean matches(int flags, int modifiers) {
+    if ((flags & EXPECTS_PUBLIC) != 0 && (modifiers & Opcodes.ACC_PUBLIC) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_PUBLIC_OR_PROTECTED) != 0
+        && (modifiers & (Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED)) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_PRIVATE) != 0 && (modifiers & Opcodes.ACC_PRIVATE) != 0) {
+      return false;
+    } else if ((flags & EXPECTS_STATIC) != 0 && (modifiers & Opcodes.ACC_STATIC) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_STATIC) != 0 && (modifiers & Opcodes.ACC_STATIC) != 0) {
+      return false;
+    } else if ((flags & EXPECTS_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) != 0) {
+      return false;
+    }
+    return true;
   }
 
   public static class Field {
     public final String[] sources;
-    public final Flag[] flags;
+    public final int flags;
     public final String name;
     public final String fieldType;
 
     public Field(
-        final String[] sources, final Flag[] flags, final String name, final String fieldType) {
+        final String[] sources, final int flags, final String name, final String fieldType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -149,7 +109,8 @@ public class Reference {
     }
 
     public Field merge(final Field anotherField) {
-      if (!equals(anotherField) || !fieldType.equals(anotherField.fieldType)) {
+      // consider both name and type when merging...
+      if (!name.equals(anotherField.name) || !fieldType.equals(anotherField.fieldType)) {
         throw new IllegalStateException("illegal merge " + this + " != " + anotherField);
       }
       return new Field(
@@ -161,7 +122,7 @@ public class Reference {
 
     @Override
     public String toString() {
-      return "FieldRef:" + name + fieldType;
+      return name + fieldType;
     }
 
     @Override
@@ -181,12 +142,12 @@ public class Reference {
 
   public static class Method {
     public final String[] sources;
-    public final Flag[] flags;
+    public final int flags;
     public final String name;
     public final String methodType;
 
     public Method(
-        final String[] sources, final Flag[] flags, final String name, final String methodType) {
+        final String[] sources, final int flags, final String name, final String methodType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -199,7 +160,7 @@ public class Reference {
       }
       return new Method(
           Reference.merge(sources, anotherMethod.sources),
-          Reference.merge(flags, anotherMethod.flags),
+          mergeFlags(flags, anotherMethod.flags),
           name,
           methodType);
     }
@@ -265,14 +226,14 @@ public class Reference {
     }
 
     public static class MissingFlag extends Mismatch {
-      private final Flag expectedFlag;
+      private final int expectedFlag;
       private final String classMethodOrFieldDesc;
       private final int foundAccess;
 
       public MissingFlag(
           final String[] sources,
           final String classMethodOrFieldDesc,
-          final Flag expectedFlag,
+          final int expectedFlag,
           final int foundAccess) {
         super(sources);
         this.classMethodOrFieldDesc = classMethodOrFieldDesc;
@@ -282,7 +243,11 @@ public class Reference {
 
       @Override
       String getMismatchDetails() {
-        return classMethodOrFieldDesc + " requires flag " + expectedFlag + " found " + foundAccess;
+        return classMethodOrFieldDesc
+            + " expected "
+            + prettyPrint(expectedFlag)
+            + " found "
+            + Modifier.toString(foundAccess);
       }
     }
 
@@ -358,7 +323,7 @@ public class Reference {
 
   public static class Builder {
     private final Set<String> sources = new LinkedHashSet<>();
-    private final Set<Flag> flags = EnumSet.noneOf(Flag.class);
+    private int flags = 0;
     private final String className;
     private String superName = null;
     private final Set<String> interfaces = new LinkedHashSet<>();
@@ -384,14 +349,14 @@ public class Reference {
       return this;
     }
 
-    public Builder withFlag(final Flag flag) {
-      flags.add(flag);
+    public Builder withFlag(final int flag) {
+      flags |= flag;
       return this;
     }
 
     public Builder withField(
         final String[] sources,
-        final Flag[] fieldFlags,
+        final int fieldFlags,
         final String fieldName,
         final Type fieldType) {
       return withField(sources, fieldFlags, fieldName, getDescriptor(fieldType));
@@ -399,7 +364,7 @@ public class Reference {
 
     public Builder withField(
         final String[] sources,
-        final Flag[] fieldFlags,
+        final int fieldFlags,
         final String fieldName,
         final String fieldType) {
       final Field field = new Field(sources, fieldFlags, fieldName, fieldType);
@@ -414,7 +379,7 @@ public class Reference {
 
     public Builder withMethod(
         final String[] sources,
-        final Flag[] methodFlags,
+        final int methodFlags,
         final String methodName,
         final Type returnType,
         final Type... parameterTypes) {
@@ -428,7 +393,7 @@ public class Reference {
 
     public Builder withMethod(
         final String[] sources,
-        final Flag[] methodFlags,
+        final int methodFlags,
         final String methodName,
         final String returnType,
         final String... parameterTypes) {
@@ -450,7 +415,7 @@ public class Reference {
     public Reference build() {
       return new Reference(
           sources.toArray(new String[sources.size()]),
-          flags.toArray(new Flag[flags.size()]),
+          flags,
           Strings.getClassName(className),
           null != superName ? Strings.getClassName(superName) : null,
           interfaces.toArray(new String[interfaces.size()]),
@@ -466,10 +431,10 @@ public class Reference {
     return set.toArray((E[]) Array.newInstance(array1.getClass().getComponentType(), set.size()));
   }
 
-  private static Flag[] mergeFlags(final Flag[] flags1, final Flag[] flags2) {
+  private static int mergeFlags(final int flags1, final int flags2) {
     // TODO: Assert flags are non-contradictory and resolve
     // public > protected > package-private > private
-    return merge(flags1, flags2);
+    return flags1 | flags2;
   }
 
   private static Field[] mergeFields(final Field[] fields1, final Field[] fields2) {
@@ -508,5 +473,31 @@ public class Reference {
       descriptors[i] = types[i].getDescriptor();
     }
     return descriptors;
+  }
+
+  static String prettyPrint(int flags) {
+    StringBuilder buf = new StringBuilder();
+    if ((flags & EXPECTS_PUBLIC) != 0) {
+      buf.append("public ");
+    }
+    if ((flags & EXPECTS_PUBLIC_OR_PROTECTED) != 0) {
+      buf.append("public_or_protected ");
+    }
+    if ((flags & EXPECTS_NON_PRIVATE) != 0) {
+      buf.append("non_private ");
+    }
+    if ((flags & EXPECTS_STATIC) != 0) {
+      buf.append("static ");
+    }
+    if ((flags & EXPECTS_NON_STATIC) != 0) {
+      buf.append("non_static ");
+    }
+    if ((flags & EXPECTS_INTERFACE) != 0) {
+      buf.append("interface ");
+    }
+    if ((flags & EXPECTS_NON_INTERFACE) != 0) {
+      buf.append("non_interface ");
+    }
+    return buf.toString();
   }
 }

@@ -224,7 +224,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           mv.visitInsn(Opcodes.DUP);
 
           writeStrings(mv, reference.sources);
-          writeFlags(mv, reference.flags);
+          mv.visitLdcInsn(reference.flags);
           mv.visitLdcInsn(reference.className);
           if (null != reference.superName) {
             mv.visitLdcInsn(reference.superName);
@@ -239,9 +239,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
               Opcodes.INVOKESPECIAL,
               "datadog/trace/agent/tooling/muzzle/Reference",
               "<init>",
-              "([Ljava/lang/String;"
-                  + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Flag;"
-                  + "Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;"
+              "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;[Ljava/lang/String;"
                   + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Field;"
                   + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Method;)V",
               false);
@@ -285,22 +283,6 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
       }
     }
 
-    private void writeFlags(MethodVisitor mv, Reference.Flag[] flags) {
-      mv.visitLdcInsn(flags.length);
-      mv.visitTypeInsn(Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference$Flag");
-      int i = 0;
-      for (Reference.Flag flag : flags) {
-        mv.visitInsn(Opcodes.DUP);
-        mv.visitLdcInsn(i++);
-        mv.visitFieldInsn(
-            Opcodes.GETSTATIC,
-            "datadog/trace/agent/tooling/muzzle/Reference$Flag",
-            flag.name(),
-            "Ldatadog/trace/agent/tooling/muzzle/Reference$Flag;");
-        mv.visitInsn(Opcodes.AASTORE);
-      }
-    }
-
     private void writeFields(MethodVisitor mv, Reference.Field[] fields) {
       mv.visitLdcInsn(fields.length);
       mv.visitTypeInsn(Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference$Field");
@@ -311,16 +293,14 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
         mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/Reference$Field");
         mv.visitInsn(Opcodes.DUP);
         writeStrings(mv, field.sources);
-        writeFlags(mv, field.flags);
+        mv.visitLdcInsn(field.flags);
         mv.visitLdcInsn(field.name);
         mv.visitLdcInsn(field.fieldType);
         mv.visitMethodInsn(
             Opcodes.INVOKESPECIAL,
             "datadog/trace/agent/tooling/muzzle/Reference$Field",
             "<init>",
-            "([Ljava/lang/String;"
-                + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Flag;"
-                + "Ljava/lang/String;Ljava/lang/String;)V",
+            "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V",
             false);
         mv.visitInsn(Opcodes.AASTORE);
       }
@@ -336,16 +316,14 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
         mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/Reference$Method");
         mv.visitInsn(Opcodes.DUP);
         writeStrings(mv, method.sources);
-        writeFlags(mv, method.flags);
+        mv.visitLdcInsn(method.flags);
         mv.visitLdcInsn(method.name);
         mv.visitLdcInsn(method.methodType);
         mv.visitMethodInsn(
             Opcodes.INVOKESPECIAL,
             "datadog/trace/agent/tooling/muzzle/Reference$Method",
             "<init>",
-            "([Ljava/lang/String;"
-                + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Flag;"
-                + "Ljava/lang/String;Ljava/lang/String;)V",
+            "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V",
             false);
         mv.visitInsn(Opcodes.AASTORE);
       }
