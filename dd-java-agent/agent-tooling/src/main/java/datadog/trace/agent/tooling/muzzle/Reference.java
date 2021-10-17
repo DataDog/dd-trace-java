@@ -70,28 +70,11 @@ public class Reference {
   public enum Flag {
     PUBLIC {
       @Override
-      public boolean supersedes(final Flag anotherFlag) {
-        switch (anotherFlag) {
-          case PRIVATE_OR_HIGHER:
-          case PROTECTED_OR_HIGHER:
-          case PACKAGE_OR_HIGHER:
-            return true;
-          default:
-            return false;
-        }
-      }
-
-      @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_PUBLIC & asmFlags) != 0;
       }
     },
     PACKAGE_OR_HIGHER {
-      @Override
-      public boolean supersedes(final Flag anotherFlag) {
-        return anotherFlag == PRIVATE_OR_HIGHER;
-      }
-
       @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_PUBLIC & asmFlags) != 0
@@ -99,11 +82,6 @@ public class Reference {
       }
     },
     PROTECTED_OR_HIGHER {
-      @Override
-      public boolean supersedes(final Flag anotherFlag) {
-        return anotherFlag == PRIVATE_OR_HIGHER;
-      }
-
       @Override
       public boolean matches(final int asmFlags) {
         return PUBLIC.matches(asmFlags) || (Opcodes.ACC_PROTECTED & asmFlags) != 0;
@@ -118,21 +96,11 @@ public class Reference {
     },
     NON_FINAL {
       @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == FINAL;
-      }
-
-      @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_FINAL & asmFlags) == 0;
       }
     },
     FINAL {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == NON_FINAL;
-      }
-
       @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_FINAL & asmFlags) != 0;
@@ -140,21 +108,11 @@ public class Reference {
     },
     STATIC {
       @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == NON_STATIC;
-      }
-
-      @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_STATIC & asmFlags) != 0;
       }
     },
     NON_STATIC {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == STATIC;
-      }
-
       @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_STATIC & asmFlags) == 0;
@@ -162,34 +120,16 @@ public class Reference {
     },
     INTERFACE {
       @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == NON_INTERFACE;
-      }
-
-      @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_INTERFACE & asmFlags) != 0;
       }
     },
     NON_INTERFACE {
       @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == INTERFACE;
-      }
-
-      @Override
       public boolean matches(final int asmFlags) {
         return (Opcodes.ACC_INTERFACE & asmFlags) == 0;
       }
     };
-
-    public boolean contradicts(final Flag anotherFlag) {
-      return false;
-    }
-
-    public boolean supersedes(final Flag anotherFlag) {
-      return false;
-    }
 
     public abstract boolean matches(int asmFlags);
   }
@@ -491,21 +431,13 @@ public class Reference {
         final Flag[] methodFlags,
         final String methodName,
         final String returnType,
-        final String[] parameterTypes) {
+        final String... parameterTypes) {
       StringBuilder methodType = new StringBuilder().append('(');
       for (String parameterType : parameterTypes) {
         methodType.append(parameterType);
       }
       methodType.append(')').append(returnType);
-      return withMethod(sources, methodFlags, methodName, methodType.toString());
-    }
-
-    public Builder withMethod(
-        final Source[] sources,
-        final Flag[] methodFlags,
-        final String methodName,
-        final String methodType) {
-      final Method method = new Method(sources, methodFlags, methodName, methodType);
+      final Method method = new Method(sources, methodFlags, methodName, methodType.toString());
       final int existingIndex = methods.indexOf(method);
       if (existingIndex == -1) {
         methods.add(method);
