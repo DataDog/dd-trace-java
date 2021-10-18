@@ -3,7 +3,6 @@ package datadog.trace.core
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
-import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -345,10 +344,7 @@ class DDSpanTest extends DDCoreSpecification {
   def "span start and finish emit checkpoints"() {
     setup:
     Checkpointer checkpointer = Mock()
-    SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create()
-    samplingCheckpointer.register(checkpointer)
- 
-    tracer.registerSpanCheckpointer(samplingCheckpointer)
+    tracer.registerCheckpointer(checkpointer)
     DDSpanContext context =
       new DDSpanContext(
       DDId.from(1),
