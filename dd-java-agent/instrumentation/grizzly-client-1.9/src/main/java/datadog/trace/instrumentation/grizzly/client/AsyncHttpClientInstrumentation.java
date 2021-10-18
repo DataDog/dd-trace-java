@@ -83,9 +83,6 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing {
       InstrumentationContext.get(AsyncHandler.class, Pair.class)
           .put(handler, Pair.of(parentSpan, span));
       span.startThreadMigration();
-      if (null != parentSpan) {
-        parentSpan.startThreadMigration();
-      }
     }
   }
 }
