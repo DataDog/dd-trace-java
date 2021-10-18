@@ -244,6 +244,10 @@ public class ReferenceCreator extends ClassVisitor {
     @Override
     public void visitFieldInsn(
         final int opcode, final String owner, final String name, final String descriptor) {
+      if (ignoreReference(owner)) {
+        return;
+      }
+
       // Additional references we could check
       // * DONE owner class
       //   * DONE owner class has a field (name)
@@ -301,8 +305,8 @@ public class ReferenceCreator extends ClassVisitor {
         final String name,
         final String descriptor,
         final boolean isInterface) {
-      if (owner.startsWith("org/slf4j/")) {
-        return; // ignore instrumentation's use of SLF4J API (which will be relocated)
+      if (ignoreReference(owner)) {
+        return;
       }
 
       // Additional references we could check
@@ -370,6 +374,10 @@ public class ReferenceCreator extends ClassVisitor {
 
     @Override
     public void visitTypeInsn(final int opcode, final String type) {
+      if (ignoreReference(type)) {
+        return;
+      }
+
       addReference(
           new Reference.Builder(type)
               .withSource(refSourceClassName, currentLineNumber)
@@ -427,5 +435,18 @@ public class ReferenceCreator extends ClassVisitor {
       }
       super.visitLdcInsn(value);
     }
+  }
+
+  /**
+   * {@code true} if we know this internal class is always available and doesn't require checking.
+   *
+   * <p>Optimization to avoid storing and checking muzzle references that will never fail.
+   */
+  private static boolean ignoreReference(String name) {
+    return name.equals("datadog/trace/bootstrap/CallDepthThreadLocalMap")
+        || name.equals("datadog/trace/bootstrap/ContextStore")
+        || name.equals("datadog/trace/bootstrap/InstrumentationContext")
+        || name.startsWith("datadog/trace/bootstrap/instrumentation/api/") // AgentSpan/Scope etc.
+        || name.startsWith("org/slf4j/"); // will be relocated to datadog/slf4j/
   }
 }
