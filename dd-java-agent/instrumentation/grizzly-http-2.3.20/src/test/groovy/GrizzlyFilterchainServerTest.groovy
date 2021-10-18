@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.filterchain.BaseFilter
 import org.glassfish.grizzly.filterchain.FilterChain
@@ -237,12 +235,6 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
         }
       }
     }
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
   }
 }
 
