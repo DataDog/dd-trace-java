@@ -7,6 +7,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.TraceSegment;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.gateway.RequestContext;
@@ -33,7 +34,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> {
+public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>, TraceSegment {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -519,5 +520,38 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
   @Override
   public Object getData() {
     return requestContextData;
+  }
+
+  @Override
+  public TraceSegment getTraceSegment() {
+    return this;
+  }
+
+  /** TraceSegment Implementation */
+  @Override
+  public void setTagTop(String key, Object value) {
+    getTopContext().setTagCurrent(key, value);
+  }
+
+  @Override
+  public void setTagCurrent(String key, Object value) {
+    this.setTag(key, value);
+  }
+
+  @Override
+  public void setDataTop(String key, Object value) {
+    getTopContext().setDataCurrent(key, value);
+  }
+
+  @Override
+  public void setDataCurrent(String key, Object value) {
+    // TODO is this decided?
+    String tagKey = "_dd." + key + ".json";
+    this.setTag(tagKey, value);
+  }
+
+  private DDSpanContext getTopContext() {
+    DDSpan span = trace.getRootSpan();
+    return null != span ? span.context() : this;
   }
 }

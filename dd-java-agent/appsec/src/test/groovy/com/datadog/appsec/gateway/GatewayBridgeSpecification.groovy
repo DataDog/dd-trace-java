@@ -10,6 +10,7 @@ import com.datadog.appsec.report.ReportService
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiConsumer
+import datadog.trace.api.TraceSegment
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
@@ -35,6 +36,11 @@ class GatewayBridgeSpecification extends DDSpecification {
     @Override
     AppSecRequestContext getData() {
       return arCtx
+    }
+
+    @Override
+    TraceSegment getTraceSegment() {
+      return TraceSegment.NoOp.INSTANCE
     }
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
