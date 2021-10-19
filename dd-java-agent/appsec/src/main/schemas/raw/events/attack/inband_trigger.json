@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "rule": {
+      "$ref": "_definitions/rule/rule_0.1.0.json"
+    },
+    "rule_match": {
+      "$ref": "_definitions/rule_match/rule_match_0.1.0.json"
+    }
+  }
+}

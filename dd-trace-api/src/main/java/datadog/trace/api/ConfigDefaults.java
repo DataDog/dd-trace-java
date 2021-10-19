@@ -74,6 +74,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413 = false;
 
   static final boolean DEFAULT_APPSEC_ENABLED = false;
+  static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
 
   static final boolean DEFAULT_AWS_PROPAGATION_ENABLED = true;
   static final boolean DEFAULT_SQS_PROPAGATION_ENABLED = true;

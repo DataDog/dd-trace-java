@@ -3,6 +3,7 @@ package com.datadog.appsec.gateway
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.KnownAddresses
+import com.datadog.appsec.report.InbandReportService
 import com.datadog.appsec.report.ReportService
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.SubscriptionService
@@ -12,8 +13,9 @@ class GatewayBridgeIGRegistrationSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
   ReportService reportService = Mock()
+  InbandReportService inbandReportService = Mock()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService, inbandReportService)
 
   void 'request_body_start and request_body_done are registered'() {
     given:

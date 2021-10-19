@@ -14,7 +14,7 @@ import static org.hamcrest.MatcherAssert.assertThat
 
 class ReportServiceImplTests extends DDSpecification {
 
-  ReportServiceImpl testee
+  ReportService testee
   AppSecApi api = Mock()
   ReportServiceImpl.TaskScheduler scheduler = Mock()
 
@@ -34,6 +34,12 @@ class ReportServiceImplTests extends DDSpecification {
     boolean shouldFlush(@Nonnull Attack010 attack) {
       true
     }
+  }
+
+  void 'NoOp implementation does nothing'() {
+    setup:
+    testee = ReportService.NoOp.INSTANCE
+    testee.reportAttack(null)
   }
 
 
