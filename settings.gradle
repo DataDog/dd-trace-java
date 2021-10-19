@@ -260,6 +260,9 @@ include ':dd-java-agent:benchmark-integration'
 include ':dd-java-agent:benchmark-integration:jetty-perftest'
 include ':dd-java-agent:benchmark-integration:play-perftest'
 
+// CWS Tls
+include ':dd-cws-tls'
+
 def setBuildFile(project) {
   project.buildFileName = "${project.name}.gradle"
   project.children.each {
