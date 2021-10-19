@@ -536,11 +536,11 @@ public class Agent {
             log.debug("Registering CWS scope tracker");
             try {
               ScopeListener scopeListener =
-                (ScopeListener)
-                    AGENT_CLASSLOADER
-                        .loadClass("datadog.cws.tls.TlsScopeListener")
-                        .getDeclaredConstructor()
-                        .newInstance();
+                  (ScopeListener)
+                      AGENT_CLASSLOADER
+                          .loadClass("datadog.cws.tls.TlsScopeListener")
+                          .getDeclaredConstructor()
+                          .newInstance();
               tracer.addScopeListener(scopeListener);
               log.debug("Scope event factory {} has been registered", scopeListener);
             } catch (Throwable e) {
@@ -596,7 +596,7 @@ public class Agent {
                                 .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                                 .getDeclaredConstructor()
                                 .newInstance();
-                                ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
                     log.debug("Checkpointer {} has been registered", checkpointer);
                   }
                 } catch (Throwable e) {
@@ -765,16 +765,16 @@ public class Agent {
     return "true".equalsIgnoreCase(appSecEnabled);
   }
 
-    /** @return {@code true} if cws is enabled */
-    private static boolean isCwsEnabled() {
-      final String cwsEnabledSysprop = "dd.cws.enabled";
-      String cwsEnabled = System.getProperty(cwsEnabledSysprop);
-      if (cwsEnabled == null) {
-        cwsEnabled = ddGetEnv(cwsEnabledSysprop);
-      }
-      // assume false unless it's explicitly set to "true"
-      return "true".equalsIgnoreCase(cwsEnabled);
+  /** @return {@code true} if cws is enabled */
+  private static boolean isCwsEnabled() {
+    final String cwsEnabledSysprop = "dd.cws.enabled";
+    String cwsEnabled = System.getProperty(cwsEnabledSysprop);
+    if (cwsEnabled == null) {
+      cwsEnabled = ddGetEnv(cwsEnabledSysprop);
     }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(cwsEnabled);
+  }
 
   /** @return configured JMX start delay in seconds */
   private static int getJmxStartDelay() {
