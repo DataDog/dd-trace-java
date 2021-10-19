@@ -18,13 +18,7 @@ excludedClassesCoverage += [
 ]
 
 def AP_VERSION = project.findProperty("dd.async_profiler")
-AP_VERSION = AP_VERSION != null ? AP_VERSION : "1.8.3"
-
-repositories {
-  maven {
-    url = uri("https://gitlab.ddbuild.io/api/v4/projects/2193/packages/maven")
-  }
-}
+AP_VERSION = AP_VERSION != null ? AP_VERSION : "2.5-DD"
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
@@ -42,35 +36,6 @@ dependencies {
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-
-// TODO: There might be more os/arch supports coming
-// Monitor https://github.com/jvm-profiling-tools/async-profiler/releases for newly supported archs
-['macos-x64', 'linux-x86', 'linux-musl-x64', 'linux-arm', 'linux-aarch64'].each {
-  def platform = it
-
-  tasks.create(type: Download, name: "downloadAsyncProfiler_${platform}") {
-    src "https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-${platform}.tar.gz"
-    dest "${buildDir}/external/"
-    overwrite false
-    doLast {
-      copy {
-        from tarTree(resources.gzip("${buildDir}/external/async-profiler-2.0-${platform}.tar.gz"))
-        into "${buildDir}/external/"
-      }
-    }
-    doFirst {
-      mkdir "${buildDir}/external/"
-    }
-  }
-  def rsrcTask = tasks.create(type: Copy, name: "asyncProfilerResources_${platform}") {
-    dependsOn "downloadAsyncProfiler_${platform}"
-    from "${buildDir}/external/async-profiler-2.0-${platform}/build/"
-    into "${buildDir}/resources/main/native-libs/${platform}/"
-    include '**/*.so'
-  }
-
-  processResources.dependsOn "asyncProfilerResources_${platform}"
-}
 
 shadowJar {
   classifier ""
