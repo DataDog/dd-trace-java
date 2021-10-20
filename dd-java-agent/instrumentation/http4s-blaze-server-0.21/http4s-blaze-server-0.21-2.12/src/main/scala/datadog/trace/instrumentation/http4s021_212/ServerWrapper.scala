@@ -1,15 +1,14 @@
-package datadog.trace.instrumentation.http4s
+package datadog.trace.instrumentation.http4s021_212
 
 import cats.data.Kleisli
 import cats.effect.Sync
 import cats.implicits._
 import datadog.trace.bootstrap.instrumentation.api.{AgentScope, AgentSpan}
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
-import org.http4s.Request
-import org.http4s.Response
 import org.http4s.Status.InternalServerError
+import org.http4s.{Request, Response}
 
-import scala.language.higherKinds
+import scala.languageFeature.higherKinds
 
 object ServerWrapper {
 

@@ -1,8 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.instrumentation.http4s.Http4sHttpServerDecorator
 
-class BlazeServerTest extends HttpServerTest<BlazeHttpTestWebServer> {
+abstract class BlazeHttpServerTestBase extends HttpServerTest<BlazeHttpTestWebServer> {
 
   @Override
   HttpServer server() {
@@ -18,12 +17,12 @@ class BlazeServerTest extends HttpServerTest<BlazeHttpTestWebServer> {
 
   @Override
   String component() {
-    return Http4sHttpServerDecorator.decorator().component()
+    return "http4s-http-server"
   }
 
   @Override
   String expectedOperationName() {
-    return Http4sHttpServerDecorator.decorator().spanName()
+    return "http4s-http.request"
   }
 
   @Override

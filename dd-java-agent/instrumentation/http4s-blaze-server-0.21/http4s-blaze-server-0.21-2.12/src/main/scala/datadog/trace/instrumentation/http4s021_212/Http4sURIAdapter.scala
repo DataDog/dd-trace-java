@@ -1,7 +1,7 @@
-package datadog.trace.instrumentation.http4s
+package datadog.trace.instrumentation.http4s021_212
 
 import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter
-import org.http4s.{Request, Uri}
+import org.http4s.Request
 
 final class Http4sURIAdapter[F[_]](private val request: Request[F]) extends URIRawDataAdapter {
 

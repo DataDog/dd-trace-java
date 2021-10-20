@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.http4s
+package datadog.trace.instrumentation.http4s021_212
 
 import datadog.trace.bootstrap.instrumentation.api.{
   AgentPropagation,
@@ -6,8 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.{
   UTF8BytesString
 }
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator
-import org.http4s.Request
-import org.http4s.Response
+import org.http4s.{Request, Response}
 
 object Http4sHttpServerDecorator {
   val HTTP4S_HTTP_REQUEST: UTF8BytesString =
