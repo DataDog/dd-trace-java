@@ -97,9 +97,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   final MetricsAggregator metricsAggregator;
 
   /** A set of tags that are added only to the application's root span */
-  private final Map<String, String> localRootSpanTags;
+  private final Map<String, ? extends Object> localRootSpanTags;
   /** A set of tags that are added to every span */
-  private final Map<String, String> defaultSpanTags;
+  private final Map<String, ? extends Object> defaultSpanTags;
   /** A configured mapping of service names to update with new values */
   private final Map<String, String> serviceNameMappings;
 
@@ -198,8 +198,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
     private AgentScopeManager scopeManager;
-    private Map<String, String> localRootSpanTags;
-    private Map<String, String> defaultSpanTags;
+    private Map<String, ? extends Object> localRootSpanTags;
+    private Map<String, ? extends Object> defaultSpanTags;
     private Map<String, String> serviceNameMappings;
     private Map<String, String> taggedHeaders;
     private int partialFlushMinSpans;
@@ -249,12 +249,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    public CoreTracerBuilder localRootSpanTags(Map<String, String> localRootSpanTags) {
+    public CoreTracerBuilder localRootSpanTags(Map<String, ? extends Object> localRootSpanTags) {
       this.localRootSpanTags = tryMakeImmutableMap(localRootSpanTags);
       return this;
     }
 
-    public CoreTracerBuilder defaultSpanTags(Map<String, String> defaultSpanTags) {
+    public CoreTracerBuilder defaultSpanTags(Map<String, ? extends Object> defaultSpanTags) {
       this.defaultSpanTags = tryMakeImmutableMap(defaultSpanTags);
       return this;
     }
@@ -361,8 +361,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
       final AgentScopeManager scopeManager,
-      final Map<String, String> localRootSpanTags,
-      final Map<String, String> defaultSpanTags,
+      final Map<String, ? extends Object> localRootSpanTags,
+      final Map<String, ? extends Object> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans,
@@ -952,7 +952,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final int samplingPriority;
       final String origin;
       final Map<String, String> coreTags;
-      final Map<String, String> rootSpanTags;
+      final Map<String, ? extends Object> rootSpanTags;
 
       final DDSpanContext context;
       final Object requestContextData;
