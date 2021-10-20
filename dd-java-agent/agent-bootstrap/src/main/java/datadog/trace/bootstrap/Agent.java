@@ -106,7 +106,6 @@ public class Agent {
       appSecEnabled = isAppSecEnabled();
       cwsEnabled = isCwsEnabled();
 
-
       if (profilingEnabled) {
         if (!isOracleJDK8()) {
           // Profiling agent startup code is written in a way to allow `startProfilingAgent` be
