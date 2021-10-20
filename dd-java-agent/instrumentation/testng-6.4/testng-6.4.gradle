@@ -9,6 +9,10 @@ muzzle {
 }
 
 dependencies {
+  implementation(project(':dd-java-agent:agent-civisibility')) {
+    exclude module: ':dd-java-agent:agent-tooling'
+  }
+
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
   testImplementation(group: 'org.testng', name: 'testng') {

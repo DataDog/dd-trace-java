@@ -57,6 +57,9 @@ include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
 include ':dd-java-agent:appsec:weblog:weblog-spring-app'
 
+// CI Visibility (CI App)
+include ':dd-java-agent:agent-civisibility'
+
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
@@ -271,4 +274,6 @@ def setBuildFile(project) {
 }
 
 setBuildFile(rootProject)
+include 'dd-java-agent:agent-civisibility'
+findProject(':dd-java-agent:agent-civisibility')?.name = 'agent-civisibility'
 

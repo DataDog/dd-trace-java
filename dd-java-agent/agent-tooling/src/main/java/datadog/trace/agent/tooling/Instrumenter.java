@@ -404,18 +404,6 @@ public interface Instrumenter {
     }
   }
 
-  /** Parent class for all ciVisibility related instrumentations */
-  abstract class CiVisibility extends Default {
-    public CiVisibility(String instrumentationName, String... additionalNames) {
-      super(instrumentationName, additionalNames);
-    }
-
-    @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.CIVISIBILITY);
-    }
-  }
-
   interface AdviceTransformation {
     void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
   }

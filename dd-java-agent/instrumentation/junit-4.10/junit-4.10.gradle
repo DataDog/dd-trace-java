@@ -10,6 +10,10 @@ muzzle {
 }
 
 dependencies {
+  implementation(project(':dd-java-agent:agent-civisibility')) {
+    exclude module: ':dd-java-agent:agent-tooling'
+  }
+
   compileOnly group: 'junit', name: 'junit', version: '4.10'
 
   testImplementation(group: 'junit', name: 'junit') {

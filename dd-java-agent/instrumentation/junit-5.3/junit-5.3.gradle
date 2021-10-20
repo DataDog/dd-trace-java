@@ -22,6 +22,10 @@ muzzle {
 }
 
 dependencies {
+  implementation(project(':dd-java-agent:agent-civisibility')) {
+    exclude module: ':dd-java-agent:agent-tooling'
+  }
+
   main_java8CompileOnly group: 'org.junit.platform', name: 'junit-platform-launcher', version: "$platformVersion"
   main_java8CompileOnly group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: "$jupiterVersion"
 

@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
+import com.datadog.civisibility.CiVisibilityInstrumentation;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.ServiceLoader;
@@ -17,7 +18,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.junit.platform.launcher.Launcher;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
+public class JUnit5Instrumentation extends CiVisibilityInstrumentation {
 
   public JUnit5Instrumentation() {
     super("junit", "junit-5");

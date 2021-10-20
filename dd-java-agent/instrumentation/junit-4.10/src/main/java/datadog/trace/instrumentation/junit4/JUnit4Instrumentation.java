@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import com.datadog.civisibility.CiVisibilityInstrumentation;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.List;
@@ -16,7 +17,7 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(Instrumenter.class)
-public class JUnit4Instrumentation extends Instrumenter.CiVisibility {
+public class JUnit4Instrumentation extends CiVisibilityInstrumentation {
 
   public JUnit4Instrumentation() {
     super("junit", "junit-4");

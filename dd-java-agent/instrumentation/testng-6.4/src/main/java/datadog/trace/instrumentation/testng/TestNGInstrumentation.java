@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.testng;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
+import com.datadog.civisibility.CiVisibilityInstrumentation;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
@@ -13,7 +14,7 @@ import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.CiVisibility {
+public class TestNGInstrumentation extends CiVisibilityInstrumentation {
 
   public TestNGInstrumentation() {
     super("testng");
