@@ -9,8 +9,7 @@ public final class ContextVisitors {
       new EntrySetContextVisitor<>();
 
   @SuppressWarnings("unchecked")
-  public static <T extends Map<String, ? extends Object>>
-      AgentPropagation.ContextVisitor<T> objectValuesMap() {
+  public static <T extends Map<String, ?>> AgentPropagation.ContextVisitor<T> objectValuesMap() {
     return (AgentPropagation.ContextVisitor<T>) MAP_CONTEXT_VISITOR;
   }
 
@@ -21,7 +20,7 @@ public final class ContextVisitors {
   }
 
   @SuppressWarnings("unchecked")
-  public static <T extends Iterable<Map.Entry<String, ? extends Object>>>
+  public static <T extends Iterable<Map.Entry<String, ?>>>
       AgentPropagation.ContextVisitor<T> objectValuesEntrySet() {
     return (AgentPropagation.ContextVisitor<T>) ENTRY_SET_CONTEXT_VISITOR;
   }
@@ -32,12 +31,12 @@ public final class ContextVisitors {
     return (AgentPropagation.ContextVisitor<T>) ENTRY_SET_CONTEXT_VISITOR;
   }
 
-  private static final class MapContextVisitor<T extends Map<String, ? extends Object>>
+  private static final class MapContextVisitor<T extends Map<String, ?>>
       implements AgentPropagation.ContextVisitor<T> {
 
     @Override
     public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
-      for (Map.Entry<String, ? extends Object> entry : carrier.entrySet()) {
+      for (Map.Entry<String, ?> entry : carrier.entrySet()) {
         if (null != entry.getValue()
             && !classifier.accept(entry.getKey(), entry.getValue().toString())) {
           return;
@@ -46,13 +45,12 @@ public final class ContextVisitors {
     }
   }
 
-  private static final class EntrySetContextVisitor<
-          T extends Iterable<Map.Entry<String, ? extends Object>>>
+  private static final class EntrySetContextVisitor<T extends Iterable<Map.Entry<String, ?>>>
       implements AgentPropagation.ContextVisitor<T> {
 
     @Override
     public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
-      for (Map.Entry<String, ? extends Object> entry : carrier) {
+      for (Map.Entry<String, ?> entry : carrier) {
         if (null != entry.getValue()
             && !classifier.accept(entry.getKey(), entry.getValue().toString())) {
           return;
