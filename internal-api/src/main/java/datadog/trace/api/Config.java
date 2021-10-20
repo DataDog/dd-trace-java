@@ -1428,9 +1428,10 @@ public class Config {
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
-  public Map<String, String> getLocalRootSpanTags() {
+  public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, String> result = new HashMap<>(runtimeTags);
+    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
+    result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
 
     if (reportHostName) {
@@ -1438,6 +1439,11 @@ public class Config {
       if (null != hostName && !hostName.isEmpty()) {
         result.put(INTERNAL_HOST_NAME, hostName);
       }
+    }
+
+    if (appSecEnabled) {
+      result.put("_dd.appsec.enabled", 1);
+      result.put("_dd.runtime_family", "jvm");
     }
 
     return Collections.unmodifiableMap(result);

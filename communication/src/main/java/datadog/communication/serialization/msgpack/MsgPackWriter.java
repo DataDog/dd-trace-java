@@ -108,10 +108,9 @@ public class MsgPackWriter implements WritableFormatter {
   // not write directly to the buffer
 
   @Override
-  public void writeMap(
-      Map<? extends CharSequence, ? extends Object> map, EncodingCache encodingCache) {
+  public void writeMap(Map<? extends CharSequence, ?> map, EncodingCache encodingCache) {
     startMap(map.size());
-    for (Map.Entry<? extends CharSequence, ? extends Object> entry : map.entrySet()) {
+    for (Map.Entry<? extends CharSequence, ?> entry : map.entrySet()) {
       writeString(entry.getKey(), encodingCache);
       writeObject(entry.getValue(), encodingCache);
     }
