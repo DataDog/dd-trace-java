@@ -207,6 +207,8 @@ public final class ClassLoaderMatcher {
       PROBING_CLASSLOADER.begin();
       try {
         return cl.getResource(resource) != null;
+      } catch (final Throwable ignored) {
+        return false;
       } finally {
         PROBING_CLASSLOADER.end();
       }
