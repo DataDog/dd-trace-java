@@ -10,7 +10,7 @@ public abstract class CiVisibilityInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+  public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
     return enabledSystems.contains(TargetSystem.CIVISIBILITY);
   }
 }
