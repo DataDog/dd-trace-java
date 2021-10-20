@@ -1,9 +1,7 @@
-package datadog.trace.instrumentation.http4s
+package datadog.trace.instrumentation.http4s021_212
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
-import org.http4s.Header
 import org.http4s.Request
-import scala.collection.JavaConverters
 
 object Http4sServerHeaders {
   private val Getter = new Http4sServerHeaders()
