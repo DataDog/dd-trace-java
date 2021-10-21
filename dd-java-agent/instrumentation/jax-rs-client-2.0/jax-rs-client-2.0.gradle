@@ -33,6 +33,7 @@ dependencies {
   testImplementation group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0.1'
 
   testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-client', version: '2.0'
+  testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
   testImplementation group: 'org.jboss.resteasy', name: 'resteasy-client', version: '3.0.5.Final'
   // ^ This version has timeouts https://issues.redhat.com/browse/RESTEASY-975
   testImplementation group: 'org.apache.cxf', name: 'cxf-rt-rs-client', version: '3.1.0'
