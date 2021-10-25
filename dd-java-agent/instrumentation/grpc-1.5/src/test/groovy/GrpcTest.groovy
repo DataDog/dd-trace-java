@@ -465,16 +465,16 @@ class GrpcTest extends AgentTestRunner {
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      void ignoreInbound(
-        final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
-        final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
-        responseExecutor.execute {
-          responseObserver.onNext(reply)
-          responseObserver.onCompleted()
+        @Override
+        void ignoreInbound(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
+          responseExecutor.execute {
+            responseObserver.onNext(reply)
+            responseObserver.onCompleted()
+          }
         }
       }
-    }
     Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)

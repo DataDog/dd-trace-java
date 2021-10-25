@@ -19,14 +19,14 @@ import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
-import java.util.concurrent.CancellationException;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
-  
+
   private TracingServerInterceptor() {}
 
   @Override
