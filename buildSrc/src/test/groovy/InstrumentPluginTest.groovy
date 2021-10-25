@@ -31,6 +31,7 @@ class InstrumentPluginTest extends Specification {
   '''
 
   def testPlugin = '''
+    import java.io.File;
     import java.io.IOException;
     import net.bytebuddy.build.Plugin;
     import net.bytebuddy.description.type.TypeDescription;
@@ -38,6 +39,11 @@ class InstrumentPluginTest extends Specification {
     import net.bytebuddy.dynamic.DynamicType;
 
     public class TestPlugin implements Plugin {
+      private final File targetDir;
+
+      public TestPlugin(File targetDir) {
+        this.targetDir = targetDir;
+      }
 
       @Override
       public boolean matches(TypeDescription target) {
