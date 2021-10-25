@@ -480,7 +480,7 @@ class GrpcTest extends AgentTestRunner {
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
 
     when:
-        def response = client.ignoreInbound(Helloworld.Request.newBuilder().setName("whatever").build())
+    def response = client.ignoreInbound(Helloworld.Request.newBuilder().setName("whatever").build())
 
     then:
     response.message == "Hello whatever"
