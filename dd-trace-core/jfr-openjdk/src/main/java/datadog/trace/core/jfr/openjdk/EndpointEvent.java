@@ -1,5 +1,7 @@
 package datadog.trace.core.jfr.openjdk;
 
+import datadog.trace.core.DDSpan;
+import datadog.trace.core.EndpointTracker;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -12,10 +14,10 @@ import jdk.jfr.StackTrace;
 @Description("Datadog event corresponding to the endpoint of a trace root.")
 @Category("Datadog")
 @StackTrace(false)
-public class EndpointEvent extends Event {
+public class EndpointEvent extends Event implements EndpointTracker {
 
   @Label("Endpoint")
-  private final String endpoint;
+  private String endpoint = "unknown";
 
   @Label("Trace Id")
   private final long traceId;
@@ -28,21 +30,25 @@ public class EndpointEvent extends Event {
    * sampler(s)
    */
   @Label("Trace Sampled")
-  private final boolean traceSampled;
+  private boolean traceSampled = false;
 
   @Label("Checkpoints Sampled")
-  private final boolean checkpointsSampled;
+  private boolean checkpointsSampled = false;
 
-  public EndpointEvent(
-      final String endpoint,
-      final long traceId,
-      final long localRootSpanId,
-      final boolean traceSampled,
-      final boolean checkpointsSampled) {
-    this.endpoint = endpoint;
+  public EndpointEvent(final long traceId, final long localRootSpanId) {
     this.traceId = traceId;
     this.localRootSpanId = localRootSpanId;
-    this.traceSampled = traceSampled;
-    this.checkpointsSampled = checkpointsSampled;
+    begin();
+  }
+
+  @Override
+  public void endpointWritten(DDSpan span, boolean traceSampled, boolean checkpointsSampled) {
+    if (shouldCommit()) {
+      end();
+      this.endpoint = span.getResourceName().toString();
+      this.traceSampled = traceSampled;
+      this.checkpointsSampled = checkpointsSampled;
+      commit();
+    }
   }
 }

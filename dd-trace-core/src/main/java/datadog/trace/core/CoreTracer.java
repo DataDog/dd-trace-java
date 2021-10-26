@@ -183,8 +183,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void onRootSpan(AgentSpan root, boolean published) {
-    checkpointer.onRootSpan(root, published);
+  public void onRootSpanFinished(AgentSpan root, boolean published) {
+    checkpointer.onRootSpanFinished(root, published);
+  }
+
+  @Override
+  public void onRootSpanStarted(AgentSpan root) {
+    checkpointer.onRootSpanStarted(root);
   }
 
   public static class CoreTracerBuilder {
@@ -520,7 +525,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public CoreSpanBuilder buildSpan(final CharSequence operationName) {
-    return new CoreSpanBuilder(operationName);
+    return new CoreSpanBuilder(operationName, this);
   }
 
   @Override
@@ -702,7 +707,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         writer.incrementDropCounts(writtenTrace.size());
       }
       if (null != rootSpan) {
-        onRootSpan(rootSpan, published);
+        onRootSpanFinished(rootSpan, published);
       }
     }
   }
@@ -828,6 +833,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Spans are built using this builder */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CharSequence operationName;
+    private final CoreTracer tracer;
 
     // Builder attributes
     private Map<String, Object> tags;
@@ -840,8 +846,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean ignoreScope = false;
     private boolean emitCheckpoints = true;
 
-    public CoreSpanBuilder(final CharSequence operationName) {
+    CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
       this.operationName = operationName;
+      this.tracer = tracer;
     }
 
     @Override
@@ -851,7 +858,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      return DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
+      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
+      if (span.isLocalRootSpan()) {
+        tracer.onRootSpanStarted(span);
+      }
+      return span;
     }
 
     @Override
