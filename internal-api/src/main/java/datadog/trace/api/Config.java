@@ -644,7 +644,8 @@ public class Config {
 
     dbClientSplitByInstancePrefix =
         configProvider.getString(
-            DB_CLIENT_HOST_SPLIT_BY_INSTANCE_PREFIX, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_PREFIX);
+            DB_CLIENT_HOST_SPLIT_BY_INSTANCE_PREFIX,
+            DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_PREFIX);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
