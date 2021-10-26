@@ -18,12 +18,12 @@ excludedClassesCoverage += [
 ]
 
 def AP_VERSION = project.findProperty("dd.async_profiler")
-AP_VERSION = AP_VERSION != null ? AP_VERSION : "2.5-DD"
+AP_VERSION = AP_VERSION != null ? AP_VERSION : "2.5-DD-SNAPSHOT"
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation "tools.profiler:async-profiler:${AP_VERSION}"
+  implementation group: "tools.profiler", name: "async-profiler", version: "${AP_VERSION}", changing: true
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
@@ -42,12 +42,17 @@ shadowJar {
   include {
     def rslt = false
     rslt |= it.path == "com" || it.path == "com/datadog" || it.path.startsWith("com/datadog/")
+    rslt |= it.path == "one" || it.path == "one/profiler" || it.path.startsWith("one/profiler/")
     rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
-    rslt |= it.path == "native-libs" || it.path.startsWith("native-libs")
+    // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
+    rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-arm64")
     rslt |= (it.path.contains("async-profiler") && it.path.endsWith(".jar"))
-
     return rslt
   }
 }
 
 build.dependsOn shadowJar
+
+configurations.all {
+  resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}

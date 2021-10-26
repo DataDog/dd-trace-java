@@ -41,12 +41,12 @@ public final class AuxiliaryProfiler {
             ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
     log.debug("Requested auxiliary profiler: {}", auxilliaryType);
     AuxiliaryImplementation impl = AuxiliaryImplementation.NULL;
-    log.debug("Iterating auxilliary implementation providers");
+    log.debug("Iterating auxiliary implementation providers");
     for (AuxiliaryImplementation.Provider provider :
         ServiceLoader.load(
             AuxiliaryImplementation.Provider.class, AuxiliaryProfiler.class.getClassLoader())) {
       log.debug(
-          "Checking auxilliary implementation {}: {}",
+          "Checking auxiliary implementation {}: {}",
           provider,
           provider.canProvide(auxilliaryType));
       if (provider.canProvide(auxilliaryType)) {

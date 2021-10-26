@@ -111,7 +111,8 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
 
   private static AsyncProfiler profilerForOsAndArch(OperatingSystem os, Arch arch, boolean musl)
       throws IOException {
-    String libDir = os.name() + (musl ? "-musl-" : "-") + arch.name();
+    String libDir =
+        os.name() + (os.name().equals("macos") ? "" : (musl ? "-musl-" : "-") + arch.name());
     File localLib =
         LibraryHelper.libraryFromClasspath("/native-libs/" + libDir + "/libasyncProfiler.so");
     return AsyncProfiler.getInstance(localLib.getAbsolutePath());
