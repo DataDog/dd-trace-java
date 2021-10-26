@@ -1,11 +1,13 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static java.util.Arrays.asList;
+
 import datadog.trace.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Array;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -14,57 +16,29 @@ import net.bytebuddy.jar.asm.Type;
 
 /** An immutable reference to a jvm class. */
 public class Reference {
-  private final Set<Source> sources;
-  private final String className;
-  private final String superName;
-  private final Set<Flag> flags;
-  private final Set<String> interfaces;
-  private final Set<Field> fields;
-  private final Set<Method> methods;
+  public final String[] sources;
+  public final int flags;
+  public final String className;
+  public final String superName;
+  public final String[] interfaces;
+  public final Field[] fields;
+  public final Method[] methods;
 
-  private Reference(
-      final Set<Source> sources,
-      final Set<Flag> flags,
+  public Reference(
+      final String[] sources,
+      final int flags,
       final String className,
       final String superName,
-      final Set<String> interfaces,
-      final Set<Field> fields,
-      final Set<Method> methods) {
+      final String[] interfaces,
+      final Field[] fields,
+      final Method[] methods) {
     this.sources = sources;
     this.flags = flags;
-    this.className = Strings.getClassName(className);
-    this.superName = null == superName ? null : Strings.getClassName(superName);
+    this.className = className;
+    this.superName = superName;
     this.interfaces = interfaces;
     this.methods = methods;
     this.fields = fields;
-  }
-
-  public String getClassName() {
-    return className;
-  }
-
-  public String getSuperName() {
-    return superName;
-  }
-
-  public Set<String> getInterfaces() {
-    return interfaces;
-  }
-
-  public Set<Source> getSources() {
-    return sources;
-  }
-
-  public Set<Flag> getFlags() {
-    return flags;
-  }
-
-  public Set<Method> getMethods() {
-    return methods;
-  }
-
-  public Set<Field> getFields() {
-    return fields;
   }
 
   /**
@@ -74,59 +48,17 @@ public class Reference {
    * @return a new Reference which merges the two references
    */
   public Reference merge(final Reference anotherReference) {
-    if (!anotherReference.getClassName().equals(className)) {
+    if (!anotherReference.className.equals(className)) {
       throw new IllegalStateException("illegal merge " + this + " != " + anotherReference);
     }
-    final String superName = null == this.superName ? anotherReference.superName : this.superName;
-
     return new Reference(
-        merge(sources, anotherReference.sources),
+        Reference.merge(sources, anotherReference.sources),
         mergeFlags(flags, anotherReference.flags),
         className,
-        superName,
-        merge(interfaces, anotherReference.interfaces),
+        null != this.superName ? this.superName : anotherReference.superName,
+        Reference.merge(interfaces, anotherReference.interfaces),
         mergeFields(fields, anotherReference.fields),
         mergeMethods(methods, anotherReference.methods));
-  }
-
-  private static <T> Set<T> merge(final Set<T> set1, final Set<T> set2) {
-    final Set<T> set = new LinkedHashSet<>((set1.size() + set2.size()) * 4 / 3);
-    set.addAll(set1);
-    set.addAll(set2);
-    return set;
-  }
-
-  private static Set<Method> mergeMethods(final Set<Method> methods1, final Set<Method> methods2) {
-    final List<Method> merged = new ArrayList<>(methods1);
-    for (final Method method : methods2) {
-      final int i = merged.indexOf(method);
-      if (i == -1) {
-        merged.add(method);
-      } else {
-        merged.set(i, merged.get(i).merge(method));
-      }
-    }
-    return new LinkedHashSet<>(merged);
-  }
-
-  private static Set<Field> mergeFields(final Set<Field> fields1, final Set<Field> fields2) {
-    final List<Field> merged = new ArrayList<>(fields1);
-    for (final Field field : fields2) {
-      final int i = merged.indexOf(field);
-      if (i == -1) {
-        merged.add(field);
-      } else {
-        merged.set(i, merged.get(i).merge(field));
-      }
-    }
-    return new LinkedHashSet<>(merged);
-  }
-
-  private static Set<Flag> mergeFlags(final Set<Flag> flags1, final Set<Flag> flags2) {
-    final Set<Flag> merged = merge(flags1, flags2);
-    // TODO: Assert flags are non-contradictory and resolve
-    // public > protected > package-private > private
-    return merged;
   }
 
   @Override
@@ -134,40 +66,122 @@ public class Reference {
     return "Reference<" + className + ">";
   }
 
-  public static class Source {
-    private final String name;
-    private final int line;
+  public static final int EXPECTS_PUBLIC = 1;
+  public static final int EXPECTS_PUBLIC_OR_PROTECTED = 2;
+  public static final int EXPECTS_NON_PRIVATE = 4;
+  public static final int EXPECTS_STATIC = 8;
+  public static final int EXPECTS_NON_STATIC = 16;
+  public static final int EXPECTS_INTERFACE = 32;
+  public static final int EXPECTS_NON_INTERFACE = 64;
 
-    public Source(final String name, final int line) {
+  public static boolean matches(int flags, int modifiers) {
+    if ((flags & EXPECTS_PUBLIC) != 0 && (modifiers & Opcodes.ACC_PUBLIC) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_PUBLIC_OR_PROTECTED) != 0
+        && (modifiers & (Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED)) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_PRIVATE) != 0 && (modifiers & Opcodes.ACC_PRIVATE) != 0) {
+      return false;
+    } else if ((flags & EXPECTS_STATIC) != 0 && (modifiers & Opcodes.ACC_STATIC) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_STATIC) != 0 && (modifiers & Opcodes.ACC_STATIC) != 0) {
+      return false;
+    } else if ((flags & EXPECTS_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) == 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) != 0) {
+      return false;
+    }
+    return true;
+  }
+
+  public static class Field {
+    public final String[] sources;
+    public final int flags;
+    public final String name;
+    public final String fieldType;
+
+    public Field(
+        final String[] sources, final int flags, final String name, final String fieldType) {
+      this.sources = sources;
+      this.flags = flags;
       this.name = name;
-      this.line = line;
+      this.fieldType = fieldType;
+    }
+
+    public Field merge(final Field anotherField) {
+      // consider both name and type when merging...
+      if (!name.equals(anotherField.name) || !fieldType.equals(anotherField.fieldType)) {
+        throw new IllegalStateException("illegal merge " + this + " != " + anotherField);
+      }
+      return new Field(
+          Reference.merge(sources, anotherField.sources),
+          mergeFlags(flags, anotherField.flags),
+          name,
+          fieldType);
     }
 
     @Override
     public String toString() {
-      return getName() + ":" + getLine();
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public int getLine() {
-      return line;
+      return name + fieldType;
     }
 
     @Override
     public boolean equals(final Object o) {
-      if (o instanceof Source) {
-        final Source other = (Source) o;
-        return name.equals(other.name) && line == other.line;
+      if (o instanceof Field) {
+        final Field other = (Field) o;
+        return name.equals(other.name);
       }
       return false;
     }
 
     @Override
     public int hashCode() {
-      return name.hashCode() + line;
+      return name.hashCode();
+    }
+  }
+
+  public static class Method {
+    public final String[] sources;
+    public final int flags;
+    public final String name;
+    public final String methodType;
+
+    public Method(
+        final String[] sources, final int flags, final String name, final String methodType) {
+      this.sources = sources;
+      this.flags = flags;
+      this.name = name;
+      this.methodType = methodType;
+    }
+
+    public Method merge(final Method anotherMethod) {
+      if (!equals(anotherMethod)) {
+        throw new IllegalStateException("illegal merge " + this + " != " + anotherMethod);
+      }
+      return new Method(
+          Reference.merge(sources, anotherMethod.sources),
+          mergeFlags(flags, anotherMethod.flags),
+          name,
+          methodType);
+    }
+
+    @Override
+    public String toString() {
+      return name + methodType;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (o instanceof Method) {
+        final Method m = (Method) o;
+        return name.equals(m.name) && methodType.equals(m.methodType);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return toString().hashCode();
     }
   }
 
@@ -179,16 +193,16 @@ public class Reference {
    */
   public abstract static class Mismatch {
     /** Instrumentation sources which caused the mismatch. */
-    private final Source[] mismatchSources;
+    private final String[] mismatchSources;
 
-    Mismatch(final Source[] mismatchSources) {
+    Mismatch(final String[] mismatchSources) {
       this.mismatchSources = mismatchSources;
     }
 
     @Override
     public String toString() {
       if (mismatchSources.length > 0) {
-        return mismatchSources[0].toString() + " " + getMismatchDetails();
+        return mismatchSources[0] + " " + getMismatchDetails();
       } else {
         return "<no-source> " + getMismatchDetails();
       }
@@ -200,7 +214,7 @@ public class Reference {
     public static class MissingClass extends Mismatch {
       private final String className;
 
-      public MissingClass(final Source[] sources, final String className) {
+      public MissingClass(final String[] sources, final String className) {
         super(sources);
         this.className = className;
       }
@@ -212,14 +226,14 @@ public class Reference {
     }
 
     public static class MissingFlag extends Mismatch {
-      private final Flag expectedFlag;
+      private final int expectedFlag;
       private final String classMethodOrFieldDesc;
       private final int foundAccess;
 
       public MissingFlag(
-          final Source[] sources,
+          final String[] sources,
           final String classMethodOrFieldDesc,
-          final Flag expectedFlag,
+          final int expectedFlag,
           final int foundAccess) {
         super(sources);
         this.classMethodOrFieldDesc = classMethodOrFieldDesc;
@@ -229,38 +243,11 @@ public class Reference {
 
       @Override
       String getMismatchDetails() {
-        return classMethodOrFieldDesc + " requires flag " + expectedFlag + " found " + foundAccess;
-      }
-    }
-
-    /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
-    public static class ReferenceCheckError extends Mismatch {
-      private final Exception referenceCheckException;
-      private final Reference referenceBeingChecked;
-      private final ClassLoader classLoaderBeingChecked;
-
-      public ReferenceCheckError(
-          final Exception e,
-          final Reference referenceBeingChecked,
-          final ClassLoader classLoaderBeingChecked) {
-        super(new Source[0]);
-        referenceCheckException = e;
-        this.referenceBeingChecked = referenceBeingChecked;
-        this.classLoaderBeingChecked = classLoaderBeingChecked;
-      }
-
-      @Override
-      String getMismatchDetails() {
-        final StringWriter sw = new StringWriter();
-        sw.write("Failed to generate reference check for: ");
-        sw.write(referenceBeingChecked.toString());
-        sw.write(" on classloader ");
-        sw.write(classLoaderBeingChecked.toString());
-        sw.write("\n");
-        // add exception message and stack trace
-        final PrintWriter pw = new PrintWriter(sw);
-        referenceCheckException.printStackTrace(pw);
-        return sw.toString();
+        return classMethodOrFieldDesc
+            + " expected "
+            + prettyPrint(expectedFlag)
+            + " found "
+            + Modifier.toString(foundAccess);
       }
     }
 
@@ -270,7 +257,7 @@ public class Reference {
       private final String fieldDesc;
 
       public MissingField(
-          final Source[] sources,
+          final String[] sources,
           final String className,
           final String fieldName,
           final String fieldDesc) {
@@ -290,7 +277,7 @@ public class Reference {
       private final String className;
       private final String method;
 
-      public MissingMethod(final Source[] sources, final String className, final String method) {
+      public MissingMethod(final String[] sources, final String className, final String method) {
         super(sources);
         this.className = className;
         this.method = method;
@@ -301,303 +288,42 @@ public class Reference {
         return "Missing method " + className + "#" + method;
       }
     }
-  }
 
-  /** Expected flag (or lack of flag) on a class, method, or field reference. */
-  public enum Flag {
-    PUBLIC {
-      @Override
-      public boolean supersedes(final Flag anotherFlag) {
-        switch (anotherFlag) {
-          case PRIVATE_OR_HIGHER:
-          case PROTECTED_OR_HIGHER:
-          case PACKAGE_OR_HIGHER:
-            return true;
-          default:
-            return false;
-        }
+    /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
+    public static class ReferenceCheckError extends Mismatch {
+      private final Exception referenceCheckException;
+      private final Reference referenceBeingChecked;
+      private final ClassLoader classLoaderBeingChecked;
+
+      public ReferenceCheckError(
+          final Exception referenceCheckException,
+          final Reference referenceBeingChecked,
+          final ClassLoader classLoaderBeingChecked) {
+        super(new String[0]);
+        this.referenceCheckException = referenceCheckException;
+        this.referenceBeingChecked = referenceBeingChecked;
+        this.classLoaderBeingChecked = classLoaderBeingChecked;
       }
 
       @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_PUBLIC & asmFlags) != 0;
+      String getMismatchDetails() {
+        final StringWriter sw = new StringWriter();
+        sw.write("Failed to generate reference check for: ");
+        sw.write(referenceBeingChecked.toString());
+        sw.write(" on classloader ");
+        sw.write(classLoaderBeingChecked.toString());
+        sw.write("\n");
+        // add exception message and stack trace
+        final PrintWriter pw = new PrintWriter(sw);
+        referenceCheckException.printStackTrace(pw);
+        return sw.toString();
       }
-    },
-    PACKAGE_OR_HIGHER {
-      @Override
-      public boolean supersedes(final Flag anotherFlag) {
-        return anotherFlag == PRIVATE_OR_HIGHER;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_PUBLIC & asmFlags) != 0
-            || ((Opcodes.ACC_PRIVATE & asmFlags) == 0 && (Opcodes.ACC_PROTECTED & asmFlags) == 0);
-      }
-    },
-    PROTECTED_OR_HIGHER {
-      @Override
-      public boolean supersedes(final Flag anotherFlag) {
-        return anotherFlag == PRIVATE_OR_HIGHER;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return PUBLIC.matches(asmFlags) || (Opcodes.ACC_PROTECTED & asmFlags) != 0;
-      }
-    },
-    PRIVATE_OR_HIGHER {
-      @Override
-      public boolean matches(final int asmFlags) {
-        // you can't out-private a private
-        return true;
-      }
-    },
-    NON_FINAL {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == FINAL;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_FINAL & asmFlags) == 0;
-      }
-    },
-    FINAL {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == NON_FINAL;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_FINAL & asmFlags) != 0;
-      }
-    },
-    STATIC {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == NON_STATIC;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_STATIC & asmFlags) != 0;
-      }
-    },
-    NON_STATIC {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == STATIC;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_STATIC & asmFlags) == 0;
-      }
-    },
-    INTERFACE {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == NON_INTERFACE;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_INTERFACE & asmFlags) != 0;
-      }
-    },
-    NON_INTERFACE {
-      @Override
-      public boolean contradicts(final Flag anotherFlag) {
-        return anotherFlag == INTERFACE;
-      }
-
-      @Override
-      public boolean matches(final int asmFlags) {
-        return (Opcodes.ACC_INTERFACE & asmFlags) == 0;
-      }
-    };
-
-    public boolean contradicts(final Flag anotherFlag) {
-      return false;
-    }
-
-    public boolean supersedes(final Flag anotherFlag) {
-      return false;
-    }
-
-    public abstract boolean matches(int asmFlags);
-  }
-
-  public static class Method {
-    private final Set<Source> sources;
-    private final Set<Flag> flags;
-    private final String name;
-    private final Type returnType;
-    private final List<Type> parameterTypes;
-
-    public Method(final String name, final String descriptor) {
-      this(
-          new Source[0],
-          new Flag[0],
-          name,
-          Type.getMethodType(descriptor).getReturnType(),
-          Type.getMethodType(descriptor).getArgumentTypes());
-    }
-
-    public Method(
-        final Source[] sources,
-        final Flag[] flags,
-        final String name,
-        final Type returnType,
-        final Type[] parameterTypes) {
-      this(
-          new LinkedHashSet<>(Arrays.asList(sources)),
-          new LinkedHashSet<>(Arrays.asList(flags)),
-          name,
-          returnType,
-          Arrays.asList(parameterTypes));
-    }
-
-    public Method(
-        final Set<Source> sources,
-        final Set<Flag> flags,
-        final String name,
-        final Type returnType,
-        final List<Type> parameterTypes) {
-      this.sources = sources;
-      this.flags = flags;
-      this.name = name;
-      this.returnType = returnType;
-      this.parameterTypes = parameterTypes;
-    }
-
-    public Set<Source> getSources() {
-      return sources;
-    }
-
-    public Set<Flag> getFlags() {
-      return flags;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public Type getReturnType() {
-      return returnType;
-    }
-
-    public List<Type> getParameterTypes() {
-      return parameterTypes;
-    }
-
-    public Method merge(final Method anotherMethod) {
-      if (!equals(anotherMethod)) {
-        throw new IllegalStateException("illegal merge " + this + " != " + anotherMethod);
-      }
-
-      final Set<Source> mergedSources = new LinkedHashSet<>();
-      mergedSources.addAll(sources);
-      mergedSources.addAll(anotherMethod.sources);
-
-      final Set<Flag> mergedFlags = new LinkedHashSet<>();
-      mergedFlags.addAll(flags);
-      mergedFlags.addAll(anotherMethod.flags);
-
-      return new Method(mergedSources, mergedFlags, name, returnType, parameterTypes);
-    }
-
-    @Override
-    public String toString() {
-      return name + getDescriptor();
-    }
-
-    public String getDescriptor() {
-      return Type.getMethodType(returnType, parameterTypes.toArray(new Type[0])).getDescriptor();
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (o instanceof Method) {
-        final Method m = (Method) o;
-        return name.equals(m.name) && getDescriptor().equals(m.getDescriptor());
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return toString().hashCode();
-    }
-  }
-
-  public static class Field {
-    private final Set<Source> sources;
-    private final Set<Flag> flags;
-    private final String name;
-    private final Type type;
-
-    public Field(
-        final Source[] sources, final Flag[] flags, final String name, final Type fieldType) {
-      this.sources = new LinkedHashSet<>(Arrays.asList(sources));
-      this.flags = new LinkedHashSet<>(Arrays.asList(flags));
-      this.name = name;
-      type = fieldType;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public Set<Source> getSources() {
-      return sources;
-    }
-
-    public Set<Flag> getFlags() {
-      return flags;
-    }
-
-    public Type getType() {
-      return type;
-    }
-
-    public Field merge(final Field anotherField) {
-      if (!equals(anotherField) || !type.equals(anotherField.type)) {
-        throw new IllegalStateException("illegal merge " + this + " != " + anotherField);
-      }
-      return new Field(
-          Reference.merge(sources, anotherField.sources).toArray(new Source[0]),
-          mergeFlags(flags, anotherField.flags).toArray(new Flag[0]),
-          name,
-          type);
-    }
-
-    @Override
-    public String toString() {
-      return "FieldRef:" + name + type.getInternalName();
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (o instanceof Field) {
-        final Field other = (Field) o;
-        return name.equals(other.name);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return name.hashCode();
     }
   }
 
   public static class Builder {
-    private final Set<Source> sources = new LinkedHashSet<>();
-    private final Set<Flag> flags = EnumSet.noneOf(Flag.class);
+    private final Set<String> sources = new LinkedHashSet<>();
+    private int flags = 0;
     private final String className;
     private String superName = null;
     private final Set<String> interfaces = new LinkedHashSet<>();
@@ -619,20 +345,28 @@ public class Reference {
     }
 
     public Builder withSource(final String sourceName, final int line) {
-      sources.add(new Source(sourceName, line));
+      sources.add(sourceName + ":" + line);
       return this;
     }
 
-    public Builder withFlag(final Flag flag) {
-      flags.add(flag);
+    public Builder withFlag(final int flag) {
+      flags |= flag;
       return this;
     }
 
     public Builder withField(
-        final Source[] sources,
-        final Flag[] fieldFlags,
+        final String[] sources,
+        final int fieldFlags,
         final String fieldName,
         final Type fieldType) {
+      return withField(sources, fieldFlags, fieldName, getDescriptor(fieldType));
+    }
+
+    public Builder withField(
+        final String[] sources,
+        final int fieldFlags,
+        final String fieldName,
+        final String fieldType) {
       final Field field = new Field(sources, fieldFlags, fieldName, fieldType);
       final int existingIndex = fields.indexOf(field);
       if (existingIndex == -1) {
@@ -644,12 +378,31 @@ public class Reference {
     }
 
     public Builder withMethod(
-        final Source[] sources,
-        final Flag[] methodFlags,
+        final String[] sources,
+        final int methodFlags,
         final String methodName,
         final Type returnType,
-        final Type... methodArgs) {
-      final Method method = new Method(sources, methodFlags, methodName, returnType, methodArgs);
+        final Type... parameterTypes) {
+      return withMethod(
+          sources,
+          methodFlags,
+          methodName,
+          getDescriptor(returnType),
+          getDescriptors(parameterTypes));
+    }
+
+    public Builder withMethod(
+        final String[] sources,
+        final int methodFlags,
+        final String methodName,
+        final String returnType,
+        final String... parameterTypes) {
+      StringBuilder methodType = new StringBuilder().append('(');
+      for (String parameterType : parameterTypes) {
+        methodType.append(parameterType);
+      }
+      methodType.append(')').append(returnType);
+      final Method method = new Method(sources, methodFlags, methodName, methodType.toString());
       final int existingIndex = methods.indexOf(method);
       if (existingIndex == -1) {
         methods.add(method);
@@ -661,13 +414,90 @@ public class Reference {
 
     public Reference build() {
       return new Reference(
-          sources,
+          sources.toArray(new String[sources.size()]),
           flags,
-          className,
-          superName,
-          interfaces,
-          new LinkedHashSet<>(fields),
-          new LinkedHashSet<>(methods));
+          Strings.getClassName(className),
+          null != superName ? Strings.getClassName(superName) : null,
+          interfaces.toArray(new String[interfaces.size()]),
+          fields.toArray(new Field[fields.size()]),
+          methods.toArray(new Method[methods.size()]));
     }
+  }
+
+  private static <E> E[] merge(final E[] array1, final E[] array2) {
+    final Set<E> set = new LinkedHashSet<>((array1.length + array2.length) * 4 / 3);
+    set.addAll(asList(array1));
+    set.addAll(asList(array2));
+    return set.toArray((E[]) Array.newInstance(array1.getClass().getComponentType(), set.size()));
+  }
+
+  private static int mergeFlags(final int flags1, final int flags2) {
+    // TODO: Assert flags are non-contradictory and resolve
+    // public > protected > package-private > private
+    return flags1 | flags2;
+  }
+
+  private static Field[] mergeFields(final Field[] fields1, final Field[] fields2) {
+    final List<Field> merged = new ArrayList<>(asList(fields1));
+    for (final Field field : fields2) {
+      final int i = merged.indexOf(field);
+      if (i == -1) {
+        merged.add(field);
+      } else {
+        merged.set(i, merged.get(i).merge(field));
+      }
+    }
+    return merged.toArray(new Field[merged.size()]);
+  }
+
+  private static Method[] mergeMethods(final Method[] methods1, final Method[] methods2) {
+    final List<Method> merged = new ArrayList<>(asList(methods1));
+    for (final Method method : methods2) {
+      final int i = merged.indexOf(method);
+      if (i == -1) {
+        merged.add(method);
+      } else {
+        merged.set(i, merged.get(i).merge(method));
+      }
+    }
+    return merged.toArray(new Method[merged.size()]);
+  }
+
+  private static String getDescriptor(Type type) {
+    return type.getDescriptor();
+  }
+
+  private static String[] getDescriptors(Type[] types) {
+    String[] descriptors = new String[types.length];
+    for (int i = 0; i < types.length; i++) {
+      descriptors[i] = types[i].getDescriptor();
+    }
+    return descriptors;
+  }
+
+  static String prettyPrint(int flags) {
+    StringBuilder buf = new StringBuilder();
+    if ((flags & EXPECTS_PUBLIC) != 0) {
+      buf.append("public ");
+    }
+    if ((flags & EXPECTS_PUBLIC_OR_PROTECTED) != 0) {
+      buf.append("public_or_protected ");
+    }
+    if ((flags & EXPECTS_NON_PRIVATE) != 0) {
+      buf.append("non_private ");
+    }
+    if ((flags & EXPECTS_STATIC) != 0) {
+      buf.append("static ");
+    }
+    if ((flags & EXPECTS_NON_STATIC) != 0) {
+      buf.append("non_static ");
+    }
+    if ((flags & EXPECTS_INTERFACE) != 0) {
+      buf.append("interface ");
+    }
+    if ((flags & EXPECTS_NON_INTERFACE) != 0) {
+      buf.append("non_interface ");
+    }
+    return buf.toString();
   }
 }

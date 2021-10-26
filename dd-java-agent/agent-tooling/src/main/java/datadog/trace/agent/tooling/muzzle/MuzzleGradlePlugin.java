@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.WeakMap;
+import java.io.File;
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;
 import net.bytebuddy.description.type.TypeDescription;
@@ -30,8 +31,11 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
         });
   }
 
-  public MuzzleGradlePlugin() {
+  private final File targetDir;
+
+  public MuzzleGradlePlugin(File targetDir) {
     super(not(isAbstract()).and(extendsClass(named(Instrumenter.Default.class.getName()))));
+    this.targetDir = targetDir;
   }
 
   @Override
@@ -39,7 +43,7 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
       final ClassFileLocator classFileLocator) {
-    return builder.visit(new MuzzleVisitor());
+    return builder.visit(new MuzzleVisitor(targetDir));
   }
 
   @Override
