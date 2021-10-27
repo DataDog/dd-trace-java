@@ -67,6 +67,7 @@ class LagomTest extends AgentTestRunner {
             "$Tags.COMPONENT" "akka-http-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.HTTP_URL" "ws://localhost:${server.port()}/echo"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 101
             defaultTags()
@@ -109,6 +110,7 @@ class LagomTest extends AgentTestRunner {
             "$Tags.COMPONENT" "akka-http-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.HTTP_URL" "ws://localhost:${server.port()}/error"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
             defaultTags()

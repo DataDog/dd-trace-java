@@ -163,6 +163,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.PEER_HOST_IPV4" "127.0.0.1" // This span ignores "x-forwards-from".
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" String
+        "$Tags.HTTP_HOSTNAME" "${address.host}"
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
         "$Tags.HTTP_ROUTE" String

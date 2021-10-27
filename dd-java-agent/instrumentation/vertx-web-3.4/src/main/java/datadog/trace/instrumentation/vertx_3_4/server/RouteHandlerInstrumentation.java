@@ -21,8 +21,8 @@ public class RouteHandlerInstrumentation extends Instrumenter.Tracing {
     return new String[] {
       packageName + ".EndHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
-      packageName + ".VertxRouterDecorator",
-      packageName + ".VertxRouterDecorator$VertxURIDataAdapter",
+      packageName + ".VertxDecorator",
+      packageName + ".VertxDecorator$VertxURIDataAdapter",
     };
   }
 

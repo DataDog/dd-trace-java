@@ -183,35 +183,33 @@ public class MuzzleVersionScanPlugin {
   }
 
   private static String prettyPrint(final String prefix, final Reference ref) {
-    final StringBuilder builder = new StringBuilder(prefix).append(ref.getClassName());
-    if (ref.getSuperName() != null) {
-      builder.append(" extends<").append(ref.getSuperName()).append(">");
+    final StringBuilder builder = new StringBuilder(prefix);
+    builder.append(Reference.prettyPrint(ref.flags));
+    builder.append(ref.className);
+    if (ref.superName != null) {
+      builder.append(" extends<").append(ref.superName).append(">");
     }
-    if (!ref.getInterfaces().isEmpty()) {
+    if (ref.interfaces.length > 0) {
       builder.append(" implements ");
-      for (final String iface : ref.getInterfaces()) {
+      for (final String iface : ref.interfaces) {
         builder.append(" <").append(iface).append(">");
       }
     }
-    for (final Reference.Source source : ref.getSources()) {
+    for (final String source : ref.sources) {
       builder.append("\n").append(prefix).append(prefix);
-      builder.append("Source: ").append(source.toString());
+      builder.append("Source: ").append(source);
     }
-    for (final Reference.Field field : ref.getFields()) {
+    for (final Reference.Field field : ref.fields) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Field: ");
-      for (final Reference.Flag flag : field.getFlags()) {
-        builder.append(flag).append(" ");
-      }
-      builder.append(field.toString());
+      builder.append(Reference.prettyPrint(field.flags));
+      builder.append(field);
     }
-    for (final Reference.Method method : ref.getMethods()) {
+    for (final Reference.Method method : ref.methods) {
       builder.append("\n").append(prefix).append(prefix);
       builder.append("Method: ");
-      for (final Reference.Flag flag : method.getFlags()) {
-        builder.append(flag).append(" ");
-      }
-      builder.append(method.toString());
+      builder.append(Reference.prettyPrint(method.flags));
+      builder.append(method);
     }
     return builder.toString();
   }

@@ -53,6 +53,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static org.junit.Assume.assumeTrue
 
@@ -339,6 +340,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     assert activeSpan() != null: "Controller should have a parent span."
+    assert activeSpan() != noopSpan(): "Parent span shouldn't be noopSpan"
     assert activeScope().asyncPropagating: "Scope should be propagating async."
     if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       return closure()
@@ -916,6 +918,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           }
           "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
         }
+        "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus

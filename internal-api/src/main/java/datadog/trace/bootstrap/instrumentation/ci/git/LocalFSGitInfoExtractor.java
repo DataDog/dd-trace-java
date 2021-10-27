@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.COMMIT_TYPE;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.TAG_TYPE;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.UNKNOWN_TYPE;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.inflate;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.author;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.commitMessage;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.committer;
@@ -20,7 +21,6 @@ import datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject;
 import datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils;
 import datadog.trace.bootstrap.instrumentation.ci.git.pack.V2PackGitInfoExtractor;
 import datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -30,7 +30,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 
 /**
  * Extracts git information from the local filesystem. Typically, we will use this extractor using
@@ -290,26 +289,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         return TAG_TYPE;
       default:
         return UNKNOWN_TYPE;
-    }
-  }
-
-  private byte[] inflate(final byte[] bytes) throws DataFormatException {
-    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
-      // Git objects are compressed with ZLib.
-      // We need to decompress it using Inflater.
-      final Inflater ifr = new Inflater();
-      ifr.setInput(bytes);
-
-      final byte[] tmp = new byte[4 * 1024];
-      while (!ifr.finished()) {
-        final int size = ifr.inflate(tmp);
-        baos.write(tmp, 0, size);
-      }
-
-      return baos.toByteArray();
-    } catch (final IOException e) {
-      return null;
     }
   }
 

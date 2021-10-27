@@ -89,8 +89,21 @@ public abstract class CIProviderInfo {
 
   private GitInfo buildCIUserSuppliedGitInfo() {
     final String gitRepositoryUrl = System.getenv(DD_GIT_REPOSITORY_URL);
-    final String gitBranch = System.getenv(DD_GIT_BRANCH);
-    final String gitTag = System.getenv(DD_GIT_TAG);
+
+    // The user can set the DD_GIT_BRANCH manually but
+    // using the value returned by the CI Provider, so
+    // we need to normalize the value. Also, it can contain
+    // the tag (e.g. origin/tags/0.1.0)
+    String gitTag = System.getenv(DD_GIT_TAG);
+    String gitBranch = null;
+    final String rawGitBranchOrTag = System.getenv(DD_GIT_BRANCH);
+    if (rawGitBranchOrTag != null) {
+      if (!rawGitBranchOrTag.contains("tags")) {
+        gitBranch = normalizeRef(rawGitBranchOrTag);
+      } else if (gitTag == null) {
+        gitTag = normalizeRef(rawGitBranchOrTag);
+      }
+    }
     final String gitCommitSha = System.getenv(DD_GIT_COMMIT_SHA);
     final String gitCommitMessage = System.getenv(DD_GIT_COMMIT_MESSAGE);
     final String gitCommitAuthorName = System.getenv(DD_GIT_COMMIT_AUTHOR_NAME);

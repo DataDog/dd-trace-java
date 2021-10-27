@@ -57,6 +57,7 @@ class InstrumentPlugin implements Plugin<Project> {
             it.plugin = InstrumentLoader
             it.argument({ it.value = byteBuddyTask.classPath.collect({ it.toURI() as String }) })
             it.argument({ it.value = extension.plugins.get() })
+            it.argument({ it.value = byteBuddyTask.target.get().asFile.path }) // must serialize as String
           }
 
           // insert task between compile and jar, and before test*
@@ -81,11 +82,14 @@ class InstrumentLoader implements net.bytebuddy.build.Plugin {
 
   List<String> pluginNames
 
+  File targetDir
+
   net.bytebuddy.build.Plugin[] plugins
 
-  InstrumentLoader(List<String> pluginClassPath, List<String> pluginNames) {
+  InstrumentLoader(List<String> pluginClassPath, List<String> pluginNames, String targetDir) {
     this.pluginClassPath = pluginClassPath
     this.pluginNames = pluginNames
+    this.targetDir = new File(targetDir)
   }
 
   @Override
@@ -125,7 +129,9 @@ class InstrumentLoader implements net.bytebuddy.build.Plugin {
         return new URL(it.endsWith('/') || it.endsWith('.jar') ? it : it + '/')
       } as URL[], ByteBuddyTask.classLoader)
 
-      plugins = pluginNames.collect({ pluginLoader.loadClass(it).newInstance() }) as net.bytebuddy.build.Plugin[]
+      plugins = pluginNames.collect({
+        pluginLoader.loadClass(it).getConstructor(File).newInstance(targetDir)
+      }) as net.bytebuddy.build.Plugin[]
     }
     return plugins
   }

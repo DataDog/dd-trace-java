@@ -20,8 +20,9 @@ public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.Tr
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".EndHandlerWrapper",
-      packageName + ".VertxRouterDecorator",
-      packageName + ".VertxRouterDecorator$VertxURIDataAdapter",
+      packageName + ".RouteHandlerWrapper",
+      packageName + ".VertxDecorator",
+      packageName + ".VertxDecorator$VertxURIDataAdapter",
     };
   }
 

@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.Continuati
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -55,6 +56,14 @@ public final class State {
     if (null != continuation) {
       continuation.cancel();
     }
+  }
+
+  public AgentSpan getSpan() {
+    TraceScope.Continuation continuation = CONTINUATION.get(this);
+    if (continuation instanceof AgentScope.Continuation) {
+      return ((AgentScope.Continuation) continuation).getSpan();
+    }
+    return null;
   }
 
   public TraceScope.Continuation getAndResetContinuation() {
