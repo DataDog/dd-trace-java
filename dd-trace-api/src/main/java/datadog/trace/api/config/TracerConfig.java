@@ -20,6 +20,7 @@ public final class TracerConfig {
   public static final String TRACE_AGENT_PORT = "trace.agent.port";
   public static final String AGENT_PORT_LEGACY = "agent.port";
   public static final String AGENT_UNIX_DOMAIN_SOCKET = "trace.agent.unix.domain.socket";
+  public static final String AGENT_NAMED_PIPE = "trace.pipe.name";
   public static final String AGENT_TIMEOUT = "trace.agent.timeout";
   public static final String PROXY_NO_PROXY = "proxy.no_proxy";
   public static final String PRIORITY_SAMPLING = "priority.sampling";

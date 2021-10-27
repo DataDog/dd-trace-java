@@ -23,9 +23,13 @@ public class SharedCommunicationObjects {
     }
     if (okHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
+      String namedPipe = config.getAgentNamedPipe();
       okHttpClient =
           OkHttpUtils.buildHttpClient(
-              agentUrl, unixDomainSocket, TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
+              agentUrl,
+              unixDomainSocket,
+              namedPipe,
+              TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
     }
     featuresDiscovery(config);
   }

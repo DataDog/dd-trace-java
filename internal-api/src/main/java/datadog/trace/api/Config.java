@@ -183,6 +183,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
+import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
@@ -299,6 +300,7 @@ public class Config {
   private final String agentHost;
   private final int agentPort;
   private final String agentUnixDomainSocket;
+  private final String agentNamedPipe;
   private final int agentTimeout;
   private final Set<String> noProxyHosts;
   private final boolean prioritySamplingEnabled;
@@ -573,10 +575,13 @@ public class Config {
 
     agentUnixDomainSocket = unixSocketFromEnvironment;
 
+    agentNamedPipe = configProvider.getString(AGENT_NAMED_PIPE);
+
     agentConfiguredUsingDefault =
         agentHostFromEnvironment == null
             && agentPortFromEnvironment < 0
-            && unixSocketFromEnvironment == null;
+            && unixSocketFromEnvironment == null
+            && agentNamedPipe == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -969,6 +974,10 @@ public class Config {
 
   public String getAgentUnixDomainSocket() {
     return agentUnixDomainSocket;
+  }
+
+  public String getAgentNamedPipe() {
+    return agentNamedPipe;
   }
 
   public int getAgentTimeout() {

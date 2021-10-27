@@ -1,6 +1,5 @@
 package datadog.trace.common.writer;
 
-import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGENT_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
@@ -20,7 +19,6 @@ import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
-import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,10 +62,6 @@ public class WriterFactory {
       log.info("Detected serverless environment.  Using PrintingWriter");
       return new PrintingWriter(System.out, true);
     }
-
-    String unixDomainSocket = discoverApmSocket(config);
-
-    HttpUrl agentUrl = HttpUrl.get(config.getAgentUrl());
 
     DDAgentApi ddAgentApi =
         new DDAgentApi(
