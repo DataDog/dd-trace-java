@@ -197,8 +197,7 @@ public class JFRCheckpointer implements Checkpointer {
     if (isEndpointCollectionEnabled) {
       if (rootSpan instanceof DDSpan) {
         DDSpan span = (DDSpan) rootSpan;
-        span.setEndpointTracker(
-            new EndpointEvent(rootSpan.getTraceId().toLong(), rootSpan.getSpanId().toLong()));
+        span.setEndpointTracker(new EndpointEvent(span));
       }
     }
   }

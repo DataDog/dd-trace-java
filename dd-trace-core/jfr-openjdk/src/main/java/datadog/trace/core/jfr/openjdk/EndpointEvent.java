@@ -32,12 +32,15 @@ public class EndpointEvent extends Event implements EndpointTracker {
   @Label("Trace Sampled")
   private boolean traceSampled = false;
 
+  @Label("Trace Eligible for Dropping")
+  private boolean eligibleForDropping;
+
   @Label("Checkpoints Sampled")
   private boolean checkpointsSampled = false;
 
-  public EndpointEvent(final long traceId, final long localRootSpanId) {
-    this.traceId = traceId;
-    this.localRootSpanId = localRootSpanId;
+  public EndpointEvent(final DDSpan span) {
+    this.traceId = span.getTraceId().toLong();
+    this.localRootSpanId = span.getSpanId().toLong();
     begin();
   }
 
@@ -46,6 +49,7 @@ public class EndpointEvent extends Event implements EndpointTracker {
     if (shouldCommit()) {
       end();
       this.endpoint = span.getResourceName().toString();
+      this.eligibleForDropping = span.eligibleForDropping();
       this.traceSampled = traceSampled;
       this.checkpointsSampled = checkpointsSampled;
       commit();
