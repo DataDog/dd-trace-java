@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 
+import java.io.File;
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;
 import net.bytebuddy.description.type.TypeDescription;
@@ -14,9 +15,11 @@ import net.bytebuddy.dynamic.DynamicType;
  * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
  */
 public class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
+  private final File targetDir;
 
-  public NewTaskForGradlePlugin() {
+  public NewTaskForGradlePlugin(File targetDir) {
     super(nameEndsWith("$NewTaskFor"));
+    this.targetDir = targetDir;
   }
 
   @Override

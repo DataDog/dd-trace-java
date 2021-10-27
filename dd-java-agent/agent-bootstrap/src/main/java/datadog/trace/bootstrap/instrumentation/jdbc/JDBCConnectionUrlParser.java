@@ -848,7 +848,7 @@ public enum JDBCConnectionUrlParser {
   }
 
   private static void populateStandardProperties(
-      final DBInfo.Builder builder, final Map<? extends Object, ? extends Object> props) {
+      final DBInfo.Builder builder, final Map<?, ?> props) {
     if (props != null && !props.isEmpty()) {
       if (props.containsKey("user")) {
         builder.user((String) props.get("user"));

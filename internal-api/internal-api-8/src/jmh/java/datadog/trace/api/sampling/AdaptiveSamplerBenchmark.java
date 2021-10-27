@@ -26,6 +26,7 @@ import org.openjdk.jmh.annotations.Warmup;
 public class AdaptiveSamplerBenchmark {
 
   public static final int ITERATION_TIME_MILLIS = 1000;
+  public static final int BUDGET_LOOKBACK = 16;
 
   @Param("5000")
   int samplesPerWindow;
@@ -37,10 +38,13 @@ public class AdaptiveSamplerBenchmark {
 
   @Setup(Level.Iteration)
   public void setup() {
-    int lookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
+    int averageLookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
     sampler =
         new AdaptiveSampler(
-            Duration.of(durationWindowMillis, ChronoUnit.MILLIS), samplesPerWindow, lookback);
+            Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
+            samplesPerWindow,
+            averageLookback,
+            BUDGET_LOOKBACK);
   }
 
   @Threads(4)

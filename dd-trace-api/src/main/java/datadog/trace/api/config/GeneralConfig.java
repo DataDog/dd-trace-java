@@ -30,6 +30,7 @@ public final class GeneralConfig {
   public static final String DOGSTATSD_PORT = "dogstatsd.port";
 
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
+  public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
 
   public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
   public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";

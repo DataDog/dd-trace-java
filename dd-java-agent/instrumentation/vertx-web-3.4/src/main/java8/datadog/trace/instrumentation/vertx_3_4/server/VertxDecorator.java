@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -11,14 +9,13 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 
-public class VertxRouterDecorator
+public class VertxDecorator
     extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void> {
-
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("vertx");
 
-  static final VertxRouterDecorator DECORATE = new VertxRouterDecorator();
+  static final VertxDecorator DECORATE = new VertxDecorator();
 
   @Override
   protected String[] instrumentationNames() {
@@ -56,14 +53,6 @@ public class VertxRouterDecorator
       final RoutingContext connection,
       final RoutingContext routingContext,
       AgentSpan.Context.Extracted context) {
-    if (routingContext != null) {
-      final String method = routingContext.request().rawMethod();
-      final String bestMatchingPattern = routingContext.currentRoute().getPath();
-
-      if (method != null && bestMatchingPattern != null) {
-        HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern, true);
-      }
-    }
     return span;
   }
 

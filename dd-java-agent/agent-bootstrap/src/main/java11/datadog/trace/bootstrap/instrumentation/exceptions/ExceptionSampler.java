@@ -22,7 +22,7 @@ final class ExceptionSampler {
   }
 
   ExceptionSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback);
+    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, 16);
     exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
   }
 

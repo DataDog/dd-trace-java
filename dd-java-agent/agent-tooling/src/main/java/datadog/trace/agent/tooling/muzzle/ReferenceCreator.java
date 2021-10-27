@@ -5,10 +5,8 @@ import static datadog.trace.util.Strings.getResourceName;
 
 import java.io.InputStream;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -100,13 +98,13 @@ public class ReferenceCreator extends ClassVisitor {
    *
    * @return A reference flag with the required level of access.
    */
-  private static Reference.Flag computeMinimumClassAccess(final String from, final String to) {
+  private static int computeMinimumClassAccess(final String from, final String to) {
     if (from.equalsIgnoreCase(to)) {
-      return Reference.Flag.PRIVATE_OR_HIGHER;
+      return 0; // same access; nothing to assert
     } else if (samePackage(from, to)) {
-      return Reference.Flag.PACKAGE_OR_HIGHER;
+      return Reference.EXPECTS_NON_PRIVATE;
     } else {
-      return Reference.Flag.PUBLIC;
+      return Reference.EXPECTS_PUBLIC;
     }
   }
 
@@ -115,15 +113,15 @@ public class ReferenceCreator extends ClassVisitor {
    *
    * @return A reference flag with the required level of access.
    */
-  private static Reference.Flag computeMinimumFieldAccess(final String from, final String to) {
+  private static int computeMinimumFieldAccess(final String from, final String to) {
     if (from.equalsIgnoreCase(to)) {
-      return Reference.Flag.PRIVATE_OR_HIGHER;
+      return 0; // same access; nothing to assert
     } else if (samePackage(from, to)) {
-      return Reference.Flag.PACKAGE_OR_HIGHER;
+      return Reference.EXPECTS_NON_PRIVATE;
     } else {
       // Additional references: check the type hierarchy of FROM to distinguish public from
       // protected
-      return Reference.Flag.PROTECTED_OR_HIGHER;
+      return Reference.EXPECTS_PUBLIC_OR_PROTECTED;
     }
   }
 
@@ -132,13 +130,13 @@ public class ReferenceCreator extends ClassVisitor {
    *
    * @return A reference flag with the required level of access.
    */
-  private static Reference.Flag computeMinimumMethodAccess(final String from, final String to) {
+  private static int computeMinimumMethodAccess(final String from, final String to) {
     if (from.equalsIgnoreCase(to)) {
-      return Reference.Flag.PRIVATE_OR_HIGHER;
+      return 0; // same access; nothing to assert
     } else {
       // Additional references: check the type hierarchy of FROM to distinguish public from
       // protected
-      return Reference.Flag.PROTECTED_OR_HIGHER;
+      return Reference.EXPECTS_PUBLIC_OR_PROTECTED;
     }
   }
 
@@ -156,7 +154,6 @@ public class ReferenceCreator extends ClassVisitor {
   private final Map<String, Reference> references = new LinkedHashMap<>();
   private String refSourceClassName;
   private String refSourceTypeInternalName;
-  private Type refSourceType;
 
   private ReferenceCreator(final ClassVisitor classVisitor) {
     super(Opcodes.ASM7, classVisitor);
@@ -167,12 +164,12 @@ public class ReferenceCreator extends ClassVisitor {
   }
 
   private void addReference(final Reference ref) {
-    if (!ref.getClassName().startsWith("java.")) {
-      Reference reference = references.get(ref.getClassName());
+    if (!ref.className.startsWith("java.")) {
+      Reference reference = references.get(ref.className);
       if (null == reference) {
-        references.put(ref.getClassName(), ref);
+        references.put(ref.className, ref);
       } else {
-        references.put(ref.getClassName(), reference.merge(ref));
+        references.put(ref.className, reference.merge(ref));
       }
     }
   }
@@ -186,7 +183,7 @@ public class ReferenceCreator extends ClassVisitor {
       final String superName,
       final String[] interfaces) {
     refSourceClassName = getClassName(name);
-    refSourceType = Type.getType("L" + name + ";");
+    Type refSourceType = Type.getType("L" + name + ";");
     refSourceTypeInternalName = refSourceType.getInternalName();
 
     // Add references to each of the interfaces.
@@ -196,7 +193,7 @@ public class ReferenceCreator extends ClassVisitor {
               .withSource(
                   refSourceClassName,
                   UNDEFINED_LINE) // We don't have a specific line number to use.
-              .withFlag(Reference.Flag.PUBLIC)
+              .withFlag(Reference.EXPECTS_PUBLIC)
               .build());
     }
     // the super type is handled by the method visitor to the constructor.
@@ -247,6 +244,10 @@ public class ReferenceCreator extends ClassVisitor {
     @Override
     public void visitFieldInsn(
         final int opcode, final String owner, final String name, final String descriptor) {
+      if (ignoreReference(owner)) {
+        return;
+      }
+
       // Additional references we could check
       // * DONE owner class
       //   * DONE owner class has a field (name)
@@ -265,22 +266,20 @@ public class ReferenceCreator extends ClassVisitor {
 
       String ownerTypeInternalName = ownerType.getInternalName();
 
-      final List<Reference.Flag> fieldFlags = new ArrayList<>();
-      fieldFlags.add(computeMinimumFieldAccess(refSourceTypeInternalName, ownerTypeInternalName));
-      fieldFlags.add(
+      int fieldFlags = 0;
+      fieldFlags |= computeMinimumFieldAccess(refSourceTypeInternalName, ownerTypeInternalName);
+      fieldFlags |=
           opcode == Opcodes.GETSTATIC || opcode == Opcodes.PUTSTATIC
-              ? Reference.Flag.STATIC
-              : Reference.Flag.NON_STATIC);
+              ? Reference.EXPECTS_STATIC
+              : Reference.EXPECTS_NON_STATIC;
 
       addReference(
           new Reference.Builder(ownerTypeInternalName)
               .withSource(refSourceClassName, currentLineNumber)
               .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
               .withField(
-                  new Reference.Source[] {
-                    new Reference.Source(refSourceClassName, currentLineNumber)
-                  },
-                  fieldFlags.toArray(new Reference.Flag[0]),
+                  new String[] {refSourceClassName + ":" + currentLineNumber},
+                  fieldFlags,
                   name,
                   fieldType)
               .build());
@@ -306,6 +305,10 @@ public class ReferenceCreator extends ClassVisitor {
         final String name,
         final String descriptor,
         final boolean isInterface) {
+      if (ignoreReference(owner)) {
+        return;
+      }
+
       // Additional references we could check
       // * DONE name of method owner's class
       //   * DONE is the owner an interface?
@@ -349,21 +352,19 @@ public class ReferenceCreator extends ClassVisitor {
               : Type.getType("L" + owner + ";");
       String ownerTypeInternalName = ownerType.getInternalName();
 
-      final List<Reference.Flag> methodFlags = new ArrayList<>();
-      methodFlags.add(
-          opcode == Opcodes.INVOKESTATIC ? Reference.Flag.STATIC : Reference.Flag.NON_STATIC);
-      methodFlags.add(computeMinimumMethodAccess(refSourceTypeInternalName, ownerTypeInternalName));
+      int methodFlags = 0;
+      methodFlags |=
+          opcode == Opcodes.INVOKESTATIC ? Reference.EXPECTS_STATIC : Reference.EXPECTS_NON_STATIC;
+      methodFlags |= computeMinimumMethodAccess(refSourceTypeInternalName, ownerTypeInternalName);
 
       addReference(
           new Reference.Builder(ownerTypeInternalName)
               .withSource(refSourceClassName, currentLineNumber)
-              .withFlag(isInterface ? Reference.Flag.INTERFACE : Reference.Flag.NON_INTERFACE)
+              .withFlag(isInterface ? Reference.EXPECTS_INTERFACE : Reference.EXPECTS_NON_INTERFACE)
               .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
               .withMethod(
-                  new Reference.Source[] {
-                    new Reference.Source(refSourceClassName, currentLineNumber)
-                  },
-                  methodFlags.toArray(new Reference.Flag[0]),
+                  new String[] {refSourceClassName + ":" + currentLineNumber},
+                  methodFlags,
                   name,
                   methodType.getReturnType(),
                   methodType.getArgumentTypes())
@@ -373,6 +374,10 @@ public class ReferenceCreator extends ClassVisitor {
 
     @Override
     public void visitTypeInsn(final int opcode, final String type) {
+      if (ignoreReference(type)) {
+        return;
+      }
+
       addReference(
           new Reference.Builder(type)
               .withSource(refSourceClassName, currentLineNumber)
@@ -430,5 +435,18 @@ public class ReferenceCreator extends ClassVisitor {
       }
       super.visitLdcInsn(value);
     }
+  }
+
+  /**
+   * {@code true} if we know this internal class is always available and doesn't require checking.
+   *
+   * <p>Optimization to avoid storing and checking muzzle references that will never fail.
+   */
+  private static boolean ignoreReference(String name) {
+    return name.equals("datadog/trace/bootstrap/CallDepthThreadLocalMap")
+        || name.equals("datadog/trace/bootstrap/ContextStore")
+        || name.equals("datadog/trace/bootstrap/InstrumentationContext")
+        || name.startsWith("datadog/trace/bootstrap/instrumentation/api/") // AgentSpan/Scope etc.
+        || name.startsWith("org/slf4j/"); // will be relocated to datadog/slf4j/
   }
 }

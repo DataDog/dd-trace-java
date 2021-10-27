@@ -408,14 +408,14 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
     }
   }
 
-  void setAllTags(final Map<String, ? extends Object> map) {
+  void setAllTags(final Map<String, ?> map) {
     if (map == null || map.isEmpty()) {
       return;
     }
 
     TagInterceptor tagInterceptor = trace.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
-      for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
+      for (final Map.Entry<String, ?> tag : map.entrySet()) {
         if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
           unsafeSetTag(tag.getKey(), tag.getValue());
         }

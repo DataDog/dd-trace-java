@@ -112,6 +112,10 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.getRuntimeId());
     writer.name("logging_settings");
     writeObjectMap(writer, LoggingSettingsDescription.getDescription());
+    writer.name("cws_enabled");
+    writer.value(config.isCwsEnabled());
+    writer.name("cws_tls_refresh");
+    writer.value(config.getCwsTlsRefresh());
     writer.endObject();
   }
 

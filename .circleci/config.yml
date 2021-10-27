@@ -295,7 +295,7 @@ jobs:
 
   smoke_tests:
     <<: *base_tests
-    resource_class: medium
+    resource_class: medium+
 
     docker:
       - image: *default_container
@@ -396,7 +396,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1550M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=3

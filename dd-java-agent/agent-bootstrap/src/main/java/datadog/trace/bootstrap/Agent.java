@@ -77,6 +77,7 @@ public class Agent {
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
+  private static boolean cwsEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
@@ -84,6 +85,7 @@ public class Agent {
     jmxFetchEnabled = isJmxFetchEnabled();
     profilingEnabled = isProfilingEnabled();
     appSecEnabled = isAppSecEnabled();
+    cwsEnabled = isCwsEnabled();
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -105,6 +107,10 @@ public class Agent {
               }
             };
       }
+    }
+
+    if (cwsEnabled) {
+      startCwsAgent();
     }
 
     /*
@@ -521,6 +527,32 @@ public class Agent {
     }
   }
 
+  private static void startCwsAgent() {
+    log.debug("Scheduling scope event factory registration");
+    WithGlobalTracer.registerOrExecute(
+        new WithGlobalTracer.Callback() {
+          @Override
+          public void withTracer(Tracer tracer) {
+            log.debug("Registering CWS scope tracker");
+            try {
+              ScopeListener scopeListener =
+                  (ScopeListener)
+                      AGENT_CLASSLOADER
+                          .loadClass("datadog.cws.tls.TlsScopeListener")
+                          .getDeclaredConstructor()
+                          .newInstance();
+              tracer.addScopeListener(scopeListener);
+              log.debug("Scope event factory {} has been registered", scopeListener);
+            } catch (Throwable e) {
+              if (e instanceof InvocationTargetException) {
+                e = e.getCause();
+              }
+              log.debug("CWS is not available. {}", e.getMessage());
+            }
+          }
+        });
+  }
+
   private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -731,6 +763,17 @@ public class Agent {
     }
     // assume false unless it's explicitly set to "true"
     return "true".equalsIgnoreCase(appSecEnabled);
+  }
+
+  /** @return {@code true} if cws is enabled */
+  private static boolean isCwsEnabled() {
+    final String cwsEnabledSysprop = "dd.cws.enabled";
+    String cwsEnabled = System.getProperty(cwsEnabledSysprop);
+    if (cwsEnabled == null) {
+      cwsEnabled = ddGetEnv(cwsEnabledSysprop);
+    }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(cwsEnabled);
   }
 
   /** @return configured JMX start delay in seconds */

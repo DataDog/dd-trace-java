@@ -1,8 +1,6 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.VertxOptions
@@ -42,11 +40,6 @@ class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest {
   new CircuitBreakerOptions()
   .setTimeout(-1) // Disable the timeout otherwise it makes each test take this long.
   )
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
-  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {

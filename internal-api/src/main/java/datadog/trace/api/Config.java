@@ -6,6 +6,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AWS_PROPAGATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -71,6 +73,8 @@ import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
+import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
+import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
@@ -84,6 +88,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
@@ -443,6 +448,9 @@ public class Config {
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
 
+  private final boolean cwsEnabled;
+  private final int cwsTlsRefresh;
+
   private String env;
   private String version;
 
@@ -450,15 +458,18 @@ public class Config {
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(
-        INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString(),
-        ConfigProvider.createDefault());
+    this(ConfigProvider.createDefault());
   }
 
-  private Config(final String runtimeId, final ConfigProvider configProvider) {
+  private Config(final ConfigProvider configProvider) {
     this.configProvider = configProvider;
     configFile = findConfigurationFile();
-    this.runtimeId = runtimeId;
+    runtimeId =
+        null != INSTANCE
+            ? INSTANCE.runtimeId
+            : configProvider.getBoolean(RUNTIME_ID_ENABLED, true)
+                ? UUID.randomUUID().toString()
+                : "";
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -885,6 +896,9 @@ public class Config {
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+
+    cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
+    cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -1373,6 +1387,14 @@ public class Config {
     return debugEnabled;
   }
 
+  public boolean isCwsEnabled() {
+    return cwsEnabled;
+  }
+
+  public int getCwsTlsRefresh() {
+    return cwsTlsRefresh;
+  }
+
   public String getConfigFile() {
     return configFile;
   }
@@ -1406,9 +1428,10 @@ public class Config {
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
-  public Map<String, String> getLocalRootSpanTags() {
+  public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, String> result = new HashMap<>(runtimeTags);
+    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 1);
+    result.putAll(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
 
     if (reportHostName) {
@@ -1416,6 +1439,11 @@ public class Config {
       if (null != hostName && !hostName.isEmpty()) {
         result.put(INTERNAL_HOST_NAME, hostName);
       }
+    }
+
+    if (appSecEnabled) {
+      result.put("_dd.appsec.enabled", 1);
+      result.put("_dd.runtime_family", "jvm");
     }
 
     return Collections.unmodifiableMap(result);
@@ -1530,9 +1558,7 @@ public class Config {
    * @return A map of tag-name -> tag-value
    */
   private Map<String, String> getRuntimeTags() {
-    final Map<String, String> result = newHashMap(2);
-    result.put(RUNTIME_ID_TAG, runtimeId);
-    return Collections.unmodifiableMap(result);
+    return Collections.singletonMap(RUNTIME_ID_TAG, runtimeId);
   }
 
   public String getFinalProfilingUrl() {
@@ -1845,7 +1871,7 @@ public class Config {
     if (properties == null || properties.isEmpty()) {
       return INSTANCE;
     } else {
-      return new Config(INSTANCE.runtimeId, ConfigProvider.withPropertiesOverride(properties));
+      return new Config(ConfigProvider.withPropertiesOverride(properties));
     }
   }
 
@@ -2128,6 +2154,10 @@ public class Config {
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
+        + ", cwsEnabled="
+        + cwsEnabled
+        + ", cwsTlsRefresh="
+        + cwsTlsRefresh
         + '}';
   }
 }

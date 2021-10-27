@@ -3,8 +3,6 @@ package mule4
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.HttpUrl
@@ -84,10 +82,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test mule client remote request"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def url = HttpUrl.get(address.resolve("/client-request")).newBuilder().build()
     def request = new Request.Builder().url(url).method("GET", null).build()
 
@@ -109,6 +103,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${address.resolve("/client-request")}"
+            "$Tags.HTTP_HOSTNAME" address.host
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
@@ -136,10 +131,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test parallel for each"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def names = ["Alyssa", "Ben", "Cy", "Eva", "Lem", "Louis"]
     def jsonAdapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, String))
     def input = jsonAdapter.toJson(names)
@@ -166,6 +157,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_METHOD" "PUT"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${address.resolve("/pfe-request")}"
+            "$Tags.HTTP_HOSTNAME" address.host
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()

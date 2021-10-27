@@ -8,8 +8,6 @@ import akka.http.javadsl.model.headers.RawHeader
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator
@@ -120,13 +118,6 @@ class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentatio
     }
     return Http.get(system).singleRequest(request)
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 }
 
 class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
@@ -141,12 +132,5 @@ class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentati
       f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log())
     }
     return FutureConverters.toJava(f)
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
