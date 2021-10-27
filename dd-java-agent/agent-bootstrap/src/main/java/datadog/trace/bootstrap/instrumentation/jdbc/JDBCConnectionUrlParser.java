@@ -877,6 +877,10 @@ public enum JDBCConnectionUrlParser {
         }
       }
 
+      if (props.containsKey("currentSchema")) {
+        builder.host((String) props.get("currentSchema"));
+      }
+
       if (props.containsKey("portNumber")) {
         final String portNumber = (String) props.get("portNumber");
         try {
