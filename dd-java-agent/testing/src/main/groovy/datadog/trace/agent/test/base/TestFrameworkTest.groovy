@@ -47,10 +47,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           errorTags(exception.class, exception.message)
         }
 
-        if (isCI) {
-          ciTags.each { key, val ->
-            tag(key, val)
-          }
+        ciTags.each { key, val ->
+          tag(key, val)
         }
 
         "$Tags.OS_VERSION" String
