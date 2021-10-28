@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
 
 class CISpecExtractor {

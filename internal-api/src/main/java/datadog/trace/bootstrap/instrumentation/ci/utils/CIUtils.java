@@ -8,7 +8,7 @@ public final class CIUtils {
   private CIUtils() {}
 
   /**
-   * Search the path that contains the the target file. If the current path does not have the target
+   * Search the path that contains the target file. If the current path does not have the target
    * file, the method continues with the parent path. If the path is not found, it returns null.
    *
    * @param current
