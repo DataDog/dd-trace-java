@@ -33,7 +33,7 @@ class CIUtilsTest extends Specification {
   }
 
   static "resolve"(workspace) {
-    def resolvedWS = Paths.get(CIUtilsTest.class.getClassLoader().getResource(workspace).toURI())
+    def resolvedWS = Paths.get(CIUtilsTest.getClassLoader().getResource(workspace).toURI())
     println(resolvedWS.toString())
     return resolvedWS
   }
