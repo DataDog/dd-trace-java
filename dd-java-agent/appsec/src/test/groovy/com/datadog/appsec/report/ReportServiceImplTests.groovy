@@ -39,7 +39,7 @@ class ReportServiceImplTests extends DDSpecification {
   void 'NoOp implementation does nothing'() {
     setup:
     testee = ReportService.NoOp.INSTANCE
-    testee.reportAttack(null)
+    testee.reportAttacks(null, null)
   }
 
 
@@ -50,7 +50,7 @@ class ReportServiceImplTests extends DDSpecification {
       api, AlwaysFlush.INSTANCE, scheduler)
 
     when:
-    testee.reportAttack(attack)
+    testee.reportAttacks([attack], null)
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, testee, 5, 30, TimeUnit.SECONDS) >>
@@ -76,7 +76,7 @@ class ReportServiceImplTests extends DDSpecification {
 
     when:
     testee = new ReportServiceImpl(api, { false } as ReportStrategy, scheduler)
-    testee.reportAttack(attack)
+    testee.reportAttacks([attack], null)
 
     then:
     0 * api._(*_)
@@ -92,7 +92,7 @@ class ReportServiceImplTests extends DDSpecification {
     testee = new ReportServiceImpl(
       api, {reportResponsesStack.pop() /* pops off the front*/ } as ReportStrategy,
       scheduler)
-    testee.reportAttack(attack)
+    testee.reportAttacks([attack], null)
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, { it.is(testee) }, 5, 30, TimeUnit.SECONDS) >>

@@ -10,7 +10,6 @@ import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.EventEnrichment;
-import com.datadog.appsec.report.InbandReportService;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.Function;
@@ -53,7 +52,6 @@ public class GatewayBridge {
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final ReportService reportService;
-  private final InbandReportService inbandReportService;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
@@ -62,12 +60,10 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ReportService reportService,
-      InbandReportService inbandReportService) {
+      ReportService reportService) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.reportService = reportService;
-    this.inbandReportService = inbandReportService;
   }
 
   public void init() {
@@ -100,9 +96,8 @@ public class GatewayBridge {
 
           for (Attack010 attack : collectedAttacks) {
             EventEnrichment.enrich(attack, spanInfo, ctx);
-            reportService.reportAttack(attack);
           }
-          inbandReportService.reportAttacks(collectedAttacks, ctx_.getTraceSegment());
+          reportService.reportAttacks(collectedAttacks, ctx_.getTraceSegment());
 
           ctx.close();
           return NoopFlow.INSTANCE;

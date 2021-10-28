@@ -16,14 +16,6 @@ class InbandReportServiceImplTest extends DDSpecification {
   def reportService = new InbandReportServiceImpl()
   def traceSegment = Mock(TraceSegment)
 
-  void 'NoOp implementation does nothing'() {
-    when:
-    InbandReportService.NoOp.INSTANCE.reportAttacks([], traceSegment)
-
-    then:
-    0 * traceSegment._
-  }
-
   void 'does nothing when attacks is empty'() {
     when:
     reportService.reportAttacks([], traceSegment)

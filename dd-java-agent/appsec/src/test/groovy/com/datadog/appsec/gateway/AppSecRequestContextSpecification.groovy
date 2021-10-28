@@ -109,17 +109,18 @@ class AppSecRequestContextSpecification extends DDSpecification {
     def now = Instant.now()
 
     when:
-    ctx.reportAttack(new Attack010(detectedAt: now))
-    ctx.reportAttack(new Attack010())
+    ctx.reportAttacks([new Attack010(detectedAt: now)], null)
+    ctx.reportAttacks([new Attack010(), new Attack010()], null)
     def attacks = ctx.transferCollectedAttacks()
 
     then:
-    attacks.size() == 2
+    attacks.size() == 3
     attacks[0].detectedAt.is(now)
     attacks[1] != null
+    attacks[2] != null
 
     when:
-    ctx.reportAttack(new Attack010())
+    ctx.reportAttacks([new Attack010()], null)
 
     then:
     thrown IllegalStateException

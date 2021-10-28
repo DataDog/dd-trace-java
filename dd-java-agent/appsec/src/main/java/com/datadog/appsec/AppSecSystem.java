@@ -5,7 +5,6 @@ import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.report.AppSecApi;
-import com.datadog.appsec.report.InbandReportService;
 import com.datadog.appsec.report.InbandReportServiceImpl;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.ReportServiceImpl;
@@ -71,20 +70,16 @@ public class AppSecSystem {
     AgentTaskScheduler taskScheduler =
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.APPSEC_HTTP_DISPATCHER);
     AppSecApi api = new AppSecApi(sco.monitoring, sco.agentUrl, sco.okHttpClient, taskScheduler);
-    final InbandReportService inbandReportService;
     if (!config.isAppSecReportingInband()) {
       REPORT_SERVICE =
           new ReportServiceImpl(
               api,
               new ReportStrategy.Default(JvmTime.Default.INSTANCE),
               ReportServiceImpl.TaskScheduler.of(taskScheduler));
-      inbandReportService = InbandReportService.NoOp.INSTANCE;
     } else {
-      REPORT_SERVICE = ReportService.NoOp.INSTANCE;
-      inbandReportService = new InbandReportServiceImpl();
+      REPORT_SERVICE = new InbandReportServiceImpl();
     }
-    GatewayBridge gatewayBridge =
-        new GatewayBridge(gw, eventDispatcher, REPORT_SERVICE, inbandReportService);
+    GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher, REPORT_SERVICE);
 
     loadModules(eventDispatcher);
     gatewayBridge.init();

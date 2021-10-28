@@ -7,6 +7,7 @@ import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import java.io.Closeable;
 import java.time.Instant;
@@ -199,18 +200,20 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   }
 
   @Override
-  public void reportAttack(Attack010 attack) {
-    StandardizedLogging.attackDetected(log, attack);
+  public void reportAttacks(Collection<Attack010> attacks, TraceSegment traceSegment) {
+    for (Attack010 attack : attacks) {
+      StandardizedLogging.attackDetected(log, attack);
 
-    if (attack.getDetectedAt() == null) {
-      attack.setDetectedAt(Instant.now());
+      if (attack.getDetectedAt() == null) {
+        attack.setDetectedAt(Instant.now());
+      }
     }
     synchronized (this) {
       if (this.collectedAttacks == null) {
         this.collectedAttacks = new ArrayList<>();
       }
       try {
-        this.collectedAttacks.add(attack);
+        this.collectedAttacks.addAll(attacks);
       } catch (UnsupportedOperationException e) {
         throw new IllegalStateException("Attacks cannot be added anymore");
       }

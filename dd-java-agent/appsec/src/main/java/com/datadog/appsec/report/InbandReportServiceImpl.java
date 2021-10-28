@@ -11,10 +11,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class InbandReportServiceImpl implements InbandReportService {
+public class InbandReportServiceImpl implements ReportService {
   @Override
   public void reportAttacks(Collection<Attack010> attacks, TraceSegment traceSegment) {
-    if (attacks.isEmpty()) {
+    if (attacks.isEmpty() || traceSegment == null) {
       return;
     }
     List<InbandTrigger> triggers = new ArrayList<>(attacks.size());
@@ -74,4 +74,7 @@ public class InbandReportServiceImpl implements InbandReportService {
     types.add(attack.getType());
     ruleIds.add(rule.getId());
   }
+
+  @Override
+  public void close() {}
 }

@@ -6,7 +6,7 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
-import com.datadog.appsec.report.InbandReportService
+
 import com.datadog.appsec.report.ReportService
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
@@ -32,7 +32,6 @@ class GatewayBridgeSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
   ReportService reportService = Mock()
-  InbandReportService inbandReportService = Mock()
   AppSecRequestContext arCtx = new AppSecRequestContext()
   TraceSegment traceSegment = Mock()
   RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
@@ -52,7 +51,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService, inbandReportService)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -94,8 +93,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedAttacks() >> [attack]
     1 * mockAppSecCtx.close()
-    1 * reportService.reportAttack(attack)
-    1 * inbandReportService.reportAttacks([attack], traceSegment)
+    1 * reportService.reportAttacks([attack], traceSegment)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
