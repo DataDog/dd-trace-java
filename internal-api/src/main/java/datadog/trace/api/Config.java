@@ -77,8 +77,11 @@ import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PATH;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
@@ -205,6 +208,8 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
@@ -452,6 +457,12 @@ public class Config {
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
+
+  private final boolean azureAppServices;
+  private final String traceAgentPath;
+  private final List<String> traceAgentArgs;
+  private final String dogStatsDPath;
+  private final List<String> dogStatsDArgs;
 
   private String env;
   private String version;
@@ -904,6 +915,23 @@ public class Config {
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
+
+    azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
+    traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
+    String traceAgentArgsString = configProvider.getString(TRACE_AGENT_ARGS);
+    if (traceAgentArgsString == null) {
+      traceAgentArgs = Collections.emptyList();
+    } else {
+      traceAgentArgs = Collections.unmodifiableList(Arrays.asList(traceAgentArgsString.split(" ")));
+    }
+
+    dogStatsDPath = configProvider.getString(DOGSTATSD_PATH);
+    String dogStatsDArgsString = configProvider.getString(DOGSTATSD_ARGS);
+    if (dogStatsDArgsString == null) {
+      dogStatsDArgs = Collections.emptyList();
+    } else {
+      dogStatsDArgs = Collections.unmodifiableList(Arrays.asList(dogStatsDArgsString.split(" ")));
+    }
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -1402,6 +1430,26 @@ public class Config {
 
   public int getCwsTlsRefresh() {
     return cwsTlsRefresh;
+  }
+
+  public boolean isAzureAppServices() {
+    return azureAppServices;
+  }
+
+  public String getTraceAgentPath() {
+    return traceAgentPath;
+  }
+
+  public List<String> getTraceAgentArgs() {
+    return traceAgentArgs;
+  }
+
+  public String getDogStatsDPath() {
+    return dogStatsDPath;
+  }
+
+  public List<String> getDogStatsDArgs() {
+    return dogStatsDArgs;
   }
 
   public String getConfigFile() {
