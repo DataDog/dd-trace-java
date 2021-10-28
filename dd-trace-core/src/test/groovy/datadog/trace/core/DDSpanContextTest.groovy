@@ -1,7 +1,10 @@
 package datadog.trace.core
 
+import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
@@ -164,13 +167,52 @@ class DDSpanContextTest extends DDCoreSpecification {
     span.finish()
   }
 
-  static void assertTagmap(Map source, Map comparison) {
+
+  def "set TraceSegment tags and data on correct span"() {
+    setup:
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, null, null, null, [:], [:]).withRequestContextData("dummy")
+    def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
+    def topC = (DDSpanContext) top.context()
+    def topTS = top.getRequestContext().getTraceSegment()
+    def current = tracer.buildSpan("current").asChildOf(top).start()
+    def currentTS = current.getRequestContext().getTraceSegment()
+    def currentC = (DDSpanContext) current.context()
+
+    when:
+    currentTS.setDataTop("ctd", "[1]")
+    currentTS.setTagTop("ctt", "t1")
+    currentTS.setDataCurrent("ccd", "[2]")
+    currentTS.setTagCurrent("cct", "t2")
+    topTS.setDataTop("ttd", "[3]")
+    topTS.setTagTop("ttt", "t3")
+    topTS.setDataCurrent("tcd", "[4]")
+    topTS.setTagCurrent("tct", "t4")
+
+    then:
+    assertTagmap(topC.getTags(), [(dataTag("ctd")): "[1]", "ctt": "t1",
+      (dataTag("ttd")): "[3]", "ttt": "t3",
+      (dataTag("tcd")): "[4]", "tct": "t4"], true)
+    assertTagmap(currentC.getTags(), [(dataTag("ccd")): "[2]", "cct": "t2"], true)
+
+    cleanup:
+    current.finish()
+    top.finish()
+  }
+
+  private static String dataTag(String tag) {
+    "_dd.${tag}.json"
+  }
+
+  static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {
     def sourceWithoutCommonTags = new HashMap(source)
     sourceWithoutCommonTags.remove("runtime-id")
     sourceWithoutCommonTags.remove("language")
     sourceWithoutCommonTags.remove("_dd.agent_psr")
     sourceWithoutCommonTags.remove("_sample_rate")
-
+    if (removeThread) {
+      sourceWithoutCommonTags.remove(DDTags.THREAD_ID)
+      sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)
+    }
     assert sourceWithoutCommonTags == comparison
   }
 }

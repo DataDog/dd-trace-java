@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import datadog.trace.api.Function;
+import datadog.trace.api.TraceSegment;
 import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
@@ -30,6 +31,11 @@ public class InstrumentationGatewayTest {
           @Override
           public Object getData() {
             return this;
+          }
+
+          @Override
+          public TraceSegment getTraceSegment() {
+            return TraceSegment.NoOp.INSTANCE;
           }
         };
     flow = new Flow.ResultFlow<>(null);

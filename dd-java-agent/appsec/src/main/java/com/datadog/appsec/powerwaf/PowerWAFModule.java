@@ -194,7 +194,8 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
-        buildAttack(actionWithData).ifPresent(reqCtx::reportAttack);
+        buildAttack(actionWithData)
+            .ifPresent(attack -> reqCtx.reportAttacks(singletonList(attack), null));
       }
     }
   }

@@ -5,6 +5,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -16,9 +17,10 @@ class TraceMapperTest extends DDCoreSpecification {
   def "test trace mapper v0.5"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def span = tracer.buildSpan(null).withTag("service.name", "my-service")
+    DDSpan span = (DDSpan) tracer.buildSpan(null).withTag("service.name", "my-service")
       .withTag("elasticsearch.version", "7.0").start()
     span.setBaggageItem("baggage", "item")
+    span.context().setDataTop("mydata", "[1,2,3]")
     def trace = [span]
 
     when:
@@ -31,6 +33,7 @@ class TraceMapperTest extends DDCoreSpecification {
     then:
     sink.captured != null
     ByteBuffer dictionaryBytes = traceMapper.dictionary.slice()
+    Map<String, String> meta = new HashMap<>()
 
     MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)
     int dictionaryLength = traceMapper.encoding.size()
@@ -68,6 +71,7 @@ class TraceMapperTest extends DDCoreSpecification {
         key != null
         String value = dictionary[unpacker.unpackInt()]
         value != null
+        meta.put(key, value)
       }
       int metricsHeader = unpacker.unpackMapHeader()
       for (int j = 0; j < metricsHeader; ++j) {
@@ -77,6 +81,8 @@ class TraceMapperTest extends DDCoreSpecification {
       }
       String type = dictionary[unpacker.unpackInt()]
       type != null
+
+      meta.findResult {it.getKey().contains('.mydata.') ? it.getValue() : null } == '[1,2,3]'
     }
 
     cleanup:

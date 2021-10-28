@@ -96,8 +96,8 @@ public class GatewayBridge {
 
           for (Attack010 attack : collectedAttacks) {
             EventEnrichment.enrich(attack, spanInfo, ctx);
-            reportService.reportAttack(attack);
           }
+          reportService.reportAttacks(collectedAttacks, ctx_.getTraceSegment());
 
           ctx.close();
           return NoopFlow.INSTANCE;

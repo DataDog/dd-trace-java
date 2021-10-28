@@ -14,7 +14,7 @@ import static org.hamcrest.MatcherAssert.assertThat
 
 class ReportServiceImplTests extends DDSpecification {
 
-  ReportServiceImpl testee
+  ReportService testee
   AppSecApi api = Mock()
   ReportServiceImpl.TaskScheduler scheduler = Mock()
 
@@ -36,6 +36,12 @@ class ReportServiceImplTests extends DDSpecification {
     }
   }
 
+  void 'NoOp implementation does nothing'() {
+    setup:
+    testee = ReportService.NoOp.INSTANCE
+    testee.reportAttacks(null, null)
+  }
+
 
   void 'calls AppSecApi and schedules task'() {
     String json
@@ -44,7 +50,7 @@ class ReportServiceImplTests extends DDSpecification {
       api, AlwaysFlush.INSTANCE, scheduler)
 
     when:
-    testee.reportAttack(attack)
+    testee.reportAttacks([attack], null)
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, testee, 5, 30, TimeUnit.SECONDS) >>
@@ -70,7 +76,7 @@ class ReportServiceImplTests extends DDSpecification {
 
     when:
     testee = new ReportServiceImpl(api, { false } as ReportStrategy, scheduler)
-    testee.reportAttack(attack)
+    testee.reportAttacks([attack], null)
 
     then:
     0 * api._(*_)
@@ -86,7 +92,7 @@ class ReportServiceImplTests extends DDSpecification {
     testee = new ReportServiceImpl(
       api, {reportResponsesStack.pop() /* pops off the front*/ } as ReportStrategy,
       scheduler)
-    testee.reportAttack(attack)
+    testee.reportAttacks([attack], null)
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, { it.is(testee) }, 5, 30, TimeUnit.SECONDS) >>

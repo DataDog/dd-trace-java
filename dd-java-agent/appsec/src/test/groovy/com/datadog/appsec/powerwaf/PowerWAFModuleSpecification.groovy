@@ -54,7 +54,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
     then:
-    ctx.reportAttack(_ as Attack010) >> { attack = it[0] }
+    ctx.reportAttacks(_ as Collection<Attack010>, _) >> { attack = it[0].iterator().next() }
     attack.blocked == Boolean.FALSE
     attack.type == 'security_scanner'
 
@@ -119,7 +119,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
     then:
-    1 * ctx.reportAttack(_ as Attack010)
+    1 * ctx.reportAttacks(_ as Collection<Attack010>, _)
   }
 
   void 'bad initial configuration is given results in no attacks detected'() {

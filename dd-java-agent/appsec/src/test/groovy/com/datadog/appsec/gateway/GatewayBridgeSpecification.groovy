@@ -6,10 +6,12 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
+
 import com.datadog.appsec.report.ReportService
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiConsumer
+import datadog.trace.api.TraceSegment
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
@@ -31,10 +33,16 @@ class GatewayBridgeSpecification extends DDSpecification {
   EventDispatcher eventDispatcher = Mock()
   ReportService reportService = Mock()
   AppSecRequestContext arCtx = new AppSecRequestContext()
+  TraceSegment traceSegment = Mock()
   RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
     @Override
     AppSecRequestContext getData() {
       return arCtx
+    }
+
+    @Override
+    TraceSegment getTraceSegment() {
+      return traceSegment
     }
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -75,6 +83,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     RequestContext mockCtx = Mock(RequestContext) {
       getData() >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
     }
     IGSpanInfo spanInfo = Mock()
 
@@ -84,7 +93,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedAttacks() >> [attack]
     1 * mockAppSecCtx.close()
-    1 * reportService.reportAttack(attack)
+    1 * reportService.reportAttacks([attack], traceSegment)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE

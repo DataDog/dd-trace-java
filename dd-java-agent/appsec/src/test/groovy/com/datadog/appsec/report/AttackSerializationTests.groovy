@@ -20,7 +20,7 @@ import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.RuleMatch010
-import org.junit.Test
+import datadog.trace.test.util.DDSpecification
 
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -28,13 +28,12 @@ import java.time.ZoneId
 import static com.datadog.appsec.test.JsonMatcher.matchesJson
 import static org.hamcrest.MatcherAssert.assertThat
 
-class AttackSerializationTests {
+class AttackSerializationTests extends DDSpecification {
 
   private static toInstant(LocalDateTime timeInUTC) {
     timeInUTC.atZone(ZoneId.of('UTC')).toInstant()
   }
 
-  @Test
   void 'serialize sample attack'() {
     Attack010 attack = new Attack010.Attack010Builder()
       .withEventId('41174c05-dc35-4fa1-90cd-f97b6d5f3135')
