@@ -8,14 +8,15 @@ public final class CIUtils {
   private CIUtils() {}
 
   /**
-   * Search the path that contains the target file. If the current path does not have the target
-   * file, the method continues with the parent path. If the path is not found, it returns null.
+   * Search the parent path that contains the target file. If the current path does not have the
+   * target file, the method continues with the parent path. If the path is not found, it returns
+   * null.
    *
    * @param current
    * @param target
-   * @return the path that contains the target file.
+   * @return the parent path that contains the target file.
    */
-  public static Path findPathBackwards(
+  public static Path findParentPathBackwards(
       final Path current, final String target, final boolean isTargetDirectory) {
     if (current == null || target == null || target.isEmpty()) {
       return null;
@@ -28,10 +29,10 @@ public final class CIUtils {
       } else if (!isTargetDirectory && Files.isRegularFile(targetPath)) {
         return current;
       } else {
-        return null;
+        return findParentPathBackwards(current.getParent(), target, isTargetDirectory);
       }
     } else {
-      return findPathBackwards(current.getParent(), target, isTargetDirectory);
+      return findParentPathBackwards(current.getParent(), target, isTargetDirectory);
     }
   }
 }

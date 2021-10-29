@@ -11,7 +11,7 @@ class CIUtilsTest extends Specification {
 
   def "test find path backwards "() {
     when:
-    def result = CIUtils.findPathBackwards(path, target, isDirectory)
+    def result = CIUtils.findParentPathBackwards(path, target, isDirectory)
 
     then:
     result == expectedResult
@@ -30,6 +30,7 @@ class CIUtilsTest extends Specification {
     innerWorkspace | "targetFolder" | false | null
     innerWorkspace | "targetFile.txt" | true |null
     innerWorkspace | "targetFile.txt" | false | workspace
+    innerWorkspace | "otherTargetFolder" | true | workspace
   }
 
   static "resolve"(workspace) {
