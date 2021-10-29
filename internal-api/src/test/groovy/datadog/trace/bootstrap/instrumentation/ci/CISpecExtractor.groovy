@@ -5,7 +5,7 @@ import groovy.json.JsonSlurper
 class CISpecExtractor {
 
   static extract(String ciProviderName) {
-    if ("noop" == ciProviderName) {
+    if ("unknown" == ciProviderName) {
       return Arrays.asList(new CISpec(Collections.EMPTY_MAP, Collections.EMPTY_MAP))
     }
 

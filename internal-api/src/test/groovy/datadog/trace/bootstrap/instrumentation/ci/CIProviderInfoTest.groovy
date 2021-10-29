@@ -22,7 +22,7 @@ import static TravisInfo.TRAVIS
 
 abstract class CIProviderInfoTest extends Specification {
 
-  private static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
+  protected static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
   public static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
 
   @Rule
@@ -53,7 +53,9 @@ abstract class CIProviderInfoTest extends Specification {
     def ciInfo = instanceProvider()
 
     then:
-    ciInfo.ciTags == ciSpec.tags
+    if (ciInfo.class != UnknownCIInfo) {
+      ciInfo.ciTags == ciSpec.tags
+    }
 
     where:
     ciSpec << CISpecExtractor.extract(getProviderName())
@@ -69,7 +71,7 @@ abstract class CIProviderInfoTest extends Specification {
     def ciInfo = instanceProvider()
 
     then:
-    if (ciInfo.class != NoopCIInfo) {
+    if (ciInfo.class != UnknownCIInfo) {
       def tags = ciInfo.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
@@ -94,7 +96,7 @@ abstract class CIProviderInfoTest extends Specification {
     def ciInfo = instanceProvider()
 
     then:
-    if (ciInfo.class != NoopCIInfo) {
+    if (ciInfo.class != UnknownCIInfo) {
       def tags = ciInfo.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
@@ -131,7 +133,7 @@ abstract class CIProviderInfoTest extends Specification {
     BITBUCKET     | BitBucketInfo
     BUILDKITE     | BuildkiteInfo
     BITRISE       | BitriseInfo
-    "none"        | NoopCIInfo
+    "none"        | UnknownCIInfo
   }
 
   abstract CIProviderInfo instanceProvider()
@@ -148,7 +150,6 @@ abstract class CIProviderInfoTest extends Specification {
 
   def "resolve"(workspace) {
     def resolvedWS = Paths.get(getClass().getClassLoader().getResource(workspace).toURI()).toFile().getAbsolutePath()
-    println(resolvedWS)
     return resolvedWS
   }
 }
