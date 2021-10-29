@@ -57,6 +57,19 @@ class UnknownCIInfoTest extends CIProviderInfoTest {
     ciInfo.ciTags == expectedTags
   }
 
+  def "test workspace is null if target folder does not exist"(){
+    when:
+    def ciInfo = new UnknownCIInfo() {
+        @Override
+        protected String getTargetFolder() {
+          return "this-target-folder-does-not-exist"
+        }
+      }
+
+    then:
+    ciInfo.ciTags.get("$Tags.CI_WORKSPACE_PATH") == null
+  }
+
   def "test isCi is false"() {
     when:
     def provider = instanceProvider()
