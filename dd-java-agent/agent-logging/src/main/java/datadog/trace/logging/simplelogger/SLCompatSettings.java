@@ -1,6 +1,7 @@
 package datadog.trace.logging.simplelogger;
 
 import datadog.trace.logging.LogLevel;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -171,7 +172,10 @@ public class SLCompatSettings {
       default:
         FileOutputStream outputStream = null;
         try {
-          outputStream = new FileOutputStream(logFile);
+          File outputFile = new File(logFile);
+          outputFile.getParentFile().mkdirs();
+
+          outputStream = new FileOutputStream(outputFile);
           PrintStream printStream = new PrintStream(outputStream, true);
           return printStream;
         } catch (IOException | SecurityException e) {
