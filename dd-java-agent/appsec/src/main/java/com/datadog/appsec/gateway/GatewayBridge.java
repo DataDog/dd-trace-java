@@ -12,6 +12,7 @@ import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.EventEnrichment;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -91,6 +92,9 @@ public class GatewayBridge {
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
           // If detected any attacks - mark span at appsec.event
           if (!collectedAttacks.isEmpty() && spanInfo != null) {
+            // Keep attack related span, because it could be ignored in case of
+            // reduced datadog sampling rate.
+            spanInfo.setTag(DDTags.MANUAL_KEEP, true);
             spanInfo.setTag("appsec.event", true);
           }
 
