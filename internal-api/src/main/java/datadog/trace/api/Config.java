@@ -1502,6 +1502,11 @@ public class Config {
       result.put("_dd.appsec.enabled", 1);
       result.put("_dd.runtime_family", "jvm");
     }
+    // These values are
+
+    if (azureAppServices) {
+      result.putAll(getAzureAppServicesTags());
+    }
 
     return Collections.unmodifiableMap(result);
   }
@@ -1616,6 +1621,97 @@ public class Config {
    */
   private Map<String, String> getRuntimeTags() {
     return Collections.singletonMap(RUNTIME_ID_TAG, runtimeId);
+  }
+
+  private Map<String, String> getAzureAppServicesTags() {
+    // These variable names and derivations are copied from the dotnet tracer
+    // See
+    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/PlatformHelpers/AzureAppServices.cs
+    // and
+    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/TraceContext.cs#L207
+    Map<String, String> aasTags = new HashMap<>();
+
+    /// The site name of the site instance in Azure where the traced application is running.
+    String siteName = System.getenv("WEBSITE_SITE_NAME");
+    if (siteName != null) {
+      aasTags.put("aas.site.name", siteName);
+    }
+
+    // The kind of application instance running in Azure.
+    // Possible values: app, api, mobileapp, app_linux, app_linux_container, functionapp,
+    // functionapp_linux, functionapp_linux_container
+
+    // The type of application instance running in Azure.
+    // Possible values: app, function
+    if (System.getenv("FUNCTIONS_WORKER_RUNTIME") != null
+        || System.getenv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
+      aasTags.put("aas.site.kind", "functionapp");
+      aasTags.put("aas.site.type", "function");
+    } else {
+      aasTags.put("aas.site.kind", "app");
+      aasTags.put("aas.site.type", "app");
+    }
+
+    //  The resource group of the site instance in Azure App Services
+    String resourceGroup = System.getenv("WEBSITE_RESOURCE_GROUP");
+    if (resourceGroup != null) {
+      aasTags.put("aas.resource.group", resourceGroup);
+    }
+
+    // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
+    // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
+    String websiteOwner = System.getenv("WEBSITE_OWNER_NAME");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
+
+    // The subscription ID of the site instance in Azure App Services
+    String subscriptionId = null;
+    if (plusIndex > 0) {
+      subscriptionId = websiteOwner.substring(0, plusIndex);
+      aasTags.put("aas.subscription.id", subscriptionId);
+    }
+
+    if (subscriptionId != null && siteName != null && resourceGroup != null) {
+      // The resource ID of the site instance in Azure App Services
+      String resourceId =
+          "/subscriptions/"
+              + subscriptionId
+              + "/resourcegroups/"
+              + resourceGroup
+              + "/providers/microsoft.web/sites/"
+              + siteName;
+      resourceId = resourceId.toLowerCase();
+      aasTags.put("aas.resource.id", resourceId);
+    } else {
+      log.warn(
+          "Unable to generate resource id subscription id: {}, site name: {}, resource group {}",
+          subscriptionId,
+          siteName,
+          resourceGroup);
+    }
+
+    // The instance ID in Azure
+    String instanceId = System.getenv("WEBSITE_INSTANCE_ID");
+    instanceId = instanceId == null ? "unknown" : instanceId;
+    aasTags.put("aas.environment.instance_id", instanceId);
+
+    // The instance name in Azure
+    String instanceName = System.getenv("COMPUTERNAME");
+    instanceName = instanceName == null ? "unknown" : instanceName;
+    aasTags.put("aas.environment.instance_name", instanceName);
+
+    // The operating system in Azure
+    String operatingSystem = System.getenv("WEBSITE_OS");
+    operatingSystem = operatingSystem == null ? "unknown" : operatingSystem;
+    aasTags.put("aas.environment.os", operatingSystem);
+
+    // The version of the extension installed
+    String siteExtensionVersion = System.getenv("DD_AAS_JAVA_EXTENSION_VERSION");
+    siteExtensionVersion = siteExtensionVersion == null ? "unknown" : siteExtensionVersion;
+    aasTags.put("aas.environment.extension_version", siteExtensionVersion);
+
+    aasTags.put("aas.environment.runtime", System.getProperty("java.vm.name", "unknown"));
+
+    return aasTags;
   }
 
   public String getFinalProfilingUrl() {
