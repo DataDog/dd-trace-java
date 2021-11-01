@@ -1,6 +1,6 @@
 
-
-
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.WellKnownTags
 import datadog.trace.common.metrics.AggregateMetric
 import datadog.trace.common.metrics.EventListener
@@ -28,7 +28,8 @@ class MetricsIntegrationTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(1)
     def listener = new BlockingListener(latch)
-    OkHttpSink sink = new OkHttpSink("http://localhost:8126", 5000L, true)
+    def agentUrl = "http://localhost:8126"
+    OkHttpSink sink = new OkHttpSink(OkHttpUtils.buildHttpClient(agentUrl, 5000L), agentUrl, DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT, true)
     sink.register(listener)
 
     when:

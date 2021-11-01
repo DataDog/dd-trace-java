@@ -6,7 +6,7 @@ class ConfigConverterTest extends DDSpecification {
 
   def "Convert boolean properties"() {
     when:
-    def value = ConfigConverter.valueOf(stringValue, Boolean.class)
+    def value = ConfigConverter.valueOf(stringValue, Boolean)
 
     then:
     value == expectedConvertedValue

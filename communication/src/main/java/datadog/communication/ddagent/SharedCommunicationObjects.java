@@ -19,7 +19,7 @@ public class SharedCommunicationObjects {
       monitoring = Monitoring.DISABLED;
     }
     if (agentUrl == null) {
-      agentUrl = HttpUrl.get(config.getAgentUrl());
+      agentUrl = HttpUrl.parse(config.getAgentUrl());
     }
     if (okHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);

@@ -245,6 +245,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
@@ -922,7 +923,9 @@ public class Config {
     if (traceAgentArgsString == null) {
       traceAgentArgs = Collections.emptyList();
     } else {
-      traceAgentArgs = Collections.unmodifiableList(Arrays.asList(traceAgentArgsString.split(" ")));
+      traceAgentArgs =
+          Collections.unmodifiableList(
+              new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(traceAgentArgsString)));
     }
 
     dogStatsDPath = configProvider.getString(DOGSTATSD_PATH);
@@ -930,7 +933,9 @@ public class Config {
     if (dogStatsDArgsString == null) {
       dogStatsDArgs = Collections.emptyList();
     } else {
-      dogStatsDArgs = Collections.unmodifiableList(Arrays.asList(dogStatsDArgsString.split(" ")));
+      dogStatsDArgs =
+          Collections.unmodifiableList(
+              new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(dogStatsDArgsString)));
     }
 
     // Setting this last because we have a few places where this can come from
