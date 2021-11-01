@@ -43,7 +43,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
         span.setServiceName(
             Config.get().isDbClientSplitByInstanceTypeSuffix()
-                ? instanceName + "_" + dbType()
+                ? instanceName + "-" + dbType()
                 : instanceName);
       }
 
