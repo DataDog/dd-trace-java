@@ -1,0 +1,19 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
+tasks.named("compileTestGroovy").configure {
+  // Groovy tests depend on Scala tests
+  classpath += files(sourceSets.test.scala.classesDirectory)
+}
+
+dependencies {
+  main_java8CompileOnly group: 'org.http4s', name: 'http4s-blaze-client_2.12', version: '0.21.0'
+
+  testImplementation group: 'org.http4s', name: 'http4s-blaze-client_2.12', version: '0.21.0'
+  testImplementation group: 'org.http4s', name: "http4s-dsl_2.12", version: '0.21.0'
+}

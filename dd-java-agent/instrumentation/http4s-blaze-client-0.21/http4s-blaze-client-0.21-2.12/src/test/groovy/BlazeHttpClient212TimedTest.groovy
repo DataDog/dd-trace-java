@@ -1,0 +1,1 @@
+class BlazeHttpClient212TimedTest extends BlazeHttpClientTimedTest {}
