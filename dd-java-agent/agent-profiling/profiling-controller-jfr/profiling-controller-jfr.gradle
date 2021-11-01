@@ -1,6 +1,13 @@
+plugins {
+  id "de.undercouch.download" version "4.1.1"
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  implementation 'tools.profiler:async-profiler:1.8.3'
+
   implementation deps.slf4j
 
   testImplementation deps.junit5
