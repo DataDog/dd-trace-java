@@ -26,8 +26,8 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
-  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE_PREFIX =
-      "trace.db.client.split-by-instance.prefix";
+  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX =
+      "trace.db.client.split-by-instance.type.suffix";
 
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
