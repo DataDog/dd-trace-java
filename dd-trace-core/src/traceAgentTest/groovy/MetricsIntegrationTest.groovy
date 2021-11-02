@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLongArray
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static java.util.concurrent.TimeUnit.SECONDS
+import okhttp3.HttpUrl
 
 @Requires({
   "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
@@ -29,7 +30,7 @@ class MetricsIntegrationTest extends DDSpecification {
     def latch = new CountDownLatch(1)
     def listener = new BlockingListener(latch)
     def agentUrl = "http://localhost:8126"
-    OkHttpSink sink = new OkHttpSink(OkHttpUtils.buildHttpClient(agentUrl, 5000L), agentUrl, DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT, true)
+    OkHttpSink sink = new OkHttpSink(OkHttpUtils.buildHttpClient(HttpUrl.parse(agentUrl), 5000L), agentUrl, DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT, true)
     sink.register(listener)
 
     when:
