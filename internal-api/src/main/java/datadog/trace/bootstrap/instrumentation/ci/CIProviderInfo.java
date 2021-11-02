@@ -157,7 +157,7 @@ public abstract class CIProviderInfo {
     } else if (System.getenv(BITRISE) != null) {
       return new BitriseInfo();
     } else {
-      return new NoopCIInfo();
+      return new UnknownCIInfo();
     }
   }
 
@@ -279,7 +279,7 @@ public abstract class CIProviderInfo {
       final String ciGitAuthorEmail = ciGitInfo.getCommit().getAuthor().getEmail();
       final String localGitAuthorEmail =
           isCommitShaEquals(ciGitInfo, localGitInfo)
-              ? localGitInfo.getCommit().getAuthor().getName()
+              ? localGitInfo.getCommit().getAuthor().getEmail()
               : null;
       return this.putTagValue(
           Tags.GIT_COMMIT_AUTHOR_EMAIL,

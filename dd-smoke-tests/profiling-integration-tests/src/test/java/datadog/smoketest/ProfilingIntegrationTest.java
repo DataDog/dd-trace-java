@@ -186,6 +186,8 @@ class ProfilingIntegrationTest {
       byte[] byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
       assertNotNull(byteData);
 
+      dumpJfrRecording(byteData);
+
       assertFalse(logHasErrors(logFilePath));
       IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
       assertTrue(events.hasItems());
@@ -217,6 +219,8 @@ class ProfilingIntegrationTest {
 
       byteData = getParameter("chunk-data", byte[].class, secondRequestParameters);
       assertNotNull(byteData);
+      dumpJfrRecording(byteData);
+
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
       assertTrue(events.hasItems());
       rangeStartAndEnd = getRangeStartAndEnd(events);
@@ -252,6 +256,15 @@ class ProfilingIntegrationTest {
         targetProcess.destroyForcibly();
       }
       targetProcess = null;
+    }
+  }
+
+  private void dumpJfrRecording(byte[] byteData) {
+    try {
+      Path dumpPath = Files.createTempFile("dd-dump-", ".jfr");
+      Files.write(dumpPath, byteData);
+      log.debug("Received profile stored at: {}", dumpPath.toAbsolutePath());
+    } catch (IOException ignored) {
     }
   }
 
@@ -564,7 +577,8 @@ class ProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
-            "-DD.profiling.agentless=" + (apiKey != null),
+            "-Ddd.profiling.auxiliary=async",
+            "-Ddd.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
             "-Ddd.profiling.url=http://localhost:" + profilerPort,
