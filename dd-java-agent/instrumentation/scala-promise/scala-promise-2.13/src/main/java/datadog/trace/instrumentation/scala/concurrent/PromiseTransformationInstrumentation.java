@@ -79,7 +79,11 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
 
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <F, T> void onConstruct(@Advice.This Transformation<F, T> task) {
+    public static <F, T> void onConstruct(@Advice.This Transformation<F, T> task, @Advice.Argument(3) int xform) {
+      // Do not trace the Noop Transformation
+      if (xform == 0) {
+        return;
+      }
       final TraceScope scope = activeScope();
       if (scope != null) {
         State state = State.FACTORY.create();
