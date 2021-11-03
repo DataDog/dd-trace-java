@@ -41,6 +41,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
+  static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;

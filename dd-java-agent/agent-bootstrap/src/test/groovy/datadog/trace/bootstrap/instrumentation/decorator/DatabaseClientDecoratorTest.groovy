@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
 
 class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
@@ -35,6 +36,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
   def "test onConnection"() {
     setup:
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX, "$typeSuffix")
     def decorator = newDecorator()
 
     when:
@@ -47,18 +49,24 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       if (session.hostname != null) {
         1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
       }
-      if (renameService && session.instance) {
+      if (typeSuffix && renameService && session.instance) {
+        1 * span.setServiceName(session.instance + "-" + decorator.dbType())
+      } else if (renameService && session.instance) {
         1 * span.setServiceName(session.instance)
       }
     }
     0 * _
 
     where:
-    renameService | session
-    false         | null
-    true          | [user: "test-user", hostname: "test-hostname"]
-    false         | [instance: "test-instance", hostname: "test-hostname"]
-    true          | [user: "test-user", instance: "test-instance"]
+    renameService | typeSuffix | session
+    false         | false      | null
+    true          | false      | [user: "test-user", hostname: "test-hostname"]
+    false         | false      | [instance: "test-instance", hostname: "test-hostname"]
+    true          | false      | [user: "test-user", instance: "test-instance"]
+    false         | true       | null
+    true          | true       | [user: "test-user", hostname: "test-hostname"]
+    false         | true       | [instance: "test-instance", hostname: "test-hostname"]
+    true          | true       | [user: "test-user", instance: "test-instance"]
   }
 
   def "test onStatement"() {
