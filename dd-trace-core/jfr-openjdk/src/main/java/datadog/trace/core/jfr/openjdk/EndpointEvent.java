@@ -32,11 +32,11 @@ public class EndpointEvent extends Event implements EndpointTracker {
   @Label("Trace Sampled")
   private boolean traceSampled = false;
 
-  @Label("Trace Eligible for Dropping (start)")
-  private final boolean eligibleForDropping1;
+  @Label("Trace Sampling Priority (start)")
+  private final int samplingPriorityStart;
 
-  @Label("Trace Eligible for Dropping (end)")
-  private boolean eligibleForDropping2;
+  @Label("Trace Sampling Priority (end)")
+  private int samplingPriorityEnd;
 
   @Label("Checkpoints Sampled")
   private boolean checkpointsSampled = false;
@@ -44,7 +44,7 @@ public class EndpointEvent extends Event implements EndpointTracker {
   public EndpointEvent(final DDSpan span) {
     this.traceId = span.getTraceId().toLong();
     this.localRootSpanId = span.getSpanId().toLong();
-    this.eligibleForDropping1 = span.eligibleForDropping();
+    this.samplingPriorityStart = span.samplingPriority();
     begin();
   }
 
@@ -53,7 +53,7 @@ public class EndpointEvent extends Event implements EndpointTracker {
     if (shouldCommit()) {
       end();
       this.endpoint = span.getResourceName().toString();
-      this.eligibleForDropping2 = span.eligibleForDropping();
+      this.samplingPriorityEnd = span.samplingPriority();
       this.traceSampled = traceSampled;
       this.checkpointsSampled = checkpointsSampled;
       commit();
