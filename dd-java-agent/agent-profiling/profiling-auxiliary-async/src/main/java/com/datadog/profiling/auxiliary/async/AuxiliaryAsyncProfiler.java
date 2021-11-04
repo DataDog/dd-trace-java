@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 import one.profiler.AsyncProfiler;
 import org.slf4j.Logger;
@@ -75,9 +77,16 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       log.debug("Async Profiler is not available", t);
       instance = null;
     }
+    if (instance != null) {
+      try {
+        // make sure JFR is accessible
+        EventType.getEventType(AsyncProfilerConfigEvent.class);
+      } catch (NoClassDefFoundError ignored) {
+        // if JFR is not accessible disable the async profiler integration
+        instance = null;
+      }
+    }
     asyncProfiler = instance;
-    // auxiliary profiler is started only on a JFR-enabled system - no need to perform additional
-    // checks here
     if (instance != null) {
       FlightRecorder.addPeriodicEvent(AsyncProfilerConfigEvent.class, this::emitConfiguration);
     }
