@@ -7,6 +7,7 @@ import datadog.trace.api.sampling.ConstantSampler;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.core.DDSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -178,15 +179,25 @@ public class JFRCheckpointer implements Checkpointer {
 
   @Override
   public final void onRootSpan(
-      final AgentSpan rootSpan, final boolean traceSampled, final boolean checkpointsSampled) {
+      final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {
     if (isEndpointCollectionEnabled) {
-      new EndpointEvent(
-              rootSpan.getResourceName().toString(),
-              rootSpan.getTraceId().toLong(),
-              rootSpan.getSpanId().toLong(),
-              traceSampled,
-              checkpointsSampled)
-          .commit();
+      if (rootSpan instanceof DDSpan) {
+        DDSpan span = (DDSpan) rootSpan;
+        /*
+        Here we need to track the sampling status of the trace.
+        Simply using the 'published' flag is not enough as a trace may be published even though
+        it is supposed to be dropped. Thus we need to check both the `published` flag and
+        the eligibility to be dropped.
+         */
+        boolean traceSampled = published && !span.eligibleForDropping();
+        new EndpointEvent(
+                rootSpan.getResourceName().toString(),
+                rootSpan.getTraceId().toLong(),
+                rootSpan.getSpanId().toLong(),
+                traceSampled,
+                checkpointsSampled)
+            .commit();
+      }
     }
   }
 
