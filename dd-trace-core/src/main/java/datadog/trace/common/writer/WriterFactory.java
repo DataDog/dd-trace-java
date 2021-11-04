@@ -61,8 +61,13 @@ public class WriterFactory {
 
     if (config.isAgentConfiguredUsingDefault()
         && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
-      log.info("Detected serverless environment.  Using PrintingWriter");
-      return new PrintingWriter(System.out, true);
+      log.info("Detected serverless environment");
+      if (!ServerlessInfo.get().hasExtension()) {
+        log.info("Serverless extension has not been detected, using PrintingWriter");
+        return new PrintingWriter(System.out, true);
+      } else {
+        log.info("Serverless extension has been detected, using DDAgentWriter");
+      }
     }
 
     String unixDomainSocket = discoverApmSocket(config);

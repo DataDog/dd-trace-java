@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
+import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
@@ -253,6 +254,9 @@ public class DDAgentWriter implements Writer {
       }
     } else {
       handleDroppedTrace("Trace written after shutdown.", trace);
+    }
+    if (ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      this.flush();
     }
   }
 
