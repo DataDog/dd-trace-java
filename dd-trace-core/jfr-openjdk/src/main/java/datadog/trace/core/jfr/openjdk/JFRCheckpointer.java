@@ -180,12 +180,13 @@ public class JFRCheckpointer implements Checkpointer {
 
   @Override
   public final void onRootSpanWritten(
-      final AgentSpan rootSpan, final boolean traceSampled, final boolean checkpointsSampled) {
+      final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {
     if (isEndpointCollectionEnabled) {
       if (rootSpan instanceof DDSpan) {
         DDSpan span = (DDSpan) rootSpan;
         EndpointTracker tracker = span.getEndpointTracker();
         if (tracker != null) {
+          boolean traceSampled = published && !span.eligibleForDropping();
           tracker.endpointWritten(span, traceSampled, checkpointsSampled);
         }
       }
