@@ -1507,7 +1507,6 @@ public class Config {
       result.put("_dd.appsec.enabled", 1);
       result.put("_dd.runtime_family", "jvm");
     }
-    // These values are
 
     if (azureAppServices) {
       result.putAll(getAzureAppServicesTags());
