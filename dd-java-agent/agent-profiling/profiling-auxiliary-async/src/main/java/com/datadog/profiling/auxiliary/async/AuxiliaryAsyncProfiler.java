@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 import one.profiler.AsyncProfiler;
