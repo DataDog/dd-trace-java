@@ -190,6 +190,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   boolean isActive() {
+    if (!isAvailable()) {
+      return false;
+    }
     try {
       String status = executeProfilerCmd("status");
       log.debug("Async Profiler Status = {}", status);
