@@ -41,7 +41,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       span.setTag(Tags.DB_INSTANCE, instanceName);
 
       if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
-        span.setServiceName(instanceName);
+        span.setServiceName(
+            Config.get().isDbClientSplitByInstanceTypeSuffix()
+                ? instanceName + "-" + dbType()
+                : instanceName);
       }
 
       CharSequence hostName = dbHostname(connection);
