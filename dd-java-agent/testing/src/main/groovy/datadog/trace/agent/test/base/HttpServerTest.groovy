@@ -855,7 +855,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
-    def exception = endpoint == CUSTOM_EXCEPTION ? InputMismatchException : expectedExceptionType()
+    def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
     trace.span {
       serviceName expectedServiceName()
@@ -874,6 +874,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   Class<? extends Exception> expectedExceptionType() {
     return Exception
+  }
+
+  Class<? extends Exception> expectedCustomExceptionType() {
+    return InputMismatchException
   }
 
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {

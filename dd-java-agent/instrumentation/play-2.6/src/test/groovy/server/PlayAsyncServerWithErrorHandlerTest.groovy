@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.function.Supplier
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -20,7 +21,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-class PlayAsyncServerTest extends PlayServerTest {
+class PlayAsyncServerWithErrorHandlerTest extends PlayServerWithErrorHandlerTest {
   @Shared
   def executor
 
@@ -90,7 +91,14 @@ class PlayAsyncServerTest extends PlayServerTest {
             }
           }, execContext)
         } as Supplier)
+        .GET(CUSTOM_EXCEPTION.getPath()).routeAsync({
+          CompletableFuture.supplyAsync({
+            controller(CUSTOM_EXCEPTION) {
+              throw new TestHttpErrorHandler.CustomRuntimeException(CUSTOM_EXCEPTION.getBody())
+            }
+          }, execContext)
+        } as Supplier)
         .build()
-    })
+    }, new TestHttpErrorHandler())
   }
 }

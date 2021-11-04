@@ -1,17 +1,9 @@
 package server
 
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
-import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import play.BuiltInComponents
 import play.mvc.Results
 import play.routing.RoutingDsl
-import play.server.Server
 
 import java.util.function.Supplier
 
@@ -24,9 +16,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static org.junit.Assume.assumeTrue
 
-class PlayServerTest extends HttpServerTest<Server> {
-
+class PlayServerWithErrorHandlerTest extends PlayServerTest {
   @Override
   HttpServer server() {
     return new PlayHttpServer({ BuiltInComponents components ->
@@ -71,86 +63,49 @@ class PlayServerTest extends HttpServerTest<Server> {
             throw new RuntimeException(EXCEPTION.getBody())
           }
         } as Supplier)
+        .GET(CUSTOM_EXCEPTION.getPath()).routeTo({
+          controller(CUSTOM_EXCEPTION) {
+            throw new TestHttpErrorHandler.CustomRuntimeException(CUSTOM_EXCEPTION.getBody())
+          }
+        } as Supplier)
         .build()
-    })
+    }, new TestHttpErrorHandler())
   }
 
   @Override
-  void stopServer(Server server) {
-    server.stop()
-  }
-
-  @Override
-  String component() {
-    return AkkaHttpServerDecorator.DECORATE.component()
-  }
-
-  @Override
-  String expectedOperationName() {
-    return "akka-http.request"
-  }
-
-  @Override
-  boolean hasHandlerSpan() {
-    true
-  }
-
-  @Override
-  boolean hasExtraErrorInformation() {
-    true
-  }
-
-  @Override
-  boolean changesAll404s() {
-    true
-  }
-
-  @Override
-  boolean hasPeerPort() {
-    false
-  }
-
   boolean testExceptionBody() {
-    // I can't figure out how to set a proper exception handler to customize the response body.
-    false
+    true
   }
 
-  @Override
-  Class<? extends Exception> expectedExceptionType() {
-    RuntimeException
-  }
+  def "test exception with custom status"() {
+    setup:
+    assumeTrue(testException())
+    def request = request(CUSTOM_EXCEPTION, method, body).build()
+    def response = client.newCall(request).execute()
 
-  @Override
-  Class<? extends Exception> expectedCustomExceptionType() {
-    TestHttpErrorHandler.CustomRuntimeException
-  }
+    expect:
+    response.code() == CUSTOM_EXCEPTION.status
+    if (testExceptionBody()) {
+      assert response.body().string() == CUSTOM_EXCEPTION.body
+    }
 
-  @Override
-  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
-    def expectedQueryTag = expectedQueryTag(endpoint)
-    trace.span {
-      serviceName expectedServiceName()
-      operationName "play.request"
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION
-      childOfPrevious()
-      tags {
-        "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
-        "$Tags.HTTP_URL" String
-        "$Tags.HTTP_HOSTNAME" address.host
-        "$Tags.HTTP_METHOD" String
-        // BUG
-        //        "$Tags.HTTP_ROUTE" String
-        if (endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION) {
-          errorTags(endpoint == CUSTOM_EXCEPTION ? TestHttpErrorHandler.CustomRuntimeException : RuntimeException, endpoint.body)
+    and:
+    assertTraces(1) {
+      trace(spanCount(CUSTOM_EXCEPTION)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, CUSTOM_EXCEPTION)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, CUSTOM_EXCEPTION)
         }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" expectedQueryTag
+        controllerSpan(it, CUSTOM_EXCEPTION)
+        if (hasResponseSpan(CUSTOM_EXCEPTION)) {
+          responseSpan(it, CUSTOM_EXCEPTION)
         }
-        defaultTags()
       }
     }
+
+    where:
+    method = "GET"
+    body = null
   }
 }
