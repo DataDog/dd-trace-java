@@ -99,6 +99,6 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
 
     @Override
     public void onRootSpan(
-        final AgentSpan rootSpan, final boolean traceSampled, final boolean checkpointsSampled) {}
+        final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {}
   }
 }
