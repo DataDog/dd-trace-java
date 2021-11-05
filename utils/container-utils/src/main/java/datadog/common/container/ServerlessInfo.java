@@ -8,11 +8,16 @@ public class ServerlessInfo {
   private static final ServerlessInfo INSTANCE = new ServerlessInfo();
 
   private final String functionName;
-  private final String extensionPath;
+  private final boolean hasExtension;
 
   private ServerlessInfo(final String extensionPath) {
-    this.extensionPath = extensionPath;
     this.functionName = System.getenv(AWS_FUNCTION_VARIABLE);
+    if (null == extensionPath) {
+      this.hasExtension = false;
+    } else {
+      File f = new File(extensionPath);
+      this.hasExtension = (f.exists() && !f.isDirectory());
+    }
   }
 
   public ServerlessInfo() {
@@ -30,11 +35,7 @@ public class ServerlessInfo {
   }
 
   public boolean hasExtension() {
-    if (null == this.extensionPath) {
-      return false;
-    }
-    File f = new File(this.extensionPath);
-    return (f.exists() && !f.isDirectory());
+    return this.hasExtension;
   }
 
   public String getFunctionName() {
