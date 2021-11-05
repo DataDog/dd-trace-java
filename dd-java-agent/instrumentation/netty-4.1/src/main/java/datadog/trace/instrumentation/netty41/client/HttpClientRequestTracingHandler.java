@@ -16,7 +16,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -49,8 +48,8 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       return;
     }
 
-    TraceScope parentScope = null;
-    final TraceScope.Continuation continuation =
+    AgentScope parentScope = null;
+    final AgentScope.Continuation continuation =
         ctx.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
     if (continuation != null) {
       parentScope = continuation.activate();

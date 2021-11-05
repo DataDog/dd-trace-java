@@ -1,13 +1,24 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-final class ContinuationClaim implements TraceScope.Continuation {
+final class ContinuationClaim implements AgentScope.Continuation {
 
   public static final ContinuationClaim CLAIMED = new ContinuationClaim();
 
   @Override
-  public TraceScope activate() {
+  public AgentScope activate() {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public void migrate() {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public AgentSpan getSpan() {
     throw new IllegalStateException();
   }
 

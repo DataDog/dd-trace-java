@@ -14,7 +14,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -54,7 +53,7 @@ public final class SynapseServerWorkerInstrumentation extends Instrumenter.Traci
   public static final class NewServerWorkerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void createWorker(@Advice.Argument(0) final SourceRequest request) {
-      TraceScope scope = activeScope();
+      AgentScope scope = activeScope();
       if (null != scope) {
         request
             .getConnection()
@@ -68,11 +67,11 @@ public final class SynapseServerWorkerInstrumentation extends Instrumenter.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginResponse(
         @Advice.FieldValue("request") final SourceRequest request) {
-      TraceScope.Continuation continuation =
-          (TraceScope.Continuation)
+      AgentScope.Continuation continuation =
+          (AgentScope.Continuation)
               request.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
       if (null != continuation) {
-        return (AgentScope) continuation.activate();
+        return continuation.activate();
       }
       return null;
     }

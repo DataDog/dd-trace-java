@@ -13,9 +13,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
@@ -52,14 +52,14 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing {
   public static class RunnableAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope enter(@Advice.This final Runnable thiz) {
+    public static AgentScope enter(@Advice.This final Runnable thiz) {
       final ContextStore<Runnable, State> contextStore =
           InstrumentationContext.get(Runnable.class, State.class);
       return AdviceUtils.startTaskScope(contextStore, thiz);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final TraceScope scope) {
+    public static void exit(@Advice.Enter final AgentScope scope) {
       AdviceUtils.endTaskScope(scope);
     }
   }

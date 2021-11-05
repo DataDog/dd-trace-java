@@ -7,6 +7,12 @@ public interface AgentScope extends TraceScope, Closeable {
   AgentSpan span();
 
   @Override
+  Continuation capture();
+
+  @Override
+  Continuation captureConcurrent();
+
+  @Override
   void setAsyncPropagation(boolean value);
 
   boolean checkpointed();
@@ -15,6 +21,10 @@ public interface AgentScope extends TraceScope, Closeable {
   void close();
 
   interface Continuation extends TraceScope.Continuation {
+
+    @Override
+    AgentScope activate();
+
     /**
      * Mark that the continuation will migrate to another thread. Calling this method will lead to
      * emitting events to allow the profiler to know that the span has forked from the current

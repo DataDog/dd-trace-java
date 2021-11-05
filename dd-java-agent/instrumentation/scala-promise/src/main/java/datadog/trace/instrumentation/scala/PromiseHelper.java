@@ -1,14 +1,12 @@
 package datadog.trace.instrumentation.scala;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import scala.util.Failure;
 import scala.util.Success;
@@ -27,16 +25,11 @@ public class PromiseHelper {
    * @return the Span or null
    */
   public static AgentSpan getSpan() {
-    AgentSpan span = null;
-    final TraceScope scope = activeScope();
+    final AgentScope scope = activeScope();
     if (null != scope && scope.isAsyncPropagating()) {
-      if (scope instanceof AgentScope) {
-        span = ((AgentScope) scope).span();
-      } else {
-        span = activeSpan();
-      }
+      return scope.span();
     }
-    return span;
+    return null;
   }
 
   /**
@@ -79,8 +72,8 @@ public class PromiseHelper {
       // TODO Optimization
       // One could possibly peek at the Span in the existing Continuation and not do anything if it
       // was the same Span
-      TraceScope.Continuation continuation = captureSpan(span);
-      TraceScope.Continuation existing = null;
+      AgentScope.Continuation continuation = captureSpan(span);
+      AgentScope.Continuation existing = null;
       if (null != state) {
         existing = state.getAndResetContinuation();
       } else {

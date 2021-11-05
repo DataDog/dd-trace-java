@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAd
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
 import org.jboss.netty.channel.Channel;
@@ -41,8 +40,8 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     final ChannelTraceContext channelTraceContext =
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-    TraceScope parentScope = null;
-    final TraceScope.Continuation continuation = channelTraceContext.getConnectionContinuation();
+    AgentScope parentScope = null;
+    final AgentScope.Continuation continuation = channelTraceContext.getConnectionContinuation();
     if (continuation != null) {
       parentScope = continuation.activate();
       channelTraceContext.setConnectionContinuation(null);

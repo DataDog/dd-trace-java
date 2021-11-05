@@ -9,10 +9,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -46,7 +46,7 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
       // there are cased like ScheduledExecutorService.submit (which we instrument)
       // which calls ScheduledExecutorService.schedule (which we also instrument)
       // where all of this could be dodged the second time
-      final TraceScope scope = activeScope();
+      final AgentScope scope = activeScope();
       if (null != scope) {
         final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
         // It is important to check potentially wrapped task if we can instrument task in this

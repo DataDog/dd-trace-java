@@ -1,6 +1,8 @@
 package datadog.opentracing
 
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
@@ -86,6 +88,10 @@ class CustomScopeManagerTest extends DDSpecification {
 
     then:
     coreTracer.activeSpan() != null
+    def agentScope = coreTracer.activeScope()
+    coreTracer.activeScope().equals(agentScope)
+    coreTracer.activeScope().hashCode() == agentScope.hashCode()
+    coreTracer.activeSpan().equals(agentScope.span())
     !coreTracer.activeScope().isAsyncPropagating()
 
     when:
@@ -173,6 +179,10 @@ class CustomScopeManagerTest extends DDSpecification {
       .startActive(true)
 
     then:
+    def agentScope = coreTracer.activeScope()
+    coreTracer.activeScope().equals(agentScope)
+    coreTracer.activeScope().hashCode() == agentScope.hashCode()
+    coreTracer.activeSpan().equals(agentScope.span())
     !coreTracer.activeScope().isAsyncPropagating()
 
     when:
@@ -210,8 +220,9 @@ class CustomScopeManagerTest extends DDSpecification {
 }
 
 class TestScopeManager implements ScopeManager {
+  def converter = new TypeConverter(new DefaultLogHandler())
   boolean returnTraceScopes = false
-  TestScope currentScope
+  Scope currentScope
 
   @Override
   Scope active() {
@@ -220,7 +231,7 @@ class TestScopeManager implements ScopeManager {
 
   @Override
   Span activeSpan() {
-    return currentScope == null ? null : currentScope.span
+    return currentScope == null ? null : currentScope.span()
   }
 
   @Override
@@ -231,7 +242,8 @@ class TestScopeManager implements ScopeManager {
   @Override
   Scope activate(Span span, boolean finishSpanOnClose) {
     if (returnTraceScopes) {
-      currentScope = new TestTraceScope(currentScope, span, finishSpanOnClose)
+      currentScope = new OTScopeManager.OTScope(
+        new TestAgentScope(currentScope, span), finishSpanOnClose, converter)
     } else {
       currentScope = new TestScope(currentScope, span, finishSpanOnClose)
     }
@@ -239,11 +251,11 @@ class TestScopeManager implements ScopeManager {
   }
 
   class TestScope implements Scope {
-    final TestScope parent
+    final Scope parent
     final Span span
     final boolean finishOnClose
 
-    TestScope(TestScope parent, Span span, boolean finishOnClose) {
+    TestScope(Scope parent, Span span, boolean finishOnClose) {
       this.parent = parent
       this.span = span
       this.finishOnClose = finishOnClose
@@ -255,7 +267,6 @@ class TestScopeManager implements ScopeManager {
       if (finishOnClose) {
         span.finish()
       }
-
       currentScope = parent
     }
 
@@ -265,23 +276,48 @@ class TestScopeManager implements ScopeManager {
     }
   }
 
-  class TestTraceScope extends TestScope implements TraceScope {
+  class TestAgentScope implements AgentScope {
+    final Scope parent
+    final AgentSpan agentSpan
+
     boolean asyncPropagating = false
 
-    TestTraceScope(TestScope parent, Span span, boolean finishOnClose) {
-      super(parent, span, finishOnClose)
+    TestAgentScope(Scope parent, Span span) {
+      this.parent = parent
+      this.agentSpan = new Object() {
+          void setTag(String key, boolean value) {
+            span.setTag(key, value)
+          }
+          void finish() {
+            span.finish()
+          }
+        } as AgentSpan
+    }
+
+    @Override
+    AgentSpan span() {
+      return agentSpan
     }
 
     @Override
     Continuation capture() {
       return new Continuation() {
           @Override
-          TraceScope activate() {
-            return TestTraceScope.this
+          AgentScope activate() {
+            return TestAgentScope.this
           }
 
           @Override
           void cancel() {
+          }
+
+          @Override
+          AgentSpan getSpan() {
+            return TestAgentScope.this.span()
+          }
+
+          @Override
+          void migrate() {
           }
         }
     }
@@ -299,6 +335,17 @@ class TestScopeManager implements ScopeManager {
     @Override
     void setAsyncPropagation(boolean value) {
       asyncPropagating = value
+    }
+
+    @Override
+    boolean checkpointed() {
+      return false
+    }
+
+    @Override
+    void close() {
+      agentSpan.setTag("testScope", true) // Set a tag so we know the custom scope is used
+      currentScope = parent
     }
   }
 }

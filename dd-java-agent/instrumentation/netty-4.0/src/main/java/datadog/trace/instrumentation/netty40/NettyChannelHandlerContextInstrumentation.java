@@ -14,9 +14,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator;
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator;
 import io.netty.channel.ChannelHandlerContext;
@@ -61,7 +61,7 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
 
   public static class FireAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
+    public static AgentScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
       final AgentSpan channelSpan = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
       if (channelSpan == null || channelSpan == activeSpan()) {
         // don't modify the scope
@@ -71,7 +71,7 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void close(@Advice.Enter final TraceScope scope) {
+    public static void close(@Advice.Enter final AgentScope scope) {
       scope.close();
     }
 

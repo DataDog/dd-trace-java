@@ -36,7 +36,6 @@ public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
       packageName + ".OTTextMapInjectSetter",
       packageName + ".OTScopeManager",
       packageName + ".OTScopeManager$OTScope",
-      packageName + ".OTScopeManager$OTTraceScope",
       packageName + ".TypeConverter",
       packageName + ".OTSpan",
       packageName + ".OTSpanContext",

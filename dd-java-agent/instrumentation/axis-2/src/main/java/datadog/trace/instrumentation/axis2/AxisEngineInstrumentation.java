@@ -16,7 +16,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -101,7 +100,7 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
       if (null != continuation) {
         message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
-        try (TraceScope parentScope = ((TraceScope.Continuation) continuation).activate()) {
+        try (AgentScope parentScope = ((AgentScope.Continuation) continuation).activate()) {
           AgentSpan span = startSpan(AXIS2_MESSAGE);
           DECORATE.afterStart(span);
           DECORATE.onMessage(span, message);
@@ -136,10 +135,9 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
         @Advice.Return final InvocationResponse response) {
       if (InvocationResponse.SUSPEND == response
           && !message.containsSelfManagedDataKey(Tracer.class, AXIS2_CONTINUATION_KEY)) {
-        TraceScope scope = activeScope();
-        if (scope instanceof AgentScope) {
-          AgentSpan span = ((AgentScope) scope).span();
-          if (DECORATE.sameTrace(span, message)) {
+        AgentScope scope = activeScope();
+        if (null != scope) {
+          if (DECORATE.sameTrace(scope.span(), message)) {
             // record continuation in the message so we can re-activate it on resume
             // we use the self-managed area of the message which is private/internal
             message.setSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY, scope.capture());

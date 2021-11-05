@@ -12,8 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -63,13 +63,13 @@ public final class ThreadedActionListenerInstrumentation extends Instrumenter.Tr
   @SuppressWarnings("rawtypes")
   public static final class OnResponse {
     @Advice.OnMethodEnter
-    public static TraceScope before(@Advice.This ThreadedActionListener listener) {
+    public static AgentScope before(@Advice.This ThreadedActionListener listener) {
       return startTaskScope(
           InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter TraceScope scope) {
+    public static void after(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }
   }

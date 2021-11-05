@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.context.TraceScope;
 import java.util.concurrent.RunnableFuture;
 
 public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
@@ -18,7 +17,7 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
         || exclude(RUNNABLE, task)) {
       return task;
     }
-    TraceScope scope = activeScope();
+    AgentScope scope = activeScope();
     if (null != scope) {
       if (task instanceof Comparable) {
         return new ComparableRunnable(task, scope.capture());
@@ -30,24 +29,24 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
   }
 
   protected final T delegate;
-  private final TraceScope.Continuation continuation;
+  private final AgentScope.Continuation continuation;
 
-  public Wrapper(T delegate, TraceScope.Continuation continuation) {
+  public Wrapper(T delegate, AgentScope.Continuation continuation) {
     this.delegate = delegate;
     this.continuation = continuation;
-    if (continuation instanceof AgentScope.Continuation) {
-      ((AgentScope.Continuation) continuation).migrate();
+    if (null != continuation) {
+      continuation.migrate();
     }
   }
 
   @Override
   public void run() {
-    try (TraceScope scope = activate()) {
+    try (AgentScope scope = activate()) {
       try {
         delegate.run();
       } finally {
-        if (scope instanceof AgentScope) {
-          ((AgentScope) scope).span().finishWork();
+        if (null != scope) {
+          scope.span().finishWork();
         }
       }
     }
@@ -63,7 +62,7 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
     return delegate;
   }
 
-  private TraceScope activate() {
+  private AgentScope activate() {
     return null == continuation ? null : continuation.activate();
   }
 

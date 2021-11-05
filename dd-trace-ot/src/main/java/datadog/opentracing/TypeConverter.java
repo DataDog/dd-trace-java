@@ -3,7 +3,6 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -36,19 +35,26 @@ class TypeConverter {
     return new OTSpan(agentSpan, this, logHandler);
   }
 
-  // FIXME [API] Need to use the runtime type not compile-time type so "Object" is used
-  // That fact that some methods return AgentScope and other TraceScope even though its the same
-  // underlying object needs to be cleaned up
-  public Scope toScope(final Object scope, final boolean finishSpanOnClose) {
+  public AgentScope toAgentScope(final Scope scope) {
     if (scope == null) {
       return null;
-    } else if (scope instanceof CustomScopeManagerWrapper.CustomScopeManagerScope) {
-      return ((CustomScopeManagerWrapper.CustomScopeManagerScope) scope).getDelegate();
-    } else if (scope instanceof TraceScope) {
-      return new OTScopeManager.OTTraceScope((TraceScope) scope, finishSpanOnClose, this);
+    } else if (scope instanceof OTScopeManager.OTScope) {
+      OTScopeManager.OTScope wrapper = (OTScopeManager.OTScope) scope;
+      if (wrapper.finishSpanOnClose()) {
+        return new FinishingScope(wrapper.unwrap());
+      } else {
+        return wrapper.unwrap();
+      }
     } else {
-      return new OTScopeManager.OTScope((AgentScope) scope, finishSpanOnClose, this);
+      return new CustomScope(scope);
     }
+  }
+
+  public Scope toScope(final AgentScope scope, final boolean finishSpanOnClose) {
+    if (scope == null) {
+      return null;
+    }
+    return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
   }
 
   public SpanContext toSpanContext(final AgentSpan.Context context) {
@@ -65,6 +71,129 @@ class TypeConverter {
       return ((OTSpanContext) spanContext).getDelegate();
     } else {
       return AgentTracer.NoopContext.INSTANCE;
+    }
+  }
+
+  /**
+   * Wraps an internal {@link AgentScope} to automatically finish its span when the scope is closed.
+   */
+  static final class FinishingScope implements AgentScope {
+    private final AgentScope delegate;
+
+    private FinishingScope(final AgentScope delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public AgentSpan span() {
+      return delegate.span();
+    }
+
+    @Override
+    public void close() {
+      delegate.close();
+      delegate.span().finish();
+    }
+
+    @Override
+    public Continuation capture() {
+      return delegate.capture();
+    }
+
+    @Override
+    public Continuation captureConcurrent() {
+      return delegate.captureConcurrent();
+    }
+
+    @Override
+    public boolean checkpointed() {
+      return delegate.checkpointed();
+    }
+
+    @Override
+    public boolean isAsyncPropagating() {
+      return delegate.isAsyncPropagating();
+    }
+
+    @Override
+    public void setAsyncPropagation(final boolean value) {
+      delegate.setAsyncPropagation(value);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o instanceof FinishingScope) {
+        return delegate.equals(((FinishingScope) o).delegate);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return delegate.hashCode();
+    }
+  }
+
+  /** Wraps an external {@link Scope} to look like an internal {@link AgentScope} */
+  final class CustomScope implements AgentScope {
+    private final Scope delegate;
+
+    private CustomScope(final Scope delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void close() {
+      delegate.close();
+    }
+
+    @Override
+    public AgentSpan span() {
+      return toAgentSpan(delegate.span());
+    }
+
+    @Override
+    public Continuation capture() {
+      return null;
+    }
+
+    @Override
+    public Continuation captureConcurrent() {
+      return null;
+    }
+
+    @Override
+    public boolean checkpointed() {
+      return false;
+    }
+
+    @Override
+    public boolean isAsyncPropagating() {
+      return false;
+    }
+
+    @Override
+    public void setAsyncPropagation(final boolean value) {
+      // discard setting
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o instanceof CustomScope) {
+        return delegate.equals(((CustomScope) o).delegate);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return delegate.hashCode();
     }
   }
 }
