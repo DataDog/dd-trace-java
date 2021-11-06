@@ -1,13 +1,13 @@
 package com.datadog.appsec.report;
 
-import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.JvmTime;
 import javax.annotation.Nonnull;
 
 public interface ReportStrategy {
   boolean shouldFlush();
 
-  boolean shouldFlush(@Nonnull Attack010 attack);
+  boolean shouldFlush(@Nonnull AppSecEvent100 event);
 
   class Default implements ReportStrategy {
     private static final long MIN_INTERVAL_NANOS = 5L * 1000L * 1000L * 1000L;
@@ -42,13 +42,13 @@ public interface ReportStrategy {
     }
 
     @Override
-    public boolean shouldFlush(@Nonnull Attack010 attack) {
+    public boolean shouldFlush(@Nonnull AppSecEvent100 event) {
       final long curTime = jvmTime.nanoTime();
 
       synchronized (this) {
         long requiredInterval;
-        if (attack.getType() != null) {
-          final String attackType = attack.getType();
+        if (event.getEventType() != null) {
+          final String attackType = event.getEventType();
 
           if (attackType.equals(lastAttackType)) {
             requiredInterval = MAX_INTERVAL_NANOS;
@@ -68,7 +68,7 @@ public interface ReportStrategy {
         if (flush) {
           lastFlush = curTime;
           queuedItems = 0;
-          lastAttackType = attack.getType();
+          lastAttackType = event.getEventType();
         } else {
           queuedItems++;
         }

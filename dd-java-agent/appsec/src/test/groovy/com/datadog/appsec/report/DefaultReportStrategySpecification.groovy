@@ -1,6 +1,6 @@
 package com.datadog.appsec.report
 
-import com.datadog.appsec.report.raw.events.attack.Attack010
+import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.util.JvmTime
 import datadog.trace.test.util.DDSpecification
 
@@ -14,7 +14,7 @@ class DefaultReportStrategySpecification extends DDSpecification {
     jvmTime.nanoTime() >> System.nanoTime()
 
     expect:
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
   }
 
   void 'subsequent event of same type should wait 1 min'() {
@@ -26,9 +26,9 @@ class DefaultReportStrategySpecification extends DDSpecification {
     ]
 
     expect:
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
-    testee.shouldFlush(new Attack010(type: 'my type')) == false
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == false
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
   }
 
   void 'subsequent event of different type should wait 5 seconds'() {
@@ -40,9 +40,9 @@ class DefaultReportStrategySpecification extends DDSpecification {
     ]
 
     expect:
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
-    testee.shouldFlush(new Attack010(type: 'another type')) == false
-    testee.shouldFlush(new Attack010(type: 'another type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'another type')) == false
+    testee.shouldFlush(new AppSecEvent100(eventType: 'another type')) == true
   }
 
   void 'should flush when max queued items are item'() {
@@ -50,9 +50,9 @@ class DefaultReportStrategySpecification extends DDSpecification {
     jvmTime.nanoTime() >> System.nanoTime()
 
     expect:
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
-    50.times { testee.shouldFlush(new Attack010(type: 'my type')) == false }
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
+    50.times { testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == false }
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
   }
 
   void 'if no new attack then the wait time is 1 min'() {
@@ -65,8 +65,8 @@ class DefaultReportStrategySpecification extends DDSpecification {
     ]
 
     expect:
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
-    testee.shouldFlush(new Attack010(type: 'my type')) == false
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == false
     testee.shouldFlush() == false
     testee.shouldFlush() == true
   }
@@ -76,7 +76,7 @@ class DefaultReportStrategySpecification extends DDSpecification {
     jvmTime.nanoTime() >>> [1000_000_000_000L, 1000_000_000_000L + 60_000_000_001L,]
 
     expect:
-    testee.shouldFlush(new Attack010(type: 'my type')) == true
+    testee.shouldFlush(new AppSecEvent100(eventType: 'my type')) == true
     testee.shouldFlush() == false
   }
 }

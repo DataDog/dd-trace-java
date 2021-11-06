@@ -1,40 +1,60 @@
 {
   "waf" : {
-    "version" : "1.0",
-    "events" : [
+    "version": "2.1",
+    "rules": [
       {
-        "conditions" : [
+        "id": "crs-913-110",
+        "name": "Found request header associated with Acunetix security scanner",
+        "tags": {
+          "type": "security_scanner",
+          "crs_id": "913110",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "parameters" : {
-              "list" : [
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "list": [
                 "acunetix-product",
                 "(acunetix web vulnerability scanner",
                 "acunetix-scanning-agreement",
                 "acunetix-user-agreement"
-              ],
-              "inputs" : [
-                "server.request.headers.no_cookies"
               ]
             },
-            "operation" : "phrase_match"
+            "operator": "phrase_match"
           }
         ],
-        "id" : "crs-913-110",
-        "name" : "Found request header associated with Acunetix security scanner",
-        "tags" : {
-          "crs_id" : "913110",
-          "type" : "security_scanner"
-        },
-        "transformers" : [
+        "transformers": [
           "lowercase"
-        ],
-        "action" : "record"
+        ]
       },
       {
-        "conditions" : [
+        "id": "crs-913-120",
+        "name": "Found request filename/argument associated with security scanner",
+        "tags": {
+          "type": "security_scanner",
+          "crs_id": "913120",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "parameters" : {
-              "list" : [
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "list": [
                 "/.adsensepostnottherenonobook",
                 "/<invalid>hello.html",
                 "/actsensepostnottherenonotive",
@@ -52,194 +72,223 @@
                 "appscan_fingerprint",
                 "w00tw00t.at.isc.sans.dfind",
                 "w00tw00t.at.blackhats.romanian.anti-sec"
-              ],
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
               ]
             },
-            "operation" : "phrase_match"
+            "operator": "phrase_match"
           }
         ],
-        "id" : "crs-913-120",
-        "name" : "Found request filename/argument associated with security scanner",
-        "tags" : {
-          "crs_id" : "913120",
-          "type" : "security_scanner"
-        },
-        "transformers" : [
-          "lowercase"
-        ],
-        "action" : "record"
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "http_protocol_violation",
-          "crs_id" : "920260"
-        },
-        "name" : "Unicode Full/Half Width Abuse Attack Attempt",
-        "id" : "crs-920-260",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "\\%u[fF]{2}[0-9a-fA-F]{2}",
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 6
-              },
-              "inputs" : [
-                "server.request.uri.raw"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "tags" : {
-          "type" : "http_protocol_violation",
-          "crs_id" : "921110"
-        },
-        "action" : "record",
-        "transformers" : [
-          "lowercase"
-        ],
-        "id" : "crs-921-110",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 12
-              },
-              "regex" : "(?:get|post|head|options|connect|put|delete|trace|track|patch|propfind|propatch|mkcol|copy|move|lock|unlock)\\s+[^\\s]+\\s+http/\\d"
-            }
-          }
-        ],
-        "name" : "HTTP Request Smuggling Attack"
-      },
-      {
-        "tags" : {
-          "type" : "http_protocol_violation",
-          "crs_id" : "921140"
-        },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "[\\n\\r]",
-              "inputs" : [
-                "server.request.headers.no_cookies"
-              ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 1
-              }
-            }
-          }
-        ],
-        "id" : "crs-921-140",
-        "name" : "HTTP Header Injection Attack via headers"
-      },
-      {
-        "id" : "crs-921-160",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.path_params"
-              ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 3
-              },
-              "regex" : "[\\n\\r]+(?:\\s|location|refresh|(?:set-)?cookie|(?:x-)?(?:forwarded-(?:for|host|server)|host|via|remote-ip|remote-addr|originating-IP))\\s*:"
-            }
-          }
-        ],
-        "name" : "HTTP Header Injection Attack via payload (CR/LF and header-name detected)",
-        "tags" : {
-          "type" : "http_protocol_violation",
-          "crs_id" : "921160"
-        },
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "lowercase"
         ]
       },
       {
-        "tags" : {
-          "crs_id" : "930100",
-          "type" : "lfi"
+        "id": "crs-920-260",
+        "name": "Unicode Full/Half Width Abuse Attack Attempt",
+        "tags": {
+          "type": "http_protocol_violation",
+          "crs_id": "920260",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?:\\x5c|(?:%(?:c(?:0%(?:[2aq]f|5c|9v)|1%(?:[19p]c|8s|af))|2(?:5(?:c(?:0%25af|1%259c)|2f|5c)|%46|f)|(?:(?:f(?:8%8)?0%8|e)0%80%a|bg%q)f|%3(?:2(?:%(?:%6|4)6|F)|5%%63)|u(?:221[56]|002f|EFC8|F025)|1u|5c)|0x(?:2f|5c)|/))(?:%(?:(?:f(?:(?:c%80|8)%8)?0%8|e)0%80%ae|2(?:(?:5(?:c0%25a|2))?e|%45)|u(?:(?:002|ff0)e|2024)|%32(?:%(?:%6|4)5|E)|c0(?:%[256aef]e|\\.))|\\.(?:%0[01]|\\?)?|\\?\\.?|0x2e){2}(?:\\x5c|(?:%(?:c(?:0%(?:[2aq]f|5c|9v)|1%(?:[19p]c|8s|af))|2(?:5(?:c(?:0%25af|1%259c)|2f|5c)|%46|f)|(?:(?:f(?:8%8)?0%8|e)0%80%a|bg%q)f|%3(?:2(?:%(?:%6|4)6|F)|5%%63)|u(?:221[56]|002f|EFC8|F025)|1u|5c)|0x(?:2f|5c)|/))",
-              "inputs" : [
-                "server.request.uri.raw",
-                "server.request.headers.no_cookies"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.uri.raw"
+                }
               ],
-              "options" : {
-                "min_length" : 4
+              "regex": "\\%u[fF]{2}[0-9a-fA-F]{2}",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 6
               }
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "crs-930-100",
-        "name" : "Obfuscated Path Traversal Attack (/../)"
+        "transformers": []
       },
       {
-        "tags" : {
-          "type" : "lfi",
-          "crs_id" : "930110"
+        "id": "crs-921-110",
+        "name": "HTTP Request Smuggling Attack",
+        "tags": {
+          "type": "http_protocol_violation",
+          "crs_id": "921110",
+          "category": "attack_attempt"
         },
-        "transformers" : [
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?:get|post|head|options|connect|put|delete|trace|track|patch|propfind|propatch|mkcol|copy|move|lock|unlock)\\s+[^\\s]+\\s+http/\\d",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 12
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "lowercase"
+        ]
+      },
+      {
+        "id": "crs-921-140",
+        "name": "HTTP Header Injection Attack via headers",
+        "tags": {
+          "type": "http_protocol_violation",
+          "crs_id": "921140",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "[\\n\\r]",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 1
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-921-160",
+        "name": "HTTP Header Injection Attack via payload (CR/LF and header-name detected)",
+        "tags": {
+          "type": "http_protocol_violation",
+          "crs_id": "921160",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "[\\n\\r]+(?:\\s|location|refresh|(?:set-)?cookie|(?:x-)?(?:forwarded-(?:for|host|server)|host|via|remote-ip|remote-addr|originating-IP))\\s*:",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 3
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "lowercase"
+        ]
+      },
+      {
+        "id": "crs-930-100",
+        "name": "Obfuscated Path Traversal Attack (/../)",
+        "tags": {
+          "type": "lfi",
+          "crs_id": "930100",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.uri.raw"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "(?:\\x5c|(?:%(?:c(?:0%(?:[2aq]f|5c|9v)|1%(?:[19p]c|8s|af))|2(?:5(?:c(?:0%25af|1%259c)|2f|5c)|%46|f)|(?:(?:f(?:8%8)?0%8|e)0%80%a|bg%q)f|%3(?:2(?:%(?:%6|4)6|F)|5%%63)|u(?:221[56]|002f|EFC8|F025)|1u|5c)|0x(?:2f|5c)|/))(?:%(?:(?:f(?:(?:c%80|8)%8)?0%8|e)0%80%ae|2(?:(?:5(?:c0%25a|2))?e|%45)|u(?:(?:002|ff0)e|2024)|%32(?:%(?:%6|4)5|E)|c0(?:%[256aef]e|\\.))|\\.(?:%0[01]|\\?)?|\\?\\.?|0x2e){2}(?:\\x5c|(?:%(?:c(?:0%(?:[2aq]f|5c|9v)|1%(?:[19p]c|8s|af))|2(?:5(?:c(?:0%25af|1%259c)|2f|5c)|%46|f)|(?:(?:f(?:8%8)?0%8|e)0%80%a|bg%q)f|%3(?:2(?:%(?:%6|4)6|F)|5%%63)|u(?:221[56]|002f|EFC8|F025)|1u|5c)|0x(?:2f|5c)|/))",
+              "options": {
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-930-110",
+        "name": "Simple Path Traversal Attack (/../)",
+        "tags": {
+          "type": "lfi",
+          "crs_id": "930110",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.uri.raw"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "(?:(?:^|[\\\\/])\\.\\.[\\\\/]|[\\\\/]\\.\\.(?:[\\\\/]|$))",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 3
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
           "removeNulls"
-        ],
-        "action" : "record",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)",
-              "options" : {
-                "min_length" : 2,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.uri.raw",
-                "server.request.headers.no_cookies"
-              ]
-            }
-          }
-        ],
-        "id" : "crs-930-110",
-        "name" : "Simple Path Traversal Attack (/../)"
+        ]
       },
       {
-        "name" : "OS File Access Attempt",
-        "conditions" : [
+        "id": "crs-930-120",
+        "name": "OS File Access Attempt",
+        "tags": {
+          "type": "lfi",
+          "crs_id": "930120",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "phrase_match",
-            "parameters" : {
-              "list" : [
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "list": [
                 ".htaccess",
                 ".htdigest",
                 ".htpasswd",
@@ -1342,83 +1391,100 @@
                 "tsconfig.json",
                 "webpack.config.js",
                 "yarn.lock"
-              ],
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
               ]
-            }
+            },
+            "operator": "phrase_match"
           }
         ],
-        "id" : "crs-930-120",
-        "transformers" : [
+        "transformers": [
           "lowercase"
+        ]
+      },
+      {
+        "id": "crs-931-110",
+        "name": "Possible Remote File Inclusion (RFI) Attack: Common RFI Vulnerable Parameter Name used w/URL Payload",
+        "tags": {
+          "type": "rfi",
+          "crs_id": "931110",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                }
+              ],
+              "regex": "(?:\\binclude\\s*\\([^)]*|mosConfig_absolute_path|_CONF\\[path\\]|_SERVER\\[DOCUMENT_ROOT\\]|GALLERY_BASEDIR|path\\[docroot\\]|appserv_root|config\\[root_dir\\])=(?:file|ftps?|https?)://",
+              "options": {
+                "min_length": 15
+              }
+            },
+            "operator": "match_regex"
+          }
         ],
-        "action" : "record",
-        "tags" : {
-          "crs_id" : "930120",
-          "type" : "lfi"
-        }
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "crs_id" : "931110",
-          "type" : "rfi"
+        "id": "crs-931-120",
+        "name": "Possible Remote File Inclusion (RFI) Attack: URL Payload Used w/Trailing Question Mark Character (?)",
+        "tags": {
+          "type": "rfi",
+          "crs_id": "931120",
+          "category": "attack_attempt"
         },
-        "name" : "Possible Remote File Inclusion (RFI) Attack: Common RFI Vulnerable Parameter Name used w/URL Payload",
-        "id" : "crs-931-110",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "min_length" : 15
-              },
-              "regex" : "(?:\\binclude\\s*\\([^)]*|mosConfig_absolute_path|_CONF\\[path\\]|_SERVER\\[DOCUMENT_ROOT\\]|GALLERY_BASEDIR|path\\[docroot\\]|appserv_root|config\\[root_dir\\])=(?:file|ftps?|https?)://"
-            }
+              "regex": "^(?i:file|ftps?|https?).*?\\?+$",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
           }
-        ]
+        ],
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "crs_id" : "931120",
-          "type" : "rfi"
+        "id": "crs-932-160",
+        "name": "Remote Command Execution: Unix Shell Code Found",
+        "tags": {
+          "type": "command_injection",
+          "crs_id": "932160",
+          "category": "attack_attempt"
         },
-        "name" : "Possible Remote File Inclusion (RFI) Attack: URL Payload Used w/Trailing Question Mark Character (?)",
-        "id" : "crs-931-120",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "min_length" : 4,
-                "case_sensitive" : true
-              },
-              "regex" : "^(?i:file|ftps?|https?).*?\\?+$"
-            }
-          }
-        ]
-      },
-      {
-        "conditions" : [
-          {
-            "operation" : "phrase_match",
-            "parameters" : {
-              "list" : [
+              "list": [
                 "${cdpath}",
                 "${dirstack}",
                 "${home}",
@@ -1534,66 +1600,73 @@
                 "usr/local/bin/rbash",
                 "usr/local/bin/ruby",
                 "usr/local/bin/wget"
-              ],
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
               ]
-            }
+            },
+            "operator": "phrase_match"
           }
         ],
-        "id" : "crs-932-160",
-        "name" : "Remote Command Execution: Unix Shell Code Found",
-        "tags" : {
-          "type" : "command_injection",
-          "crs_id" : "932160"
-        },
-        "transformers" : [
+        "transformers": [
           "lowercase"
-        ],
-        "action" : "record"
+        ]
       },
       {
-        "name" : "Remote Command Execution: Shellshock (CVE-2014-6271)",
-        "conditions" : [
+        "id": "crs-932-171",
+        "name": "Remote Command Execution: Shellshock (CVE-2014-6271)",
+        "tags": {
+          "type": "command_injection",
+          "crs_id": "932171",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "^\\(\\s*\\)\\s+{",
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 4
-              },
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.headers.no_cookies"
-              ]
-            }
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "^\\(\\s*\\)\\s+{",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "crs-932-171",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "crs_id" : "932171",
-          "type" : "command_injection"
-        }
+        "transformers": []
       },
       {
-        "name" : "Restricted File Upload Attempt",
-        "conditions" : [
+        "id": "crs-932-180",
+        "name": "Restricted File Upload Attempt",
+        "tags": {
+          "type": "command_injection",
+          "crs_id": "932180",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:x-filename",
-                "server.request.headers.no_cookies:x_filename",
-                "server.request.headers.no_cookies:x-file-name"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "x-filename",
+                    "x_filename",
+                    "x-file-name"
+                  ]
+                }
               ],
-              "list" : [
+              "list": [
                 ".htaccess",
                 ".htdigest",
                 ".htpasswd",
@@ -1613,62 +1686,74 @@
                 ".env"
               ]
             },
-            "operation" : "phrase_match"
+            "operator": "phrase_match"
           }
         ],
-        "id" : "crs-932-180",
-        "transformers" : [
-          "lowercase"
-        ],
-        "action" : "record",
-        "tags" : {
-          "crs_id" : "932180",
-          "type" : "command_injection"
-        }
-      },
-      {
-        "id" : "crs-933-111",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : ".*\\.(?:php\\d*|phtml)\\..*$",
-              "options" : {
-                "min_length" : 5,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.headers.no_cookies:x-filename",
-                "server.request.headers.no_cookies:x_filename",
-                "server.request.headers.no_cookies:x.filename",
-                "server.request.headers.no_cookies:x-file-name"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "PHP Injection Attack: PHP Script File Upload Found",
-        "tags" : {
-          "type" : "unrestricted_file_upload",
-          "crs_id" : "933111"
-        },
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "lowercase"
         ]
       },
       {
-        "id" : "crs-933-130",
-        "conditions" : [
+        "id": "crs-933-111",
+        "name": "PHP Injection Attack: PHP Script File Upload Found",
+        "tags": {
+          "type": "unrestricted_file_upload",
+          "crs_id": "933111",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "phrase_match",
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "x-filename",
+                    "x_filename",
+                    "x.filename",
+                    "x-file-name"
+                  ]
+                }
               ],
-              "list" : [
+              "regex": ".*\\.(?:php\\d*|phtml)\\..*$",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 5
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "lowercase"
+        ]
+      },
+      {
+        "id": "crs-933-130",
+        "name": "PHP Injection Attack: Global Variables Found",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933130",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "list": [
                 "$globals",
                 "$http_cookie_vars",
                 "$http_env_vars",
@@ -1689,86 +1774,111 @@
                 "$argc",
                 "$argv"
               ]
-            }
+            },
+            "operator": "phrase_match"
           }
         ],
-        "name" : "PHP Injection Attack: Global Variables Found",
-        "tags" : {
-          "type" : "php_code_injection",
-          "crs_id" : "933130"
-        },
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "lowercase"
         ]
       },
       {
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 9
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "(?:HTTP_(?:ACCEPT(?:_(?:ENCODING|LANGUAGE|CHARSET))?|(?:X_FORWARDED_FO|REFERE)R|(?:USER_AGEN|HOS)T|CONNECTION|KEEP_ALIVE)|PATH_(?:TRANSLATED|INFO)|ORIG_PATH_INFO|QUERY_STRING|REQUEST_URI|AUTH_TYPE)"
-            }
-          }
-        ],
-        "id" : "crs-933-131",
-        "name" : "PHP Injection Attack: HTTP Headers Values Found",
-        "tags" : {
-          "crs_id" : "933131",
-          "type" : "php_code_injection"
+        "id": "crs-933-131",
+        "name": "PHP Injection Attack: HTTP Headers Values Found",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933131",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "tags" : {
-          "crs_id" : "933140",
-          "type" : "php_code_injection"
-        },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "php://(?:std(?:in|out|err)|(?:in|out)put|fd|memory|temp|filter)",
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "min_length" : 8
+              "regex": "(?:HTTP_(?:ACCEPT(?:_(?:ENCODING|LANGUAGE|CHARSET))?|(?:X_FORWARDED_FO|REFERE)R|(?:USER_AGEN|HOS)T|CONNECTION|KEEP_ALIVE)|PATH_(?:TRANSLATED|INFO)|ORIG_PATH_INFO|QUERY_STRING|REQUEST_URI|AUTH_TYPE)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 9
               }
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "crs-933-140",
-        "name" : "PHP Injection Attack: I/O Stream Found"
+        "transformers": []
       },
       {
-        "conditions" : [
+        "id": "crs-933-140",
+        "name": "PHP Injection Attack: I/O Stream Found",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933140",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "phrase_match",
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "list" : [
+              "regex": "php://(?:std(?:in|out|err)|(?:in|out)put|fd|memory|temp|filter)",
+              "options": {
+                "min_length": 8
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-933-150",
+        "name": "PHP Injection Attack: High-Risk PHP Function Name Found",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933150",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "list": [
                 "__halt_compiler",
                 "apache_child_terminate",
                 "base64_decode",
@@ -1814,860 +1924,1384 @@
                 "wp_safe_remote_request",
                 "zlib_decode"
               ]
-            }
+            },
+            "operator": "phrase_match"
           }
         ],
-        "id" : "crs-933-150",
-        "name" : "PHP Injection Attack: High-Risk PHP Function Name Found",
-        "tags" : {
-          "crs_id" : "933150",
-          "type" : "php_code_injection"
-        },
-        "transformers" : [
+        "transformers": [
           "lowercase"
-        ],
-        "action" : "record"
-      },
-      {
-        "tags" : {
-          "crs_id" : "933160",
-          "type" : "php_code_injection"
-        },
-        "action" : "record",
-        "transformers" : [],
-        "id" : "crs-933-160",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "\\b(?:s(?:e(?:t(?:_(?:e(?:xception|rror)_handler|magic_quotes_runtime|include_path)|defaultstub)|ssion_s(?:et_save_handler|tart))|qlite_(?:(?:(?:unbuffered|single|array)_)?query|create_(?:aggregate|function)|p?open|exec)|tr(?:eam_(?:context_create|socket_client)|ipc?slashes|rev)|implexml_load_(?:string|file)|ocket_c(?:onnect|reate)|h(?:ow_sourc|a1_fil)e|pl_autoload_register|ystem)|p(?:r(?:eg_(?:replace(?:_callback(?:_array)?)?|match(?:_all)?|split)|oc_(?:(?:terminat|clos|nic)e|get_status|open)|int_r)|o(?:six_(?:get(?:(?:e[gu]|g)id|login|pwnam)|mk(?:fifo|nod)|ttyname|kill)|pen)|hp(?:_(?:strip_whitespac|unam)e|version|info)|g_(?:(?:execut|prepar)e|connect|query)|a(?:rse_(?:ini_file|str)|ssthru)|utenv)|r(?:unkit_(?:function_(?:re(?:defin|nam)e|copy|add)|method_(?:re(?:defin|nam)e|copy|add)|constant_(?:redefine|add))|e(?:(?:gister_(?:shutdown|tick)|name)_function|ad(?:(?:gz)?file|_exif_data|dir))|awurl(?:de|en)code)|i(?:mage(?:createfrom(?:(?:jpe|pn)g|x[bp]m|wbmp|gif)|(?:jpe|pn)g|g(?:d2?|if)|2?wbmp|xbm)|s_(?:(?:(?:execut|write?|read)ab|fi)le|dir)|ni_(?:get(?:_all)?|set)|terator_apply|ptcembed)|g(?:et(?:_(?:c(?:urrent_use|fg_va)r|meta_tags)|my(?:[gpu]id|inode)|(?:lastmo|cw)d|imagesize|env)|z(?:(?:(?:defla|wri)t|encod|fil)e|compress|open|read)|lob)|a(?:rray_(?:u(?:intersect(?:_u?assoc)?|diff(?:_u?assoc)?)|intersect_u(?:assoc|key)|diff_u(?:assoc|key)|filter|reduce|map)|ssert(?:_options)?)|h(?:tml(?:specialchars(?:_decode)?|_entity_decode|entities)|(?:ash(?:_(?:update|hmac))?|ighlight)_file|e(?:ader_register_callback|x2bin))|f(?:i(?:le(?:(?:[acm]tim|inod)e|(?:_exist|perm)s|group)?|nfo_open)|tp_(?:nb_(?:ge|pu)|connec|ge|pu)t|(?:unction_exis|pu)ts|write|open)|o(?:b_(?:get_(?:c(?:ontents|lean)|flush)|end_(?:clean|flush)|clean|flush|start)|dbc_(?:result(?:_all)?|exec(?:ute)?|connect)|pendir)|m(?:b_(?:ereg(?:_(?:replace(?:_callback)?|match)|i(?:_replace)?)?|parse_str)|(?:ove_uploaded|d5)_file|ethod_exists|ysql_query|kdir)|e(?:x(?:if_(?:t(?:humbnail|agname)|imagetype|read_data)|ec)|scapeshell(?:arg|cmd)|rror_reporting|val)|c(?:url_(?:file_create|exec|init)|onvert_uuencode|reate_function|hr)|u(?:n(?:serialize|pack)|rl(?:de|en)code|[ak]?sort)|(?:json_(?:de|en)cod|debug_backtrac|tmpfil)e|b(?:(?:son_(?:de|en)|ase64_en)code|zopen)|var_dump)(?:\\s|/\\*.*\\*/|//.*|#.*)*\\(.*\\)",
-              "options" : {
-                "min_length" : 5
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "PHP Injection Attack: High-Risk PHP Function Call Found"
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "php_code_injection",
-          "crs_id" : "933170"
-        },
-        "name" : "PHP Injection Attack: Serialized Object Injection",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.headers.no_cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 12
-              },
-              "regex" : "[oOcC]:\\d+:\\\".+?\\\":\\d+:{[\\W\\w]*}"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "crs-933-170"
-      },
-      {
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "(?i:zlib|glob|phar|ssh2|rar|ogg|expect|zip)://",
-              "options" : {
-                "min_length" : 6,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "crs-933-200",
-        "name" : "PHP Injection Attack: Wrapper scheme detected",
-        "tags" : {
-          "crs_id" : "933200",
-          "type" : "php_code_injection"
-        },
-        "transformers" : [
-          "removeNulls"
-        ],
-        "action" : "record"
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "crs_id" : "934100",
-          "type" : "js_code_injection"
-        },
-        "name" : "Node.js Injection Attack",
-        "conditions" : [
-          {
-            "parameters" : {
-              "options" : {
-                "min_length" : 5,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "(?:(?:_(?:\\$\\$ND_FUNC\\$\\$_|_js_function)|(?:new\\s+Function|\\beval)\\s*\\(|String\\s*\\.\\s*fromCharCode|function\\s*\\(\\s*\\)\\s*{|this\\.constructor)|module\\.exports\\s*=)"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "crs-934-100"
-      },
-      {
-        "action" : "record",
-        "transformers" : [
-          "removeNulls"
-        ],
-        "tags" : {
-          "crs_id" : "941110",
-          "type" : "xss"
-        },
-        "name" : "XSS Filter - Category 1: Script Tag Vector",
-        "id" : "crs-941-110",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "<script[^>]*>[\\s\\S]*?",
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.headers.no_cookies:user-agent",
-                "server.request.headers.no_cookies:referer",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "options" : {
-                "min_length" : 8
-              }
-            },
-            "operation" : "match_regex"
-          }
         ]
       },
       {
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941200"
+        "id": "crs-933-160",
+        "name": "PHP Injection Attack: High-Risk PHP Function Call Found",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933160",
+          "category": "attack_attempt"
         },
-        "action" : "record",
-        "transformers" : [
-          "removeNulls"
-        ],
-        "id" : "crs-941-200",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i:<.*[:]?vmlframe.*?[\\s/+]*?src[\\s/+]*=)",
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 13
+              "regex": "\\b(?:s(?:e(?:t(?:_(?:e(?:xception|rror)_handler|magic_quotes_runtime|include_path)|defaultstub)|ssion_s(?:et_save_handler|tart))|qlite_(?:(?:(?:unbuffered|single|array)_)?query|create_(?:aggregate|function)|p?open|exec)|tr(?:eam_(?:context_create|socket_client)|ipc?slashes|rev)|implexml_load_(?:string|file)|ocket_c(?:onnect|reate)|h(?:ow_sourc|a1_fil)e|pl_autoload_register|ystem)|p(?:r(?:eg_(?:replace(?:_callback(?:_array)?)?|match(?:_all)?|split)|oc_(?:(?:terminat|clos|nic)e|get_status|open)|int_r)|o(?:six_(?:get(?:(?:e[gu]|g)id|login|pwnam)|mk(?:fifo|nod)|ttyname|kill)|pen)|hp(?:_(?:strip_whitespac|unam)e|version|info)|g_(?:(?:execut|prepar)e|connect|query)|a(?:rse_(?:ini_file|str)|ssthru)|utenv)|r(?:unkit_(?:function_(?:re(?:defin|nam)e|copy|add)|method_(?:re(?:defin|nam)e|copy|add)|constant_(?:redefine|add))|e(?:(?:gister_(?:shutdown|tick)|name)_function|ad(?:(?:gz)?file|_exif_data|dir))|awurl(?:de|en)code)|i(?:mage(?:createfrom(?:(?:jpe|pn)g|x[bp]m|wbmp|gif)|(?:jpe|pn)g|g(?:d2?|if)|2?wbmp|xbm)|s_(?:(?:(?:execut|write?|read)ab|fi)le|dir)|ni_(?:get(?:_all)?|set)|terator_apply|ptcembed)|g(?:et(?:_(?:c(?:urrent_use|fg_va)r|meta_tags)|my(?:[gpu]id|inode)|(?:lastmo|cw)d|imagesize|env)|z(?:(?:(?:defla|wri)t|encod|fil)e|compress|open|read)|lob)|a(?:rray_(?:u(?:intersect(?:_u?assoc)?|diff(?:_u?assoc)?)|intersect_u(?:assoc|key)|diff_u(?:assoc|key)|filter|reduce|map)|ssert(?:_options)?)|h(?:tml(?:specialchars(?:_decode)?|_entity_decode|entities)|(?:ash(?:_(?:update|hmac))?|ighlight)_file|e(?:ader_register_callback|x2bin))|f(?:i(?:le(?:(?:[acm]tim|inod)e|(?:_exist|perm)s|group)?|nfo_open)|tp_(?:nb_(?:ge|pu)|connec|ge|pu)t|(?:unction_exis|pu)ts|write|open)|o(?:b_(?:get_(?:c(?:ontents|lean)|flush)|end_(?:clean|flush)|clean|flush|start)|dbc_(?:result(?:_all)?|exec(?:ute)?|connect)|pendir)|m(?:b_(?:ereg(?:_(?:replace(?:_callback)?|match)|i(?:_replace)?)?|parse_str)|(?:ove_uploaded|d5)_file|ethod_exists|ysql_query|kdir)|e(?:x(?:if_(?:t(?:humbnail|agname)|imagetype|read_data)|ec)|scapeshell(?:arg|cmd)|rror_reporting|val)|c(?:url_(?:file_create|exec|init)|onvert_uuencode|reate_function|hr)|u(?:n(?:serialize|pack)|rl(?:de|en)code|[ak]?sort)|(?:json_(?:de|en)cod|debug_backtrac|tmpfil)e|b(?:(?:son_(?:de|en)|ase64_en)code|zopen)|var_dump)(?:\\s|/\\*.*\\*/|//.*|#.*)*\\(.*\\)",
+              "options": {
+                "min_length": 5
               }
-            }
+            },
+            "operator": "match_regex"
           }
         ],
-        "name" : "IE XSS Filters - Attack Detected via vmlframe tag"
+        "transformers": []
       },
       {
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941210"
+        "id": "crs-933-170",
+        "name": "PHP Injection Attack: Serialized Object Injection",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933170",
+          "category": "attack_attempt"
         },
-        "transformers" : [
-          "removeNulls"
-        ],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 12
-              },
-              "regex" : "(?i:(?:j|&#x?0*(?:74|4A|106|6A);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:a|&#x?0*(?:65|41|97|61);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:v|&#x?0*(?:86|56|118|76);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:a|&#x?0*(?:65|41|97|61);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:s|&#x?0*(?:83|53|115|73);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:c|&#x?0*(?:67|43|99|63);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:r|&#x?0*(?:82|52|114|72);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:i|&#x?0*(?:73|49|105|69);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:p|&#x?0*(?:80|50|112|70);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:t|&#x?0*(?:84|54|116|74);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?::|&(?:#x?0*(?:58|3A);?|colon;)).)"
-            }
+              "regex": "[oOcC]:\\d+:\\\".+?\\\":\\d+:{[\\W\\w]*}",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 12
+              }
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "crs-941-210",
-        "name" : "IE XSS Filters - Obfuscated Attack Detected via javascript injection"
+        "transformers": []
       },
       {
-        "name" : "IE XSS Filters - Obfuscated Attack Detected via vbscript injection",
-        "id" : "crs-941-220",
-        "conditions" : [
+        "id": "crs-933-200",
+        "name": "PHP Injection Attack: Wrapper scheme detected",
+        "tags": {
+          "type": "php_code_injection",
+          "crs_id": "933200",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 10
-              },
-              "regex" : "(?i:(?:v|&#x?0*(?:86|56|118|76);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:b|&#x?0*(?:66|42|98|62);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:s|&#x?0*(?:83|53|115|73);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:c|&#x?0*(?:67|43|99|63);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:r|&#x?0*(?:82|52|114|72);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:i|&#x?0*(?:73|49|105|69);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:p|&#x?0*(?:80|50|112|70);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:t|&#x?0*(?:84|54|116|74);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?::|&(?:#x?0*(?:58|3A);?|colon;)).)"
-            }
+              "regex": "(?i:zlib|glob|phar|ssh2|rar|ogg|expect|zip)://",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 6
+              }
+            },
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "removeNulls"
-        ],
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941220"
-        }
+        ]
       },
       {
-        "name" : "IE XSS Filters - Attack Detected via embed tag",
-        "id" : "crs-941-230",
-        "conditions" : [
+        "id": "crs-934-100",
+        "name": "Node.js Injection Attack",
+        "tags": {
+          "type": "js_code_injection",
+          "crs_id": "934100",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "min_length" : 11
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "regex" : "<EMBED[\\s/+].*?(?:src|type).*?="
-            }
+              "regex": "(?:(?:_(?:\\$\\$ND_FUNC\\$\\$_|_js_function)|(?:new\\s+Function|\\beval)\\s*\\(|String\\s*\\.\\s*fromCharCode|function\\s*\\(\\s*\\)\\s*{|this\\.constructor)|module\\.exports\\s*=)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 5
+              }
+            },
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [
-          "removeNulls"
-        ],
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941230"
-        }
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [
+        "id": "crs-941-100",
+        "name": "XSS Attack Detected via libinjection",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941100",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent",
+                    "referer"
+                  ]
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ]
+            },
+            "operator": "is_xss"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-110",
+        "name": "XSS Filter - Category 1: Script Tag Vector",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941110",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent",
+                    "referer"
+                  ]
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "<script[^>]*>[\\s\\S]*?",
+              "options": {
+                "min_length": 8
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-120",
+        "name": "XSS Filter - Category 2: Event Handler Vector",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941120",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent",
+                    "referer"
+                  ]
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "[\\s\\\"'`;\\/0-9=\\x0B\\x09\\x0C\\x3B\\x2C\\x28\\x3B]on[a-zA-Z]{3,25}[\\s\\x0B\\x09\\x0C\\x3B\\x2C\\x28\\x3B]*?=[^=]",
+              "options": {
+                "min_length": 8
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-140",
+        "name": "XSS Filter - Category 4: Javascript URI Vector",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941140",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent",
+                    "referer"
+                  ]
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "[a-z]+=(?:[^:=]+:.+;)*?[^:=]+:url\\(javascript",
+              "options": {
+                "min_length": 18
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-180",
+        "name": "Node-Validator Deny List Keywords",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941180",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "list": [
+                "document.cookie",
+                "document.write",
+                ".parentnode",
+                ".innerhtml",
+                "window.location",
+                "-moz-binding",
+                "<![cdata["
+              ]
+            },
+            "operator": "phrase_match"
+          }
+        ],
+        "transformers": [
+          "removeNulls",
+          "lowercase"
+        ]
+      },
+      {
+        "id": "crs-941-200",
+        "name": "IE XSS Filters - Attack Detected via vmlframe tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941200",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:<.*[:]?vmlframe.*?[\\s/+]*?src[\\s/+]*=)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 13
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-210",
+        "name": "IE XSS Filters - Obfuscated Attack Detected via javascript injection",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941210",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:(?:j|&#x?0*(?:74|4A|106|6A);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:a|&#x?0*(?:65|41|97|61);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:v|&#x?0*(?:86|56|118|76);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:a|&#x?0*(?:65|41|97|61);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:s|&#x?0*(?:83|53|115|73);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:c|&#x?0*(?:67|43|99|63);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:r|&#x?0*(?:82|52|114|72);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:i|&#x?0*(?:73|49|105|69);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:p|&#x?0*(?:80|50|112|70);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:t|&#x?0*(?:84|54|116|74);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?::|&(?:#x?0*(?:58|3A);?|colon;)).)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 12
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-220",
+        "name": "IE XSS Filters - Obfuscated Attack Detected via vbscript injection",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941220",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:(?:v|&#x?0*(?:86|56|118|76);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:b|&#x?0*(?:66|42|98|62);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:s|&#x?0*(?:83|53|115|73);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:c|&#x?0*(?:67|43|99|63);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:r|&#x?0*(?:82|52|114|72);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:i|&#x?0*(?:73|49|105|69);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:p|&#x?0*(?:80|50|112|70);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?:t|&#x?0*(?:84|54|116|74);?)(?:\\t|&(?:#x?0*(?:9|13|10|A|D);?|tab;|newline;))*(?::|&(?:#x?0*(?:58|3A);?|colon;)).)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 10
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-230",
+        "name": "IE XSS Filters - Attack Detected via embed tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941230",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "<EMBED[\\s/+].*?(?:src|type).*?=",
+              "options": {
+                "min_length": 11
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-240",
+        "name": "IE XSS Filters - Attack Detected via import tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941240",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "<[?]?import[\\s/+\\S]*?implementation[\\s/+]*?=",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 22
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
           "lowercase",
           "removeNulls"
-        ],
-        "tags" : {
-          "crs_id" : "941240",
-          "type" : "xss"
+        ]
+      },
+      {
+        "id": "crs-941-270",
+        "name": "IE XSS Filters - Attack Detected via link tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941270",
+          "category": "attack_attempt"
         },
-        "name" : "IE XSS Filters - Attack Detected via import tag",
-        "id" : "crs-941-240",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "<[?]?import[\\s/+\\S]*?implementation[\\s/+]*?=",
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "min_length" : 22,
-                "case_sensitive" : true
+              "regex": "<LINK[\\s/+].*?href[\\s/+]*=",
+              "options": {
+                "min_length": 11
               }
             },
-            "operation" : "match_regex"
-          }
-        ]
-      },
-      {
-        "name" : "IE XSS Filters - Attack Detected via link tag",
-        "id" : "crs-941-270",
-        "conditions" : [
-          {
-            "parameters" : {
-              "options" : {
-                "min_length" : 11
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "<LINK[\\s/+].*?href[\\s/+]*="
-            },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [
-          "removeNulls"
-        ],
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941270"
-        }
-      },
-      {
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941280"
-        },
-        "transformers" : [
-          "removeNulls"
-        ],
-        "action" : "record",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "min_length" : 11
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "<BASE[\\s/+].*?href[\\s/+]*="
-            }
-          }
-        ],
-        "id" : "crs-941-280",
-        "name" : "IE XSS Filters - Attack Detected via base tag"
-      },
-      {
-        "action" : "record",
-        "transformers" : [
-          "removeNulls"
-        ],
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941290"
-        },
-        "name" : "IE XSS Filters - Attack Detected via applet tag",
-        "id" : "crs-941-290",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "<APPLET[\\s/+>]",
-              "options" : {
-                "min_length" : 8
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "id" : "crs-941-300",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "options" : {
-                "min_length" : 13
-              },
-              "regex" : "<OBJECT[\\s/+].*?(?:type|codetype|classid|code|data)[\\s/+]*="
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "IE XSS Filters - Attack Detected via object tag",
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941300"
-        },
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "removeNulls"
         ]
       },
       {
-        "name" : "UTF-7 Encoding IE XSS - Attack Detected",
-        "id" : "crs-941-350",
-        "conditions" : [
-          {
-            "parameters" : {
-              "options" : {
-                "min_length" : 6,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "\\+ADw-.*(?:\\+AD4-|>)|<.*\\+AD4-"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941350"
-        }
-      },
-      {
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 4
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "![!+ ]\\[\\]"
-            }
-          }
-        ],
-        "id" : "crs-941-360",
-        "name" : "JSFuck / Hieroglyphy obfuscation detected",
-        "tags" : {
-          "type" : "xss",
-          "crs_id" : "941360"
+        "id": "crs-941-280",
+        "name": "IE XSS Filters - Attack Detected via base tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941280",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "crs_id" : "942140",
-          "type" : "sqli"
-        },
-        "name" : "SQL Injection Attack: Common DB Names Detected",
-        "id" : "crs-942-140",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?i:\\b(?:(?:m(?:s(?:ys(?:ac(?:cess(?:objects|storage|xml)|es)|(?:relationship|object|querie)s|modules2?)|db)|aster\\.\\.sysdatabases|ysql\\.db)|pg_(?:catalog|toast)|information_schema|northwind|tempdb)\\b|s(?:(?:ys(?:\\.database_name|aux)|qlite(?:_temp)?_master)\\b|chema(?:_name\\b|\\W*\\())|d(?:atabas|b_nam)e\\W*\\())",
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "min_length" : 4,
-                "case_sensitive" : true
+              "regex": "<BASE[\\s/+].*?href[\\s/+]*=",
+              "options": {
+                "min_length": 11
               }
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
+        ],
+        "transformers": [
+          "removeNulls"
         ]
       },
       {
-        "tags" : {
-          "crs_id" : "942160",
-          "type" : "sqli"
+        "id": "crs-941-290",
+        "name": "IE XSS Filters - Attack Detected via applet tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941290",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 7
-              },
-              "regex" : "(?i:sleep\\(\\s*?\\d*?\\s*?\\)|benchmark\\(.*?\\,.*?\\))"
-            }
-          }
-        ],
-        "id" : "crs-942-160",
-        "name" : "Detects blind sqli tests using sleep() or benchmark()"
-      },
-      {
-        "id" : "crs-942-220",
-        "conditions" : [
-          {
-            "parameters" : {
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 5
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "^(?i:-0000023456|4294967295|4294967296|2147483648|2147483647|0000012345|-2147483648|-2147483649|0000023456|3.0.00738585072007e-308|1e309)$"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "Looking for integer overflow attacks, these are taken from skipfish, except 3.0.00738585072007e-308 is the \\\"magic number\\\" crash",
-        "tags" : {
-          "type" : "sqli",
-          "crs_id" : "942220"
-        },
-        "action" : "record",
-        "transformers" : []
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "sqli",
-          "crs_id" : "942240"
-        },
-        "name" : "Detects MySQL charset switch and MSSQL DoS attempts",
-        "id" : "crs-942-240",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "min_length" : 7,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "(?i:(?:[\\\"'`](?:;*?\\s*?waitfor\\s+(?:delay|time)\\s+[\\\"'`]|;.*?:\\s*?goto)|alter\\s*?\\w+.*?cha(?:racte)?r\\s+set\\s+\\w+))"
-            }
-          }
-        ]
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "crs_id" : "942250",
-          "type" : "sqli"
-        },
-        "name" : "Detects MATCH AGAINST, MERGE and EXECUTE IMMEDIATE injections",
-        "id" : "crs-942-250",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i:merge.*?using\\s*?\\(|execute\\s*?immediate\\s*?[\\\"'`]|match\\s*?[\\w(?:),+-]+\\s*?against\\s*?\\()",
-              "options" : {
-                "min_length" : 11,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "tags" : {
-          "type" : "sqli",
-          "crs_id" : "942270"
-        },
-        "action" : "record",
-        "transformers" : [],
-        "id" : "crs-942-270",
-        "conditions" : [
-          {
-            "parameters" : {
-              "options" : {
-                "min_length" : 15
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "union.*?select.*?from"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "Looking for basic sql injection. Common attack string for mysql, oracle and others"
-      },
-      {
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i:(?:;\\s*?shutdown\\s*?(?:[#;]|/\\*|--|\\{)|waitfor\\s*?delay\\s?[\\\"'`]+\\s?\\d|select\\s*?pg_sleep))",
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "options" : {
-                "min_length" : 10,
-                "case_sensitive" : true
+              "regex": "<APPLET[\\s/+>]",
+              "options": {
+                "min_length": 8
               }
-            }
-          }
-        ],
-        "id" : "crs-942-280",
-        "name" : "Detects Postgres pg_sleep injection, waitfor delay attacks and database shutdown attempts",
-        "tags" : {
-          "crs_id" : "942280",
-          "type" : "sqli"
-        },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "crs_id" : "942290",
-          "type" : "nosqli"
-        },
-        "name" : "Finds basic MongoDB SQL injection attempts",
-        "conditions" : [
-          {
-            "parameters" : {
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 5
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "crs-942-290"
+        "transformers": [
+          "removeNulls"
+        ]
       },
       {
-        "tags" : {
-          "crs_id" : "942500",
-          "type" : "sqli"
+        "id": "crs-941-300",
+        "name": "IE XSS Filters - Attack Detected via object tag",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941300",
+          "category": "attack_attempt"
         },
-        "action" : "record",
-        "transformers" : [],
-        "id" : "crs-942-500",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?i:/\\*[!+](?:[\\w\\s=_\\-(?:)]+)?\\*/)",
-              "options" : {
-                "min_length" : 5,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "<OBJECT[\\s/+].*?(?:type|codetype|classid|code|data)[\\s/+]*=",
+              "options": {
+                "min_length": 13
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
+          "removeNulls"
+        ]
+      },
+      {
+        "id": "crs-941-350",
+        "name": "UTF-7 Encoding IE XSS - Attack Detected",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941350",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "\\+ADw-.*(?:\\+AD4-|>)|<.*\\+AD4-",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 6
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-941-360",
+        "name": "JSFuck / Hieroglyphy obfuscation detected",
+        "tags": {
+          "type": "xss",
+          "crs_id": "941360",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "![!+ ]\\[\\]",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-100",
+        "name": "SQL Injection Attack Detected via libinjection",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942100",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ]
             },
-            "operation" : "match_regex"
+            "operator": "is_sqli"
           }
         ],
-        "name" : "MySQL in-line comment detected"
+        "transformers": [
+          "removeNulls"
+        ]
       },
       {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "crs_id" : "943100",
-          "type" : "http_protocol_violation"
+        "id": "crs-942-140",
+        "name": "SQL Injection Attack: Common DB Names Detected",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942140",
+          "category": "attack_attempt"
         },
-        "name" : "Possible Session Fixation Attack: Setting Cookie Values in HTML",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "min_length" : 15,
-                "case_sensitive" : true
-              },
-              "inputs" : [
-                "server.request.cookies",
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "regex" : "(?i:\\.cookie\\b.*?;\\W*?(?:expires|domain)\\W*?=|\\bhttp-equiv\\W+set-cookie\\b)"
-            }
+              "regex": "\\b(?:(?:m(?:s(?:ys(?:ac(?:cess(?:objects|storage|xml)|es)|(?:relationship|object|querie)s|modules2?)|db)|aster\\.\\.sysdatabases|ysql\\.db)|pg_(?:catalog|toast)|information_schema|northwind|tempdb)\\b|s(?:(?:ys(?:\\.database_name|aux)|qlite(?:_temp)?_master)\\b|chema(?:_name\\b|\\W*\\())|d(?:atabas|b_nam)e\\W*\\()",
+              "options": {
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "crs-943-100"
+        "transformers": []
       },
       {
-        "tags" : {
-          "crs_id" : "944100",
-          "type" : "java_code_injection"
+        "id": "crs-942-160",
+        "name": "Detects blind sqli tests using sleep() or benchmark()",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942160",
+          "category": "attack_attempt"
         },
-        "transformers" : [
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:sleep\\(\\s*?\\d*?\\s*?\\)|benchmark\\(.*?\\,.*?\\))",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 7
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-190",
+        "name": "Detects MSSQL code execution and information gathering attempts",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942190",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?:\\b(?:(?:c(?:onnection_id|urrent_user)|database)\\s*?\\([^\\)]*?|u(?:nion(?:[\\w(?:\\s]*?select| select @)|ser\\s*?\\([^\\)]*?)|s(?:chema\\s*?\\([^\\)]*?|elect.*?\\w?user\\()|into[\\s+]+(?:dump|out)file\\s*?[\\\"'`]|from\\W+information_schema\\W|exec(?:ute)?\\s+master\\.)|[\\\"'`](?:;?\\s*?(?:union\\b\\s*?(?:(?:distin|sele)ct|all)|having|select)\\b\\s*?[^\\s]|\\s*?!\\s*?[\\\"'`\\w])|\\s*?exec(?:ute)?.*?\\Wxp_cmdshell|\\Wiif\\s*?\\()",
+              "options": {
+                "min_length": 3
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-220",
+        "name": "Looking for integer overflow attacks, these are taken from skipfish, except 2.2.2250738585072011e-308 is the \\\"magic number\\\" crash",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942220",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "^(?i:-0000023456|4294967295|4294967296|2147483648|2147483647|0000012345|-2147483648|-2147483649|0000023456|2.2250738585072007e-308|2.2250738585072011e-308|1e309)$",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 5
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-240",
+        "name": "Detects MySQL charset switch and MSSQL DoS attempts",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942240",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?:[\\\"'`](?:;*?\\s*?waitfor\\s+(?:delay|time)\\s+[\\\"'`]|;.*?:\\s*?goto)|alter\\s*?\\w+.*?cha(?:racte)?r\\s+set\\s+\\w+)",
+              "options": {
+                "min_length": 7
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-250",
+        "name": "Detects MATCH AGAINST, MERGE and EXECUTE IMMEDIATE injections",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942250",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:merge.*?using\\s*?\\(|execute\\s*?immediate\\s*?[\\\"'`]|match\\s*?[\\w(?:),+-]+\\s*?against\\s*?\\()",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 11
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-270",
+        "name": "Looking for basic sql injection. Common attack string for mysql, oracle and others",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942270",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "union.*?select.*?from",
+              "options": {
+                "min_length": 15
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-280",
+        "name": "Detects Postgres pg_sleep injection, waitfor delay attacks and database shutdown attempts",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942280",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?:;\\s*?shutdown\\s*?(?:[#;{]|\\/\\*|--)|waitfor\\s*?delay\\s?[\\\"'`]+\\s?\\d|select\\s*?pg_sleep)",
+              "options": {
+                "min_length": 10
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-290",
+        "name": "Finds basic MongoDB SQL injection attempts",
+        "tags": {
+          "type": "nosql_injection",
+          "crs_id": "942290",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 5
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-360",
+        "name": "Detects concatenated basic SQL injection and SQLLFI attempts",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942360",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?:^[\\W\\d]+\\s*?(?:alter\\s*(?:a(?:(?:pplication\\s*rol|ggregat)e|s(?:ymmetric\\s*ke|sembl)y|u(?:thorization|dit)|vailability\\s*group)|c(?:r(?:yptographic\\s*provider|edential)|o(?:l(?:latio|um)|nversio)n|ertificate|luster)|s(?:e(?:rv(?:ice|er)|curity|quence|ssion|arch)|y(?:mmetric\\s*key|nonym)|togroup|chema)|m(?:a(?:s(?:ter\\s*key|k)|terialized)|e(?:ssage\\s*type|thod)|odule)|l(?:o(?:g(?:file\\s*group|in)|ckdown)|a(?:ngua|r)ge|ibrary)|t(?:(?:abl(?:espac)?|yp)e|r(?:igger|usted)|hreshold|ext)|p(?:a(?:rtition|ckage)|ro(?:cedur|fil)e|ermission)|d(?:i(?:mension|skgroup)|atabase|efault|omain)|r(?:o(?:l(?:lback|e)|ute)|e(?:sourc|mot)e)|f(?:u(?:lltext|nction)|lashback|oreign)|e(?:xte(?:nsion|rnal)|(?:ndpoi|ve)nt)|in(?:dex(?:type)?|memory|stance)|b(?:roker\\s*priority|ufferpool)|x(?:ml\\s*schema|srobject)|w(?:ork(?:load)?|rapper)|hi(?:erarchy|stogram)|o(?:perator|utline)|(?:nicknam|queu)e|us(?:age|er)|group|java|view)\\b|(?:(?:(?:trunc|cre)at|renam)e|d(?:e(?:lete|sc)|rop)|(?:inser|selec)t|load)\\s+\\w+|u(?:nion\\s*(?:(?:distin|sele)ct|all)\\b|pdate\\s+\\w+))|\\b(?:(?:(?:(?:trunc|cre|upd)at|renam)e|(?:inser|selec)t|de(?:lete|sc)|alter|load)\\s+(?:group_concat|load_file|char)\\b\\s*\\(?|end\\s*?\\);)|[\\\"'`\\w]\\s+as\\b\\s*[\\\"'`\\w]+\\s*\\bfrom|[\\s(?:]load_file\\s*?\\(|[\\\"'`]\\s+regexp\\W)",
+              "options": {
+                "min_length": 5
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-942-500",
+        "name": "MySQL in-line comment detected",
+        "tags": {
+          "type": "sql_injection",
+          "crs_id": "942500",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:/\\*[!+](?:[\\w\\s=_\\-(?:)]+)?\\*/)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 5
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-943-100",
+        "name": "Possible Session Fixation Attack: Setting Cookie Values in HTML",
+        "tags": {
+          "type": "http_protocol_violation",
+          "crs_id": "943100",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "(?i:\\.cookie\\b.*?;\\W*?(?:expires|domain)\\W*?=|\\bhttp-equiv\\W+set-cookie\\b)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 15
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "crs-944-100",
+        "name": "Remote Command Execution: Suspicious Java class detected",
+        "tags": {
+          "type": "java_code_injection",
+          "crs_id": "944100",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "java\\.lang\\.(?:runtime|processbuilder)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 17
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
           "lowercase"
-        ],
-        "action" : "record",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "java\\.lang\\.(?:runtime|processbuilder)",
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.cookies",
-                "server.request.headers.no_cookies"
-              ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 17
-              }
-            }
-          }
-        ],
-        "id" : "crs-944-100",
-        "name" : "Remote Command Execution: Suspicious Java class detected"
+        ]
       },
       {
-        "name" : "Remote Command Execution: Java process spawn (CVE-2017-9805)",
-        "id" : "crs-944-110",
-        "conditions" : [
+        "id": "crs-944-110",
+        "name": "Remote Command Execution: Java process spawn (CVE-2017-9805)",
+        "tags": {
+          "type": "java_code_injection",
+          "crs_id": "944110",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.cookies",
-                "server.request.headers.no_cookies"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "options" : {
-                "case_sensitive" : true,
-                "min_length" : 7
-              },
-              "regex" : "(?:runtime|processbuilder)"
-            }
+              "regex": "(?:runtime|processbuilder)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 7
+              }
+            },
+            "operator": "match_regex"
           },
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?:unmarshaller|base64data|java\\.)",
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.cookies",
-                "server.request.headers.no_cookies"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "options" : {
-                "min_length" : 5,
-                "case_sensitive" : true
+              "regex": "(?:unmarshaller|base64data|java\\.)",
+              "options": {
+                "case_sensitive": true,
+                "min_length": 5
               }
-            }
+            },
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "lowercase"
-        ],
-        "tags" : {
-          "type" : "java_code_injection",
-          "crs_id" : "944110"
-        }
+        ]
       },
       {
-        "name" : "Suspicious Java class detected",
-        "id" : "crs-944-130",
-        "conditions" : [
+        "id": "crs-944-130",
+        "name": "Suspicious Java class detected",
+        "tags": {
+          "type": "java_code_injection",
+          "crs_id": "944130",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "phrase_match",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.cookies",
-                "server.request.headers.no_cookies"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.cookies"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "list" : [
+              "list": [
                 "com.opensymphony.xwork2",
                 "com.sun.org.apache",
                 "java.io.bufferedinputstream",
@@ -2712,1120 +3346,1551 @@
                 "org.omg.corba",
                 "java.beans.xmldecode"
               ]
-            }
+            },
+            "operator": "phrase_match"
           }
         ],
-        "action" : "record",
-        "transformers" : [
+        "transformers": [
           "lowercase"
-        ],
-        "tags" : {
-          "type" : "java_code_injection",
-          "crs_id" : "944130"
-        }
+        ]
       },
       {
-        "name" : "SSRF: Try to access the credential manager of the main cloud services",
-        "conditions" : [
+        "id": "sqr-000-001",
+        "name": "SSRF: Try to access the credential manager of the main cloud services",
+        "tags": {
+          "type": "ssrf",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "min_length" : 4
-              },
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "regex" : "(?i)^\\W*((http|ftp)s?://)?\\W*((::f{4}:)?(169|(0x)?0*a9|0+251)\\.?(254|(0x)?0*fe|0+376)[0-9a-fx\\.:]+|metadata\\.google\\.internal|metadata\\.goog)\\W*/"
-            }
+              "regex": "(?i)^\\W*((http|ftp)s?://)?\\W*((::f{4}:)?(169|(0x)?0*a9|0+251)\\.?(254|(0x)?0*fe|0+376)[0-9a-fx\\.:]+|metadata\\.google\\.internal|metadata\\.goog)\\W*/",
+              "options": {
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "sqr-000-001",
-        "transformers" : [
+        "transformers": [
           "removeNulls"
-        ],
-        "action" : "record",
-        "tags" : {
-          "type" : "ssrf"
-        }
+        ]
       },
       {
-        "transformers" : [
+        "id": "sqr-000-002",
+        "name": "Server-side Javascript injection: Try to detect obvious JS injection",
+        "tags": {
+          "type": "js_code_injection",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "require\\(['\"][\\w\\.]+['\"]\\)|process\\.\\w+\\([\\w\\.]*\\)|\\.toString\\(\\)",
+              "options": {
+                "min_length": 4
+              }
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": [
           "removeNulls"
-        ],
-        "action" : "record",
-        "tags" : {
-          "type" : "js_code_injection"
-        },
-        "name" : "Server-side Javascript injection: Try to detect obvious JS injection",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "options" : {
-                "min_length" : 4
-              },
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params"
-              ],
-              "regex" : "require\\(['\"][\\w\\.]+['\"]\\)|process\\.\\w+\\([\\w\\.]*\\)|\\.toString\\(\\)"
-            }
-          }
-        ],
-        "id" : "sqr-000-002"
-      },
-      {
-        "name" : "NoSQL: Detect common exploitation strategy",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "\\$(eq|ne|lte?|gte?|n?in)\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "sqr-000-007",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "nosqli"
-        }
-      },
-      {
-        "tags" : {
-          "type" : "command_injection"
-        },
-        "action" : "record",
-        "transformers" : [],
-        "id" : "sqr-000-008",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.headers.no_cookies"
-              ],
-              "regex" : "(?i)[&|]\\s*type\\s+%\\w+%\\\\+\\w+\\.ini\\s*[&|]"
-            }
-          }
-        ],
-        "name" : "Windows: Detect attempts to exfiltrate .ini files"
-      },
-      {
-        "tags" : {
-          "type" : "command_injection"
-        },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.headers.no_cookies"
-              ],
-              "regex" : "(?i)[&|]\\s*cat\\s+\\/etc\\/[\\w\\.\\/]*passwd\\s*[&|]"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "sqr-000-009",
-        "name" : "Linux: Detect attempts to exfiltrate passwd files"
-      },
-      {
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.query",
-                "server.request.body",
-                "server.request.path_params",
-                "server.request.headers.no_cookies"
-              ],
-              "regex" : "(?i)[&|]\\s*timeout\\s+/t\\s+\\d+\\s*[&|]"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "sqr-000-010",
-        "name" : "Windows: Detect attempts to timeout a shell",
-        "tags" : {
-          "type" : "command_injection"
-        },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Joomla exploitation tool",
-        "id" : "ua0-600-0xx",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "JDatabaseDriverMysqli"
-            }
-          }
         ]
       },
       {
-        "name" : "Nessus",
-        "conditions" : [
+        "id": "sqr-000-007",
+        "name": "NoSQL: Detect common exploitation strategy",
+        "tags": {
+          "type": "nosql_injection",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "regex" : "(?i)^Nessus(/|([ :]+SOAP))"
+              "regex": "\\$(eq|ne|lte?|gte?|n?in)\\b"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-10x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "id" : "ua0-600-12x",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "^Arachni\\/v"
-            }
-          }
-        ],
-        "name" : "Arachni",
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "sqr-000-008",
+        "name": "Windows: Detect attempts to exfiltrate .ini files",
+        "tags": {
+          "type": "command_injection",
+          "category": "attack_attempt"
         },
-        "action" : "record",
-        "transformers" : []
-      },
-      {
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bJorgee\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ],
-        "id" : "ua0-600-13x",
-        "name" : "Jorgee",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "name" : "Probely",
-        "id" : "ua0-600-14x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "regex" : "(?i)\\bProbely\\b"
+              "regex": "(?i)[&|]\\s*type\\s+%\\w+%\\\\+\\w+\\.ini\\s*[&|]"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "sqr-000-009",
+        "name": "Linux: Detect attempts to exfiltrate passwd files",
+        "tags": {
+          "type": "command_injection",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bmetis\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ],
-        "id" : "ua0-600-15x",
-        "name" : "Metis"
-      },
-      {
-        "name" : "SQL power injector",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "regex" : "sql power injector"
-            }
-          }
-        ],
-        "id" : "ua0-600-16x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
-      },
-      {
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "(?i)\\bn-stealth\\b"
-            }
-          }
-        ],
-        "id" : "ua0-600-18x",
-        "name" : "N-Stealth",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "(?i)\\bbrutus\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
+              "regex": "(?i)[&|]\\s*cat\\s+\\/etc\\/[\\w\\.\\/]*passwd\\s*[&|]"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-19x",
-        "name" : "Brutus"
+        "transformers": []
       },
       {
-        "name" : "Shellshock exploitation tool",
-        "conditions" : [
+        "id": "sqr-000-010",
+        "name": "Windows: Detect attempts to timeout a shell",
+        "tags": {
+          "type": "command_injection",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "\\(\\) \\{ :; *\\}",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "(?i)[&|]\\s*timeout\\s+/t\\s+\\d+\\s*[&|]"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "sqr-000-011",
+        "name": "SSRF: Try to access internal OMI service (CVE-2021-38647)",
+        "tags": {
+          "type": "ssrf",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "operator": "match_regex",
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "http(s?):\\/\\/([A-Za-z0-9\\.\\-\\_]+|\\[[A-Fa-f0-9\\:]+\\]|):5986\\/wsman",
+              "options": {
+                "min_length": 4
+              }
             }
           }
         ],
-        "id" : "ua0-600-1xx",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "sqr-000-012",
+        "name": "SSRF: Detect SSRF attempt on internal service",
+        "tags": {
+          "type": "ssrf",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
               ],
-              "regex" : "(?i)(<script>netsparker\\(0x0|ns:netsparker.*=vuln)"
+              "regex": "^(jar:)?(http|https):\\/\\/([0-9oq]{1,5}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}|[0-9]{1,10}|localhost)(:[0-9]{1,5})?(\\/.*|)$"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-20x",
-        "name" : "Netsparker"
-      },
-      {
-        "name" : "JAASCois",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "(?i)\\bjaascois\\b"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "ua0-600-22x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
-      },
-      {
-        "name" : "PMAFind",
-        "id" : "ua0-600-23x",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "(?i)\\bpmafind\\b"
-            }
-          }
-        ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        }
-      },
-      {
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "action" : "record",
-        "transformers" : [],
-        "id" : "ua0-600-25x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "webtrends security analyzer"
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "Webtrends"
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Nsauditor",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "(?i)\\bnsauditor\\b"
-            }
-          }
-        ],
-        "id" : "ua0-600-26x"
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Paros",
-        "id" : "ua0-600-27x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "(?i)Mozilla/.* Paros/"
-            },
-            "operation" : "match_regex"
-          }
+        "transformers": [
+          "lowercase"
         ]
       },
       {
-        "name" : "DirBuster",
-        "conditions" : [
+        "id": "sqr-000-013",
+        "name": "SSRF: Detect SSRF attempts using IPv6 or octal/hexdecimal obfuscation",
+        "tags": {
+          "type": "ssrf",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bdirbuster\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                }
+              ],
+              "regex": "^(jar:)?(http|https):\\/\\/((\\[)?[:0-9a-f\\.x]{2,}(\\])?)(:[0-9]{1,5})?(\\/.*)?$"
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-28x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Pangolin",
-        "id" : "ua0-600-29x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ],
-              "regex" : "(?i)\\bpangolin\\b"
-            },
-            "operation" : "match_regex"
-          }
+        "transformers": [
+          "lowercase"
         ]
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "sqr-000-014",
+        "name": "SSRF: Detect SSRF domain redirection bypass",
+        "tags": {
+          "type": "ssrf",
+          "category": "attack_attempt"
         },
-        "name" : "Qualys",
-        "id" : "ua0-600-2xx",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?i)\\bqualys\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
+              ],
+              "regex": "^(http|https):\\/\\/(.*burpcollaborator\\.net|localtest\\.me|mail\\.ebc\\.apple\\.com|bugbounty\\.dod\\.network|.*\\.[nx]ip\\.io)"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
+        ],
+        "transformers": [
+          "lowercase"
         ]
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "sqr-000-015",
+        "name": "SSRF: Detect SSRF attempt using non HTTP protocol",
+        "tags": {
+          "type": "ssrf",
+          "category": "attack_attempt"
         },
-        "name" : "SQLNinja",
-        "id" : "ua0-600-30x",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.query"
+                },
+                {
+                  "address": "server.request.body"
+                },
+                {
+                  "address": "server.request.path_params"
+                },
+                {
+                  "address": "server.request.headers.no_cookies"
+                }
               ],
-              "regex" : "(?i)\\bsqlninja\\b"
-            }
+              "regex": "^(jar:)?((file|netdoc):\\/\\/[\\\\\\/]+|(dict|gopher|ldap|sftp|tftp):\\/\\/.*:[0-9]{1,5})"
+            },
+            "operator": "match_regex"
           }
+        ],
+        "transformers": [
+          "lowercase"
         ]
       },
       {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-0xx",
+        "name": "Joomla exploitation tool",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "Nikto",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "\\(Nikto/[\\d\\.]+\\)"
-            }
+              "regex": "JDatabaseDriverMysqli"
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-31x"
+        "transformers": []
       },
       {
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-10x",
+        "name": "Nessus",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "action" : "record",
-        "transformers" : [],
-        "id" : "ua0-600-32x",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bwebinspect\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ],
-        "name" : "WebInspect"
-      },
-      {
-        "id" : "ua0-600-33x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bblack\\s?widow\\b"
+              "regex": "(?i)^Nessus(/|([ :]+SOAP))"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "name" : "BlackWidow",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "action" : "record",
-        "transformers" : []
+        "transformers": []
       },
       {
-        "name" : "Grendel-Scan",
-        "id" : "ua0-600-34x",
-        "conditions" : [
+        "id": "ua0-600-12x",
+        "name": "Arachni",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bgrendel-scan\\b"
+              "regex": "^Arachni\\/v"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bhavij\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ],
-        "id" : "ua0-600-35x",
-        "name" : "Havij",
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-13x",
+        "name": "Jorgee",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "w3af",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?i)\\bw3af\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "ua0-600-36x"
-      },
-      {
-        "name" : "Nmap",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "nmap (nse|scripting engine)"
-            }
+              "regex": "(?i)\\bJorgee\\b"
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-37x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-14x",
+        "name": "Probely",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "Nessus Scripted",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?i)^'?[a-z0-9]+\\.nasl'?$",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "ua0-600-39x"
-      },
-      {
-        "name" : "Evil Scanner",
-        "id" : "ua0-600-3xx",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "(?i)\\bevilScanner\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        }
-      },
-      {
-        "id" : "ua0-600-40x",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bWebFuck\\b"
-            }
-          }
-        ],
-        "name" : "WebFuck",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "action" : "record",
-        "transformers" : []
-      },
-      {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Acunetix",
-        "id" : "ua0-600-41x",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "md5\\(acunetix_wvs_security_test\\)",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "name" : "OpenVAS",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "(?i)OpenVAS\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
+              "regex": "(?i)\\bProbely\\b"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-42x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-15x",
+        "name": "Metis",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "Spider-Pig",
-        "id" : "ua0-600-43x",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "Powered by Spider-Pig by tinfoilsecurity\\.com"
+              "regex": "(?i)\\bmetis\\b"
             },
-            "operation" : "match_regex"
-          }
-        ]
-      },
-      {
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "Mozilla/\\d+.\\d+ zgrab",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-44x",
-        "name" : "Zgrab",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "transformers" : [],
-        "action" : "record"
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-16x",
+        "name": "SQL power injector",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "Zmeu",
-        "id" : "ua0-600-45x",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bZmEu\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Crowdstrike",
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bcrowdstrike\\b"
-            }
+              "regex": "sql power injector"
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-46x"
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-18x",
+        "name": "N-Stealth",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "GoogleSecurityScanner",
-        "id" : "ua0-600-47x",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bGoogleSecurityScanner\\b"
+              "regex": "(?i)\\bn-stealth\\b"
             },
-            "operation" : "match_regex"
-          }
-        ]
-      },
-      {
-        "name" : "Commix",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "^commix\\/",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-48x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "name" : "Gobuster",
-        "conditions" : [
+        "id": "ua0-600-19x",
+        "name": "Brutus",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "^gobuster\\/",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "ua0-600-49x",
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        }
-      },
-      {
-        "name" : "CGIchk",
-        "id" : "ua0-600-4xx",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bcgichk\\b"
+              "regex": "(?i)\\bbrutus\\b"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
       },
       {
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-1xx",
+        "name": "Shellshock exploitation tool",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "FFUF",
-        "id" : "ua0-600-51x",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "regex" : "(?i)^Fuzz Faster U Fool\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ]
-      },
-      {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "name" : "Nuclei is a fast tool for configurable targeted scanning based on templates offering massive extensibility and ease of use",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "(?i)^Nuclei\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "id" : "ua0-600-52x"
-      },
-      {
-        "id" : "ua0-600-53x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "regex" : "(?i)\\bTsunamiSecurityScanner\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            },
-            "operation" : "match_regex"
-          }
-        ],
-        "name" : "Tsunami is a general purpose network security scanner with an extensible plugin system for detecting high severity vulnerabilities with high confidence",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "action" : "record",
-        "transformers" : []
-      },
-      {
-        "id" : "ua0-600-54x",
-        "conditions" : [
-          {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)\\bnimbostratus-bot\\b"
+              "regex": "\\(\\) \\{ :; *\\}"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "name" : "Nimbostratus is a vulnerability scanner that scan websites unprompted",
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "action" : "record",
-        "transformers" : []
+        "transformers": []
       },
       {
-        "conditions" : [
-          {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "(?i)\\bbsqlbf\\b",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
-          }
-        ],
-        "id" : "ua0-600-5xx",
-        "name" : "Blind Sql Injection Brute Forcer",
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-20x",
+        "name": "Netsparker",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "transformers" : [],
-        "action" : "record"
-      },
-      {
-        "tags" : {
-          "type" : "security_scanner"
-        },
-        "transformers" : [],
-        "action" : "record",
-        "conditions" : [
+        "conditions": [
           {
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "mozilla/4\\.0 \\(compatible(; msie 6\\.0; win32)?\\)"
+              "regex": "(?i)(<script>netsparker\\(0x0|ns:netsparker.*=vuln)"
             },
-            "operation" : "match_regex"
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-6xx",
-        "name" : "Suspicious user agent"
+        "transformers": []
       },
       {
-        "transformers" : [],
-        "action" : "record",
-        "tags" : {
-          "type" : "security_scanner"
+        "id": "ua0-600-22x",
+        "name": "JAASCois",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
         },
-        "name" : "SQLmap",
-        "conditions" : [
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "regex" : "^sqlmap/",
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
-              ]
-            }
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bjaascois\\b"
+            },
+            "operator": "match_regex"
           }
         ],
-        "id" : "ua0-600-7xx"
+        "transformers": []
       },
       {
-        "name" : "Skipfish",
-        "id" : "ua0-600-9xx",
-        "conditions" : [
+        "id": "ua0-600-23x",
+        "name": "PMAFind",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
           {
-            "operation" : "match_regex",
-            "parameters" : {
-              "inputs" : [
-                "server.request.headers.no_cookies:user-agent"
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
               ],
-              "regex" : "(?i)mozilla/5\\.0 sf/"
-            }
+              "regex": "(?i)\\bpmafind\\b"
+            },
+            "operator": "match_regex"
           }
         ],
-        "action" : "record",
-        "transformers" : [],
-        "tags" : {
-          "type" : "security_scanner"
-        }
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-25x",
+        "name": "Webtrends",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "webtrends security analyzer"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-26x",
+        "name": "Nsauditor",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bnsauditor\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-27x",
+        "name": "Paros",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)Mozilla/.* Paros/"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-28x",
+        "name": "DirBuster",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bdirbuster\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-29x",
+        "name": "Pangolin",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bpangolin\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-2xx",
+        "name": "Qualys",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bqualys\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-30x",
+        "name": "SQLNinja",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bsqlninja\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-31x",
+        "name": "Nikto",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "\\(Nikto/[\\d\\.]+\\)"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-32x",
+        "name": "WebInspect",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bwebinspect\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-33x",
+        "name": "BlackWidow",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bblack\\s?widow\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-34x",
+        "name": "Grendel-Scan",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bgrendel-scan\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-35x",
+        "name": "Havij",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bhavij\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-36x",
+        "name": "w3af",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bw3af\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-37x",
+        "name": "Nmap",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "nmap (nse|scripting engine)"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-39x",
+        "name": "Nessus Scripted",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)^'?[a-z0-9]+\\.nasl'?$"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-3xx",
+        "name": "Evil Scanner",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bevilScanner\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-40x",
+        "name": "WebFuck",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bWebFuck\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-41x",
+        "name": "Acunetix",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "md5\\(acunetix_wvs_security_test\\)"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-42x",
+        "name": "OpenVAS",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)OpenVAS\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-43x",
+        "name": "Spider-Pig",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "Powered by Spider-Pig by tinfoilsecurity\\.com"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-44x",
+        "name": "Zgrab",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "Mozilla/\\d+.\\d+ zgrab"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-45x",
+        "name": "Zmeu",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bZmEu\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-46x",
+        "name": "Crowdstrike",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bcrowdstrike\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-47x",
+        "name": "GoogleSecurityScanner",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bGoogleSecurityScanner\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-48x",
+        "name": "Commix",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "^commix\\/"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-49x",
+        "name": "Gobuster",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "^gobuster\\/"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-4xx",
+        "name": "CGIchk",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bcgichk\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-51x",
+        "name": "FFUF",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)^Fuzz Faster U Fool\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-52x",
+        "name": "Nuclei is a fast tool for configurable targeted scanning based on templates offering massive extensibility and ease of use",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)^Nuclei\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-53x",
+        "name": "Tsunami is a general purpose network security scanner with an extensible plugin system for detecting high severity vulnerabilities with high confidence",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bTsunamiSecurityScanner\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-54x",
+        "name": "Nimbostratus is a vulnerability scanner that scan websites unprompted",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bnimbostratus-bot\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-5xx",
+        "name": "Blind Sql Injection Brute Forcer",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)\\bbsqlbf\\b"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-6xx",
+        "name": "Suspicious user agent",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "mozilla/4\\.0 \\(compatible(; msie 6\\.0; win32)?\\)"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-7xx",
+        "name": "SQLmap",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "^sqlmap/"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
+      },
+      {
+        "id": "ua0-600-9xx",
+        "name": "Skipfish",
+        "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+        },
+        "conditions": [
+          {
+            "parameters": {
+              "inputs": [
+                {
+                  "address": "server.request.headers.no_cookies",
+                  "key_path": [
+                    "user-agent"
+                  ]
+                }
+              ],
+              "regex": "(?i)mozilla/5\\.0 sf/"
+            },
+            "operator": "match_regex"
+          }
+        ],
+        "transformers": []
       }
     ]
   }
