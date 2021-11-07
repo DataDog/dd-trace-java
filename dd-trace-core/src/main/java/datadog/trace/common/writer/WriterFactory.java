@@ -59,6 +59,7 @@ public class WriterFactory {
           "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
     }
 
+    boolean alwaysFlush = false;
     if (config.isAgentConfiguredUsingDefault()
         && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
       log.info("Detected serverless environment");
@@ -67,6 +68,7 @@ public class WriterFactory {
         return new PrintingWriter(System.out, true);
       } else {
         log.info("Serverless extension has been detected, using DDAgentWriter");
+        alwaysFlush = true;
       }
     }
 
@@ -96,6 +98,7 @@ public class WriterFactory {
             .prioritization(prioritization)
             .healthMetrics(new HealthMetrics(statsDClient))
             .monitoring(commObjects.monitoring)
+            .alwaysFlush(alwaysFlush)
             .build();
 
     if (sampler instanceof DDAgentResponseListener) {

@@ -7,7 +7,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
-import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
@@ -54,6 +53,7 @@ public class DDAgentWriter implements Writer {
   private final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final DDAgentFeaturesDiscovery discovery;
+  private boolean alwaysFlush = false;
 
   private volatile boolean closed;
 
@@ -70,6 +70,7 @@ public class DDAgentWriter implements Writer {
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+    boolean alwaysFlush = false;
 
     private DDAgentApi agentApi;
     private Prioritization prioritization;
@@ -140,6 +141,11 @@ public class DDAgentWriter implements Writer {
       return this;
     }
 
+    public DDAgentWriterBuilder alwaysFlush(boolean alwaysFlush) {
+      this.alwaysFlush = alwaysFlush;
+      return this;
+    }
+
     public DDAgentWriter build() {
       return new DDAgentWriter(
           agentApi,
@@ -154,7 +160,8 @@ public class DDAgentWriter implements Writer {
           monitoring,
           traceAgentV05Enabled,
           metricsReportingEnabled,
-          featureDiscovery);
+          featureDiscovery,
+          alwaysFlush);
     }
   }
 
@@ -171,7 +178,8 @@ public class DDAgentWriter implements Writer {
       final Monitoring monitoring,
       final boolean traceAgentV05Enabled,
       boolean metricsReportingEnabled,
-      DDAgentFeaturesDiscovery featureDiscovery) {
+      DDAgentFeaturesDiscovery featureDiscovery,
+      final  boolean alwaysFlush) {
     HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
     OkHttpClient client =
         null == featureDiscovery || null == agentApi
@@ -191,6 +199,7 @@ public class DDAgentWriter implements Writer {
     this.discovery = featureDiscovery;
     this.healthMetrics = healthMetrics;
     this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
+    this.alwaysFlush = alwaysFlush;
     this.traceProcessingWorker =
         new TraceProcessingWorker(
             traceBufferSize,
@@ -255,7 +264,7 @@ public class DDAgentWriter implements Writer {
     } else {
       handleDroppedTrace("Trace written after shutdown.", trace);
     }
-    if (ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+    if (this.alwaysFlush) {
       this.flush();
     }
   }
