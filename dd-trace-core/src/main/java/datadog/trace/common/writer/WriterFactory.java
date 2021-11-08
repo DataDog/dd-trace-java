@@ -62,12 +62,13 @@ public class WriterFactory {
     boolean alwaysFlush = false;
     if (config.isAgentConfiguredUsingDefault()
         && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
-      log.info("Detected serverless environment");
       if (!ServerlessInfo.get().hasExtension()) {
-        log.info("Serverless extension has not been detected, using PrintingWriter");
+        log.info(
+            "Detected serverless environment. Serverless extension has not been detected, using PrintingWriter");
         return new PrintingWriter(System.out, true);
       } else {
-        log.info("Serverless extension has been detected, using DDAgentWriter");
+        log.info(
+            "Detected serverless environment. Serverless extension has been detected, using DDAgentWriter");
         alwaysFlush = true;
       }
     }
