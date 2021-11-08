@@ -1,7 +1,7 @@
 package com.datadog.appsec.report
 
+import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.report.raw.dtos.intake.IntakeBatch
-import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.test.JsonMatcher
 import com.squareup.moshi.JsonAdapter
 import datadog.trace.test.util.DDSpecification
@@ -31,7 +31,7 @@ class ReportServiceImplTests extends DDSpecification {
     }
 
     @Override
-    boolean shouldFlush(@Nonnull Attack010 attack) {
+    boolean shouldFlush(@Nonnull AppSecEvent100 event) {
       true
     }
   }
@@ -39,12 +39,12 @@ class ReportServiceImplTests extends DDSpecification {
 
   void 'calls AppSecApi and schedules task'() {
     String json
-    Attack010 attack = new Attack010(type: 'waf')
+    AppSecEvent100 event = new AppSecEvent100(eventType: 'appsec')
     testee = new ReportServiceImpl(
       api, AlwaysFlush.INSTANCE, scheduler)
 
     when:
-    testee.reportAttack(attack)
+    testee.reportEvent(event)
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, testee, 5, 30, TimeUnit.SECONDS) >>
@@ -58,7 +58,7 @@ class ReportServiceImplTests extends DDSpecification {
       {
          "events" : [
             {
-              "type": "waf"
+              "event_type": "appsec"
             }
          ],
          "protocol_version" : 1
@@ -66,18 +66,18 @@ class ReportServiceImplTests extends DDSpecification {
   }
 
   void 'does not flush if not told to'() {
-    Attack010 attack = new Attack010(type: 'waf')
+    AppSecEvent100 event = new AppSecEvent100(eventType: 'appsec')
 
     when:
     testee = new ReportServiceImpl(api, { false } as ReportStrategy, scheduler)
-    testee.reportAttack(attack)
+    testee.reportEvent(event)
 
     then:
     0 * api._(*_)
   }
 
   void 'the task flushes if the report strategy indicates so'() {
-    Attack010 attack = new Attack010(type: 'waf')
+    AppSecEvent100 event = new AppSecEvent100(eventType: 'appsec')
     def reportResponsesStack = [false, false, true, true]
     AgentTaskScheduler.Task task
     def scheduled = new AgentTaskScheduler.Scheduled(new Object())
@@ -86,7 +86,7 @@ class ReportServiceImplTests extends DDSpecification {
     testee = new ReportServiceImpl(
       api, {reportResponsesStack.pop() /* pops off the front*/ } as ReportStrategy,
       scheduler)
-    testee.reportAttack(attack)
+    testee.reportEvent(event)
 
     then:
     1 * scheduler.scheduleAtFixedRate(_, { it.is(testee) }, 5, 30, TimeUnit.SECONDS) >>
