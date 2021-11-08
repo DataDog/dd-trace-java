@@ -7,6 +7,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
+import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
@@ -160,7 +161,7 @@ public interface Instrumenter {
       if (transformer != null) {
         agentBuilder = agentBuilder.transform(transformer);
       }
-      AdviceBuilder adviceBuilder = new AdviceBuilder(agentBuilder);
+      AdviceBuilder adviceBuilder = new AdviceBuilder(agentBuilder, methodIgnoreMatcher());
       adviceTransformations(adviceBuilder);
       agentBuilder = adviceBuilder.agentBuilder;
       agentBuilder = contextProvider.additionalInstrumentation(agentBuilder);
@@ -202,9 +203,13 @@ public interface Instrumenter {
 
     private static class AdviceBuilder implements AdviceTransformation {
       AgentBuilder.Identified.Extendable agentBuilder;
+      final ElementMatcher<? super MethodDescription> ignoreMatcher;
 
-      public AdviceBuilder(AgentBuilder.Identified.Extendable agentBuilder) {
+      public AdviceBuilder(
+          AgentBuilder.Identified.Extendable agentBuilder,
+          ElementMatcher<? super MethodDescription> ignoreMatcher) {
         this.agentBuilder = agentBuilder;
+        this.ignoreMatcher = ignoreMatcher;
       }
 
       @Override
@@ -214,7 +219,7 @@ public interface Instrumenter {
                 new AgentBuilder.Transformer.ForAdvice()
                     .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                     .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                    .advice(matcher, name));
+                    .advice(not(ignoreMatcher).and(matcher), name));
       }
     }
 
@@ -297,6 +302,14 @@ public interface Instrumenter {
     /** @return A transformer for further transformation of the class */
     public AgentBuilder.Transformer transformer() {
       return null;
+    }
+
+    /** @return A type matcher used to ignore some methods when applying transformation. */
+    public ElementMatcher<? super MethodDescription> methodIgnoreMatcher() {
+      // By default ByteBuddy will skip all methods that are synthetic at the top level, but since
+      // we need to instrument some synthetic methods in Scala and changed that, we make the default
+      // here to ignore synthetic methods to not change the behavior for unaware instrumentations
+      return isSynthetic();
     }
 
     /**
