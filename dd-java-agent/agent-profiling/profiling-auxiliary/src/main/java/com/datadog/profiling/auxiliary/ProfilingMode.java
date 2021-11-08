@@ -4,5 +4,6 @@ package com.datadog.profiling.auxiliary;
 public enum ProfilingMode {
   CPU,
   WALLCLOCK,
-  ALLOCATION;
+  ALLOCATION,
+  MEMLEAK;
 }

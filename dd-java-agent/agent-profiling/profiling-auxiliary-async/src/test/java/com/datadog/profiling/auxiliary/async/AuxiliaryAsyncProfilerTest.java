@@ -73,10 +73,11 @@ class AuxiliaryAsyncProfilerTest {
 
   @ParameterizedTest
   @MethodSource("profilingModes")
-  void testStartCmd(boolean cpu, boolean alloc) {
+  void testStartCmd(boolean cpu, boolean alloc, boolean memleak) {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED, Boolean.toString(cpu));
     props.put(ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED, Boolean.toString(alloc));
+    props.put(ProfilingConfig.PROFILING_ASYNC_MEMLEAK_ENABLED, Boolean.toString(memleak));
 
     AuxiliaryAsyncProfiler profiler =
         new AuxiliaryAsyncProfiler(ConfigProvider.withPropertiesOverride(props));
@@ -88,15 +89,22 @@ class AuxiliaryAsyncProfilerTest {
       assertTrue(cmd.contains("event=itimer"));
     }
     if (profiler.enabledModes().contains(ProfilingMode.ALLOCATION)) {
-      assertTrue(cmd.contains("event=alloc") || cmd.contains("alloc="));
+      assertTrue(cmd.contains("alloc="));
+    }
+    if (profiler.enabledModes().contains(ProfilingMode.MEMLEAK)) {
+      assertTrue(cmd.contains("memleak="));
     }
   }
 
   private static Stream<Arguments> profilingModes() {
     return Stream.of(
-        Arguments.of(false, false),
-        Arguments.of(false, true),
-        Arguments.of(true, false),
-        Arguments.of(true, true));
+        Arguments.of(false, false, false),
+        Arguments.of(false, false, true),
+        Arguments.of(false, true, false),
+        Arguments.of(false, true, true),
+        Arguments.of(true, false, false),
+        Arguments.of(true, false, true),
+        Arguments.of(true, true, false),
+        Arguments.of(true, true, true));
   }
 }

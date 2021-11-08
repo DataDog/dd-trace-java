@@ -8,10 +8,10 @@ import java.nio.file.Path;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 
-final class AysncProfilerRecordingData extends RecordingData {
+final class AsyncProfilerRecordingData extends RecordingData {
   private final Path recordingFile;
 
-  public AysncProfilerRecordingData(Path recordingFile, Instant start, Instant end) {
+  public AsyncProfilerRecordingData(Path recordingFile, Instant start, Instant end) {
     super(start, end);
     this.recordingFile = recordingFile;
   }
