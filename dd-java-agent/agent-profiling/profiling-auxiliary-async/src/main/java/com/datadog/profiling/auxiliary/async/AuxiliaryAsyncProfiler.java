@@ -61,6 +61,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     if (configProvider.getBoolean(ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED, false)) {
       profilingModes.add(ProfilingMode.ALLOCATION);
     }
+    if (configProvider.getBoolean(ProfilingConfig.PROFILING_ASYNC_MEMLEAK_ENABLED, false)) {
+      profilingModes.add(ProfilingMode.MEMLEAK);
+    }
     if (configProvider.getBoolean(ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED, true)) {
       profilingModes.add(ProfilingMode.CPU);
     }
@@ -208,21 +211,22 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // enable 'itimer' event to collect CPU samples
       cmd.append(",event=itimer");
-      if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
-        // if combined with allocation profiling just set the allocation interval
-        cmd.append(",alloc=")
-            .append(
-                configProvider.getString(
-                    ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL,
-                    ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT));
-      }
-    } else if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
-      // only allocation profiling is enabled
-      cmd.append(",event=alloc,alloc=")
+    }
+    if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
+      // allocation profiling is enabled
+      cmd.append(",alloc=")
           .append(
               configProvider.getString(
                   ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL,
                   ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT));
+    }
+    if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+      // memleak profiling is enabled
+      cmd.append(",memleak=")
+          .append(
+              configProvider.getString(
+                  ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
+                  ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
     }
     return cmd.toString();
   }

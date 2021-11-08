@@ -53,6 +53,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_ALLOC_INTERVAL = "profiling.async.alloc.interval";
   public static final String PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = "256k";
   public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
+  public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
+  public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
+  public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = "256k";
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";

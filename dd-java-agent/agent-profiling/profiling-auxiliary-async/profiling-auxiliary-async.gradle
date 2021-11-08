@@ -14,7 +14,8 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.async.OperatingSystem',
   // --
   // although it is quite well covered jacoco complains about branch coverage due to exception handlers
-  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording'
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording',
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecordingData'
 ]
 
 def AP_VERSION = project.findProperty("dd.async_profiler")
