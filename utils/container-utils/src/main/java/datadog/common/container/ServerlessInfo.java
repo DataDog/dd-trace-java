@@ -35,7 +35,7 @@ public class ServerlessInfo {
   }
 
   public boolean hasExtension() {
-    return this.hasExtension;
+    return hasExtension;
   }
 
   public String getFunctionName() {

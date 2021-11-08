@@ -53,7 +53,7 @@ public class DDAgentWriter implements Writer {
   private final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final DDAgentFeaturesDiscovery discovery;
-  private boolean alwaysFlush = false;
+  private final boolean alwaysFlush;
 
   private volatile boolean closed;
 
@@ -179,7 +179,7 @@ public class DDAgentWriter implements Writer {
       final boolean traceAgentV05Enabled,
       boolean metricsReportingEnabled,
       DDAgentFeaturesDiscovery featureDiscovery,
-      final  boolean alwaysFlush) {
+      final boolean alwaysFlush) {
     HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
     OkHttpClient client =
         null == featureDiscovery || null == agentApi
@@ -222,6 +222,7 @@ public class DDAgentWriter implements Writer {
     this.healthMetrics = healthMetrics;
     this.traceProcessingWorker = worker;
     this.dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring);
+    this.alwaysFlush = false;
   }
 
   private DDAgentWriter(
@@ -235,6 +236,7 @@ public class DDAgentWriter implements Writer {
     this.healthMetrics = healthMetrics;
     this.traceProcessingWorker = worker;
     this.dispatcher = dispatcher;
+    this.alwaysFlush = false;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -264,8 +266,8 @@ public class DDAgentWriter implements Writer {
     } else {
       handleDroppedTrace("Trace written after shutdown.", trace);
     }
-    if (this.alwaysFlush) {
-      this.flush();
+    if (alwaysFlush) {
+      flush();
     }
   }
 

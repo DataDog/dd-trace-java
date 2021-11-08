@@ -41,7 +41,7 @@ class ServerlessInfoTest extends DDSpecification {
 
   def "test serverless hasExtension true"() {
     when:
-    File f = File.createTempFile("fake-", "extension");
+    File f = File.createTempFile("fake-", "extension")
     f.deleteOnExit()
     def info = new ServerlessInfo(f.getAbsolutePath())
     then:
