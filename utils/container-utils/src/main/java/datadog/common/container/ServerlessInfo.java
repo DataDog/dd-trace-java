@@ -1,7 +1,6 @@
 package datadog.common.container;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 import java.io.File;
 
 public class ServerlessInfo {
