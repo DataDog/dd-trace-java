@@ -1,12 +1,14 @@
 plugins {
-  id "de.undercouch.download" version "4.1.1"
   id "com.github.johnrengelman.shadow"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
 
-minimumInstructionCoverage = 0.5
-minimumBranchCoverage = 0.5
+def osName = System.getProperty('os.name', '').toLowerCase()
+// currently, only linux binaries are included
+minimumInstructionCoverage = osName.contains("linux") ? 0.5 : 0
+minimumBranchCoverage = osName.contains("linux") ? 0.5 : 0
 
 excludedClassesCoverage += [
   // enums with no additional functionality
@@ -15,7 +17,9 @@ excludedClassesCoverage += [
   // --
   // although it is quite well covered jacoco complains about branch coverage due to exception handlers
   'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording',
-  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecordingData'
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecordingData',
+  // the config event is a simple data holder
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerConfigEvent'
 ]
 
 def AP_VERSION = project.findProperty("dd.async_profiler")

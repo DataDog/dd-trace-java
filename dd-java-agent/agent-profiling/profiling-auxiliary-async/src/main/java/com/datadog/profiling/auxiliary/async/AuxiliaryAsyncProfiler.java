@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import jdk.jfr.EventType;
+import jdk.jfr.FlightRecorder;
 import one.profiler.AsyncProfiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +76,37 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       log.debug("Async Profiler is not available", t);
       instance = null;
     }
+    if (instance != null) {
+      try {
+        // make sure JFR is accessible
+        EventType.getEventType(AsyncProfilerConfigEvent.class);
+      } catch (NoClassDefFoundError ignored) {
+        // if JFR is not accessible disable the async profiler integration
+        instance = null;
+      }
+    }
     asyncProfiler = instance;
+    if (instance != null) {
+      FlightRecorder.addPeriodicEvent(AsyncProfilerConfigEvent.class, this::emitConfiguration);
+    }
+  }
+
+  private void emitConfiguration() {
+    try {
+      new AsyncProfilerConfigEvent(
+              asyncProfiler.getVersion(),
+              getCpuInterval(),
+              getAllocationInterval(),
+              ProfilingMode.mask(profilingModes))
+          .commit();
+    } catch (Throwable t) {
+      if (log.isDebugEnabled()) {
+        log.warn("Exception occurred while attempting to emit config event", t);
+      } else {
+        log.warn("Exception occurred while attempting to emit config event", t.toString());
+      }
+      throw t;
+    }
   }
 
   private static AsyncProfiler inferFromOsAndArch() {
@@ -143,11 +175,15 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   @Override
   @Nullable
   public RecordingData stop(OngoingRecording recording) {
-    if (asyncProfiler != null) {
-      log.debug("Stopping profiling");
-      return recording.stop();
+    try {
+      if (asyncProfiler != null) {
+        log.debug("Stopping profiling");
+        return recording.stop();
+      }
+      return null;
+    } finally {
+      FlightRecorder.removePeriodicEvent(this::emitConfiguration);
     }
-    return null;
   }
 
   /** A call-back from {@linkplain AsyncProfilerRecording#stop()} */
@@ -171,6 +207,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   boolean isActive() {
+    if (!isAvailable()) {
+      return false;
+    }
     try {
       String status = executeProfilerCmd("status");
       log.debug("Async Profiler Status = {}", status);
@@ -210,24 +249,44 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     StringBuilder cmd = new StringBuilder("start,jfr=7,file=").append(file.toAbsolutePath());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // enable 'itimer' event to collect CPU samples
-      cmd.append(",event=itimer");
-    }
-    if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
-      // allocation profiling is enabled
-      cmd.append(",alloc=")
-          .append(
-              configProvider.getString(
-                  ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL,
-                  ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT));
-    }
-    if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
-      // memleak profiling is enabled
-      cmd.append(",memleak=")
-          .append(
-              configProvider.getString(
-                  ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
-                  ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
+      cmd.append(",event=itimer,interval=").append(getCpuInterval()).append("m");
+      if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
+        // if combined with allocation profiling just set the allocation interval
+        cmd.append(",alloc=").append(getAllocationInterval()).append('b');
+      }
+      if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+        // if combined with memleak profiling set the memleak interval
+        cmd.append(",memleak=").append(getMemleakInterval()).append('b');
+      }
+    } else if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
+      // only allocation profiling is enabled
+      cmd.append(",event=alloc,alloc=").append(getAllocationInterval()).append('b');
+      if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+        // if combined with memleak profiling set the memleak interval
+        cmd.append(",memleak=").append(getMemleakInterval()).append('b');
+      }
+    } else if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+      // only memleak profiling is enabled
+      cmd.append(",event=memleak,memleak=").append(getMemleakInterval()).append('b');
     }
     return cmd.toString();
+  }
+
+  private int getAllocationInterval() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL,
+        ProfilingConfig.PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT);
+  }
+
+  private int getCpuInterval() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL,
+        ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL_DEFAULT);
+  }
+
+  private int getMemleakInterval() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT);
   }
 }
