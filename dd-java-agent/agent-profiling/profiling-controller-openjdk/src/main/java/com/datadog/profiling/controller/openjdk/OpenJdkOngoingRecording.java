@@ -77,6 +77,13 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
             recording.disable("jdk.ObjectAllocationSample");
             break;
           }
+        case MEMLEAK:
+          {
+            // memleak profiling will take over these events
+            log.info("Disabling built-in memory leak profiling events");
+            recording.disable("jdk.OldObjectSample");
+            break;
+          }
         case WALLCLOCK:
           {
             // do nothing here for now - this mode is not really supported yet

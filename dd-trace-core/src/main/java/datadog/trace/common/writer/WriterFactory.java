@@ -57,10 +57,18 @@ public class WriterFactory {
           "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
     }
 
+    boolean alwaysFlush = false;
     if (config.isAgentConfiguredUsingDefault()
         && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
-      log.info("Detected serverless environment.  Using PrintingWriter");
-      return new PrintingWriter(System.out, true);
+      if (!ServerlessInfo.get().hasExtension()) {
+        log.info(
+            "Detected serverless environment. Serverless extension has not been detected, using PrintingWriter");
+        return new PrintingWriter(System.out, true);
+      } else {
+        log.info(
+            "Detected serverless environment. Serverless extension has been detected, using DDAgentWriter");
+        alwaysFlush = true;
+      }
     }
 
     DDAgentApi ddAgentApi =
@@ -85,6 +93,7 @@ public class WriterFactory {
             .prioritization(prioritization)
             .healthMetrics(new HealthMetrics(statsDClient))
             .monitoring(commObjects.monitoring)
+            .alwaysFlush(alwaysFlush)
             .build();
 
     if (sampler instanceof DDAgentResponseListener) {

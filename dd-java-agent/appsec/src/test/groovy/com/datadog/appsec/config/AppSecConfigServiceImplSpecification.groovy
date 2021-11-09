@@ -30,7 +30,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'can load from a different location'() {
     setup:
     Path p = Files.createTempFile('appsec', '.json')
-    p.toFile() << '{"waf": {"version":"0.1", "events": []}}'
+    p.toFile() << '{"waf": {"version":"0.1", "rules": []}}'
     AppSecConfigService.SubconfigListener listener = Mock()
 
     when:
@@ -38,7 +38,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
-    def expected = AppSecConfig.createFromMap([version: '0.1', events: []])
+    def expected = AppSecConfig.createFromMap([version: '0.1', rules: []])
     def actual = appSecConfigService.addSubConfigListener('waf', listener).get()
     actual == expected
   }

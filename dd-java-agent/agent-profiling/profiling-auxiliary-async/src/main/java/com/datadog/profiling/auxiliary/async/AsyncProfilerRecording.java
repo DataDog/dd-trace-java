@@ -32,14 +32,14 @@ final class AsyncProfilerRecording implements OngoingRecording {
   @Override
   public RecordingData stop() {
     profiler.stopProfiler();
-    return new AysncProfilerRecordingData(recordingFile, started, Instant.now());
+    return new AsyncProfilerRecordingData(recordingFile, started, Instant.now());
   }
 
   @Nonnull
   @Override
   public RecordingData snapshot(@Nonnull Instant start) {
     profiler.stop(this);
-    RecordingData data = new AysncProfilerRecordingData(recordingFile, start, Instant.now());
+    RecordingData data = new AsyncProfilerRecordingData(recordingFile, start, Instant.now());
     try {
       recordingFile = profiler.newRecording();
     } catch (IOException | IllegalStateException e) {

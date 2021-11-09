@@ -100,6 +100,9 @@ public final class PreparedStatementInstrumentation
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",
+    // SAP HANA in-memory DB
+    "com.sap.db.jdbc.PreparedStatementSapDB",
+    "com.sap.db.jdbc.CallableStatementSapDB",
     // for testing purposes
     "test.TestPreparedStatement",
     // this won't match any classes unless set

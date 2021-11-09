@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.any;
+import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
@@ -20,12 +21,14 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.LatentMatcher;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,8 +83,12 @@ public class AgentInstaller {
 
     FieldBackedContextProvider.resetContextMatchers();
 
+    // By default ByteBuddy will skip all methods that are synthetic or default finalizer
+    // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
+    ByteBuddy byteBuddy =
+        new ByteBuddy().ignore(new LatentMatcher.Resolved<>(isDefaultFinalizer()));
     AgentBuilder.Ignored ignoredAgentBuilder =
-        new AgentBuilder.Default()
+        new AgentBuilder.Default(byteBuddy)
             .disableClassFormatChanges()
             .assureReadEdgeTo(INSTRUMENTATION, FieldBackedContextAccessor.class)
             .with(AgentTooling.transformerDecorator())
