@@ -100,7 +100,7 @@ public class JMXFetch {
       configBuilder.checkPeriod(checkPeriod);
     }
     final AppConfig appConfig = configBuilder.build();
-    private App app = new App(appConfig);
+    final App app = new App(appConfig);
 
     final Thread thread =
         newAgentThread(
