@@ -5,21 +5,19 @@ import static com.datadog.appsec.util.AppSecVersion.JAVA_VM_NAME;
 import static com.datadog.appsec.util.AppSecVersion.JAVA_VM_VENDOR;
 
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
-import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.raw.contexts._definitions.AllContext;
-import com.datadog.appsec.report.raw.contexts.host.Host010;
-import com.datadog.appsec.report.raw.contexts.http.Http010;
-import com.datadog.appsec.report.raw.contexts.http.HttpHeaders;
-import com.datadog.appsec.report.raw.contexts.http.HttpRequest;
-import com.datadog.appsec.report.raw.contexts.http.HttpResponse;
-import com.datadog.appsec.report.raw.contexts.service_stack.Service;
-import com.datadog.appsec.report.raw.contexts.service_stack.ServiceStack010;
-import com.datadog.appsec.report.raw.contexts.span.Span010;
-import com.datadog.appsec.report.raw.contexts.tags.Tags010;
-import com.datadog.appsec.report.raw.contexts.trace.Trace010;
-import com.datadog.appsec.report.raw.contexts.tracer.Tracer010;
-import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.report.raw.contexts.host.Host;
+import com.datadog.appsec.report.raw.contexts.http.Http100;
+import com.datadog.appsec.report.raw.contexts.http.HttpRequest100;
+import com.datadog.appsec.report.raw.contexts.http.HttpResponse100;
+import com.datadog.appsec.report.raw.contexts.library.Library;
+import com.datadog.appsec.report.raw.contexts.service.Service;
+import com.datadog.appsec.report.raw.contexts.span.Span;
+import com.datadog.appsec.report.raw.contexts.tags.Tags;
+import com.datadog.appsec.report.raw.contexts.trace.Trace;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.AppSecVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
@@ -41,101 +39,57 @@ public class EventEnrichment {
   private static String HOSTNAME;
   private static final Logger log = LoggerFactory.getLogger(EventEnrichment.class);
 
-  public static void enrich(Attack010 attack, IGSpanInfo spanInfo, DataBundle appSecCtx) {
-    if (attack.getEventId() == null) {
-      attack.setEventId(UUID.randomUUID().toString());
+  public static void enrich(
+      AppSecEvent100 event, IGSpanInfo spanInfo, AppSecRequestContext appSecCtx) {
+    if (event.getEventId() == null) {
+      event.setEventId(UUID.randomUUID().toString());
     }
-    if (attack.getEventType() == null) {
-      attack.setEventType("appsec.threat.attack");
+    if (event.getEventType() == null) {
+      event.setEventType("appsec");
     }
-    if (attack.getEventVersion() == null) {
-      attack.setEventVersion("0.1.0");
+    if (event.getEventVersion() == null) {
+      event.setEventVersion("1.0.0");
     }
-    if (attack.getDetectedAt() == null) {
-      attack.setDetectedAt(Instant.now());
+    if (event.getDetectedAt() == null) {
+      event.setDetectedAt(Instant.now());
     }
-    if (attack.getType() == null) {
-      log.warn("Event type not available for {}", attack);
+    if (event.getRule() == null) {
+      log.warn("Event rule not available for {}", event);
     }
-    if (attack.getBlocked() == null) {
-      log.warn("Event block flag not available for {}", attack);
-    }
-    if (attack.getRule() == null) {
-      log.warn("Event rule not available for {}", attack);
-    }
-    if (attack.getRuleMatch() == null) {
-      log.warn("Event rule match not available for {}", attack);
+    if (event.getRuleMatch() == null) {
+      log.warn("Event rule match not available for {}", event);
     }
 
-    AllContext context = (AllContext) attack.getContext();
+    AllContext context = (AllContext) event.getContext();
     if (context == null) {
       context = new AllContext();
-      attack.setContext(context);
+      event.setContext(context);
     }
 
-    Http010 http = (Http010) context.getHttp();
+    Http100 http = (Http100) context.getHttp();
     if (http == null) {
-      http = new Http010();
+      http = new Http100();
       context.setHttp(http);
     }
     if (http.getContextVersion() == null) {
-      http.setContextVersion("0.1.0");
+      http.setContextVersion("1.0.0");
     }
 
-    HttpRequest request = http.getRequest();
+    HttpRequest100 request = http.getRequest();
     if (request == null) {
-      request = new HttpRequest();
+      request = new HttpRequest100();
       http.setRequest(request);
     }
     final String scheme = appSecCtx.get(KnownAddresses.REQUEST_SCHEME);
-    if (request.getScheme() == null) {
-      request.setScheme(scheme);
-    }
     if (request.getMethod() == null) {
       request.setMethod(appSecCtx.get(KnownAddresses.REQUEST_METHOD));
     }
     final CaseInsensitiveMap<List<String>> headersNoCookies =
         appSecCtx.get(KnownAddresses.HEADERS_NO_COOKIES);
     final String hostAndPort = extractHostAndPort(headersNoCookies);
-    final int hostPosOfColon = hostAndPort.indexOf(":");
-    if (request.getHost() == null) {
-      if (hostPosOfColon == -1) {
-        request.setHost(hostAndPort);
-      } else {
-        request.setHost(hostAndPort.substring(0, hostPosOfColon));
-      }
-    }
     final String uriRaw = appSecCtx.get(KnownAddresses.REQUEST_URI_RAW);
     if (request.getUrl() == null) {
       request.setUrl(buildFullURIExclQueryString(scheme, hostAndPort, uriRaw));
-    }
-    if (request.getPort() == null) {
-      int port = -1;
-      if (hostPosOfColon != -1) {
-        try {
-          port = Integer.parseInt(hostAndPort.substring(hostPosOfColon + 1));
-        } catch (RuntimeException e) {
-          log.info("Could not parse port");
-          if (port <= 0 || port > 65535) {
-            log.info("Invalid port: {}", port);
-          }
-        }
-      }
-      if (port == -1) {
-        port = "http".equalsIgnoreCase(scheme) ? 80 : 443;
-      }
-      request.setPort(port);
-    }
-    if (request.getPath() == null) {
-      String s = uriRaw;
-      if (s == null) {
-        log.info("Request path not available");
-        s = "/UNKNOWN";
-      }
-      if (s.contains("?")) {
-        s = s.substring(0, s.indexOf("?"));
-      }
-      request.setPath(s);
     }
     if (request.getRemoteIp() == null) {
       String remoteIp = appSecCtx.get(KnownAddresses.REQUEST_CLIENT_IP);
@@ -153,13 +107,13 @@ public class EventEnrichment {
     }
     if (request.getHeaders() == null) {
       if (headersNoCookies != null) {
-        request.setHeaders(new HttpHeaders(headersNoCookies));
+        request.setHeaders(headersNoCookies);
       }
     }
 
-    HttpResponse response = http.getResponse();
+    HttpResponse100 response = http.getResponse();
     if (response == null) {
-      response = new HttpResponse();
+      response = new HttpResponse100();
       http.setResponse(response);
     }
     if (response.getStatus() == null) {
@@ -167,55 +121,42 @@ public class EventEnrichment {
       response.setStatus(status);
     }
     if (response.getBlocked() == null) {
-      response.setBlocked(attack.getBlocked());
+      response.setBlocked(appSecCtx.isBlocked());
     }
 
-    Tracer010 tracer = (Tracer010) context.getTracer();
-    if (tracer == null) {
-      tracer = new Tracer010();
-      context.setTracer(tracer);
+    Library library = (Library) context.getLibrary();
+    if (library == null) {
+      library = new Library();
+      context.setLibrary(library);
     }
-    if (tracer.getContextVersion() == null) {
-      tracer.setContextVersion("0.1.0");
+    if (library.getContextVersion() == null) {
+      library.setContextVersion("0.1.0");
     }
-    if (tracer.getRuntimeType() == null) {
-      tracer.setRuntimeType("java");
+    if (library.getRuntimeType() == null) {
+      library.setRuntimeType("java");
     }
-    if (tracer.getRuntimeVersion() == null) {
-      tracer.setRuntimeVersion(TRACER_RUNTIME_VERSION);
+    if (library.getRuntimeVersion() == null) {
+      library.setRuntimeVersion(TRACER_RUNTIME_VERSION);
     }
-    if (tracer.getLibVersion() == null) {
-      tracer.setLibVersion(AppSecVersion.VERSION);
+    if (library.getLibVersion() == null) {
+      library.setLibVersion(AppSecVersion.VERSION);
     }
 
     Service service = (Service) context.getService();
     if (service == null) {
       service =
           new Service.ServiceBuilder()
-              .withProperty("context_version", "0.1.0")
-              .withProperty("name", Config.get().getServiceName())
-              .withProperty("environment", Config.get().getEnv())
-              .withProperty("version", Config.get().getVersion())
+              .withContextVersion("0.1.0")
+              .withName(Config.get().getServiceName())
+              .withEnvironment(Config.get().getEnv())
+              .withVersion(Config.get().getVersion())
               .build();
       context.setService(service);
     }
 
-    ServiceStack010 serviceStack = (ServiceStack010) context.getServiceStack();
-    if (serviceStack == null) {
-      serviceStack = new ServiceStack010();
-      context.setServiceStack(serviceStack);
-    }
-    if (serviceStack.getContextVersion() == null) {
-      serviceStack.setContextVersion("0.1.0");
-    }
-    List<Service> services = serviceStack.getServices();
-    if (services == null || services.isEmpty()) {
-      serviceStack.setServices(Collections.singletonList(service));
-    }
-
-    Span010 span = (Span010) context.getSpan();
+    Span span = (Span) context.getSpan();
     if (span == null && spanInfo != null) {
-      span = new Span010();
+      span = new Span();
       context.setSpan(span);
       span.setContextVersion("0.1.0");
       DDId spanId = spanInfo.getSpanId();
@@ -225,9 +166,9 @@ public class EventEnrichment {
       span.setId(spanId.toString());
     }
 
-    Tags010 tags = (Tags010) context.getTags();
+    Tags tags = (Tags) context.getTags();
     if (tags == null && spanInfo != null) {
-      tags = new Tags010();
+      tags = new Tags();
       context.setTags(tags);
       tags.setContextVersion("0.1.0");
       Map<String, Object> tagsMap = spanInfo.getTags();
@@ -246,9 +187,9 @@ public class EventEnrichment {
       }
     }
 
-    Trace010 trace = (Trace010) context.getTrace();
+    Trace trace = (Trace) context.getTrace();
     if (trace == null && spanInfo != null) {
-      trace = new Trace010();
+      trace = new Trace();
       context.setTrace(trace);
       trace.setContextVersion("0.1.0");
       DDId traceId = spanInfo.getTraceId();
@@ -258,9 +199,9 @@ public class EventEnrichment {
       trace.setId(traceId.toString());
     }
 
-    Host010 host = (Host010) context.getHost();
+    Host host = (Host) context.getHost();
     if (host == null) {
-      host = new Host010();
+      host = new Host();
       context.setHost(host);
     }
     if (host.getContextVersion() == null) {

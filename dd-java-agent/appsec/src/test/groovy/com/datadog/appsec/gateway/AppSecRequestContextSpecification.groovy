@@ -4,7 +4,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.event.data.StringKVPair
-import com.datadog.appsec.report.raw.events.attack.Attack010
+import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.test.util.DDSpecification
 
 import java.time.Instant
@@ -104,33 +104,33 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.savedRawURI == '/a'
   }
 
-  void 'can collect attacks'() {
+  void 'can collect events'() {
     AppSecRequestContext ctx = new AppSecRequestContext()
     def now = Instant.now()
 
     when:
-    ctx.reportAttacks([new Attack010(detectedAt: now)], null)
-    ctx.reportAttacks([new Attack010(), new Attack010()], null)
-    def attacks = ctx.transferCollectedAttacks()
+    ctx.reportEvents([new AppSecEvent100(detectedAt: now)], null)
+    ctx.reportEvents([new AppSecEvent100(), new AppSecEvent100()], null)
+    def events = ctx.transferCollectedEvents()
 
     then:
-    attacks.size() == 3
-    attacks[0].detectedAt.is(now)
-    attacks[1] != null
-    attacks[2] != null
+    events.size() == 3
+    events[0].detectedAt.is(now)
+    events[1] != null
+    events[2] != null
 
     when:
-    ctx.reportAttacks([new Attack010()], null)
+    ctx.reportEvents([new AppSecEvent100()], null)
 
     then:
     thrown IllegalStateException
   }
 
-  void 'collect attacks when none reported'() {
+  void 'collect events when none reported'() {
     when:
     AppSecRequestContext ctx = new AppSecRequestContext()
 
     then:
-    ctx.transferCollectedAttacks().empty
+    ctx.transferCollectedEvents().empty
   }
 }

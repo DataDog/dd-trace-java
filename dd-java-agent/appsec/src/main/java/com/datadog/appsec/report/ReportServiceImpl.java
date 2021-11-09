@@ -1,7 +1,7 @@
 package com.datadog.appsec.report;
 
 import com.datadog.appsec.report.raw.dtos.intake.IntakeBatch;
-import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.util.AgentTaskScheduler;
@@ -57,14 +57,14 @@ public class ReportServiceImpl implements ReportService {
   }
 
   @Override
-  public void reportAttacks(Collection<Attack010> attacks, TraceSegment traceSegment) {
+  public void reportEvents(Collection<AppSecEvent100> events, TraceSegment traceSegment) {
     StandardizedLogging.attackQueued(log);
     synchronized (this) {
       lazyStartTask();
-      events.addAll(attacks);
+      this.events.addAll(events);
     }
-    for (Attack010 attack : attacks) {
-      if (strategy.shouldFlush(attack)) {
+    for (AppSecEvent100 event : events) {
+      if (strategy.shouldFlush(event)) {
         flush();
       }
     }
@@ -74,7 +74,7 @@ public class ReportServiceImpl implements ReportService {
     List<Object> oldEvents;
     synchronized (this) {
       oldEvents = events;
-      if (oldEvents.size() == 0) {
+      if (oldEvents.isEmpty()) {
         return;
       }
       events = new ArrayList<>();

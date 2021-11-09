@@ -1,9 +1,9 @@
 package com.datadog.appsec.report;
 
-import com.datadog.appsec.report.raw.events.attack.Attack010;
-import com.datadog.appsec.report.raw.events.attack.InbandAppSec;
-import com.datadog.appsec.report.raw.events.attack.InbandTrigger;
-import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import com.datadog.appsec.report.raw.events.InbandAppSec;
+import com.datadog.appsec.report.raw.events.InbandTrigger;
+import com.datadog.appsec.report.raw.events.Rule100;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.TraceSegment;
@@ -13,15 +13,15 @@ import java.util.List;
 
 public class InbandReportServiceImpl implements ReportService {
   @Override
-  public void reportAttacks(Collection<Attack010> attacks, TraceSegment traceSegment) {
-    if (attacks.isEmpty() || traceSegment == null) {
+  public void reportEvents(Collection<AppSecEvent100> events, TraceSegment traceSegment) {
+    if (events.isEmpty() || traceSegment == null) {
       return;
     }
-    List<InbandTrigger> triggers = new ArrayList<>(attacks.size());
-    List<String> types = new ArrayList<>(attacks.size());
-    List<String> ruleIds = new ArrayList<>(attacks.size());
-    for (Attack010 attack : attacks) {
-      convertAttack(attack, triggers, types, ruleIds);
+    List<InbandTrigger> triggers = new ArrayList<>(events.size());
+    List<String> types = new ArrayList<>(events.size());
+    List<String> ruleIds = new ArrayList<>(events.size());
+    for (AppSecEvent100 event : events) {
+      convertEvent(event, triggers, types, ruleIds);
     }
     InbandAppSec topLevel =
         new InbandAppSec.InbandAppSecBuilder()
@@ -60,18 +60,18 @@ public class InbandReportServiceImpl implements ReportService {
     }
   }
 
-  private static void convertAttack(
-      Attack010 attack,
+  private static void convertEvent(
+      AppSecEvent100 event,
       Collection<InbandTrigger> triggers,
       Collection<String> types,
       Collection<String> ruleIds) {
-    Rule010 rule = attack.getRule();
+    Rule100 rule = event.getRule();
     triggers.add(
         new InbandTrigger.InbandTriggerBuilder()
             .withRule(rule)
-            .withRuleMatch(attack.getRuleMatch())
+            .withRuleMatch(event.getRuleMatch())
             .build());
-    types.add(attack.getType());
+    types.add(event.getEventType());
     ruleIds.add(rule.getId());
   }
 

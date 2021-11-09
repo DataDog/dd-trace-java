@@ -15,6 +15,7 @@ import play.server.Server
 
 import java.util.function.Supplier
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -67,7 +68,7 @@ class PlayServerTest extends HttpServerTest<Server> {
         } as Supplier)
         .GET(EXCEPTION.getPath()).routeTo({
           controller(EXCEPTION) {
-            throw new Exception(EXCEPTION.getBody())
+            throw new RuntimeException(EXCEPTION.getBody())
           }
         } as Supplier)
         .build()
@@ -115,13 +116,23 @@ class PlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
+  Class<? extends Exception> expectedExceptionType() {
+    RuntimeException
+  }
+
+  @Override
+  Class<? extends Exception> expectedCustomExceptionType() {
+    TestHttpErrorHandler.CustomRuntimeException
+  }
+
+  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
       spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint == EXCEPTION
+      errored endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
@@ -132,8 +143,8 @@ class PlayServerTest extends HttpServerTest<Server> {
         "$Tags.HTTP_METHOD" String
         // BUG
         //        "$Tags.HTTP_ROUTE" String
-        if (endpoint == EXCEPTION) {
-          errorTags(Exception, EXCEPTION.body)
+        if (endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION) {
+          errorTags(endpoint == CUSTOM_EXCEPTION ? TestHttpErrorHandler.CustomRuntimeException : RuntimeException, endpoint.body)
         }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" expectedQueryTag

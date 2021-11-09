@@ -8,8 +8,8 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
-import com.datadog.appsec.report.raw.events.attack.Attack010
-import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter
+import com.datadog.appsec.report.raw.events.AppSecEvent100
+import com.datadog.appsec.report.raw.events.Parameter100
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
@@ -46,28 +46,27 @@ class PowerWAFModuleSpecification extends DDSpecification {
     flow.blocking == true
   }
 
-  void 'reports attacks'() {
+  void 'reports events'() {
     setupWithStubConfigService()
-    Attack010 attack
+    AppSecEvent100 event
 
     when:
     listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
     then:
-    ctx.reportAttacks(_ as Collection<Attack010>, _) >> { attack = it[0].iterator().next() }
-    attack.blocked == Boolean.FALSE
-    attack.type == 'security_scanner'
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
-    attack.rule.id == 'ua0-600-12x'
-    attack.rule.name == 'Arachni'
-    attack.rule.set == 'security_scanner'
+    event.rule.id == 'ua0-600-12x'
+    event.rule.name == 'Arachni'
+    event.rule.tags == ['type': 'security_scanner', 'category': 'attack_attempt']
 
-    attack.ruleMatch.highlight == ['Arachni/v']
-    attack.ruleMatch.operator == 'match_regex'
-    attack.ruleMatch.operatorValue == '^Arachni\\/v'
-    attack.ruleMatch.parameters == [
-      new Parameter.ParameterBuilder()
-      .withName('server.request.headers.no_cookies')
+    event.ruleMatch.highlight == ['Arachni/v']
+    event.ruleMatch.operator == 'match_regex'
+    event.ruleMatch.operatorValue == '^Arachni\\/v'
+    event.ruleMatch.parameters == [
+      new Parameter100.Parameter100Builder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent'])
       .withValue('Arachni/v0')
       .build()
     ]
@@ -119,7 +118,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
     then:
-    1 * ctx.reportAttacks(_ as Collection<Attack010>, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
   }
 
   void 'bad initial configuration is given results in no attacks detected'() {
@@ -160,7 +159,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Optional ret
 
     when:
-    ret = waf.buildAttack(actionWithData)
+    ret = waf.buildEvent(actionWithData)
 
     then:
     !ret.isPresent()
@@ -172,7 +171,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Optional ret
 
     when:
-    ret = waf.buildAttack(actionWithData)
+    ret = waf.buildEvent(actionWithData)
 
     then:
     !ret.isPresent()
