@@ -112,7 +112,11 @@ public class JFRCheckpointer implements Checkpointer {
     this.sampler = Objects.requireNonNull(sampler);
 
     if (sampler != null) {
-      FlightRecorder.addPeriodicEvent(CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
+      // skip the sampler config periodical event if the required sampler config is not available
+      if (this.samplerConfig != null) {
+        FlightRecorder.addPeriodicEvent(
+            CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
+      }
       FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
     }
 
@@ -206,12 +210,21 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   private void emitSamplerConfig() {
-    new CheckpointSamplerConfigEvent(
-            samplerConfig.windowSize.toMillis(),
-            samplerConfig.samplesPerWindow,
-            samplerConfig.averageLookback,
-            samplerConfig.budgetLookback)
-        .commit();
+    try {
+      new CheckpointSamplerConfigEvent(
+              samplerConfig.windowSize.toMillis(),
+              samplerConfig.samplesPerWindow,
+              samplerConfig.averageLookback,
+              samplerConfig.budgetLookback)
+          .commit();
+    } catch (Throwable t) {
+      if (log.isDebugEnabled()) {
+        log.warn("Exception occurred while emitting sampler config event", t);
+      } else {
+        log.warn("Exception occurred while emitting sampler config event", t.toString());
+      }
+      throw t;
+    }
   }
 
   private static ConfiguredSampler prepareSampler(final ConfigProvider configProvider) {
