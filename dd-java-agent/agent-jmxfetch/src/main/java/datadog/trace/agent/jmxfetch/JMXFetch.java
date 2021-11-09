@@ -100,6 +100,7 @@ public class JMXFetch {
       configBuilder.checkPeriod(checkPeriod);
     }
     final AppConfig appConfig = configBuilder.build();
+    private App app = new App(appConfig);
 
     final Thread thread =
         newAgentThread(
@@ -109,7 +110,7 @@ public class JMXFetch {
               public void run() {
                 while (true) {
                   try {
-                    final int result = App.run(appConfig);
+                    final int result = app.run();
                     log.error("jmx collector exited with result: " + result);
                   } catch (final Exception e) {
                     log.error("Exception in jmx collector thread", e);
