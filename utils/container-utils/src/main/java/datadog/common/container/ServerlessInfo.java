@@ -1,5 +1,7 @@
 package datadog.common.container;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.io.File;
 
 public class ServerlessInfo {
@@ -20,6 +22,7 @@ public class ServerlessInfo {
     }
   }
 
+  @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
   public ServerlessInfo() {
     // TODO add more serverless configuration properties
     // support envs other than AWS lambda
