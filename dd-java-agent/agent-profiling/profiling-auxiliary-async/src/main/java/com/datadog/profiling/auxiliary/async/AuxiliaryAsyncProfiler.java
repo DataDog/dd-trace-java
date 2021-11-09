@@ -92,12 +92,16 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   private void emitConfiguration() {
-    new AsyncProfilerConfigEvent(
-            asyncProfiler.getVersion(),
-            getCpuInterval(),
-            getAllocationInterval(),
-            ProfilingMode.mask(profilingModes))
-        .commit();
+    try {
+      new AsyncProfilerConfigEvent(
+              asyncProfiler.getVersion(),
+              getCpuInterval(),
+              getAllocationInterval(),
+              ProfilingMode.mask(profilingModes))
+          .commit();
+    } catch (Throwable t) {
+      log.error("", t);
+    }
   }
 
   private static AsyncProfiler inferFromOsAndArch() {
@@ -173,7 +177,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       }
       return null;
     } finally {
-      FlightRecorder.addPeriodicEvent(AsyncProfilerConfigEvent.class, this::emitConfiguration);
+      FlightRecorder.removePeriodicEvent(this::emitConfiguration);
     }
   }
 
@@ -245,9 +249,20 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
         // if combined with allocation profiling just set the allocation interval
         cmd.append(",alloc=").append(getAllocationInterval()).append('b');
       }
+      if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+        // if combined with memleak profiling set the memleak interval
+        cmd.append(",memleak=").append(getMemleakInterval()).append('b');
+      }
     } else if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // only allocation profiling is enabled
       cmd.append(",event=alloc,alloc=").append(getAllocationInterval()).append('b');
+      if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+        // if combined with memleak profiling set the memleak interval
+        cmd.append(",memleak=").append(getMemleakInterval()).append('b');
+      }
+    } else if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
+      // only memleak profiling is enabled
+      cmd.append(",event=memleak,memleak=").append(getMemleakInterval()).append('b');
     }
     return cmd.toString();
   }
@@ -262,5 +277,11 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL,
         ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL_DEFAULT);
+  }
+
+  private int getMemleakInterval() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT);
   }
 }

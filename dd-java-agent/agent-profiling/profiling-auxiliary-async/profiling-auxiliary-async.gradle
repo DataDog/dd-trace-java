@@ -17,8 +17,7 @@ excludedClassesCoverage += [
   // --
   // although it is quite well covered jacoco complains about branch coverage due to exception handlers
   'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording',
-  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecordingData'
-  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording',
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecordingData',
   // the config event is a simple data holder
   'com.datadog.profiling.auxiliary.async.AsyncProfilerConfigEvent'
 ]
