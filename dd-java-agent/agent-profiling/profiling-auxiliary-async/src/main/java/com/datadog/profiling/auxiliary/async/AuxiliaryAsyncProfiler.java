@@ -100,7 +100,12 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
               ProfilingMode.mask(profilingModes))
           .commit();
     } catch (Throwable t) {
-      log.error("", t);
+      if (log.isDebugEnabled()) {
+        log.warn("Exception occurred while attempting to emit config event", t);
+      } else {
+        log.warn("Exception occurred while attempting to emit config event", t.toString());
+      }
+      throw t;
     }
   }
 
