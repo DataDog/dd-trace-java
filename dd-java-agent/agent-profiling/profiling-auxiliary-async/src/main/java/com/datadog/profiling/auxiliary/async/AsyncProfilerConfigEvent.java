@@ -5,10 +5,12 @@ import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
 import jdk.jfr.Label;
+import jdk.jfr.Name;
 import jdk.jfr.Period;
 import jdk.jfr.StackTrace;
 import jdk.jfr.Timespan;
 
+@Name("datadog.AsyncProfilerConfig")
 @Label("Async Profiler Configuration")
 @Description("The active async profiler configuration")
 @Category("Datadog")
