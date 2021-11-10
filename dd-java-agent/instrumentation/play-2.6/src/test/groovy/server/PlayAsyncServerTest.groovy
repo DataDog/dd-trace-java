@@ -86,7 +86,7 @@ class PlayAsyncServerTest extends PlayServerTest {
         .GET(EXCEPTION.getPath()).routeAsync({
           CompletableFuture.supplyAsync({
             controller(EXCEPTION) {
-              throw new Exception(EXCEPTION.getBody())
+              throw new RuntimeException(EXCEPTION.getBody())
             }
           }, execContext)
         } as Supplier)

@@ -1,8 +1,8 @@
 package com.datadog.appsec.report
 
-import com.datadog.appsec.report.raw.events.attack.Attack010
-import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010
-import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.RuleMatch010
+import com.datadog.appsec.report.raw.events.AppSecEvent100
+import com.datadog.appsec.report.raw.events.Rule100
+import com.datadog.appsec.report.raw.events.RuleMatch100
 import com.datadog.appsec.test.JsonMatcher
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.JsonWriter
@@ -18,7 +18,7 @@ class InbandReportServiceImplTest extends DDSpecification {
 
   void 'does nothing when attacks is empty'() {
     when:
-    reportService.reportAttacks([], traceSegment)
+    reportService.reportEvents([], traceSegment)
 
     then:
     0 * traceSegment._
@@ -27,12 +27,12 @@ class InbandReportServiceImplTest extends DDSpecification {
   void 'combines several attacks'() {
     given:
     String json
-    def r1 = new Rule010(id: "rule1")
-    def rm1 = new RuleMatch010(operator: "operator1")
-    def a1 = new Attack010(type: "type1", rule: r1, ruleMatch: rm1)
+    def r1 = new Rule100(id: "rule1")
+    def rm1 = new RuleMatch100(operator: "operator1")
+    def e1 = new AppSecEvent100(eventType: "type1", rule: r1, ruleMatch: rm1)
 
     when:
-    reportService.reportAttacks([a1], traceSegment)
+    reportService.reportEvents([e1], traceSegment)
 
     then:
     1 * traceSegment.setDataTop("appsec", _) >> {

@@ -8,7 +8,7 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
 
 import com.datadog.appsec.report.ReportService
-import com.datadog.appsec.report.raw.events.attack.Attack010
+import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.TraceSegment
@@ -79,7 +79,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   void 'request_end closes context reports attacks and publishes event'() {
-    Attack010 attack = Mock()
+    AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     RequestContext mockCtx = Mock(RequestContext) {
       getData() >> mockAppSecCtx
@@ -91,9 +91,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * mockAppSecCtx.transferCollectedAttacks() >> [attack]
+    1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.close()
-    1 * reportService.reportAttacks([attack], traceSegment)
+    1 * reportService.reportEvents([event], traceSegment)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE

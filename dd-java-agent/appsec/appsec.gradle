@@ -23,7 +23,7 @@ dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '3.0.1'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '3.0.3'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
@@ -82,7 +82,7 @@ jsonSchema2Pojo {
 
   // Whether to use the 'title' property of the schema to decide the class name (if not
   // set to true, the filename and property names are used).
-  useTitleAsClassname = false
+  useTitleAsClassname = true
   sourceType = 'jsonschema'
 
 
@@ -94,14 +94,6 @@ jsonSchema2Pojo {
   //  toStringExcludes = ["someProperty"]
 
   targetVersion = "1.8"
-}
-
-tasks['generateJsonSchema2Pojo'].doLast {
-  project.delete(files(
-    "${project.buildDir}/generated-sources/js2p/com/datadog/appsec/report/raw/contexts/actor/Identifiers.java",
-    "${project.buildDir}/generated-sources/js2p/com/datadog/appsec/report/raw/contexts/http/HttpHeaders.java",
-    "${project.buildDir}/generated-sources/js2p/com/datadog/appsec/report/raw/contexts/service_stack/Service.java"
-    ))
 }
 
 task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {

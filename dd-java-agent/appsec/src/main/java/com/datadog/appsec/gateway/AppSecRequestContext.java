@@ -5,7 +5,7 @@ import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.ReportService;
-import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -27,7 +27,7 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<Attack010> collectedAttacks; // guarded by this
+  private Collection<AppSecEvent100> collectedEvents; // guarded by this
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -42,6 +42,7 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
   private int responseStatus;
+  private boolean blocked;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -181,6 +182,14 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
     this.responseStatus = responseStatus;
   }
 
+  public boolean isBlocked() {
+    return blocked;
+  }
+
+  public void setBlocked(boolean blocked) {
+    this.blocked = blocked;
+  }
+
   @Override
   public void close() {
     // currently no-op
@@ -200,34 +209,34 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   }
 
   @Override
-  public void reportAttacks(Collection<Attack010> attacks, TraceSegment traceSegment) {
-    for (Attack010 attack : attacks) {
-      StandardizedLogging.attackDetected(log, attack);
+  public void reportEvents(Collection<AppSecEvent100> events, TraceSegment traceSegment) {
+    for (AppSecEvent100 event : events) {
+      StandardizedLogging.attackDetected(log, event);
 
-      if (attack.getDetectedAt() == null) {
-        attack.setDetectedAt(Instant.now());
+      if (event.getDetectedAt() == null) {
+        event.setDetectedAt(Instant.now());
       }
     }
     synchronized (this) {
-      if (this.collectedAttacks == null) {
-        this.collectedAttacks = new ArrayList<>();
+      if (this.collectedEvents == null) {
+        this.collectedEvents = new ArrayList<>();
       }
       try {
-        this.collectedAttacks.addAll(attacks);
+        this.collectedEvents.addAll(events);
       } catch (UnsupportedOperationException e) {
-        throw new IllegalStateException("Attacks cannot be added anymore");
+        throw new IllegalStateException("Events cannot be added anymore");
       }
     }
   }
 
-  Collection<Attack010> transferCollectedAttacks() {
-    Collection<Attack010> collectedAttacks;
+  Collection<AppSecEvent100> transferCollectedEvents() {
+    Collection<AppSecEvent100> events;
     synchronized (this) {
-      collectedAttacks = this.collectedAttacks;
-      this.collectedAttacks = Collections.emptyList();
+      events = this.collectedEvents;
+      this.collectedEvents = Collections.emptyList();
     }
-    if (collectedAttacks != null) {
-      return collectedAttacks;
+    if (events != null) {
+      return events;
     } else {
       return Collections.emptyList();
     }

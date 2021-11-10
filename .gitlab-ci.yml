@@ -78,8 +78,6 @@ deploy_to_profiling_backend:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_BRANCH == "luhenry/trigger-profiling-dogfooding-on-snapshots"' # For debugging purposes
-      when: on_success
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     - if: '$CI_COMMIT_TAG =~ /^v.*/'
@@ -88,7 +86,7 @@ deploy_to_profiling_backend:
       allow_failure: true
   trigger:
     project: DataDog/profiling-backend
-    branch: luhenry/dogfooding-on-dd-trace-java-snapshot
+    branch: dogfooding
   variables:
     UPSTREAM_PACKAGE_JOB: build
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID

@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
-import jdk.jfr.Recording;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,12 +151,7 @@ public final class OpenJdkController implements Controller {
 
   @Override
   public OpenJdkOngoingRecording createRecording(final String recordingName) {
-    final Recording recording = new Recording();
-    recording.setName(recordingName);
-    recording.setSettings(recordingSettings);
-    recording.setMaxSize(RECORDING_MAX_SIZE);
-    recording.setMaxAge(RECORDING_MAX_AGE);
-    recording.start();
-    return new OpenJdkOngoingRecording(recording);
+    return new OpenJdkOngoingRecording(
+        recordingName, recordingSettings, RECORDING_MAX_SIZE, RECORDING_MAX_AGE);
   }
 }

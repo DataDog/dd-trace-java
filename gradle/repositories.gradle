@@ -11,4 +11,9 @@ repositories {
       snapshotsOnly()
     }
   }
+  maven {
+    // M2 package repository for the custom Datadog build of async-profiler
+    url 'https://raw.githubusercontent.com/DataDog/async-profiler/maven2'
+    name "GitHub - DD AsyncProfiler"
+  }
 }

@@ -63,6 +63,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "net.snowflake.client.jdbc.SnowflakeConnectionV1",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsConnection",
+    // SAP HANA in-memory DB
+    "com.sap.db.jdbc.ConnectionSapDB",
     // for testing purposes
     "test.TestConnection",
     // this won't match any class unless the property is set

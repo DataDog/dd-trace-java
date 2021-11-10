@@ -18,8 +18,8 @@ package com.datadog.profiling.controller;
 import javax.annotation.Nonnull;
 
 /**
- * Interface for the low lever flight recorder control functionality. Needed since we will likely
- * want to support multiple version later.
+ * Interface for the low level flight recorder control functionality. Needed since we will likely
+ * want to support multiple versions later.
  */
 public interface Controller {
   /**
