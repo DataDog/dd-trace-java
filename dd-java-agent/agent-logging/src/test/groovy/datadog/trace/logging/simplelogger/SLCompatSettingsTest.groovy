@@ -113,6 +113,28 @@ class SLCompatSettingsTest extends Specification {
     dir.delete()
   }
 
+  def "test parent folder of log file creation"() {
+    setup:
+    def dir = File.createTempDir()
+    def parent = new File(dir, "parent")
+    def file = new File(parent, "log")
+    def props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.LOG_FILE, file.getAbsolutePath())
+    def settings = new SLCompatSettings(props)
+
+    expect:
+    file.exists()
+    settings.printStream != System.err
+    settings.printStream != System.out
+
+    cleanup:
+    settings.printStream.close()
+    dir.listFiles().each {
+      it.delete()
+    }
+    dir.delete()
+  }
+
   def "test log file creation stderr fallback"() {
     setup:
     def dir = File.createTempDir()

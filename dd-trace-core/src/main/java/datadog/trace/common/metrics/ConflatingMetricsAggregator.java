@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
@@ -10,6 +11,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
@@ -51,14 +53,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
-  public ConflatingMetricsAggregator(Config config, DDAgentFeaturesDiscovery features) {
+  public ConflatingMetricsAggregator(
+      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
-        features,
+        sharedCommunicationObjects.featuresDiscovery,
         new OkHttpSink(
+            sharedCommunicationObjects.okHttpClient,
             config.getAgentUrl(),
-            config.getAgentTimeout(),
+            V6_METRICS_ENDPOINT,
             config.isTracerMetricsBufferingEnabled()),
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending());
