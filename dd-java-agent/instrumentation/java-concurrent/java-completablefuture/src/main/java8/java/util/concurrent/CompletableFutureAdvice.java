@@ -5,8 +5,8 @@ import static java.util.concurrent.CompletableFuture.ASYNC;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
-import datadog.trace.context.TraceScope;
 import java.util.concurrent.CompletableFuture.UniCompletion;
 import net.bytebuddy.asm.Advice;
 
@@ -16,7 +16,7 @@ public final class CompletableFutureAdvice {
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
-      TraceScope scope = activeScope();
+      AgentScope scope = activeScope();
       if (zis.isLive() && scope != null) {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
@@ -31,7 +31,7 @@ public final class CompletableFutureAdvice {
 
   public static final class UniSubTryFire {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope enter(
+    public static AgentScope enter(
         @Advice.This UniCompletion zis,
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
@@ -50,7 +50,7 @@ public final class CompletableFutureAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter TraceScope scope,
+        @Advice.Enter AgentScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.This UniCompletion zis,
         @Advice.Argument(0) int mode,

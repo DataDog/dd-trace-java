@@ -7,18 +7,18 @@ import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.REDI
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
 
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
 public class RedisSubscriptionSubscribeAdvice {
   public static final class State {
-    public final TraceScope parentScope;
+    public final AgentScope parentScope;
     public final AgentSpan span;
 
-    public State(TraceScope parentScope, AgentSpan span) {
+    public State(AgentScope parentScope, AgentSpan span) {
       this.parentScope = parentScope;
       this.span = span;
     }
@@ -30,7 +30,7 @@ public class RedisSubscriptionSubscribeAdvice {
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
 
-    TraceScope parentScope = null;
+    AgentScope parentScope = null;
     RedisSubscriptionState state =
         InstrumentationContext.get(Subscription.class, RedisSubscriptionState.class)
             .get(subscription);

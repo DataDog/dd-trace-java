@@ -17,9 +17,9 @@ import com.aerospike.client.listener.RecordArrayListener;
 import com.aerospike.client.listener.RecordListener;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.listener.WriteListener;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
-import datadog.trace.context.TraceScope.Continuation;
 import java.util.List;
 
 public final class TracingListener
@@ -73,7 +73,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         if (listener instanceof ExistsListener) {
           ((ExistsListener) listener).onSuccess(key, exists);
         } else if (listener instanceof DeleteListener) {
@@ -91,7 +91,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         ((ExistsArrayListener) listener).onSuccess(keys, exists);
       }
     } else {
@@ -105,7 +105,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         ((RecordListener) listener).onSuccess(key, record);
       }
     } else {
@@ -119,7 +119,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         ((RecordArrayListener) listener).onSuccess(keys, records);
       }
     } else {
@@ -133,7 +133,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         ((BatchListListener) listener).onSuccess(records);
       }
     } else {
@@ -147,7 +147,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         ((WriteListener) listener).onSuccess(key);
       }
     } else {
@@ -161,7 +161,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         ((ExecuteListener) listener).onSuccess(key, obj);
       }
     } else {
@@ -175,7 +175,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         if (listener instanceof ExistsSequenceListener) {
           ((ExistsSequenceListener) listener).onSuccess();
         } else if (listener instanceof RecordSequenceListener) {
@@ -196,7 +196,7 @@ public final class TracingListener
     clientSpan.finish();
 
     if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
+      try (final AgentScope scope = continuation.activate()) {
         if (listener instanceof ExistsListener) {
           ((ExistsListener) listener).onFailure(error);
         } else if (listener instanceof ExistsSequenceListener) {

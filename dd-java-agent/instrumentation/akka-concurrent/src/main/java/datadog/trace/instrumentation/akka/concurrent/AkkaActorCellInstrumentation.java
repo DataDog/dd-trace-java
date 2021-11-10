@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -57,10 +56,10 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
    */
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope enter(
+    public static AgentScope enter(
         @Advice.Argument(value = 0) Envelope envelope,
-        @Advice.Local(value = "localScope") TraceScope localScope) {
-      TraceScope activeScope = activeScope();
+        @Advice.Local(value = "localScope") AgentScope localScope) {
+      AgentScope activeScope = activeScope();
       localScope =
           AdviceUtils.startTaskScope(
               InstrumentationContext.get(Envelope.class, State.class), envelope);
@@ -83,16 +82,14 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter TraceScope scope, @Advice.Local(value = "localScope") TraceScope localScope) {
+        @Advice.Enter AgentScope scope, @Advice.Local(value = "localScope") AgentScope localScope) {
       if (localScope != null) {
-        if (localScope instanceof AgentScope) {
-          // then we have invoked an Envelope and need to mark the work complete
-          ((AgentScope) localScope).span().finishWork();
-        }
+        // then we have invoked an Envelope and need to mark the work complete
+        localScope.span().finishWork();
         localScope.close();
       }
       // Clean up any leaking scopes from akka-streams/akka-http et.c.
-      TraceScope activeScope = activeScope();
+      AgentScope activeScope = activeScope();
       while (activeScope != null && activeScope != scope) {
         activeScope.close();
         activeScope = activeScope();

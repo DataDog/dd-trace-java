@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.junit5.JUnit5Decorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -88,7 +87,7 @@ public class TracingListener implements TestExecutionListener {
                 return;
               }
 
-              final TraceScope scope = AgentTracer.activeScope();
+              final AgentScope scope = AgentTracer.activeScope();
               if (scope != null) {
                 scope.close();
               }

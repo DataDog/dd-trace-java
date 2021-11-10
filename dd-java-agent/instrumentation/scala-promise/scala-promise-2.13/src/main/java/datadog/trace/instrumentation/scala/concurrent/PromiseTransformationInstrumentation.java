@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collection;
 import java.util.Collections;
@@ -80,21 +79,19 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <F, T> void onConstruct(@Advice.This Transformation<F, T> task) {
-      final TraceScope scope = activeScope();
+      final AgentScope scope = activeScope();
       if (scope != null) {
         State state = State.FACTORY.create();
         state.captureAndSetContinuation(scope);
         InstrumentationContext.get(Transformation.class, State.class).put(task, state);
-        if (scope instanceof AgentScope) {
-          ((AgentScope) scope).span().startThreadMigration();
-        }
+        scope.span().startThreadMigration();
       }
     }
   }
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <F, T> TraceScope before(@Advice.This Transformation<F, T> task) {
+    public static <F, T> AgentScope before(@Advice.This Transformation<F, T> task) {
       ContextStore<Transformation, State> store =
           InstrumentationContext.get(Transformation.class, State.class);
       AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
@@ -108,14 +105,14 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter TraceScope scope) {
-      if (scope instanceof AgentScope) {
+    public static void after(@Advice.Enter AgentScope scope) {
+      if (null != scope) {
         /*
         Normally, this would be handled by `endTaskScope(scope)` - but for that to work
         one needs to 'migrate' continuation and introducing that into the current promise
         instrumentation is much harder than just working it around here.
         */
-        ((AgentScope) scope).span().finishWork();
+        scope.span().finishWork();
       }
       AdviceUtils.endTaskScope(scope);
     }
@@ -154,14 +151,12 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {
-        final TraceScope scope = activeScope();
+        final AgentScope scope = activeScope();
         if (scope != null) {
           state = State.FACTORY.create();
           state.captureAndSetContinuation(scope);
           contextStore.put(task, state);
-          if (scope instanceof AgentScope) {
-            ((AgentScope) scope).span().startThreadMigration();
-          }
+          scope.span().startThreadMigration();
         }
       }
     }

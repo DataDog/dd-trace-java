@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collection;
 import java.util.Collections;
@@ -85,7 +84,7 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <T> TraceScope before(@Advice.This CallbackRunnable<T> task) {
+    public static <T> AgentScope before(@Advice.This CallbackRunnable<T> task) {
       ContextStore<CallbackRunnable, State> store =
           InstrumentationContext.get(CallbackRunnable.class, State.class);
       AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
@@ -98,14 +97,14 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter TraceScope scope) {
-      if (scope instanceof AgentScope) {
+    public static void after(@Advice.Enter AgentScope scope) {
+      if (null != scope) {
         /*
         Normally, this would be handled by `endTaskScope(scope)` - but for that to work
         one needs to 'migrate' continuation and introducing that into the current promise
         instrumentation is much harder than just working it around here.
         */
-        ((AgentScope) scope).span().finishWork();
+        scope.span().finishWork();
       }
       endTaskScope(scope);
     }

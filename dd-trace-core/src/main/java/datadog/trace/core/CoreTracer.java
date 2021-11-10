@@ -37,7 +37,6 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -141,8 +140,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final InstrumentationGateway instrumentationGateway;
 
   @Override
-  public TraceScope.Continuation capture() {
-    final TraceScope activeScope = activeScope();
+  public AgentScope.Continuation capture() {
+    final AgentScope activeScope = activeScope();
 
     return activeScope == null ? null : activeScope.capture();
   }
@@ -584,7 +583,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
     return scopeManager.captureSpan(span, source);
   }
 
@@ -602,7 +601,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public TraceScope activeScope() {
+  public AgentScope activeScope() {
     return scopeManager.active();
   }
 

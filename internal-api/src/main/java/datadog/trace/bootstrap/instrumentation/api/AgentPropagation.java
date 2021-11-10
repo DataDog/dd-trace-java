@@ -1,11 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.PropagationStyle;
-import datadog.trace.context.TraceScope;
 
 public interface AgentPropagation {
 
-  TraceScope.Continuation capture();
+  AgentScope.Continuation capture();
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 

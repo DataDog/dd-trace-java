@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.context.TraceScope;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -70,7 +69,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
-  public TraceScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
     Continuation continuation = new SingleContinuation(this, span, source.id());
     continuation.register();
     return continuation;
@@ -133,7 +132,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
-  public TraceScope active() {
+  public AgentScope active() {
     return scopeStack().top();
   }
 

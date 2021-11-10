@@ -13,7 +13,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -68,9 +68,9 @@ public class NettyChannelInstrumentation extends Instrumenter.Tracing {
   public static class ChannelConnectAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static void addConnectContinuation(@Advice.This final Channel channel) {
-      final TraceScope scope = activeScope();
+      final AgentScope scope = activeScope();
       if (scope != null) {
-        final TraceScope.Continuation continuation = scope.capture();
+        final AgentScope.Continuation continuation = scope.capture();
         if (continuation != null) {
           final ContextStore<Channel, ChannelTraceContext> contextStore =
               InstrumentationContext.get(Channel.class, ChannelTraceContext.class);

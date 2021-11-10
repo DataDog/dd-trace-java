@@ -14,7 +14,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.grpc.Status;
 import io.grpc.internal.ClientStreamListener;
 import java.util.Collections;
@@ -67,9 +66,9 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit
     public static void capture(@Advice.This ClientStreamListener listener) {
       // instrumentation of ClientCallImpl::start ensures this scope is present and valid
-      TraceScope scope = activeScope();
-      if (scope instanceof AgentScope) {
-        AgentSpan span = ((AgentScope) scope).span();
+      AgentScope scope = activeScope();
+      if (null != scope) {
+        AgentSpan span = scope.span();
         InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).put(listener, span);
         // Initiate the span thread migration - the listener may be called on any thread
         span.startThreadMigration();

@@ -37,7 +37,7 @@ public class OTScopeManager implements ScopeManager {
     return converter.toScope(tracer.activeScope(), false);
   }
 
-  static class OTScope implements Scope {
+  static class OTScope implements Scope, TraceScope {
     private final AgentScope delegate;
     private final boolean finishSpanOnClose;
     private final TypeConverter converter;
@@ -61,18 +61,6 @@ public class OTScopeManager implements ScopeManager {
     @Override
     public Span span() {
       return converter.toSpan(delegate.span());
-    }
-  }
-
-  static class OTTraceScope extends OTScope implements TraceScope {
-    private final TraceScope delegate;
-
-    OTTraceScope(
-        final TraceScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
-      // All instances of TraceScope implement agent scope (but not vice versa)
-      super((AgentScope) delegate, finishSpanOnClose, converter);
-
-      this.delegate = delegate;
     }
 
     @Override

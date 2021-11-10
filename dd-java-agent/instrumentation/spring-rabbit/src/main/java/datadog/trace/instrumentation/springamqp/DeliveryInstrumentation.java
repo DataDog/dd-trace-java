@@ -8,8 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -40,7 +40,7 @@ public class DeliveryInstrumentation extends Instrumenter.Tracing {
   public static class CaptureActiveScope {
     @Advice.OnMethodExit
     public static void captureActiveScope(@Advice.This Delivery delivery) {
-      TraceScope scope = activeScope();
+      AgentScope scope = activeScope();
       if (null != scope) {
         State state = State.FACTORY.create();
         state.captureAndSetContinuation(scope);
