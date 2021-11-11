@@ -251,15 +251,15 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled. This will try to use perf and fallback on
       // itimer if perf is not available.
-      cmd.append(",event=cpu,interval=").append(getCpuInterval());
+      cmd.append(",event=cpu,interval=").append(getCpuInterval()).append('m');
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
-      cmd.append(",alloc=").append(getAllocationInterval());
+      cmd.append(",alloc=").append(getAllocationInterval()).append('b');
     }
     if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
       // memleak profiling is enabled
-      cmd.append(",memleak=").append(getMemleakInterval());
+      cmd.append(",memleak=").append(getMemleakInterval()).append('b');
     }
     return cmd.toString();
   }
