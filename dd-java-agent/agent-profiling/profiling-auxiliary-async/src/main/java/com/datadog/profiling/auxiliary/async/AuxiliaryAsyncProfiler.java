@@ -248,8 +248,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
     StringBuilder cmd = new StringBuilder("start,jfr=7,file=").append(file.toAbsolutePath());
     if (profilingModes.contains(ProfilingMode.CPU)) {
-      // cpu profiling is enabled.
-      cmd.append(",event=itimer,interval=").append(getCpuInterval());
+      // cpu profiling is enabled. This will try to use perf and fallback on
+      // itimer if perf is not available.
+      cmd.append(",event=cpu,interval=").append(getCpuInterval());
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
