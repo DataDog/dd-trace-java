@@ -97,6 +97,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
               asyncProfiler.getVersion(),
               getCpuInterval(),
               getAllocationInterval(),
+              getMemleakInterval(),
               ProfilingMode.mask(profilingModes))
           .commit();
     } catch (Throwable t) {
