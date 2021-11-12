@@ -21,6 +21,7 @@ class GrpcStreamingTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
   }
 

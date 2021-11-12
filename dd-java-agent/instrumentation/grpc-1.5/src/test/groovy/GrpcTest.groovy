@@ -34,6 +34,7 @@ class GrpcTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
   }
 
@@ -459,6 +460,69 @@ class GrpcTest extends AgentTestRunner {
     server?.shutdownNow()?.awaitTermination()
   }
 
+  def "test ignore ignored inbound methods"() {
+    setup:
+
+    ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
+    BindableService greeter = new GreeterGrpc.GreeterImplBase() {
+        @Override
+        void ignoreInbound(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
+          responseExecutor.execute {
+            responseObserver.onNext(reply)
+            responseObserver.onCompleted()
+          }
+        }
+      }
+    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
+    ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
+    GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
+
+    when:
+    def response = client.ignoreInbound(Helloworld.Request.newBuilder().setName("whatever").build())
+
+    then:
+    response.message == "Hello whatever"
+    assertTraces(1) {
+      trace(2) {
+        span {
+          operationName "grpc.client"
+          resourceName "example.Greeter/IgnoreInbound"
+          spanType DDSpanTypes.RPC
+          parent()
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "grpc-client"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "status.code" "OK"
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "grpc.message"
+          resourceName "grpc.message"
+          spanType DDSpanTypes.RPC
+          childOf span(0)
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "grpc-client"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "message.type" "example.Helloworld\$Response"
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
+    server?.shutdownNow()?.awaitTermination()
+  }
 
   def newWorkStealingPool() {
     // Executors.newWorkStealingPool() not available in JDK7
