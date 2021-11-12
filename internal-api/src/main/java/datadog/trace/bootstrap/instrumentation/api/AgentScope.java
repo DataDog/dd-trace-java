@@ -34,6 +34,12 @@ public interface AgentScope extends TraceScope, Closeable {
      */
     void migrate();
 
+    /**
+     * Mark that the continuation was created from a span or continuation that was already marked as
+     * migrated.
+     */
+    void migrated();
+
     /** Provide access to the captured span */
     AgentSpan getSpan();
   }

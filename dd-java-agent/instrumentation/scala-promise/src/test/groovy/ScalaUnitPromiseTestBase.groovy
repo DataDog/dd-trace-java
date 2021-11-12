@@ -103,7 +103,7 @@ abstract class ScalaUnitPromiseTestPropagation extends ScalaUnitPromiseTestBase 
     injectSysConfig("dd.trace.integration.scala_future_object.enabled", "false")
   }
 
-  def "make sure that that without the unit context instrumentation we get a parent"() {
+  def "make sure that without the unit context instrumentation we get a parent"() {
     setup:
     assumeTrue(hasUnitPromise())
 

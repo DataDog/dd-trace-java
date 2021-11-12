@@ -679,6 +679,9 @@ public class AgentTracer {
     public void migrate() {}
 
     @Override
+    public void migrated() {}
+
+    @Override
     public AgentSpan getSpan() {
       return NoopAgentSpan.INSTANCE;
     }

@@ -19,10 +19,16 @@ public class AdviceUtils {
    */
   public static <T> AgentScope startTaskScope(
       final ContextStore<T, State> contextStore, final T task) {
-    final State state = contextStore.get(task);
+    return startTaskScope(contextStore.get(task), false);
+  }
+
+  public static AgentScope startTaskScope(State state, boolean migrated) {
     if (state != null) {
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
+        if (migrated) {
+          continuation.migrated();
+        }
         final AgentScope scope = continuation.activate();
         scope.setAsyncPropagation(true);
         return scope;
