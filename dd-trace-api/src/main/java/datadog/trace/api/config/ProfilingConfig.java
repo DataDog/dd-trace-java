@@ -53,6 +53,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_ALLOC_INTERVAL = "profiling.async.alloc.interval";
   public static final int PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
   public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
+  public static final String PROFILING_ASYNC_CPU_MODE = "profiling.async.cpu.mode";
+  public static final String PROFILING_ASYNC_CPU_MODE_DEFAULT = "itimer";
   public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
