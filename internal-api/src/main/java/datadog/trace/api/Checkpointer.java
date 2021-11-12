@@ -36,7 +36,7 @@ public interface Checkpointer {
    * Callback to be called when a root span is written (together with the trace)
    *
    * @param rootSpan the local root span of the trace
-   * @param published {@literal true} the trace and root span sampled and published
+   * @param published {@literal true} the trace and root span published
    */
-  void onRootSpan(AgentSpan rootSpan, boolean traceSampled, boolean checkpointsSampled);
+  void onRootSpan(AgentSpan rootSpan, boolean published, boolean checkpointsSampled);
 }

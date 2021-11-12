@@ -10,10 +10,10 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import com.datadog.appsec.report.raw.events.attack.Attack010;
-import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010;
-import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter;
-import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.RuleMatch010;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import com.datadog.appsec.report.raw.events.Parameter100;
+import com.datadog.appsec.report.raw.events.Rule100;
+import com.datadog.appsec.report.raw.events.RuleMatch100;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
 import com.squareup.moshi.JsonAdapter;
@@ -65,10 +65,12 @@ public class PowerWAFModule implements AppSecModule {
   private static class RuleInfo {
     final String name;
     final String type;
+    final Map<String, String> tags;
 
-    RuleInfo(AppSecConfig.Event event) {
-      this.name = event.getName();
-      this.type = event.getTags().getOrDefault("type", "waf");
+    RuleInfo(AppSecConfig.Rule rule) {
+      this.name = rule.getName();
+      this.type = rule.getTags().getOrDefault("type", "waf");
+      this.tags = rule.getTags();
     }
   }
 
@@ -124,7 +126,7 @@ public class PowerWAFModule implements AppSecModule {
         newContext = Powerwaf.createContext(uniqueId, config.getRawConfig());
 
         rulesInfoMap.clear();
-        config.getEvents().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
+        config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
 
       } catch (RuntimeException | AbstractPowerwafException e) {
         throw new AppSecModuleActivationException("Error creating WAF rules", e);
@@ -194,12 +196,13 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
-        buildAttack(actionWithData).ifPresent(reqCtx::reportAttack);
+        reqCtx.setBlocked(actionWithData.action == Powerwaf.Action.BLOCK);
+        buildEvent(actionWithData).ifPresent(reqCtx::reportEvent);
       }
     }
   }
 
-  private Optional<Attack010> buildAttack(Powerwaf.ActionWithData actionWithData) {
+  private Optional<AppSecEvent100> buildEvent(Powerwaf.ActionWithData actionWithData) {
     List<PowerWAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
@@ -213,42 +216,39 @@ public class PowerWAFModule implements AppSecModule {
 
     // we only take the first match
     PowerWAFResultData powerWAFResultData = listResults.get(0);
-    if (powerWAFResultData.filter == null || powerWAFResultData.filter.isEmpty()) {
+    if (powerWAFResultData.rule_matches == null || powerWAFResultData.rule_matches.isEmpty()) {
       return Optional.empty();
     }
-    PowerWAFResultData.Filter filterData = powerWAFResultData.filter.get(0);
+    PowerWAFResultData.RuleMatch ruleMatch = powerWAFResultData.rule_matches.get(0);
+    PowerWAFResultData.Parameter parameter = ruleMatch.parameters.get(0);
 
-    RuleInfo ruleInfo = rulesInfoMap.get(powerWAFResultData.rule);
+    RuleInfo ruleInfo = rulesInfoMap.get(powerWAFResultData.rule.id);
 
-    Attack010 attack =
-        new Attack010.Attack010Builder()
-            .withBlocked(actionWithData.action == Powerwaf.Action.BLOCK)
-            .withType(ruleInfo.type)
+    AppSecEvent100 event =
+        new AppSecEvent100.AppSecEvent100Builder()
+            .withEventType(ruleInfo.type)
             .withRule(
-                new Rule010.Rule010Builder()
-                    .withId(powerWAFResultData.rule)
+                new Rule100.Rule100Builder()
+                    .withId(powerWAFResultData.rule.id)
                     .withName(ruleInfo.name)
-                    .withSet(powerWAFResultData.flow)
+                    .withTags(ruleInfo.tags)
                     .build())
             .withRuleMatch(
-                new RuleMatch010.RuleMatch010Builder()
-                    .withOperator(filterData.operator)
-                    .withOperatorValue(filterData.operator_value)
-                    .withHighlight(
-                        singletonList(
-                            filterData.match_status != null
-                                ? filterData.match_status
-                                : filterData.resolved_value))
+                new RuleMatch100.RuleMatch100Builder()
+                    .withOperator(ruleMatch.operator)
+                    .withOperatorValue(ruleMatch.operator_value)
+                    .withHighlight(parameter.highlight)
                     .withParameters(
                         singletonList(
-                            new Parameter.ParameterBuilder()
-                                .withName(filterData.binding_accessor)
-                                .withValue(filterData.resolved_value)
+                            new Parameter100.Parameter100Builder()
+                                .withAddress(parameter.address)
+                                .withKeyPath(parameter.key_path)
+                                .withValue(parameter.value)
                                 .build()))
                     .build())
             .build();
 
-    return Optional.of(attack);
+    return Optional.of(event);
   }
 
   private static final class DataBundleMapWrapper implements Map<String, Object> {

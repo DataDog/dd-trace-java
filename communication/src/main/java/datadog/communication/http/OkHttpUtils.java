@@ -3,6 +3,7 @@ package datadog.communication.http;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.common.container.ContainerInfo;
+import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
@@ -19,8 +20,11 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okio.BufferedSink;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class OkHttpUtils {
+  private static final Logger log = LoggerFactory.getLogger(OkHttpUtils.class);
 
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
   private static final String DATADOG_META_LANG_VERSION = "Datadog-Meta-Lang-Version";
@@ -34,19 +38,29 @@ public final class OkHttpUtils {
   private static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");
 
   public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
-    return buildHttpClient(url.scheme(), null, timeoutMillis);
+    return buildHttpClient(url.scheme(), null, null, timeoutMillis);
   }
 
   public static OkHttpClient buildHttpClient(
-      final HttpUrl url, final String unixDomainSocketPath, final long timeoutMillis) {
-    return buildHttpClient(url.scheme(), unixDomainSocketPath, timeoutMillis);
+      final HttpUrl url,
+      final String unixDomainSocketPath,
+      final String namedPipe,
+      final long timeoutMillis) {
+    return buildHttpClient(url.scheme(), unixDomainSocketPath, namedPipe, timeoutMillis);
   }
 
   public static OkHttpClient buildHttpClient(
-      final String scheme, final String unixDomainSocketPath, final long timeoutMillis) {
+      final String scheme,
+      final String unixDomainSocketPath,
+      final String namedPipe,
+      final long timeoutMillis) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
     if (unixDomainSocketPath != null) {
       builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
+      log.debug("Using UnixDomainSocket as trace transport");
+    } else if (namedPipe != null) {
+      builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
+      log.debug("Using NamedPipe as trace transport");
     }
 
     if (!"https".equals(scheme)) {

@@ -4,7 +4,7 @@ class UserSuppliedCIInfoTest extends CIProviderInfoTest {
 
   @Override
   CIProviderInfo instanceProvider() {
-    return new NoopCIInfo()
+    return new UnknownCIInfo()
   }
 
   @Override

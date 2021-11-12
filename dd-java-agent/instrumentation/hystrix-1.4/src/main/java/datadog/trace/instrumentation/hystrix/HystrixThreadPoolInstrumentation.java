@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,7 +36,7 @@ public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean enableAsyncTracking() {
-      final TraceScope scope = activeScope();
+      final AgentScope scope = activeScope();
       if (scope != null) {
         if (!scope.isAsyncPropagating()) {
           scope.setAsyncPropagation(true);
@@ -49,7 +49,7 @@ public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void disableAsyncTracking(@Advice.Enter final boolean wasEnabled) {
       if (wasEnabled) {
-        final TraceScope scope = activeScope();
+        final AgentScope scope = activeScope();
         if (scope != null) {
           scope.setAsyncPropagation(false);
         }

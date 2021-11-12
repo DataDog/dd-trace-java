@@ -1,12 +1,11 @@
 package com.datadog.profiling.controller.openjdk;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.RecordingData;
 import java.time.Instant;
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
@@ -42,7 +41,9 @@ public class OpenJdkOngoingRecordingTest {
 
   @Test
   public void testStop() {
-    assertEquals(recording, ongoingRecording.stop().getRecording());
+    RecordingData data = ongoingRecording.stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    assertEquals(recording, ((OpenJdkRecordingData) data).getRecording());
 
     verify(recording).stop();
   }
@@ -62,12 +63,17 @@ public class OpenJdkOngoingRecordingTest {
 
   @Test
   public void testSnapshot() {
-    final OpenJdkRecordingData recordingData = ongoingRecording.snapshot(start);
+    final RecordingData recordingData = ongoingRecording.snapshot(start);
+    assertTrue(recordingData instanceof OpenJdkRecordingData);
     assertEquals(TEST_NAME, recordingData.getName());
     assertEquals(start, recordingData.getStart());
-    assertEquals(recordingData.getRecording().getStopTime(), recordingData.getEnd());
+    assertEquals(
+        ((OpenJdkRecordingData) recordingData).getRecording().getStopTime(),
+        recordingData.getEnd());
     assertNotEquals(
-        recording, recordingData.getRecording(), "make sure we didn't get our mocked recording");
+        recording,
+        ((OpenJdkRecordingData) recordingData).getRecording(),
+        "make sure we didn't get our mocked recording");
 
     // We got real recording so we should clean it up
     recordingData.release();

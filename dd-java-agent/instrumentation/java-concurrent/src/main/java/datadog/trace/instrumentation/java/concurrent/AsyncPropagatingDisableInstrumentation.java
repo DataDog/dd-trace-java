@@ -13,7 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -167,8 +167,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
   public static class DisableAsyncAdvice {
 
     @Advice.OnMethodEnter
-    public static TraceScope before() {
-      TraceScope scope = activeScope();
+    public static AgentScope before() {
+      AgentScope scope = activeScope();
       if (null != scope && scope.isAsyncPropagating()) {
         scope.setAsyncPropagation(false);
         return scope;
@@ -177,7 +177,7 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter TraceScope scope) {
+    public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
         scope.setAsyncPropagation(true);
       }

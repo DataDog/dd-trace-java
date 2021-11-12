@@ -28,6 +28,8 @@ public final class GeneralConfig {
   public static final String DOGSTATSD_START_DELAY = "dogstatsd.start-delay";
   public static final String DOGSTATSD_HOST = "dogstatsd.host";
   public static final String DOGSTATSD_PORT = "dogstatsd.port";
+  public static final String DOGSTATSD_PATH = "dogstatsd.path";
+  public static final String DOGSTATSD_ARGS = "dogstatsd.args";
 
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
   public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
@@ -45,6 +47,7 @@ public final class GeneralConfig {
   public static final String TRACER_METRICS_IGNORED_RESOURCES =
       "trace.tracer.metrics.ignored.resources";
 
+  public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
   private GeneralConfig() {}

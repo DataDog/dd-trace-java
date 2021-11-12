@@ -81,6 +81,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.getAgentUrl());
     writer.name("agent_unix_domain_socket");
     writer.value(config.getAgentUnixDomainSocket());
+    writer.name("agent_named_pipe");
+    writer.value(config.getAgentNamedPipe());
     writer.name("agent_error");
     writer.value(!agentServiceCheck(config));
     writer.name("debug");
@@ -102,6 +104,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isProfilingEnabled());
     writer.name("appsec_enabled");
     writer.value(config.isAppSecEnabled());
+    writer.name("appsec_rules_file_path");
+    writer.value(config.getAppSecRulesFile());
     writer.name("dd_version");
     writer.value(DDTraceApiInfo.VERSION);
     writer.name("health_checks_enabled");

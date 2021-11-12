@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.Continuati
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,20 +26,19 @@ public final class ConcurrentState {
         }
       };
 
-  private volatile TraceScope.Continuation continuation = null;
+  private volatile AgentScope.Continuation continuation = null;
 
-  private static final AtomicReferenceFieldUpdater<ConcurrentState, TraceScope.Continuation>
+  private static final AtomicReferenceFieldUpdater<ConcurrentState, AgentScope.Continuation>
       CONTINUATION =
           AtomicReferenceFieldUpdater.newUpdater(
-              ConcurrentState.class, TraceScope.Continuation.class, "continuation");
+              ConcurrentState.class, AgentScope.Continuation.class, "continuation");
 
   private ConcurrentState() {}
 
   public static <K> ConcurrentState captureScope(
-      ContextStore<K, ConcurrentState> contextStore, K key, TraceScope scope) {
+      ContextStore<K, ConcurrentState> contextStore, K key, AgentScope scope) {
     if (scope != null && scope.isAsyncPropagating()) {
-      if (scope instanceof AgentScope
-          && ((AgentScope) scope).span() instanceof AgentTracer.NoopAgentSpan) {
+      if (scope.span() instanceof AgentTracer.NoopAgentSpan) {
         return null;
       }
       final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
@@ -55,7 +53,7 @@ public final class ConcurrentState {
     return null;
   }
 
-  public static <K> TraceScope activateAndContinueContinuation(
+  public static <K> AgentScope activateAndContinueContinuation(
       ContextStore<K, ConcurrentState> contextStore, K key) {
     final ConcurrentState state = contextStore.get(key);
     if (state == null) {
@@ -65,7 +63,7 @@ public final class ConcurrentState {
   }
 
   public static <K> void closeScope(
-      ContextStore<K, ConcurrentState> contextStore, K key, TraceScope scope, Throwable throwable) {
+      ContextStore<K, ConcurrentState> contextStore, K key, AgentScope scope, Throwable throwable) {
     final ConcurrentState state = contextStore.get(key);
     if (scope != null) {
       scope.close();
@@ -90,7 +88,7 @@ public final class ConcurrentState {
     state.closeAndClearContinuation();
   }
 
-  private boolean captureAndSetContinuation(final TraceScope scope) {
+  private boolean captureAndSetContinuation(final AgentScope scope) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
       CONTINUATION.lazySet(this, scope.captureConcurrent());
@@ -99,8 +97,8 @@ public final class ConcurrentState {
     return false;
   }
 
-  private TraceScope activateAndContinueContinuation() {
-    final TraceScope.Continuation continuation = CONTINUATION.get(this);
+  private AgentScope activateAndContinueContinuation() {
+    final AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       return continuation.activate();
     }
@@ -108,14 +106,14 @@ public final class ConcurrentState {
   }
 
   private void closeContinuation() {
-    final TraceScope.Continuation continuation = CONTINUATION.get(this);
+    final AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       continuation.cancel();
     }
   }
 
   private void closeAndClearContinuation() {
-    final TraceScope.Continuation continuation = CONTINUATION.get(this);
+    final AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       // We should never be able to reuse this state
       CONTINUATION.compareAndSet(this, continuation, CLAIMED);

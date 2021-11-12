@@ -13,7 +13,7 @@ public class AppSecConfig {
       new Moshi.Builder().build().adapter(AppSecConfig.class);
 
   private String version;
-  private List<Event> events;
+  private List<Rule> rules;
 
   // We need to keep original raw config because DDWAF can't consume custom objects
   // Remove rawConfig when DDWAF will be able to get any object
@@ -30,21 +30,20 @@ public class AppSecConfig {
     return config;
   }
 
-  public List<Event> getEvents() {
-    return events;
+  public List<Rule> getRules() {
+    return rules;
   }
 
   public Map<String, Object> getRawConfig() {
     return rawConfig;
   }
 
-  public static class Event {
+  public static class Rule {
     private String id;
     private String name;
     private Map<String, String> tags;
     private Object conditions;
     private Object transformers;
-    private Object action;
 
     public String getId() {
       return id;
@@ -66,13 +65,13 @@ public class AppSecConfig {
     if (o == null || getClass() != o.getClass()) return false;
     AppSecConfig config = (AppSecConfig) o;
     return Objects.equals(version, config.version)
-        && Objects.equals(events, config.events)
+        && Objects.equals(rules, config.rules)
         && Objects.equals(rawConfig, config.rawConfig);
   }
 
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(version, events, rawConfig);
+    return Objects.hash(version, rules, rawConfig);
   }
 }

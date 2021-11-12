@@ -171,7 +171,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   /** Provide total amount of all events from all configs */
   private static int countRules(Map<String, AppSecConfig> config) {
     // get sum for each config->AppSecConfig.getEvents().size()
-    return config.values().stream().map(AppSecConfig::getEvents).mapToInt(List::size).sum();
+    return config.values().stream().map(AppSecConfig::getRules).mapToInt(List::size).sum();
   }
 
   @Override

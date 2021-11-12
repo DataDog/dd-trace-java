@@ -7,8 +7,8 @@ import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientD
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.redis.RedisClient;
@@ -24,7 +24,7 @@ public class RedisAPICallAdvice {
   public static boolean beforeCall(
       @Advice.Origin final Method currentMethod,
       @Advice.This final RedisAPI self,
-      @Advice.Local("callScope") TraceScope scope,
+      @Advice.Local("callScope") AgentScope scope,
       @Advice.Argument(
               value = 0,
               readOnly = false,
@@ -104,7 +104,7 @@ public class RedisAPICallAdvice {
 
     final AgentSpan parentSpan = activeSpan();
     final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(method.getName());
-    TraceScope.Continuation parentContinuation =
+    AgentScope.Continuation parentContinuation =
         null == parentSpan ? null : captureSpan(parentSpan);
     /*
     Opens a new scope.
@@ -150,7 +150,7 @@ public class RedisAPICallAdvice {
   public static void afterCall(
       @Advice.Thrown final Throwable throwable,
       @Advice.This final RedisAPI self,
-      @Advice.Local("callScope") TraceScope scope,
+      @Advice.Local("callScope") AgentScope scope,
       @Advice.Enter final boolean decrement) {
     if (decrement) {
       CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);

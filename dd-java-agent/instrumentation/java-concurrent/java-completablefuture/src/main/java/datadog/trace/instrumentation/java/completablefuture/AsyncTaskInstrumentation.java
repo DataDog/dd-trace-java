@@ -13,9 +13,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -80,12 +80,12 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
 
   public static class Run {
     @Advice.OnMethodEnter
-    public static TraceScope before(@Advice.This ForkJoinTask<?> zis) {
+    public static AgentScope before(@Advice.This ForkJoinTask<?> zis) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
     }
 
     @Advice.OnMethodExit
-    public static void after(@Advice.Enter TraceScope scope) {
+    public static void after(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }
   }

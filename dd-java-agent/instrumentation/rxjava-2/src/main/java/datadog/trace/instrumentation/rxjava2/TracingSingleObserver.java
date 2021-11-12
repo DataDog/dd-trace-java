@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.rxjava2;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.reactivex.SingleObserver;
 import io.reactivex.disposables.Disposable;
 
@@ -24,14 +24,14 @@ public final class TracingSingleObserver<T> implements SingleObserver<T> {
 
   @Override
   public void onSuccess(final T value) {
-    try (final TraceScope scope = activateSpan(parentSpan)) {
+    try (final AgentScope scope = activateSpan(parentSpan)) {
       observer.onSuccess(value);
     }
   }
 
   @Override
   public void onError(final Throwable e) {
-    try (final TraceScope scope = activateSpan(parentSpan)) {
+    try (final AgentScope scope = activateSpan(parentSpan)) {
       observer.onError(e);
     }
   }

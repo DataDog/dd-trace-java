@@ -14,8 +14,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -84,7 +84,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
         @Advice.Argument(2) HttpContext context,
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
 
-      final TraceScope parentScope = activeScope();
+      final AgentScope parentScope = activeScope();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
 

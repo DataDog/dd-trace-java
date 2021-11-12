@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +30,7 @@ public final class ExecutorInstrumentationUtils {
       return false;
     }
 
-    final TraceScope scope = activeScope();
+    final AgentScope scope = activeScope();
 
     return scope != null && scope.isAsyncPropagating();
   }
@@ -45,7 +45,7 @@ public final class ExecutorInstrumentationUtils {
    * @return new state
    */
   public static <T> State setupState(
-      final ContextStore<T, State> contextStore, final T task, final TraceScope scope) {
+      final ContextStore<T, State> contextStore, final T task, final AgentScope scope) {
 
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
 

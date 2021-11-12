@@ -11,7 +11,8 @@ import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.EventEnrichment;
 import com.datadog.appsec.report.ReportService;
-import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.report.raw.events.AppSecEvent100;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -88,15 +89,18 @@ public class GatewayBridge {
           AppSecRequestContext ctx = ctx_.getData();
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
-          Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
-          // If detected any attacks - mark span at appsec.event
-          if (!collectedAttacks.isEmpty() && spanInfo != null) {
+          Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
+          // If detected any events - mark span at appsec.event
+          if (!collectedEvents.isEmpty() && spanInfo != null) {
+            // Keep event related span, because it could be ignored in case of
+            // reduced datadog sampling rate.
+            spanInfo.setTag(DDTags.MANUAL_KEEP, true);
             spanInfo.setTag("appsec.event", true);
           }
 
-          for (Attack010 attack : collectedAttacks) {
-            EventEnrichment.enrich(attack, spanInfo, ctx);
-            reportService.reportAttack(attack);
+          for (AppSecEvent100 event : collectedEvents) {
+            EventEnrichment.enrich(event, spanInfo, ctx);
+            reportService.reportEvent(event);
           }
 
           ctx.close();
