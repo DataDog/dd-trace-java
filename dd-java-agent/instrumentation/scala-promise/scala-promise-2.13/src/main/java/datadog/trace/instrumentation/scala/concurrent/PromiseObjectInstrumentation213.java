@@ -75,11 +75,6 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing {
         if (next != resolved) {
           contextStore.put(next, span);
           resolved = next;
-          /*
-          The span may be escaping via the context to other threads.
-          Need to mark it for migration.
-          */
-          span.startThreadMigration();
         }
       }
     }

@@ -485,6 +485,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
+    public void migrated() {
+      this.migrated = true;
+    }
+
+    @Override
     public AgentSpan getSpan() {
       return spanUnderScope;
     }
@@ -576,6 +581,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public void migrate() {
+      // This has no meaning for a concurrent continuation
+    }
+
+    @Override
+    public void migrated() {
       // This has no meaning for a concurrent continuation
     }
 

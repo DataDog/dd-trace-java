@@ -319,6 +319,10 @@ class TestScopeManager implements ScopeManager {
           @Override
           void migrate() {
           }
+
+          @Override
+          void migrated() {
+          }
         }
     }
 
