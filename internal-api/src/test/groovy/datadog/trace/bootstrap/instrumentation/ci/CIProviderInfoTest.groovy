@@ -53,8 +53,8 @@ abstract class CIProviderInfoTest extends Specification {
     def ciInfo = instanceProvider()
 
     then:
-    if (ciInfo.CI) {
-      assert ciInfo.ciTags == ciSpec.tags
+    if (ciInfo.class != UnknownCIInfo) {
+      ciInfo.ciTags == ciSpec.tags
     }
 
     where:

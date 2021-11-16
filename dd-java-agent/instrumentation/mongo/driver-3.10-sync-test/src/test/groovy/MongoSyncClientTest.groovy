@@ -50,8 +50,7 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "synchronous checkpoints span the driver activity"
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -94,8 +93,7 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "synchronous checkpoints span the driver activity"
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -130,8 +128,7 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -171,8 +168,7 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -210,8 +206,7 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:

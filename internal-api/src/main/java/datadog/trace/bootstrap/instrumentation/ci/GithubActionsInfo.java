@@ -11,18 +11,16 @@ class GithubActionsInfo extends CIProviderInfo {
   public static final String GHACTIONS_PIPELINE_ID = "GITHUB_RUN_ID";
   public static final String GHACTIONS_PIPELINE_NAME = "GITHUB_WORKFLOW";
   public static final String GHACTIONS_PIPELINE_NUMBER = "GITHUB_RUN_NUMBER";
-  public static final String GHACTIONS_PIPELINE_RETRY = "GITHUB_RUN_ATTEMPT";
   public static final String GHACTIONS_WORKSPACE_PATH = "GITHUB_WORKSPACE";
   public static final String GHACTIONS_REPOSITORY = "GITHUB_REPOSITORY";
   public static final String GHACTIONS_SHA = "GITHUB_SHA";
   public static final String GHACTIONS_HEAD_REF = "GITHUB_HEAD_REF";
   public static final String GHACTIONS_REF = "GITHUB_REF";
-  public static final String GHACTIONS_URL = "GITHUB_SERVER_URL";
 
   @Override
   protected GitInfo buildCIGitInfo() {
     return new GitInfo(
-        buildGitRepositoryUrl(System.getenv(GHACTIONS_URL), System.getenv(GHACTIONS_REPOSITORY)),
+        buildGitRepositoryUrl(System.getenv(GHACTIONS_REPOSITORY)),
         buildGitBranch(),
         buildGitTag(),
         new CommitInfo(System.getenv(GHACTIONS_SHA)));
@@ -30,25 +28,16 @@ class GithubActionsInfo extends CIProviderInfo {
 
   @Override
   protected CIInfo buildCIInfo() {
-    final String pipelineUrl =
-        buildPipelineUrl(
-            System.getenv(GHACTIONS_URL),
-            System.getenv(GHACTIONS_REPOSITORY),
-            System.getenv(GHACTIONS_PIPELINE_ID),
-            System.getenv(GHACTIONS_PIPELINE_RETRY));
-    final String jobUrl =
-        buildJobUrl(
-            System.getenv(GHACTIONS_URL),
-            System.getenv(GHACTIONS_REPOSITORY),
-            System.getenv(GHACTIONS_SHA));
+    final String url =
+        buildPipelineUrl(System.getenv(GHACTIONS_REPOSITORY), System.getenv(GHACTIONS_SHA));
 
     return CIInfo.builder()
         .ciProviderName(GHACTIONS_PROVIDER_NAME)
         .ciPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
         .ciPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
         .ciPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
-        .ciPipelineUrl(pipelineUrl)
-        .ciJobUrl(jobUrl)
+        .ciPipelineUrl(url)
+        .ciJobUrl(url)
         .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
         .build();
   }
@@ -79,24 +68,15 @@ class GithubActionsInfo extends CIProviderInfo {
     }
   }
 
-  private String buildGitRepositoryUrl(final String host, final String repo) {
+  private String buildGitRepositoryUrl(final String repo) {
     if (repo == null || repo.isEmpty()) {
       return null;
     }
 
-    return String.format("%s/%s.git", host, repo);
+    return String.format("https://github.com/%s.git", repo);
   }
 
-  private String buildPipelineUrl(
-      final String host, final String repo, final String pipelineId, final String retry) {
-    if (retry != null && !retry.isEmpty()) {
-      return String.format("%s/%s/actions/runs/%s/attempts/%s", host, repo, pipelineId, retry);
-    } else {
-      return String.format("%s/%s/actions/runs/%s", host, repo, pipelineId);
-    }
-  }
-
-  private String buildJobUrl(final String host, final String repo, final String commit) {
-    return String.format("%s/%s/commit/%s/checks", host, repo, commit);
+  private String buildPipelineUrl(final String repo, final String commit) {
+    return String.format("https://github.com/%s/commit/%s/checks", repo, commit);
   }
 }

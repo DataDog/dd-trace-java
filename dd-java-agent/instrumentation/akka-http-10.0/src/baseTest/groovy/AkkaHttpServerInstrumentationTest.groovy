@@ -85,8 +85,7 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
-    _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
   }
 }
