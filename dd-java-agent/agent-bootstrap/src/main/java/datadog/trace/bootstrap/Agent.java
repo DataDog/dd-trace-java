@@ -59,7 +59,7 @@ public class Agent {
   private enum AgentFeature {
     TRACING("dd.tracing.enabled", true),
     JMXFETCH("dd.jmxfetch.enabled", true),
-    STARTUP_LOGS("dd.trace.startup.logs", false),
+    STARTUP_LOGS("dd.trace.startup.logs", true),
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     CWS("dd.cws.enabled", false),
