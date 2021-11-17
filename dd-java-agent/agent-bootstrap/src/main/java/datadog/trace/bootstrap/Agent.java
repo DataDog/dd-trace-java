@@ -110,7 +110,7 @@ public class Agent {
     createSharedClassloader(bootstrapURL);
 
     ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
-    if(ciVisibilityEnabled) {
+    if (ciVisibilityEnabled) {
       // if CI Visibility is enabled, all the other features are disabled by default
       // unless the user had explicitly enabled them.
       setSystemPropertyDefault(AgentFeature.TRACING.getSystemProp(), "false");
@@ -766,7 +766,7 @@ public class Agent {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
     }
 
-    if(feature.isEnabledByDefault()){
+    if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
       return !"false".equalsIgnoreCase(featureEnabled);
     } else {
