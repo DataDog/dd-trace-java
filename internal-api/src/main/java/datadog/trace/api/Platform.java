@@ -1,6 +1,8 @@
 package datadog.trace.api;
 
 import datadog.trace.util.Strings;
+import java.util.LinkedList;
+import java.util.List;
 
 public final class Platform {
 
@@ -15,45 +17,51 @@ public final class Platform {
     JAVA_UPDATE_VERSION = version.update;
   }
 
+  /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
+  private static List<Integer> splitDigits(String str) {
+    List<Integer> results = new LinkedList<>();
+
+    byte[] arr = str.getBytes();
+    int len = str.length();
+
+    int value = 0;
+    for (int i = 0; i < len; i++) {
+      byte ch = arr[i];
+      if (ch >= '0' && ch <= '9') {
+        value = value * 10 + (ch - '0');
+      } else if (ch == '.' || ch == '_' || ch == '+') {
+        results.add(value);
+        value = 0;
+      } else {
+        throw new NumberFormatException();
+      }
+    }
+    results.add(value);
+    return results;
+  }
+
   private static Version parseJavaVersion(String javaVersion) {
     javaVersion = Strings.replace(javaVersion, "-ea", "");
-    int major, minor, update;
-    int firstDot = javaVersion.indexOf('.');
-    int secondDot = javaVersion.indexOf('.', firstDot + 1);
-    int underscore = javaVersion.indexOf('_', secondDot + 1);
+
+    int major = 0;
+    int minor = 0;
+    int update = 0;
+
     try {
-      if (javaVersion.startsWith("1.")) {
-        major =
-            Integer.parseInt(
-                javaVersion.substring(
-                    firstDot + 1, secondDot < 0 ? javaVersion.length() : secondDot));
-        minor =
-            secondDot < 0
-                ? 0
-                : Integer.parseInt(
-                    javaVersion.substring(
-                        secondDot + 1, underscore < 0 ? javaVersion.length() : underscore));
-        update =
-            underscore < 0
-                ? 0
-                : Integer.parseInt(javaVersion.substring(underscore + 1, javaVersion.length()));
+      List<Integer> nums = splitDigits(javaVersion);
+      major = nums.get(0);
+
+      // for java 1.6/1.7/1.8
+      if (major == 1) {
+        major = nums.get(1);
+        minor = nums.get(2);
+        update = nums.get(3);
       } else {
-        major =
-            Integer.parseInt(
-                javaVersion.substring(0, firstDot < 0 ? javaVersion.length() : firstDot));
-        minor =
-            firstDot < 0
-                ? 0
-                : Integer.parseInt(
-                    javaVersion.substring(
-                        firstDot + 1, secondDot < 0 ? javaVersion.length() : secondDot));
-        update =
-            secondDot < 0
-                ? 0
-                : Integer.parseInt(javaVersion.substring(secondDot + 1, javaVersion.length()));
+        minor = nums.get(1);
+        update = nums.get(2);
       }
     } catch (NumberFormatException | IndexOutOfBoundsException e) {
-      major = minor = update = 0;
+      // unable to parse version string - do nothing
     }
     return new Version(major, minor, update);
   }
