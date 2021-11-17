@@ -109,6 +109,12 @@ public class Agent {
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
 
+    // Retro-compatibility for the old way to configure CI Visibility
+    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
+        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
+      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
+    }
+
     ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
     if (ciVisibilityEnabled) {
       // if CI Visibility is enabled, all the other features are disabled by default
