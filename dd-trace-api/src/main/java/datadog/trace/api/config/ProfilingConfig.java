@@ -75,6 +75,10 @@ public final class ProfilingConfig {
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
 
+  public static final String PROFILING_JFR_REPOSITORY_MAXSIZE = "profiling.jfr.repository.maxsize";
+  public static final int PROFILING_JFR_REPOSITORY_MAXSIZE_DEFAULT =
+      64 * 1024 * 1024; // 64MB default
+
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
 
