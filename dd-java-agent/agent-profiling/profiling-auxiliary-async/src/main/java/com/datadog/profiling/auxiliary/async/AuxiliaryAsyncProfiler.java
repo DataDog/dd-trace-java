@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,6 +31,15 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   private static final Logger log = LoggerFactory.getLogger(AuxiliaryAsyncProfiler.class);
 
   public static final String TYPE = "async";
+
+  // see https://github.com/DataDog/async-profiler/blob/main/src/memleakTracer.h
+  private static final int MEMLEAK_TABLE_MAX_SIZE = 8192;
+  private static final int memleakMinInterval;
+
+  static {
+    long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
+    memleakMinInterval = maxheap > 0 ? (int) (maxheap / MEMLEAK_TABLE_MAX_SIZE) : -1;
+  }
 
   @AutoService(AuxiliaryImplementation.Provider.class)
   public static final class ImplementerProvider implements AuxiliaryImplementation.Provider {
@@ -285,8 +295,10 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   private int getMemleakInterval() {
-    return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
-        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT);
+    return Math.max(
+        memleakMinInterval,
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
+            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
   }
 }
