@@ -1630,7 +1630,7 @@ public class Config {
    * Provide 'global' tags, i.e. tags set everywhere. We have to support old (dd.trace.global.tags)
    * version of this setting if new (dd.tags) version has not been specified.
    */
-  private Map<String, String> getGlobalTags() {
+  public Map<String, String> getGlobalTags() {
     return tags;
   }
 
