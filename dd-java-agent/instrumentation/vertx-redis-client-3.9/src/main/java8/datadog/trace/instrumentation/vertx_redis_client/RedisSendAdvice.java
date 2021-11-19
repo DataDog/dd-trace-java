@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.context.TraceScope;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.redis.RedisClient;
@@ -53,7 +52,7 @@ public class RedisSendAdvice {
     }
 
     AgentSpan parentSan = activeSpan();
-    TraceScope.Continuation parentContinuation = null == parentSan ? null : captureSpan(parentSan);
+    AgentScope.Continuation parentContinuation = null == parentSan ? null : captureSpan(parentSan);
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.netty38;
 
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 
 public class ChannelTraceContext {
   public static class Factory implements ContextStore.Factory<ChannelTraceContext> {
@@ -14,12 +14,12 @@ public class ChannelTraceContext {
     }
   }
 
-  TraceScope.Continuation connectionContinuation;
+  AgentScope.Continuation connectionContinuation;
   AgentSpan serverSpan;
   AgentSpan clientSpan;
   AgentSpan clientParentSpan;
 
-  public TraceScope.Continuation getConnectionContinuation() {
+  public AgentScope.Continuation getConnectionContinuation() {
     return connectionContinuation;
   }
 
@@ -35,7 +35,7 @@ public class ChannelTraceContext {
     return clientParentSpan;
   }
 
-  public void setConnectionContinuation(TraceScope.Continuation connectionContinuation) {
+  public void setConnectionContinuation(AgentScope.Continuation connectionContinuation) {
     this.connectionContinuation = connectionContinuation;
   }
 

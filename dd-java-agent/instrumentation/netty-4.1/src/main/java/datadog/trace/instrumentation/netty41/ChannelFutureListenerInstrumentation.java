@@ -15,7 +15,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator;
 import io.netty.channel.ChannelFuture;
 import net.bytebuddy.asm.Advice;
@@ -71,7 +70,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
 
   public static class OperationCompleteAdvice {
     @Advice.OnMethodEnter
-    public static TraceScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
+    public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*
       Idea here is:
        - To return scope only if we have captured it.
@@ -81,12 +80,12 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
       if (cause == null) {
         return null;
       }
-      final TraceScope.Continuation continuation =
+      final AgentScope.Continuation continuation =
           future.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
       if (continuation == null) {
         return null;
       }
-      final TraceScope parentScope = continuation.activate();
+      final AgentScope parentScope = continuation.activate();
 
       final AgentSpan errorSpan = startSpan(NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
       try (final AgentScope scope = activateSpan(errorSpan)) {
@@ -99,7 +98,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void deactivateScope(@Advice.Enter final TraceScope scope) {
+    public static void deactivateScope(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
       }

@@ -17,7 +17,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -62,17 +61,16 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.This HttpRequest request, @Advice.Local("inherited") boolean inheritedScope) {
-      TraceScope activeScope = activeScope();
+      AgentScope scope = activeScope();
       // detect if scope was propagated here by java-concurrent handling
       // of async requests
-      if (activeScope instanceof AgentScope) {
-        AgentScope agentScope = (AgentScope) activeScope;
-        AgentSpan span = agentScope.span();
+      if (null != scope) {
+        AgentSpan span = scope.span();
         // reference equality to check this instrumentation created the span,
         // not some other HTTP client
         if (HTTP_REQUEST == span.getOperationName()) {
           inheritedScope = true;
-          return agentScope;
+          return scope;
         }
       }
       return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));

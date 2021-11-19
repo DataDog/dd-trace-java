@@ -5,10 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import scala.util.Failure;
 import scala.util.Success;
@@ -27,16 +28,11 @@ public class PromiseHelper {
    * @return the Span or null
    */
   public static AgentSpan getSpan() {
-    AgentSpan span = null;
-    final TraceScope scope = activeScope();
+    final AgentScope scope = activeScope();
     if (null != scope && scope.isAsyncPropagating()) {
-      if (scope instanceof AgentScope) {
-        span = ((AgentScope) scope).span();
-      } else {
-        span = activeSpan();
-      }
+      return scope.span();
     }
-    return span;
+    return null;
   }
 
   /**
@@ -64,27 +60,70 @@ public class PromiseHelper {
       return new Failure<>(failure.exception());
     }
 
+    if (null != span) {
+      // The span may be escaping via the context to other threads.
+      // Need to mark it for migration.
+      span.startThreadMigration();
+    }
     return resolved;
   }
 
   /**
-   * Capture the {@code Span} and store or swap out the existing {@code Continuation} if any.
+   * Activate the {@code AgentScope} stored in the {@code State} for the active task, if any, and
+   * mark migration accordingly.
    *
-   * @param span the Span to capture
-   * @param state the State to update
-   * @return the state where the Continuation was stored
+   * @param state the State related to the task becoming active.
+   * @return tha active AgentScope
    */
-  public static State handleSpan(final AgentSpan span, State state) {
-    if (completionPriority && null != span) {
-      // TODO Optimization
-      // One could possibly peek at the Span in the existing Continuation and not do anything if it
-      // was the same Span
-      TraceScope.Continuation continuation = captureSpan(span);
-      TraceScope.Continuation existing = null;
+  public static AgentScope runActivateSpan(State state) {
+    if (state == null) {
+      return null;
+    }
+    AgentSpan capturedSpan = state.getSpan();
+    if (capturedSpan != null) {
+      AgentSpan activeSpan = activeSpan();
+      if (capturedSpan != activeSpan) {
+        return AdviceUtils.startTaskScope(state, true);
+      } else {
+        state.closeContinuation();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Transfer and capture the {@code Span} from the {@code Try} to the task, and store or swap out
+   * the existing {@code Continuation} if any.
+   *
+   * @param tryStore the ContextStore for the Try
+   * @param resolved the Try in question
+   * @param taskStore the ContextStore for the task
+   * @param task the task in question
+   * @param state the current State associated with the task
+   * @return the current or updated state
+   */
+  public static <K> State executeCaptureSpan(
+      ContextStore<Try, AgentSpan> tryStore,
+      Try<?> resolved,
+      ContextStore<K, State> taskStore,
+      K task,
+      State state) {
+    final AgentSpan span = tryStore.get(resolved);
+    if (span != null) {
+      // Check if the new Span is the same as the currently stored one
+      if (null != state && state.getSpan() == span) {
+        return state;
+      }
+      AgentScope.Continuation continuation = captureSpan(span);
+      // Since the continuation was created from a Span that was marked for migration,
+      // we make sure that the continuation will be marked as migrated
+      continuation.migrated();
+      AgentScope.Continuation existing = null;
       if (null != state) {
         existing = state.getAndResetContinuation();
       } else {
         state = State.FACTORY.create();
+        taskStore.put(task, state);
       }
       state.setOrCancelContinuation(continuation);
       if (null != existing) {

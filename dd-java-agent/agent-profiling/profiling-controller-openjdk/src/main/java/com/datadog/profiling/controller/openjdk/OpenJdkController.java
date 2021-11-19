@@ -23,6 +23,8 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
@@ -37,7 +39,6 @@ import org.slf4j.LoggerFactory;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
-  static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
@@ -149,9 +150,16 @@ public final class OpenJdkController implements Controller {
     AvailableProcessorCoresEvent.register();
   }
 
+  int getMaxSize() {
+    return ConfigProvider.getInstance()
+        .getInteger(
+            ProfilingConfig.PROFILING_JFR_REPOSITORY_MAXSIZE,
+            ProfilingConfig.PROFILING_JFR_REPOSITORY_MAXSIZE_DEFAULT);
+  }
+
   @Override
   public OpenJdkOngoingRecording createRecording(final String recordingName) {
     return new OpenJdkOngoingRecording(
-        recordingName, recordingSettings, RECORDING_MAX_SIZE, RECORDING_MAX_AGE);
+        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
   }
 }

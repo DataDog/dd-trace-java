@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.opentracing31;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.opentracing.LogHandler;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -33,17 +32,11 @@ public class TypeConverter {
     return new OTSpan(agentSpan, this, logHandler);
   }
 
-  // FIXME [API] Need to use the runtime type not compile-time type so "Object" is used
-  // That fact that some methods return AgentScope and other TraceScope even though its the same
-  // underlying object needs to be cleaned up
-  public Scope toScope(final Object scope, final boolean finishSpanOnClose) {
+  public Scope toScope(final AgentScope scope, final boolean finishSpanOnClose) {
     if (scope == null) {
       return null;
-    } else if (scope instanceof TraceScope) {
-      return new OTScopeManager.OTTraceScope((TraceScope) scope, finishSpanOnClose, this);
-    } else {
-      return new OTScopeManager.OTScope((AgentScope) scope, finishSpanOnClose, this);
     }
+    return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
   }
 
   public SpanContext toSpanContext(final AgentSpan.Context context) {

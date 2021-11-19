@@ -4,11 +4,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
-import java.util.Objects;
 
 /**
  * Allows custom OpenTracing ScopeManagers used by CoreTracer
@@ -38,8 +36,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   public AgentScope activate(final AgentSpan agentSpan, final ScopeSource source) {
     final Span span = converter.toSpan(agentSpan);
     final Scope scope = delegate.activate(span);
-
-    return new CustomScopeManagerScope(scope);
+    return converter.toAgentScope(scope);
   }
 
   @Override
@@ -47,15 +44,14 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
       final AgentSpan agentSpan, final ScopeSource source, boolean isAsyncPropagating) {
     final Span span = converter.toSpan(agentSpan);
     final Scope scope = delegate.activate(span);
-    final AgentScope agentScope = new CustomScopeManagerScope(scope);
+    final AgentScope agentScope = converter.toAgentScope(scope);
     agentScope.setAsyncPropagation(isAsyncPropagating);
-
     return agentScope;
   }
 
   @Override
-  public TraceScope active() {
-    return new CustomScopeManagerScope(delegate.active());
+  public AgentScope active() {
+    return converter.toAgentScope(delegate.active());
   }
 
   @Override
@@ -64,91 +60,10 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
-  public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
     // I can't see a better way to do this, and I don't know if this even makes sense.
     try (AgentScope scope = this.activate(span, source)) {
       return scope.capture();
-    }
-  }
-
-  class CustomScopeManagerScope implements AgentScope, TraceScope {
-    private final Scope delegate;
-    private final boolean traceScope;
-
-    private CustomScopeManagerScope(final Scope delegate) {
-      this.delegate = delegate;
-
-      // Handle case where the custom scope manager returns TraceScopes
-      traceScope = delegate instanceof TraceScope;
-    }
-
-    @Override
-    public AgentSpan span() {
-      return converter.toAgentSpan(delegate.span());
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {
-      if (traceScope) {
-        ((TraceScope) delegate).setAsyncPropagation(value);
-      }
-    }
-
-    @Override
-    public boolean checkpointed() {
-      if (delegate instanceof AgentScope) {
-        return ((AgentScope) delegate).checkpointed();
-      }
-      return false;
-    }
-
-    @Override
-    public boolean isAsyncPropagating() {
-      return traceScope && ((TraceScope) delegate).isAsyncPropagating();
-    }
-
-    @Override
-    public TraceScope.Continuation capture() {
-      if (traceScope) {
-        return ((TraceScope) delegate).capture();
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public TraceScope.Continuation captureConcurrent() {
-      if (traceScope) {
-        return ((TraceScope) delegate).captureConcurrent();
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public void close() {
-      delegate.close();
-    }
-
-    Scope getDelegate() {
-      return delegate;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final CustomScopeManagerScope that = (CustomScopeManagerScope) o;
-      return delegate.equals(that.delegate);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(delegate);
     }
   }
 }

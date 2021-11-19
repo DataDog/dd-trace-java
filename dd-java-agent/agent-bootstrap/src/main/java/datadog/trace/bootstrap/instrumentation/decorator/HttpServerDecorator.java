@@ -134,7 +134,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
           String path = encoded ? url.rawPath() : url.path();
 
           span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
-          if (url.host() != null) {
+          if (context != null && context.getForwardedHost() != null) {
+            span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
+          } else if (url.host() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, url.host());
           }
 

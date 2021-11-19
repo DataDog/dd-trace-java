@@ -30,7 +30,7 @@ public class OpenJdkControllerTest {
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       assertEquals(TEST_NAME, recording.getName());
-      assertEquals(OpenJdkController.RECORDING_MAX_SIZE, recording.getMaxSize());
+      assertEquals(controller.getMaxSize(), recording.getMaxSize());
       assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
     }
   }

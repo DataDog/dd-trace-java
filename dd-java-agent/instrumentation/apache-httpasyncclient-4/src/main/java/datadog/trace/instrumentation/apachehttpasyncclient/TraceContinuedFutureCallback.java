@@ -2,19 +2,19 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.protocol.HttpContext;
 
 public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
-  private final TraceScope.Continuation parentContinuation;
+  private final AgentScope.Continuation parentContinuation;
   private final AgentSpan clientSpan;
   private final HttpContext context;
   private final FutureCallback<T> delegate;
 
   public TraceContinuedFutureCallback(
-      final TraceScope parentScope,
+      final AgentScope parentScope,
       final AgentSpan clientSpan,
       final HttpContext context,
       final FutureCallback<T> delegate) {
@@ -47,7 +47,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     if (parentContinuation == null) {
       completeDelegate(result);
     } else {
-      try (final TraceScope scope = parentContinuation.activate()) {
+      try (final AgentScope scope = parentContinuation.activate()) {
         scope.setAsyncPropagation(true);
         completeDelegate(result);
       }
@@ -68,7 +68,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     if (parentContinuation == null) {
       failDelegate(ex);
     } else {
-      try (final TraceScope scope = parentContinuation.activate()) {
+      try (final AgentScope scope = parentContinuation.activate()) {
         scope.setAsyncPropagation(true);
         failDelegate(ex);
       }
@@ -85,7 +85,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     if (parentContinuation == null) {
       cancelDelegate();
     } else {
-      try (final TraceScope scope = parentContinuation.activate()) {
+      try (final AgentScope scope = parentContinuation.activate()) {
         scope.setAsyncPropagation(true);
         cancelDelegate();
       }

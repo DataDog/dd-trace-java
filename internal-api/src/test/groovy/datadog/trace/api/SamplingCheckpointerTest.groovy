@@ -76,14 +76,19 @@ class SamplingCheckpointerTest extends DDSpecification {
     0 * _
 
     when:
-    sut.onRootSpan(rootSpan, true)
+    sut.onRootSpanStarted(rootSpan)
     then:
-    rootSpanCount * checkpointer.onRootSpan(rootSpan, true, emitCheckpoints)
+    rootSpanCount * checkpointer.onRootSpanStarted(rootSpan)
 
     when:
-    sut.onRootSpan(rootSpan, false)
+    sut.onRootSpanFinished(rootSpan, true)
     then:
-    rootSpanCount * checkpointer.onRootSpan(rootSpan, false, emitCheckpoints)
+    rootSpanCount * checkpointer.onRootSpanWritten(rootSpan, true, emitCheckpoints)
+
+    when:
+    sut.onRootSpanFinished(rootSpan, false)
+    then:
+    rootSpanCount * checkpointer.onRootSpanWritten(rootSpan, false, emitCheckpoints)
 
     where:
     drop  | register | emitCheckpoints

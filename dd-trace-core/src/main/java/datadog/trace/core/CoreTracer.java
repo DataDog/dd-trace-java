@@ -6,7 +6,7 @@ import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetric
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
@@ -37,7 +37,6 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -113,6 +112,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
   private final SamplingCheckpointer checkpointer;
+  private final ExternalAgentLauncher externalAgentLauncher;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -141,8 +141,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final InstrumentationGateway instrumentationGateway;
 
   @Override
-  public TraceScope.Continuation capture() {
-    final TraceScope activeScope = activeScope();
+  public AgentScope.Continuation capture() {
+    final AgentScope activeScope = activeScope();
 
     return activeScope == null ? null : activeScope.capture();
   }
@@ -183,8 +183,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void onRootSpan(AgentSpan root, boolean published) {
-    checkpointer.onRootSpan(root, published);
+  public void onRootSpanFinished(AgentSpan root, boolean published) {
+    checkpointer.onRootSpanFinished(root, published);
+  }
+
+  @Override
+  public void onRootSpanStarted(AgentSpan root) {
+    checkpointer.onRootSpanStarted(root);
   }
 
   public static class CoreTracerBuilder {
@@ -421,20 +426,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.scopeManager = scopeManager;
     }
 
+    this.externalAgentLauncher = new ExternalAgentLauncher(config);
+
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
     }
-    sharedCommunicationObjects.monitoring = this.monitoring;
+    sharedCommunicationObjects.monitoring = monitoring;
+    sharedCommunicationObjects.createRemaining(config);
+
     if (writer == null) {
-      sharedCommunicationObjects.createRemaining(config);
       this.writer =
           WriterFactory.createWriter(
               config, sharedCommunicationObjects, sampler, this.statsDClient);
     } else {
       this.writer = writer;
     }
-
-    DDAgentFeaturesDiscovery discovery = sharedCommunicationObjects.featuresDiscovery(config);
 
     this.pendingTraceBuffer =
         strictTraceWrites ? PendingTraceBuffer.discarding() : PendingTraceBuffer.delaying();
@@ -443,7 +449,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.writer.start();
 
-    metricsAggregator = createMetricsAggregator(config, discovery);
+    metricsAggregator = createMetricsAggregator(config, sharedCommunicationObjects);
     // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.
@@ -520,7 +526,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public CoreSpanBuilder buildSpan(final CharSequence operationName) {
-    return new CoreSpanBuilder(operationName);
+    return new CoreSpanBuilder(operationName, this);
   }
 
   @Override
@@ -584,7 +590,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
     return scopeManager.captureSpan(span, source);
   }
 
@@ -602,7 +608,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public TraceScope activeScope() {
+  public AgentScope activeScope() {
     return scopeManager.active();
   }
 
@@ -702,7 +708,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         writer.incrementDropCounts(writtenTrace.size());
       }
       if (null != rootSpan) {
-        onRootSpan(rootSpan, published);
+        onRootSpanFinished(rootSpan, published);
       }
     }
   }
@@ -767,6 +773,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     writer.close();
     statsDClient.close();
     metricsAggregator.close();
+    externalAgentLauncher.close();
   }
 
   @Override
@@ -828,6 +835,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Spans are built using this builder */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CharSequence operationName;
+    private final CoreTracer tracer;
 
     // Builder attributes
     private Map<String, Object> tags;
@@ -840,8 +848,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean ignoreScope = false;
     private boolean emitCheckpoints = true;
 
-    public CoreSpanBuilder(final CharSequence operationName) {
+    CoreSpanBuilder(final CharSequence operationName, CoreTracer tracer) {
       this.operationName = operationName;
+      this.tracer = tracer;
     }
 
     @Override
@@ -851,7 +860,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      return DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
+      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
+      if (span.isLocalRootSpan()) {
+        tracer.onRootSpanStarted(span);
+      }
+      return span;
     }
 
     @Override

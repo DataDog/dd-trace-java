@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.netty40;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.netty.util.AttributeKey;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -19,7 +19,7 @@ public final class AttributeKeys {
   public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey("datadog.client.parent.span");
 
-  public static final AttributeKey<TraceScope.Continuation>
+  public static final AttributeKey<AgentScope.Continuation>
       CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
           attributeKey("datadog.connect.parent.continuation");
 

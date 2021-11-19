@@ -10,10 +10,10 @@ import com.google.common.util.concurrent.AbstractFuture;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
@@ -58,7 +58,7 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
     public static State addListenerEnter(
         @Advice.Argument(value = 0, readOnly = false) Runnable task,
         @Advice.Argument(1) final Executor executor) {
-      final TraceScope scope = activeScope();
+      final AgentScope scope = activeScope();
       final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
       // It is important to check potentially wrapped task if we can instrument task in this
       // executor. Some executors do not support wrapped tasks.

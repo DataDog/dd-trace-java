@@ -10,12 +10,6 @@ import static org.junit.Assume.assumeTrue
 abstract class ScalaUnitPromiseTestBase extends AgentTestRunner {
 
   @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
-  @Override
   void configurePreAgent() {
     super.configurePreAgent()
 
@@ -109,7 +103,7 @@ abstract class ScalaUnitPromiseTestPropagation extends ScalaUnitPromiseTestBase 
     injectSysConfig("dd.trace.integration.scala_future_object.enabled", "false")
   }
 
-  def "make sure that that the unit context instrumentation works"() {
+  def "make sure that without the unit context instrumentation we get a parent"() {
     setup:
     assumeTrue(hasUnitPromise())
 
@@ -119,6 +113,14 @@ abstract class ScalaUnitPromiseTestPropagation extends ScalaUnitPromiseTestBase 
         return "f1"
       }
     })
+
+    then:
+    // Since the execution is forked before the trace is started
+    // we need to wait for the future to finish to guarantee the
+    // order of the traces that we assert against in assertTraces
+    promiseUtils.await(f1) == "f1"
+
+    when:
     def f2 = promiseUtils.apply({
       runUnderTrace("f2") {
         return "f2"
@@ -126,13 +128,12 @@ abstract class ScalaUnitPromiseTestPropagation extends ScalaUnitPromiseTestBase 
     })
 
     then:
-    // Here we sort the spans by name in assertTraces, so we don't
-    // care in which order they actually happen
-    promiseUtils.await(f1) == "f1"
     promiseUtils.await(f2) == "f2"
-    assertTraces(1) {
-      trace(2, true) {
+    assertTraces(2) {
+      trace(1) {
         basicSpan(it, "f1", initSpan)
+      }
+      trace(1) {
         basicSpan(it, "f2", initSpan)
       }
     }
