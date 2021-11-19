@@ -72,4 +72,44 @@ class CapturedEnvironmentTest extends DDSpecification {
     def props = capturedEnv.properties
     props.get(GeneralConfig.SERVICE_NAME) != null
   }
+
+  def "use Azure site name in Azure"() {
+    setup:
+    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
+    injectEnvConfig("DD_AZURE_APP_SERVICES", "1", false)
+    injectEnvConfig("WEBSITE_SITE_NAME", "siteService", false)
+
+    when:
+    def capturedEnv = new CapturedEnvironment()
+
+    then:
+    def props = capturedEnv.properties
+    props.get(GeneralConfig.SERVICE_NAME) == "siteService"
+  }
+
+  def "dont use site name when not in azure"() {
+    setup:
+    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
+    injectEnvConfig("WEBSITE_SITE_NAME", "siteService", false)
+
+    when:
+    def capturedEnv = new CapturedEnvironment()
+
+    then:
+    def props = capturedEnv.properties
+    props.get(GeneralConfig.SERVICE_NAME) == "example"
+  }
+
+  def "dont use Azure site name when null"() {
+    setup:
+    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
+    injectEnvConfig("DD_AZURE_APP_SERVICES", "true", false)
+
+    when:
+    def capturedEnv = new CapturedEnvironment()
+
+    then:
+    def props = capturedEnv.properties
+    props.get(GeneralConfig.SERVICE_NAME) == "example"
+  }
 }

@@ -7,7 +7,8 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 class PromiseUtils(implicit ec: ExecutionContext) {
   // This code is only here to ensure that we in the unit promise tests do the
   // first apply inside a trace during the initialization of the PromiseUtils,
-  // so that we initialize the unit field if it exists with a context
+  // so that we initialize the unit field if it exists with a context, and
+  // the Noop Transformation if it exists with a context.
   Await.result(Future.apply("unused"), Timeout)
 
   def newPromise[T](): Promise[T] = Promise.apply()

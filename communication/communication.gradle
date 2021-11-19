@@ -24,6 +24,7 @@ ext {
   minimumBranchCoverage = 0.6
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
+    'datadog.communication.ddagent.ExternalAgentLauncher',
     'datadog.communication.http.OkHttpUtils',
     'datadog.communication.http.OkHttpUtils.ByteBufferRequestBody',
     'datadog.communication.monitor.DDAgentStatsDConnection',

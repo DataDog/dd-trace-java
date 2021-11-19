@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.Continuati
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public final class State {
@@ -18,15 +17,15 @@ public final class State {
         }
       };
 
-  private static final AtomicReferenceFieldUpdater<State, TraceScope.Continuation> CONTINUATION =
+  private static final AtomicReferenceFieldUpdater<State, AgentScope.Continuation> CONTINUATION =
       AtomicReferenceFieldUpdater.newUpdater(
-          State.class, TraceScope.Continuation.class, "continuation");
+          State.class, AgentScope.Continuation.class, "continuation");
 
-  private volatile TraceScope.Continuation continuation = null;
+  private volatile AgentScope.Continuation continuation = null;
 
   private State() {}
 
-  public boolean captureAndSetContinuation(final TraceScope scope) {
+  public boolean captureAndSetContinuation(final AgentScope scope) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // it's a real pain to do this twice, and this can actually
       // happen systematically - WITHOUT RACES - because of broken
@@ -40,7 +39,7 @@ public final class State {
     return false;
   }
 
-  public boolean setOrCancelContinuation(final TraceScope.Continuation continuation) {
+  public boolean setOrCancelContinuation(final AgentScope.Continuation continuation) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
       CONTINUATION.lazySet(this, continuation);
@@ -52,22 +51,22 @@ public final class State {
   }
 
   public void closeContinuation() {
-    TraceScope.Continuation continuation = getAndResetContinuation();
+    AgentScope.Continuation continuation = getAndResetContinuation();
     if (null != continuation) {
       continuation.cancel();
     }
   }
 
   public AgentSpan getSpan() {
-    TraceScope.Continuation continuation = CONTINUATION.get(this);
-    if (continuation instanceof AgentScope.Continuation) {
-      return ((AgentScope.Continuation) continuation).getSpan();
+    AgentScope.Continuation continuation = CONTINUATION.get(this);
+    if (null != continuation) {
+      return continuation.getSpan();
     }
     return null;
   }
 
-  public TraceScope.Continuation getAndResetContinuation() {
-    TraceScope.Continuation continuation = CONTINUATION.get(this);
+  public AgentScope.Continuation getAndResetContinuation() {
+    AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (null == continuation || CLAIMED == continuation) {
       return null;
     }
@@ -76,9 +75,9 @@ public final class State {
   }
 
   public void startThreadMigration() {
-    TraceScope.Continuation continuation = CONTINUATION.get(this);
-    if (continuation instanceof AgentScope.Continuation) {
-      ((AgentScope.Continuation) continuation).migrate();
+    AgentScope.Continuation continuation = CONTINUATION.get(this);
+    if (null != continuation) {
+      continuation.migrate();
     }
   }
 }

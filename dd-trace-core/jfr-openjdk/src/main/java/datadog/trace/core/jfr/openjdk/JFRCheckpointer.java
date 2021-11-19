@@ -8,6 +8,7 @@ import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.EndpointTracker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -112,7 +113,11 @@ public class JFRCheckpointer implements Checkpointer {
     this.sampler = Objects.requireNonNull(sampler);
 
     if (sampler != null) {
-      FlightRecorder.addPeriodicEvent(CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
+      // skip the sampler config periodical event if the required sampler config is not available
+      if (this.samplerConfig != null) {
+        FlightRecorder.addPeriodicEvent(
+            CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
+      }
       FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
     }
 
@@ -178,25 +183,26 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   @Override
-  public final void onRootSpan(
+  public final void onRootSpanWritten(
       final AgentSpan rootSpan, final boolean published, final boolean checkpointsSampled) {
     if (isEndpointCollectionEnabled) {
       if (rootSpan instanceof DDSpan) {
         DDSpan span = (DDSpan) rootSpan;
-        /*
-        Here we need to track the sampling status of the trace.
-        Simply using the 'published' flag is not enough as a trace may be published even though
-        it is supposed to be dropped. Thus we need to check both the `published` flag and
-        the eligibility to be dropped.
-         */
-        boolean traceSampled = published && !span.eligibleForDropping();
-        new EndpointEvent(
-                rootSpan.getResourceName().toString(),
-                rootSpan.getTraceId().toLong(),
-                rootSpan.getSpanId().toLong(),
-                traceSampled,
-                checkpointsSampled)
-            .commit();
+        EndpointTracker tracker = span.getEndpointTracker();
+        if (tracker != null) {
+          boolean traceSampled = published && !span.eligibleForDropping();
+          tracker.endpointWritten(span, traceSampled, checkpointsSampled);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void onRootSpanStarted(AgentSpan rootSpan) {
+    if (isEndpointCollectionEnabled) {
+      if (rootSpan instanceof DDSpan) {
+        DDSpan span = (DDSpan) rootSpan;
+        span.setEndpointTracker(new EndpointEvent(span));
       }
     }
   }
@@ -206,12 +212,21 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   private void emitSamplerConfig() {
-    new CheckpointSamplerConfigEvent(
-            samplerConfig.windowSize.toMillis(),
-            samplerConfig.samplesPerWindow,
-            samplerConfig.averageLookback,
-            samplerConfig.budgetLookback)
-        .commit();
+    try {
+      new CheckpointSamplerConfigEvent(
+              samplerConfig.windowSize.toMillis(),
+              samplerConfig.samplesPerWindow,
+              samplerConfig.averageLookback,
+              samplerConfig.budgetLookback)
+          .commit();
+    } catch (Throwable t) {
+      if (log.isDebugEnabled()) {
+        log.warn("Exception occurred while emitting sampler config event", t);
+      } else {
+        log.warn("Exception occurred while emitting sampler config event", t.toString());
+      }
+      throw t;
+    }
   }
 
   private static ConfiguredSampler prepareSampler(final ConfigProvider configProvider) {

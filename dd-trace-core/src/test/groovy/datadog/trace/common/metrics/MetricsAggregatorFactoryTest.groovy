@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics
 
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
@@ -17,7 +17,7 @@ class MetricsAggregatorFactoryTest extends DDSpecification {
     Config config = Mock(Config)
     config.isTracerMetricsEnabled() >> false
     expect:
-    def aggregator = MetricsAggregatorFactory.createMetricsAggregator(config, Mock(DDAgentFeaturesDiscovery))
+    def aggregator = MetricsAggregatorFactory.createMetricsAggregator(config, Mock(SharedCommunicationObjects))
     assert aggregator instanceof NoOpMetricsAggregator
   }
 
@@ -26,7 +26,7 @@ class MetricsAggregatorFactoryTest extends DDSpecification {
     Config config = Spy(Config.get())
     config.isTracerMetricsEnabled() >> true
     expect:
-    def aggregator = MetricsAggregatorFactory.createMetricsAggregator(config, Mock(DDAgentFeaturesDiscovery))
+    def aggregator = MetricsAggregatorFactory.createMetricsAggregator(config, Mock(SharedCommunicationObjects))
     assert aggregator instanceof ConflatingMetricsAggregator
   }
 }

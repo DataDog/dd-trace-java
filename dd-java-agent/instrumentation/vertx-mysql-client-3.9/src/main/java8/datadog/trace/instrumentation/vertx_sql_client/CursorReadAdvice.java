@@ -9,7 +9,6 @@ import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.mysqlclient.MySQLConnection;
@@ -29,7 +28,7 @@ public class CursorReadAdvice {
       return null;
     }
     final AgentSpan parentSpan = activeSpan();
-    final TraceScope.Continuation parentContinuation =
+    final AgentScope.Continuation parentContinuation =
         null == parentSpan ? null : captureSpan(parentSpan);
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpanForStatement(

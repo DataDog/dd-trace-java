@@ -199,34 +199,34 @@ abstract class DDSpecification extends Specification {
     }
   }
 
-  void injectSysConfig(String name, String value) {
+  void injectSysConfig(String name, String value, boolean addPrefix = true) {
     checkConfigTransformation()
 
-    String prefixedName = name.startsWith("dd.") ? name : "dd." + name
+    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name
     System.setProperty(prefixedName, value)
     rebuildConfig()
   }
 
-  void removeSysConfig(String name) {
+  void removeSysConfig(String name, boolean addPrefix = true) {
     checkConfigTransformation()
 
-    String prefixedName = name.startsWith("dd.") ? name : "dd." + name
+    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name
     System.clearProperty(prefixedName)
     rebuildConfig()
   }
 
-  void injectEnvConfig(String name, String value) {
+  void injectEnvConfig(String name, String value, boolean addPrefix = true) {
     checkConfigTransformation()
 
-    String prefixedName = name.startsWith("DD_") ? name : "DD_" + name
+    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name
     environmentVariables.set(prefixedName, value)
     rebuildConfig()
   }
 
-  void removeEnvConfig(String name) {
+  void removeEnvConfig(String name, boolean addPrefix = true) {
     checkConfigTransformation()
 
-    String prefixedName = name.startsWith("DD_") ? name : "DD_" + name
+    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name
     environmentVariables.clear(prefixedName)
     rebuildConfig()
   }

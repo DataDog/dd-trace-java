@@ -12,8 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -66,12 +66,12 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static TraceScope before(@Advice.Argument(0) Runnable wrapped) {
+    public static AgentScope before(@Advice.Argument(0) Runnable wrapped) {
       return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), wrapped);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter TraceScope scope) {
+    public static void after(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }
   }

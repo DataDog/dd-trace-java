@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -63,7 +63,7 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean methodEnter(@Advice.This final Object thiz) {
       if (thiz instanceof MakeAsyncHttpRequestStage) {
-        final TraceScope scope = activeScope();
+        final AgentScope scope = activeScope();
         if (scope != null) {
           scope.close();
           return true;
@@ -75,7 +75,7 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(@Advice.Enter final boolean scopeAlreadyClosed) {
       if (!scopeAlreadyClosed) {
-        final TraceScope scope = activeScope();
+        final AgentScope scope = activeScope();
         if (scope != null) {
           scope.close();
         }

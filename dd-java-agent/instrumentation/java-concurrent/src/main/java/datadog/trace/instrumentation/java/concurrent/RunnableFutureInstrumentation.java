@@ -20,9 +20,9 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -133,12 +133,12 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <T> TraceScope activate(@Advice.This RunnableFuture<T> task) {
+    public static <T> AgentScope activate(@Advice.This RunnableFuture<T> task) {
       return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void close(@Advice.Enter TraceScope scope) {
+    public static void close(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }
   }

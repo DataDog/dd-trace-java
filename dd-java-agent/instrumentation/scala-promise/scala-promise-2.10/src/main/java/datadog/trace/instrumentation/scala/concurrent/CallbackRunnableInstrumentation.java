@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
@@ -16,10 +15,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collection;
 import java.util.Collections;
@@ -85,28 +82,13 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <T> TraceScope before(@Advice.This CallbackRunnable<T> task) {
-      ContextStore<CallbackRunnable, State> store =
-          InstrumentationContext.get(CallbackRunnable.class, State.class);
-      AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
-      AgentSpan activeSpan = activeSpan();
-      if (capturedSpan != null && capturedSpan != activeSpan) {
-        // the active span is changed - signal span resume
-        capturedSpan.finishThreadMigration();
-      }
-      return AdviceUtils.startTaskScope(store, task);
+    public static <T> AgentScope before(@Advice.This CallbackRunnable<T> task) {
+      return PromiseHelper.runActivateSpan(
+          InstrumentationContext.get(CallbackRunnable.class, State.class).get(task));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter TraceScope scope) {
-      if (scope instanceof AgentScope) {
-        /*
-        Normally, this would be handled by `endTaskScope(scope)` - but for that to work
-        one needs to 'migrate' continuation and introducing that into the current promise
-        instrumentation is much harder than just working it around here.
-        */
-        ((AgentScope) scope).span().finishWork();
-      }
+    public static void after(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }
   }
@@ -115,20 +97,18 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter
     public static <T> void beforeExecute(
         @Advice.This CallbackRunnable<T> task, @Advice.Argument(value = 0) Try<T> resolved) {
-      // about to enter an ExecutionContext so capture the scope if necessary
-      // (this used to happen automatically when the RunnableInstrumentation
-      // was relied on, and happens anyway if the ExecutionContext is backed
-      // by a wrapping Executor (e.g. FJP, ScheduledThreadPoolExecutor)
+      // About to enter an ExecutionContext so capture the Scope if necessary
       ContextStore<CallbackRunnable, State> contextStore =
           InstrumentationContext.get(CallbackRunnable.class, State.class);
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
-        final AgentSpan span = InstrumentationContext.get(Try.class, AgentSpan.class).get(resolved);
-        State oldState = state;
-        state = PromiseHelper.handleSpan(span, state);
-        if (state != oldState) {
-          contextStore.put(task, state);
-        }
+        state =
+            PromiseHelper.executeCaptureSpan(
+                InstrumentationContext.get(Try.class, AgentSpan.class),
+                resolved,
+                contextStore,
+                task,
+                state);
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {

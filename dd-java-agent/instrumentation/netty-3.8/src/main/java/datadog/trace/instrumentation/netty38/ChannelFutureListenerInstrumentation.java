@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -72,7 +71,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
 
   public static class OperationCompleteAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
-    public static TraceScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
+    public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*
       Idea here is:
        - To return scope only if we have captured it.
@@ -86,7 +85,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
       final ContextStore<Channel, ChannelTraceContext> contextStore =
           InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
-      final TraceScope.Continuation continuation =
+      final AgentScope.Continuation continuation =
           contextStore
               .putIfAbsent(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
               .getConnectionContinuation();
@@ -94,7 +93,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
       if (continuation == null) {
         return null;
       }
-      final TraceScope parentScope = continuation.activate();
+      final AgentScope parentScope = continuation.activate();
 
       final AgentSpan errorSpan = startSpan(NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
       try (final AgentScope scope = activateSpan(errorSpan)) {
@@ -107,7 +106,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void deactivateScope(@Advice.Enter final TraceScope scope) {
+    public static void deactivateScope(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
       }

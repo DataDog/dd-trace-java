@@ -1,7 +1,5 @@
 package datadog.trace.common.metrics;
 
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
-import static datadog.communication.http.OkHttpUtils.buildHttpClient;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD;
@@ -46,14 +44,6 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
-
-  public OkHttpSink(String agentUrl, long timeoutMillis, boolean bufferingEnabled) {
-    this(
-        buildHttpClient(HttpUrl.get(agentUrl), timeoutMillis),
-        agentUrl,
-        V6_METRICS_ENDPOINT,
-        bufferingEnabled);
-  }
 
   public OkHttpSink(OkHttpClient client, String agentUrl, String path, boolean bufferingEnabled) {
     this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled);
