@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class ContinuableScopeManager implements AgentScopeManager {
 
-  private static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
+  static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   final ThreadLocal<ScopeStack> tlsScopeStack =
       new ThreadLocal<ScopeStack>() {
         @Override
@@ -36,10 +36,11 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         }
       };
 
-  private final List<ScopeListener> scopeListeners;
-  private final List<ExtendedScopeListener> extendedScopeListeners;
+  final List<ScopeListener> scopeListeners;
+  final List<ExtendedScopeListener> extendedScopeListeners;
+  final StatsDClient statsDClient;
+
   private final int depthLimit;
-  private final StatsDClient statsDClient;
   private final boolean strictMode;
   private final boolean inheritAsyncPropagation;
 
@@ -117,7 +118,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    *
    * @param continuation {@code null} if a continuation is re-used
    */
-  private ContinuableScope continueSpan(
+  ContinuableScope continueSpan(
       final Continuation continuation, final AgentSpan span, final byte source) {
 
     final ContinuableScope scope;
@@ -139,8 +140,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentSpan activeSpan() {
-    final AgentScope active = scopeStack().top();
-    return active == null ? null : active.span();
+    final ContinuableScope active = scopeStack().top();
+    return active == null ? null : active.span;
   }
 
   /** Attach a listener to scope activation events */
@@ -168,14 +169,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
-  protected ScopeStack scopeStack() {
+  ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
   }
 
   private static class ContinuableScope implements AgentScope {
     private final ContinuableScopeManager scopeManager;
 
-    private final AgentSpan span;
+    final AgentSpan span; // package-private so scopeManager can access it directly
 
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
@@ -386,7 +387,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
 
     /** top - accesses the top of the ScopeStack */
-    final ContinuableScope top() {
+    ContinuableScope top() {
       return stack.peek();
     }
 
@@ -410,23 +411,23 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
 
     /** Pushes a new scope unto the stack */
-    final void push(final ContinuableScope scope) {
+    void push(final ContinuableScope scope) {
       stack.push(scope);
       scope.afterActivated();
     }
 
     /** Fast check to see if the expectedScope is on top the stack */
-    final boolean checkTop(final ContinuableScope expectedScope) {
+    boolean checkTop(final ContinuableScope expectedScope) {
       return expectedScope.equals(stack.peek());
     }
 
     /** Returns the current stack depth */
-    final int depth() {
+    int depth() {
       return stack.size();
     }
 
     // DQH - regrettably needed for pre-existing tests
-    final void clear() {
+    void clear() {
       stack.clear();
     }
   }
