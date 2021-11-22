@@ -384,51 +384,55 @@ public final class ContinuableScopeManager implements AgentScopeManager {
    * cleanup() is called to ensure the invariant
    */
   static final class ScopeStack {
-    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
+    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
-    /** top - accesses the top of the ScopeStack */
+    private ContinuableScope top; // current scope
+
     ContinuableScope top() {
-      return stack.peek();
+      return top;
     }
 
+    /** Removes and closes all scopes up to the nearest live scope */
     void cleanup() {
-      ContinuableScope curScope = stack.peek();
+      ContinuableScope curScope = top;
       boolean changedTop = false;
-      while (curScope != null) {
-        if (curScope.alive()) {
-          if (changedTop) {
-            curScope.afterActivated();
-          }
-          break;
-        }
-
+      while (curScope != null && !curScope.alive()) {
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
-        stack.poll();
         changedTop = true;
-        curScope = stack.peek();
+        curScope = stack.poll();
+      }
+      if (changedTop) {
+        top = curScope;
+        if (curScope != null) {
+          curScope.afterActivated();
+        }
       }
     }
 
-    /** Pushes a new scope unto the stack */
+    /** Marks a new scope as current, pushing the previous onto the stack */
     void push(final ContinuableScope scope) {
-      stack.push(scope);
+      if (top != null) {
+        stack.push(top);
+      }
+      top = scope;
       scope.afterActivated();
     }
 
-    /** Fast check to see if the expectedScope is on top the stack */
+    /** Fast check to see if the expectedScope is on top */
     boolean checkTop(final ContinuableScope expectedScope) {
-      return expectedScope.equals(stack.peek());
+      return expectedScope.equals(top);
     }
 
-    /** Returns the current stack depth */
+    /** Returns the current depth, including the top scope */
     int depth() {
-      return stack.size();
+      return top != null ? 1 + stack.size() : 0;
     }
 
     // DQH - regrettably needed for pre-existing tests
     void clear() {
       stack.clear();
+      top = null;
     }
   }
 
