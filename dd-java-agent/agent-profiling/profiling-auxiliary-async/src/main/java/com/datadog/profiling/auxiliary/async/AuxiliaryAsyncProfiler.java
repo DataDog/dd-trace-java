@@ -257,7 +257,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
-    StringBuilder cmd = new StringBuilder("start,jfr=7,file=").append(file.toAbsolutePath());
+    StringBuilder cmd = new StringBuilder("start,jfr=7");
+    cmd.append(",file=").append(file.toAbsolutePath());
+    cmd.append(",loglevel=").append(getLogLevel());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled.
       cmd.append(",event=")
@@ -300,5 +302,24 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
         configProvider.getInteger(
             ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
             ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
+  }
+
+  private String getLogLevel() {
+    if (log.isTraceEnabled()) {
+      return "trace";
+    }
+    if (log.isDebugEnabled()) {
+      return "debug";
+    }
+    if (log.isInfoEnabled()) {
+      return "info";
+    }
+    if (log.isWarnEnabled()) {
+      return "warn";
+    }
+    if (log.isErrorEnabled()) {
+      return "error";
+    }
+    return "none";
   }
 }

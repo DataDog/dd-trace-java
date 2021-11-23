@@ -8,7 +8,7 @@ apply plugin: 'idea'
 def osName = System.getProperty('os.name', '').toLowerCase()
 // currently, only linux binaries are included
 minimumInstructionCoverage = osName.contains("linux") ? 0.5 : 0
-minimumBranchCoverage = osName.contains("linux") ? 0.5 : 0
+minimumBranchCoverage = osName.contains("linux") ? 0.4 : 0
 
 excludedClassesCoverage += [
   // enums with no additional functionality
