@@ -599,6 +599,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return scopeManager.captureSpan(span, source);
   }
 
+  @Override
+  public void closePrevious(boolean finishSpan) {
+    scopeManager.closePrevious(finishSpan);
+  }
+
+  @Override
+  public AgentScope activateNext(AgentSpan span) {
+    return scopeManager.activateNext(span);
+  }
+
   public TagInterceptor getTagInterceptor() {
     return tagInterceptor;
   }
