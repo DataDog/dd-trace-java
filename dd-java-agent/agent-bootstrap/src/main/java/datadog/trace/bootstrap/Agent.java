@@ -56,6 +56,32 @@ public class Agent {
 
   private static final Logger log;
 
+  private enum AgentFeature {
+    TRACING("dd.tracing.enabled", true),
+    JMXFETCH("dd.jmxfetch.enabled", true),
+    STARTUP_LOGS("dd.trace.startup.logs", true),
+    PROFILING("dd.profiling.enabled", false),
+    APPSEC("dd.appsec.enabled", false),
+    CWS("dd.cws.enabled", false),
+    CIVISIBILITY("dd.civisibility.enabled", false);
+
+    private final String systemProp;
+    private final boolean enabledByDefault;
+
+    AgentFeature(final String systemProp, final boolean enabledByDefault) {
+      this.systemProp = systemProp;
+      this.enabledByDefault = enabledByDefault;
+    }
+
+    public String getSystemProp() {
+      return systemProp;
+    }
+
+    public boolean isEnabledByDefault() {
+      return enabledByDefault;
+    }
+  }
+
   static {
     // We can configure logger here because datadog.trace.agent.AgentBootstrap doesn't touch it.
     configureLogger();
@@ -78,14 +104,35 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
   private static boolean cwsEnabled = false;
+  private static boolean ciVisibilityEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
 
-    jmxFetchEnabled = isJmxFetchEnabled();
-    profilingEnabled = isProfilingEnabled();
-    appSecEnabled = isAppSecEnabled();
-    cwsEnabled = isCwsEnabled();
+    // Retro-compatibility for the old way to configure CI Visibility
+    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
+        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
+      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
+    }
+
+    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
+    if (ciVisibilityEnabled) {
+      // if CI Visibility is enabled, all the other features are disabled by default
+      // unless the user had explicitly enabled them.
+      setSystemPropertyDefault(AgentFeature.TRACING.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
+
+      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
+      setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
+    }
+
+    jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
+    profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
+    appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
+    cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -637,13 +684,13 @@ public class Agent {
 
     if (isDebugMode()) {
       setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "DEBUG");
-    } else if (!isStartupLogsEnabled()) {
+    } else if (!isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
       setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "WARN");
     }
   }
 
   private static void setSystemPropertyDefault(final String property, final String value) {
-    if (System.getProperty(property) == null) {
+    if (System.getProperty(property) == null && ddGetEnv(property) == null) {
       System.setProperty(property, value);
     }
   }
@@ -717,63 +764,21 @@ public class Agent {
     return false;
   }
 
-  /**
-   * Determine if we should log startup info messages according to dd.trace.startup.logs
-   *
-   * @return true if we should
-   */
-  private static boolean isStartupLogsEnabled() {
-    final String startupLogsSysprop = "dd.trace.startup.logs";
-    String startupLogsEnabled = System.getProperty(startupLogsSysprop);
-    if (startupLogsEnabled == null) {
-      startupLogsEnabled = ddGetEnv(startupLogsSysprop);
+  /** @return {@code true} if the agent feature is enabled */
+  private static boolean isFeatureEnabled(AgentFeature feature) {
+    final String featureEnabledSysprop = feature.getSystemProp();
+    String featureEnabled = System.getProperty(featureEnabledSysprop);
+    if (featureEnabled == null) {
+      featureEnabled = ddGetEnv(featureEnabledSysprop);
     }
-    // assume true unless it's explicitly set to "false"
-    return !"false".equalsIgnoreCase(startupLogsEnabled);
-  }
 
-  /** @return {@code true} if JMXFetch is enabled */
-  private static boolean isJmxFetchEnabled() {
-    final String jmxFetchEnabledSysprop = "dd.jmxfetch.enabled";
-    String jmxFetchEnabled = System.getProperty(jmxFetchEnabledSysprop);
-    if (jmxFetchEnabled == null) {
-      jmxFetchEnabled = ddGetEnv(jmxFetchEnabledSysprop);
+    if (feature.isEnabledByDefault()) {
+      // true unless it's explicitly set to "false"
+      return !"false".equalsIgnoreCase(featureEnabled);
+    } else {
+      // false unless it's explicitly set to "true"
+      return "true".equalsIgnoreCase(featureEnabled);
     }
-    // assume true unless it's explicitly set to "false"
-    return !"false".equalsIgnoreCase(jmxFetchEnabled);
-  }
-
-  /** @return {@code true} if profiling is enabled */
-  private static boolean isProfilingEnabled() {
-    final String profilingEnabledSysprop = "dd.profiling.enabled";
-    String profilingEnabled = System.getProperty(profilingEnabledSysprop);
-    if (profilingEnabled == null) {
-      profilingEnabled = ddGetEnv(profilingEnabledSysprop);
-    }
-    // assume false unless it's explicitly set to "true"
-    return "true".equalsIgnoreCase(profilingEnabled);
-  }
-
-  /** @return {@code true} if appsec is enabled */
-  private static boolean isAppSecEnabled() {
-    final String appSecEnabledSysprop = "dd.appsec.enabled";
-    String appSecEnabled = System.getProperty(appSecEnabledSysprop);
-    if (appSecEnabled == null) {
-      appSecEnabled = ddGetEnv(appSecEnabledSysprop);
-    }
-    // assume false unless it's explicitly set to "true"
-    return "true".equalsIgnoreCase(appSecEnabled);
-  }
-
-  /** @return {@code true} if cws is enabled */
-  private static boolean isCwsEnabled() {
-    final String cwsEnabledSysprop = "dd.cws.enabled";
-    String cwsEnabled = System.getProperty(cwsEnabledSysprop);
-    if (cwsEnabled == null) {
-      cwsEnabled = ddGetEnv(cwsEnabledSysprop);
-    }
-    // assume false unless it's explicitly set to "true"
-    return "true".equalsIgnoreCase(cwsEnabled);
   }
 
   /** @return configured JMX start delay in seconds */
