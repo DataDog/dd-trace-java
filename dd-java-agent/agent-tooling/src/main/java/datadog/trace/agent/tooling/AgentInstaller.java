@@ -178,6 +178,9 @@ public class AgentInstaller {
     if (cfg.isAppSecEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
+    if (cfg.isCiVisibilityEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.CIVISIBILITY);
+    }
     return enabledSystems;
   }
 

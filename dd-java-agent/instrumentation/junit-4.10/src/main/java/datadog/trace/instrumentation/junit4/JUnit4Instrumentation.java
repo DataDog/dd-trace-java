@@ -16,7 +16,7 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(Instrumenter.class)
-public class JUnit4Instrumentation extends Instrumenter.Tracing {
+public class JUnit4Instrumentation extends Instrumenter.CiVisibility {
 
   public JUnit4Instrumentation() {
     super("junit", "junit-4");
@@ -46,11 +46,6 @@ public class JUnit4Instrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
         JUnit4Instrumentation.class.getName() + "$JUnit4Advice");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
   }
 
   public static class JUnit4Advice {
