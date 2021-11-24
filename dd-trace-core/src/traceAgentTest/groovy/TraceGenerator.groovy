@@ -50,9 +50,23 @@ class TraceGenerator {
     }
     int metricCount = ThreadLocalRandom.current().nextInt(0, 20)
     for (int i = 0; i < metricCount; ++i) {
-      tags.put("metric." + i, ThreadLocalRandom.current().nextBoolean()
-        ? ThreadLocalRandom.current().nextInt()
-        : ThreadLocalRandom.current().nextDouble())
+      String name = "metric." + i
+      Number metric = null
+      switch (ThreadLocalRandom.current().nextInt(4)) {
+        case 0:
+          metric = ThreadLocalRandom.current().nextInt()
+          break
+        case 1:
+          metric = ThreadLocalRandom.current().nextLong()
+          break
+        case 2:
+          metric = ThreadLocalRandom.current().nextFloat()
+          break
+        case 3:
+          metric = ThreadLocalRandom.current().nextDouble()
+          break
+      }
+      tags.put(name, metric)
     }
     return new PojoSpan(
       "service-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 10),
