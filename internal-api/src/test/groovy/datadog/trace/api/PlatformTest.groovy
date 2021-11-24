@@ -29,6 +29,18 @@ class PlatformTest extends DDSpecification {
     major == javaVersion.major
     minor == javaVersion.minor
     update == javaVersion.update
+    javaVersion.is(major)
+    javaVersion.is(major, minor)
+    javaVersion.is(major, minor, update)
+    javaVersion.isAtLeast(major, minor, update)
+    javaVersion.isBetween(major, minor, update, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE)
+    !javaVersion.isBetween(major, minor, update, major, minor, update)
+    !javaVersion.isBetween(major, minor, update, major - 1, 0, 0)
+    !javaVersion.isBetween(major, minor, update, major, minor -1, 0)
+    !javaVersion.isBetween(major, minor, update, major, minor, update - 1)
+    javaVersion.isBetween(major, minor, update, major + 1, 0, 0)
+    javaVersion.isBetween(major, minor, update, major, minor + 1, 0)
+    javaVersion.isBetween(major, minor, update, major, minor, update + 1)
 
     where:
     version     | major | minor | update
