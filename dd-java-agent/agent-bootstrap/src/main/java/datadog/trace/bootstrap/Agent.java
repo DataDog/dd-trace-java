@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.Platform.isJavaVersionBetween;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -256,7 +257,7 @@ public class Agent {
   }
 
   private static boolean isOracleJDK8() {
-    return !isJavaVersionAtLeast(9)
+    return isJavaVersionBetween(8, 9)
         && System.getProperty("java.vendor").contains("Oracle")
         && !System.getProperty("java.runtime.name").contains("OpenJDK");
   }
