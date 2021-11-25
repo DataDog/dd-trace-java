@@ -13,7 +13,7 @@ public class TracerInstaller {
   /** Register a global tracer if no global tracer is already registered. */
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects) {
-    if (Config.get().isTraceEnabled()) {
+    if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
         installGlobalTracer(
             CoreTracer.builder().sharedCommunicationObjects(sharedCommunicationObjects).build());
