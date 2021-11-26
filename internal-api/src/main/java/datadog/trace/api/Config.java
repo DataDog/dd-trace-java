@@ -74,6 +74,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
@@ -412,6 +413,8 @@ public class Config {
 
   private final boolean appSecEnabled;
   private final String appSecRulesFile;
+  private final int appSecReportMinTimeout;
+  private final int appSecReportMaxTimeout;
 
   private final boolean ciVisibilityEnabled;
 
@@ -857,6 +860,10 @@ public class Config {
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
+
+    // Default AppSec report timeout min=5, max=60
+    appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
+    appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1358,6 +1365,14 @@ public class Config {
 
   public boolean isAppSecEnabled() {
     return appSecEnabled;
+  }
+
+  public int getAppSecReportMinTimeout() {
+    return appSecReportMinTimeout;
+  }
+
+  public int getAppSecReportMaxTimeout() {
+    return appSecReportMaxTimeout;
   }
 
   public boolean isCiVisibilityEnabled() {
