@@ -19,6 +19,10 @@ testSets {
 configurations.all {
   // the version used by axis2 isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.apache.woden', module: 'woden'
+  // shut up about broken xml-api pom relocation
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01'
+  }
 }
 
 dependencies {

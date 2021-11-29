@@ -94,7 +94,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
         }
       })
     tracer.buildSpan("test " + score).start().finish()
-    if (score == 0) {
+    if (score == TestInterceptor.priority) {
       // the interceptor didn't get added, so latch will never be released.
       writer.waitForTraces(1)
     } else {
@@ -102,15 +102,15 @@ class TraceInterceptorTest extends DDCoreSpecification {
     }
 
     expect:
-    tracer.interceptors.size() == Math.abs(score) + 1
-    (called.get()) == (score != 0)
-    (writer == []) == (score != 0)
+    tracer.interceptors.size() == expectedSize
+    (called.get()) == (score != TestInterceptor.priority)
+    (writer == []) == (score != TestInterceptor.priority)
 
     where:
-    score | _
-    -1    | _
-    0     | _ // This conflicts with TestInterceptor, so it won't be added.
-    1     | _
+    score                         | expectedSize| _
+    TestInterceptor.priority-1    |            2| _
+    TestInterceptor.priority      |            1| _ // This conflicts with TestInterceptor, so it won't be added.
+    TestInterceptor.priority+1    |            2| _
   }
 
   def "interceptor can modify a span"() {
