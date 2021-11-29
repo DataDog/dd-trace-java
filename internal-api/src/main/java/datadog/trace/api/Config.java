@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AWS_PROPAGATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -76,6 +77,7 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
@@ -413,6 +415,8 @@ public class Config {
   private final boolean appSecEnabled;
   private final boolean appSecReportingInband;
   private final String appSecRulesFile;
+
+  private final boolean ciVisibilityEnabled;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -858,6 +862,9 @@ public class Config {
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
+
+    ciVisibilityEnabled =
+        configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -1362,6 +1369,10 @@ public class Config {
     return appSecReportingInband;
   }
 
+  public boolean isCiVisibilityEnabled() {
+    return ciVisibilityEnabled;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -1639,7 +1650,7 @@ public class Config {
    * Provide 'global' tags, i.e. tags set everywhere. We have to support old (dd.trace.global.tags)
    * version of this setting if new (dd.tags) version has not been specified.
    */
-  private Map<String, String> getGlobalTags() {
+  public Map<String, String> getGlobalTags() {
     return tags;
   }
 

@@ -13,7 +13,7 @@ import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.Tracing {
+public class TestNGInstrumentation extends Instrumenter.CiVisibility {
 
   public TestNGInstrumentation() {
     super("testng");
@@ -34,11 +34,6 @@ public class TestNGInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {packageName + ".TestNGDecorator", packageName + ".TracingListener"};
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
   }
 
   public static class TestNGAdvice {

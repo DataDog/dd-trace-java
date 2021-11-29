@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,6 +31,15 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   private static final Logger log = LoggerFactory.getLogger(AuxiliaryAsyncProfiler.class);
 
   public static final String TYPE = "async";
+
+  // see https://github.com/DataDog/async-profiler/blob/main/src/memleakTracer.h
+  private static final int MEMLEAK_TABLE_MAX_SIZE = 8192;
+  private static final int memleakMinInterval;
+
+  static {
+    long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
+    memleakMinInterval = maxheap > 0 ? (int) (maxheap / MEMLEAK_TABLE_MAX_SIZE) : -1;
+  }
 
   @AutoService(AuxiliaryImplementation.Provider.class)
   public static final class ImplementerProvider implements AuxiliaryImplementation.Provider {
@@ -247,7 +257,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
-    StringBuilder cmd = new StringBuilder("start,jfr=7,file=").append(file.toAbsolutePath());
+    StringBuilder cmd = new StringBuilder("start,jfr=7");
+    cmd.append(",file=").append(file.toAbsolutePath());
+    cmd.append(",loglevel=").append(getLogLevel());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled.
       cmd.append(",event=")
@@ -285,8 +297,29 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   private int getMemleakInterval() {
-    return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
-        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT);
+    return Math.max(
+        memleakMinInterval,
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
+            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
+  }
+
+  private String getLogLevel() {
+    if (log.isTraceEnabled()) {
+      return "trace";
+    }
+    if (log.isDebugEnabled()) {
+      return "debug";
+    }
+    if (log.isInfoEnabled()) {
+      return "info";
+    }
+    if (log.isWarnEnabled()) {
+      return "warn";
+    }
+    if (log.isErrorEnabled()) {
+      return "error";
+    }
+    return "none";
   }
 }

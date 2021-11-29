@@ -498,8 +498,11 @@ public class MsgPackWriter implements WritableFormatter {
 
   @Override
   public void writeFloat(float value) {
-    buffer.put(FLOAT32);
-    buffer.putFloat(value);
+    // The datadog agent fails to decode FLOAT32 even though the code in read_bytes.go looks like
+    // it will try to decode FLOAT32 just fine. Even if there will be a fix in a future datadog
+    // agent release, we need to be backwards compatible here by sending it as a FLOAT64 instead.
+    buffer.put(FLOAT64);
+    buffer.putDouble(value);
   }
 
   @Override

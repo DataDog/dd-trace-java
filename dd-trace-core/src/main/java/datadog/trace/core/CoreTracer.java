@@ -30,6 +30,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -466,6 +467,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
+
+    if (config.isCiVisibilityEnabled()) {
+      addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+    }
 
     this.instrumentationGateway = instrumentationGateway;
 
