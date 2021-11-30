@@ -3,10 +3,8 @@ package datadog.trace.api.profiling;
 /**
  * A {@linkplain ProfilingListenerHost} registry. Allows retrieving a specific {@linkplain
  * ProfilingListenerHost} instance for the given observable type.
- *
- * @param <T> the observable type
  */
-public final class ProfilingListenerHosts<T extends ObservableType> {
+public final class ProfilingListenerHosts {
   private static final ClassValue<ProfilingListenerHost<ObservableType>> listenersPerType =
       new ClassValue<ProfilingListenerHost<ObservableType>>() {
         @Override

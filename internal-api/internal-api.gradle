@@ -58,6 +58,7 @@ dependencies {
   api project(':dd-trace-api')
   api deps.slf4j
 
+  testImplementation deps.mockito
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")
 }

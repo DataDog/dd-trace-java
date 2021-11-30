@@ -6,10 +6,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * A listener host. Allows registering listeners and firing 'on-data' events
  *
- * @param <T> the observable type
+ * @param <Type> the observable type
  */
-public final class ProfilingListenerHost<T extends ObservableType> {
-  private final Collection<ProfilingListener<T>> listeners = new ConcurrentLinkedQueue<>();
+public final class ProfilingListenerHost<Type extends ObservableType> {
+  private final Collection<ProfilingListener<Type>> listeners = new ConcurrentLinkedQueue<>();
 
   ProfilingListenerHost() {}
 
@@ -18,8 +18,8 @@ public final class ProfilingListenerHost<T extends ObservableType> {
    *
    * @param data the observed data
    */
-  public void fireOnData(T data) {
-    for (ProfilingListener<T> listener : listeners) {
+  public void fireOnData(Type data) {
+    for (ProfilingListener<Type> listener : listeners) {
       listener.onData(data);
     }
   }
@@ -29,7 +29,7 @@ public final class ProfilingListenerHost<T extends ObservableType> {
    *
    * @param listener listener instance
    */
-  public void addListener(ProfilingListener<T> listener) {
+  public void addListener(ProfilingListener<Type> listener) {
     listeners.add(listener);
   }
 
@@ -38,7 +38,7 @@ public final class ProfilingListenerHost<T extends ObservableType> {
    *
    * @param listener listener instance
    */
-  public void removeListener(ProfilingListener<T> listener) {
+  public void removeListener(ProfilingListener<Type> listener) {
     listeners.remove(listener);
   }
 }

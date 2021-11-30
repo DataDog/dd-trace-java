@@ -3,8 +3,8 @@ package datadog.trace.api.profiling;
 /**
  * A simple generified listener/observer type
  *
- * @param <Observable> the observed data type
+ * @param <Type> the observed data type
  */
-public interface ProfilingListener<Observable> {
-  void onData(Observable observable);
+public interface ProfilingListener<Type> {
+  void onData(Type observable);
 }
