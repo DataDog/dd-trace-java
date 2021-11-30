@@ -47,7 +47,7 @@ class ReportServiceImplTests extends DDSpecification {
     testee.reportEvent(event)
 
     then:
-    1 * scheduler.scheduleAtFixedRate(_, testee, 5, 30, TimeUnit.SECONDS) >>
+    1 * scheduler.scheduleAtFixedRate(_, testee, 5, 60, TimeUnit.SECONDS) >>
       new AgentTaskScheduler.Scheduled(new Object())
     1 * api.sendIntakeBatch(
       _ as IntakeBatch,
@@ -89,7 +89,7 @@ class ReportServiceImplTests extends DDSpecification {
     testee.reportEvent(event)
 
     then:
-    1 * scheduler.scheduleAtFixedRate(_, { it.is(testee) }, 5, 30, TimeUnit.SECONDS) >>
+    1 * scheduler.scheduleAtFixedRate(_, { it.is(testee) }, 5, 60, TimeUnit.SECONDS) >>
     { task = it[0]; scheduled }
     0 * api._(*_)
 
