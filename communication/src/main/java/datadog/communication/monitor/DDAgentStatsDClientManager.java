@@ -40,7 +40,11 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
 
   @Override
   public StatsDClient statsDClient(
-      final String host, final Integer port, final String namespace, final String[] constantTags) {
+      final String host,
+      final Integer port,
+      final String namedPipe,
+      final String namespace,
+      final String[] constantTags) {
     Function<String, String> nameMapping = Functions.<String>zero();
     Function<String[], String[]> tagMapping = Functions.<String[]>zero();
 
@@ -55,15 +59,16 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     if (USE_LOGGING_CLIENT) {
       return new LoggingStatsDClient(nameMapping, tagMapping);
     } else {
-      return new DDAgentStatsDClient(getConnection(host, port), nameMapping, tagMapping);
+      return new DDAgentStatsDClient(getConnection(host, port, namedPipe), nameMapping, tagMapping);
     }
   }
 
-  private DDAgentStatsDConnection getConnection(final String host, final Integer port) {
-    String connectionKey = getConnectionKey(host, port);
+  private DDAgentStatsDConnection getConnection(
+      final String host, final Integer port, final String namedPipe) {
+    String connectionKey = getConnectionKey(host, port, namedPipe);
     DDAgentStatsDConnection connection = connectionPool.get(connectionKey);
     if (null == connection) {
-      DDAgentStatsDConnection newConnection = new DDAgentStatsDConnection(host, port);
+      DDAgentStatsDConnection newConnection = new DDAgentStatsDConnection(host, port, namedPipe);
       connection = connectionPool.putIfAbsent(connectionKey, newConnection);
       if (null == connection) {
         connection = newConnection;
@@ -72,7 +77,11 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     return connection;
   }
 
-  private static String getConnectionKey(final String host, final Integer port) {
+  private static String getConnectionKey(
+      final String host, final Integer port, final String namedPipe) {
+    if (namedPipe != null) {
+      return namedPipe;
+    }
     return (null != host ? host : "?") + ":" + (null != port ? port : "?");
   }
 

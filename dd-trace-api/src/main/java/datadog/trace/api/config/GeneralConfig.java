@@ -30,6 +30,7 @@ public final class GeneralConfig {
   public static final String DOGSTATSD_PORT = "dogstatsd.port";
   public static final String DOGSTATSD_PATH = "dogstatsd.path";
   public static final String DOGSTATSD_ARGS = "dogstatsd.args";
+  public static final String DOGSTATSD_NAMED_PIPE = "dogstatsd.pipe.name";
 
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
   public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
