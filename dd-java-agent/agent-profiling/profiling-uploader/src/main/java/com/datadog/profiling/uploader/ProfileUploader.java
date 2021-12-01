@@ -23,6 +23,7 @@ import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.datadog.profiling.uploader.util.PidHelper;
 import datadog.common.container.ContainerInfo;
+import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
@@ -176,6 +177,8 @@ public final class ProfileUploader {
     String apmSocketPath = discoverApmSocket(config);
     if (apmSocketPath != null) {
       clientBuilder.socketFactory(new UnixDomainSocketFactory(new File(apmSocketPath)));
+    } else if (config.getAgentNamedPipe() != null) {
+      clientBuilder.socketFactory(new NamedPipeSocketFactory(config.getAgentNamedPipe()));
     }
 
     if (url.startsWith("http://")) {
