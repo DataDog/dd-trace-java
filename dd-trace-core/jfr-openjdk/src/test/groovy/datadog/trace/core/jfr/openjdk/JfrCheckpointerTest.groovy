@@ -13,7 +13,8 @@ class JfrCheckpointerTest extends DDSpecification {
     setup:
     AdaptiveSampler sampler = stubbedSampler(sampled)
 
-    JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(sampler, ConfigProvider.getInstance()))
+    ConfigProvider cfgProvider = ConfigProvider.getInstance()
+    JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(sampler, JFRCheckpointer.getSamplerConfiguration(cfgProvider), cfgProvider))
     checkpointer.emitCheckpoint(_, _) >> {}
     checkpointer.dropCheckpoint() >> {}
 
