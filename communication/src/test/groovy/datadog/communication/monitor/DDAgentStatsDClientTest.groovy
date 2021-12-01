@@ -136,7 +136,7 @@ class DDAgentStatsDClientTest extends DDSpecification {
     cleanup:
     server.close()
   }
-  
+
 
   private static class StatsDServer extends Thread {
     private final DatagramSocket socket
