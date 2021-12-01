@@ -2,10 +2,10 @@ package datadog.trace.api.profiling
 
 import datadog.trace.test.util.DDSpecification
 
-class ProfilingListenerHostTest extends DDSpecification {
+class ProfilingListenersTest extends DDSpecification {
   def "Verify interactions"() {
     setup:
-    def instance = new ProfilingListenerHost<>()
+    def instance = new ProfilingListeners<>()
     def listener = Mock(ProfilingListener)
     def snapshot = Mock(ProfilingSnapshot)
     when:

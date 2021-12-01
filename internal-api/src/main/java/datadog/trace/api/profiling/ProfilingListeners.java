@@ -8,10 +8,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @param <Type> the observable type
  */
-public final class ProfilingListenerHost<Type extends ObservableType> {
+public final class ProfilingListeners<Type extends ObservableType> {
   private final Collection<ProfilingListener<Type>> listeners = new ConcurrentLinkedQueue<>();
 
-  ProfilingListenerHost() {}
+  ProfilingListeners() {}
 
   /**
    * Notify all listeners about the data

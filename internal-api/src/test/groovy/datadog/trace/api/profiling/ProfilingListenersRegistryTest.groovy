@@ -2,16 +2,16 @@ package datadog.trace.api.profiling
 
 import datadog.trace.test.util.DDSpecification
 
-class ProfilingListenerHostsTest extends DDSpecification {
+class ProfilingListenersRegistryTest extends DDSpecification {
   static class TypeA implements ObservableType {}
 
   static class TypeB implements ObservableType {}
 
   def "Test host registry"() {
     when:
-    def hostA = ProfilingListenerHosts.getHost(ProfilingListenerHostsTest.TypeA)
-    def hostA1 = ProfilingListenerHosts.getHost(ProfilingListenerHostsTest.TypeA)
-    def hostB = ProfilingListenerHosts.getHost(ProfilingListenerHostsTest.TypeB)
+    def hostA = ProfilingListenersRegistry.getHost(ProfilingListenersRegistryTest.TypeA)
+    def hostA1 = ProfilingListenersRegistry.getHost(ProfilingListenersRegistryTest.TypeA)
+    def hostB = ProfilingListenersRegistry.getHost(ProfilingListenersRegistryTest.TypeB)
 
     then:
     hostA != null

@@ -5,7 +5,7 @@ import com.datadog.profiling.auxiliary.AuxiliaryRecordingData;
 import com.datadog.profiling.auxiliary.ProfilingMode;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
-import datadog.trace.api.profiling.ProfilingListenerHosts;
+import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Duration;
 import java.time.Instant;
@@ -132,7 +132,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
                 start, snapshot.getStopTime(), openJdkData, auxiliaryRecording.snapshot(start))
             : openJdkData;
 
-    ProfilingListenerHosts.getHost(ProfilingSnapshot.class).fireOnData(ret);
+    ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(ret);
     return ret;
   }
 
