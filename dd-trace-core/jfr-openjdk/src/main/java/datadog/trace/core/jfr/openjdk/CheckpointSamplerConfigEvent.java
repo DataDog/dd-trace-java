@@ -29,11 +29,19 @@ public class CheckpointSamplerConfigEvent extends Event {
   @Label("budgetLookback")
   private final int budgetLookback;
 
+  @Label("sampleLimit")
+  private final int sampleLimit;
+
   public CheckpointSamplerConfigEvent(
-      long samplerWindow, int sammplesPerWindow, int averageLookback, int budgetLookback) {
+      long samplerWindow,
+      int sammplesPerWindow,
+      int averageLookback,
+      int budgetLookback,
+      int sampleLimit) {
     this.samplerWindow = samplerWindow;
     this.sammplesPerWindow = sammplesPerWindow;
     this.averageLookback = averageLookback;
     this.budgetLookback = budgetLookback;
+    this.sampleLimit = sampleLimit;
   }
 }

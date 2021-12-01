@@ -5,6 +5,8 @@ import com.datadog.profiling.auxiliary.AuxiliaryRecordingData;
 import com.datadog.profiling.auxiliary.ProfilingMode;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
+import datadog.trace.api.profiling.ProfilingListenersRegistry;
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -124,10 +126,14 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     // overlaps in the data.
     OpenJdkRecordingData openJdkData =
         new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime());
-    return auxiliaryRecording != null
-        ? new AuxiliaryRecordingData(
-            start, snapshot.getStopTime(), openJdkData, auxiliaryRecording.snapshot(start))
-        : openJdkData;
+    RecordingData ret =
+        auxiliaryRecording != null
+            ? new AuxiliaryRecordingData(
+                start, snapshot.getStopTime(), openJdkData, auxiliaryRecording.snapshot(start))
+            : openJdkData;
+
+    ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(ret);
+    return ret;
   }
 
   @Override

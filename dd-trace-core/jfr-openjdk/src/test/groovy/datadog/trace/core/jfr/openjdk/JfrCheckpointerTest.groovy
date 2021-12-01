@@ -13,7 +13,8 @@ class JfrCheckpointerTest extends DDSpecification {
     setup:
     AdaptiveSampler sampler = stubbedSampler(sampled)
 
-    JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(sampler, ConfigProvider.getInstance()))
+    ConfigProvider cfgProvider = ConfigProvider.getInstance()
+    JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(sampler, JFRCheckpointer.getSamplerConfiguration(cfgProvider), cfgProvider))
     checkpointer.emitCheckpoint(_, _) >> {}
     checkpointer.dropCheckpoint() >> {}
 
@@ -35,6 +36,32 @@ class JfrCheckpointerTest extends DDSpecification {
     true         | false   | 1           | 0           | 0
     false        | true    | 0           | 0           | 0
     false        | false   | 0           | 0           | 0
+  }
+
+  def "test sampler limit"() {
+    setup:
+    // setup sampler with hard limit of 5 samples
+    Properties props = new Properties()
+    props.setProperty(ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT, "5")
+    // set the rate limit high enough not to mess with the hard limit
+    // can not just disable the sampling by setting this to -1 - it would disable also the hard limit checks
+    props.setProperty(ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT, String.valueOf(Integer.MAX_VALUE))
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props)
+    JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(configProvider))
+    checkpointer.emitCheckpoint(_, _) >> {}
+    checkpointer.dropCheckpoint() >> {}
+
+    AgentSpan span = mockSpan(true)
+
+    when:
+    // generate more checkpoints than the hard limit
+    for (int i = 0; i < 10; i++) {
+      checkpointer.checkpoint(span, 0)
+    }
+
+    then:
+    5 * checkpointer.emitCheckpoint(span, 0)
+    5 * checkpointer.dropCheckpoint()
   }
 
   def "test sampler configuration"() {
