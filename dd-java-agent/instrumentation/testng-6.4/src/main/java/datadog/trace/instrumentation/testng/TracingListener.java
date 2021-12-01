@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.testng.TestNGDecorator.DECORATE;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
@@ -46,7 +45,7 @@ public class TracingListener implements ITestListener {
       return;
     }
 
-    final TraceScope scope = AgentTracer.activeScope();
+    final AgentScope scope = AgentTracer.activeScope();
     if (scope != null) {
       scope.close();
     }
@@ -63,7 +62,7 @@ public class TracingListener implements ITestListener {
       return;
     }
 
-    final TraceScope scope = AgentTracer.activeScope();
+    final AgentScope scope = AgentTracer.activeScope();
     if (scope != null) {
       scope.close();
     }
@@ -80,7 +79,7 @@ public class TracingListener implements ITestListener {
       return;
     }
 
-    final TraceScope scope = AgentTracer.activeScope();
+    final AgentScope scope = AgentTracer.activeScope();
     if (scope != null) {
       scope.close();
     }

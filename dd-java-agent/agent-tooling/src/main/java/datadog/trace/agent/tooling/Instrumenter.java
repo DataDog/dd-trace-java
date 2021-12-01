@@ -59,7 +59,8 @@ public interface Instrumenter {
   enum TargetSystem {
     TRACING,
     PROFILING,
-    APPSEC
+    APPSEC,
+    CIVISIBILITY
   }
 
   /**
@@ -412,6 +413,18 @@ public interface Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.APPSEC);
+    }
+  }
+
+  abstract class CiVisibility extends Default {
+
+    public CiVisibility(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.CIVISIBILITY);
     }
   }
 

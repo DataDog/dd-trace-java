@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AWS_PROPAGATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -74,12 +75,16 @@ import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PATH;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
@@ -141,6 +146,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AWS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
@@ -185,6 +191,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
+import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
@@ -206,6 +213,8 @@ import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
@@ -241,6 +250,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
@@ -301,6 +311,7 @@ public class Config {
   private final String agentHost;
   private final int agentPort;
   private final String agentUnixDomainSocket;
+  private final String agentNamedPipe;
   private final int agentTimeout;
   private final Set<String> noProxyHosts;
   private final boolean prioritySamplingEnabled;
@@ -402,6 +413,8 @@ public class Config {
   private final boolean appSecEnabled;
   private final String appSecRulesFile;
 
+  private final boolean ciVisibilityEnabled;
+
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
 
@@ -448,11 +461,18 @@ public class Config {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
 
+  private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
+
+  private final boolean azureAppServices;
+  private final String traceAgentPath;
+  private final List<String> traceAgentArgs;
+  private final String dogStatsDPath;
+  private final List<String> dogStatsDArgs;
 
   private String env;
   private String version;
@@ -576,10 +596,13 @@ public class Config {
 
     agentUnixDomainSocket = unixSocketFromEnvironment;
 
+    agentNamedPipe = configProvider.getString(AGENT_NAMED_PIPE);
+
     agentConfiguredUsingDefault =
         agentHostFromEnvironment == null
             && agentPortFromEnvironment < 0
-            && unixSocketFromEnvironment == null;
+            && unixSocketFromEnvironment == null
+            && agentNamedPipe == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -835,6 +858,9 @@ public class Config {
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
 
+    ciVisibilityEnabled =
+        configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
+
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
 
@@ -878,6 +904,8 @@ public class Config {
     rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
+    grpcIgnoredInboundMethods =
+        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_INBOUND_METHODS));
     grpcIgnoredOutboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
     grpcServerTrimPackageResource =
@@ -907,6 +935,27 @@ public class Config {
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
+
+    azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
+    traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
+    String traceAgentArgsString = configProvider.getString(TRACE_AGENT_ARGS);
+    if (traceAgentArgsString == null) {
+      traceAgentArgs = Collections.emptyList();
+    } else {
+      traceAgentArgs =
+          Collections.unmodifiableList(
+              new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(traceAgentArgsString)));
+    }
+
+    dogStatsDPath = configProvider.getString(DOGSTATSD_PATH);
+    String dogStatsDArgsString = configProvider.getString(DOGSTATSD_ARGS);
+    if (dogStatsDArgsString == null) {
+      dogStatsDArgs = Collections.emptyList();
+    } else {
+      dogStatsDArgs =
+          Collections.unmodifiableList(
+              new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(dogStatsDArgsString)));
+    }
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -977,6 +1026,10 @@ public class Config {
 
   public String getAgentUnixDomainSocket() {
     return agentUnixDomainSocket;
+  }
+
+  public String getAgentNamedPipe() {
+    return agentNamedPipe;
   }
 
   public int getAgentTimeout() {
@@ -1307,6 +1360,10 @@ public class Config {
     return appSecEnabled;
   }
 
+  public boolean isCiVisibilityEnabled() {
+    return ciVisibilityEnabled;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -1407,6 +1464,26 @@ public class Config {
     return cwsTlsRefresh;
   }
 
+  public boolean isAzureAppServices() {
+    return azureAppServices;
+  }
+
+  public String getTraceAgentPath() {
+    return traceAgentPath;
+  }
+
+  public List<String> getTraceAgentArgs() {
+    return traceAgentArgs;
+  }
+
+  public String getDogStatsDPath() {
+    return dogStatsDPath;
+  }
+
+  public List<String> getDogStatsDArgs() {
+    return dogStatsDArgs;
+  }
+
   public String getConfigFile() {
     return configFile;
   }
@@ -1429,6 +1506,10 @@ public class Config {
 
   public String getJdbcConnectionClassName() {
     return jdbcConnectionClassName;
+  }
+
+  public Set<String> getGrpcIgnoredInboundMethods() {
+    return grpcIgnoredInboundMethods;
   }
 
   public Set<String> getGrpcIgnoredOutboundMethods() {
@@ -1456,6 +1537,10 @@ public class Config {
     if (appSecEnabled) {
       result.put("_dd.appsec.enabled", 1);
       result.put("_dd.runtime_family", "jvm");
+    }
+
+    if (azureAppServices) {
+      result.putAll(getAzureAppServicesTags());
     }
 
     return Collections.unmodifiableMap(result);
@@ -1556,7 +1641,7 @@ public class Config {
    * Provide 'global' tags, i.e. tags set everywhere. We have to support old (dd.trace.global.tags)
    * version of this setting if new (dd.tags) version has not been specified.
    */
-  private Map<String, String> getGlobalTags() {
+  public Map<String, String> getGlobalTags() {
     return tags;
   }
 
@@ -1571,6 +1656,97 @@ public class Config {
    */
   private Map<String, String> getRuntimeTags() {
     return Collections.singletonMap(RUNTIME_ID_TAG, runtimeId);
+  }
+
+  private Map<String, String> getAzureAppServicesTags() {
+    // These variable names and derivations are copied from the dotnet tracer
+    // See
+    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/PlatformHelpers/AzureAppServices.cs
+    // and
+    // https://github.com/DataDog/dd-trace-dotnet/blob/master/tracer/src/Datadog.Trace/TraceContext.cs#L207
+    Map<String, String> aasTags = new HashMap<>();
+
+    /// The site name of the site instance in Azure where the traced application is running.
+    String siteName = System.getenv("WEBSITE_SITE_NAME");
+    if (siteName != null) {
+      aasTags.put("aas.site.name", siteName);
+    }
+
+    // The kind of application instance running in Azure.
+    // Possible values: app, api, mobileapp, app_linux, app_linux_container, functionapp,
+    // functionapp_linux, functionapp_linux_container
+
+    // The type of application instance running in Azure.
+    // Possible values: app, function
+    if (System.getenv("FUNCTIONS_WORKER_RUNTIME") != null
+        || System.getenv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
+      aasTags.put("aas.site.kind", "functionapp");
+      aasTags.put("aas.site.type", "function");
+    } else {
+      aasTags.put("aas.site.kind", "app");
+      aasTags.put("aas.site.type", "app");
+    }
+
+    //  The resource group of the site instance in Azure App Services
+    String resourceGroup = System.getenv("WEBSITE_RESOURCE_GROUP");
+    if (resourceGroup != null) {
+      aasTags.put("aas.resource.group", resourceGroup);
+    }
+
+    // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
+    // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
+    String websiteOwner = System.getenv("WEBSITE_OWNER_NAME");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
+
+    // The subscription ID of the site instance in Azure App Services
+    String subscriptionId = null;
+    if (plusIndex > 0) {
+      subscriptionId = websiteOwner.substring(0, plusIndex);
+      aasTags.put("aas.subscription.id", subscriptionId);
+    }
+
+    if (subscriptionId != null && siteName != null && resourceGroup != null) {
+      // The resource ID of the site instance in Azure App Services
+      String resourceId =
+          "/subscriptions/"
+              + subscriptionId
+              + "/resourcegroups/"
+              + resourceGroup
+              + "/providers/microsoft.web/sites/"
+              + siteName;
+      resourceId = resourceId.toLowerCase();
+      aasTags.put("aas.resource.id", resourceId);
+    } else {
+      log.warn(
+          "Unable to generate resource id subscription id: {}, site name: {}, resource group {}",
+          subscriptionId,
+          siteName,
+          resourceGroup);
+    }
+
+    // The instance ID in Azure
+    String instanceId = System.getenv("WEBSITE_INSTANCE_ID");
+    instanceId = instanceId == null ? "unknown" : instanceId;
+    aasTags.put("aas.environment.instance_id", instanceId);
+
+    // The instance name in Azure
+    String instanceName = System.getenv("COMPUTERNAME");
+    instanceName = instanceName == null ? "unknown" : instanceName;
+    aasTags.put("aas.environment.instance_name", instanceName);
+
+    // The operating system in Azure
+    String operatingSystem = System.getenv("WEBSITE_OS");
+    operatingSystem = operatingSystem == null ? "unknown" : operatingSystem;
+    aasTags.put("aas.environment.os", operatingSystem);
+
+    // The version of the extension installed
+    String siteExtensionVersion = System.getenv("DD_AAS_JAVA_EXTENSION_VERSION");
+    siteExtensionVersion = siteExtensionVersion == null ? "unknown" : siteExtensionVersion;
+    aasTags.put("aas.environment.extension_version", siteExtensionVersion);
+
+    aasTags.put("aas.environment.runtime", System.getProperty("java.vm.name", "unknown"));
+
+    return aasTags;
   }
 
   public String getFinalProfilingUrl() {
@@ -2159,6 +2335,8 @@ public class Config {
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
         + '\''
+        + ", grpcIgnoredInboundMethods="
+        + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
         + grpcIgnoredOutboundMethods
         + ", configProvider="

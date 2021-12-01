@@ -18,7 +18,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -71,9 +70,9 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
         Message message = (Message) data;
         State state = InstrumentationContext.get(Message.class, State.class).get(message);
         if (null != state) {
-          TraceScope.Continuation continuation = state.getAndResetContinuation();
+          AgentScope.Continuation continuation = state.getAndResetContinuation();
           if (null != continuation) {
-            try (TraceScope scope = continuation.activate()) {
+            try (AgentScope scope = continuation.activate()) {
               AgentSpan span = startSpan(AMQP_CONSUME);
               span.setMeasured(true);
               DECORATE.afterStart(span);

@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.reactor.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
@@ -32,21 +32,21 @@ public class TracingSubscriber<T> implements CoreSubscriber<T> {
 
   @Override
   public void onNext(final T o) {
-    try (TraceScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateSpan(span)) {
       subscriber.onNext(o);
     }
   }
 
   @Override
   public void onError(final Throwable throwable) {
-    try (TraceScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateSpan(span)) {
       subscriber.onError(throwable);
     }
   }
 
   @Override
   public void onComplete() {
-    try (TraceScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateSpan(span)) {
       subscriber.onComplete();
     }
   }

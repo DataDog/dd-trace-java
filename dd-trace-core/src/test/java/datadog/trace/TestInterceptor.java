@@ -7,7 +7,8 @@ import java.util.Collection;
 
 @AutoService(TraceInterceptor.class)
 public class TestInterceptor implements TraceInterceptor {
-  public volatile int priority = 0;
+  // We set a high priority to avoid competing with real TraceInterceptors.
+  public static volatile int priority = 999;
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(

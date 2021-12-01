@@ -51,11 +51,15 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
   public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
   public static final String PROFILING_ASYNC_ALLOC_INTERVAL = "profiling.async.alloc.interval";
-  public static final String PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = "256k";
+  public static final int PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
   public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
+  public static final String PROFILING_ASYNC_CPU_MODE = "profiling.async.cpu.mode";
+  public static final String PROFILING_ASYNC_CPU_MODE_DEFAULT = "itimer";
+  public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
+  public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
-  public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = "256k";
+  public static final int PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = 256 * 1024;
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
@@ -67,9 +71,16 @@ public final class ProfilingConfig {
   public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
       "profiling.checkpoints.sampler.sliding-window.ms";
   public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
+  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT =
+      "profiling.checkpoints.sampler.limit";
+  public static final int PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT = 500_000;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
+
+  public static final String PROFILING_JFR_REPOSITORY_MAXSIZE = "profiling.jfr.repository.maxsize";
+  public static final int PROFILING_JFR_REPOSITORY_MAXSIZE_DEFAULT =
+      64 * 1024 * 1024; // 64MB default
 
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";

@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +76,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   volatile Boolean emittingCheckpoints = null;
 
   private final boolean withCheckpoints;
+
+  private volatile EndpointTracker endpointTracker;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -241,6 +244,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public DDSpan getLocalRootSpan() {
     return context.getTrace().getRootSpan();
+  }
+
+  /**
+   * Checks whether the span is also the local root span
+   *
+   * @return {@literal true} if this span is the same as {@linkplain #getLocalRootSpan()}
+   */
+  public boolean isLocalRootSpan() {
+    return getLocalRootSpan().equals(this);
   }
 
   @Override
@@ -623,6 +635,43 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public boolean isTopLevel() {
     return context.isTopLevel();
+  }
+
+  /**
+   * Retrieve the {@linkplain EndpointTracker} instance associated with the corresponding local root
+   * span
+   *
+   * @return an {@linkplain EndpointTracker} instance or {@literal null}
+   */
+  @Nullable
+  public EndpointTracker getEndpointTracker() {
+    DDSpan localRootSpan = getLocalRootSpan();
+    if (localRootSpan == null) {
+      return null;
+    }
+    if (this.equals(localRootSpan)) {
+      return endpointTracker;
+    }
+    return localRootSpan.endpointTracker;
+  }
+
+  /**
+   * Attach an end-point tracker to the corresponding local root span. When this method is called
+   * multiple times the last invocation will 'win'
+   *
+   * @param endpointTracker the end-point tracker instance
+   */
+  public void setEndpointTracker(@Nonnull EndpointTracker endpointTracker) {
+    DDSpan localRootSpan = getLocalRootSpan();
+    if (localRootSpan == null) {
+      log.warn("Span {} has no associated local root span", this);
+      return;
+    }
+    if (this.equals(localRootSpan)) {
+      this.endpointTracker = endpointTracker;
+    } else {
+      localRootSpan.endpointTracker = endpointTracker;
+    }
   }
 
   public Map<String, String> getBaggage() {

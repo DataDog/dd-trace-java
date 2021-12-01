@@ -14,8 +14,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.integration.junit.enabled", "true")
-    injectSysConfig("dd.integration.testng.enabled", "true")
+    injectSysConfig("dd.civisibility.enabled", "true")
   }
 
   void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null) {

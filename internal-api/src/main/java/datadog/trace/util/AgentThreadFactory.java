@@ -32,7 +32,9 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
 
-    CWS_TLS("dd-cws-tls");
+    CWS_TLS("dd-cws-tls"),
+
+    PROCESS_SUPERVISOR("dd-process-supervisor");
 
     public final String threadName;
 

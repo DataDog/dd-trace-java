@@ -35,8 +35,4 @@ public class OtelScope implements Scope, TraceScope {
   public void setAsyncPropagation(final boolean value) {
     delegate.setAsyncPropagation(value);
   }
-
-  public AgentScope getDelegate() {
-    return delegate;
-  }
 }

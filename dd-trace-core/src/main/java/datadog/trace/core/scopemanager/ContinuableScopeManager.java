@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.context.TraceScope;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -26,9 +25,9 @@ import org.slf4j.LoggerFactory;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-public class ContinuableScopeManager implements AgentScopeManager {
+public final class ContinuableScopeManager implements AgentScopeManager {
 
-  private static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
+  static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   final ThreadLocal<ScopeStack> tlsScopeStack =
       new ThreadLocal<ScopeStack>() {
         @Override
@@ -37,10 +36,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       };
 
-  private final List<ScopeListener> scopeListeners;
-  private final List<ExtendedScopeListener> extendedScopeListeners;
+  final List<ScopeListener> scopeListeners;
+  final List<ExtendedScopeListener> extendedScopeListeners;
+  final StatsDClient statsDClient;
+
   private final int depthLimit;
-  private final StatsDClient statsDClient;
   private final boolean strictMode;
   private final boolean inheritAsyncPropagation;
 
@@ -70,7 +70,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
-  public TraceScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
     Continuation continuation = new SingleContinuation(this, span, source.id());
     continuation.register();
     return continuation;
@@ -96,51 +96,52 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
 
-    return handleSpan(
-        inheritAsyncPropagation ? active : null,
-        null,
-        span,
-        source,
-        overrideAsyncPropagation,
-        isAsyncPropagating);
-  }
-
-  private ContinuableScope handleSpan(
-      final Continuation continuation, final AgentSpan span, final byte source) {
-    ContinuableScope active = inheritAsyncPropagation ? scopeStack().top() : null;
-    return handleSpan(active, continuation, span, source, true, true);
-  }
-
-  private ContinuableScope handleSpan(
-      final ContinuableScope active,
-      final Continuation continuation,
-      final AgentSpan span,
-      final byte source,
-      final boolean overrideAsyncPropagation,
-      final boolean isAsyncPropagating) {
     assert span != null;
 
     // Inherit the async propagation from the active scope unless the value is overridden
     boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
-            : active == null ? DEFAULT_ASYNC_PROPAGATING : active.isAsyncPropagating();
-    final ContinuableScope scope =
-        new ContinuableScope(this, continuation, span, source, asyncPropagation);
+            : inheritAsyncPropagation && active != null
+                ? active.isAsyncPropagating()
+                : DEFAULT_ASYNC_PROPAGATING;
+
+    final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
+
+    scopeStack.push(scope);
+
+    return scope;
+  }
+
+  /**
+   * Creates a new scope when a {@link Continuation} is activated.
+   *
+   * @param continuation {@code null} if a continuation is re-used
+   */
+  ContinuableScope continueSpan(
+      final Continuation continuation, final AgentSpan span, final byte source) {
+
+    final ContinuableScope scope;
+    if (continuation != null) {
+      scope = new ContinuingScope(this, span, source, true, continuation);
+    } else {
+      scope = new ContinuableScope(this, span, source, true);
+    }
+
     scopeStack().push(scope);
 
     return scope;
   }
 
   @Override
-  public TraceScope active() {
+  public AgentScope active() {
     return scopeStack().top();
   }
 
   @Override
   public AgentSpan activeSpan() {
-    final AgentScope active = scopeStack().top();
-    return active == null ? null : active.span();
+    final ContinuableScope active = scopeStack().top();
+    return active == null ? null : active.span;
   }
 
   /** Attach a listener to scope activation events */
@@ -168,15 +169,15 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
-  protected ScopeStack scopeStack() {
+  ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
   }
 
-  private static final class ContinuableScope implements AgentScope {
+  private static class ContinuableScope implements AgentScope {
     private final ContinuableScopeManager scopeManager;
 
-    /** Continuation that created this scope. May be null. */
-    private final ContinuableScopeManager.Continuation continuation;
+    final AgentSpan span; // package-private so scopeManager can access it directly
+
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
 
@@ -184,23 +185,19 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     private short referenceCount = 1;
 
-    private final AgentSpan span;
-
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
-        final ContinuableScopeManager.Continuation continuation,
         final AgentSpan span,
         final byte source,
         final boolean isAsyncPropagating) {
-      this.isAsyncPropagating = isAsyncPropagating;
-      this.span = span;
       this.scopeManager = scopeManager;
-      this.continuation = continuation;
+      this.span = span;
       this.flags = source;
+      this.isAsyncPropagating = isAsyncPropagating;
     }
 
     @Override
-    public void close() {
+    public final void close() {
       final ScopeStack scopeStack = scopeManager.scopeStack();
 
       final boolean onTop = scopeStack.checkTop(this);
@@ -222,15 +219,13 @@ public class ContinuableScopeManager implements AgentScopeManager {
       }
 
       final boolean alive = decrementReferences();
-      if (alive) {
-        return;
+      if (!alive) {
+        cleanup(scopeStack);
       }
+    }
 
+    void cleanup(final ScopeStack scopeStack) {
       scopeStack.cleanup();
-
-      if (null != continuation) {
-        continuation.cancelFromContinuedScopeClose();
-      }
     }
 
     /*
@@ -277,23 +272,23 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
-    public boolean isAsyncPropagating() {
+    public final boolean isAsyncPropagating() {
       return isAsyncPropagating;
     }
 
     @Override
-    public AgentSpan span() {
+    public final AgentSpan span() {
       return span;
     }
 
     @Override
-    public void setAsyncPropagation(final boolean value) {
+    public final void setAsyncPropagation(final boolean value) {
       isAsyncPropagating = value;
     }
 
     @Override
     public boolean checkpointed() {
-      return null != continuation && continuation.migrated;
+      return false;
     }
 
     /**
@@ -302,7 +297,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
      * @return The new continuation, or null if this scope is not async propagating.
      */
     @Override
-    public ContinuableScopeManager.Continuation capture() {
+    public final ContinuableScopeManager.Continuation capture() {
       return isAsyncPropagating
           ? new SingleContinuation(scopeManager, span, source()).register()
           : null;
@@ -314,18 +309,18 @@ public class ContinuableScopeManager implements AgentScopeManager {
      * @return The new continuation, or null if this scope is not async propagating.
      */
     @Override
-    public ContinuableScopeManager.Continuation captureConcurrent() {
+    public final ContinuableScopeManager.Continuation captureConcurrent() {
       return isAsyncPropagating
           ? new ConcurrentContinuation(scopeManager, span, source()).register()
           : null;
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       return super.toString() + "->" + span;
     }
 
-    public void afterActivated() {
+    public final void afterActivated() {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeActivated();
@@ -357,56 +352,87 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
+  private static final class ContinuingScope extends ContinuableScope {
+    /** Continuation that created this scope. */
+    private final ContinuableScopeManager.Continuation continuation;
+
+    ContinuingScope(
+        final ContinuableScopeManager scopeManager,
+        final AgentSpan span,
+        final byte source,
+        final boolean isAsyncPropagating,
+        final ContinuableScopeManager.Continuation continuation) {
+      super(scopeManager, span, source, isAsyncPropagating);
+      this.continuation = continuation;
+    }
+
+    @Override
+    public boolean checkpointed() {
+      return continuation.migrated;
+    }
+
+    @Override
+    void cleanup(final ScopeStack scopeStack) {
+      super.cleanup(scopeStack);
+
+      continuation.cancelFromContinuedScopeClose();
+    }
+  }
+
   /**
    * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
    * cleanup() is called to ensure the invariant
    */
   static final class ScopeStack {
-    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
+    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
-    /** top - accesses the top of the ScopeStack */
-    final ContinuableScope top() {
-      return stack.peek();
+    private ContinuableScope top; // current scope
+
+    ContinuableScope top() {
+      return top;
     }
 
+    /** Removes and closes all scopes up to the nearest live scope */
     void cleanup() {
-      ContinuableScope curScope = stack.peek();
+      ContinuableScope curScope = top;
       boolean changedTop = false;
-      while (curScope != null) {
-        if (curScope.alive()) {
-          if (changedTop) {
-            curScope.afterActivated();
-          }
-          break;
-        }
-
+      while (curScope != null && !curScope.alive()) {
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
-        stack.poll();
         changedTop = true;
-        curScope = stack.peek();
+        curScope = stack.poll();
+      }
+      if (changedTop) {
+        top = curScope;
+        if (curScope != null) {
+          curScope.afterActivated();
+        }
       }
     }
 
-    /** Pushes a new scope unto the stack */
-    final void push(final ContinuableScope scope) {
-      stack.push(scope);
+    /** Marks a new scope as current, pushing the previous onto the stack */
+    void push(final ContinuableScope scope) {
+      if (top != null) {
+        stack.push(top);
+      }
+      top = scope;
       scope.afterActivated();
     }
 
-    /** Fast check to see if the expectedScope is on top the stack */
-    final boolean checkTop(final ContinuableScope expectedScope) {
-      return expectedScope.equals(stack.peek());
+    /** Fast check to see if the expectedScope is on top */
+    boolean checkTop(final ContinuableScope expectedScope) {
+      return expectedScope.equals(top);
     }
 
-    /** Returns the current stack depth */
-    final int depth() {
-      return stack.size();
+    /** Returns the current depth, including the top scope */
+    int depth() {
+      return top != null ? 1 + stack.size() : 0;
     }
 
     // DQH - regrettably needed for pre-existing tests
-    final void clear() {
+    void clear() {
       stack.clear();
+      top = null;
     }
   }
 
@@ -462,11 +488,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
         if (migrated) {
           spanUnderScope.finishThreadMigration();
         }
-        return scopeManager.handleSpan(this, spanUnderScope, source);
+        return scopeManager.continueSpan(this, spanUnderScope, source);
       } else {
         log.debug(
             "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-        return scopeManager.handleSpan(null, spanUnderScope, source);
+        return scopeManager.continueSpan(null, spanUnderScope, source);
       }
     }
 
@@ -483,6 +509,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     public void migrate() {
       this.migrated = true;
       spanUnderScope.startThreadMigration();
+    }
+
+    @Override
+    public void migrated() {
+      this.migrated = true;
     }
 
     @Override
@@ -559,7 +590,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
-        AgentScope scope = scopeManager.handleSpan(this, spanUnderScope, source);
+        AgentScope scope = scopeManager.continueSpan(this, spanUnderScope, source);
         spanUnderScope.finishThreadMigration();
         return scope;
       } else {
@@ -577,6 +608,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public void migrate() {
+      // This has no meaning for a concurrent continuation
+    }
+
+    @Override
+    public void migrated() {
       // This has no meaning for a concurrent continuation
     }
 

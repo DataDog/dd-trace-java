@@ -23,12 +23,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.gateway.IGSpanInfo;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +33,10 @@ public class EventEnrichment {
   private static final String OS_NAME = System.getProperty("os.name");
   private static String HOSTNAME;
   private static final Logger log = LoggerFactory.getLogger(EventEnrichment.class);
+
+  private static String nullIfEmpty(String str) {
+    return str == null || str.isEmpty() ? null : str;
+  }
 
   public static void enrich(
       AppSecEvent100 event, IGSpanInfo spanInfo, AppSecRequestContext appSecCtx) {
@@ -147,9 +146,9 @@ public class EventEnrichment {
       service =
           new Service.ServiceBuilder()
               .withContextVersion("0.1.0")
-              .withName(Config.get().getServiceName())
-              .withEnvironment(Config.get().getEnv())
-              .withVersion(Config.get().getVersion())
+              .withName(nullIfEmpty(Config.get().getServiceName()))
+              .withEnvironment(nullIfEmpty(Config.get().getEnv()))
+              .withVersion(nullIfEmpty(Config.get().getVersion()))
               .build();
       context.setService(service);
     }
@@ -171,10 +170,10 @@ public class EventEnrichment {
       tags = new Tags();
       context.setTags(tags);
       tags.setContextVersion("0.1.0");
-      Map<String, Object> tagsMap = spanInfo.getTags();
+      Map<String, String> tagsMap = Config.get().getGlobalTags();
       if (tagsMap != null) {
         Set<String> values = new LinkedHashSet<>(tagsMap.size() * 2);
-        for (Map.Entry<String, Object> e : tagsMap.entrySet()) {
+        for (Map.Entry<String, String> e : tagsMap.entrySet()) {
           if (e.getValue() != null) {
             values.add(e.getKey() + ":" + e.getValue());
           } else {

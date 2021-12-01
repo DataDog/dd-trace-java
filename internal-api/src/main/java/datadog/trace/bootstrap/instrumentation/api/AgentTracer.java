@@ -12,7 +12,6 @@ import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.Map;
 
@@ -69,7 +68,7 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
-  public static TraceScope.Continuation captureSpan(final AgentSpan span) {
+  public static AgentScope.Continuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span, ScopeSource.INSTRUMENTATION);
   }
 
@@ -77,7 +76,7 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
-  public static TraceScope activeScope() {
+  public static AgentScope activeScope() {
     return get().activeScope();
   }
 
@@ -131,11 +130,11 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
-    TraceScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+    AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
 
     AgentSpan activeSpan();
 
-    TraceScope activeScope();
+    AgentScope activeScope();
 
     AgentPropagation propagate();
 
@@ -227,7 +226,7 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
       return NoopContinuation.INSTANCE;
     }
 
@@ -237,7 +236,7 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceScope activeScope() {
+    public AgentScope activeScope() {
       return null;
     }
 
@@ -284,7 +283,7 @@ public class AgentTracer {
     public void registerCheckpointer(Checkpointer checkpointer) {}
 
     @Override
-    public TraceScope.Continuation capture() {
+    public AgentScope.Continuation capture() {
       return null;
     }
 
@@ -324,7 +323,10 @@ public class AgentTracer {
     public void onFinish(AgentSpan span) {}
 
     @Override
-    public void onRootSpan(AgentSpan root, boolean published) {}
+    public void onRootSpanFinished(AgentSpan root, boolean published) {}
+
+    @Override
+    public void onRootSpanStarted(AgentSpan root) {}
 
     @Override
     public InstrumentationGateway instrumentationGateway() {
@@ -607,7 +609,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentScope implements AgentScope, TraceScope {
+  public static class NoopAgentScope implements AgentScope {
     public static final NoopAgentScope INSTANCE = new NoopAgentScope();
 
     @Override
@@ -669,7 +671,7 @@ public class AgentTracer {
     static final NoopContinuation INSTANCE = new NoopContinuation();
 
     @Override
-    public TraceScope activate() {
+    public AgentScope activate() {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -678,6 +680,9 @@ public class AgentTracer {
 
     @Override
     public void migrate() {}
+
+    @Override
+    public void migrated() {}
 
     @Override
     public AgentSpan getSpan() {

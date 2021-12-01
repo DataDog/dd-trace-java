@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -52,7 +51,7 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
    */
   public static class SendMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope enter(
+    public static AgentScope enter(
         @Advice.This RoutedActorCell zis, @Advice.Argument(value = 0) Envelope envelope) {
       // If this isn't a management message, it will be deconstructed before being routed through
       // the routing logic, so activate the Scope
@@ -65,13 +64,11 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter TraceScope scope) {
+    public static void exit(@Advice.Enter AgentScope scope) {
       if (null != scope) {
         scope.close();
-        if (scope instanceof AgentScope) {
-          // then we have invoked an Envelope and need to mark the work complete
-          ((AgentScope) scope).span().finishWork();
-        }
+        // then we have invoked an Envelope and need to mark the work complete
+        scope.span().finishWork();
       }
     }
   }

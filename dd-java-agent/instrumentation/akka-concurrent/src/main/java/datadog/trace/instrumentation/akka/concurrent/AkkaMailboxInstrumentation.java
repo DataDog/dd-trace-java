@@ -10,9 +10,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
-import datadog.trace.context.TraceScope;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
@@ -63,8 +63,8 @@ public class AkkaMailboxInstrumentation extends Instrumenter.Tracing
    */
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope enter() {
-      TraceScope activeScope = activeScope();
+    public static AgentScope enter() {
+      AgentScope activeScope = activeScope();
       // If there is no active scope, we can clean all the way to the bottom
       if (null == activeScope) {
         return null;
@@ -79,9 +79,9 @@ public class AkkaMailboxInstrumentation extends Instrumenter.Tracing
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final TraceScope scope) {
+    public static void exit(@Advice.Enter final AgentScope scope) {
       // Clean up any leaking scopes from akka-streams/akka-http et.c.
-      TraceScope activeScope = activeScope();
+      AgentScope activeScope = activeScope();
       while (activeScope != null && activeScope != scope) {
         activeScope.close();
         activeScope = activeScope();

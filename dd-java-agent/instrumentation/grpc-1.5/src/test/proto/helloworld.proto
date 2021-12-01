@@ -11,6 +11,9 @@ service Greeter {
 
   rpc Ignore (Request) returns (Response) {
   }
+
+  rpc IgnoreInbound (Request) returns (Response) {
+  }
 }
 
 message Request {

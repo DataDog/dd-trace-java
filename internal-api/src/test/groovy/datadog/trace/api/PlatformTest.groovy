@@ -29,6 +29,18 @@ class PlatformTest extends DDSpecification {
     major == javaVersion.major
     minor == javaVersion.minor
     update == javaVersion.update
+    javaVersion.is(major)
+    javaVersion.is(major, minor)
+    javaVersion.is(major, minor, update)
+    javaVersion.isAtLeast(major, minor, update)
+    javaVersion.isBetween(major, minor, update, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE)
+    !javaVersion.isBetween(major, minor, update, major, minor, update)
+    !javaVersion.isBetween(major, minor, update, major - 1, 0, 0)
+    !javaVersion.isBetween(major, minor, update, major, minor -1, 0)
+    !javaVersion.isBetween(major, minor, update, major, minor, update - 1)
+    javaVersion.isBetween(major, minor, update, major + 1, 0, 0)
+    javaVersion.isBetween(major, minor, update, major, minor + 1, 0)
+    javaVersion.isBetween(major, minor, update, major, minor, update + 1)
 
     where:
     version     | major | minor | update
@@ -60,5 +72,7 @@ class PlatformTest extends DDSpecification {
     "15"        | 15    | 0     | 0
     "15.0.2"    | 15    | 0     | 2
     "16.0.1"    | 16    | 0     | 1
+    "11.0.9.1+1"| 11    | 0     | 9
+    "11.0.6+10" | 11    | 0     | 6
   }
 }

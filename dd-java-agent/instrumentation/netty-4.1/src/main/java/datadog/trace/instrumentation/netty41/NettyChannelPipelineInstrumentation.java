@@ -13,7 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.context.TraceScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.netty41.client.HttpClientRequestTracingHandler;
 import datadog.trace.instrumentation.netty41.client.HttpClientResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler;
@@ -169,11 +169,11 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
-      final TraceScope scope = activeScope();
+      final AgentScope scope = activeScope();
       if (scope != null) {
-        final TraceScope.Continuation continuation = scope.capture();
+        final AgentScope.Continuation continuation = scope.capture();
         if (null != continuation) {
-          final Attribute<TraceScope.Continuation> attribute =
+          final Attribute<AgentScope.Continuation> attribute =
               pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
           if (!attribute.compareAndSet(null, continuation)) {
             continuation.cancel();

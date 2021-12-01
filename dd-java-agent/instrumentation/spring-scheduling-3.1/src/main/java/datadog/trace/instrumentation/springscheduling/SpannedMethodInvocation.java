@@ -6,17 +6,16 @@ import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDec
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Method;
 import org.aopalliance.intercept.MethodInvocation;
 
 public class SpannedMethodInvocation implements MethodInvocation {
 
-  private final TraceScope.Continuation continuation;
+  private final AgentScope.Continuation continuation;
   private final MethodInvocation delegate;
 
-  public SpannedMethodInvocation(TraceScope.Continuation continuation, MethodInvocation delegate) {
+  public SpannedMethodInvocation(AgentScope.Continuation continuation, MethodInvocation delegate) {
     this.continuation = continuation;
     this.delegate = delegate;
   }
@@ -38,7 +37,7 @@ public class SpannedMethodInvocation implements MethodInvocation {
   }
 
   private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
-    try (TraceScope scope = continuation.activate()) {
+    try (AgentScope scope = continuation.activate()) {
       scope.setAsyncPropagation(true);
       return invokeWithSpan(spanName);
     }

@@ -1,64 +1,63 @@
 package datadog.trace.api;
 
 import datadog.trace.util.Strings;
+import java.util.LinkedList;
+import java.util.List;
 
 public final class Platform {
 
-  private static final int JAVA_MAJOR_VERSION;
-  private static final int JAVA_MINOR_VERSION;
-  private static final int JAVA_UPDATE_VERSION;
+  private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
 
-  static {
-    Version version = parseJavaVersion(System.getProperty("java.version"));
-    JAVA_MAJOR_VERSION = version.major;
-    JAVA_MINOR_VERSION = version.minor;
-    JAVA_UPDATE_VERSION = version.update;
+  /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
+  private static List<Integer> splitDigits(String str) {
+    List<Integer> results = new LinkedList<>();
+
+    byte[] arr = str.getBytes();
+    int len = str.length();
+
+    int value = 0;
+    for (int i = 0; i < len; i++) {
+      byte ch = arr[i];
+      if (ch >= '0' && ch <= '9') {
+        value = value * 10 + (ch - '0');
+      } else if (ch == '.' || ch == '_' || ch == '+') {
+        results.add(value);
+        value = 0;
+      } else {
+        throw new NumberFormatException();
+      }
+    }
+    results.add(value);
+    return results;
   }
 
   private static Version parseJavaVersion(String javaVersion) {
     javaVersion = Strings.replace(javaVersion, "-ea", "");
-    int major, minor, update;
-    int firstDot = javaVersion.indexOf('.');
-    int secondDot = javaVersion.indexOf('.', firstDot + 1);
-    int underscore = javaVersion.indexOf('_', secondDot + 1);
+
+    int major = 0;
+    int minor = 0;
+    int update = 0;
+
     try {
-      if (javaVersion.startsWith("1.")) {
-        major =
-            Integer.parseInt(
-                javaVersion.substring(
-                    firstDot + 1, secondDot < 0 ? javaVersion.length() : secondDot));
-        minor =
-            secondDot < 0
-                ? 0
-                : Integer.parseInt(
-                    javaVersion.substring(
-                        secondDot + 1, underscore < 0 ? javaVersion.length() : underscore));
-        update =
-            underscore < 0
-                ? 0
-                : Integer.parseInt(javaVersion.substring(underscore + 1, javaVersion.length()));
+      List<Integer> nums = splitDigits(javaVersion);
+      major = nums.get(0);
+
+      // for java 1.6/1.7/1.8
+      if (major == 1) {
+        major = nums.get(1);
+        minor = nums.get(2);
+        update = nums.get(3);
       } else {
-        major =
-            Integer.parseInt(
-                javaVersion.substring(0, firstDot < 0 ? javaVersion.length() : firstDot));
-        minor =
-            firstDot < 0
-                ? 0
-                : Integer.parseInt(
-                    javaVersion.substring(
-                        firstDot + 1, secondDot < 0 ? javaVersion.length() : secondDot));
-        update =
-            secondDot < 0
-                ? 0
-                : Integer.parseInt(javaVersion.substring(secondDot + 1, javaVersion.length()));
+        minor = nums.get(1);
+        update = nums.get(2);
       }
     } catch (NumberFormatException | IndexOutOfBoundsException e) {
-      major = minor = update = 0;
+      // unable to parse version string - do nothing
     }
     return new Version(major, minor, update);
   }
 
-  private static class Version {
+  static final class Version {
     public final int major, minor, update;
 
     public Version(int major, int minor, int update) {
@@ -66,20 +65,48 @@ public final class Platform {
       this.minor = minor;
       this.update = update;
     }
+
+    public boolean is(int major) {
+      return this.major == major;
+    }
+
+    public boolean is(int major, int minor) {
+      return this.major == major && this.minor == minor;
+    }
+
+    public boolean is(int major, int minor, int update) {
+      return this.major == major && this.minor == minor && this.update == update;
+    }
+
+    public boolean isAtLeast(int major, int minor, int update) {
+      return isAtLeast(this.major, this.minor, this.update, major, minor, update);
+    }
+
+    public boolean isBetween(
+        int fromMajor, int fromMinor, int fromUpdate, int toMajor, int toMinor, int toUpdate) {
+      return isAtLeast(toMajor, toMinor, toUpdate, fromMajor, fromMinor, fromUpdate)
+          && isAtLeast(fromMajor, fromMinor, fromUpdate)
+          && !isAtLeast(toMajor, toMinor, toUpdate);
+    }
+
+    private static boolean isAtLeast(
+        int major, int minor, int update, int atLeastMajor, int atLeastMinor, int atLeastUpdate) {
+      return (major > atLeastMajor)
+          || (major == atLeastMajor && minor > atLeastMinor)
+          || (major == atLeastMajor && minor == atLeastMinor && update >= atLeastUpdate);
+    }
   }
 
   public static boolean isJavaVersion(int major) {
-    return JAVA_MAJOR_VERSION == major;
+    return JAVA_VERSION.is(major);
   }
 
   public static boolean isJavaVersion(int major, int minor) {
-    return JAVA_MAJOR_VERSION == major && JAVA_MINOR_VERSION == minor;
+    return JAVA_VERSION.is(major, minor);
   }
 
   public static boolean isJavaVersion(int major, int minor, int update) {
-    return JAVA_MAJOR_VERSION == major
-        && JAVA_MINOR_VERSION == minor
-        && JAVA_UPDATE_VERSION == update;
+    return JAVA_VERSION.is(major, minor, update);
   }
 
   public static boolean isJavaVersionAtLeast(int major) {
@@ -91,11 +118,54 @@ public final class Platform {
   }
 
   public static boolean isJavaVersionAtLeast(int major, int minor, int update) {
-    return (JAVA_MAJOR_VERSION > major)
-        || (JAVA_MAJOR_VERSION == major && JAVA_MINOR_VERSION > minor)
-        || (JAVA_MAJOR_VERSION == major
-            && JAVA_MINOR_VERSION == minor
-            && JAVA_UPDATE_VERSION >= update);
+    return JAVA_VERSION.isAtLeast(major, minor, update);
+  }
+
+  /**
+   * Check if the Java version is between {@code fromMajor} (inclusive) and {@code toMajor}
+   * (exclusive).
+   *
+   * @param fromMajor major from version (inclusive)
+   * @param toMajor major to version (exclusive)
+   * @return if the current java version is between the from version (inclusive) and the to version
+   *     exclusive
+   */
+  public static boolean isJavaVersionBetween(int fromMajor, int toMajor) {
+    return isJavaVersionBetween(fromMajor, 0, toMajor, 0);
+  }
+
+  /**
+   * Check if the Java version is between {@code fromMajor.fromMinor} (inclusive) and {@code
+   * toMajor.toMinor} (exclusive).
+   *
+   * @param fromMajor major from version (inclusive)
+   * @param fromMinor minor from version (inclusive)
+   * @param toMajor major to version (exclusive)
+   * @param toMinor minor to version (exclusive)
+   * @return if the current java version is between the from version (inclusive) and the to version
+   *     exclusive
+   */
+  public static boolean isJavaVersionBetween(
+      int fromMajor, int fromMinor, int toMajor, int toMinor) {
+    return isJavaVersionBetween(fromMajor, fromMinor, 0, toMajor, toMinor, 0);
+  }
+
+  /**
+   * Check if the Java version is between {@code fromMajor.fromMinor.fromUpdate} (inclusive) and
+   * {@code toMajor.toMinor.toUpdate} (exclusive).
+   *
+   * @param fromMajor major from version (inclusive)
+   * @param fromMinor minor from version (inclusive)
+   * @param fromUpdate update from version (inclusive)
+   * @param toMajor major to version (exclusive)
+   * @param toMinor minor to version (exclusive)
+   * @param toUpdate update to version (exclusive)
+   * @return if the current java version is between the from version (inclusive) and the to version
+   *     exclusive
+   */
+  public static boolean isJavaVersionBetween(
+      int fromMajor, int fromMinor, int fromUpdate, int toMajor, int toMinor, int toUpdate) {
+    return JAVA_VERSION.isBetween(fromMajor, fromMinor, fromUpdate, toMajor, toMinor, toUpdate);
   }
 
   public static boolean isWindows() {

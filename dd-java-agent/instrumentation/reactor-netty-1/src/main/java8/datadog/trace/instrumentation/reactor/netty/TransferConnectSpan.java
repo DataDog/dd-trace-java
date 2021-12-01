@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.reactor.netty;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-import static datadog.trace.context.TraceScope.Continuation;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.reactor.netty.CaptureConnectSpan.CONNECT_SPAN;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.BiConsumer;
 import reactor.netty.Connection;

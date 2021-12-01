@@ -14,7 +14,6 @@ import akka.stream.stage.AbstractOutHandler;
 import akka.stream.stage.GraphStage;
 import akka.stream.stage.GraphStageLogic;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.context.TraceScope;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -117,7 +116,7 @@ public class DatadogServerRequestResponseFlowWrapper
                   // Check if the active scope is still the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
-                  TraceScope activeScope = activeScope();
+                  AgentScope activeScope = activeScope();
                   if (activeScope == scope) {
                     scope.close();
                   }

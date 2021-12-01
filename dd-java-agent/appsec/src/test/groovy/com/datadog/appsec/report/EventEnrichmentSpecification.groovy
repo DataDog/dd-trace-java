@@ -48,7 +48,6 @@ class EventEnrichmentSpecification extends DDSpecification {
     1 * appSecReqCtx.isBlocked() >> false
 
     1 * spanInfo.spanId >> spanId
-    1 * spanInfo.tags >> [foo: 'bar']
     1 * spanInfo.traceId >> traceId
 
     0 * _
@@ -87,7 +86,7 @@ class EventEnrichmentSpecification extends DDSpecification {
       }
       with(tags) {
         contextVersion == '0.1.0'
-        values == ['foo:bar'] as Set
+        values == ['env:prod', 'version:1.1.1'] as Set
       }
       with(trace) {
         contextVersion == '0.1.0'

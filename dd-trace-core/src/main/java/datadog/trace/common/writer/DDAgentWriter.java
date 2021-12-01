@@ -63,6 +63,7 @@ public class DDAgentWriter implements Writer {
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = null;
+    String namedPipe = null;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
@@ -93,6 +94,11 @@ public class DDAgentWriter implements Writer {
 
     public DDAgentWriterBuilder unixDomainSocket(String unixDomainSocket) {
       this.unixDomainSocket = unixDomainSocket;
+      return this;
+    }
+
+    public DDAgentWriterBuilder namedPipe(String namedPipe) {
+      this.namedPipe = namedPipe;
       return this;
     }
 
@@ -152,6 +158,7 @@ public class DDAgentWriter implements Writer {
           agentHost,
           traceAgentPort,
           unixDomainSocket,
+          namedPipe,
           timeoutMillis,
           traceBufferSize,
           healthMetrics,
@@ -170,6 +177,7 @@ public class DDAgentWriter implements Writer {
       final String agentHost,
       final int traceAgentPort,
       final String unixDomainSocket,
+      final String namedPipe,
       final long timeoutMillis,
       final int traceBufferSize,
       final HealthMetrics healthMetrics,
@@ -183,7 +191,7 @@ public class DDAgentWriter implements Writer {
     HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
     OkHttpClient client =
         null == featureDiscovery || null == agentApi
-            ? buildHttpClient(agentUrl, unixDomainSocket, timeoutMillis)
+            ? buildHttpClient(agentUrl, unixDomainSocket, namedPipe, timeoutMillis)
             : null;
     if (null == featureDiscovery) {
       featureDiscovery =
@@ -191,12 +199,11 @@ public class DDAgentWriter implements Writer {
               client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
     }
     if (null == agentApi) {
-      this.api =
-          new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
+      api = new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
     } else {
-      this.api = agentApi;
+      api = agentApi;
     }
-    this.discovery = featureDiscovery;
+    discovery = featureDiscovery;
     this.healthMetrics = healthMetrics;
     this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
     this.alwaysFlush = alwaysFlush;
@@ -284,6 +291,7 @@ public class DDAgentWriter implements Writer {
     incrementDropCounts(trace.size());
   }
 
+  @Override
   public boolean flush() {
     if (!closed) { // give up after a second
       if (traceProcessingWorker.flush(1, TimeUnit.SECONDS)) {

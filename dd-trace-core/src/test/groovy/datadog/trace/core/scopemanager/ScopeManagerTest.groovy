@@ -464,6 +464,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     2 * checkpointer.checkpoint(_, SPAN) // two spans started by test
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
     1 * statsDClient.incrementCounter("scope.close.error")
+    1 * checkpointer.onRootSpanStarted(_)
     0 * _
 
     when:
@@ -472,7 +473,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
-    1 * checkpointer.onRootSpan(_, _, _)
+    1 * checkpointer.onRootSpanWritten(_, _, _)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -499,6 +500,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
     1 * checkpointer.checkpoint(_, SPAN) // span started by test
+    1 * checkpointer.onRootSpanStarted(_)
     0 * _
 
     when:
