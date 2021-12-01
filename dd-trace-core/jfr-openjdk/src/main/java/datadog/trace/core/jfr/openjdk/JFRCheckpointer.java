@@ -238,7 +238,12 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
   }
 
   private void emitSummary() {
-    new CheckpointSummaryEvent(rateLimit, emitted.sumThenReset(), dropped.sumThenReset()).commit();
+    new CheckpointSummaryEvent(
+            rateLimit,
+            emitted.sumThenReset(),
+            dropped.sumThenReset(),
+            sampleCount > samplerConfig.sampleLimit)
+        .commit();
   }
 
   private void emitSamplerConfig() {
