@@ -339,11 +339,9 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
   }
 
   private static int getRecordingSampleLimit(final ConfigProvider configProvider) {
-    return Math.min(
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT,
-            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT),
-        MAX_SAMPLER_RATE);
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT,
+        ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT);
   }
 
   private static int getSamplerWindowMs(final ConfigProvider configProvider) {
