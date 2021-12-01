@@ -5,8 +5,12 @@ public class DDSpanTypes {
   public static final String HTTP_SERVER = "web";
   @Deprecated public static final String WEB_SERVLET = HTTP_SERVER;
   public static final String RPC = "rpc";
-  public static final String CACHE = "cache";
   public static final String SOAP = "soap";
+
+  // Add all client span types that set their own service name to
+  // dd-java-agent/agent-jmxfetch/src/main/java/datadog/trace/agent/jmxfetch/ServiceNameCollectingTraceInterceptor.java
+  // ignored list in case they end up being an entry span due to a background task
+  public static final String CACHE = "cache";
 
   public static final String SQL = "sql";
   public static final String MONGO = "mongodb";

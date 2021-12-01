@@ -5,6 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -77,6 +78,10 @@ public class JMXFetch {
               + (null != port && port > 0 ? ":" + port : ""));
     }
 
+    ServiceNameCollectingTraceInterceptor serviceNameProvider =
+        new ServiceNameCollectingTraceInterceptor();
+    GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
+
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, null, null);
 
     final AppConfig.AppConfigBuilder configBuilder =
@@ -94,6 +99,7 @@ public class JMXFetch {
             .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
+            .serviceNameProvider(serviceNameProvider)
             .reporter(new AgentStatsdReporter(statsd));
 
     if (checkPeriod != null) {
