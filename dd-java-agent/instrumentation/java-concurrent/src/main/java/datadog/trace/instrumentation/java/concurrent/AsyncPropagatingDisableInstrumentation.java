@@ -82,7 +82,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "com.zaxxer.hikari.pool.HikariPool",
             "net.sf.ehcache.store.disk.DiskStorageFactory",
             "org.springframework.jms.listener.DefaultMessageListenerContainer",
-            "org.apache.activemq.broker.TransactionBroker")
+            "org.apache.activemq.broker.TransactionBroker",
+            "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -159,6 +160,13 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         named("beginTransaction")
             .and(isDeclaredBy(named("org.apache.activemq.broker.TransactionBroker"))),
+        advice);
+    transformation.applyAdvice(
+        named("initUnlessClosed")
+            .and(
+                isDeclaredBy(
+                    named(
+                        "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
