@@ -103,7 +103,10 @@ public final class FieldBackedContextStores {
         existingStore = STORES_BY_NAME.putIfAbsent(storeName, createStore(newStoreId));
         if (null == existingStore) {
           log.debug(
-              "Allocated ContextStore #{} to {} -> {}", newStoreId, keyClassName, contextClassName);
+              "Allocated ContextStore #{} - instrumentation.target.context={}->{}",
+              newStoreId,
+              keyClassName,
+              contextClassName);
           return newStoreId;
         }
       }

@@ -20,6 +20,7 @@ import datadog.trace.agent.tooling.context.NoopContextProvider;
 import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -162,7 +163,10 @@ public interface Instrumenter {
     @Override
     public final AgentBuilder instrument(final AgentBuilder parentAgentBuilder) {
       if (!isEnabled()) {
-        log.debug("Instrumentation {} is disabled", this);
+        log.debug(
+            "Disabled - instrumentation.names=[{}] instrumentation.class={}",
+            Strings.join(",", instrumentationNames),
+            getClass().getName());
         return parentAgentBuilder;
       }
 
@@ -230,7 +234,10 @@ public interface Instrumenter {
             new FailSafeRawMatcher(
                 typeMatcher,
                 classLoaderMatcher,
-                "Instrumentation matcher unexpected exception: " + getClass().getName());
+                "Instrumentation matcher unexpected exception - instrumentation.names="
+                    + instrumentationNames
+                    + " instrumentation.class="
+                    + getClass().getName());
       }
 
       return agentBuilder.type(rawMatcher).and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
@@ -290,21 +297,27 @@ public interface Instrumenter {
               final List<Reference.Mismatch> mismatches =
                   muzzle.getMismatchedReferenceSources(classLoader);
               log.debug(
-                  "Instrumentation muzzled: {} -- {} on {}",
-                  instrumentationNames,
+                  "Muzzled - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
+                  Strings.join(",", instrumentationNames),
                   Instrumenter.Default.this.getClass().getName(),
                   classLoader);
               for (final Reference.Mismatch mismatch : mismatches) {
-                log.debug("-- {}", mismatch);
+                log.debug(
+                    "Muzzled mismatch - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
+                    Strings.join(",", instrumentationNames),
+                    Instrumenter.Default.this.getClass().getName(),
+                    classLoader,
+                    mismatch);
               }
             }
           } else {
             if (log.isDebugEnabled()) {
               log.debug(
-                  "Applying instrumentation: {} -- {} on {}",
-                  instrumentationPrimaryName,
+                  "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
+                  Strings.join(",", instrumentationNames),
                   Instrumenter.Default.this.getClass().getName(),
-                  classLoader);
+                  classLoader,
+                  classBeingRedefined == null ? "null" : classBeingRedefined.getName());
             }
           }
           return isMatch;
