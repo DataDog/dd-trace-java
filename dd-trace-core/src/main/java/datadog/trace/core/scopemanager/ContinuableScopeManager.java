@@ -770,7 +770,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private static final RootIterationCleaner CLEANER = new RootIterationCleaner();
 
     public static void scheduleFor(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
-      long period = Math.min(iterationKeepAlive, 60_000);
+      long period = Math.min(iterationKeepAlive, 10_000);
       AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
           CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
     }

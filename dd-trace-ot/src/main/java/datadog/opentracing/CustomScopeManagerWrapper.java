@@ -146,7 +146,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
         new CustomScopeManagerWrapper.IterationCleaner();
 
     public static void scheduleFor(Map<Thread, IterationSpanStack> iterationSpans) {
-      long period = Math.min(iterationKeepAlive, 60_000);
+      long period = Math.min(iterationKeepAlive, 10_000);
       AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
           CLEANER, iterationSpans, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
     }
