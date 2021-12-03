@@ -48,7 +48,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
 
-  volatile ConcurrentMap<ScopeStack, ContinuableScope> iterationScopes;
+  volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
 
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
@@ -154,8 +154,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     // close any immediately previous iteration scope
     final ContinuableScope top = scopeStack.top;
     if (top != null && top.source() == ScopeSource.ITERATION.id()) {
-      if (iterationKeepAlive > 0) {
-        cancelIterationScopeCleanup(scopeStack, top);
+      if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
+        cancelRootIterationScopeCleanup(scopeStack, top);
       }
       top.close();
       scopeStack.cleanup();
@@ -189,7 +189,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     if (iterationKeepAlive > 0 && currentDepth == 0) {
       // no surrounding scope to aid cleanup, so use background task instead
-      scheduleIterationScopeCleanup(scopeStack, scope);
+      scheduleRootIterationScopeCleanup(scopeStack, scope);
     }
 
     scopeStack.push(scope);
@@ -744,37 +744,41 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
-  private void scheduleIterationScopeCleanup(ScopeStack scopeStack, ContinuableScope scope) {
-    if (iterationScopes == null) {
+  private void scheduleRootIterationScopeCleanup(ScopeStack scopeStack, ContinuableScope scope) {
+    if (rootIterationScopes == null) {
       synchronized (this) {
-        if (iterationScopes == null) {
-          iterationScopes = new ConcurrentHashMap<>();
-          IterationCleaner.scheduleFor(iterationScopes);
+        if (rootIterationScopes == null) {
+          rootIterationScopes = new ConcurrentHashMap<>();
+          RootIterationCleaner.scheduleFor(rootIterationScopes);
         }
       }
     }
-    iterationScopes.put(scopeStack, scope);
+    rootIterationScopes.put(scopeStack, scope);
   }
 
-  private void cancelIterationScopeCleanup(ScopeStack scopeStack, ContinuableScope scope) {
-    if (iterationScopes != null) {
-      iterationScopes.remove(scopeStack, scope);
+  private void cancelRootIterationScopeCleanup(ScopeStack scopeStack, ContinuableScope scope) {
+    if (rootIterationScopes != null) {
+      rootIterationScopes.remove(scopeStack, scope);
     }
   }
 
-  private static final class IterationCleaner
+  /**
+   * Background task to clean-up scopes from overdue root iterations that have no surrounding scope.
+   */
+  private static final class RootIterationCleaner
       implements AgentTaskScheduler.Task<Map<ScopeStack, ContinuableScope>> {
-    private static final IterationCleaner CLEANER = new IterationCleaner();
+    private static final RootIterationCleaner CLEANER = new RootIterationCleaner();
 
-    public static void scheduleFor(Map<ScopeStack, ContinuableScope> iterationScopes) {
+    public static void scheduleFor(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
       long period = Math.min(iterationKeepAlive, 60_000);
       AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-          CLEANER, iterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
+          CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public void run(Map<ScopeStack, ContinuableScope> iterationScopes) {
-      Iterator<Map.Entry<ScopeStack, ContinuableScope>> itr = iterationScopes.entrySet().iterator();
+    public void run(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
+      Iterator<Map.Entry<ScopeStack, ContinuableScope>> itr =
+          rootIterationScopes.entrySet().iterator();
 
       long cutOff = System.currentTimeMillis() - iterationKeepAlive;
 
@@ -782,14 +786,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         Map.Entry<ScopeStack, ContinuableScope> entry = itr.next();
 
         ScopeStack scopeStack = entry.getKey();
-        ContinuableScope scope = entry.getValue();
+        ContinuableScope rootScope = entry.getValue();
 
-        if (!scope.alive()) { // no need to track this anymore
+        if (!rootScope.alive()) { // no need to track this anymore
           itr.remove();
-        } else if (NANOSECONDS.toMillis(scope.span.getStartTime()) < cutOff) {
+        } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
           // mark scope as overdue to allow cleanup and avoid further spans being attached
-          scopeStack.overdueRootScope = scope;
-          scope.span.finish();
+          scopeStack.overdueRootScope = rootScope;
+          rootScope.span.finish();
           itr.remove();
         }
       }

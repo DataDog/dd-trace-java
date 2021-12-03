@@ -139,6 +139,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     }
   }
 
+  /** Background task to clean-up spans from overdue iterations. */
   private static final class IterationCleaner
       implements AgentTaskScheduler.Task<Map<Thread, IterationSpanStack>> {
     private static final CustomScopeManagerWrapper.IterationCleaner CLEANER =
