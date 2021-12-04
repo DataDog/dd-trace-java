@@ -3,6 +3,7 @@ package datadog.opentracing
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
@@ -297,6 +298,11 @@ class TestScopeManager implements ScopeManager {
     @Override
     AgentSpan span() {
       return agentSpan
+    }
+
+    @Override
+    byte source() {
+      return ScopeSource.MANUAL.id()
     }
 
     @Override

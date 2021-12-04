@@ -14,4 +14,8 @@ public interface AgentScopeManager {
   AgentSpan activeSpan();
 
   AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+
+  void closePrevious(boolean finishSpan);
+
+  AgentScope activateNext(AgentSpan span);
 }
