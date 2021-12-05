@@ -101,7 +101,12 @@ class DatadogHttpCodec {
               && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
             return true;
-          } else if (handledForwarding(key, value)) {
+          } else if (handledXForwarding(key, value)) {
+            return true;
+          }
+          break;
+        case 'f':
+          if (handledForwarding(key, value)) {
             return true;
           }
           break;

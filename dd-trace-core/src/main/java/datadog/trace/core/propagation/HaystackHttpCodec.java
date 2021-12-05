@@ -154,6 +154,11 @@ class HaystackHttpCodec {
           }
           break;
         case 'x':
+          if (handledXForwarding(key, value)) {
+            return true;
+          }
+          break;
+        case 'f':
           if (handledForwarding(key, value)) {
             return true;
           }
