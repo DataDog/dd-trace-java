@@ -263,9 +263,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                       | _
-    new TagContext("some-origin", null, null, null, null, null, [:])                                       | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", null, null, null, null, null, [:], [:]) | _
+    extractedContext                                                         | _
+    new TagContext("some-origin", [:])                                       | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", [:], [:]) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -282,9 +282,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                       | isTraceRootSpan
-    null                                                                                                   | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, null, null, null, [:], [:]) | false
+    extractedContext                                                         | isTraceRootSpan
+    null                                                                     | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", [:], [:]) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -304,9 +304,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                       | isTraceRootSpan
-    null                                                                                                   | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, null, null, null, [:], [:]) | false
+    extractedContext                                                         | isTraceRootSpan
+    null                                                                     | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", [:], [:]) | false
   }
 
   def "infer top level from parent service name"() {

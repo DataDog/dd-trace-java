@@ -33,7 +33,7 @@ class OpenTracing32Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, null, null, null, null, null, [:], [:])))
+      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, [:], [:])))
     }
     def result = builder.start()
     if (tagSpan) {

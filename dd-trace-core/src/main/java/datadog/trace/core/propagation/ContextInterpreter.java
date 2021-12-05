@@ -13,6 +13,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
   protected String origin;
+  protected boolean hasForwarded;
   protected String forwarded;
   protected String forwardedProto;
   protected String forwardedHost;
@@ -68,6 +70,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected final boolean handledForwarding(String key, String value) {
     if (null != value && FORWARDED_KEY.equalsIgnoreCase(key)) {
       forwarded = value;
+      hasForwarded = true;
       return true;
     }
     return false;
@@ -77,18 +80,22 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     if (null != value) {
       if (X_FORWARDED_PROTO_KEY.equalsIgnoreCase(key)) {
         forwardedProto = value;
+        hasForwarded = true;
         return true;
       }
       if (X_FORWARDED_HOST_KEY.equalsIgnoreCase(key)) {
         forwardedHost = value;
+        hasForwarded = true;
         return true;
       }
       if (X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
         forwardedIp = value;
+        hasForwarded = true;
         return true;
       }
       if (X_FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
         forwardedPort = value;
+        hasForwarded = true;
         return true;
       }
     }
@@ -114,30 +121,31 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   TagContext build() {
     if (valid) {
       if (!DDId.ZERO.equals(traceId)) {
-        final ExtractedContext context =
-            new ExtractedContext(
-                traceId,
-                spanId,
-                samplingPriority,
-                origin,
-                forwarded,
-                forwardedProto,
-                forwardedHost,
-                forwardedIp,
-                forwardedPort,
-                baggage,
-                tags);
+        final ExtractedContext context;
+        if (hasForwarded) {
+          context =
+              new ForwardedExtractedContext(
+                  traceId,
+                  spanId,
+                  samplingPriority,
+                  origin,
+                  forwarded,
+                  forwardedProto,
+                  forwardedHost,
+                  forwardedIp,
+                  forwardedPort,
+                  baggage,
+                  tags);
+        } else {
+          context = new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
+        }
         context.lockSamplingPriority();
         return context;
-      } else if (origin != null
-          || forwarded != null
-          || forwardedProto != null
-          || forwardedHost != null
-          || forwardedIp != null
-          || forwardedPort != null
-          || !tags.isEmpty()) {
-        return new TagContext(
+      } else if (hasForwarded) {
+        return new ForwardedTagContext(
             origin, forwarded, forwardedProto, forwardedHost, forwardedIp, forwardedPort, tags);
+      } else if (origin != null || !tags.isEmpty()) {
+        return new TagContext(origin, tags);
       }
     }
     return null;
