@@ -12,13 +12,14 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+// TODO latestDepTest only works on Java8 for now
+//apply plugin: 'org.unbroken-dome.test-sets'
+//
+//testSets {
+//  latestDepTest {
+//    dirName = 'test'
+//  }
+//}
 
 sourceSets {
   "main_java11" {
@@ -26,14 +27,30 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.doFirst {
-  if (!System.env.JAVA_11_HOME) {
-    throw new GradleException('JAVA_11_HOME must be set to build Java 11 code')
+[compileMain_java11Java, compileTestJava].each {
+  it.configure {
+    if (!System.env.JAVA_11_HOME) {
+      throw new GradleException('JAVA_11_HOME must be set to build Java 11 code')
+    }
+    javaCompiler = javaToolchains.compilerFor {
+      languageVersion = JavaLanguageVersion.of(11)
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
   }
-  options.fork = true
-  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+}
+
+[compileTestGroovy].each {
+  it.configure {
+    if (!System.env.JAVA_11_HOME) {
+      throw new GradleException('JAVA_11_HOME must be set to build Java 11 code')
+    }
+    javaLauncher = javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(11)
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
+  }
 }
 
 dependencies {
@@ -49,6 +66,6 @@ dependencies {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 
-  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.+'
+  //latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.+'
 }
 
