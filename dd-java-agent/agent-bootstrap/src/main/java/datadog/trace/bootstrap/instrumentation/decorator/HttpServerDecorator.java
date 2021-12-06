@@ -225,9 +225,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
         if (null != requestContextData) {
           TagContext tagContext = null;
           if (context == null) {
-            tagContext = TagContext.empty();
-          }
-          if (context instanceof TagContext) {
+            tagContext = new TagContext();
+          } else if (context instanceof TagContext) {
             tagContext = (TagContext) context;
           }
           if (null != tagContext) {
