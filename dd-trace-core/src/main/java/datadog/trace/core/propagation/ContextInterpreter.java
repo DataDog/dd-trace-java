@@ -107,6 +107,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     spanId = DDId.ZERO;
     samplingPriority = defaultSamplingPriority();
     origin = null;
+    hasForwarded = false;
     forwarded = null;
     forwardedProto = null;
     forwardedHost = null;
