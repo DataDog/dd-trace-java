@@ -60,6 +60,9 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 
   "compileMain_${name}Java" {
+    javaCompiler = javaToolchains.compilerFor {
+      languageVersion = JavaLanguageVersion.of(version.majorVersion)
+    }
     sourceCompatibility = version
     targetCompatibility = version
   }
@@ -79,6 +82,18 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   if (!skipSettingTestJavaVersion) {
     tasks.withType(JavaCompile).configureEach {
       if (it.name.toLowerCase().contains("test")) {
+        javaCompiler = javaToolchains.compilerFor {
+          languageVersion = JavaLanguageVersion.of(version.majorVersion)
+        }
+        sourceCompatibility = version
+        targetCompatibility = version
+      }
+    }
+    tasks.withType(GroovyCompile).configureEach {
+      if (it.name.toLowerCase().contains("test")) {
+        javaLauncher = javaToolchains.launcherFor {
+          languageVersion = JavaLanguageVersion.of(version.majorVersion)
+        }
         sourceCompatibility = version
         targetCompatibility = version
       }

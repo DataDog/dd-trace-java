@@ -26,9 +26,6 @@ targetCompatibility = JavaVersion.VERSION_1_7
   it.sourceCompatibility = JavaVersion.VERSION_1_8
   it.targetCompatibility = JavaVersion.VERSION_1_8
   it.doFirst {
-    if (!System.env.JAVA_11_HOME) {
-      throw new GradleException('JAVA_11_HOME must be set to build profiling instrumentation')
-    }
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
@@ -40,8 +37,6 @@ targetCompatibility = JavaVersion.VERSION_1_7
       '8',
       '-Xlint:all,-processing,-options,-path'
     ])
-    options.fork = true
-    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
 }
 
