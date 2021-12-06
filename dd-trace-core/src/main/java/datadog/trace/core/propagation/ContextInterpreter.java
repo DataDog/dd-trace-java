@@ -140,7 +140,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         } else {
           context = new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
         }
-        context.lockSamplingPriority();
         return context;
       } else if (hasForwarded) {
         return new ForwardedTagContext(
