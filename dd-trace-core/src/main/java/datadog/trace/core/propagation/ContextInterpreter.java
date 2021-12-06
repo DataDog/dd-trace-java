@@ -1,10 +1,10 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
-import static datadog.trace.core.propagation.HttpCodec.FORWARDED_HOST_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
-import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
-import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PROTO_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_FOR_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
@@ -66,24 +66,28 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledForwarding(String key, String value) {
+    if (null != value && FORWARDED_KEY.equalsIgnoreCase(key)) {
+      forwarded = value;
+      return true;
+    }
+    return false;
+  }
+
+  protected final boolean handledXForwarding(String key, String value) {
     if (null != value) {
-      if (FORWARDED_KEY.equalsIgnoreCase(key)) {
-        forwarded = value;
-        return true;
-      }
-      if (FORWARDED_PROTO_KEY.equalsIgnoreCase(key)) {
+      if (X_FORWARDED_PROTO_KEY.equalsIgnoreCase(key)) {
         forwardedProto = value;
         return true;
       }
-      if (FORWARDED_HOST_KEY.equalsIgnoreCase(key)) {
+      if (X_FORWARDED_HOST_KEY.equalsIgnoreCase(key)) {
         forwardedHost = value;
         return true;
       }
-      if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+      if (X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
         forwardedIp = value;
         return true;
       }
-      if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
+      if (X_FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
         forwardedPort = value;
         return true;
       }

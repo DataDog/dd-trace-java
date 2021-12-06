@@ -68,6 +68,36 @@ class XRayHttpExtractorTest extends DDSpecification {
     then:
     context != null
     !(context instanceof ExtractedContext)
+    context.forwarded == "for=$forwardedIp:$forwardedPort"
+
+    when:
+    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    context instanceof ExtractedContext
+    context.traceId.toLong() == 1
+    context.spanId.toLong() == 2
+    context.forwarded == "for=$forwardedIp:$forwardedPort"
+
+    where:
+    forwardedIp = "1.2.3.4"
+    forwardedPort = "1234"
+    tagOnlyCtx = [
+      "Forwarded" : "for=$forwardedIp:$forwardedPort"
+    ]
+    fullCtx = [
+      "x-amzn-trace-id"  : "Root=1-00000000-000000000000000000000001;Parent=0000000000000002",
+      "Forwarded" : "for=$forwardedIp:$forwardedPort"
+    ]
+  }
+
+  def "extract headers with x-forwarding"() {
+    when:
+    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    context != null
+    !(context instanceof ExtractedContext)
     context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 
@@ -78,7 +108,6 @@ class XRayHttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedIp == forwardedIp
     context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 
