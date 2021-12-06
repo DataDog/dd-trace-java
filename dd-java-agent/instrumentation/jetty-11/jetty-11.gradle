@@ -7,7 +7,6 @@ muzzle {
     group = "org.eclipse.jetty"
     module = 'jetty-server'
     versions = "[11,12)"
-    assertInverse = true
   }
 }
 
@@ -38,13 +37,18 @@ compileMain_java11Java.doFirst {
 }
 
 dependencies {
-  main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.0.0'
+  main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
 
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.0.0'
+  testImplementation ("org.eclipse.jetty:jetty-server:11.0.0") {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.+'
 }
+
