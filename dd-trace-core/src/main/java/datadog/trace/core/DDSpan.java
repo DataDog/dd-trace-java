@@ -16,7 +16,7 @@ import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -61,6 +61,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
    */
   private final long startTimeNano;
 
+  private static final AtomicLongFieldUpdater<DDSpan> DURATION_NANO_UPDATER =
+      AtomicLongFieldUpdater.newUpdater(DDSpan.class, "durationNano");
+
   /**
    * The duration in nanoseconds computed using the startTimeMicro or startTimeNano.<hr> The span's
    * states are defined as follows:
@@ -68,7 +71,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
    * <li>lt 0 -> finished but unpublished.
    * <li>gt 0 -> finished and published.
    */
-  private final AtomicLong durationNano = new AtomicLong();
+  private volatile long durationNano;
 
   private boolean forceKeep;
 
@@ -107,12 +110,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   public boolean isFinished() {
-    return durationNano.get() != 0;
+    return durationNano != 0;
   }
 
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
-    if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
+    if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
@@ -146,7 +149,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       durationNano = TimeUnit.MICROSECONDS.toNanos(Clock.currentMicroTime() - startTimeMicro);
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
-    if (this.durationNano.compareAndSet(0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
+    if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
       context.getTrace().onFinish(this);
       log.debug("Finished span (PHASED): {}", this);
       return true;
@@ -158,12 +161,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public final void publish() {
-    long durationNano = this.durationNano.get();
+    long durationNano = this.durationNano;
     if (durationNano == 0) {
       log.debug("Can't publish unfinished span: {}", this);
     } else if (durationNano > 0) {
       log.debug("Already published: {}", this);
-    } else if (this.durationNano.compareAndSet(durationNano, durationNano & Long.MAX_VALUE)) {
+    } else if (DURATION_NANO_UPDATER.compareAndSet(
+        this, durationNano, durationNano & Long.MAX_VALUE)) {
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Published span ({}): {}", publishState, this);
     }
@@ -510,7 +514,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public long getDurationNano() {
-    return durationNano.get();
+    return durationNano;
   }
 
   @Override

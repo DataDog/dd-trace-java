@@ -179,7 +179,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     ignore = traces.each {
       it.each {
         it.finish()
-        it.@durationNano.set(10)
+        it.@durationNano = 10
       }
     }
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.4/traces"]
