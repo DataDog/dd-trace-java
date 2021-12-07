@@ -3,12 +3,13 @@ package datadog.trace.agent.jmxfetch;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.datadog.jmxfetch.service.ServiceNameProvider;
 
 public class ServiceNameCollectingTraceInterceptor
@@ -35,7 +36,18 @@ public class ServiceNameCollectingTraceInterceptor
               DDSpanTypes.MESSAGE_PRODUCER,
               DDSpanTypes.MESSAGE_BROKER));
 
-  private final Set<String> serviceNames = new ConcurrentSkipListSet<>();
+  private final Map<String, Boolean> serviceNames =
+      new LinkedHashMap<String, Boolean>(16, 0.75f, true) {
+        private static final int MAX_ENTRIES = 128;
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+          return size() > MAX_ENTRIES;
+        }
+      };
+  private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+  private final ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
+  private final ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
@@ -43,7 +55,12 @@ public class ServiceNameCollectingTraceInterceptor
     if (!trace.isEmpty()) {
       MutableSpan rootSpan = trace.iterator().next().getLocalRootSpan();
       if (!IGNORED_ENTRY_SPAN_TYPES.contains(rootSpan.getSpanType())) {
-        serviceNames.add(rootSpan.getServiceName());
+        try {
+          writeLock.lock();
+          serviceNames.put(rootSpan.getServiceName(), Boolean.TRUE);
+        } finally {
+          writeLock.unlock();
+        }
       }
     }
     return trace;
@@ -56,6 +73,11 @@ public class ServiceNameCollectingTraceInterceptor
 
   @Override
   public Iterable<String> getServiceNames() {
-    return new ArrayList<>(serviceNames);
+    try {
+      readLock.lock();
+      return Arrays.asList(serviceNames.keySet().toArray(new String[0]));
+    } finally {
+      readLock.unlock();
+    }
   }
 }
