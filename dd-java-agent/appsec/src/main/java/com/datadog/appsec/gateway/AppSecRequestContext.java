@@ -8,6 +8,7 @@ import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.http.StoredBodySupplier;
+import io.sqreen.powerwaf.Additive;
 import java.io.Closeable;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -43,6 +44,8 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   private int responseStatus;
   private boolean blocked;
 
+  private Additive additive;
+
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
     for (Map.Entry<Address<?>, Object> entry : newData) {
@@ -60,6 +63,14 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
         StandardizedLogging.addressPushed(log, address);
       }
     }
+  }
+
+  public Additive getAdditive() {
+    return additive;
+  }
+
+  public void setAdditive(Additive additive) {
+    this.additive = additive;
   }
 
   /* Implementation of DataBundle */
