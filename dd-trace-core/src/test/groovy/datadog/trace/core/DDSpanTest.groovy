@@ -420,10 +420,10 @@ class DDSpanTest extends DDCoreSpecification {
 
     then:
     parent.isEmittingCheckpoints() == true
-    parent.@emittingCheckpoints == true // Access field directly instead of getter.
+    parent.@emittingCheckpoints == 1 // Access field directly instead of getter.
     parent.getTag(DDSpan.CHECKPOINTED_TAG) == true
     child.isEmittingCheckpoints() == true // flag is reflected in children
-    child.@emittingCheckpoints == null // but no value is stored in the field
+    child.@emittingCheckpoints == 0 // but no value is stored in the field
     child.getTag(DDSpan.CHECKPOINTED_TAG) == null // child span does not get the tag set
   }
 }

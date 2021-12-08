@@ -76,7 +76,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private boolean forceKeep;
 
   // Marked as volatile to assure proper publication to child spans executed on different threads
-  volatile Boolean emittingCheckpoints = null;
+  private volatile byte emittingCheckpoints; // 0 = unset, 1 = true, -1 = false
 
   private final boolean withCheckpoints;
 
@@ -204,8 +204,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     be emitted at all.
     */
     DDSpan rootSpan = getLocalRootSpan();
-    if (rootSpan.emittingCheckpoints == null) {
-      rootSpan.emittingCheckpoints = value;
+    if (rootSpan.emittingCheckpoints == 0) {
+      rootSpan.emittingCheckpoints = value ? 1 : (byte) -1;
       if (value) {
         rootSpan.setTag(CHECKPOINTED_TAG, value);
       }
@@ -220,7 +220,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     local root span subtree must either be fully covered or no checkpoints should
     be emitted at all.
     */
-    return getLocalRootSpan().emittingCheckpoints;
+    byte flag = getLocalRootSpan().emittingCheckpoints;
+    return flag == 0 ? null : flag > 0 ? Boolean.TRUE : Boolean.FALSE;
   }
 
   @Override
