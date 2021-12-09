@@ -78,10 +78,6 @@ public class JMXFetch {
               + (null != port && port > 0 ? ":" + port : ""));
     }
 
-    ServiceNameCollectingTraceInterceptor serviceNameProvider =
-        new ServiceNameCollectingTraceInterceptor();
-    GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
-
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, null, null);
 
     final AppConfig.AppConfigBuilder configBuilder =
@@ -99,8 +95,15 @@ public class JMXFetch {
             .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
-            .serviceNameProvider(serviceNameProvider)
             .reporter(new AgentStatsdReporter(statsd));
+
+    if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
+      ServiceNameCollectingTraceInterceptor serviceNameProvider =
+          new ServiceNameCollectingTraceInterceptor();
+      GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
+
+      configBuilder.serviceNameProvider(serviceNameProvider);
+    }
 
     if (checkPeriod != null) {
       configBuilder.checkPeriod(checkPeriod);
@@ -113,9 +116,10 @@ public class JMXFetch {
             new Runnable() {
               @Override
               public void run() {
+                App app = new App(appConfig);
                 while (true) {
                   try {
-                    final int result = App.run(appConfig);
+                    final int result = app.run();
                     log.error("jmx collector exited with result: " + result);
                   } catch (final Exception e) {
                     log.error("Exception in jmx collector thread", e);

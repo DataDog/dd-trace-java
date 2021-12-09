@@ -1,65 +1,46 @@
 package datadog.trace.agent.jmxfetch;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.datadog.jmxfetch.service.ServiceNameProvider;
 
 public class ServiceNameCollectingTraceInterceptor
     implements TraceInterceptor, ServiceNameProvider {
   /*
-   * These span types all set their own service names, so we ignore them. These should not have JVM
+   * The other span types all set their own service names, so we ignore them. They should not have JVM
    * runtime metrics applied to their service names.
    */
-  private static final Set<String> IGNORED_ENTRY_SPAN_TYPES =
-      new HashSet<>(
-          Arrays.asList(
-              DDSpanTypes.SQL,
-              DDSpanTypes.MONGO,
-              DDSpanTypes.CASSANDRA,
-              DDSpanTypes.COUCHBASE,
-              DDSpanTypes.REDIS,
-              DDSpanTypes.MEMCACHED,
-              DDSpanTypes.ELASTICSEARCH,
-              DDSpanTypes.HIBERNATE,
-              DDSpanTypes.AEROSPIKE,
-              DDSpanTypes.DATANUCLEUS,
-              DDSpanTypes.MESSAGE_CLIENT,
-              DDSpanTypes.MESSAGE_CONSUMER,
-              DDSpanTypes.MESSAGE_PRODUCER,
-              DDSpanTypes.MESSAGE_BROKER));
+  private static final Set<String> VALID_ENTRY_SPAN_TYPES =
+      new HashSet<>(Arrays.asList(DDSpanTypes.HTTP_SERVER, DDSpanTypes.RPC, DDSpanTypes.SOAP));
+  private static final int SERVICE_NAME_LIMIT =
+      Config.get().getJmxFetchMultipleRuntimeServicesLimit();
+  private static final AtomicIntegerFieldUpdater<ServiceNameCollectingTraceInterceptor>
+      SERVICE_NAMES_SIZE_UPDATER =
+          AtomicIntegerFieldUpdater.newUpdater(
+              ServiceNameCollectingTraceInterceptor.class, "serviceNamesSize");
 
-  private final Map<String, Boolean> serviceNames =
-      new LinkedHashMap<String, Boolean>(16, 0.75f, true) {
-        private static final int MAX_ENTRIES = 128;
-
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
-          return size() > MAX_ENTRIES;
-        }
-      };
-  private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-  private final ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
-  private final ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
+  private volatile int serviceNamesSize = 0;
+  private final ConcurrentHashMap<String, Boolean> serviceNames = new ConcurrentHashMap<>();
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
       Collection<? extends MutableSpan> trace) {
     if (!trace.isEmpty()) {
       MutableSpan rootSpan = trace.iterator().next().getLocalRootSpan();
-      if (!IGNORED_ENTRY_SPAN_TYPES.contains(rootSpan.getSpanType())) {
-        try {
-          writeLock.lock();
-          serviceNames.put(rootSpan.getServiceName(), Boolean.TRUE);
-        } finally {
-          writeLock.unlock();
+      if (VALID_ENTRY_SPAN_TYPES.contains(rootSpan.getSpanType())) {
+        // Not a hard limit, the race here is acceptable to not add locking on every trace report
+        if (serviceNamesSize < SERVICE_NAME_LIMIT) {
+          if (serviceNames.putIfAbsent(rootSpan.getServiceName(), Boolean.TRUE) == null) {
+            SERVICE_NAMES_SIZE_UPDATER.incrementAndGet(this);
+          }
         }
       }
     }
@@ -73,11 +54,6 @@ public class ServiceNameCollectingTraceInterceptor
 
   @Override
   public Iterable<String> getServiceNames() {
-    try {
-      readLock.lock();
-      return Arrays.asList(serviceNames.keySet().toArray(new String[0]));
-    } finally {
-      readLock.unlock();
-    }
+    return serviceNames.keySet();
   }
 }
