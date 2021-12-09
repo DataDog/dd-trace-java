@@ -2,6 +2,9 @@ package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.ProfilingListener;
+import datadog.trace.api.profiling.ProfilingListenersRegistry;
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.sampling.AdaptiveSampler;
 import datadog.trace.api.sampling.ConstantSampler;
 import datadog.trace.api.sampling.Sampler;
@@ -12,6 +15,7 @@ import datadog.trace.core.EndpointTracker;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nonnull;
 import jdk.jfr.EventType;
@@ -19,7 +23,7 @@ import jdk.jfr.FlightRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JFRCheckpointer implements Checkpointer {
+public class JFRCheckpointer implements Checkpointer, ProfilingListener<ProfilingSnapshot> {
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
   static class SamplerConfig {
@@ -32,7 +36,8 @@ public class JFRCheckpointer implements Checkpointer {
         @Nonnull Duration windowSize,
         int samplesPerWindow,
         int averageLookback,
-        int budgetLookback) {
+        int budgetLookback,
+        int recordingSampleLimit) {
       this.windowSize = windowSize;
       this.samplesPerWindow = samplesPerWindow;
       this.averageLookback = averageLookback;
@@ -71,7 +76,7 @@ public class JFRCheckpointer implements Checkpointer {
   private static final int DEFAULT_AVERAGE_LOOKBACK = 16;
   static final int MIN_SAMPLER_WINDOW_SIZE_MS = 100;
   static final int MAX_SAMPLER_WINDOW_SIZE_MS = 30000;
-  static final int MAX_SAMPLER_RATE = 1000000; // max 1M checkpoints per recording
+  static final int MAX_SAMPLER_RATE = 500_000; // max 500k checkpoints per recording
 
   private final Sampler sampler;
 
@@ -80,6 +85,11 @@ public class JFRCheckpointer implements Checkpointer {
   private final int rateLimit;
   private final boolean isEndpointCollectionEnabled;
   private final SamplerConfig samplerConfig;
+
+  private final int recordingSampleLimit;
+  private volatile long recordingSampleCount = 0L;
+  private final AtomicLongFieldUpdater<JFRCheckpointer> recordingSampleCountUpdater =
+      AtomicLongFieldUpdater.newUpdater(JFRCheckpointer.class, "recordingSampleCount");
 
   public JFRCheckpointer() {
     this(ConfigProvider.getInstance());
@@ -91,10 +101,6 @@ public class JFRCheckpointer implements Checkpointer {
 
   private JFRCheckpointer(final ConfiguredSampler sampler, final ConfigProvider configProvider) {
     this(sampler.sampler, sampler.config, configProvider);
-  }
-
-  JFRCheckpointer(final Sampler sampler, final ConfigProvider configProvider) {
-    this(sampler, null, configProvider);
   }
 
   JFRCheckpointer(
@@ -110,6 +116,7 @@ public class JFRCheckpointer implements Checkpointer {
 
     this.samplerConfig = samplerConfig;
     rateLimit = getRateLimit(configProvider);
+    recordingSampleLimit = getRecordingSampleLimit(configProvider);
     this.sampler = Objects.requireNonNull(sampler);
 
     if (sampler != null) {
@@ -119,6 +126,7 @@ public class JFRCheckpointer implements Checkpointer {
             CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
       }
       FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
+      ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).addListener(this);
     }
 
     isEndpointCollectionEnabled =
@@ -132,6 +140,11 @@ public class JFRCheckpointer implements Checkpointer {
     tryEmitCheckpoint(span, flags);
   }
 
+  @Override
+  public void onData(ProfilingSnapshot observable) {
+    recordingSampleCountUpdater.set(this, 0);
+  }
+
   private void tryEmitCheckpoint(final AgentSpan span, final int flags) {
     final boolean checkpointed;
     final Boolean isEmitting = span.isEmittingCheckpoints();
@@ -142,12 +155,19 @@ public class JFRCheckpointer implements Checkpointer {
       will effectively be taken only when 'span' is the local root span and the first checkpoint
       (usually 'start span') is emitted.
       Things might become problematic when child spans start emitting checkpoints before the
-      local root span has been created but that is obvously invalid behaviour, breaking the whole tracer.
+      local root span has been created but that is obviously invalid behaviour, breaking the whole tracer.
       Therefore, we can afford to omit proper synchronization here and rely only on the span internal
       checkpoint emission flag being properly published (eg. via 'volatile').
        */
       // if the flag hasn't been set yet consult the sampler
-      checkpointed = sampler.sample();
+      if (recordingSampleCount <= recordingSampleLimit) {
+        checkpointed = sampler.sample();
+        if (checkpointed) {
+          recordingSampleCountUpdater.incrementAndGet(this);
+        }
+      } else {
+        checkpointed = sampler.drop();
+      }
       // store the decision in the span
       span.setEmittingCheckpoints(checkpointed);
       if (log.isDebugEnabled()) {
@@ -158,8 +178,14 @@ public class JFRCheckpointer implements Checkpointer {
             span.getTraceId());
       }
     } else if (isEmitting) {
-      // reuse the sampler decision and force the sample
-      checkpointed = sampler.keep();
+      // check if not breaking the global per-recording limit
+      if (recordingSampleCountUpdater.incrementAndGet(this) > recordingSampleLimit) {
+        // limit broken - drop the sample
+        checkpointed = sampler.drop();
+      } else {
+        // reuse the sampler decision and force the sample
+        checkpointed = sampler.keep();
+      }
     } else {
       // reuse the sampler decision and force the drop
       checkpointed = sampler.drop();
@@ -208,7 +234,12 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   private void emitSummary() {
-    new CheckpointSummaryEvent(rateLimit, emitted.sumThenReset(), dropped.sumThenReset()).commit();
+    new CheckpointSummaryEvent(
+            rateLimit,
+            emitted.sumThenReset(),
+            dropped.sumThenReset(),
+            recordingSampleCount > recordingSampleLimit)
+        .commit();
   }
 
   private void emitSamplerConfig() {
@@ -217,7 +248,8 @@ public class JFRCheckpointer implements Checkpointer {
               samplerConfig.windowSize.toMillis(),
               samplerConfig.samplesPerWindow,
               samplerConfig.averageLookback,
-              samplerConfig.budgetLookback)
+              samplerConfig.budgetLookback,
+              recordingSampleLimit)
           .commit();
     } catch (Throwable t) {
       if (log.isDebugEnabled()) {
@@ -237,7 +269,7 @@ public class JFRCheckpointer implements Checkpointer {
       return new ConfiguredSampler(null, new ConstantSampler(true));
     }
     log.debug(
-        "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}",
+        "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}, hardLimit={}",
         config.windowSize.toMillis(),
         config.samplesPerWindow,
         config.budgetLookback);
@@ -286,8 +318,16 @@ public class JFRCheckpointer implements Checkpointer {
     int budgetLookback =
         Math.round(Math.max((0.8f * limit) / samplesPerWindow, MIN_SAMPLER_LOOKBACK));
 
+    int recordingSampleLimit =
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT,
+            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT);
     return new SamplerConfig(
-        windowSize, Math.round(samplesPerWindow), DEFAULT_AVERAGE_LOOKBACK, budgetLookback);
+        windowSize,
+        Math.round(samplesPerWindow),
+        DEFAULT_AVERAGE_LOOKBACK,
+        budgetLookback,
+        recordingSampleLimit);
   }
 
   private static int getRateLimit(final ConfigProvider configProvider) {
@@ -296,6 +336,12 @@ public class JFRCheckpointer implements Checkpointer {
             ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT,
             ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT),
         MAX_SAMPLER_RATE);
+  }
+
+  private static int getRecordingSampleLimit(final ConfigProvider configProvider) {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT,
+        ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT);
   }
 
   private static int getSamplerWindowMs(final ConfigProvider configProvider) {

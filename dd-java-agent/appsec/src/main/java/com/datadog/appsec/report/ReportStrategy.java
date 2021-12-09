@@ -2,6 +2,8 @@ package com.datadog.appsec.report;
 
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.JvmTime;
+import datadog.trace.api.Config;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 
 public interface ReportStrategy {
@@ -10,8 +12,10 @@ public interface ReportStrategy {
   boolean shouldFlush(@Nonnull AppSecEvent100 event);
 
   class Default implements ReportStrategy {
-    private static final long MIN_INTERVAL_NANOS = 5L * 1000L * 1000L * 1000L;
-    private static final long MAX_INTERVAL_NANOS = 60L * 1000L * 1000L * 1000L;
+    private static final long MIN_INTERVAL_NANOS =
+        TimeUnit.SECONDS.toNanos(Config.get().getAppSecReportMinTimeout());
+    private static final long MAX_INTERVAL_NANOS =
+        TimeUnit.SECONDS.toNanos(Config.get().getAppSecReportMaxTimeout());
     private static final int MAX_QUEUED_ITEMS = 50;
 
     private final JvmTime jvmTime;

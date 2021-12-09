@@ -135,6 +135,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
         DECORATE.onResponse(span, channel);
         // span could have been originated on a different thread and migrated
         span.finishThreadMigration();
+        DECORATE.beforeFinish(span);
         span.finish();
       }
     }

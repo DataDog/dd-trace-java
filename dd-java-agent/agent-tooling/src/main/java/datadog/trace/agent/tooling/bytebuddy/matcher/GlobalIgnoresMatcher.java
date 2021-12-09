@@ -87,6 +87,9 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
         if (name.startsWith("cinnamon.")) {
           return true;
         }
+        if (name.startsWith("co.elastic.apm.")) {
+          return true;
+        }
         break;
       case 'd' - 'a':
         if (name.startsWith("datadog.")) {

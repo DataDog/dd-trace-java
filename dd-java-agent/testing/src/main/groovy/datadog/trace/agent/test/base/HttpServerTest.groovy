@@ -5,14 +5,17 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -72,10 +75,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def callbacks = new IGCallbacks()
     Events<IGCallbacks.Context> events = Events.get()
     ig.registerCallback(events.requestStarted(), callbacks.requestStartedCb)
+    ig.registerCallback(events.requestEnded(), callbacks.requestEndedCb)
     ig.registerCallback(events.requestHeader(), callbacks.requestHeaderCb)
+    ig.registerCallback(events.requestHeaderDone(), callbacks.requestHeaderDoneCb)
     ig.registerCallback(events.requestMethodUriRaw(), callbacks.requestUriRawCb)
+    ig.registerCallback(events.requestClientSocketAddress(), callbacks.requestClientSocketAddressCb)
     ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
+    ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
   }
 
   @Shared
@@ -794,9 +801,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test instrumentation gateway callbacks for #endpoint with #header = #value"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
-    def request = request(endpoint, "GET",  null).header(header, value).build()
+    def request = request(endpoint, "GET", null).header(header, value).build()
     def traces = extraSpan ? 2 : 1
-
+    def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
+    if (hasPeerInformation()) {
+      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
+      extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
+    }
     when:
     def response = client.newCall(request).execute()
 
@@ -819,18 +830,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (extraSpan) {
         trace(1) {
-          basicSpan(it, "$header-$value")
+          basicSpan(it, "$header-$value", null, null, extraTags)
         }
       }
     }
 
     where:
-    endpoint            | header              | value       | extraSpan
-    QUERY_ENCODED_BOTH  | IG_TEST_HEADER      | "something" | true
-    QUERY_ENCODED_BOTH  | "x-ignored"         | "something" | false
-    SUCCESS             | IG_TEST_HEADER      | "whatever"  | false
-    QUERY_ENCODED_QUERY | IG_TEST_HEADER      | "whatever"  | false
-    QUERY_PARAM         | IG_TEST_HEADER      | "whatever"  | false
+    endpoint            | header         | value       | extraSpan
+    QUERY_ENCODED_BOTH  | IG_TEST_HEADER | "something" | true
+    QUERY_ENCODED_BOTH  | "x-ignored"    | "something" | false
+    SUCCESS             | IG_TEST_HEADER | "whatever"  | false
+    QUERY_ENCODED_QUERY | IG_TEST_HEADER | "whatever"  | false
+    QUERY_PARAM         | IG_TEST_HEADER | "whatever"  | false
   }
 
   def 'test instrumentation gateway request body interception'() {
@@ -949,11 +960,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   static final String IG_TEST_HEADER = "x-ig-test-header"
+  static final String IG_PEER_ADDRESS = "ig-peer-address"
+  static final String IG_PEER_PORT = "ig-peer-port"
+  static final String IG_RESPONSE_STATUS = "ig-response-status"
 
   class IGCallbacks {
     static class Context {
-      String extraSpan
+      String matchingHeaderValue
+      String doneHeaderValue
+      String extraSpanName
+      HashMap<String, String> tags = new HashMap<>()
       StoredBodySupplier requestBodySupplier
+    }
+
+    static final String stringOrEmpty(String string) {
+      string == null ? "" : string
     }
 
     final Supplier<Flow<Context>> requestStartedCb =
@@ -962,13 +983,36 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       new Flow.ResultFlow<Context>(new Context())
     } as Supplier<Flow<Context>>)
 
+    final BiFunction<RequestContext<Context>, IGSpanInfo, Flow<Void>> requestEndedCb =
+    ({ RequestContext<Context> rqCtxt, IGSpanInfo info ->
+      def context = rqCtxt.data
+      if (context.extraSpanName) {
+        runUnderTrace(context.extraSpanName, false) {
+          def span = activeSpan()
+          context.tags.each { key, val ->
+            span.setTag(key, val)
+          }
+        }
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, IGSpanInfo, Flow<Void>>)
+
     final TriConsumer<RequestContext<Context>, String, String> requestHeaderCb =
     { RequestContext<Context> rqCtxt, String key, String value ->
       def context = rqCtxt.data
       if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
-        context.extraSpan = value
+        context.matchingHeaderValue = stringOrEmpty(context.matchingHeaderValue) + value
       }
     } as TriConsumer<RequestContext<Context>, String, String>
+
+    final Function<RequestContext<Context>, Flow<Void>> requestHeaderDoneCb =
+    ({ RequestContext<Context> rqCtxt ->
+      def context = rqCtxt.data
+      if (null != context.matchingHeaderValue) {
+        context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
+      }
+      Flow.ResultFlow.empty()
+    } as Function<RequestContext<Context>, Flow<Void>>)
 
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"
 
@@ -978,14 +1022,22 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       String raw = uri.supportsRaw() ? uri.raw() : ''
       raw = uri.hasPlusEncodedSpaces() ? raw.replace('+', '%20') : raw
       // Only trigger for query path without query parameters and with special header
-      if (raw.endsWith(EXPECTED) && context.extraSpan) {
-        runUnderTrace("$IG_TEST_HEADER-${context.extraSpan}", false) {}
+      if (raw.endsWith(EXPECTED) && context.doneHeaderValue) {
+        context.extraSpanName = stringOrEmpty(context.extraSpanName) + "$IG_TEST_HEADER-${context.doneHeaderValue}"
         // Only do this for the first time since some instrumentations with handler spans may call
         // DECORATE.onRequest multiple times
-        context.extraSpan = null
+        context.doneHeaderValue = null
       }
       Flow.ResultFlow.empty()
     } as TriFunction<RequestContext<Context>, String, URIDataAdapter, Flow<Void>>)
+
+    final TriFunction<RequestContext<Context>, String, Integer, Flow<Void>> requestClientSocketAddressCb =
+    ({ RequestContext<Context> rqCtxt, String address, Integer port ->
+      def context = rqCtxt.data
+      context.tags.put(IG_PEER_ADDRESS, address)
+      context.tags.put(IG_PEER_PORT, String.valueOf(port))
+      Flow.ResultFlow.empty()
+    } as TriFunction<RequestContext<Context>, String, Integer, Flow<Void>>)
 
     final BiFunction<RequestContext<Context>, StoredBodySupplier, Void> requestBodyStartCb =
     { RequestContext<Context> rqCtxt, StoredBodySupplier supplier ->
@@ -995,13 +1047,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Void>
 
     final BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>> requestBodyEndCb =
-    { RequestContext<Context> rqCtxt, StoredBodySupplier supplier ->
+    ({ RequestContext<Context> rqCtxt, StoredBodySupplier supplier ->
       def context = rqCtxt.data
       if (!context.requestBodySupplier.is(supplier)) {
         throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
       }
       activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>
+    } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
+
+    final BiConsumer<RequestContext<Context>, Integer> responseStartedCb =
+    { RequestContext<Context> rqCtxt, Integer resultCode ->
+      def context = rqCtxt.data
+      context.tags.put(IG_RESPONSE_STATUS, String.valueOf(resultCode))
+    } as BiConsumer<RequestContext<Context>, Integer>
   }
 }

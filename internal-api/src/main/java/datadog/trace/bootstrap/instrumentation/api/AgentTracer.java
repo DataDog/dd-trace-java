@@ -72,6 +72,23 @@ public class AgentTracer {
     return get().captureSpan(span, ScopeSource.INSTRUMENTATION);
   }
 
+  /**
+   * Closes the immediately previous iteration scope. Should be called before creating a new span
+   * for {@link #activateNext(AgentSpan)}.
+   */
+  public static void closePrevious(final boolean finishSpan) {
+    get().closePrevious(finishSpan);
+  }
+
+  /**
+   * Activates a new iteration scope; closes automatically after a fixed period.
+   *
+   * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
+   */
+  public static AgentScope activateNext(final AgentSpan span) {
+    return get().activateNext(span);
+  }
+
   public static AgentSpan activeSpan() {
     return get().activeSpan();
   }
@@ -131,6 +148,10 @@ public class AgentTracer {
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
     AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+
+    void closePrevious(boolean finishSpan);
+
+    AgentScope activateNext(AgentSpan span);
 
     AgentSpan activeSpan();
 
@@ -228,6 +249,14 @@ public class AgentTracer {
     @Override
     public AgentScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
       return NoopContinuation.INSTANCE;
+    }
+
+    @Override
+    public void closePrevious(final boolean finishSpan) {}
+
+    @Override
+    public AgentScope activateNext(final AgentSpan span) {
+      return NoopAgentScope.INSTANCE;
     }
 
     @Override
@@ -615,6 +644,11 @@ public class AgentTracer {
     @Override
     public AgentSpan span() {
       return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public byte source() {
+      return 0;
     }
 
     @Override

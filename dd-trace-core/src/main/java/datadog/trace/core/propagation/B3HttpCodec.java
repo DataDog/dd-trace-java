@@ -113,16 +113,28 @@ class B3HttpCodec {
       // overwrite those
       if (B3_KEY.equals(key)) {
         classification = B3_ID;
-      } else if (Character.toLowerCase(key.charAt(0)) == 'x') {
-        if ((traceId == null || traceId == DDId.ZERO) && TRACE_ID_KEY.equalsIgnoreCase(key)) {
-          classification = TRACE_ID;
-        } else if ((spanId == null || spanId == DDId.ZERO) && SPAN_ID_KEY.equalsIgnoreCase(key)) {
-          classification = SPAN_ID;
-        } else if (samplingPriority == defaultSamplingPriority()
-            && SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
-          classification = SAMPLING_PRIORITY;
-        } else if (handledForwarding(key, value)) {
-          return true;
+      } else {
+        char first = Character.toLowerCase(key.charAt(0));
+        switch (first) {
+          case 'x':
+            if ((traceId == null || traceId == DDId.ZERO) && TRACE_ID_KEY.equalsIgnoreCase(key)) {
+              classification = TRACE_ID;
+            } else if ((spanId == null || spanId == DDId.ZERO)
+                && SPAN_ID_KEY.equalsIgnoreCase(key)) {
+              classification = SPAN_ID;
+            } else if (samplingPriority == defaultSamplingPriority()
+                && SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
+              classification = SAMPLING_PRIORITY;
+            } else if (handledXForwarding(key, value)) {
+              return true;
+            }
+            break;
+          case 'f':
+            if (handledForwarding(key, value)) {
+              return true;
+            }
+            break;
+          default:
         }
       }
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {

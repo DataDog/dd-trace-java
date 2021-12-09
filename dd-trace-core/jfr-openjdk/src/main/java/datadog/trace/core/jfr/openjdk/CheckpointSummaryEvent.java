@@ -24,9 +24,13 @@ public class CheckpointSummaryEvent extends Event {
   @Label("Rate Limit")
   private final int rateLimit;
 
-  public CheckpointSummaryEvent(int rateLimit, long emitted, long dropped) {
+  @Label("Truncated")
+  private final boolean truncated;
+
+  public CheckpointSummaryEvent(int rateLimit, long emitted, long dropped, boolean truncated) {
     this.rateLimit = rateLimit;
     this.dropped = dropped;
     this.emitted = emitted;
+    this.truncated = truncated;
   }
 }

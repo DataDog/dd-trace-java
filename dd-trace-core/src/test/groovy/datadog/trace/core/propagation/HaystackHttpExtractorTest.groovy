@@ -71,6 +71,37 @@ class HaystackHttpExtractorTest extends DDSpecification {
     then:
     context != null
     !(context instanceof ExtractedContext)
+    context.forwarded == "for=$forwardedIp:$forwardedPort"
+
+    when:
+    context = extractor.extract(fullCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    context instanceof ExtractedContext
+    context.traceId.toLong() == 1
+    context.spanId.toLong() == 2
+    context.forwarded == "for=$forwardedIp:$forwardedPort"
+
+    where:
+    forwardedIp = "1.2.3.4"
+    forwardedPort = "123"
+    tagOnlyCtx = [
+      "Forwarded" : "for=$forwardedIp:$forwardedPort"
+    ]
+    fullCtx = [
+      (TRACE_ID_KEY.toUpperCase()): 1,
+      (SPAN_ID_KEY.toUpperCase()) : 2,
+      "Forwarded" : "for=$forwardedIp:$forwardedPort"
+    ]
+  }
+
+  def "extract headers with x-forwarding"() {
+    when:
+    TagContext context = extractor.extract(tagOnlyCtx, ContextVisitors.stringValuesMap())
+
+    then:
+    context != null
+    !(context instanceof ExtractedContext)
     context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 
@@ -81,7 +112,6 @@ class HaystackHttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedIp == forwardedIp
     context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 

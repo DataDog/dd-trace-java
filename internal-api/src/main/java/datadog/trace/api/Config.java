@@ -50,6 +50,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -76,6 +77,7 @@ import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
@@ -211,6 +213,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
+import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
@@ -340,6 +343,7 @@ public class Config {
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
   private final boolean scopeInheritAsyncPropagation;
+  private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
   private final boolean traceStrictWritesEnabled;
   private final boolean runtimeContextFieldInjection;
@@ -415,6 +419,8 @@ public class Config {
   private final boolean appSecEnabled;
   private final boolean appSecReportingInband;
   private final String appSecRulesFile;
+  private final int appSecReportMinTimeout;
+  private final int appSecReportMaxTimeout;
 
   private final boolean ciVisibilityEnabled;
 
@@ -681,6 +687,9 @@ public class Config {
 
     scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
+    scopeIterationKeepAlive =
+        configProvider.getInteger(SCOPE_ITERATION_KEEP_ALIVE, DEFAULT_SCOPE_ITERATION_KEEP_ALIVE);
+
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
@@ -862,6 +871,10 @@ public class Config {
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
+
+    // Default AppSec report timeout min=5, max=60
+    appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
+    appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1129,6 +1142,10 @@ public class Config {
     return scopeInheritAsyncPropagation;
   }
 
+  public int getScopeIterationKeepAlive() {
+    return scopeIterationKeepAlive;
+  }
+
   public int getPartialFlushMinSpans() {
     return partialFlushMinSpans;
   }
@@ -1367,6 +1384,14 @@ public class Config {
 
   public boolean isAppSecReportingInband() {
     return appSecReportingInband;
+  }
+
+  public int getAppSecReportMinTimeout() {
+    return appSecReportMinTimeout;
+  }
+
+  public int getAppSecReportMaxTimeout() {
+    return appSecReportMaxTimeout;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -2163,6 +2188,8 @@ public class Config {
         + scopeStrictMode
         + ", scopeInheritAsyncPropagation="
         + scopeInheritAsyncPropagation
+        + ", scopeIterationKeepAlive="
+        + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
         + partialFlushMinSpans
         + ", traceStrictWritesEnabled="

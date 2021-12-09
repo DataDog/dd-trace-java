@@ -10,64 +10,49 @@ import java.util.Map;
  */
 public class TagContext implements AgentSpan.Context.Extracted {
 
-  public static final TagContext empty() {
-    return new TagContext(null, null, null, null, null, null, null);
-  }
-
   private final String origin;
-  private final String forwarded;
-  private final String forwardedProto;
-  private final String forwardedHost;
-  private final String forwardedIp;
-  private final String forwardedPort;
   private final Map<String, String> tags;
   private Object requestContextData;
 
-  public TagContext(
-      final String origin,
-      String forwarded,
-      String forwardedProto,
-      String forwardedHost,
-      String forwardedIp,
-      String forwardedPort,
-      final Map<String, String> tags) {
+  public TagContext() {
+    this(null, null);
+  }
+
+  public TagContext(final String origin, final Map<String, String> tags) {
     this.origin = origin;
-    this.forwarded = forwarded;
-    this.forwardedProto = forwardedProto;
-    this.forwardedHost = forwardedHost;
-    this.forwardedIp = forwardedIp;
-    this.forwardedPort = forwardedPort;
     this.tags = tags;
   }
 
-  public String getOrigin() {
+  public final String getOrigin() {
     return origin;
   }
 
+  @Override
   public String getForwarded() {
-    return forwarded;
+    return null;
   }
 
   @Override
   public String getForwardedProto() {
-    return forwardedProto;
+    return null;
   }
 
+  @Override
   public String getForwardedHost() {
-    return forwardedHost;
+    return null;
   }
 
   @Override
   public String getForwardedIp() {
-    return forwardedIp;
+    return null;
   }
 
   @Override
   public String getForwardedPort() {
-    return forwardedPort;
+    return null;
   }
 
-  public Map<String, String> getTags() {
+  public final Map<String, String> getTags() {
     return tags;
   }
 
@@ -87,15 +72,15 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public AgentTrace getTrace() {
+  public final AgentTrace getTrace() {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
-  public Object getRequestContextData() {
+  public final Object getRequestContextData() {
     return requestContextData;
   }
 
-  public TagContext withRequestContextData(Object requestContextData) {
+  public final TagContext withRequestContextData(Object requestContextData) {
     this.requestContextData = requestContextData;
     return this;
   }

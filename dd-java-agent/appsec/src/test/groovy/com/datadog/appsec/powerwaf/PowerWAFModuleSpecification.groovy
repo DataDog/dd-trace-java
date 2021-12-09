@@ -3,6 +3,8 @@ package com.datadog.appsec.powerwaf
 import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
+import com.datadog.appsec.event.EventListener
+import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.CaseInsensitiveMap
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
@@ -21,13 +23,15 @@ class PowerWAFModuleSpecification extends DDSpecification {
   AppSecRequestContext ctx = Mock()
 
   PowerWAFModule pwafModule = new PowerWAFModule()
-  DataListener listener
+  DataListener dataListener
+  EventListener eventListener
 
   private void setupWithStubConfigService() {
     def service = new StubAppSecConfigService()
     service.init(false)
     pwafModule.config(service)
-    listener = pwafModule.dataSubscriptions.first()
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
   }
 
   void 'is named powerwaf'() {
@@ -40,7 +44,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    listener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
     flow.blocking == true
@@ -51,7 +56,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent100 event
 
     when:
-    listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
@@ -79,7 +85,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       new CaseInsensitiveMap<List<String>>(['user-agent': 'Harmless']))
 
     when:
-    listener.onDataAvailable(flow, ctx, db)
+    dataListener.onDataAvailable(flow, ctx, db)
 
     then:
     flow.blocking == false
@@ -91,15 +97,16 @@ class PowerWAFModuleSpecification extends DDSpecification {
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES, [get: { null }] as List)
 
     when:
-    listener.onDataAvailable(flow, ctx, db)
+    dataListener.onDataAvailable(flow, ctx, db)
 
     then:
     assert !flow.blocking
   }
 
-  void 'subscribes no events'() {
+  void 'subscribes 1 event'() {
     expect:
-    pwafModule.eventSubscriptions.empty == true
+    pwafModule.eventSubscriptions.isEmpty() == false
+    pwafModule.eventSubscriptions.first().eventType == EventType.REQUEST_END
   }
 
   void 'configuration can be given later'() {
@@ -113,9 +120,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
-    listener = pwafModule.dataSubscriptions.first()
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
-    listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
@@ -132,8 +141,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
-    listener = pwafModule.dataSubscriptions.first()
-    listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener = pwafModule.dataSubscriptions.first()
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
     then:
     0 * ctx._
