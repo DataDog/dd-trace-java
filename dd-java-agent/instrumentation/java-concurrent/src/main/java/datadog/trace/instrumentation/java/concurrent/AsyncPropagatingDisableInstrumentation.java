@@ -82,7 +82,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "com.zaxxer.hikari.pool.HikariPool",
             "net.sf.ehcache.store.disk.DiskStorageFactory",
             "org.springframework.jms.listener.DefaultMessageListenerContainer",
-            "org.apache.activemq.broker.TransactionBroker")
+            "org.apache.activemq.broker.TransactionBroker",
+            "org.http4s.blaze.channel.nio2.ClientChannelFactory")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -159,6 +160,10 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         named("beginTransaction")
             .and(isDeclaredBy(named("org.apache.activemq.broker.TransactionBroker"))),
+        advice);
+    transformation.applyAdvice(
+        named("connect")
+            .and(isDeclaredBy(named("org.http4s.blaze.channel.nio2.ClientChannelFactory"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
