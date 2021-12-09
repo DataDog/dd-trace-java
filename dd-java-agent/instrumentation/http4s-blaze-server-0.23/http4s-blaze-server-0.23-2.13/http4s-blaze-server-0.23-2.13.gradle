@@ -1,0 +1,31 @@
+// NOTE: This is an unsupported experimental integration for the http4s-blaze-server 0.23
+
+apply from: "$projectDir/../common/setup.gradle"
+
+muzzle {
+  pass {
+    group = 'org.http4s'
+    module = 'http4s-blaze-server_2.13'
+    versions = '[0.23.0,0.24)'
+    assertInverse = true
+  }
+  fail {
+    group = 'org.http4s'
+    module = 'http4s-blaze-server_2.12'
+    versions = '[0.23.0,0.24)'
+  }
+}
+
+dependencies {
+  main_java8CompileOnly deps.scala213
+  main_java8CompileOnly group: 'org.http4s', name: 'http4s-blaze-server_2.13', version: '0.23.0'
+
+  testImplementation deps.scala213
+  testImplementation group: 'org.http4s', name: 'http4s-blaze-server_2.13', version: '0.23.0'
+  testImplementation group: 'org.http4s', name: "http4s-dsl_2.13", version: '0.23.0'
+  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+
+  latestDepTestImplementation group: 'org.http4s', name: 'http4s-blaze-server_2.13', version: '0.23.+'
+  latestDepTestImplementation group: 'org.http4s', name: "http4s-dsl_2.13", version: '0.23.+'
+}
