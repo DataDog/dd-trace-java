@@ -3,6 +3,8 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
@@ -22,6 +24,7 @@ class DatadogHttpCodec {
   private static final String SPAN_ID_KEY = "x-datadog-parent-id";
   private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
   private static final String ORIGIN_KEY = "x-datadog-origin";
+  private static final String E2E_START_KEY = "x-datadog-e2e-start";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -43,6 +46,10 @@ class DatadogHttpCodec {
       final CharSequence origin = context.getOrigin();
       if (origin != null) {
         setter.set(carrier, ORIGIN_KEY, origin.toString());
+      }
+      long e2eStart = context.getEndToEndStartTime();
+      if (e2eStart > 0) {
+        setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
       }
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
@@ -70,6 +77,7 @@ class DatadogHttpCodec {
     private static final int SAMPLING_PRIORITY = 3;
     private static final int TAGS = 4;
     private static final int OT_BAGGAGE = 5;
+    private static final int E2E_START = 6;
     private static final int IGNORE = -1;
 
     private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
@@ -97,6 +105,8 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
+          } else if (E2E_START_KEY.equalsIgnoreCase(key)) {
+            classification = E2E_START;
           } else if (Config.get().isAwsPropagationEnabled()
               && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
@@ -140,6 +150,9 @@ class DatadogHttpCodec {
                 break;
               case SAMPLING_PRIORITY:
                 samplingPriority = Integer.parseInt(firstValue);
+                break;
+              case E2E_START:
+                endToEndStartTime = MILLISECONDS.toNanos(Long.parseLong(firstValue));
                 break;
               case TAGS:
                 {

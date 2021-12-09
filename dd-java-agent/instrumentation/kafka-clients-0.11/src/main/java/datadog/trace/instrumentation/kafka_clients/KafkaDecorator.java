@@ -2,13 +2,10 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -90,19 +87,7 @@ public class KafkaDecorator extends ClientDecorator {
 
   public void finishConsumerSpan(final AgentSpan span) {
     if (endToEndDurationsEnabled) {
-      long now = System.currentTimeMillis();
-      String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
-      if (null != traceStartTime) {
-        // we want to use the span end time, so need its duration, which is set
-        // on finish, but don't want to risk modifying the span after
-        // finishing it, in case it gets published, causing possible
-        // (functional) race conditions with the trace processing rules.
-        // getting the current time is a reasonable compromise.
-        // not being defensive here because we own the lifecycle of this value
-        span.setTag(
-            RECORD_END_TO_END_DURATION_MS, Math.max(0L, now - Long.parseLong(traceStartTime)));
-      }
-      span.finish(MILLISECONDS.toMicros(now));
+      span.finishEndToEnd();
     } else {
       span.finish();
     }

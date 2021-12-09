@@ -89,6 +89,16 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void finish(long finishMicros);
 
+  /** Marks the start of a message pipeline where we want to track end-to-end processing time. */
+  void beginEndToEnd();
+
+  /**
+   * Marks the end of a message pipeline where the final end-to-end processing time is recorded.
+   *
+   * <p>Note: this will also finish the span and publish it.
+   */
+  void finishEndToEnd();
+
   /**
    * Finishes the span but does not publish it. The {@link #publish()} method MUST be called once
    * otherwise the trace will not be reported.

@@ -7,16 +7,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_EXCHANGE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
@@ -207,14 +204,7 @@ public class RabbitDecorator extends ClientDecorator {
   public static void finishReceivingSpan(AgentScope scope) {
     AgentSpan span = scope.span();
     if (CONSUMER_DECORATE.endToEndDurationsEnabled) {
-      long now = System.currentTimeMillis();
-      String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
-      if (null != traceStartTime) {
-        // not being defensive here because we own the lifecycle of this value
-        span.setTag(
-            RECORD_END_TO_END_DURATION_MS, Math.max(0L, now - Long.parseLong(traceStartTime)));
-      }
-      span.finish(MILLISECONDS.toMicros(now));
+      span.finishEndToEnd();
     } else {
       span.finish();
     }

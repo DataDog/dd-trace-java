@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -143,6 +144,25 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       adjustedStartTimeNano = startTimeNano;
     }
     finishAndAddToTrace(MICROSECONDS.toNanos(stopTimeMicros) - adjustedStartTimeNano);
+  }
+
+  @Override
+  public void beginEndToEnd() {
+    context.beginEndToEnd();
+  }
+
+  @Override
+  public void finishEndToEnd() {
+    long recordStartNano = context.getEndToEndStartTime();
+    if (recordStartNano > 0) {
+      phasedFinish();
+      // get end time from start+duration, ignoring negative bit set by phasedFinish
+      long recordEndNano = startTimeNano + (durationNano & Long.MAX_VALUE);
+      setTag(RECORD_END_TO_END_DURATION_MS, NANOSECONDS.toMillis(recordEndNano - recordStartNano));
+      publish();
+    } else {
+      finish();
+    }
   }
 
   @Override

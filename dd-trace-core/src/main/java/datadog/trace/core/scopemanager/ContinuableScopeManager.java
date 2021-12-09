@@ -160,7 +160,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       top.close();
       scopeStack.cleanup();
       if (finishSpan) {
-        top.span.finish();
+        top.span.finishEndToEnd();
       }
     }
   }
@@ -514,14 +514,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       // avoid calling close() as we're already in that method, instead just clear any
       // remaining references so the scope gets removed in the subsequent cleanup() call
       top.clearReferences();
-      top.span.finish();
+      top.span.finishEndToEnd();
       // now do the same for any previous iteration scopes ahead of the expected scope
       for (ContinuableScope scope : stack) {
         if (scope.source() != ScopeSource.ITERATION.id()) {
           return expectedScope.equals(scope);
         } else {
           scope.clearReferences();
-          scope.span.finish();
+          scope.span.finishEndToEnd();
         }
       }
       return false; // we didn't find the expected scope
@@ -793,7 +793,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
           // mark scope as overdue to allow cleanup and avoid further spans being attached
           scopeStack.overdueRootScope = rootScope;
-          rootScope.span.finish();
+          rootScope.span.finishEndToEnd();
           itr.remove();
         }
       }
