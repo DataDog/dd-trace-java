@@ -1,0 +1,14 @@
+// NOTE: This is an unsupported experimental integration for cats-effect 3.2.x
+// It contains no tests, since it is tested together with http4s-blaze-*
+
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly deps.scala212
+  compileOnly group: 'org.typelevel', name: 'cats-effect_2.12', version: '3.2.0'
+}
