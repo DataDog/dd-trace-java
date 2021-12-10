@@ -26,7 +26,7 @@ spotless {
 project.ext.groovySkipJavaExclude = true
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
+apply from: "$rootDir/gradle/scala.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
@@ -72,13 +72,12 @@ tasks.named("latestDepTest").configure {
 }
 
 dependencies {
-  // first version that works with the tests on JDK11 (without dependency problems):
-  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  compileOnly deps.scala210
   implementation project(':dd-java-agent:instrumentation:scala-promise')
 
-  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testImplementation deps.scala210
   testImplementation project(':dd-java-agent:instrumentation:scala-promise')
 
-  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
+  latestDepTestImplementation deps.scala212
   latestDepTestImplementation project(':dd-java-agent:instrumentation:scala-promise')
 }

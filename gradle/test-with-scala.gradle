@@ -1,6 +1,6 @@
 // Enable testing scala code in groovy spock tests.
 
-apply plugin: 'scala'
+apply from: "$rootDir/gradle/scala.gradle"
 
 dependencies {
   compileOnly deps.scala

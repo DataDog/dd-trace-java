@@ -1,0 +1,18 @@
+apply plugin: 'scala'
+
+def forkedScalaCompileLimit = gradle.sharedServices.registerIfAbsent("forkedScalaCompileLimit", BuildService) {
+  maxParallelUsages = 1
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  // don't use the incremental compiler
+  scalaCompileOptions.with {
+    force = true
+  }
+  // use 1G of memory
+  scalaCompileOptions.forkOptions.with {
+    memoryMaximumSize = '1G'
+  }
+  // limit concurrent compiles
+  usesService(forkedScalaCompileLimit)
+}
