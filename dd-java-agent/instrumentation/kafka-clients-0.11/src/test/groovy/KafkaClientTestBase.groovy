@@ -107,7 +107,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -188,7 +188,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -261,7 +261,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     received.value() == null
     received.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it, null, false, true)
       }
@@ -315,7 +315,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it)
       }
@@ -371,7 +371,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it)
       }
@@ -428,7 +428,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     last.value() == greeting
     last.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it)
       }
@@ -487,7 +487,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     receivedSet.isEmpty()
 
-    assertTraces(9) {
+    assertTraces(9, SORT_TRACES_BY_ID) {
 
       // producing traces
       trace(1) {
@@ -610,7 +610,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     assert receivedSet.isEmpty()
 
-    assertTraces(4) {
+    assertTraces(4, SORT_TRACES_BY_ID) {
       trace(7) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))

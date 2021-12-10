@@ -45,6 +45,7 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.util.Clock;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.Closeable;
@@ -86,6 +87,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
+
+  /** Tracer start time in nano seconds measured up to a millisecond accuracy */
+  private final long startTimeNano;
+  /** Nano second ticks value at tracer start */
+  private final long startNanoTicks;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
@@ -387,6 +393,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
 
+    this.startTimeNano = Clock.currentNanoTime();
+    this.startNanoTicks = Clock.currentNanoTicks();
+
     this.checkpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
@@ -534,6 +543,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } catch (final ServiceConfigurationError e) {
       log.warn("Problem loading TraceInterceptor for classLoader: " + classLoader, e);
     }
+  }
+
+  /**
+   * Timestamp in nanoseconds for the current {@code nanoTicks}.
+   *
+   * <p>Note: it is not possible to get 'real' nanosecond time. This method uses tracer start time
+   * (with millisecond precision) as a reference and applies relative time with nanosecond precision
+   * after that. This means time measured with same Tracer in different Spans is relatively correct
+   * with nanosecond precision.
+   *
+   * @param nanoTicks as returned by {@link Clock#currentNanoTicks()}
+   * @return timestamp in nanoseconds
+   */
+  long getTimeWithNanoTicks(long nanoTicks) {
+    return startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
   }
 
   @Override
