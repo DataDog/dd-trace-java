@@ -219,10 +219,12 @@ class DDSpanTest extends DDCoreSpecification {
     span.durationNano % mod == 0
   }
 
-  def "stopping with a timestamp after start time yeilds a min duration of 1"() {
+  def "stopping with a timestamp before start time yields a min duration of 1"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    span.finish(span.startTimeMicro - 10)
+
+    // remove tick precision part of our internal time to match previous test condition
+    span.finish(TimeUnit.MILLISECONDS.toMicros(TimeUnit.NANOSECONDS.toMillis(span.startTimeNano)) - 10)
 
     expect:
     span.durationNano == 1
