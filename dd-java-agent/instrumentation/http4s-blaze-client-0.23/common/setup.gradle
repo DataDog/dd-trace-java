@@ -18,7 +18,7 @@ spotless {
 project.ext.groovySkipJavaExclude = true
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
+apply from: "$rootDir/gradle/scala.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
@@ -53,10 +53,4 @@ tasks.named('compileTestGroovy').configure {
 tasks.named('compileLatestDepTestGroovy').configure {
   // Groovy tests depend on Scala tests
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
-}
-
-tasks.withType(ScalaCompile) {
-  scalaCompileOptions.with {
-    force = true
-  }
 }

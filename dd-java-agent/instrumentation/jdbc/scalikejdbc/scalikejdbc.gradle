@@ -9,8 +9,8 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/scala.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
-apply plugin: 'scala'
 
 testSets {
   latestDepTest {
