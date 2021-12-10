@@ -15,12 +15,13 @@
  */
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 
 /** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
-public abstract class RecordingData {
+public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant start;
   protected final Instant end;
 

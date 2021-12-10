@@ -23,7 +23,7 @@ excludedClassesCoverage += [
 ]
 
 def AP_VERSION = project.findProperty("dd.async_profiler")
-AP_VERSION = AP_VERSION != null ? AP_VERSION : "2.5-DD-SNAPSHOT"
+AP_VERSION = AP_VERSION != null ? AP_VERSION : "2.5.1-DD-SNAPSHOT"
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')

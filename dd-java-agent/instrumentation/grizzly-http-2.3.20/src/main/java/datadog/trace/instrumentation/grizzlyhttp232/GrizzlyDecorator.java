@@ -72,14 +72,19 @@ public class GrizzlyDecorator
   public static void onHttpServerFilterPrepareResponseEnter(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    span.finishThreadMigration();
-    DECORATE.onResponse(span, responsePacket);
+    if (null != span) {
+      span.finishThreadMigration();
+      DECORATE.onResponse(span, responsePacket);
+    }
   }
 
   public static void onHttpServerFilterPrepareResponseExit(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    span.finish();
+    if (null != span) {
+      DECORATE.beforeFinish(span);
+      span.finish();
+    }
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
   }

@@ -6,6 +6,7 @@ import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.event.ChangeableFlow;
+import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -20,6 +21,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.gateway.Flow;
+import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
@@ -57,6 +59,7 @@ public class PowerWAFModule implements AppSecModule {
       Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
   private static final Set<Address<?>> ADDRESSES_OF_INTEREST;
+  private static final Set<EventType> EVENTS_OF_INTEREST;
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
@@ -88,6 +91,10 @@ public class PowerWAFModule implements AppSecModule {
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_COOKIES);
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_PATH_PARAMS);
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_BODY_RAW);
+
+    EVENTS_OF_INTEREST = new HashSet<>();
+    EVENTS_OF_INTEREST.add(EventType.REQUEST_START);
+    EVENTS_OF_INTEREST.add(EventType.REQUEST_END);
 
     Moshi moshi = new Moshi.Builder().build();
     RES_JSON_ADAPTER =
@@ -149,7 +156,24 @@ public class PowerWAFModule implements AppSecModule {
 
   @Override
   public Collection<EventSubscription> getEventSubscriptions() {
-    return Collections.emptyList();
+    return singletonList(new PowerWAFEventsCallback());
+  }
+
+  private static class PowerWAFEventsCallback extends EventSubscription {
+    public PowerWAFEventsCallback() {
+      super(EventType.REQUEST_END, Priority.DEFAULT);
+    }
+
+    @Override
+    public void onEvent(AppSecRequestContext reqCtx, EventType eventType) {
+      if (eventType == EventType.REQUEST_END) {
+        Additive additive = reqCtx.getAdditive();
+        if (additive != null) {
+          additive.close();
+        }
+        reqCtx.setAdditive(null);
+      }
+    }
   }
 
   @Override
@@ -178,7 +202,12 @@ public class PowerWAFModule implements AppSecModule {
           start = System.currentTimeMillis();
         }
 
-        actionWithData = powerwafContext.runRules(new DataBundleMapWrapper(newData), LIMITS);
+        Additive additive = reqCtx.getAdditive();
+        if (additive == null) {
+          additive = powerwafContext.openAdditive();
+          reqCtx.setAdditive(additive);
+        }
+        actionWithData = additive.run(new DataBundleMapWrapper(newData), LIMITS);
 
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;

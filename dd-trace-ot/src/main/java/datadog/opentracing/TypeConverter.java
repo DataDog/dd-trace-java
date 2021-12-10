@@ -3,6 +3,7 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -90,6 +91,11 @@ class TypeConverter {
     }
 
     @Override
+    public byte source() {
+      return delegate.source();
+    }
+
+    @Override
     public void close() {
       delegate.close();
       delegate.span().finish();
@@ -153,6 +159,11 @@ class TypeConverter {
     @Override
     public AgentSpan span() {
       return toAgentSpan(delegate.span());
+    }
+
+    @Override
+    public byte source() {
+      return ScopeSource.MANUAL.id();
     }
 
     @Override

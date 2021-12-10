@@ -115,11 +115,24 @@ class XRayHttpCodec {
         log.debug("Header: {}", key);
       }
       try {
-        if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
-          handleXRayTraceHeader(this, value);
-        } else if (handledForwarding(key, value)) {
-          return true;
-        } else if (!taggedHeaders.isEmpty()) {
+        char first = Character.toLowerCase(key.charAt(0));
+        switch (first) {
+          case 'x':
+            if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
+              handleXRayTraceHeader(this, value);
+              return true;
+            } else if (handledXForwarding(key, value)) {
+              return true;
+            }
+            break;
+          case 'f':
+            if (handledForwarding(key, value)) {
+              return true;
+            }
+            break;
+          default:
+        }
+        if (!taggedHeaders.isEmpty()) {
           String mappedKey = taggedHeaders.get(toLowerCase(key));
           if (null != mappedKey) {
             if (tags.isEmpty()) {
@@ -128,12 +141,12 @@ class XRayHttpCodec {
             tags.put(mappedKey, HttpCodec.decode(value));
           }
         }
+        return true;
       } catch (RuntimeException e) {
         invalidateContext();
         log.debug("Exception when extracting context", e);
         return false;
       }
-      return true;
     }
 
     static void handleXRayTraceHeader(ContextInterpreter interpreter, String value) {

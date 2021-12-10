@@ -89,20 +89,20 @@ class TraceUtils {
     DECORATOR.onError(span, e)
   }
 
-  static basicSpan(TraceAssert trace, String spanName, Object parentSpan = null, Throwable exception = null) {
-    basicSpan(trace, spanName, spanName, parentSpan, exception)
+  static basicSpan(TraceAssert trace, String spanName, Object parentSpan = null, Throwable exception = null, Map<String, Serializable> extraTags = [:]) {
+    basicSpan(trace, spanName, spanName, parentSpan, exception, extraTags)
   }
 
-  static basicSpan(TraceAssert trace, int index, String spanName, Object parentSpan = null, Throwable exception = null) {
-    basicSpan(trace, index, spanName, spanName, parentSpan, exception)
+  static basicSpan(TraceAssert trace, int index, String spanName, Object parentSpan = null, Throwable exception = null, Map<String, Serializable> extraTags = [:]) {
+    basicSpan(trace, index, spanName, spanName, parentSpan, exception, extraTags)
   }
 
-  static basicSpan(TraceAssert trace, String operation, String resource, Object parentSpan = null, Throwable exception = null) {
+  static basicSpan(TraceAssert trace, String operation, String resource, Object parentSpan = null, Throwable exception = null, Map<String, Serializable> extraTags = [:]) {
     int index = trace.nextSpanId()
-    basicSpan(trace, index, operation, resource, parentSpan, exception)
+    basicSpan(trace, index, operation, resource, parentSpan, exception, extraTags)
   }
 
-  static basicSpan(TraceAssert trace, int index, String operation, String resource, Object parentSpan = null, Throwable exception = null) {
+  static basicSpan(TraceAssert trace, int index, String operation, String resource, Object parentSpan = null, Throwable exception = null, Map<String, Serializable> extraTags = [:]) {
     trace.span(index) {
       if (parentSpan == null) {
         parent()
@@ -118,6 +118,7 @@ class TraceUtils {
           errorTags(exception.class, exception.message)
         }
         defaultTags()
+        addTags(extraTags)
       }
     }
   }

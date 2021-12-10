@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
@@ -224,9 +225,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
         if (null != requestContextData) {
           TagContext tagContext = null;
           if (context == null) {
-            tagContext = TagContext.empty();
-          }
-          if (context instanceof TagContext) {
+            tagContext = new TagContext();
+          } else if (context instanceof TagContext) {
             tagContext = (TagContext) context;
           }
           if (null != tagContext) {
@@ -296,7 +296,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
   private Flow<Void> callIGCallbackSocketAddress(
       @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
     CallbackProvider cbp = tracer().instrumentationGateway();
-    if (cbp == null) {
+    if (cbp == null || (ip == null && port == UNSET_PORT)) {
       return Flow.ResultFlow.empty();
     }
     RequestContext<Object> ctx = span.getRequestContext();

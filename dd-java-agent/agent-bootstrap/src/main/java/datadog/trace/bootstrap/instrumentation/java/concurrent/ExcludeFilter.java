@@ -114,6 +114,10 @@ public class ExcludeFilter {
     SKIP_TYPE_PREFIXES
         .get(ExcludeType.FORK_JOIN_TASK)
         .add("java.util.concurrent.ConcurrentHashMap");
+    // Exclude Runnables in the Google code ConcurrentLinkedHashMap
+    SKIP_TYPE_PREFIXES
+        .get(ExcludeType.RUNNABLE)
+        .add("com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap");
   }
 
   /**

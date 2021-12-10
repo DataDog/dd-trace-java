@@ -2,7 +2,10 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -12,9 +15,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +44,11 @@ public final class ContinuableScopeManager implements AgentScopeManager {
           return new ScopeStack();
         }
       };
+
+  static final long iterationKeepAlive =
+      SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
+
+  volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
 
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
@@ -83,10 +97,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       final boolean isAsyncPropagating) {
     ScopeStack scopeStack = scopeStack();
 
-    final ContinuableScope active = scopeStack.top();
-    if (active != null && active.span.equals(span)) {
-      active.incrementReferences();
-      return active;
+    final ContinuableScope top = scopeStack.top;
+    if (top != null && top.span.equals(span)) {
+      top.incrementReferences();
+      return top;
     }
 
     // DQH - This check could go before the check above, since depth limit checking is fast
@@ -102,8 +116,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
-            : inheritAsyncPropagation && active != null
-                ? active.isAsyncPropagating()
+            : inheritAsyncPropagation && top != null
+                ? top.isAsyncPropagating()
                 : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
@@ -134,13 +148,63 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   }
 
   @Override
+  public void closePrevious(final boolean finishSpan) {
+    ScopeStack scopeStack = scopeStack();
+
+    // close any immediately previous iteration scope
+    final ContinuableScope top = scopeStack.top;
+    if (top != null && top.source() == ScopeSource.ITERATION.id()) {
+      if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
+        cancelRootIterationScopeCleanup(scopeStack, top);
+      }
+      top.close();
+      scopeStack.cleanup();
+      if (finishSpan) {
+        top.span.finish();
+      }
+    }
+  }
+
+  @Override
+  public AgentScope activateNext(final AgentSpan span) {
+    ScopeStack scopeStack = scopeStack();
+
+    final int currentDepth = scopeStack.depth();
+    if (depthLimit <= currentDepth) {
+      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+      return AgentTracer.NoopAgentScope.INSTANCE;
+    }
+
+    assert span != null;
+
+    final ContinuableScope top = scopeStack.top;
+
+    boolean asyncPropagation =
+        inheritAsyncPropagation && top != null
+            ? top.isAsyncPropagating()
+            : DEFAULT_ASYNC_PROPAGATING;
+
+    final ContinuableScope scope =
+        new ContinuableScope(this, span, ScopeSource.ITERATION.id(), asyncPropagation);
+
+    if (iterationKeepAlive > 0 && currentDepth == 0) {
+      // no surrounding scope to aid cleanup, so use background task instead
+      scheduleRootIterationScopeCleanup(scopeStack, scope);
+    }
+
+    scopeStack.push(scope);
+
+    return scope;
+  }
+
+  @Override
   public AgentScope active() {
-    return scopeStack().top();
+    return scopeStack().active();
   }
 
   @Override
   public AgentSpan activeSpan() {
-    final ContinuableScope active = scopeStack().top();
+    final ContinuableScope active = scopeStack().active();
     return active == null ? null : active.span;
   }
 
@@ -200,11 +264,11 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     public final void close() {
       final ScopeStack scopeStack = scopeManager.scopeStack();
 
-      final boolean onTop = scopeStack.checkTop(this);
-      if (!onTop) {
+      // fast check first, only perform slower check when there's an inconsistency with the stack
+      if (!scopeStack.checkTop(this) && !scopeStack.checkOverdueScopes(this)) {
         if (log.isDebugEnabled()) {
           log.debug(
-              "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top());
+              "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top);
         }
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
@@ -264,6 +328,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     /** Decrements ref count -- returns true if the scope is still alive */
     final boolean decrementReferences() {
       return --referenceCount > 0;
+    }
+
+    final void clearReferences() {
+      referenceCount = 0;
     }
 
     /** Returns true if the scope is still alive (non-zero ref count) */
@@ -343,7 +411,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       }
     }
 
-    private byte source() {
+    @Override
+    public byte source() {
       return (byte) (flags & 0x7F);
     }
 
@@ -386,10 +455,14 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   static final class ScopeStack {
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
-    private ContinuableScope top; // current scope
+    ContinuableScope top; // current scope
 
-    ContinuableScope top() {
-      return top;
+    // set by background task when a root iteration scope remains unclosed for too long
+    volatile ContinuableScope overdueRootScope;
+
+    ContinuableScope active() {
+      // avoid attaching further spans to the root scope when it's been marked as overdue
+      return top != overdueRootScope ? top : null;
     }
 
     /** Removes and closes all scopes up to the nearest live scope */
@@ -402,7 +475,12 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         changedTop = true;
         curScope = stack.poll();
       }
-      if (changedTop) {
+      if (curScope != null && curScope == overdueRootScope) {
+        // we know this scope is the last on the stack and is overdue
+        curScope.onProperClose();
+        overdueRootScope = null;
+        top = null;
+      } else if (changedTop) {
         top = curScope;
         if (curScope != null) {
           curScope.afterActivated();
@@ -422,6 +500,31 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     /** Fast check to see if the expectedScope is on top */
     boolean checkTop(final ContinuableScope expectedScope) {
       return expectedScope.equals(top);
+    }
+
+    /**
+     * Slower check to see if overdue scopes ahead of the expected scope are all ITERATION scopes.
+     * These represent iterations that are now out-of-scope and can be finished ready for cleanup.
+     */
+    final boolean checkOverdueScopes(final ContinuableScope expectedScope) {
+      // we already know 'top' isn't the expected scope, so just need to check its source
+      if (top == null || top.source() != ScopeSource.ITERATION.id()) {
+        return false;
+      }
+      // avoid calling close() as we're already in that method, instead just clear any
+      // remaining references so the scope gets removed in the subsequent cleanup() call
+      top.clearReferences();
+      top.span.finish();
+      // now do the same for any previous iteration scopes ahead of the expected scope
+      for (ContinuableScope scope : stack) {
+        if (scope.source() != ScopeSource.ITERATION.id()) {
+          return expectedScope.equals(scope);
+        } else {
+          scope.clearReferences();
+          scope.span.finish();
+        }
+      }
+      return false; // we didn't find the expected scope
     }
 
     /** Returns the current depth, including the top scope */
@@ -638,6 +741,62 @@ public final class ContinuableScopeManager implements AgentScopeManager {
           + s
           + ")->"
           + spanUnderScope;
+    }
+  }
+
+  private void scheduleRootIterationScopeCleanup(ScopeStack scopeStack, ContinuableScope scope) {
+    if (rootIterationScopes == null) {
+      synchronized (this) {
+        if (rootIterationScopes == null) {
+          rootIterationScopes = new ConcurrentHashMap<>();
+          RootIterationCleaner.scheduleFor(rootIterationScopes);
+        }
+      }
+    }
+    rootIterationScopes.put(scopeStack, scope);
+  }
+
+  private void cancelRootIterationScopeCleanup(ScopeStack scopeStack, ContinuableScope scope) {
+    if (rootIterationScopes != null) {
+      rootIterationScopes.remove(scopeStack, scope);
+    }
+  }
+
+  /**
+   * Background task to clean-up scopes from overdue root iterations that have no surrounding scope.
+   */
+  private static final class RootIterationCleaner
+      implements AgentTaskScheduler.Task<Map<ScopeStack, ContinuableScope>> {
+    private static final RootIterationCleaner CLEANER = new RootIterationCleaner();
+
+    public static void scheduleFor(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
+      long period = Math.min(iterationKeepAlive, 10_000);
+      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+          CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public void run(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
+      Iterator<Map.Entry<ScopeStack, ContinuableScope>> itr =
+          rootIterationScopes.entrySet().iterator();
+
+      long cutOff = System.currentTimeMillis() - iterationKeepAlive;
+
+      while (itr.hasNext()) {
+        Map.Entry<ScopeStack, ContinuableScope> entry = itr.next();
+
+        ScopeStack scopeStack = entry.getKey();
+        ContinuableScope rootScope = entry.getValue();
+
+        if (!rootScope.alive()) { // no need to track this anymore
+          itr.remove();
+        } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
+          // mark scope as overdue to allow cleanup and avoid further spans being attached
+          scopeStack.overdueRootScope = rootScope;
+          rootScope.span.finish();
+          itr.remove();
+        }
+      }
     }
   }
 }

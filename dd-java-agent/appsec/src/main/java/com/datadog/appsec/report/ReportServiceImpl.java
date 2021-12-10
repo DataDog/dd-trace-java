@@ -3,6 +3,7 @@ package com.datadog.appsec.report;
 import com.datadog.appsec.report.raw.dtos.intake.IntakeBatch;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.Config;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
@@ -92,9 +93,12 @@ public class ReportServiceImpl implements ReportService {
       return;
     }
 
+    int initialDelay = Config.get().getAppSecReportMinTimeout();
+    int period = Config.get().getAppSecReportMaxTimeout();
+
     scheduledTask =
         taskScheduler.scheduleAtFixedRate(
-            PeriodicFlush.INSTANCE, this, 5 /* initial delay */, 30 /* period */, TimeUnit.SECONDS);
+            PeriodicFlush.INSTANCE, this, initialDelay, period, TimeUnit.SECONDS);
   }
 
   @Override
