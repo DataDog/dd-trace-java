@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
 
-public class RestResponseListener implements ResponseListener {
+public final class RestResponseListener implements ResponseListener {
 
   private final ResponseListener listener;
   private final AgentSpan span;

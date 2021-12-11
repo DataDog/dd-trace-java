@@ -16,7 +16,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
 
-public class TracingListener extends RunListener {
+public final class TracingListener extends RunListener {
 
   private final String version;
 

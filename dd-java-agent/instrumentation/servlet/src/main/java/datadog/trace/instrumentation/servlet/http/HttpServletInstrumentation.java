@@ -67,7 +67,7 @@ public final class HttpServletInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$HttpServletAdvice");
   }
 
-  public static class HttpServletAdvice {
+  public static final class HttpServletAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(@Advice.Origin final Method method) {

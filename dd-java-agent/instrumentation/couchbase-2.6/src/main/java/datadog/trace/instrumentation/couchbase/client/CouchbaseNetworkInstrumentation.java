@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing {
+public final class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing {
   public CouchbaseNetworkInstrumentation() {
     super("couchbase");
   }
@@ -65,7 +65,7 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing {
         CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice");
   }
 
-  public static class CouchbaseNetworkAdvice {
+  public static final class CouchbaseNetworkAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addNetworkTagsToSpan(
         @Advice.FieldValue("remoteHostname") final String remoteHostname,

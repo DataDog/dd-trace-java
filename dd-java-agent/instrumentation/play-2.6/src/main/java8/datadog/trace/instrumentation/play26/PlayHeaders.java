@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import play.api.mvc.Headers;
 
-public class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
+public final class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
 
   public static final PlayHeaders GETTER = new PlayHeaders();
 

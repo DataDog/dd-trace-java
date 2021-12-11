@@ -10,7 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import org.elasticsearch.client.Response;
 
-public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
+public final class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
 
   public static final CharSequence ELASTICSEARCH_REST_QUERY =
       UTF8BytesString.create("elasticsearch.rest.query");

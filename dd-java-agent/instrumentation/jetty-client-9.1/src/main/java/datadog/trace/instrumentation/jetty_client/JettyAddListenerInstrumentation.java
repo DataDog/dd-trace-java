@@ -19,7 +19,7 @@ import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 @AutoService(Instrumenter.class)
-public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
+public final class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
   public JettyAddListenerInstrumentation() {
     super("jetty-client");
   }
@@ -67,7 +67,7 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
         JettyAddListenerInstrumentation.class.getName() + "$WrapResponseCompleteListener");
   }
 
-  public static class WrapRequestListener {
+  public static final class WrapRequestListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
         @Advice.This Request request,
@@ -86,7 +86,7 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class WrapRequestFailureListener {
+  public static final class WrapRequestFailureListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
         @Advice.This Request request,
@@ -105,7 +105,7 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class WrapRequestSuccessListener {
+  public static final class WrapRequestSuccessListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
         @Advice.This Request request,
@@ -124,7 +124,7 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class WrapResponseCompleteListener {
+  public static final class WrapResponseCompleteListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
         @Advice.This Request request,

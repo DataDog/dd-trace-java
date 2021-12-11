@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing {
+public final class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing {
   public SqsReceiveRequestInstrumentation() {
     super("aws-sdk");
   }
@@ -55,7 +55,7 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$QueueBufferConfigAdvice");
   }
 
-  public static class ReceiveMessageRequestAdvice {
+  public static final class ReceiveMessageRequestAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.This ReceiveMessageRequest request) {
       // ReceiveMessageRequest always returns a mutable list which we can append to
@@ -69,7 +69,7 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class QueueBufferConfigAdvice {
+  public static final class QueueBufferConfigAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.FieldValue(value = "receiveAttributeNames", readOnly = false)

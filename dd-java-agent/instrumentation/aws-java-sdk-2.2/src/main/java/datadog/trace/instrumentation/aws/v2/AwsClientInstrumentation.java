@@ -27,7 +27,7 @@ public final class AwsClientInstrumentation extends AbstractAwsClientInstrumenta
         AwsClientInstrumentation.class.getName() + "$AwsBuilderAdvice");
   }
 
-  public static class AwsBuilderAdvice {
+  public static final class AwsBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit(@Advice.Return final List<ExecutionInterceptor> interceptors) {
       for (ExecutionInterceptor interceptor : interceptors) {

@@ -37,7 +37,7 @@ public final class RouteInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$RouteBeforeHandleAdvice");
   }
 
-  public static class RouteBeforeHandleAdvice {
+  public static final class RouteBeforeHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beginRequest(
         @Advice.This final TemplateRoute route, @Advice.Argument(0) final Request request) {

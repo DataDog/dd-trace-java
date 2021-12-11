@@ -80,7 +80,7 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
         JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice");
   }
 
-  public static class JakartaRsAnnotationsAdvice {
+  public static final class JakartaRsAnnotationsAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameSpan(

@@ -5,7 +5,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.TimeZone;
 
-public class PersonInfo {
+public final class PersonInfo {
 
   public static final PersonInfo NOOP = new PersonInfo();
 

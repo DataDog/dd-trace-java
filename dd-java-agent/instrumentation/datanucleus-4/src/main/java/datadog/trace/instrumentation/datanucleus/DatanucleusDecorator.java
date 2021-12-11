@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.OrmClientDecorator;
 import org.datanucleus.identity.SCOID;
 import org.datanucleus.identity.SingleFieldId;
 
-public class DatanucleusDecorator extends OrmClientDecorator {
+public final class DatanucleusDecorator extends OrmClientDecorator {
 
   public static final CharSequence DATANUCLEUS_FIND_OBJECT =
       UTF8BytesString.create("datanucleus.findObject");

@@ -17,7 +17,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 
-public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
+public final class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
 
   private final ActionListener<T> listener;
   private final AgentSpan span;

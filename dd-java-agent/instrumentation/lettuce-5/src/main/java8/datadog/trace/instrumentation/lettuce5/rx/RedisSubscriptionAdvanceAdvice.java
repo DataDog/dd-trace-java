@@ -6,7 +6,7 @@ import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
-public class RedisSubscriptionAdvanceAdvice {
+public final class RedisSubscriptionAdvanceAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beforeOnNext(

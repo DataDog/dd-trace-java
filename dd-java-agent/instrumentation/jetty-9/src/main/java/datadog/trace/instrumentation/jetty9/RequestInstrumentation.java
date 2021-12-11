@@ -46,7 +46,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
    * Because we are processing the initial request before the contextPath is set, we must update it
    * when it is actually set.
    */
-  public static class SetContextPathAdvice {
+  public static final class SetContextPathAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateContextPath(
         @Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
@@ -65,7 +65,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
    * Because we are processing the initial request before the servletPath is set, we must update it
    * when it is actually set.
    */
-  public static class SetServletPathAdvice {
+  public static final class SetServletPathAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateServletPath(
         @Advice.This final Request req, @Advice.Argument(0) final String servletPath) {

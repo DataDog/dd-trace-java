@@ -12,7 +12,7 @@ import io.opentelemetry.trace.TracingContextUtils;
 import java.util.Arrays;
 import java.util.List;
 
-public class OtelContextPropagators implements ContextPropagators {
+public final class OtelContextPropagators implements ContextPropagators {
   public static final OtelContextPropagators INSTANCE = new OtelContextPropagators();
 
   private OtelContextPropagators() {}
@@ -22,7 +22,7 @@ public class OtelContextPropagators implements ContextPropagators {
     return OtelHttpTextFormat.INSTANCE;
   }
 
-  private static class OtelHttpTextFormat implements HttpTextFormat {
+  private static final class OtelHttpTextFormat implements HttpTextFormat {
     private static final OtelHttpTextFormat INSTANCE = new OtelHttpTextFormat();
 
     private final AgentTracer.TracerAPI tracer = AgentTracer.get();
@@ -50,7 +50,7 @@ public class OtelContextPropagators implements ContextPropagators {
     }
   }
 
-  private static class OtelSetter<C> implements AgentPropagation.Setter<C> {
+  private static final class OtelSetter<C> implements AgentPropagation.Setter<C> {
     private final HttpTextFormat.Setter<C> setter;
 
     private OtelSetter(final HttpTextFormat.Setter<C> setter) {
@@ -63,7 +63,7 @@ public class OtelContextPropagators implements ContextPropagators {
     }
   }
 
-  private static class OtelGetter<C> implements AgentPropagation.ContextVisitor<C> {
+  private static final class OtelGetter<C> implements AgentPropagation.ContextVisitor<C> {
     private static final String DD_TRACE_ID_KEY = "x-datadog-trace-id";
     private static final String DD_SPAN_ID_KEY = "x-datadog-parent-id";
     private static final String DD_SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";

@@ -24,7 +24,7 @@ import org.elasticsearch.action.ActionType;
 
 /** This class is identical to version 6's instrumentation, except Action is now ActionType. */
 @AutoService(Instrumenter.class)
-public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.Tracing {
+public final class Elasticsearch73TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch73TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-7");
@@ -67,7 +67,7 @@ public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.
             + "$Elasticsearch73TransportClientAdvice");
   }
 
-  public static class Elasticsearch73TransportClientAdvice {
+  public static final class Elasticsearch73TransportClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

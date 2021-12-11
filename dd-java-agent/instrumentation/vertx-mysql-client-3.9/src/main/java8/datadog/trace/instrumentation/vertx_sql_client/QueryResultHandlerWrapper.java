@@ -6,7 +6,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.sqlclient.SqlResult;
 
-public class QueryResultHandlerWrapper<T, R extends SqlResult<T>>
+public final class QueryResultHandlerWrapper<T, R extends SqlResult<T>>
     implements Handler<AsyncResult<R>> {
   private final Handler<AsyncResult<R>> handler;
   private final AgentSpan clientSpan;

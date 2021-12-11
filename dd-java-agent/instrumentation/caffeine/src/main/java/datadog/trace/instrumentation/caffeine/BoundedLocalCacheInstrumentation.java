@@ -31,7 +31,7 @@ public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing
         getClass().getName() + "$ScheduleDrainBuffers");
   }
 
-  public static class ScheduleDrainBuffers {
+  public static final class ScheduleDrainBuffers {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter() {

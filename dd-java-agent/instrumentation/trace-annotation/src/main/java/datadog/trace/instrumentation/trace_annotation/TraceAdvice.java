@@ -10,7 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 
-public class TraceAdvice {
+public final class TraceAdvice {
   private static final String DEFAULT_OPERATION_NAME = "trace.annotation";
 
   @Advice.OnMethodEnter(suppress = Throwable.class)

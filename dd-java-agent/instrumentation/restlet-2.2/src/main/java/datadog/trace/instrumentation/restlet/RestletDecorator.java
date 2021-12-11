@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
-public class RestletDecorator
+public final class RestletDecorator
     extends HttpServerDecorator<HttpExchange, HttpExchange, HttpExchange, HttpExchange> {
   public static final CharSequence RESTLET_REQUEST = UTF8BytesString.create("restlet-http.request");
   public static final CharSequence RESTLET_HTTP_SERVER =

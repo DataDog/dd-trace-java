@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.context;
 
 import net.bytebuddy.agent.builder.AgentBuilder.Identified.Extendable;
 
-public class NoopContextProvider implements InstrumentationContextProvider {
+public final class NoopContextProvider implements InstrumentationContextProvider {
 
   public static NoopContextProvider INSTANCE = new NoopContextProvider();
 

@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
+public final class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");
   }
@@ -57,7 +57,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
         GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice");
   }
 
-  public static class GoogleHttpClientAdvice {
+  public static final class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.This HttpRequest request, @Advice.Local("inherited") boolean inheritedScope) {
@@ -97,7 +97,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class GoogleHttpClientAsyncAdvice {
+  public static final class GoogleHttpClientAsyncAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {

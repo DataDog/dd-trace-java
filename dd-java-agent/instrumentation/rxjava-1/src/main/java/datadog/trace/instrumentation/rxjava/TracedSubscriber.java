@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.concurrent.atomic.AtomicReference;
 import rx.Subscriber;
 
-public class TracedSubscriber<T> extends Subscriber<T> {
+public final class TracedSubscriber<T> extends Subscriber<T> {
 
   private final AtomicReference<AgentSpan> spanRef;
   private final Subscriber<T> delegate;

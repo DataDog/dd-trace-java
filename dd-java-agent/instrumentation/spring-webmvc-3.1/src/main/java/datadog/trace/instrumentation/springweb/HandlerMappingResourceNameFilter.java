@@ -20,7 +20,8 @@ import org.springframework.web.servlet.HandlerExecutionChain;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
-public class HandlerMappingResourceNameFilter extends OncePerRequestFilter implements Ordered {
+public final class HandlerMappingResourceNameFilter extends OncePerRequestFilter
+    implements Ordered {
 
   private static final Logger log = LoggerFactory.getLogger(HandlerMappingResourceNameFilter.class);
   private final List<HandlerMapping> handlerMappings = new CopyOnWriteArrayList<>();
@@ -85,7 +86,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     return Ordered.HIGHEST_PRECEDENCE + 1;
   }
 
-  public static class BeanDefinition extends AnnotatedGenericBeanDefinition {
+  public static final class BeanDefinition extends AnnotatedGenericBeanDefinition {
     private static final long serialVersionUID = 5623859691503032280L;
 
     public BeanDefinition() {

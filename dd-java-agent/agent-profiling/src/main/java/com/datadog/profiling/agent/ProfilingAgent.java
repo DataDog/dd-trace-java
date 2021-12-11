@@ -18,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Profiling agent implementation */
-public class ProfilingAgent {
+public final class ProfilingAgent {
 
   private static final Logger log = LoggerFactory.getLogger(ProfilingAgent.class);
 
@@ -94,7 +94,7 @@ public class ProfilingAgent {
     }
   }
 
-  private static class ShutdownHook extends Thread {
+  private static final class ShutdownHook extends Thread {
 
     private final WeakReference<ProfilingSystem> profilerRef;
     private final WeakReference<ProfileUploader> uploaderRef;

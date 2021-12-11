@@ -15,7 +15,7 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @StackTrace(false)
 @Period("endChunk")
-public class CheckpointSamplerConfigEvent extends Event {
+public final class CheckpointSamplerConfigEvent extends Event {
   @Label("samplerWindow")
   @Timespan("MILLISECONDS")
   private final long samplerWindow;

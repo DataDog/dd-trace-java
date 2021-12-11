@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.trace_annotation;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
-public class TraceDecorator extends BaseDecorator {
+public final class TraceDecorator extends BaseDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
 
   private static final CharSequence TRACE = UTF8BytesString.create("trace");

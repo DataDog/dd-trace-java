@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
+public final class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
 
   public ChannelFutureListenerInstrumentation() {
     super(
@@ -68,7 +68,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
         ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice");
   }
 
-  public static class OperationCompleteAdvice {
+  public static final class OperationCompleteAdvice {
     @Advice.OnMethodEnter
     public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*

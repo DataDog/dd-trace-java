@@ -2,7 +2,7 @@ package datadog.trace.util;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class MathUtils {
+public final class MathUtils {
   /**
    * Atomically decrements the long if its value would not go below minimum
    *

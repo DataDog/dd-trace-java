@@ -80,7 +80,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing 
         JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice");
   }
 
-  public static class JaxRsAnnotationsAdvice {
+  public static final class JaxRsAnnotationsAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameSpan(

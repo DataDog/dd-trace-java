@@ -5,7 +5,7 @@ import org.apache.coyote.Request;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
 
-public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
+public final class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
 
   public static final RequestExtractAdapter GETTER = new RequestExtractAdapter();
 

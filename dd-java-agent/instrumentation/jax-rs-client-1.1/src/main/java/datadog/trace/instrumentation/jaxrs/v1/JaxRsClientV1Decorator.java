@@ -6,7 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 
-public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
+public final class JaxRsClientV1Decorator
+    extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
   public static final CharSequence JAX_RS_CLIENT = UTF8BytesString.create("jax-rs.client");
   public static final CharSequence JAX_RS_CLIENT_CALL =

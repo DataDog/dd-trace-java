@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>DDTracer.scopeManager = passed in scopemanager
  */
-class CustomScopeManagerWrapper implements AgentScopeManager {
+final class CustomScopeManagerWrapper implements AgentScopeManager {
   private static final String DD_ITERATION = "_dd.iteration";
 
   private final ScopeManager delegate;

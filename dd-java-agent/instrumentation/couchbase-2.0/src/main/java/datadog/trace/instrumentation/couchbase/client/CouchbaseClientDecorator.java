@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 
-class CouchbaseClientDecorator extends DatabaseClientDecorator {
+final class CouchbaseClientDecorator extends DatabaseClientDecorator {
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
 
   private static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");

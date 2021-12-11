@@ -3,7 +3,7 @@ package com.datadog.appsec.util;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-public class AppSecVersion {
+public final class AppSecVersion {
   public static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
   public static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");
   public static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");

@@ -82,7 +82,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         IgniteCacheSyncInstrumentation.class.getName() + "$QueryAdvice");
   }
 
-  public static class IgniteAdvice {
+  public static final class IgniteAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
@@ -121,7 +121,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
     }
   }
 
-  public static class KeyedAdvice {
+  public static final class KeyedAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
@@ -161,7 +161,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
     }
   }
 
-  public static class QueryAdvice {
+  public static final class QueryAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

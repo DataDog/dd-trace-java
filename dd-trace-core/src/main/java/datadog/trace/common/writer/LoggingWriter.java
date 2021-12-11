@@ -8,7 +8,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LoggingWriter implements Writer {
+public final class LoggingWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(LoggingWriter.class);
   private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =

@@ -10,7 +10,7 @@ import java.net.URI;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 
-public class SpringWebfluxHttpClientDecorator
+public final class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");

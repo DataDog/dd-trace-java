@@ -8,7 +8,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.sqlclient.PreparedStatement;
 
-public class PrepareHandlerWrapper implements Handler<AsyncResult<PreparedStatement>> {
+public final class PrepareHandlerWrapper implements Handler<AsyncResult<PreparedStatement>> {
   private final Handler<AsyncResult<PreparedStatement>> handler;
   private final ContextStore<PreparedStatement, Pair> contextStore;
   private final Pair<DBInfo, DBQueryInfo> queryInfo;

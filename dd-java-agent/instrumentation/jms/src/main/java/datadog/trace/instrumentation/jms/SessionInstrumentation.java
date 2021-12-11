@@ -31,7 +31,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends Instrumenter.Tracing {
+public final class SessionInstrumentation extends Instrumenter.Tracing {
   public SessionInstrumentation() {
     super("jms", "jms-1", "jms-2");
   }

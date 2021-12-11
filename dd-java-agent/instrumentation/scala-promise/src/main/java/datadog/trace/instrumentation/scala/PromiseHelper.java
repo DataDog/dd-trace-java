@@ -15,7 +15,7 @@ import scala.util.Failure;
 import scala.util.Success;
 import scala.util.Try;
 
-public class PromiseHelper {
+public final class PromiseHelper {
   public static final boolean completionPriority =
       Config.get()
           .isIntegrationEnabled(

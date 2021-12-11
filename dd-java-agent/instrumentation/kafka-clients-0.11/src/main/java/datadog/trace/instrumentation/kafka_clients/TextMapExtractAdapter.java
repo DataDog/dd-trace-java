@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<Headers> {
+public final class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<Headers> {
 
   public static final TextMapExtractAdapter GETTER =
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());

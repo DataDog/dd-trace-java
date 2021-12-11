@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-public class InternalJarURLHandler extends URLStreamHandler {
+public final class InternalJarURLHandler extends URLStreamHandler {
 
   private static final WeakReference<Pair<String, JarEntry>> NULL = new WeakReference<>(null);
 
@@ -72,7 +72,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
         url, bootstrapJarFile.getInputStream(pair.getRight()), (int) pair.getRight().getSize());
   }
 
-  private static class InternalJarURLConnection extends URLConnection {
+  private static final class InternalJarURLConnection extends URLConnection {
     private final InputStream inputStream;
     private final int contentLength;
 
@@ -104,7 +104,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
     }
   }
 
-  private static class FileNotInInternalJar extends IOException {
+  private static final class FileNotInInternalJar extends IOException {
 
     public FileNotInInternalJar(String jarName) {
       super("class not found in " + jarName);

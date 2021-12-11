@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.kafka_clients;
 import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public class TracingListIterator extends TracingIterator
+public final class TracingListIterator extends TracingIterator
     implements ListIterator<ConsumerRecord<?, ?>> {
 
   private final ListIterator<ConsumerRecord<?, ?>> delegateIterator;

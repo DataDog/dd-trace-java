@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RedisInstrumentation extends Instrumenter.Tracing {
+public final class RedisInstrumentation extends Instrumenter.Tracing {
   public RedisInstrumentation() {
     super("vertx", "vertx-redis-client");
   }

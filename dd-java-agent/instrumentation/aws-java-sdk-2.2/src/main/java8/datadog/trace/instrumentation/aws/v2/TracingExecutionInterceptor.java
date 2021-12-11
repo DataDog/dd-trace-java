@@ -13,7 +13,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS request execution interceptor */
-public class TracingExecutionInterceptor implements ExecutionInterceptor {
+public final class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");

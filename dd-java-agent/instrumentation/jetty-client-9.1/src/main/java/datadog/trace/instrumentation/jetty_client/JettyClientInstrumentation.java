@@ -29,7 +29,7 @@ import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 @AutoService(Instrumenter.class)
-public class JettyClientInstrumentation extends Instrumenter.Tracing
+public final class JettyClientInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
   public JettyClientInstrumentation() {
     super("jetty-client");
@@ -75,7 +75,7 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
     return singletonMap(RUNNABLE, singletonList("org.eclipse.jetty.util.SocketAddressResolver$1"));
   }
 
-  public static class SendAdvice {
+  public static final class SendAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
         @Advice.Argument(0) Request request,

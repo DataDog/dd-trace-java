@@ -39,7 +39,7 @@ import java.util.zip.DataFormatException;
  * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/revwalk/RevCommit.java
  * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
-public class LocalFSGitInfoExtractor implements GitInfoExtractor {
+public final class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
   private static final int SHA_INDEX = 1;
 

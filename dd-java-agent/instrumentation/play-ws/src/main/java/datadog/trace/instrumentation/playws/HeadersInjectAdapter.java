@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.playws;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import play.shaded.ahc.org.asynchttpclient.Request;
 
-public class HeadersInjectAdapter implements AgentPropagation.Setter<Request> {
+public final class HeadersInjectAdapter implements AgentPropagation.Setter<Request> {
 
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 

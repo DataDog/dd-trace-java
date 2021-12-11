@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 public class JFRCheckpointer implements Checkpointer, ProfilingListener<ProfilingSnapshot> {
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
-  static class SamplerConfig {
+  static final class SamplerConfig {
     final Duration windowSize;
     final int samplesPerWindow;
     final int averageLookback;
@@ -61,7 +61,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
     }
   }
 
-  static class ConfiguredSampler {
+  static final class ConfiguredSampler {
     final SamplerConfig config;
     final Sampler sampler;
 

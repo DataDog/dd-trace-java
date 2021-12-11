@@ -86,7 +86,7 @@ public final class MongoClient31Instrumentation extends Instrumenter.Tracing {
         MongoClient31Instrumentation.class.getName() + "$MongoClientAdviceNoAppName");
   }
 
-  public static class MongoClientAdviceAppName {
+  public static final class MongoClientAdviceAppName {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static MongoCommandListener injectTraceListener(
@@ -110,7 +110,7 @@ public final class MongoClient31Instrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class MongoClientAdviceNoAppName {
+  public static final class MongoClientAdviceNoAppName {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void injectTraceListener(

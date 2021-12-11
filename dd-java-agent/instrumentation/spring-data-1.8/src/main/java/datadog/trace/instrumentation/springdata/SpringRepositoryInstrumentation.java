@@ -41,7 +41,7 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing 
         SpringRepositoryInstrumentation.class.getName() + "$RepositoryFactorySupportAdvice");
   }
 
-  public static class RepositoryFactorySupportAdvice {
+  public static final class RepositoryFactorySupportAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruction(
         @Advice.This final RepositoryFactorySupport repositoryFactorySupport) {

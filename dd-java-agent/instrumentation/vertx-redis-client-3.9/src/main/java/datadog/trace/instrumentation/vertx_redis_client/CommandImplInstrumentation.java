@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CommandImplInstrumentation extends Instrumenter.Tracing {
+public final class CommandImplInstrumentation extends Instrumenter.Tracing {
   public CommandImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }

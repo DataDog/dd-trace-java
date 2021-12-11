@@ -18,7 +18,7 @@ import io.opentracing.tag.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OTTracer implements Tracer {
+public final class OTTracer implements Tracer {
 
   private static final Logger log = LoggerFactory.getLogger(OTTracer.class);
 
@@ -85,7 +85,7 @@ public class OTTracer implements Tracer {
     tracer.close();
   }
 
-  public class OTSpanBuilder implements Tracer.SpanBuilder {
+  public final class OTSpanBuilder implements Tracer.SpanBuilder {
     private final AgentTracer.SpanBuilder delegate;
     private final TypeConverter converter;
 

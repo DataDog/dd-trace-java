@@ -35,7 +35,7 @@ public final class DisableTracingActorInitInstrumentation extends Instrumenter.T
    * This instrumentation was added to ensure that the play 2.3 test doesn't hang on the first
    * request. (Without this it propagates the trace into the lazy akka initialization.)
    */
-  public static class BlockPropagation {
+  public static final class BlockPropagation {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter() {

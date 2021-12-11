@@ -17,8 +17,8 @@ import play.shaded.ahc.org.asynchttpclient.handler.StreamedAsyncHandler;
 import play.shaded.ahc.org.asynchttpclient.ws.WebSocketUpgradeHandler;
 
 @AutoService(Instrumenter.class)
-public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation {
-  public static class ClientAdvice {
+public final class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation {
+  public static final class ClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
         @Advice.Argument(0) final Request request,

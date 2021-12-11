@@ -191,7 +191,7 @@ public class HealthMetrics implements AutoCloseable {
     }
   }
 
-  private static class Flush implements AgentTaskScheduler.Task<HealthMetrics> {
+  private static final class Flush implements AgentTaskScheduler.Task<HealthMetrics> {
 
     private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
     private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};

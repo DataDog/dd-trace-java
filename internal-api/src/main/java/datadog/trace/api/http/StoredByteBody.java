@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 
 /** @see StoredCharBody */
-public class StoredByteBody implements StoredBodySupplier {
+public final class StoredByteBody implements StoredBodySupplier {
 
   static final Charset UTF_8 = StandardCharsets.UTF_8;
   static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
@@ -186,7 +186,7 @@ public class StoredByteBody implements StoredBodySupplier {
 }
 
 // adapted from sun.nio.cs
-class ThreadLocalCoders {
+final class ThreadLocalCoders {
   private static final int CACHE_SIZE = 3;
 
   private abstract static class Cache {

@@ -27,7 +27,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class EventEnrichment {
+public final class EventEnrichment {
   private static final String TRACER_RUNTIME_VERSION =
       JAVA_VM_VENDOR + " " + JAVA_VM_NAME + " " + JAVA_VERSION;
   private static final String OS_NAME = System.getProperty("os.name");

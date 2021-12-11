@@ -90,7 +90,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         getClass().getName() + "$DecorateMessageListener");
   }
 
-  public static class ConsumerAdvice {
+  public static final class ConsumerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeReceive(@Advice.This final MessageConsumer consumer) {
@@ -167,7 +167,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     }
   }
 
-  public static class Close {
+  public static final class Close {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeClose(@Advice.This final MessageConsumer consumer) {
       MessageConsumerState consumerState =
@@ -180,7 +180,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     }
   }
 
-  public static class DecorateMessageListener {
+  public static final class DecorateMessageListener {
     @Advice.OnMethodEnter
     public static void setMessageListener(
         @Advice.This MessageConsumer messageConsumer,

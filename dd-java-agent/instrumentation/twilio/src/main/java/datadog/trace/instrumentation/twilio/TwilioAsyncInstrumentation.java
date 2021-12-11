@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
 @AutoService(Instrumenter.class)
-public class TwilioAsyncInstrumentation extends Instrumenter.Tracing {
+public final class TwilioAsyncInstrumentation extends Instrumenter.Tracing {
 
   public TwilioAsyncInstrumentation() {
     super("twilio-sdk");
@@ -81,7 +81,7 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing {
   }
 
   /** Advice for instrumenting Twilio service classes. */
-  public static class TwilioClientAsyncAdvice {
+  public static final class TwilioClientAsyncAdvice {
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)

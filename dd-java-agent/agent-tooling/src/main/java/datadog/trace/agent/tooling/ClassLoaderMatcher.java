@@ -167,7 +167,7 @@ public final class ClassLoaderMatcher {
     protected abstract boolean checkMatch(ClassLoader cl);
   }
 
-  private static class ClassLoaderHasClassesNamedMatcher extends ClassLoaderHasNameMatcher {
+  private static final class ClassLoaderHasClassesNamedMatcher extends ClassLoaderHasNameMatcher {
 
     private final String[] resources;
 
@@ -195,7 +195,7 @@ public final class ClassLoaderMatcher {
     }
   }
 
-  private static class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
+  private static final class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
 
     private final String resource;
 

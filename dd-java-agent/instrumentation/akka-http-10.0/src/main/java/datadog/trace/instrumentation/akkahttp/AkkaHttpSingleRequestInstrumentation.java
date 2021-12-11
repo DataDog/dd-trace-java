@@ -57,7 +57,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
         AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
   }
 
-  public static class SingleRequestAdvice {
+  public static final class SingleRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {

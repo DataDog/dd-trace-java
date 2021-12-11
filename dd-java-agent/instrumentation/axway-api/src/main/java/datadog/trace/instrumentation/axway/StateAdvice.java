@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
  * axway apigateway needs to get reply to prepare aggregates response to customer. This
  * instrumentation intends to see to which services apigateway goes to prepare it response.
  */
-public class StateAdvice {
+public final class StateAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.This final Object stateInstance) {
     final AgentSpan span = startSpan(AXWAY_TRY_TRANSACTION);

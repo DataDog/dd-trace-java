@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing {
+public final class TerminalSubscriberInstrumentation extends Instrumenter.Tracing {
   public TerminalSubscriberInstrumentation() {
     super("reactor-core");
   }

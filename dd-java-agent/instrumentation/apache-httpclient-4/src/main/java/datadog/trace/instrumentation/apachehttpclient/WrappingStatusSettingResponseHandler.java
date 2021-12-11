@@ -8,7 +8,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 
-public class WrappingStatusSettingResponseHandler implements ResponseHandler {
+public final class WrappingStatusSettingResponseHandler implements ResponseHandler {
   final AgentSpan span;
   final ResponseHandler handler;
 

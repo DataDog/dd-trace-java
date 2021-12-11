@@ -14,7 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ThreadContextInstrumentation extends Instrumenter.Tracing {
+public final class ThreadContextInstrumentation extends Instrumenter.Tracing {
   private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
 
   public ThreadContextInstrumentation() {
@@ -51,7 +51,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing {
     };
   }
 
-  public static class ThreadContextAdvice {
+  public static final class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized() {
       WithGlobalTracer.registerOrExecute(new ThreadContextUpdater());

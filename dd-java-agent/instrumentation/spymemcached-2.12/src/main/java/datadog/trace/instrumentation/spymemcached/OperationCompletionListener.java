@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutionException;
 import net.spy.memcached.MemcachedConnection;
 import net.spy.memcached.internal.OperationFuture;
 
-public class OperationCompletionListener extends CompletionListener<OperationFuture<?>>
+public final class OperationCompletionListener extends CompletionListener<OperationFuture<?>>
     implements net.spy.memcached.internal.OperationCompletionListener {
   public OperationCompletionListener(
       final MemcachedConnection connection, final String methodName) {

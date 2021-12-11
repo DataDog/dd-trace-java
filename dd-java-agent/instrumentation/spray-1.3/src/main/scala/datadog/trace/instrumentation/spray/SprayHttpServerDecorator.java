@@ -10,7 +10,7 @@ import spray.http.HttpRequest;
 import spray.http.HttpResponse;
 import spray.routing.RequestContext;
 
-public class SprayHttpServerDecorator
+public final class SprayHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, RequestContext, HttpResponse, HttpRequest> {
   public static final CharSequence SPRAY_HTTP_REQUEST =
       UTF8BytesString.create("spray-http.request");

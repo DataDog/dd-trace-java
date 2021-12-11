@@ -29,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
 
 @AutoService(Instrumenter.class)
-public class FinatraInstrumentation extends Instrumenter.Tracing {
+public final class FinatraInstrumentation extends Instrumenter.Tracing {
   public FinatraInstrumentation() {
     super("finatra");
   }
@@ -62,7 +62,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
         FinatraInstrumentation.class.getName() + "$RouteAdvice");
   }
 
-  public static class RouteAdvice {
+  public static final class RouteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameSpan(
         @Advice.Argument(0) final Request request,

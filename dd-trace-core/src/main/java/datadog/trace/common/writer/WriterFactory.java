@@ -22,7 +22,7 @@ import datadog.trace.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WriterFactory {
+public final class WriterFactory {
 
   private static final Logger log = LoggerFactory.getLogger(WriterFactory.class);
 

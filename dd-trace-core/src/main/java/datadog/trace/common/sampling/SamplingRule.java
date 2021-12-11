@@ -20,7 +20,8 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     return sampler;
   }
 
-  public static class AlwaysMatchesSamplingRule<T extends CoreSpan<T>> extends SamplingRule<T> {
+  public static final class AlwaysMatchesSamplingRule<T extends CoreSpan<T>>
+      extends SamplingRule<T> {
 
     public AlwaysMatchesSamplingRule(final RateSampler<T> sampler) {
       super(sampler);
@@ -50,7 +51,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     protected abstract CharSequence getRelevantString(T span);
   }
 
-  public static class ServiceSamplingRule<T extends CoreSpan<T>>
+  public static final class ServiceSamplingRule<T extends CoreSpan<T>>
       extends PatternMatchSamplingRule<T> {
     public ServiceSamplingRule(final String regex, final RateSampler<T> sampler) {
       super(regex, sampler);
@@ -62,7 +63,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     }
   }
 
-  public static class OperationSamplingRule<T extends CoreSpan<T>>
+  public static final class OperationSamplingRule<T extends CoreSpan<T>>
       extends PatternMatchSamplingRule<T> {
     public OperationSamplingRule(final String regex, final RateSampler<T> sampler) {
       super(regex, sampler);

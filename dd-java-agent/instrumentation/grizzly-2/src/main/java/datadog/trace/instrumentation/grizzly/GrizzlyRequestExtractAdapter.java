@@ -6,7 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.util.MimeHeaders;
 
-public class GrizzlyRequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
+public final class GrizzlyRequestExtractAdapter
+    implements AgentPropagation.ContextVisitor<Request> {
 
   public static final GrizzlyRequestExtractAdapter GETTER = new GrizzlyRequestExtractAdapter();
 

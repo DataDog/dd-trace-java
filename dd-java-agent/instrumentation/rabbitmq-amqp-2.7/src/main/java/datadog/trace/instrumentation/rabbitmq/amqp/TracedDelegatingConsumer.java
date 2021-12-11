@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * Wrapping the consumer instead of instrumenting it directly because it doesn't get access to the
  * queue name when the message is consumed.
  */
-public class TracedDelegatingConsumer implements Consumer {
+public final class TracedDelegatingConsumer implements Consumer {
 
   private static final Logger log = LoggerFactory.getLogger(TracedDelegatingConsumer.class);
   private final String queue;

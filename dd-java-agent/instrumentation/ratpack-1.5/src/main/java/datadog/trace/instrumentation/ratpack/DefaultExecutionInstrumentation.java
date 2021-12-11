@@ -44,7 +44,7 @@ public final class DefaultExecutionInstrumentation extends Instrumenter.Tracing 
         DefaultExecutionInstrumentation.class.getName() + "$DelimitAdvice");
   }
 
-  public static class DelimitAdvice {
+  public static final class DelimitAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrap(

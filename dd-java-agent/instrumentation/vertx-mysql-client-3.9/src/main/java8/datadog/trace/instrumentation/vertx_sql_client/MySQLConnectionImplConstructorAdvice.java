@@ -8,7 +8,7 @@ import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.SqlConnection;
 import net.bytebuddy.asm.Advice;
 
-public class MySQLConnectionImplConstructorAdvice {
+public final class MySQLConnectionImplConstructorAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterConstructor(
       @Advice.This final SqlClient zis, @Advice.Argument(0) final MySQLConnectionFactory factory) {

@@ -25,7 +25,7 @@ import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
-public class QueryInstrumentation extends AbstractHibernateInstrumentation {
+public final class QueryInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
@@ -53,7 +53,7 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
         QueryInstrumentation.class.getName() + "$QueryMethodAdvice");
   }
 
-  public static class QueryMethodAdvice {
+  public static final class QueryMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(

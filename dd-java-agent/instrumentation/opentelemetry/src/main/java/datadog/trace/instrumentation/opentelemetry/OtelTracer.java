@@ -14,7 +14,7 @@ import io.opentelemetry.trace.Tracer;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class OtelTracer implements Tracer {
+public final class OtelTracer implements Tracer {
   private final String tracerName;
   private final AgentTracer.TracerAPI tracer;
   private final TypeConverter converter;
@@ -47,7 +47,7 @@ public class OtelTracer implements Tracer {
     return new SpanBuilder(spanName);
   }
 
-  private class SpanBuilder implements Span.Builder {
+  private final class SpanBuilder implements Span.Builder {
     private final AgentTracer.SpanBuilder delegate;
     private boolean parentSet = false;
 

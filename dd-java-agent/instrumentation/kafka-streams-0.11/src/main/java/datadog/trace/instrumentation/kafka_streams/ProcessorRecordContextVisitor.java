@@ -11,7 +11,7 @@ import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ProcessorRecordContextVisitor
+public final class ProcessorRecordContextVisitor
     implements AgentPropagation.ContextVisitor<ProcessorRecordContext> {
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 

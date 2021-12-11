@@ -41,7 +41,7 @@ public final class RmiClientInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$RmiClientAdvice");
   }
 
-  public static class RmiClientAdvice {
+  public static final class RmiClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(value = 1) final Method method) {
       if (activeSpan() == null) {

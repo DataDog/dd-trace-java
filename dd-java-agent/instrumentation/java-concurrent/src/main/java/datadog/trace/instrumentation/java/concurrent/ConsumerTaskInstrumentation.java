@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ConsumerTaskInstrumentation extends Instrumenter.Tracing {
+public final class ConsumerTaskInstrumentation extends Instrumenter.Tracing {
   public ConsumerTaskInstrumentation() {
     super(EXEC_NAME, "consumer-task");
   }
@@ -42,7 +42,7 @@ public class ConsumerTaskInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(named("run"), getClass().getName() + "$Run");
   }
 
-  public static class Construct {
+  public static final class Construct {
     @Advice.OnMethodExit
     public static void construct(@Advice.This ForkJoinTask<?> task) {
       AgentScope activeScope = activeScope();

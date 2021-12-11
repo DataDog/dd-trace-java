@@ -10,7 +10,7 @@ import datadog.trace.core.DDSpan;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class MultiWriter implements Writer {
+public final class MultiWriter implements Writer {
   private static final Pattern MW_PATTERN =
       Pattern.compile(MULTI_WRITER_TYPE + ":", Pattern.LITERAL);
   private static final Pattern COMMA_PATTERN = Pattern.compile(",", Pattern.LITERAL);

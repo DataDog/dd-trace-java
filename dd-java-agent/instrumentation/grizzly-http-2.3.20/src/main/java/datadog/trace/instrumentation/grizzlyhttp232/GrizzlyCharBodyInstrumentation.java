@@ -21,7 +21,7 @@ import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOReader;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
+public final class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
   public GrizzlyCharBodyInstrumentation() {
     super("grizzly-char-body");
   }
@@ -68,7 +68,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
   }
 
   @SuppressWarnings("Duplicates")
-  static class NIOReaderSetInputBufferAdvice {
+  static final class NIOReaderSetInputBufferAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
@@ -88,7 +88,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOReaderReadAdvice {
+  static final class NIOReaderReadAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOReader thiz, @Advice.Return int ret) {
       StoredCharBody storedCharBody =
@@ -104,7 +104,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOReaderReadCharArrayAdvice {
+  static final class NIOReaderReadCharArrayAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
@@ -123,7 +123,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOReaderReadCharArrayIntIntAdvice {
+  static final class NIOReaderReadCharArrayIntIntAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz,
@@ -143,7 +143,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOReaderReadCharBufferAdvice {
+  static final class NIOReaderReadCharBufferAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static int before(
         @Advice.This final NIOReader thiz,
@@ -181,7 +181,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOReaderIsFinishedAdvice {
+  static final class NIOReaderIsFinishedAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOReader thiz, @Advice.Return boolean ret) {
       StoredCharBody storedCharBody =
@@ -195,7 +195,7 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOReaderRecycleAdvice {
+  static final class NIOReaderRecycleAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOReader thiz) {
       InstrumentationContext.get(NIOReader.class, StoredCharBody.class).put(thiz, null);

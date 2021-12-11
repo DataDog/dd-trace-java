@@ -117,7 +117,7 @@ public class ExceptionHistogram {
     }
   }
 
-  static class Pair<K, V> {
+  static final class Pair<K, V> {
 
     final K key;
     final V value;

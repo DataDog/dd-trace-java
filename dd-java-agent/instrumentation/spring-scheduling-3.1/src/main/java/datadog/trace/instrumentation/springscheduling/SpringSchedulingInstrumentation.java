@@ -36,7 +36,7 @@ public final class SpringSchedulingInstrumentation extends Instrumenter.Tracing 
         SpringSchedulingInstrumentation.class.getName() + "$SpringSchedulingAdvice");
   }
 
-  public static class SpringSchedulingAdvice {
+  public static final class SpringSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onConstruction(
         @Advice.Argument(value = 0, readOnly = false) Runnable runnable) {

@@ -16,7 +16,7 @@ import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
-public class NettyHttpServerDecorator
+public final class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");

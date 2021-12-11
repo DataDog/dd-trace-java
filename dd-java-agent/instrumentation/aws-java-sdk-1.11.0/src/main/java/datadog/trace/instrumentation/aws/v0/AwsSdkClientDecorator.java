@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.util.regex.Pattern;
 
-public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
+public final class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
   private static final Pattern REQUEST_PATTERN = Pattern.compile("Request", Pattern.LITERAL);

@@ -11,7 +11,7 @@ public interface Monitoring {
 
   Counter newCounter(String name);
 
-  class DisabledMonitoring implements Monitoring {
+  final class DisabledMonitoring implements Monitoring {
     private DisabledMonitoring() {}
 
     @Override

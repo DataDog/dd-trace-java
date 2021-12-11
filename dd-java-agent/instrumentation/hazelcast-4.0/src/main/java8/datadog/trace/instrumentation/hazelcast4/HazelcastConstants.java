@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.hazelcast4;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 /** Holder for constant values shared across the instrumentation versions. */
-public class HazelcastConstants {
+public final class HazelcastConstants {
 
   public static final String INSTRUMENTATION_NAME = "hazelcast";
 

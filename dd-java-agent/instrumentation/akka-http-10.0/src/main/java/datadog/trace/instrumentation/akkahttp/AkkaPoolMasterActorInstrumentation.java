@@ -36,7 +36,7 @@ public final class AkkaPoolMasterActorInstrumentation extends Instrumenter.Traci
    * interface is shut down. This means that the {@code Trace} will finish fast, and not wait for
    * the flush to happen.
    */
-  public static class BlockPropagation {
+  public static final class BlockPropagation {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter() {

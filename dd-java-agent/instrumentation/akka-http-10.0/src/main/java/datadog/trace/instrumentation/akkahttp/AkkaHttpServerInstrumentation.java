@@ -82,7 +82,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$AkkaHttpBindAndHandleAdvice");
   }
 
-  public static class AkkaHttpBindAndHandleAdvice {
+  public static final class AkkaHttpBindAndHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(value = 0, readOnly = false)

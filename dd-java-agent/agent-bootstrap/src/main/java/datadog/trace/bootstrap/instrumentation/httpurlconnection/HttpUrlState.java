@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.HttpURLConnection;
 
-public class HttpUrlState {
+public final class HttpUrlState {
 
   public static final String OPERATION_NAME = "http.request";
 

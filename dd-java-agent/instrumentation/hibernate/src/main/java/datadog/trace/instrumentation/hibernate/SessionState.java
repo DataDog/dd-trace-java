@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.hibernate;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public class SessionState {
+public final class SessionState {
   private final AgentSpan sessionSpan;
 
   private AgentScope methodScope;

@@ -5,7 +5,7 @@ import static datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator.onFi
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 
-public class DefaultFilterChainAdvice {
+public final class DefaultFilterChainAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onFail(

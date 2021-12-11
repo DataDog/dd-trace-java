@@ -2,7 +2,7 @@ package org.glassfish.jersey.client;
 
 import net.bytebuddy.asm.Advice;
 
-public class WrappingResponseCallbackAdvice {
+public final class WrappingResponseCallbackAdvice {
   @Advice.OnMethodEnter
   public static void wrap(
       @Advice.Argument(0) ClientRequest request,

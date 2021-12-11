@@ -25,7 +25,7 @@ import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpUriRequest;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
+public final class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
 
   public ApacheHttpClientInstrumentation() {
     super("httpclient", "apache-httpclient", "apache-http-client");
@@ -154,7 +154,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
         ApacheHttpClientInstrumentation.class.getName() + "$RequestWithHandlerAdvice");
   }
 
-  public static class UriRequestAdvice {
+  public static final class UriRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
@@ -175,7 +175,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class UriRequestWithHandlerAdvice {
+  public static final class UriRequestWithHandlerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
@@ -210,7 +210,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class RequestAdvice {
+  public static final class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host, @Advice.Argument(1) final HttpRequest request) {
@@ -236,7 +236,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class RequestWithHandlerAdvice {
+  public static final class RequestWithHandlerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(

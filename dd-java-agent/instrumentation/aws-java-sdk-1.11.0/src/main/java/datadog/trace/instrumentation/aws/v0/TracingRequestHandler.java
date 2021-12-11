@@ -14,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 /** Tracing Request Handler */
-public class TracingRequestHandler extends RequestHandler2 {
+public final class TracingRequestHandler extends RequestHandler2 {
 
   // aws1.x sdk doesn't have any truly async clients so we can store scope in request context safely
   public static final HandlerContextKey<AgentScope> SCOPE_CONTEXT_KEY =

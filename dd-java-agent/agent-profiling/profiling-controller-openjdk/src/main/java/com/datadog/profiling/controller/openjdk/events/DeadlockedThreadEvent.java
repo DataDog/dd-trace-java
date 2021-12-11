@@ -12,7 +12,7 @@ import jdk.jfr.Name;
 @Description("Datadog deadlock detection event - thread details.")
 @Category("Datadog")
 @Enabled
-public class DeadlockedThreadEvent extends Event {
+public final class DeadlockedThreadEvent extends Event {
   @Label("Deadlocked Thread ID")
   private final long threadId;
 

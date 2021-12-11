@@ -81,7 +81,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
         getClass().getName() + "$RequestDispatcherAdvice");
   }
 
-  public static class RequestDispatcherAdvice {
+  public static final class RequestDispatcherAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(

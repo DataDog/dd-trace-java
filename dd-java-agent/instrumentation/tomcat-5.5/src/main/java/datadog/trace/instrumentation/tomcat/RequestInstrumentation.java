@@ -47,7 +47,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
    * Tomcat recycles request/response objects after the response is sent. This provides a reliable
    * point to finish the server span at the last possible moment.
    */
-  public static class RecycleAdvice {
+  public static final class RecycleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final Request req) {
       Response resp = req.getResponse();

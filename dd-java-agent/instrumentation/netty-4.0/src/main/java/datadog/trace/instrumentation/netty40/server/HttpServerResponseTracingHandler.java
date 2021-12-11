@@ -13,7 +13,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 
 @ChannelHandler.Sharable
-public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
+public final class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
   public static HttpServerResponseTracingHandler INSTANCE = new HttpServerResponseTracingHandler();
 
   @Override

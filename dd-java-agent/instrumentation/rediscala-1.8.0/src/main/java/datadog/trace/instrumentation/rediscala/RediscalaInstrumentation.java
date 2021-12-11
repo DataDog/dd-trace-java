@@ -67,7 +67,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing {
         RediscalaInstrumentation.class.getName() + "$RediscalaAdvice");
   }
 
-  public static class RediscalaAdvice {
+  public static final class RediscalaAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {

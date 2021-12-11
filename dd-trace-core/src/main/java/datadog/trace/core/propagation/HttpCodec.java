@@ -14,7 +14,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HttpCodec {
+public final class HttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(HttpCodec.class);
   // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
@@ -103,7 +103,7 @@ public class HttpCodec {
     return new CompoundExtractor(extractors);
   }
 
-  public static class CompoundInjector implements Injector {
+  public static final class CompoundInjector implements Injector {
 
     private final List<Injector> injectors;
 
@@ -120,7 +120,7 @@ public class HttpCodec {
     }
   }
 
-  public static class CompoundExtractor implements Extractor {
+  public static final class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
 
     public CompoundExtractor(final List<Extractor> extractors) {

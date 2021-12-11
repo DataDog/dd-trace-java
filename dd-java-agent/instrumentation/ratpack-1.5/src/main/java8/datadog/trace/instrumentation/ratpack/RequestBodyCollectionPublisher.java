@@ -9,7 +9,7 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import ratpack.stream.TransformablePublisher;
 
-public class RequestBodyCollectionPublisher implements TransformablePublisher<ByteBuf> {
+public final class RequestBodyCollectionPublisher implements TransformablePublisher<ByteBuf> {
   private final ByteBufIntoByteBufferCallback cb = new ByteBufIntoByteBufferCallback();
   private final StoredByteBody storedByteBody;
   private final Publisher<ByteBuf> input;
@@ -59,7 +59,7 @@ public class RequestBodyCollectionPublisher implements TransformablePublisher<By
         });
   }
 
-  public static class ByteBufIntoByteBufferCallback
+  public static final class ByteBufIntoByteBufferCallback
       implements StoredByteBody.ByteBufferWriteCallback {
     ByteBuf byteBuf;
 

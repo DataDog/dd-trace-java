@@ -12,7 +12,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpCoreContext;
 
-public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequest, HttpContext> {
+public final class ApacheHttpAsyncClientDecorator
+    extends HttpClientDecorator<HttpRequest, HttpContext> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence APACHE_HTTPASYNCCLIENT =

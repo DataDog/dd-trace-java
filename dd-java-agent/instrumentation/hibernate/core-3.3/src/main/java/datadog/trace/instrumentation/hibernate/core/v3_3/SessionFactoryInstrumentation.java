@@ -29,7 +29,7 @@ import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
-public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
+public final class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
@@ -63,7 +63,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
         SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
   }
 
-  public static class SessionFactoryAdvice {
+  public static final class SessionFactoryAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final Object session) {

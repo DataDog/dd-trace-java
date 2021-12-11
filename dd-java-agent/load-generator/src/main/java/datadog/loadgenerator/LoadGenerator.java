@@ -15,7 +15,7 @@ import picocli.CommandLine.Option;
 @Command(
     mixinStandardHelpOptions = true,
     description = "Generates traces and spans at a specified rate")
-public class LoadGenerator implements Callable<Integer> {
+public final class LoadGenerator implements Callable<Integer> {
   @Option(names = "--rate", required = true, description = "rate, per second, to generate traces")
   private int rate;
 
@@ -86,7 +86,7 @@ public class LoadGenerator implements Callable<Integer> {
     System.exit(exitCode);
   }
 
-  private class Worker implements Runnable {
+  private final class Worker implements Runnable {
 
     @Override
     public void run() {

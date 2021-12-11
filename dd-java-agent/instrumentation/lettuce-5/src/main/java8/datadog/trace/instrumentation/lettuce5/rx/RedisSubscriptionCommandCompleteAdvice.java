@@ -10,7 +10,7 @@ import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
-public class RedisSubscriptionCommandCompleteAdvice {
+public final class RedisSubscriptionCommandCompleteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beforeComplete(
       @Advice.This RedisCommand command, @Advice.FieldValue("completed") boolean completed) {

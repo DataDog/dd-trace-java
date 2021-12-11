@@ -17,7 +17,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(Instrumenter.class)
-public class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing {
+public final class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing {
   public BlockingQueueConsumerInstrumentation() {
     super("spring-rabbit");
   }
@@ -43,7 +43,7 @@ public class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing {
     return contextStore;
   }
 
-  public static class TransferState {
+  public static final class TransferState {
     @Advice.OnMethodExit
     public static void transfer(
         @Advice.Argument(0) Delivery delivery, @Advice.Return Message message) {

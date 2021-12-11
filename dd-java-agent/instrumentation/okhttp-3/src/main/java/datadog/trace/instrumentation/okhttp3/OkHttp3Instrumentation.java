@@ -13,7 +13,7 @@ import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
 @AutoService(Instrumenter.class)
-public class OkHttp3Instrumentation extends Instrumenter.Tracing {
+public final class OkHttp3Instrumentation extends Instrumenter.Tracing {
 
   public OkHttp3Instrumentation() {
     super("okhttp", "okhttp-3");
@@ -40,7 +40,7 @@ public class OkHttp3Instrumentation extends Instrumenter.Tracing {
         OkHttp3Instrumentation.class.getName() + "$OkHttp3Advice");
   }
 
-  public static class OkHttp3Advice {
+  public static final class OkHttp3Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingInterceptor(
         @Advice.Argument(0) final OkHttpClient.Builder builder) {

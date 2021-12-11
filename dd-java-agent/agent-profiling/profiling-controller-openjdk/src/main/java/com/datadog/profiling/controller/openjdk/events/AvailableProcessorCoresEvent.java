@@ -16,7 +16,7 @@ import jdk.jfr.Period;
 @Category("Datadog")
 @Period("beginChunk")
 @Enabled
-public class AvailableProcessorCoresEvent extends Event {
+public final class AvailableProcessorCoresEvent extends Event {
   private static final AtomicBoolean registered = new AtomicBoolean(false);
 
   @Label("Available Processor Cores")

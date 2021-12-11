@@ -27,7 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class TracingSession implements Session {
+public final class TracingSession implements Session {
 
   private static final ExecutorService EXECUTOR_SERVICE =
       Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));

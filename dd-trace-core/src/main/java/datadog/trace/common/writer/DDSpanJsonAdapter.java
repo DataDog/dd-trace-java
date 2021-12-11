@@ -11,8 +11,9 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
 
-class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
+final class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
   private final boolean hexIds;
 
   DDSpanJsonAdapter(final boolean hexIds) {
@@ -39,7 +40,7 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
   }
 
   @Override
-  public void toJson(final com.squareup.moshi.JsonWriter writer, final DDSpan span)
+  public void toJson(final com.squareup.moshi.JsonWriter writer, @Nonnull final DDSpan span)
       throws IOException {
     writer.beginObject();
     writer.name("service");

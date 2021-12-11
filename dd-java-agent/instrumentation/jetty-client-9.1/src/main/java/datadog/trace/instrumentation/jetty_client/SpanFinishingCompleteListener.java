@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.api.Result;
 
-public class SpanFinishingCompleteListener implements Response.CompleteListener {
+public final class SpanFinishingCompleteListener implements Response.CompleteListener {
   private final AgentSpan span;
 
   public SpanFinishingCompleteListener(AgentSpan span) {

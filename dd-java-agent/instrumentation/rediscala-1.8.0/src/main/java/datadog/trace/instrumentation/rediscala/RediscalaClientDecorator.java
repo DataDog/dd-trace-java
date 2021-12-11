@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import redis.RedisCommand;
 import redis.protocol.RedisReply;
 
-public class RediscalaClientDecorator
+public final class RediscalaClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<RedisCommand<? extends RedisReply, ?>> {
 
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");

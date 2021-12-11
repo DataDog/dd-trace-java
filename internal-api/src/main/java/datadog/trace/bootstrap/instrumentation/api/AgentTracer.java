@@ -15,7 +15,7 @@ import datadog.trace.context.ScopeListener;
 import java.util.Collections;
 import java.util.Map;
 
-public class AgentTracer {
+public final class AgentTracer {
 
   // Implicit parent
   public static AgentSpan startSpan(final CharSequence spanName) {
@@ -205,7 +205,7 @@ public class AgentTracer {
     SpanBuilder suppressCheckpoints();
   }
 
-  static class NoopTracerAPI implements TracerAPI {
+  static final class NoopTracerAPI implements TracerAPI {
 
     protected NoopTracerAPI() {}
 
@@ -363,7 +363,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentSpan implements AgentSpan {
+  public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     @Override
@@ -638,7 +638,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentScope implements AgentScope {
+  public static final class NoopAgentScope implements AgentScope {
     public static final NoopAgentScope INSTANCE = new NoopAgentScope();
 
     @Override
@@ -678,7 +678,7 @@ public class AgentTracer {
     }
   }
 
-  static class NoopAgentPropagation implements AgentPropagation {
+  static final class NoopAgentPropagation implements AgentPropagation {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
 
     @Override
@@ -701,7 +701,7 @@ public class AgentTracer {
     }
   }
 
-  static class NoopContinuation implements AgentScope.Continuation {
+  static final class NoopContinuation implements AgentScope.Continuation {
     static final NoopContinuation INSTANCE = new NoopContinuation();
 
     @Override
@@ -724,7 +724,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopContext implements Context.Extracted {
+  public static final class NoopContext implements Context.Extracted {
     public static final NoopContext INSTANCE = new NoopContext();
 
     @Override
@@ -773,7 +773,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentTrace implements AgentTrace {
+  public static final class NoopAgentTrace implements AgentTrace {
     public static final NoopAgentTrace INSTANCE = new NoopAgentTrace();
 
     @Override

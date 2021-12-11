@@ -156,15 +156,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
   def "should link to parent span"() {
     setup:
+    final DDId traceId = DDId.ONE
     final DDId spanId = DDId.ONE
     final DDId expectedParentId = spanId
 
-    final DDSpanContext mockedContext = Mock()
-    1 * mockedContext.getTraceId() >> spanId
-    1 * mockedContext.getSpanId() >> spanId
-    _ * mockedContext.getServiceName() >> "foo"
-    1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDId.ONE)
+    final DDSpanContext parentContext = new DDSpanContext(
+      traceId, spanId, DDId.ZERO, null, "foo", null, null, 0, null, [:], false, null, 0, tracer.pendingTraceFactory.create(traceId), null)
 
     final String expectedName = "fakeName"
 
@@ -172,7 +169,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       tracer
       .buildSpan(expectedName)
       .withServiceName("foo")
-      .asChildOf(mockedContext)
+      .asChildOf(parentContext)
       .start()
 
     final DDSpanContext actualContext = span.context()

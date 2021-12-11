@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * <p>Eviction is handled almost entirely through a size restriction; however, softValues are still
  * used as a further safeguard.
  */
-public class DDCachingPoolStrategy implements PoolStrategy {
+public final class DDCachingPoolStrategy implements PoolStrategy {
   private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
@@ -282,7 +282,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     }
   }
 
-  private static class CachingResolutionForMaybeLoadableType implements TypePool.Resolution {
+  private static final class CachingResolutionForMaybeLoadableType implements TypePool.Resolution {
     private final WeakReference<ClassLoader> loaderRef;
     private final String className;
     private volatile TypeDescription typeDescription = null;
@@ -341,7 +341,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     }
   }
 
-  private static class CachingResolution implements TypePool.Resolution {
+  private static final class CachingResolution implements TypePool.Resolution {
     private final TypePool.Resolution delegate;
     private TypeDescription cachedResolution;
 
@@ -368,7 +368,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
    * TypeDescription implementation that delegates and caches the results for the expensive calls
    * commonly used by our instrumentation.
    */
-  private static class CachingTypeDescription
+  private static final class CachingTypeDescription
       extends TypeDescription.AbstractBase.OfSimpleType.WithDelegation {
     private final TypeDescription delegate;
 

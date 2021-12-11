@@ -8,7 +8,7 @@ import datadog.trace.util.Strings;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
-public class JUnit4Decorator extends TestDecorator {
+public final class JUnit4Decorator extends TestDecorator {
   public static final JUnit4Decorator DECORATE = new JUnit4Decorator();
 
   @Override

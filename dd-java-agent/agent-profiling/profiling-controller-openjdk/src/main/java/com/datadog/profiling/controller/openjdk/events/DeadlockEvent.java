@@ -14,7 +14,7 @@ import jdk.jfr.Period;
 @Category("Datadog")
 @Period(value = "57 s")
 @Enabled
-public class DeadlockEvent extends Event {
+public final class DeadlockEvent extends Event {
   private static final DeadlockEventFactory EVENT_FACTORY = new DeadlockEventFactory();
 
   @Label("Deadlock ID")

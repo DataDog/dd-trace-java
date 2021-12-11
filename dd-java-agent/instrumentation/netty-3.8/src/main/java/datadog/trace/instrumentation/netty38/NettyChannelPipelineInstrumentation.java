@@ -21,7 +21,7 @@ import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
+public final class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
 
   static final String INSTRUMENTATION_NAME = "netty";
   static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-3.8"};
@@ -84,7 +84,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
         "org.jboss.netty.channel.Channel", ChannelTraceContext.class.getName());
   }
 
-  public static class ChannelPipelineAdd2ArgsAdvice extends AbstractNettyAdvice {
+  public static final class ChannelPipelineAdd2ArgsAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static int checkDepth(
         @Advice.This final ChannelPipeline pipeline,
@@ -114,7 +114,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ChannelPipelineAdd3ArgsAdvice extends AbstractNettyAdvice {
+  public static final class ChannelPipelineAdd3ArgsAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static int checkDepth(
         @Advice.This final ChannelPipeline pipeline,

@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-public class LettuceInstrumentationUtil {
+public final class LettuceInstrumentationUtil {
 
   public static final String[] NON_INSTRUMENTING_COMMAND_WORDS =
       new String[] {"SHUTDOWN", "DEBUG", "OOM", "SEGFAULT"};

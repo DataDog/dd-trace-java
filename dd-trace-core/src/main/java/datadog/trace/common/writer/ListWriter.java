@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** List writer used by tests mostly */
-public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
+public final class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
 

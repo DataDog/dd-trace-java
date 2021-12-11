@@ -24,7 +24,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import java.net.InetSocketAddress;
 
 @ChannelHandler.Sharable
-public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
+public final class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
   public static final HttpClientRequestTracingHandler INSTANCE =
       new HttpClientRequestTracingHandler();
   private static final Class<ChannelHandler> SSL_HANDLER;

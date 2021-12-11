@@ -2,7 +2,7 @@ package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.core.DDTraceCoreInfo;
 
-public class ExcludedVersions {
+public final class ExcludedVersions {
 
   public static void checkVersionExclusion() throws IllegalStateException {
     if (isVersionExcluded(DDTraceCoreInfo.JAVA_VERSION)) {
@@ -37,7 +37,7 @@ public class ExcludedVersions {
   }
 
   /** Simple number tokenizer that treats non-digit characters as delimiters. */
-  private static class NumberTokenizer {
+  private static final class NumberTokenizer {
     private final String text;
     private int cursor;
 

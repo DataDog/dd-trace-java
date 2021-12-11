@@ -14,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 
-public class TracingInterceptor implements Interceptor {
+public final class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
     final AgentSpan span = startSpan(OKHTTP_REQUEST);

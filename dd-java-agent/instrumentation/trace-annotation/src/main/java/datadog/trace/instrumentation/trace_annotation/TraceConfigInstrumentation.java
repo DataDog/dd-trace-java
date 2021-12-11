@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * super class.
  */
 @AutoService(Instrumenter.class)
-public class TraceConfigInstrumentation implements Instrumenter {
+public final class TraceConfigInstrumentation implements Instrumenter {
 
   private static final Logger log = LoggerFactory.getLogger(TraceConfigInstrumentation.class);
 
@@ -195,7 +195,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
   }
 
   // Not Using AutoService to hook up this instrumentation
-  public static class TracerClassInstrumentation extends Tracing {
+  public static final class TracerClassInstrumentation extends Tracing {
     private final String className;
     private final Set<String> methodNames;
 

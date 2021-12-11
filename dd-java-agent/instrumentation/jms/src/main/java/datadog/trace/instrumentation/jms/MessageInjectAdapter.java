@@ -8,7 +8,7 @@ import javax.jms.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
+public final class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageInjectAdapter.class);
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();

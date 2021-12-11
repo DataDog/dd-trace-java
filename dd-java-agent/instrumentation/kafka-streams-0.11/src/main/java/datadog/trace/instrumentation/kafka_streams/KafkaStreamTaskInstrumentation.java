@@ -31,7 +31,7 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.apache.kafka.streams.processor.internals.StreamTask;
 
 @AutoService(Instrumenter.class)
-public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
+public final class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
 
   public KafkaStreamTaskInstrumentation() {
     super("kafka", "kafka-streams");
@@ -97,7 +97,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
         KafkaStreamTaskInstrumentation.class.getName() + "$StopSpanAdvice");
   }
 
-  public static class UnwrapIterableAdvice {
+  public static final class UnwrapIterableAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(value = 1, readOnly = false) Iterable<ConsumerRecord<?, ?>> records) {
@@ -113,7 +113,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
   }
 
   /** Very similar to StartSpanAdvice27, but with a different argument type for record. */
-  public static class StartSpanAdvice {
+  public static final class StartSpanAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void start(
@@ -138,7 +138,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
   }
 
   /** Very similar to StartSpanAdvice, but with a different argument type for record. */
-  public static class StartSpanAdvice27 {
+  public static final class StartSpanAdvice27 {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void start(
@@ -161,7 +161,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class StopSpanAdvice {
+  public static final class StopSpanAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stop(

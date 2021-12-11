@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
-public class KafkaProducerCallback implements Callback {
+public final class KafkaProducerCallback implements Callback {
   private final Callback callback;
   private final AgentSpan parent;
   private final AgentSpan span;

@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * <p>If the buffer is filled traces are discarded before serializing. Once serialized every effort
  * is made to keep, to avoid wasting the serialization effort.
  */
-public class DDAgentWriter implements Writer {
+public final class DDAgentWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(DDAgentWriter.class);
 
@@ -59,7 +59,7 @@ public class DDAgentWriter implements Writer {
 
   public final HealthMetrics healthMetrics;
 
-  public static class DDAgentWriterBuilder {
+  public static final class DDAgentWriterBuilder {
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = null;

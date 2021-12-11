@@ -35,7 +35,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
+public final class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
 
   static final String INSTRUMENTATION_NAME = "netty";
   static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-4.1"};
@@ -95,7 +95,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
    * handlers. If those handlers are later removed, we may want to remove our handlers. That is not
    * currently implemented.
    */
-  public static class AddHandlerAdvice {
+  public static final class AddHandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static int checkDepth(
         @Advice.Argument(value = 2, optional = true) final Object handler2,
@@ -166,7 +166,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ConnectAdvice {
+  public static final class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
       final AgentScope scope = activeScope();

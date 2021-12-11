@@ -24,7 +24,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  * which sometimes only copies the classname
  */
 @AutoService(Instrumenter.class)
-public class BeanFactoryInstrumentation extends Instrumenter.Tracing {
+public final class BeanFactoryInstrumentation extends Instrumenter.Tracing {
   public BeanFactoryInstrumentation() {
     super("spring-web");
   }
@@ -62,7 +62,7 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing {
         BeanFactoryInstrumentation.class.getName() + "$BeanResolvingAdvice");
   }
 
-  public static class BeanResolvingAdvice {
+  public static final class BeanResolvingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition) {
       if (!beanDefinition.hasBeanClass()

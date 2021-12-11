@@ -13,7 +13,7 @@ import reactor.util.context.Context;
  * Based on OpenTracing code.
  * https://github.com/opentracing-contrib/java-reactor/blob/master/src/main/java/io/opentracing/contrib/reactor/TracedSubscriber.java
  */
-public class TracingSubscriber<T> implements CoreSubscriber<T> {
+public final class TracingSubscriber<T> implements CoreSubscriber<T> {
   private final Subscriber<? super T> subscriber;
   private final Context context;
   private final AgentSpan span;

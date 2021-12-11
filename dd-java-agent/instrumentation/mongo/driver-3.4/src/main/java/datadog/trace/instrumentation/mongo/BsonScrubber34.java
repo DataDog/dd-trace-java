@@ -15,7 +15,7 @@ import org.bson.BsonWriter;
 import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;
 
-public class BsonScrubber34 implements BsonWriter, BsonScrubber {
+public final class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   private static final ThreadLocal<Context> CONTEXT =
       new ThreadLocal<Context>() {

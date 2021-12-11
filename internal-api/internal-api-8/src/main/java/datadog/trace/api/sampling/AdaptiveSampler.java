@@ -271,7 +271,7 @@ public class AdaptiveSampler implements Sampler {
     return 1 - Math.pow(lookback, -1d / lookback);
   }
 
-  private static class RollWindowTask implements Task<AdaptiveSampler> {
+  private static final class RollWindowTask implements Task<AdaptiveSampler> {
 
     static final RollWindowTask INSTANCE = new RollWindowTask();
 

@@ -21,7 +21,7 @@ import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
 @AutoService(Instrumenter.class)
-public class JDOQueryInstrumentation extends Instrumenter.Tracing {
+public final class JDOQueryInstrumentation extends Instrumenter.Tracing {
 
   public JDOQueryInstrumentation() {
     super("datanucleus");
@@ -61,7 +61,7 @@ public class JDOQueryInstrumentation extends Instrumenter.Tracing {
         JDOQueryInstrumentation.class.getName() + "$QueryAdvice");
   }
 
-  public static class QueryAdvice {
+  public static final class QueryAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startExecute(@Advice.Origin("#m") final String methodName) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(JDOQuery.class);

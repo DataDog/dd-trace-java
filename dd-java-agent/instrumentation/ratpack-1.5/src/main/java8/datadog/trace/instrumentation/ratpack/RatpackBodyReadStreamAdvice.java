@@ -8,7 +8,7 @@ import ratpack.file.FileIo;
 import ratpack.server.internal.RequestBody;
 import ratpack.stream.TransformablePublisher;
 
-public class RatpackBodyReadStreamAdvice {
+public final class RatpackBodyReadStreamAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(
       @Advice.This RequestBody requestBody,

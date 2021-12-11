@@ -48,7 +48,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * taking place that decides which thread actually get to run the user code that was supplied.
  */
 @AutoService(Instrumenter.class)
-public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.Tracing
+public final class CompletableFutureUniCompletionInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
   static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
   static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";

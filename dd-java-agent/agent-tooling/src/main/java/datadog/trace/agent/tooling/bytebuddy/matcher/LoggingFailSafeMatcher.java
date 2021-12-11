@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> The type of the matched entity.
  * @see net.bytebuddy.matcher.FailSafeMatcher
  */
-class LoggingFailSafeMatcher<T> extends ElementMatcher.Junction.AbstractBase<T> {
+final class LoggingFailSafeMatcher<T> extends ElementMatcher.Junction.AbstractBase<T> {
 
   private static final Logger log = LoggerFactory.getLogger(LoggingFailSafeMatcher.class);
 

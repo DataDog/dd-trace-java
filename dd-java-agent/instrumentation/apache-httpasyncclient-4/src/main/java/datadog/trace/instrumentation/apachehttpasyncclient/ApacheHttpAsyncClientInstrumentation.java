@@ -24,7 +24,7 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
+public final class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
 
   public ApacheHttpAsyncClientInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");
@@ -76,7 +76,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
         ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice");
   }
 
-  public static class ClientAdvice {
+  public static final class ClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(

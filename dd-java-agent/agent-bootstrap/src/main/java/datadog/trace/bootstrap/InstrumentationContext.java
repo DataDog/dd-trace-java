@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
 /** Instrumentation Context API */
-public class InstrumentationContext {
+public final class InstrumentationContext {
   private InstrumentationContext() {}
 
   /**

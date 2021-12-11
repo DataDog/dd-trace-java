@@ -11,7 +11,7 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.http.HttpServletResponse;
 
-public class TagSettingAsyncListener implements AsyncListener {
+public final class TagSettingAsyncListener implements AsyncListener {
   private final AtomicBoolean activated;
   private final AgentSpan span;
 

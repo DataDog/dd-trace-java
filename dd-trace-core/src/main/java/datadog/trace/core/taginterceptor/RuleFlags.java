@@ -2,7 +2,7 @@ package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.Config;
 
-public class RuleFlags {
+public final class RuleFlags {
 
   public enum Feature {
     // These names all derive from the simple class names which

@@ -23,7 +23,7 @@ import javax.annotation.Nonnull;
 import jdk.jfr.Recording;
 
 /** Implementation for profiling recordings. */
-public class OpenJdkRecordingData extends RecordingData {
+public final class OpenJdkRecordingData extends RecordingData {
 
   private final Recording recording;
 

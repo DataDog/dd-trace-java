@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
+public final class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
 
   public GrpcServerBuilderInstrumentation() {
     super(true, "grpc", "grpc-server");
@@ -68,7 +68,7 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
         GrpcServerBuilderInstrumentation.class.getName() + "$BuildAdvice");
   }
 
-  public static class BuildAdvice {
+  public static final class BuildAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.This ServerBuilder<?> serverBuilder) {

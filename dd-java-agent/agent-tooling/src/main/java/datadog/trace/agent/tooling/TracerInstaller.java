@@ -8,7 +8,7 @@ import datadog.trace.core.CoreTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TracerInstaller {
+public final class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
   /** Register a global tracer if no global tracer is already registered. */
   public static synchronized void installGlobalTracer(

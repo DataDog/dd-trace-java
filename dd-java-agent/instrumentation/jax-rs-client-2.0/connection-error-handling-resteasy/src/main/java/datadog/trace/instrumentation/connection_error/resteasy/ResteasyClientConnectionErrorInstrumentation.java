@@ -49,7 +49,7 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
         ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice");
   }
 
-  public static class InvokeAdvice {
+  public static final class InvokeAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void handleError(
@@ -67,7 +67,7 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
     }
   }
 
-  public static class SubmitAdvice {
+  public static final class SubmitAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void handleError(

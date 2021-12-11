@@ -7,7 +7,7 @@ import datadog.trace.core.DDSpan;
 import java.util.Collection;
 import java.util.Collections;
 
-public class CiVisibilityTraceInterceptor implements TraceInterceptor {
+public final class CiVisibilityTraceInterceptor implements TraceInterceptor {
 
   public static final CiVisibilityTraceInterceptor INSTANCE = new CiVisibilityTraceInterceptor();
 

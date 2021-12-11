@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.ratpack;
 import datadog.trace.api.function.Supplier;
 import ratpack.http.TypedData;
 
-public class GetTextCharSequenceSupplier implements Supplier<CharSequence> {
+public final class GetTextCharSequenceSupplier implements Supplier<CharSequence> {
   private final TypedData thiz;
 
   public GetTextCharSequenceSupplier(TypedData thiz) {

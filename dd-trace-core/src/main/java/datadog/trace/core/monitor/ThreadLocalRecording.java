@@ -2,7 +2,7 @@ package datadog.trace.core.monitor;
 
 import datadog.communication.monitor.Recording;
 
-public class ThreadLocalRecording extends Recording {
+public final class ThreadLocalRecording extends Recording {
 
   private final ThreadLocal<Recording> tls;
 

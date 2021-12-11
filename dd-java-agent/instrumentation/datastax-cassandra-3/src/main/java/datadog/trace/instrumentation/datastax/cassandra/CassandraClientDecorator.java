@@ -8,7 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
-public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
+public final class CassandraClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<Session> {
 
   public static final CharSequence CASSANDRA_EXECUTE = UTF8BytesString.create("cassandra.execute");
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");

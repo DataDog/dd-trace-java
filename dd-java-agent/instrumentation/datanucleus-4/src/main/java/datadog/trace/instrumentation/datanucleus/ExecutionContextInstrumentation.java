@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 @AutoService(Instrumenter.class)
-public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
+public final class ExecutionContextInstrumentation extends Instrumenter.Tracing {
   public ExecutionContextInstrumentation() {
     super("datanucleus");
   }
@@ -78,7 +78,7 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
         ExecutionContextInstrumentation.class.getName() + "$FindWithClassAdvice");
   }
 
-  public static class MultiObjectActionAdvice {
+  public static final class MultiObjectActionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod(
         @Advice.This final ExecutionContext executionContext,
@@ -107,7 +107,7 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class SingleObjectActionAdvice {
+  public static final class SingleObjectActionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod(
         @Advice.Origin("datanucleus.#m") final String operationName,
@@ -143,7 +143,7 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class FindWithStringClassnameAdvice {
+  public static final class FindWithStringClassnameAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
 
@@ -174,7 +174,7 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class FindWithClassAdvice {
+  public static final class FindWithClassAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
 

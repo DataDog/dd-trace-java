@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>It is required because there is no getter for this value until 4.0.
  */
 @AutoService(Instrumenter.class)
-public class ClientMessageInstrumentation extends Instrumenter.Tracing {
+public final class ClientMessageInstrumentation extends Instrumenter.Tracing {
 
   public ClientMessageInstrumentation() {
     super(INSTRUMENTATION_NAME);
@@ -61,7 +61,7 @@ public class ClientMessageInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$OperationCapturingAdvice");
   }
 
-  public static class OperationCapturingAdvice {
+  public static final class OperationCapturingAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(

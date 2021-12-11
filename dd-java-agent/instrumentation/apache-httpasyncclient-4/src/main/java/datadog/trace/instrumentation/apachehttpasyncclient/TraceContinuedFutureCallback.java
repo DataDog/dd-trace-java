@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.protocol.HttpContext;
 
-public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
+public final class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
   private final AgentScope.Continuation parentContinuation;
   private final AgentSpan clientSpan;
   private final HttpContext context;

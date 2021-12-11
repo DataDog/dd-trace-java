@@ -6,7 +6,7 @@ import net.bytebuddy.asm.Advice;
 import ratpack.file.FileIo;
 import ratpack.http.internal.ByteBufBackedTypedData;
 
-public class RatpackRequestBodyGetTextCalledAdvice {
+public final class RatpackRequestBodyGetTextCalledAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(@Advice.This ByteBufBackedTypedData thiz, @Advice.Return String str) {
     Boolean bodyPublished =

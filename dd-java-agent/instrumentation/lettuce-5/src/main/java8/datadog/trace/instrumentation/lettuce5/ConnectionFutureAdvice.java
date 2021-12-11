@@ -11,7 +11,7 @@ import io.lettuce.core.ConnectionFuture;
 import io.lettuce.core.RedisURI;
 import net.bytebuddy.asm.Advice;
 
-public class ConnectionFutureAdvice {
+public final class ConnectionFutureAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisUri) {

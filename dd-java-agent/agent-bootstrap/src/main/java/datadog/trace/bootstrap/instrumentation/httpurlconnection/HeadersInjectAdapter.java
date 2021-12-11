@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.net.HttpURLConnection;
 
-public class HeadersInjectAdapter implements AgentPropagation.Setter<HttpURLConnection> {
+public final class HeadersInjectAdapter implements AgentPropagation.Setter<HttpURLConnection> {
 
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 

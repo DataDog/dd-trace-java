@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  *   number of classes we apply expensive matchers to.
  * </ul>
  */
-public class GlobalIgnoresMatcher<T extends TypeDescription>
+public final class GlobalIgnoresMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> globalIgnoresMatcher(

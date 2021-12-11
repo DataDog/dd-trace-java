@@ -23,7 +23,7 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
-public class RequestImplInstrumentation extends Instrumenter.Tracing {
+public final class RequestImplInstrumentation extends Instrumenter.Tracing {
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }

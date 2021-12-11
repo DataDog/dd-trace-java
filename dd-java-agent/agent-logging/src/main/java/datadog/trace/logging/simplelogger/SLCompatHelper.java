@@ -7,7 +7,7 @@ import org.slf4j.Marker;
 /**
  * A {@link LoggerHelper} that logs in a way compatible with the {@code SimpleLogger} from SLF4J.
  */
-class SLCompatHelper extends LoggerHelper {
+final class SLCompatHelper extends LoggerHelper {
   private final String logName;
   private final LogLevel logLevel;
   private final SLCompatSettings settings;

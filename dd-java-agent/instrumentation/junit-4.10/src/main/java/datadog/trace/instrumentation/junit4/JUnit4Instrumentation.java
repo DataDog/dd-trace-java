@@ -16,7 +16,7 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(Instrumenter.class)
-public class JUnit4Instrumentation extends Instrumenter.CiVisibility {
+public final class JUnit4Instrumentation extends Instrumenter.CiVisibility {
 
   public JUnit4Instrumentation() {
     super("junit", "junit-4");
@@ -48,7 +48,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility {
         JUnit4Instrumentation.class.getName() + "$JUnit4Advice");
   }
 
-  public static class JUnit4Advice {
+  public static final class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingListener(@Advice.Argument(0) final RunNotifier runNotifier) {
       // No public accessor to get already installed listeners.

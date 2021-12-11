@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.rmi;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public class ThreadLocalContext {
+public final class ThreadLocalContext {
   public static final ThreadLocalContext THREAD_LOCAL_CONTEXT = new ThreadLocalContext();
   private final ThreadLocal<AgentSpan.Context> local;
 

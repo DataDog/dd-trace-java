@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 
 import java.util.Objects;
 
-public class GitInfo {
+public final class GitInfo {
 
   public static final GitInfo NOOP = new GitInfo(null, null, null, CommitInfo.NOOP);
 

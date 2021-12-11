@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-public class SessionMethodUtils {
+public final class SessionMethodUtils {
 
   public static final Set<String> SCOPE_ONLY_METHODS =
       new HashSet<>(Arrays.asList("immediateLoad", "internalLoad"));

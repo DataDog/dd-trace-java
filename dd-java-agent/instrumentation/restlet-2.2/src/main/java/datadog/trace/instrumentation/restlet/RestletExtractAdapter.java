@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.List;
 import java.util.Map;
 
-public class RestletExtractAdapter implements AgentPropagation.ContextVisitor<HttpExchange> {
+public final class RestletExtractAdapter implements AgentPropagation.ContextVisitor<HttpExchange> {
   public static final RestletExtractAdapter GETTER = new RestletExtractAdapter();
 
   @Override

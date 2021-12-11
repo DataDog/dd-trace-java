@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Decorate Twilio span's with relevant contextual information. */
-public class TwilioClientDecorator extends ClientDecorator {
+public final class TwilioClientDecorator extends ClientDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(TwilioClientDecorator.class);
 

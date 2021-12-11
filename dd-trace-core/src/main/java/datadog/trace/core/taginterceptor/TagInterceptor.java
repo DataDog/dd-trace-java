@@ -21,7 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import java.util.Set;
 
-public class TagInterceptor {
+public final class TagInterceptor {
 
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;

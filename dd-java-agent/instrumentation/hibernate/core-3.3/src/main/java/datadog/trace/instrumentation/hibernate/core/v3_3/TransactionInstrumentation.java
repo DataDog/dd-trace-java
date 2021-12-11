@@ -23,7 +23,7 @@ import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
-public class TransactionInstrumentation extends AbstractHibernateInstrumentation {
+public final class TransactionInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
@@ -51,7 +51,7 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
         TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice");
   }
 
-  public static class TransactionCommitAdvice {
+  public static final class TransactionCommitAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startCommit(

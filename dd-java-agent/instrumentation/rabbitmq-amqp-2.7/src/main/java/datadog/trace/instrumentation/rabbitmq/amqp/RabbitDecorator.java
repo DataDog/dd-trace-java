@@ -27,7 +27,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class RabbitDecorator extends ClientDecorator {
+public final class RabbitDecorator extends ClientDecorator {
 
   public static final CharSequence AMQP_COMMAND = UTF8BytesString.create("amqp.command");
   public static final CharSequence AMQP_DELIVER = UTF8BytesString.create("amqp.deliver");

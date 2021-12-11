@@ -16,7 +16,7 @@ import reactor.core.publisher.Mono;
  * This is 'top level' advice for Webflux instrumentation. This handles creating and finishing
  * Webflux span.
  */
-public class DispatcherHandlerAdvice {
+public final class DispatcherHandlerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {

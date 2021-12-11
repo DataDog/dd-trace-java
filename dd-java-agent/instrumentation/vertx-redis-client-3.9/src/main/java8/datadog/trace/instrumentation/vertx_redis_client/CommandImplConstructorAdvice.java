@@ -8,7 +8,7 @@ import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.impl.CommandImpl;
 import net.bytebuddy.asm.Advice;
 
-public class CommandImplConstructorAdvice {
+public final class CommandImplConstructorAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterConstructor(
       @Advice.This final CommandImpl zis, @Advice.Argument(0) String command) {

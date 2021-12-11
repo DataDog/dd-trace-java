@@ -19,7 +19,7 @@ import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 
 /** This class is identical to version 6's instrumentation. */
-public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
+public final class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
 
   private final ActionListener<T> listener;
   private final AgentSpan span;

@@ -14,7 +14,7 @@ import org.apache.http.nio.IOControl;
 import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
-public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
+public final class DelegatingRequestProducer implements HttpAsyncRequestProducer {
   final AgentSpan span;
   final HttpAsyncRequestProducer delegate;
 

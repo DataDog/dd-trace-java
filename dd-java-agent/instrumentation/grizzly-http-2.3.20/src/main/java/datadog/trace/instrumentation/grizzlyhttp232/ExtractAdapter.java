@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.util.MimeHeaders;
 
-public class ExtractAdapter implements AgentPropagation.ContextVisitor<HttpRequestPacket> {
+public final class ExtractAdapter implements AgentPropagation.ContextVisitor<HttpRequestPacket> {
   public static final ExtractAdapter GETTER = new ExtractAdapter();
 
   @Override

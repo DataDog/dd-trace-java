@@ -6,7 +6,7 @@ import java.net.URI;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
+public final class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence OKHTTP_REQUEST = UTF8BytesString.create("okhttp.request");
   public static final CharSequence OKHTTP = UTF8BytesString.create("okhttp");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();

@@ -23,7 +23,7 @@ import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
-public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
+public final class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
@@ -48,7 +48,7 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
         CriteriaInstrumentation.class.getName() + "$CriteriaMethodAdvice");
   }
 
-  public static class CriteriaMethodAdvice {
+  public static final class CriteriaMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(

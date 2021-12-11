@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.servlet.http;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
-public class HttpServletDecorator extends BaseDecorator {
+public final class HttpServletDecorator extends BaseDecorator {
 
   public static final CharSequence JAVA_WEB_SERVLET_SERVICE =
       UTF8BytesString.create("java-web-servlet-service");

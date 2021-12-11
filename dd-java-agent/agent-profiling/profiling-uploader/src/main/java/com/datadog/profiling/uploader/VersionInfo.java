@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressFBWarnings("OS_OPEN_STREAM")
-public class VersionInfo {
+public final class VersionInfo {
 
   private static final Logger log = LoggerFactory.getLogger(VersionInfo.class);
 

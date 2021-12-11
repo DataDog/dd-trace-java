@@ -43,7 +43,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
+public final class RabbitChannelInstrumentation extends Instrumenter.Tracing {
 
   public RabbitChannelInstrumentation() {
     super("amqp", "rabbitmq");
@@ -106,7 +106,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
         RabbitChannelInstrumentation.class.getName() + "$ChannelConsumeAdvice");
   }
 
-  public static class ChannelMethodAdvice {
+  public static final class ChannelMethodAdvice {
     @Advice.OnMethodEnter
     public static AgentScope onEnter(
         @Advice.This final Channel channel, @Advice.Origin("Channel.#m") final String method) {
@@ -139,7 +139,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ChannelPublishAdvice {
+  public static final class ChannelPublishAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope setResourceNameAddHeaders(
         @Advice.This final Channel channel,
@@ -214,7 +214,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ChannelGetAdvice {
+  public static final class ChannelGetAdvice {
     @Advice.OnMethodEnter
     public static long takeTimestamp(
         @Advice.Local("placeholderScope") AgentScope placeholderScope,
@@ -262,7 +262,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ChannelConsumeAdvice {
+  public static final class ChannelConsumeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrapConsumer(
         @Advice.Argument(0) final String queue,

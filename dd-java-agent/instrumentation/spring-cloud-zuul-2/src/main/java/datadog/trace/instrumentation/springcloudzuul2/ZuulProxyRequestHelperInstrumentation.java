@@ -14,7 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing {
+public final class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing {
   public ZuulProxyRequestHelperInstrumentation() {
     super("spring-cloud-zuul");
   }
@@ -42,7 +42,7 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
    * action of filtering/forwarding the incoming request will not overwrite the headers added by the
    * agent when instrumenting the proxy
    */
-  public static class ProxyRequestHelperAdvice {
+  public static final class ProxyRequestHelperAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {

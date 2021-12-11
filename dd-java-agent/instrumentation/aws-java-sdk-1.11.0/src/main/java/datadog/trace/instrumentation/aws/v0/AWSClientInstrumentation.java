@@ -56,7 +56,7 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
         isConstructor(), AWSClientInstrumentation.class.getName() + "$AWSClientAdvice");
   }
 
-  public static class AWSClientAdvice {
+  public static final class AWSClientAdvice {
     // Since we're instrumenting the constructor, we can't add onThrowable.
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(

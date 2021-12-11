@@ -52,7 +52,7 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing {
         LibertyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
   }
 
-  public static class HandleRequestAdvice {
+  public static final class HandleRequestAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(value = 0) ServletRequest req) {

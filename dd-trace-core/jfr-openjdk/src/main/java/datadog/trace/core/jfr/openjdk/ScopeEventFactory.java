@@ -10,7 +10,7 @@ import java.util.Deque;
 import jdk.jfr.EventType;
 
 /** Event factory for {@link ScopeEvent} */
-public class ScopeEventFactory implements ExtendedScopeListener {
+public final class ScopeEventFactory implements ExtendedScopeListener {
   private final ThreadCpuTimeProvider threadCpuTimeProvider =
       ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, false)
           ? SystemAccess::getCurrentThreadCpuTime

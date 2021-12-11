@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LogbackLoggerInstrumentation extends Instrumenter.Tracing {
+public final class LogbackLoggerInstrumentation extends Instrumenter.Tracing {
 
   public LogbackLoggerInstrumentation() {
     super("logback");
@@ -58,7 +58,7 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing {
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
   }
 
-  public static class CallAppendersAdvice {
+  public static final class CallAppendersAdvice {
     @Advice.OnMethodEnter
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       AgentSpan span = activeSpan();

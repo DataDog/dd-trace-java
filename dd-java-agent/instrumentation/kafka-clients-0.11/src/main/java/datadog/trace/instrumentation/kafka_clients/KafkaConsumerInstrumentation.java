@@ -69,7 +69,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
         KafkaConsumerInstrumentation.class.getName() + "$IteratorAdvice");
   }
 
-  public static class IterableAdvice {
+  public static final class IterableAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(
@@ -80,7 +80,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ListAdvice {
+  public static final class ListAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(@Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable) {
@@ -90,7 +90,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class IteratorAdvice {
+  public static final class IteratorAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(

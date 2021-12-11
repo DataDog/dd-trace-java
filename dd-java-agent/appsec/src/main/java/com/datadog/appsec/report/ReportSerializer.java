@@ -23,7 +23,7 @@ public final class ReportSerializer {
     return INTAKE_BATCH_ADAPTER;
   }
 
-  static class MoshiAdapter {
+  static final class MoshiAdapter {
     @ToJson
     String toJson(Instant instant) {
       return instant.toString();

@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitCommandInstrumentation extends Instrumenter.Tracing {
+public final class RabbitCommandInstrumentation extends Instrumenter.Tracing {
 
   public RabbitCommandInstrumentation() {
     super("amqp", "rabbitmq");
@@ -51,7 +51,7 @@ public class RabbitCommandInstrumentation extends Instrumenter.Tracing {
         RabbitCommandInstrumentation.class.getName() + "$CommandConstructorAdvice");
   }
 
-  public static class CommandConstructorAdvice {
+  public static final class CommandConstructorAdvice {
     @Advice.OnMethodEnter
     public static int getCallDepth() {
       return CallDepthThreadLocalMap.incrementCallDepth(Command.class);

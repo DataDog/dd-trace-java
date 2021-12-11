@@ -9,7 +9,7 @@ import io.micronaut.http.MediaTypeConverter;
 import io.micronaut.http.server.netty.NettyHttpRequest;
 import net.bytebuddy.asm.Advice;
 
-public class WriteDefaultErrorResponseAdvice {
+public final class WriteDefaultErrorResponseAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beginRequest(
       @Advice.Argument(1) final NettyHttpRequest nettyHttpRequest,

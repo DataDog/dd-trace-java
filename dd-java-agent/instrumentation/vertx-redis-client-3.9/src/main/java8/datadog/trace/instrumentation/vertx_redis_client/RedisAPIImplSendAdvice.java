@@ -8,7 +8,7 @@ import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 import net.bytebuddy.asm.Advice;
 
-public class RedisAPIImplSendAdvice {
+public final class RedisAPIImplSendAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterSend(@Advice.This RedisAPI self, @Advice.Return Future future) {
     /*

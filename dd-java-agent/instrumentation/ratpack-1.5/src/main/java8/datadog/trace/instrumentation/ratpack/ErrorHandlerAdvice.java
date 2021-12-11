@@ -7,7 +7,7 @@ import java.util.Optional;
 import net.bytebuddy.asm.Advice;
 import ratpack.handling.Context;
 
-public class ErrorHandlerAdvice {
+public final class ErrorHandlerAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void captureThrowable(
       @Advice.Argument(0) final Context ctx, @Advice.Argument(1) final Throwable throwable) {

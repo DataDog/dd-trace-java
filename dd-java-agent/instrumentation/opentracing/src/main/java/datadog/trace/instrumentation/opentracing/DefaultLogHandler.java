@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** The default implementation of the LogHandler. */
-public class DefaultLogHandler implements LogHandler {
+public final class DefaultLogHandler implements LogHandler {
 
   private static final Logger log = LoggerFactory.getLogger(DefaultLogHandler.class);
 

@@ -19,7 +19,7 @@ import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import javax.jms.Message;
 import javax.jms.MessageListener;
 
-public class DatadogMessageListener implements MessageListener {
+public final class DatadogMessageListener implements MessageListener {
 
   private final ContextStore<Message, SessionState> messageAckStore;
   private final MessageConsumerState consumerState;

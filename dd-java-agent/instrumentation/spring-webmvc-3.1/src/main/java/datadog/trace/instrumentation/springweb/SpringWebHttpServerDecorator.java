@@ -17,7 +17,7 @@ import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.Controller;
 
-public class SpringWebHttpServerDecorator
+public final class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
 
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");

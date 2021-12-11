@@ -55,7 +55,7 @@ public final class FlowableInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$PropagateParentSpanAdvice");
   }
 
-  public static class CaptureParentSpanAdvice {
+  public static final class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Flowable<?> flowable) {
       AgentSpan parentSpan = activeSpan();
@@ -65,7 +65,7 @@ public final class FlowableInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class PropagateParentSpanAdvice {
+  public static final class PropagateParentSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onSubscribe(
         @Advice.This final Flowable<?> flowable,

@@ -49,7 +49,7 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Tracing {
         JaxRsClientInstrumentation.class.getName() + "$ClientBuilderAdvice");
   }
 
-  public static class ClientBuilderAdvice {
+  public static final class ClientBuilderAdvice {
 
     @Advice.OnMethodExit
     public static void registerFeature(

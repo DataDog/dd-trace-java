@@ -5,7 +5,7 @@ import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import datadog.trace.instrumentation.netty38.util.CombinedSimpleChannelHandler;
 import org.jboss.netty.channel.Channel;
 
-public class HttpClientTracingHandler
+public final class HttpClientTracingHandler
     extends CombinedSimpleChannelHandler<
         HttpClientResponseTracingHandler, HttpClientRequestTracingHandler> {
 

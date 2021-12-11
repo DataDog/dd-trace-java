@@ -11,7 +11,7 @@ import org.restlet.engine.header.Header;
 import org.restlet.resource.ServerResource;
 import org.restlet.util.Series;
 
-public class ResourceDecorator extends BaseDecorator {
+public final class ResourceDecorator extends BaseDecorator {
 
   public static final CharSequence RESTLET_CONTROLLER =
       UTF8BytesString.create("restlet-controller");

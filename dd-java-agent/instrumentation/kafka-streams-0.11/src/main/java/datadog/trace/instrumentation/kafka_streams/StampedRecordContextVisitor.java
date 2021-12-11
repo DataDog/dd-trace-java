@@ -5,7 +5,8 @@ import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
-public class StampedRecordContextVisitor implements AgentPropagation.ContextVisitor<StampedRecord> {
+public final class StampedRecordContextVisitor
+    implements AgentPropagation.ContextVisitor<StampedRecord> {
 
   public static final StampedRecordContextVisitor SR_GETTER = new StampedRecordContextVisitor();
 

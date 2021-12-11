@@ -17,7 +17,7 @@ import spark.route.HttpMethod;
 import spark.routematch.RouteMatch;
 
 @AutoService(Instrumenter.class)
-public class RoutesInstrumentation extends Instrumenter.Tracing {
+public final class RoutesInstrumentation extends Instrumenter.Tracing {
 
   public RoutesInstrumentation() {
     super("sparkjava", "sparkjava-2.4");
@@ -43,7 +43,7 @@ public class RoutesInstrumentation extends Instrumenter.Tracing {
         RoutesInstrumentation.class.getName() + "$RoutesAdvice");
   }
 
-  public static class RoutesAdvice {
+  public static final class RoutesAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void routeMatchEnricher(

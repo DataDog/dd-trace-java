@@ -7,7 +7,7 @@ import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.Query;
 import net.bytebuddy.asm.Advice;
 
-public class PreparedStatementQueryAdvice {
+public final class PreparedStatementQueryAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterQuery(
       @Advice.This final PreparedStatement zis, @Advice.Return final Query query) {

@@ -26,7 +26,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.amqp.core.Message;
 
 @AutoService(Instrumenter.class)
-public class AbstractMessageListenerContainerInstrumentation extends Instrumenter.Tracing
+public final class AbstractMessageListenerContainerInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public AbstractMessageListenerContainerInstrumentation() {
@@ -63,7 +63,7 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
         getClass().getName() + "$ActivateContinuation");
   }
 
-  public static class ActivateContinuation {
+  public static final class ActivateContinuation {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope activate(@Advice.Argument(1) Object data) {
       if (data instanceof Message) {

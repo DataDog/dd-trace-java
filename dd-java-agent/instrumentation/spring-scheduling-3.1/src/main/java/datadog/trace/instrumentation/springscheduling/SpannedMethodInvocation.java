@@ -10,7 +10,7 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Method;
 import org.aopalliance.intercept.MethodInvocation;
 
-public class SpannedMethodInvocation implements MethodInvocation {
+public final class SpannedMethodInvocation implements MethodInvocation {
 
   private final AgentScope.Continuation continuation;
   private final MethodInvocation delegate;

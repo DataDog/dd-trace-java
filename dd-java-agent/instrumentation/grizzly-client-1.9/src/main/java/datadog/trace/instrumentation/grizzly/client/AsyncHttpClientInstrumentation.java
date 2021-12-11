@@ -69,7 +69,7 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$ExecuteRequest");
   }
 
-  public static class ExecuteRequest {
+  public static final class ExecuteRequest {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(

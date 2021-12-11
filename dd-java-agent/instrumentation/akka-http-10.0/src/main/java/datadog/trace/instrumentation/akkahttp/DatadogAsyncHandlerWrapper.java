@@ -8,7 +8,7 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.runtime.AbstractFunction1;
 
-public class DatadogAsyncHandlerWrapper
+public final class DatadogAsyncHandlerWrapper
     extends AbstractFunction1<HttpRequest, Future<HttpResponse>> {
   private final Function1<HttpRequest, Future<HttpResponse>> userHandler;
   private final ExecutionContext executionContext;

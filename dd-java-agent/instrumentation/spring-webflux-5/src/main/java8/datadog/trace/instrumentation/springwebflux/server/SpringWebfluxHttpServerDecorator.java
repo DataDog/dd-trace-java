@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 
-public class SpringWebfluxHttpServerDecorator extends ServerDecorator {
+public final class SpringWebfluxHttpServerDecorator extends ServerDecorator {
   public static final CharSequence DISPATCHER_HANDLE_HANDLER =
       UTF8BytesString.create("DispatcherHandler.handle");
   public static final CharSequence SPRING_WEBFLUX_CONTROLLER =

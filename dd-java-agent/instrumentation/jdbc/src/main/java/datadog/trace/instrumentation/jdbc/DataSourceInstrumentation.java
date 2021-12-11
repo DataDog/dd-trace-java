@@ -45,7 +45,7 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(named("getConnection"), GetConnectionAdvice.class.getName());
   }
 
-  public static class GetConnectionAdvice {
+  public static final class GetConnectionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(@Advice.This final DataSource ds) {

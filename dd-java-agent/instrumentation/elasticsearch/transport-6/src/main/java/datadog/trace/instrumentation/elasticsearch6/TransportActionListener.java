@@ -22,7 +22,7 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
  * Most of this class is identical to version 5's instrumentation, but they changed an interface to
  * an abstract class, so the bytecode isn't directly compatible.
  */
-public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
+public final class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
 
   private final ActionListener<T> listener;
   private final AgentSpan span;

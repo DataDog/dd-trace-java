@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 // TODO - can be removed when JDK7 is dropped (adapted from JDK8 source)
-public class Base64Decoder {
+public final class Base64Decoder {
 
   private static final int[] BASE_64 = new int[256];
 

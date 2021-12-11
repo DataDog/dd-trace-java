@@ -59,7 +59,7 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing {
         JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice");
   }
 
-  public static class HandleAdvice {
+  public static final class HandleAdvice {
 
     @Advice.OnMethodEnter
     public static AgentScope onEnter(

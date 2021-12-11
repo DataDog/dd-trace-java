@@ -11,7 +11,7 @@ import java.util.Collection;
  * <p>OpenTracing's GlobalTracer cannot be cast to its DDTracer implementation, so this class exists
  * to provide a global window to datadog-specific features.
  */
-public class GlobalTracer {
+public final class GlobalTracer {
   private static final Tracer NO_OP =
       new Tracer() {
         @Override

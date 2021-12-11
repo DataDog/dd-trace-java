@@ -25,7 +25,7 @@ import org.elasticsearch.action.ActionResponse;
  * an abstract class, so the bytecode isn't directly compatible.
  */
 @AutoService(Instrumenter.class)
-public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.Tracing {
+public final class Elasticsearch6TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch6TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-6");
@@ -58,7 +58,7 @@ public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.T
             + "$Elasticsearch6TransportClientAdvice");
   }
 
-  public static class Elasticsearch6TransportClientAdvice {
+  public static final class Elasticsearch6TransportClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

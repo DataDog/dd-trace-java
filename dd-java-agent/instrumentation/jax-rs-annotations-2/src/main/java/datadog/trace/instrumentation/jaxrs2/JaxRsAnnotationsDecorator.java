@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 
-public class JaxRsAnnotationsDecorator extends BaseDecorator {
+public final class JaxRsAnnotationsDecorator extends BaseDecorator {
 
   public static final CharSequence JAX_RS_REQUEST_ABORT =
       UTF8BytesString.create("jax-rs.request.abort");

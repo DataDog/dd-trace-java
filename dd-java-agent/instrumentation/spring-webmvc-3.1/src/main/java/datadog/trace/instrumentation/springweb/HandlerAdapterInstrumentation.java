@@ -59,7 +59,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing {
         HandlerAdapterInstrumentation.class.getName() + "$ControllerAdvice");
   }
 
-  public static class ControllerAdvice {
+  public static final class ControllerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameResourceAndStartSpan(

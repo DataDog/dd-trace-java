@@ -9,8 +9,8 @@ import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;
 
-public class SqlClientBaseAdvice {
-  public static class NormalQuery {
+public final class SqlClientBaseAdvice {
+  public static final class NormalQuery {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterQuery(
         @Advice.This final SqlClient zis,
@@ -29,7 +29,7 @@ public class SqlClientBaseAdvice {
     }
   }
 
-  public static class PreparedQuery {
+  public static final class PreparedQuery {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterPreparedQuery(
         @Advice.This final SqlClient zis,

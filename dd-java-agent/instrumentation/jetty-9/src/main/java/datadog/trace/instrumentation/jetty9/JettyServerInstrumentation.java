@@ -89,7 +89,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
             "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
   }
 
-  public static class HandleAdvice {
+  public static final class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final HttpChannel<?> channel) {
@@ -128,7 +128,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
    * Jetty ensures that connections are reset immediately after the response is sent. This provides
    * a reliable point to finish the server span at the last possible moment.
    */
-  public static class ResetAdvice {
+  public static final class ResetAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpChannel<?> channel) {
       Request req = channel.getRequest();

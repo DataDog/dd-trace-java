@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.http.HttpServletRequest;
 
-public class Servlet2Decorator
+public final class Servlet2Decorator
     extends HttpServerDecorator<
         HttpServletRequest, HttpServletRequest, Integer, HttpServletRequest> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");

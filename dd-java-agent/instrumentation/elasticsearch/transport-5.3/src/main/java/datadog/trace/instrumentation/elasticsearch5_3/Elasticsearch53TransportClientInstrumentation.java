@@ -22,7 +22,7 @@ import org.elasticsearch.action.ActionResponse;
 
 /** Beginning in version 5.3.0, DocumentRequest was renamed to DocWriteRequest. */
 @AutoService(Instrumenter.class)
-public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.Tracing {
+public final class Elasticsearch53TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch53TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-5");
@@ -55,7 +55,7 @@ public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.
             + "$ElasticsearchTransportClientAdvice");
   }
 
-  public static class ElasticsearchTransportClientAdvice {
+  public static final class ElasticsearchTransportClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

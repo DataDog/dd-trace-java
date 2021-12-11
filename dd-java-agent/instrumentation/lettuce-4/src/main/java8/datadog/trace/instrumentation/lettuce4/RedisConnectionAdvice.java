@@ -4,7 +4,7 @@ import com.lambdaworks.redis.RedisURI;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
-public class RedisConnectionAdvice {
+public final class RedisConnectionAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisURI) {

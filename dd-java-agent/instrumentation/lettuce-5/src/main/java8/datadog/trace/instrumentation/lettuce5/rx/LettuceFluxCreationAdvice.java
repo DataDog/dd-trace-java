@@ -6,7 +6,7 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 import reactor.core.publisher.Flux;
 
-public class LettuceFluxCreationAdvice {
+public final class LettuceFluxCreationAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static RedisCommand extractCommandName(

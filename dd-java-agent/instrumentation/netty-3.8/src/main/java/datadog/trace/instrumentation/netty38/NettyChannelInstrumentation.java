@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelInstrumentation extends Instrumenter.Tracing {
+public final class NettyChannelInstrumentation extends Instrumenter.Tracing {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }
@@ -65,7 +65,7 @@ public class NettyChannelInstrumentation extends Instrumenter.Tracing {
         "org.jboss.netty.channel.Channel", ChannelTraceContext.class.getName());
   }
 
-  public static class ChannelConnectAdvice extends AbstractNettyAdvice {
+  public static final class ChannelConnectAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static void addConnectContinuation(@Advice.This final Channel channel) {
       final AgentScope scope = activeScope();

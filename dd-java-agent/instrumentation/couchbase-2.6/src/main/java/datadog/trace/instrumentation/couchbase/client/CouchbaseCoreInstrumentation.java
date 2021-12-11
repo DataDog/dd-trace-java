@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing {
+public final class CouchbaseCoreInstrumentation extends Instrumenter.Tracing {
 
   public CouchbaseCoreInstrumentation() {
     super("couchbase");
@@ -52,7 +52,7 @@ public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing {
         CouchbaseCoreInstrumentation.class.getName() + "$CouchbaseCoreAdvice");
   }
 
-  public static class CouchbaseCoreAdvice {
+  public static final class CouchbaseCoreAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addOperationIdToSpan(@Advice.Argument(0) final CouchbaseRequest request) {

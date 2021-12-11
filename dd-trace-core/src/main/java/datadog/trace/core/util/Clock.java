@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  *     <p>At this time, we are using a millis precision (converted to micros) in order to guarantee
  *     consistency between the span start times and the durations
  */
-public class Clock {
+public final class Clock {
 
   /**
    * Get the current nanos ticks, this method can't be use for date accuracy (only duration

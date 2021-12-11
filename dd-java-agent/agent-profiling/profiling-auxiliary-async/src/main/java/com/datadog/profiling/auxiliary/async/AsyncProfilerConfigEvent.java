@@ -16,7 +16,7 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @Period("endChunk")
 @StackTrace(false)
-public class AsyncProfilerConfigEvent extends Event {
+public final class AsyncProfilerConfigEvent extends Event {
   @Label("CPU Sampling Interval")
   @Description(
       "Number of milliseconds used by a CPU between two subsequent samples or -1 if inactive")

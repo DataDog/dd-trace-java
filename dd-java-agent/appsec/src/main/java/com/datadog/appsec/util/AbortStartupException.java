@@ -1,6 +1,6 @@
 package com.datadog.appsec.util;
 
-public class AbortStartupException extends RuntimeException {
+public final class AbortStartupException extends RuntimeException {
   public AbortStartupException(String message, Throwable cause) {
     super(message, cause);
   }

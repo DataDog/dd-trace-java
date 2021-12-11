@@ -49,7 +49,7 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing {
         RunnableInstrumentation.class.getName() + "$RunnableAdvice");
   }
 
-  public static class RunnableAdvice {
+  public static final class RunnableAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(@Advice.This final Runnable thiz) {

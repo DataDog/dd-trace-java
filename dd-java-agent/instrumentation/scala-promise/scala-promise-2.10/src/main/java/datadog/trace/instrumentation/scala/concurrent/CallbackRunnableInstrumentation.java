@@ -29,7 +29,7 @@ import scala.concurrent.impl.CallbackRunnable;
 import scala.util.Try;
 
 @AutoService(Instrumenter.class)
-public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
+public final class CallbackRunnableInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public CallbackRunnableInstrumentation() {

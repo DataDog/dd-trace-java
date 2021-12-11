@@ -56,7 +56,7 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Tracing {
         DropwizardViewInstrumentation.class.getName() + "$RenderAdvice");
   }
 
-  public static class RenderAdvice {
+  public static final class RenderAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Helper utils for Runnable/Callable instrumentation */
-public class AdviceUtils {
+public final class AdviceUtils {
 
   /**
    * Start scope for a given task

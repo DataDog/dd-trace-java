@@ -21,7 +21,7 @@ import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 
-public class TracingListener implements TestExecutionListener {
+public final class TracingListener implements TestExecutionListener {
 
   private final Map<String, String> versionsByEngineId;
 

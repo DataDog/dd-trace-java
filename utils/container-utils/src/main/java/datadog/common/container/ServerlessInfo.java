@@ -3,7 +3,7 @@ package datadog.common.container;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 
-public class ServerlessInfo {
+public final class ServerlessInfo {
   private static final String AWS_FUNCTION_VARIABLE = "AWS_LAMBDA_FUNCTION_NAME";
   private static final String EXTENSION_PATH = "/opt/extensions/datadog-agent";
   private static final ServerlessInfo INSTANCE = new ServerlessInfo();

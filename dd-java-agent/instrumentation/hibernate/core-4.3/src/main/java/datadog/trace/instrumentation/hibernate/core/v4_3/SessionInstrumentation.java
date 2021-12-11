@@ -24,7 +24,7 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends Instrumenter.Tracing {
+public final class SessionInstrumentation extends Instrumenter.Tracing {
 
   public SessionInstrumentation() {
     super(true, "hibernate", "hibernate-core");
@@ -79,7 +79,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         SessionInstrumentation.class.getName() + "$GetProcedureCallAdvice");
   }
 
-  public static class GetProcedureCallAdvice {
+  public static final class GetProcedureCallAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getProcedureCall(

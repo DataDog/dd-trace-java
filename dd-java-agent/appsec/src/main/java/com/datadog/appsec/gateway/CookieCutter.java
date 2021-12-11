@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 /* From Jetty's CookieCutter */
-public class CookieCutter {
+public final class CookieCutter {
   private CookieCutter() {}
 
   // should not throw

@@ -9,7 +9,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 
-public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
+public final class GrizzlyDecorator
+    extends HttpServerDecorator<Request, Request, Response, Request> {
   public static final CharSequence GRIZZLY = UTF8BytesString.create("grizzly");
   public static final CharSequence GRIZZLY_REQUEST = UTF8BytesString.create("grizzly.request");
   public static final GrizzlyDecorator DECORATE = new GrizzlyDecorator();

@@ -12,7 +12,7 @@ import jdk.jfr.StackTrace;
 @Description("Datadog event corresponding to a (periodic) checkpoint sampler re-configuration.")
 @Category("Datadog")
 @StackTrace(false)
-public class CheckpointSamplerReconfigEvent extends Event {
+public final class CheckpointSamplerReconfigEvent extends Event {
   @Label("totalCount")
   private final long totalCount;
 

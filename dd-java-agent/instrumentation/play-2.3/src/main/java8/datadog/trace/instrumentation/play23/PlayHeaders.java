@@ -6,7 +6,7 @@ import scala.Tuple2;
 import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
-public class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
+public final class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
 
   public static final PlayHeaders GETTER = new PlayHeaders();
 

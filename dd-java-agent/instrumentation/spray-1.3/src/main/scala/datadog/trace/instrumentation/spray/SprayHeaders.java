@@ -5,7 +5,7 @@ import scala.collection.JavaConverters;
 import spray.http.HttpHeader;
 import spray.http.HttpRequest;
 
-public class SprayHeaders implements AgentPropagation.ContextVisitor<HttpRequest> {
+public final class SprayHeaders implements AgentPropagation.ContextVisitor<HttpRequest> {
 
   public static final SprayHeaders GETTER = new SprayHeaders();
 

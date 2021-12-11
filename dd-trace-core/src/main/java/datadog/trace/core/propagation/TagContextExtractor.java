@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
 
-public class TagContextExtractor implements HttpCodec.Extractor {
+public final class TagContextExtractor implements HttpCodec.Extractor {
 
   // here to keep a legacy test happy
   private final Map<String, String> taggedHeaders;

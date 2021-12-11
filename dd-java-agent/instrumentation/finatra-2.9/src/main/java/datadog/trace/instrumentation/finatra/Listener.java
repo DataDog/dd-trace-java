@@ -7,7 +7,7 @@ import com.twitter.util.FutureEventListener;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 
-public class Listener implements FutureEventListener<Response> {
+public final class Listener implements FutureEventListener<Response> {
   private final AgentScope scope;
 
   public Listener(final AgentScope scope) {

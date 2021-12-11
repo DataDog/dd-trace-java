@@ -182,7 +182,7 @@ final class ConfigConverter {
     }
   }
 
-  private static class ValueOfLookup extends ClassValue<MethodHandle> {
+  private static final class ValueOfLookup extends ClassValue<MethodHandle> {
     private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
 
     @Override

@@ -23,7 +23,7 @@ import org.datadog.jmxfetch.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JMXFetch {
+public final class JMXFetch {
 
   private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
 

@@ -60,7 +60,7 @@ public final class FilterInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$FilterAdvice");
   }
 
-  public static class FilterAdvice {
+  public static final class FilterAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(@Advice.This final Filter filter) {

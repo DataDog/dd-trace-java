@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OkHttp2Instrumentation extends Instrumenter.Tracing {
+public final class OkHttp2Instrumentation extends Instrumenter.Tracing {
   public OkHttp2Instrumentation() {
     super("okhttp", "okhttp-2");
   }
@@ -37,7 +37,7 @@ public class OkHttp2Instrumentation extends Instrumenter.Tracing {
         isConstructor(), OkHttp2Instrumentation.class.getName() + "$OkHttp2ClientAdvice");
   }
 
-  public static class OkHttp2ClientAdvice {
+  public static final class OkHttp2ClientAdvice {
     @Advice.OnMethodExit
     public static void addTracingInterceptor(@Advice.This final OkHttpClient client) {
       for (final Interceptor interceptor : client.interceptors()) {

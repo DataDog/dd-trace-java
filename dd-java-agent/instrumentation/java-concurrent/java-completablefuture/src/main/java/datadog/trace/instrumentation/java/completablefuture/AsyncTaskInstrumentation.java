@@ -71,14 +71,14 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
     return excluded;
   }
 
-  public static class Construct {
+  public static final class Construct {
     @Advice.OnMethodExit
     public static void construct(@Advice.This ForkJoinTask<?> task) {
       capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
     }
   }
 
-  public static class Run {
+  public static final class Run {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ForkJoinTask<?> zis) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
@@ -90,7 +90,7 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
     }
   }
 
-  public static class Cancel {
+  public static final class Cancel {
     @Advice.OnMethodExit
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
       State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);

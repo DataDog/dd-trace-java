@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import javax.ws.rs.container.ContainerRequestContext;
 
-public class RequestFilterHelper {
+public final class RequestFilterHelper {
   public static AgentScope createOrUpdateAbortSpan(
       final ContainerRequestContext context, final Class resourceClass, final Method method) {
 

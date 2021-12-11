@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracing {
+public final class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracing {
 
   public ClientStreamListenerImplInstrumentation() {
     super("grpc", "grpc-client");

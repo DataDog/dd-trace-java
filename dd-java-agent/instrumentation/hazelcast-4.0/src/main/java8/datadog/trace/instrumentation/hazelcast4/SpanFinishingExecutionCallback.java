@@ -4,7 +4,7 @@ import com.hazelcast.client.impl.protocol.ClientMessage;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.BiConsumer;
 
-public class SpanFinishingExecutionCallback implements BiConsumer<ClientMessage, Throwable> {
+public final class SpanFinishingExecutionCallback implements BiConsumer<ClientMessage, Throwable> {
 
   /** Span that we should finish and annotate when the future is complete. */
   private final AgentSpan span;

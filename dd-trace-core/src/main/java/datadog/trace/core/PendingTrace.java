@@ -36,7 +36,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   private static final Logger log = LoggerFactory.getLogger(PendingTrace.class);
 
-  static class Factory {
+  static final class Factory {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
     private final boolean strictTraceWrites;

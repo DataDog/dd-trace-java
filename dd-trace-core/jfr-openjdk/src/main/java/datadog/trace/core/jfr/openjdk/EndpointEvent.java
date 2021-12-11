@@ -14,7 +14,7 @@ import jdk.jfr.StackTrace;
 @Description("Datadog event corresponding to the endpoint of a trace root.")
 @Category("Datadog")
 @StackTrace(false)
-public class EndpointEvent extends Event implements EndpointTracker {
+public final class EndpointEvent extends Event implements EndpointTracker {
 
   @Label("Endpoint")
   private String endpoint = "unknown";

@@ -8,7 +8,7 @@ import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LibSqreenInitialization {
+public final class LibSqreenInitialization {
   public static final boolean ONLINE = initPowerWAF();
 
   private static boolean initPowerWAF() {

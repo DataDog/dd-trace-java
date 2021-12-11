@@ -13,7 +13,7 @@ import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import java.util.Set;
 
-public class GrpcClientDecorator extends ClientDecorator {
+public final class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_CLIENT = UTF8BytesString.create("grpc.client");
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");

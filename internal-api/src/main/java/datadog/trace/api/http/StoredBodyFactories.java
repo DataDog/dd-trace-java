@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.Charset;
 
-public class StoredBodyFactories {
+public final class StoredBodyFactories {
   private StoredBodyFactories() {}
 
   public static StoredByteBody maybeCreateForByte(Charset charset, Object contentLengthHeader) {
@@ -80,7 +80,7 @@ public class StoredBodyFactories {
         });
   }
 
-  public static class ConstantBodySupplier implements StoredBodySupplier {
+  public static final class ConstantBodySupplier implements StoredBodySupplier {
     private final CharSequence sequence;
 
     public ConstantBodySupplier(Supplier<CharSequence> original) {

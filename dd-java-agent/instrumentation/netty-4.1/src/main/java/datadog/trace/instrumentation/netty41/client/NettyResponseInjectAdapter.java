@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.netty41.client;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import io.netty.handler.codec.http.HttpHeaders;
 
-public class NettyResponseInjectAdapter implements AgentPropagation.Setter<HttpHeaders> {
+public final class NettyResponseInjectAdapter implements AgentPropagation.Setter<HttpHeaders> {
 
   public static final NettyResponseInjectAdapter SETTER = new NettyResponseInjectAdapter();
 

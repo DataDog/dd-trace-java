@@ -1,13 +1,13 @@
 package datadog.trace.common.sampling
 
-import datadog.trace.core.DDSpan
+import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 
 class AllSamplerTest extends DDSpecification {
 
   @Subject
-  DDSpan span = Mock()
+  CoreSpan span = Mock()
 
   private final AllSampler sampler = new AllSampler()
 

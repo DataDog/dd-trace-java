@@ -10,7 +10,7 @@ import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.api.Result;
 import org.eclipse.jetty.http.HttpField;
 
-public class CallbackWrapper implements Response.Listener, Request.Listener {
+public final class CallbackWrapper implements Response.Listener, Request.Listener {
 
   private final AgentSpan parent;
   private final AgentSpan span;

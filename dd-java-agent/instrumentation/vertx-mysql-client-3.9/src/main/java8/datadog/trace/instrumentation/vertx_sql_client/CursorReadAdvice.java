@@ -18,7 +18,7 @@ import io.vertx.sqlclient.RowSet;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
-public class CursorReadAdvice {
+public final class CursorReadAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beforeRead(
       @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<RowSet<Row>>> handler,

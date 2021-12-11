@@ -4,7 +4,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import org.springframework.web.servlet.HandlerMapping;
 
-class PathMatchingHttpServletRequestWrapper extends HttpServletRequestWrapper {
+final class PathMatchingHttpServletRequestWrapper extends HttpServletRequestWrapper {
   private Object bestMatchingPattern;
 
   public PathMatchingHttpServletRequestWrapper(HttpServletRequest request) {

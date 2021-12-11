@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
+public final class ClientInvocationInstrumentation extends Instrumenter.Tracing {
 
   public ClientInvocationInstrumentation() {
     super("hazelcast_legacy");
@@ -51,7 +51,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$ConstructAdvice");
   }
 
-  public static class ConstructAdvice {
+  public static final class ConstructAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void constructorExit(

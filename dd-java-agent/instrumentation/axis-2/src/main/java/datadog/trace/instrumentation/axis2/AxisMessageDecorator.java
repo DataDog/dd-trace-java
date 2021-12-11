@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.apache.axis2.context.MessageContext;
 
-public class AxisMessageDecorator extends BaseDecorator {
+public final class AxisMessageDecorator extends BaseDecorator {
   public static final AxisMessageDecorator DECORATE = new AxisMessageDecorator();
 
   public static final CharSequence AXIS2 = UTF8BytesString.create("axis2");

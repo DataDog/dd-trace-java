@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.grizzly.client;
 import com.ning.http.client.Request;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
-public class InjectAdapter implements AgentPropagation.Setter<Request> {
+public final class InjectAdapter implements AgentPropagation.Setter<Request> {
 
   public static final InjectAdapter SETTER = new InjectAdapter();
 

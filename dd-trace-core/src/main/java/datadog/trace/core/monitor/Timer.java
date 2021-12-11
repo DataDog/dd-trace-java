@@ -13,7 +13,7 @@ import datadog.trace.core.histogram.Histograms;
  * A timer which records times in a histogram, and flushes stats from the histogram after a
  * configurable period of time.
  */
-public class Timer extends Recording {
+public final class Timer extends Recording {
 
   private static final long THIRTY_SECONDS_AS_MICROS = SECONDS.toMicros(30);
 

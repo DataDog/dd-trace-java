@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * prefix.
  */
 @AutoService(Instrumenter.class)
-public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
+public final class GlobalTracerInstrumentation extends Instrumenter.Tracing {
   public GlobalTracerInstrumentation() {
     super("opentracing", "opentracing-globaltracer");
   }
@@ -57,7 +57,7 @@ public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
         isTypeInitializer(), GlobalTracerInstrumentation.class.getName() + "$GlobalTracerAdvice");
   }
 
-  public static class GlobalTracerAdvice {
+  public static final class GlobalTracerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void registerTracer() {
       if (AgentTracer.isRegistered()) {

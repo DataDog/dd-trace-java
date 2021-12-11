@@ -9,7 +9,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /**
  * This class provides some custom ByteBuddy element matchers to use when applying instrumentation
  */
-public class DDElementMatchers {
+public final class DDElementMatchers {
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> extendsClass(
       final ElementMatcher<? super TypeDescription> matcher) {

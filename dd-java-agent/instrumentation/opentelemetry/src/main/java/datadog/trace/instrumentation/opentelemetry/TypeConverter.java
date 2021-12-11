@@ -8,7 +8,7 @@ import io.opentelemetry.trace.Span;
 import io.opentelemetry.trace.SpanContext;
 
 // Centralized place to do conversions
-public class TypeConverter {
+public final class TypeConverter {
   // TODO maybe add caching to reduce new objects being created
 
   public AgentSpan toAgentSpan(final Span span) {

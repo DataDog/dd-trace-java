@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class HibernateDecorator extends OrmClientDecorator {
+public final class HibernateDecorator extends OrmClientDecorator {
   public static final CharSequence HIBERNATE_SESSION = UTF8BytesString.create("hibernate.session");
   public static final HibernateDecorator DECORATOR = new HibernateDecorator();
 

@@ -14,7 +14,7 @@ import java.util.zip.Inflater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GitUtils {
+public final class GitUtils {
 
   private static final Pattern ORIGIN_PATTERN = Pattern.compile("origin/", Pattern.LITERAL);
   private static final Pattern REFS_HEADS_PATTERN = Pattern.compile("refs/heads/", Pattern.LITERAL);

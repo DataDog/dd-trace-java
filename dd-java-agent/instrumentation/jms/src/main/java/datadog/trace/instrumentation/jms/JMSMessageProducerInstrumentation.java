@@ -75,7 +75,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice");
   }
 
-  public static class ProducerAdvice {
+  public static final class ProducerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
@@ -134,7 +134,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     }
   }
 
-  public static class ProducerWithDestinationAdvice {
+  public static final class ProducerWithDestinationAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(

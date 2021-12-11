@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * <p>The intention is for this class to be loaded by bootstrap classloader to make sure we have
  * unimpeded access to the rest of Datadog's agent parts.
  */
-public class Agent {
+public final class Agent {
 
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
       "datadog.slf4j.simpleLogger.showDateTime";
@@ -322,7 +322,7 @@ public class Agent {
     public abstract void execute();
   }
 
-  protected static class StartJmxCallback extends ClassLoadCallBack {
+  protected static final class StartJmxCallback extends ClassLoadCallBack {
     private final int jmxStartDelay;
 
     StartJmxCallback(final URL bootstrapURL, final int jmxStartDelay) {
@@ -342,7 +342,7 @@ public class Agent {
     }
   }
 
-  protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
+  protected static final class InstallDatadogTracerCallback extends ClassLoadCallBack {
     InstallDatadogTracerCallback(final URL bootstrapURL) {
       super(bootstrapURL);
     }
@@ -374,7 +374,7 @@ public class Agent {
     }
   }
 
-  protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
+  protected static final class StartProfilingAgentCallback extends ClassLoadCallBack {
     StartProfilingAgentCallback(final URL bootstrapURL) {
       super(bootstrapURL);
     }

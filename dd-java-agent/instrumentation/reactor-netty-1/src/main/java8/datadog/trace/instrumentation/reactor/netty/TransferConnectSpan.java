@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 import reactor.netty.Connection;
 import reactor.netty.http.client.HttpClientRequest;
 
-public class TransferConnectSpan implements BiConsumer<HttpClientRequest, Connection> {
+public final class TransferConnectSpan implements BiConsumer<HttpClientRequest, Connection> {
   @Override
   public void accept(HttpClientRequest httpClientRequest, Connection connection) {
     final AgentSpan span = httpClientRequest.currentContextView().getOrDefault(CONNECT_SPAN, null);

@@ -19,7 +19,7 @@ public interface WeakMap<K, V> {
 
   V remove(K key);
 
-  class Provider {
+  final class Provider {
     private static final AtomicReferenceFieldUpdater<Provider, Implementation> UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(Provider.class, Implementation.class, "provider");
     private volatile Implementation provider = null;

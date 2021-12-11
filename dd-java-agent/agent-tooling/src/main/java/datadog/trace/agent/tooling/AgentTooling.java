@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * (both compile and runtime). Extracted out from AgentInstaller to begin separating some of the
  * logic out.
  */
-public class AgentTooling {
+public final class AgentTooling {
   private static final Logger log = LoggerFactory.getLogger(AgentTooling.class);
 
   static {

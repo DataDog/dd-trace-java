@@ -10,7 +10,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentation {
+public final class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentation {
   public DB2ConnectionInstrumentation() {
     super("jdbc", "db2");
   }

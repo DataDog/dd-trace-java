@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.quartz.JobExecutionContext;
 
-public class QuartzDecorator extends BaseDecorator {
+public final class QuartzDecorator extends BaseDecorator {
   public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final QuartzDecorator DECORATE = new QuartzDecorator();
 

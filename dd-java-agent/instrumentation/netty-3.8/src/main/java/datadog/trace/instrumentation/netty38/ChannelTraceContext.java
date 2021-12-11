@@ -4,8 +4,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public class ChannelTraceContext {
-  public static class Factory implements ContextStore.Factory<ChannelTraceContext> {
+public final class ChannelTraceContext {
+  public static final class Factory implements ContextStore.Factory<ChannelTraceContext> {
     public static final Factory INSTANCE = new Factory();
 
     @Override

@@ -60,7 +60,7 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
         ClassloadingInstrumentation.class.getName() + "$LoadClassAdvice");
   }
 
-  public static class LoadClassAdvice {
+  public static final class LoadClassAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(0) final String name) {
       // we must access agent types used in the call-depth block like 'Constants' before entering it

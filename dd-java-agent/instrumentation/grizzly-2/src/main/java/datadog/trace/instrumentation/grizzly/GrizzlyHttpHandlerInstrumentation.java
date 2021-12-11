@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.grizzly.http.server.Request;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
+public final class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
 
   public GrizzlyHttpHandlerInstrumentation() {
     super("grizzly");
@@ -56,7 +56,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
         GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
   }
 
-  public static class HandleAdvice {
+  public static final class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final Request request) {

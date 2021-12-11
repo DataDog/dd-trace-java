@@ -8,7 +8,7 @@ import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
 
-public class JUnit5Decorator extends TestDecorator {
+public final class JUnit5Decorator extends TestDecorator {
 
   public static final JUnit5Decorator DECORATE = new JUnit5Decorator();
 

@@ -11,7 +11,7 @@ import io.opentracing.Span;
 import java.util.Objects;
 
 /** One of the two possible scope managers. See CustomScopeManagerWrapper */
-class OTScopeManager implements ScopeManager {
+final class OTScopeManager implements ScopeManager {
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 
@@ -49,7 +49,7 @@ class OTScopeManager implements ScopeManager {
     return converter.toSpan(tracer.activeSpan());
   }
 
-  static class OTScope implements Scope, TraceScope {
+  static final class OTScope implements Scope, TraceScope {
     private final AgentScope delegate;
     private final boolean finishSpanOnClose;
     private final TypeConverter converter;

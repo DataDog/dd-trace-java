@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class HystrixInstrumentation extends Instrumenter.Tracing {
+public final class HystrixInstrumentation extends Instrumenter.Tracing {
 
   public HystrixInstrumentation() {
     super("hystrix");
@@ -58,7 +58,7 @@ public class HystrixInstrumentation extends Instrumenter.Tracing {
         HystrixInstrumentation.class.getName() + "$FallbackAdvice");
   }
 
-  public static class ExecuteAdvice {
+  public static final class ExecuteAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
@@ -70,7 +70,7 @@ public class HystrixInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class FallbackAdvice {
+  public static final class FallbackAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(

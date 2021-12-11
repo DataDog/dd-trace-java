@@ -5,7 +5,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.CharBuffer;
 
-public class BufferedReaderWrapper extends BufferedReader {
+public final class BufferedReaderWrapper extends BufferedReader {
   private final BufferedReader reader;
   private final StoredCharBody storedCharBody;
 

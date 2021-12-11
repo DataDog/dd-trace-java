@@ -67,7 +67,7 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
         MemcachedClientInstrumentation.class.getName() + "$SyncOperationAdvice");
   }
 
-  public static class AsyncOperationAdvice {
+  public static final class AsyncOperationAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean methodEnter() {
@@ -92,7 +92,7 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class AsyncGetAdvice {
+  public static final class AsyncGetAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean methodEnter() {
@@ -117,7 +117,7 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class AsyncBulkAdvice {
+  public static final class AsyncBulkAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean methodEnter() {
@@ -142,7 +142,7 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class SyncOperationAdvice {
+  public static final class SyncOperationAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SyncCompletionListener methodEnter(

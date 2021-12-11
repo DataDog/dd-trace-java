@@ -10,7 +10,7 @@ import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
 import java.lang.reflect.Method;
 import rx.Observable;
 
-public class CouchbaseOnSubscribe extends TracedOnSubscribe {
+public final class CouchbaseOnSubscribe extends TracedOnSubscribe {
 
   private static final QualifiedClassNameCache NAMES =
       new QualifiedClassNameCache(

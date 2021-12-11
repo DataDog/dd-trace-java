@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ratpack.func.Block;
 
-public class BlockWrapper implements Block {
+public final class BlockWrapper implements Block {
 
   private static final Logger log = LoggerFactory.getLogger(BlockWrapper.class);
 

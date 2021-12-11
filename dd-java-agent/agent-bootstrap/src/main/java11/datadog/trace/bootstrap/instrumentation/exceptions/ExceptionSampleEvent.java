@@ -10,7 +10,7 @@ import jdk.jfr.Name;
 @Label("ExceptionSample")
 @Description("Datadog exception sample event.")
 @Category("Datadog")
-public class ExceptionSampleEvent extends Event {
+public final class ExceptionSampleEvent extends Event {
   @Label("Exception Type")
   private final String type;
 

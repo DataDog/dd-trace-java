@@ -10,8 +10,8 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscriber;
 import reactor.core.publisher.Hooks;
 
-public class TerminalSubscriberAdvices {
-  public static class OnSubscribeAdvice {
+public final class TerminalSubscriberAdvices {
+  public static final class OnSubscribeAdvice {
     @Advice.OnMethodEnter
     public static void onSubscribe(@Advice.This final Subscriber thiz) {
       AgentSpan span = AgentTracer.activeSpan();
@@ -24,7 +24,7 @@ public class TerminalSubscriberAdvices {
     }
   }
 
-  public static class OnNextAndCompleteAndErrorAdvice {
+  public static final class OnNextAndCompleteAndErrorAdvice {
     @Advice.OnMethodEnter
     public static AgentScope onMethod(@Advice.This final Subscriber thiz) {
       final AgentSpan span =

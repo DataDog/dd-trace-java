@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RequestFinishInstrumentation extends Instrumenter.Tracing {
+public final class RequestFinishInstrumentation extends Instrumenter.Tracing {
 
   public RequestFinishInstrumentation() {
     super("liberty");
@@ -44,7 +44,7 @@ public class RequestFinishInstrumentation extends Instrumenter.Tracing {
   }
 
   /** The function finish is called when a server receives and sends out a request */
-  public static class RequestFinishAdvice {
+  public static final class RequestFinishAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(@Advice.This SRTServletRequest req) {
       IExtendedResponse resp = req.getResponse();

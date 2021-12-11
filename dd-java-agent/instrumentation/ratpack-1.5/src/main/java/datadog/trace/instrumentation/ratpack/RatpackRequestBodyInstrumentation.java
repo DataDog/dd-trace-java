@@ -9,7 +9,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec {
+public final class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec {
   public RatpackRequestBodyInstrumentation() {
     super("ratpack-request-body");
   }

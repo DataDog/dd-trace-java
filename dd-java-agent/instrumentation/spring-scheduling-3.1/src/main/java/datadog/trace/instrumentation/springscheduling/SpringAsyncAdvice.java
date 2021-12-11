@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import org.aopalliance.intercept.MethodInvocation;
 
-public class SpringAsyncAdvice {
+public final class SpringAsyncAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void scheduleAsync(

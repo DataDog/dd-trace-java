@@ -23,7 +23,7 @@ import io.vertx.redis.client.Response;
 import io.vertx.redis.client.impl.RequestImpl;
 import net.bytebuddy.asm.Advice;
 
-public class RedisSendAdvice {
+public final class RedisSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beforeSend(
       @Advice.Argument(value = 0, readOnly = false) Request request,

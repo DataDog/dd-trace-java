@@ -14,7 +14,7 @@ import org.eclipse.jetty.server.handler.ContextHandler;
  * Because we are processing the initial request before the contextPath is set, we must update it
  * when it is actually set.
  */
-public class SetContextPathAdvice {
+public final class SetContextPathAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void updateContextPath(
       @Advice.This final Request req,

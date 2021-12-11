@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-public class HeaderUtils {
+public final class HeaderUtils {
   // for now get all the B3, Haystack, Datadog headers and ignore them
   // (headers are all in lowercase for non case sensitiveness)
   public static final Set<String> EXCLUDED_HEADERS =

@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.glassfish.grizzly.http.server.AfterServiceListener;
 import org.glassfish.grizzly.http.server.Request;
 
-public class SpanClosingListener implements AfterServiceListener {
+public final class SpanClosingListener implements AfterServiceListener {
   public static final SpanClosingListener LISTENER = new SpanClosingListener();
 
   @Override

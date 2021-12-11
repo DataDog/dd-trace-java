@@ -49,7 +49,7 @@ public final class ServletContextInstrumentation extends Instrumenter.Tracing {
         RequestDispatcherTargetAdvice.class.getName());
   }
 
-  public static class RequestDispatcherTargetAdvice {
+  public static final class RequestDispatcherTargetAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void saveTarget(
         @Advice.Argument(0) final String target,

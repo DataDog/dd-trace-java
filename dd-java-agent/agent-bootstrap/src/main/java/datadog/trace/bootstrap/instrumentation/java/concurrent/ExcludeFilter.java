@@ -15,7 +15,7 @@ import java.util.Set;
  * Enables types to opt out of being wrapped and/or having fields injected for a number of the broad
  * instrumentations, i.e. {@code Executor} and {@code Runnable}.
  */
-public class ExcludeFilter {
+public final class ExcludeFilter {
 
   public enum ExcludeType {
     RUNNABLE,

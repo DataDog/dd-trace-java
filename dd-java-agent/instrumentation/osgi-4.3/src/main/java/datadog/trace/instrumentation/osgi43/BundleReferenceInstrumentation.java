@@ -77,7 +77,7 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
    *
    * <p>We only do this for agent requests that require this additional visibility.
    */
-  public static class WidenGetResourceAdvice {
+  public static final class WidenGetResourceAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Object onEnter(
         @Advice.This final BundleReference thiz, @Advice.Argument(0) final String name) {
@@ -125,7 +125,7 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
    *
    * <p>We only do this for agent requests that require this additional visibility.
    */
-  public static class WidenGetResourceAsStreamAdvice {
+  public static final class WidenGetResourceAsStreamAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.This final BundleReference thiz,
@@ -158,7 +158,7 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
    *
    * <p>We only do this for agent requests that require this additional visibility.
    */
-  public static class WidenLoadClassAdvice {
+  public static final class WidenLoadClassAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.This final BundleReference thiz,

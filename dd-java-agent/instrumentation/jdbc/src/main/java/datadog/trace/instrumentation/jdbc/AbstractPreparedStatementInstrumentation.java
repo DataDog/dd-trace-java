@@ -53,7 +53,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
   }
 
-  public static class PreparedStatementAdvice {
+  public static final class PreparedStatementAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final Statement statement) {

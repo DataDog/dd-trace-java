@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  * Represents a .git/config file. It uses a simple algorithm based on regex to parse line by line
  * the .git/config file (INI file format).
  */
-public class GitConfig {
+public final class GitConfig {
 
   private final Pattern section = Pattern.compile("\\s*\\[([^]]*)\\]\\s*");
   private final Pattern keyValue = Pattern.compile("\\s*([^=]*)=(.*)");

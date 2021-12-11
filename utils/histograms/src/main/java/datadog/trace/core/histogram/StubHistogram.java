@@ -2,7 +2,7 @@ package datadog.trace.core.histogram;
 
 import java.nio.ByteBuffer;
 
-public class StubHistogram implements Histogram, HistogramFactory {
+public final class StubHistogram implements Histogram, HistogramFactory {
   private static final ByteBuffer EMPTY = ByteBuffer.allocate(0);
 
   @Override

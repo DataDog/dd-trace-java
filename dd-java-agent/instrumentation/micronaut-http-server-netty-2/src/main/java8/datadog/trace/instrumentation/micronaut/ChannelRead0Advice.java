@@ -14,7 +14,7 @@ import io.micronaut.http.HttpVersion;
 import io.micronaut.http.MediaTypeConverter;
 import net.bytebuddy.asm.Advice;
 
-public class ChannelRead0Advice {
+public final class ChannelRead0Advice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beginRequest(@Advice.Argument(1) final HttpRequest<?> request) {
     final AgentSpan nettySpan = activeSpan();

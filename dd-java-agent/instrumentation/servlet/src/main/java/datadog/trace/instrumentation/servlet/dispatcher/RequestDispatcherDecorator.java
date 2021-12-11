@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import javax.servlet.ServletException;
 
-public class RequestDispatcherDecorator extends BaseDecorator {
+public final class RequestDispatcherDecorator extends BaseDecorator {
   public static final RequestDispatcherDecorator DECORATE = new RequestDispatcherDecorator();
   public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
       UTF8BytesString.create("java-web-servlet-dispatcher");

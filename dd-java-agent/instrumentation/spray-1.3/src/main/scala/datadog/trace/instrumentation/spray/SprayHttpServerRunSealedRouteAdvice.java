@@ -12,7 +12,7 @@ import net.bytebuddy.asm.Advice;
 import spray.http.HttpRequest;
 import spray.routing.RequestContext;
 
-public class SprayHttpServerRunSealedRouteAdvice {
+public final class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter(@Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
     final AgentSpan span;

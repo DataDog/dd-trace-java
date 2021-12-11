@@ -21,7 +21,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch5TransportClientInstrumentation extends Instrumenter.Tracing {
+public final class Elasticsearch5TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch5TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-5");
@@ -54,7 +54,7 @@ public class Elasticsearch5TransportClientInstrumentation extends Instrumenter.T
             + "$ElasticsearchTransportClientAdvice");
   }
 
-  public static class ElasticsearchTransportClientAdvice {
+  public static final class ElasticsearchTransportClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

@@ -5,7 +5,7 @@ package datadog.trace.api;
  *
  * <p>Intended for use with MDC frameworks.
  */
-public class CorrelationIdentifier {
+public final class CorrelationIdentifier {
   private static final String TRACE_ID_KEY = "dd.trace_id";
   private static final String SPAN_ID_KEY = "dd.span_id";
 

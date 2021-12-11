@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CassandraClientInstrumentation extends Instrumenter.Tracing {
+public final class CassandraClientInstrumentation extends Instrumenter.Tracing {
 
   public CassandraClientInstrumentation() {
     super("cassandra");

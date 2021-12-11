@@ -19,7 +19,7 @@ import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
-public class RedisAPICallAdvice {
+public final class RedisAPICallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static boolean beforeCall(
       @Advice.Origin final Method currentMethod,

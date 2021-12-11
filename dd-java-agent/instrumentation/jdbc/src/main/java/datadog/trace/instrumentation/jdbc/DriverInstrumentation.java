@@ -59,7 +59,7 @@ public final class DriverInstrumentation extends Instrumenter.Tracing {
         DriverInstrumentation.class.getName() + "$DriverAdvice");
   }
 
-  public static class DriverAdvice {
+  public static final class DriverAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.Argument(0) final String url,

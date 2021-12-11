@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 
 /** Visit a class and add: a private instrumenationMuzzle field and getter */
-public class MuzzleVisitor implements AsmVisitorWrapper {
+public final class MuzzleVisitor implements AsmVisitorWrapper {
   public static final String MUZZLE_FIELD_NAME = "instrumentationMuzzle";
   public static final String MUZZLE_METHOD_NAME = "getInstrumentationMuzzle";
 
@@ -62,7 +62,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
         implementationContext.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6));
   }
 
-  public class InsertSafetyMatcher extends ClassVisitor {
+  public final class InsertSafetyMatcher extends ClassVisitor {
     private final boolean frames;
 
     private String instrumentationClassName;

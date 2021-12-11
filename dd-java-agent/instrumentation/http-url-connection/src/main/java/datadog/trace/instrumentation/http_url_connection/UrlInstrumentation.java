@@ -24,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class UrlInstrumentation extends Instrumenter.Tracing {
+public final class UrlInstrumentation extends Instrumenter.Tracing {
 
   public static final String COMPONENT = "UrlConnection";
 
@@ -44,7 +44,7 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
         UrlInstrumentation.class.getName() + "$ConnectionErrorAdvice");
   }
 
-  public static class ConnectionErrorAdvice {
+  public static final class ConnectionErrorAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void errorSpan(

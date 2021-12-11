@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionProfiling;
 import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampleEvent;
 import net.bytebuddy.asm.Advice;
 
-public class ThrowableInstanceAdvice {
+public final class ThrowableInstanceAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This final Throwable t) {
     /*

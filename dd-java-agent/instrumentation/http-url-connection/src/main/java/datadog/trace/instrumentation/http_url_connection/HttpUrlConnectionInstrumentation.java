@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
+public final class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");
@@ -51,7 +51,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }
 
-  public static class HttpUrlConnectionAdvice {
+  public static final class HttpUrlConnectionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static HttpUrlState methodEnter(

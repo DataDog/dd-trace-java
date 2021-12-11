@@ -15,7 +15,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
 /** An immutable reference to a jvm class. */
-public class Reference {
+public final class Reference {
   public final String[] sources;
   public final int flags;
   public final String className;
@@ -94,7 +94,7 @@ public class Reference {
     return true;
   }
 
-  public static class Field {
+  public static final class Field {
     public final String[] sources;
     public final int flags;
     public final String name;
@@ -140,7 +140,7 @@ public class Reference {
     }
   }
 
-  public static class Method {
+  public static final class Method {
     public final String[] sources;
     public final int flags;
     public final String name;
@@ -211,7 +211,7 @@ public class Reference {
     /** Human-readable string describing the mismatch. */
     abstract String getMismatchDetails();
 
-    public static class MissingClass extends Mismatch {
+    public static final class MissingClass extends Mismatch {
       private final String className;
 
       public MissingClass(final String[] sources, final String className) {
@@ -225,7 +225,7 @@ public class Reference {
       }
     }
 
-    public static class MissingFlag extends Mismatch {
+    public static final class MissingFlag extends Mismatch {
       private final int expectedFlag;
       private final String classMethodOrFieldDesc;
       private final int foundAccess;
@@ -251,7 +251,7 @@ public class Reference {
       }
     }
 
-    public static class MissingField extends Mismatch {
+    public static final class MissingField extends Mismatch {
       private final String className;
       private final String fieldName;
       private final String fieldDesc;
@@ -273,7 +273,7 @@ public class Reference {
       }
     }
 
-    public static class MissingMethod extends Mismatch {
+    public static final class MissingMethod extends Mismatch {
       private final String className;
       private final String method;
 
@@ -290,7 +290,7 @@ public class Reference {
     }
 
     /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
-    public static class ReferenceCheckError extends Mismatch {
+    public static final class ReferenceCheckError extends Mismatch {
       private final Exception referenceCheckException;
       private final Reference referenceBeingChecked;
       private final ClassLoader classLoaderBeingChecked;
@@ -321,7 +321,7 @@ public class Reference {
     }
   }
 
-  public static class Builder {
+  public static final class Builder {
     private final Set<String> sources = new LinkedHashSet<>();
     private int flags = 0;
     private final String className;

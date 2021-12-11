@@ -153,7 +153,7 @@ public class DatadogClassLoader extends URLClassLoader {
     return classLoaderName;
   }
 
-  public static class DelegateClassLoader extends DatadogClassLoader {
+  public static final class DelegateClassLoader extends DatadogClassLoader {
     static {
       ClassLoader.registerAsParallelCapable();
     }

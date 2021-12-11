@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Tracing {
+public final class NettyChannelHandlerContextInstrumentation extends Instrumenter.Tracing {
 
   public NettyChannelHandlerContextInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
@@ -59,7 +59,7 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
         NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");
   }
 
-  public static class FireAdvice {
+  public static final class FireAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
       final AgentSpan channelSpan = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();

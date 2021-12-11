@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.servlet3;
 import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import javax.servlet.http.HttpServletRequest;
 
-public class ServletRequestURIAdapter extends URIRawDataAdapter {
+public final class ServletRequestURIAdapter extends URIRawDataAdapter {
   private final HttpServletRequest request;
 
   public ServletRequestURIAdapter(HttpServletRequest request) {

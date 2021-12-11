@@ -2,7 +2,7 @@ package datadog.trace.common.writer
 
 import datadog.trace.common.writer.ddagent.FlushEvent
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy
-import datadog.trace.core.DDSpan
+import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.TimeUnit
@@ -23,7 +23,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, { false })
 
     when:
-    blocking.publish(Mock(DDSpan), priority, trace)
+    blocking.publish(Mock(CoreSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace) >> !primaryFull >> true
@@ -52,7 +52,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, { false })
 
     when:
-    fastLane.publish(Mock(DDSpan), priority, trace)
+    fastLane.publish(Mock(CoreSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace)
@@ -76,7 +76,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, { true })
 
     when:
-    boolean published = drop.publish(Mock(DDSpan), priority, trace)
+    boolean published = drop.publish(Mock(CoreSpan), priority, trace)
 
     then:
     published == publish
@@ -115,8 +115,8 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy drop = strategy.create(primary, null, {
       true
     })
-    DDSpan root = Mock(DDSpan)
-    List<DDSpan> trace = [root]
+    CoreSpan root = Mock(CoreSpan)
+    List<CoreSpan> trace = [root]
 
     when:
     drop.publish(root, SAMPLER_DROP, trace)

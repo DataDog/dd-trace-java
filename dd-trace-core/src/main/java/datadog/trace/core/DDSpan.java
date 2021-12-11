@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
+public final class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   public static final String CHECKPOINTED_TAG = "checkpointed";

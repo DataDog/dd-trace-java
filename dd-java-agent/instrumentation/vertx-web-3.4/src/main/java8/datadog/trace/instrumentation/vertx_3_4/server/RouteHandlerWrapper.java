@@ -14,7 +14,7 @@ import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RouteHandlerWrapper implements Handler<RoutingContext> {
+public final class RouteHandlerWrapper implements Handler<RoutingContext> {
   private static final Logger log = LoggerFactory.getLogger(RouteHandlerWrapper.class);
   static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";

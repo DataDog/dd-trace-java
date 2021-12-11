@@ -20,7 +20,7 @@ import org.apache.http.concurrent.BasicFuture;
 import org.apache.http.concurrent.FutureCallback;
 
 @AutoService(Instrumenter.class)
-public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.Tracing {
+public final class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.Tracing {
 
   public HttpAsyncClientExchangeHandlerInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");

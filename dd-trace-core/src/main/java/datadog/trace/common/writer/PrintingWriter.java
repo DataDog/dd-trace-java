@@ -13,7 +13,7 @@ import java.util.Map;
 import okio.BufferedSink;
 import okio.Okio;
 
-public class PrintingWriter implements Writer {
+public final class PrintingWriter implements Writer {
   private final BufferedSink sink;
   private final JsonAdapter<Map<String, List<List<DDSpan>>>> jsonAdapter;
 

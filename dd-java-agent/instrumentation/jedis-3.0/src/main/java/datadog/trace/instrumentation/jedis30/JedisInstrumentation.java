@@ -49,7 +49,7 @@ public final class JedisInstrumentation extends Instrumenter.Tracing {
     // FIXME: This instrumentation only incorporates sending the command, not processing the result.
   }
 
-  public static class JedisAdvice {
+  public static final class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(1) final ProtocolCommand command) {

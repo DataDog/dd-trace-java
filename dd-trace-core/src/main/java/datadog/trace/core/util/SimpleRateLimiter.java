@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Rate limiter that only supports non-blocking retrieval of a single token at a minimum rate of 1
  * per second. Tokens are not smoothed across the second
  */
-public class SimpleRateLimiter {
+public final class SimpleRateLimiter {
   private static final long REFILL_INTERVAL = TimeUnit.SECONDS.toNanos(1);
   private final long capacity;
   private final AtomicLong tokens;

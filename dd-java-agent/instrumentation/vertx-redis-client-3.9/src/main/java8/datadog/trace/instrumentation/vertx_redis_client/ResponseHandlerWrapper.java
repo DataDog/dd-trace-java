@@ -6,7 +6,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.redis.client.Response;
 
-public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
+public final class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
   private final Handler<AsyncResult<Response>> handler;
   private final AgentSpan clientSpan;
   private final AgentScope.Continuation parentContinuation;

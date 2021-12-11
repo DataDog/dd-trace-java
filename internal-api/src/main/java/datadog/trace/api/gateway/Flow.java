@@ -13,7 +13,7 @@ public interface Flow<T> {
   interface Action {
     boolean isBlocking();
 
-    class Noop implements Action {
+    final class Noop implements Action {
       public static Action INSTANCE = new Noop();
 
       private Noop() {}
@@ -40,7 +40,7 @@ public interface Flow<T> {
     }
   }
 
-  class ResultFlow<R> implements Flow<R> {
+  final class ResultFlow<R> implements Flow<R> {
     @SuppressWarnings("rawtypes")
     private static final ResultFlow EMPTY = new ResultFlow<>(null);
 

@@ -19,7 +19,7 @@ import net.bytebuddy.dynamic.DynamicType;
  *
  * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
  */
-public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
+public final class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   static {
     // prevent WeakMap from logging warning while plugin is running
     WeakMap.Provider.registerIfAbsent(

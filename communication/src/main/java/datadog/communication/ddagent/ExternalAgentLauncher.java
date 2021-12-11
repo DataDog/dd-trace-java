@@ -6,7 +6,7 @@ import java.io.Closeable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExternalAgentLauncher implements Closeable {
+public final class ExternalAgentLauncher implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(ExternalAgentLauncher.class);
 
   private ProcessSupervisor traceProcessSupervisor;

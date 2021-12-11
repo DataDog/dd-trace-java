@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-public class CaseInsensitiveMap<V> implements Map<String, V> {
+public final class CaseInsensitiveMap<V> implements Map<String, V> {
   private final Map<String, V> delegate;
 
   public CaseInsensitiveMap() {

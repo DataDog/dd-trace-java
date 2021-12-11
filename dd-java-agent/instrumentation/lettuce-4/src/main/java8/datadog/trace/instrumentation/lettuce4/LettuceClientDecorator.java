@@ -10,7 +10,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
-public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
+public final class LettuceClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
 
   public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
   public static final CharSequence REDIS_QUERY = UTF8BytesString.create("redis.query");

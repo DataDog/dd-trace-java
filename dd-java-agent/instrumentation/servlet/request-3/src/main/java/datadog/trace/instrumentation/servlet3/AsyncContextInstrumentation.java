@@ -60,7 +60,7 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing {
    * request. The parent request's span is later closed by {@code
    * TagSettingAsyncListener#onStartAsync}
    */
-  public static class DispatchAdvice {
+  public static final class DispatchAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean enter(

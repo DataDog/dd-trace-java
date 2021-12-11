@@ -17,7 +17,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.junit.platform.launcher.Launcher;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
+public final class JUnit5Instrumentation extends Instrumenter.CiVisibility {
 
   public JUnit5Instrumentation() {
     super("junit", "junit-5");
@@ -45,7 +45,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
         isConstructor(), JUnit5Instrumentation.class.getName() + "$JUnit5Advice");
   }
 
-  public static class JUnit5Advice {
+  public static final class JUnit5Advice {
 
     @Advice.OnMethodExit
     public static void addTracingListener(@Advice.This final Launcher launcher) {

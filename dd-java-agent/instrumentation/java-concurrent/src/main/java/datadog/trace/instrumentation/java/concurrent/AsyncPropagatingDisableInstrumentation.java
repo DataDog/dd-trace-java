@@ -164,7 +164,7 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
   }
 
-  public static class DisableAsyncAdvice {
+  public static final class DisableAsyncAdvice {
 
     @Advice.OnMethodEnter
     public static AgentScope before() {

@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import javax.servlet.ServletRequest;
 
 /** Inject into request attributes since the request headers can't be modified. */
-public class ServletRequestSetter implements AgentPropagation.Setter<ServletRequest> {
+public final class ServletRequestSetter implements AgentPropagation.Setter<ServletRequest> {
   public static final ServletRequestSetter SETTER = new ServletRequestSetter();
 
   @Override

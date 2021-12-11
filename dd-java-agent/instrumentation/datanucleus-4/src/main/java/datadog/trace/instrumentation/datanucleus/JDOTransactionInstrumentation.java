@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JDOTransactionInstrumentation extends Instrumenter.Tracing {
+public final class JDOTransactionInstrumentation extends Instrumenter.Tracing {
 
   public JDOTransactionInstrumentation() {
     super("datanucleus");
@@ -41,7 +41,7 @@ public class JDOTransactionInstrumentation extends Instrumenter.Tracing {
         JDOTransactionInstrumentation.class.getName() + "$TransactionAdvice");
   }
 
-  public static class TransactionAdvice {
+  public static final class TransactionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(
         @Advice.Origin("datanucleus.transaction.#m") final String operationName) {

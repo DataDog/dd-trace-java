@@ -17,7 +17,7 @@ import java.nio.channels.SocketChannel;
  * This class emulates a socket around a named pipe. Most of the Socket methods are nonsensical in
  * the context of a named pipe and therefore implemented as no-ops
  */
-public class NamedPipeSocket extends Socket {
+public final class NamedPipeSocket extends Socket {
   private final InputStream inputStream;
   private final OutputStream outputStream;
   private final RandomAccessFile randomAccessFile;

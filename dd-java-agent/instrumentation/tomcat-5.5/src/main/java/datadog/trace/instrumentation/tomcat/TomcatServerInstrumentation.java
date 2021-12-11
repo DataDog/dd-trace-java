@@ -82,7 +82,7 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
             "org.apache.tomcat.util.net.NioBlockingSelector$BlockPoller"));
   }
 
-  public static class ServiceAdvice {
+  public static final class ServiceAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
@@ -127,7 +127,7 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
    * The span is being started before the request is fully parsed out, so we must delay collecting
    * data from the request until after it is fully parsed/populated.
    */
-  public static class PostParseAdvice {
+  public static final class PostParseAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterParse(@Advice.Argument(1) Request req) {

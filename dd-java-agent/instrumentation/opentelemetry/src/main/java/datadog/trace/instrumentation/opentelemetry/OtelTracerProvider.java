@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.trace.Tracer;
 import io.opentelemetry.trace.TracerProvider;
 
-public class OtelTracerProvider implements TracerProvider {
+public final class OtelTracerProvider implements TracerProvider {
   public static final OtelTracerProvider INSTANCE = new OtelTracerProvider();
 
   private final TypeConverter converter = new TypeConverter();

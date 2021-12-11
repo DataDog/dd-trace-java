@@ -12,7 +12,7 @@ import io.micronaut.http.MediaTypeConverter;
 import io.micronaut.http.MutableHttpResponse;
 import net.bytebuddy.asm.Advice;
 
-public class WriteFinalNettyResponseAdvice {
+public final class WriteFinalNettyResponseAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beginRequest(
       @Advice.Argument(0) final MutableHttpResponse<?> message,

@@ -33,7 +33,7 @@ import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AgentInstaller {
+public final class AgentInstaller {
   private static final Logger log = LoggerFactory.getLogger(AgentInstaller.class);
   private static final boolean DEBUG = log.isDebugEnabled();
 
@@ -230,7 +230,8 @@ public class AgentInstaller {
     return matcher;
   }
 
-  static class RedefinitionLoggingListener implements AgentBuilder.RedefinitionStrategy.Listener {
+  static final class RedefinitionLoggingListener
+      implements AgentBuilder.RedefinitionStrategy.Listener {
 
     private static final Logger log = LoggerFactory.getLogger(RedefinitionLoggingListener.class);
 
@@ -256,7 +257,7 @@ public class AgentInstaller {
         final Map<List<Class<?>>, Throwable> failures) {}
   }
 
-  static class TransformLoggingListener implements AgentBuilder.Listener {
+  static final class TransformLoggingListener implements AgentBuilder.Listener {
 
     private static final Logger log = LoggerFactory.getLogger(TransformLoggingListener.class);
 
@@ -339,7 +340,7 @@ public class AgentInstaller {
     }
   }
 
-  private static class ClassLoadListener implements AgentBuilder.Listener {
+  private static final class ClassLoadListener implements AgentBuilder.Listener {
     @Override
     public void onDiscovery(
         final String typeName,

@@ -73,7 +73,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public static class OnActivity {
+  public static final class OnActivity {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan resume(@Advice.This final AsyncCompletionHandler<?> handler) {
       ContextStore<AsyncHandler, Pair> contextStore =
@@ -99,7 +99,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static class OnComplete {
+  public static final class OnComplete {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

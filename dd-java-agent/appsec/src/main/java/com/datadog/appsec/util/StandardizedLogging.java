@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-public class StandardizedLogging {
+public final class StandardizedLogging {
 
   private static final Marker CRITICAL = MarkerFactory.getMarker("CRITICAL");
 

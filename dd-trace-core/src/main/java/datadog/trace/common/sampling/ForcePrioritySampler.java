@@ -5,7 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A sampler which forces the sampling priority */
-public class ForcePrioritySampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+public final class ForcePrioritySampler<T extends CoreSpan<T>>
+    implements Sampler<T>, PrioritySampler<T> {
 
   private static final Logger log = LoggerFactory.getLogger(ForcePrioritySampler.class);
   private final int prioritySampling;

@@ -10,7 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
-public class EndHandlerWrapper implements Handler<Void> {
+public final class EndHandlerWrapper implements Handler<Void> {
   private final RoutingContext routingContext;
 
   Handler<Void> actual;

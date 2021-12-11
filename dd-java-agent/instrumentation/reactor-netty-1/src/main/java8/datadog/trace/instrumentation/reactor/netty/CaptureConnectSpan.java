@@ -7,7 +7,7 @@ import java.util.function.Function;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
-public class CaptureConnectSpan
+public final class CaptureConnectSpan
     implements Function<Mono<? extends Connection>, Mono<? extends Connection>> {
 
   static final String CONNECT_SPAN = "datadog.connect.span";

@@ -10,7 +10,7 @@ import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Operators;
 
 /** Based on Spring Sleuth's Reactor instrumentation. */
-public class TracingOperator extends ClassValue<Boolean> {
+public final class TracingOperator extends ClassValue<Boolean> {
 
   private static final TracingOperator FILTER = new TracingOperator();
 

@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(Instrumenter.class)
-public class CategoryInstrumentation extends Instrumenter.Tracing {
+public final class CategoryInstrumentation extends Instrumenter.Tracing {
   public CategoryInstrumentation() {
     super("log4j", "log4j-1");
   }
@@ -56,7 +56,7 @@ public class CategoryInstrumentation extends Instrumenter.Tracing {
         CategoryInstrumentation.class.getName() + "$CallAppendersAdvice");
   }
 
-  public static class CallAppendersAdvice {
+  public static final class CallAppendersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) LoggingEvent event) {
       AgentSpan span = activeSpan();

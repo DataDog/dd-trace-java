@@ -23,7 +23,7 @@ import org.jboss.netty.handler.codec.http.HttpServerCodec;
  * handlers. If those handlers are later removed, we may want to remove our handlers. That is not
  * currently implemented.
  */
-public class ChannelPipelineAdviceUtil {
+public final class ChannelPipelineAdviceUtil {
   public static void wrapHandler(
       final ContextStore<Channel, ChannelTraceContext> contextStore,
       final ChannelPipeline pipeline,

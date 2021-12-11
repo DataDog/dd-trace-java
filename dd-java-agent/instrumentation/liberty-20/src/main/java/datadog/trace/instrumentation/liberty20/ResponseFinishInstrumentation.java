@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ResponseFinishInstrumentation extends Instrumenter.Tracing {
+public final class ResponseFinishInstrumentation extends Instrumenter.Tracing {
 
   public ResponseFinishInstrumentation() {
     super("liberty");
@@ -42,7 +42,7 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing {
         ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
   }
 
-  public static class ResponseFinishAdvice {
+  public static final class ResponseFinishAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(@Advice.This SRTServletResponse resp) {
       IExtendedRequest req = resp.getRequest();

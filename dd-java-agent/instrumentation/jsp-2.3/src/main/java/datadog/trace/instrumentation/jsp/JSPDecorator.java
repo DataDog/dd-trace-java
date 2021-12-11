@@ -12,7 +12,7 @@ import javax.servlet.jsp.HttpJspPage;
 import org.apache.jasper.JspCompilationContext;
 import org.slf4j.LoggerFactory;
 
-public class JSPDecorator extends BaseDecorator {
+public final class JSPDecorator extends BaseDecorator {
   public static final CharSequence JSP_COMPILE = UTF8BytesString.create("jsp.compile");
   public static final CharSequence JSP_RENDER = UTF8BytesString.create("jsp.render");
   public static final CharSequence JSP_HTTP_SERVLET = UTF8BytesString.create("jsp-http-servlet");

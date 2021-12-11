@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.core.DDSpan
+import datadog.trace.core.CoreSpan
 
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
@@ -17,7 +17,7 @@ class RequestDispatcherTest extends AgentTestRunner {
 
   def request = Mock(HttpServletRequest)
   def response = Mock(HttpServletResponse)
-  def mockSpan = Stub(DDSpan)
+  def mockSpan = Stub(CoreSpan)
   def dispatcher = new RequestDispatcherUtils(request, response)
 
   def "test dispatch no-parent"() {

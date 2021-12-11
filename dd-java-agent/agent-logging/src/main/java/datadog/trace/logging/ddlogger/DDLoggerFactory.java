@@ -7,7 +7,7 @@ import datadog.trace.logging.simplelogger.SLCompatFactory;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
-public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
+public final class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
   private volatile SwitchableLogLevelFactory helperFactory = null;
 

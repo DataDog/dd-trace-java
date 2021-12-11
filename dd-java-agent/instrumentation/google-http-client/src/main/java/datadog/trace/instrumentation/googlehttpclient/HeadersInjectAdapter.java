@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.googlehttpclient;
 import com.google.api.client.http.HttpRequest;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
-public class HeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
+public final class HeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
 
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 

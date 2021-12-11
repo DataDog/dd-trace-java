@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
+public final class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
 
   public AkkaRoutedActorCellInstrumentation() {
     super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
@@ -49,7 +49,7 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
    * RoutedActorCell will sometimes deconstruct the Envelope in the {@code sendMessage} method, so
    * we might need to activate the {@code Scope} to ensure that it propagates properly.
    */
-  public static class SendMessageAdvice {
+  public static final class SendMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
         @Advice.This RoutedActorCell zis, @Advice.Argument(value = 0) Envelope envelope) {

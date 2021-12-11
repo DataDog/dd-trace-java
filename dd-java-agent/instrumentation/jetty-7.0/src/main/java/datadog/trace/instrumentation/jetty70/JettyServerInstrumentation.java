@@ -74,7 +74,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
    * is reset, this minor change in behavior is inconsequential. This advice provides the needed
    * link between generator -> response to enable this.
    */
-  public static class ConstructorAdvice {
+  public static final class ConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void link(
         @Advice.FieldValue("_generator") final Generator generator,
@@ -87,7 +87,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
    * The handleRequest call denotes the earliest point at which the incoming request is fully
    * parsed. This allows us to read the headers from the request to extract propagation info.
    */
-  public static class HandleRequestAdvice {
+  public static final class HandleRequestAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final HttpConnection connection) {
@@ -125,7 +125,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
    * Jetty ensures that connections are reset immediately after the response is sent. This provides
    * a reliable point to finish the server span at the last possible moment.
    */
-  public static class ResetAdvice {
+  public static final class ResetAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpConnection channel) {
       Request req = channel.getRequest();

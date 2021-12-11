@@ -12,7 +12,7 @@ import io.lettuce.core.protocol.AsyncCommand;
 import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 
-public class LettuceAsyncCommandsAdvice {
+public final class LettuceAsyncCommandsAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand command) {

@@ -17,7 +17,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class JakartaRsAnnotationsDecorator extends BaseDecorator {
+public final class JakartaRsAnnotationsDecorator extends BaseDecorator {
 
   public static final CharSequence JAKARTA_RS_REQUEST_ABORT =
       UTF8BytesString.create("jakarta-rs.request.abort");

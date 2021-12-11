@@ -16,7 +16,7 @@ import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
-public class KafkaStreamsDecorator extends ClientDecorator {
+public final class KafkaStreamsDecorator extends ClientDecorator {
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka-streams");
   public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();

@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Injects instrumentation helper classes into the user's classloader. */
-public class HelperInjector implements Transformer {
+public final class HelperInjector implements Transformer {
   private static final Logger log = LoggerFactory.getLogger(HelperInjector.class);
   // Need this because we can't put null into the injectedClassLoaders map.
   private static final ClassLoader BOOTSTRAP_CLASSLOADER_PLACEHOLDER =

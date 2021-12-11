@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-public class URIUtils {
+public final class URIUtils {
   private URIUtils() {}
 
   // This is the � character, which is also the default replacement for the UTF_8 charset

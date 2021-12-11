@@ -19,7 +19,7 @@ import org.apache.ignite.IgniteCache;
 import org.apache.ignite.lang.IgniteFuture;
 
 @AutoService(Instrumenter.class)
-public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrumentation {
+public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrumentation {
 
   public IgniteCacheAsyncInstrumentation() {
     super();
@@ -74,7 +74,7 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
         IgniteCacheAsyncInstrumentation.class.getName() + "$KeyedAdvice");
   }
 
-  public static class IgniteAdvice {
+  public static final class IgniteAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
@@ -130,7 +130,7 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
     }
   }
 
-  public static class KeyedAdvice {
+  public static final class KeyedAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

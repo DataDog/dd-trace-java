@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
+public final class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
 
   public HystrixThreadPoolInstrumentation() {
     super("hystrix");
@@ -32,7 +32,7 @@ public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
         HystrixThreadPoolInstrumentation.class.getName() + "$EnableAsyncAdvice");
   }
 
-  public static class EnableAsyncAdvice {
+  public static final class EnableAsyncAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean enableAsyncTracking() {

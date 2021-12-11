@@ -14,7 +14,8 @@ import org.apache.ignite.cache.query.Query;
 import org.apache.ignite.cache.query.SqlFieldsQuery;
 import org.apache.ignite.cache.query.SqlQuery;
 
-public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorator<IgniteCache> {
+public final class IgniteCacheDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<IgniteCache> {
 
   public static final CharSequence IGNITE_COMMAND = UTF8BytesString.create("ignite.cache");
   public static final IgniteCacheDecorator DECORATE = new IgniteCacheDecorator();

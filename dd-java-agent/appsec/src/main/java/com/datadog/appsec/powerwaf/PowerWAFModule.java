@@ -40,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(AppSecModule.class)
-public class PowerWAFModule implements AppSecModule {
+public final class PowerWAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
 
   private static final int MAX_DEPTH = 10;
@@ -65,7 +65,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private static final Map<String, RuleInfo> rulesInfoMap = new ConcurrentHashMap<>();
 
-  private static class RuleInfo {
+  private static final class RuleInfo {
     final String name;
     final String type;
     final Map<String, String> tags;
@@ -159,7 +159,7 @@ public class PowerWAFModule implements AppSecModule {
     return singletonList(new PowerWAFEventsCallback());
   }
 
-  private static class PowerWAFEventsCallback extends EventSubscription {
+  private static final class PowerWAFEventsCallback extends EventSubscription {
     public PowerWAFEventsCallback() {
       super(EventType.REQUEST_END, Priority.DEFAULT);
     }
@@ -181,7 +181,7 @@ public class PowerWAFModule implements AppSecModule {
     return singletonList(new PowerWAFDataCallback());
   }
 
-  private class PowerWAFDataCallback extends DataSubscription {
+  private final class PowerWAFDataCallback extends DataSubscription {
     public PowerWAFDataCallback() {
       super(ADDRESSES_OF_INTEREST, Priority.DEFAULT);
     }
@@ -299,7 +299,7 @@ public class PowerWAFModule implements AppSecModule {
       }
     }
 
-    private class SetIteratorInvocationHandler implements InvocationHandler {
+    private final class SetIteratorInvocationHandler implements InvocationHandler {
       @Override
       public Object invoke(Object proxy, Method method, Object[] args) {
         if (!method.getName().equals("iterator")) {

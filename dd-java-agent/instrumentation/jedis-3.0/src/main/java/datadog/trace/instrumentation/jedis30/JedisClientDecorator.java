@@ -5,7 +5,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import redis.clients.jedis.commands.ProtocolCommand;
 
-public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<ProtocolCommand> {
+public final class JedisClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<ProtocolCommand> {
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 

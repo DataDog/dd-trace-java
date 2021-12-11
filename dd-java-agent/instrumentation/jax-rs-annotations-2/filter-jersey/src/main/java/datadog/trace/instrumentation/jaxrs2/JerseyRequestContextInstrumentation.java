@@ -19,8 +19,9 @@ import net.bytebuddy.asm.Advice;
  * matched resource method can be retrieved from that object
  */
 @AutoService(Instrumenter.class)
-public class JerseyRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
-  public static class ContainerRequestContextAdvice {
+public final class JerseyRequestContextInstrumentation
+    extends AbstractRequestContextInstrumentation {
+  public static final class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope decorateAbortSpan(@Advice.This final ContainerRequestContext context) {
       final UriInfo uriInfo = context.getUriInfo();

@@ -6,7 +6,7 @@ import java.net.URI;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientResponseContext;
 
-public class JaxRsClientDecorator
+public final class JaxRsClientDecorator
     extends HttpClientDecorator<ClientRequestContext, ClientResponseContext> {
   public static final CharSequence JAX_RS_CLIENT = UTF8BytesString.create("jax-rs.client");
   public static final CharSequence JAX_RS_CLIENT_CALL =

@@ -4,7 +4,7 @@ import com.datastax.oss.driver.api.core.session.Session;
 import java.util.concurrent.CompletionStage;
 import net.bytebuddy.asm.Advice;
 
-public class CassandraClientAdvice {
+public final class CassandraClientAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void injectTracingSession(

@@ -12,7 +12,7 @@ import io.opentelemetry.trace.Status;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class OtelSpan implements Span, MutableSpan {
+public final class OtelSpan implements Span, MutableSpan {
   private final AgentSpan delegate;
   private final TypeConverter converter;
 

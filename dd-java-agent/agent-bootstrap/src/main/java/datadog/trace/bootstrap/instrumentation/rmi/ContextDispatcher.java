@@ -25,7 +25,7 @@ import sun.rmi.transport.Target;
  * <p>Because caching of the result after first call on a connection, only payload calls are
  * expected
  */
-public class ContextDispatcher implements Dispatcher {
+public final class ContextDispatcher implements Dispatcher {
   private static final ContextDispatcher CONTEXT_DISPATCHER = new ContextDispatcher();
   private static final NoopRemote NOOP_REMOTE = new NoopRemote();
 
@@ -57,5 +57,5 @@ public class ContextDispatcher implements Dispatcher {
     call.done();
   }
 
-  public static class NoopRemote implements Remote {}
+  public static final class NoopRemote implements Remote {}
 }

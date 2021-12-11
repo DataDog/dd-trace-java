@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 
-public class RedisSubscriptionDispatchCommandAdvice {
+public final class RedisSubscriptionDispatchCommandAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beforeDispatch(
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {

@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 
 /** Logger specialized on logging IO-related activity */
-public class IOLogger {
+public final class IOLogger {
   private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
 
   private boolean logNextSuccess = false;

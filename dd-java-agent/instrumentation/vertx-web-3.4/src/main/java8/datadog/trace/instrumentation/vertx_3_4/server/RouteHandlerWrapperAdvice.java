@@ -5,7 +5,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.RouterImpl;
 import net.bytebuddy.asm.Advice;
 
-public class RouteHandlerWrapperAdvice {
+public final class RouteHandlerWrapperAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void wrapHandler(
       @Advice.Argument(value = 0, readOnly = false) Handler<RoutingContext> handler) {

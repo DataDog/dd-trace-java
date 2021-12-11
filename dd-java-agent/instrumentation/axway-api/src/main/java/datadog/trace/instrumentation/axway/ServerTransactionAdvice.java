@@ -5,7 +5,7 @@ import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.SERVE
 import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
 
-public class ServerTransactionAdvice {
+public final class ServerTransactionAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onEnter(

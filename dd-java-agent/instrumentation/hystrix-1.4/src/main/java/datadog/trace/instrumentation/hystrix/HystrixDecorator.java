@@ -14,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Objects;
 
-public class HystrixDecorator extends BaseDecorator {
+public final class HystrixDecorator extends BaseDecorator {
   public static HystrixDecorator DECORATE = new HystrixDecorator();
 
   private final boolean extraTags;

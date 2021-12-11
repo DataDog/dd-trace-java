@@ -42,7 +42,7 @@ import sun.rmi.transport.Connection;
  * exception and shutdown the connection which we do not want
  */
 @AutoService(Instrumenter.class)
-public class RmiClientContextInstrumentation extends Instrumenter.Tracing {
+public final class RmiClientContextInstrumentation extends Instrumenter.Tracing {
 
   public RmiClientContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");
@@ -68,7 +68,7 @@ public class RmiClientContextInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$StreamRemoteCallConstructorAdvice");
   }
 
-  public static class StreamRemoteCallConstructorAdvice {
+  public static final class StreamRemoteCallConstructorAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(value = 0) final Connection c,

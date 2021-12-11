@@ -183,7 +183,7 @@ public abstract class CIProviderInfo {
     return GitUtils.filterSensitiveInfo(urlStr);
   }
 
-  public static class CITagsBuilder {
+  public static final class CITagsBuilder {
 
     private final Map<String, String> ciTags = new HashMap<>();
 
@@ -393,7 +393,7 @@ public abstract class CIProviderInfo {
     }
   }
 
-  public static class CIInfo {
+  public static final class CIInfo {
     public static final CIInfo NOOP = new CIInfo();
 
     public static Builder builder() {

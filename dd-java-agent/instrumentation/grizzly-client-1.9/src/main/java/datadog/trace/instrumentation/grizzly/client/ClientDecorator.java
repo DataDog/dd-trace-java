@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class ClientDecorator extends HttpClientDecorator<Request, Response> {
+public final class ClientDecorator extends HttpClientDecorator<Request, Response> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   private static final CharSequence GRIZZLY_HTTP_ASYNC_CLIENT =

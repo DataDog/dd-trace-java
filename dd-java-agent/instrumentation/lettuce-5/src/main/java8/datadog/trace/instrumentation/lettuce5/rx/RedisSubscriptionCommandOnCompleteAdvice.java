@@ -11,7 +11,7 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
 /** Instrumentation for SubscriptionCommand in version 5.3.6 and later */
-public class RedisSubscriptionCommandOnCompleteAdvice {
+public final class RedisSubscriptionCommandOnCompleteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beforeComplete(@Advice.This RedisCommand command) {
 

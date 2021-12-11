@@ -18,8 +18,8 @@ import io.vertx.sqlclient.SqlResult;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
-public class QueryAdvice {
-  public static class Copy {
+public final class QueryAdvice {
+  public static final class Copy {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterCopy(
         @Advice.This final Query<?> zis, @Advice.Return final Query<?> ret) {
@@ -33,7 +33,7 @@ public class QueryAdvice {
     }
   }
 
-  public static class Execute {
+  public static final class Execute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T, R extends SqlResult<T>> AgentScope beforeExecute(
         @Advice.This final Query<?> zis,

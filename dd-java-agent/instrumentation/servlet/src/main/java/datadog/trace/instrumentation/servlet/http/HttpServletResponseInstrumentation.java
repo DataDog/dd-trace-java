@@ -53,7 +53,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Traci
     transformation.applyAdvice(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
   }
 
-  public static class SendAdvice {
+  public static final class SendAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(

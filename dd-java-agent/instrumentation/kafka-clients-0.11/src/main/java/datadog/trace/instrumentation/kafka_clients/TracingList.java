@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableDelegator {
+public final class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableDelegator {
 
   private final List<ConsumerRecord<?, ?>> delegate;
   private final CharSequence operationName;

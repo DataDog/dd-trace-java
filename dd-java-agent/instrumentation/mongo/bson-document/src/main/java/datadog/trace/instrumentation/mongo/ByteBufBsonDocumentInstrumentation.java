@@ -18,7 +18,7 @@ import org.bson.BsonDocument;
 import org.bson.ByteBuf;
 
 @AutoService(Instrumenter.class)
-public class ByteBufBsonDocumentInstrumentation extends Instrumenter.Tracing {
+public final class ByteBufBsonDocumentInstrumentation extends Instrumenter.Tracing {
 
   public ByteBufBsonDocumentInstrumentation() {
     super("mongo");

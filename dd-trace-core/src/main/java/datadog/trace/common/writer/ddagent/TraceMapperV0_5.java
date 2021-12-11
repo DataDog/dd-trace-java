@@ -114,7 +114,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     return "v0.5";
   }
 
-  private static class DictionaryMapper implements Mapper<Object> {
+  private static final class DictionaryMapper implements Mapper<Object> {
 
     @Override
     public void map(final Object data, final Writable packer) {
@@ -126,7 +126,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
   }
 
-  private static class PayloadV0_5 extends Payload {
+  private static final class PayloadV0_5 extends Payload {
 
     private final ByteBuffer dictionary;
     private final int stringCount;

@@ -2,7 +2,7 @@ package datadog.trace.core.monitor;
 
 import java.util.Arrays;
 
-public class Utils {
+public final class Utils {
   static String[] mergeTags(String[] left, String[] right) {
     if (null == right) {
       return left;

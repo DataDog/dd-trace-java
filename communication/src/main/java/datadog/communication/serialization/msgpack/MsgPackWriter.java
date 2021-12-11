@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Not thread-safe (use one per thread). */
-public class MsgPackWriter implements WritableFormatter {
+public final class MsgPackWriter implements WritableFormatter {
 
   private static final Logger log = LoggerFactory.getLogger(MsgPackWriter.class);
 

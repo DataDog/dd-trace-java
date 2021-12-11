@@ -15,7 +15,7 @@ import java.util.function.BiFunction;
  * @param <R> the return type, should be null since nothing else should happen from tracing
  *     standpoint after the span is closed
  */
-public class LettuceAsyncBiFunction<T extends Object, U extends Throwable, R extends Object>
+public final class LettuceAsyncBiFunction<T extends Object, U extends Throwable, R extends Object>
     implements BiFunction<T, Throwable, R> {
 
   private final AgentSpan span;

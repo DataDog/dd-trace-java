@@ -44,7 +44,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
             + "$JasperJspCompilationContext");
   }
 
-  public static class JasperJspCompilationContext {
+  public static final class JasperJspCompilationContext {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter() {

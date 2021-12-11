@@ -64,7 +64,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
         StatementInstrumentation.class.getName() + "$StatementAdvice");
   }
 
-  public static class StatementAdvice {
+  public static final class StatementAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

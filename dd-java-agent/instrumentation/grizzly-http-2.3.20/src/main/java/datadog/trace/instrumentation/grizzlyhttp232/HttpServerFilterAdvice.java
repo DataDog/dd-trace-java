@@ -7,7 +7,7 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.http.HttpResponsePacket;
 
-public class HttpServerFilterAdvice {
+public final class HttpServerFilterAdvice {
 
   @Advice.OnMethodEnter
   public static void onEnter(

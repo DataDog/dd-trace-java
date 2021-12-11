@@ -10,7 +10,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DB2PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation {
+public final class DB2PreparedStatementInstrumentation
+    extends AbstractPreparedStatementInstrumentation {
   public DB2PreparedStatementInstrumentation() {
     super("jdbc", "db2");
   }

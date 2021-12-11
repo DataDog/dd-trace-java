@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * especially in part where TagContext is handled. We may want to refactor that and avoid special
  * handling of TagContext in other places (i.e. CompoundExtractor).
  */
-class B3HttpCodec {
+final class B3HttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(B3HttpCodec.class);
 
@@ -38,7 +38,7 @@ class B3HttpCodec {
 
   public static final HttpCodec.Injector INJECTOR = new Injector();
 
-  private static class Injector implements HttpCodec.Injector {
+  private static final class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(
@@ -86,7 +86,7 @@ class B3HttpCodec {
         });
   }
 
-  private static class B3ContextInterpreter extends ContextInterpreter {
+  private static final class B3ContextInterpreter extends ContextInterpreter {
 
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;

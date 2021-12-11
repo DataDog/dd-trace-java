@@ -17,7 +17,7 @@ import play.api.mvc.Request;
 import play.api.mvc.Result;
 import scala.Option;
 
-public class PlayHttpServerDecorator
+public final class PlayHttpServerDecorator
     extends HttpServerDecorator<Request, Request, Result, Headers> {
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");

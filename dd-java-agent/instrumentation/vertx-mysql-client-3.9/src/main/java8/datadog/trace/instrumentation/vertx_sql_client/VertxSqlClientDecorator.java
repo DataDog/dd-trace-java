@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 
-public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
+public final class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final VertxSqlClientDecorator DECORATE = new VertxSqlClientDecorator();
 

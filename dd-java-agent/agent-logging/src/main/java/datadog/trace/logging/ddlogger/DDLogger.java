@@ -9,7 +9,7 @@ import org.slf4j.helpers.FormattingTuple;
 import org.slf4j.helpers.MessageFormatter;
 
 /** Implementation of org.slf4j.Logger. Delegates actual rendering to {@link LoggerHelper}. */
-public class DDLogger implements Logger {
+public final class DDLogger implements Logger {
 
   private final String name;
   private final LoggerHelper helper;

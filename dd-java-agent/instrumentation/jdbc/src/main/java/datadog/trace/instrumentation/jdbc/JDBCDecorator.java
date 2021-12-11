@@ -20,7 +20,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
+public final class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   private static final Logger log = LoggerFactory.getLogger(JDBCDecorator.class);
 

@@ -53,7 +53,7 @@ import java.util.Arrays;
  *
  * <p>http://driusan.github.io/git-pack.html
  */
-public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
+public final class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
 
   public static final short VERSION = 2;
 

@@ -49,7 +49,7 @@ public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing {
    * that the response is updated when the generator is. Since the status on the response is reset
    * when the connection is reset, this minor change in behavior is inconsequential.
    */
-  public static class SetResponseAdvice {
+  public static final class SetResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateResponse(
         @Advice.This final AbstractGenerator generator, @Advice.Argument(0) final int status) {

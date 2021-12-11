@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracing {
+public final class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch5RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-5");
@@ -51,7 +51,7 @@ public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracin
         Elasticsearch5RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
   }
 
-  public static class ElasticsearchRestClientAdvice {
+  public static final class ElasticsearchRestClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

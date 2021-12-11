@@ -13,7 +13,7 @@ import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
-public class RedisSubscriptionSubscribeAdvice {
+public final class RedisSubscriptionSubscribeAdvice {
   public static final class State {
     public final AgentScope parentScope;
     public final AgentSpan span;

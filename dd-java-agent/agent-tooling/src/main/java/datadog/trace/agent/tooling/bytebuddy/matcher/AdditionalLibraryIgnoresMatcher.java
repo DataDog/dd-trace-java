@@ -11,7 +11,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * that we should be able to remove this matcher from the agent and all tests should still pass.
  * Moreover, no classes matched by this matcher should be modified during test run.
  */
-public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
+public final class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
   public static <T extends TypeDescription> Junction<T> additionalLibraryIgnoresMatcher() {

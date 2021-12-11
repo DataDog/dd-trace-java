@@ -75,7 +75,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
    * which allows the mappings to be evaluated at the beginning of the filter chain. This evaluation
    * is done inside the Servlet3Decorator.onContext method.
    */
-  public static class HandlerMappingAdvice {
+  public static final class HandlerMappingAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterRefresh(
@@ -91,7 +91,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
     }
   }
 
-  public static class RenderAdvice {
+  public static final class RenderAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
@@ -111,7 +111,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
     }
   }
 
-  public static class ErrorHandlerAdvice {
+  public static final class ErrorHandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void nameResource(@Advice.Argument(3) final Exception exception) {
       final AgentSpan span = activeSpan();

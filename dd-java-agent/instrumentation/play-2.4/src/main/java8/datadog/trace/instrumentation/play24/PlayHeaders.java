@@ -5,7 +5,7 @@ import play.api.mvc.Headers;
 import scala.Option;
 import scala.collection.JavaConversions;
 
-public class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
+public final class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
 
   public static final PlayHeaders GETTER = new PlayHeaders();
 

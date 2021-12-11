@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import io.opentelemetry.context.Scope;
 
-public class OtelScope implements Scope, TraceScope {
+public final class OtelScope implements Scope, TraceScope {
   private final AgentScope delegate;
 
   OtelScope(final AgentScope delegate) {

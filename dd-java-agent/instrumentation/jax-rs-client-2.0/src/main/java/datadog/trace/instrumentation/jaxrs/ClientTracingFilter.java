@@ -17,7 +17,7 @@ import javax.ws.rs.client.ClientResponseContext;
 import javax.ws.rs.client.ClientResponseFilter;
 
 @Priority(Priorities.HEADER_DECORATOR)
-public class ClientTracingFilter implements ClientRequestFilter, ClientResponseFilter {
+public final class ClientTracingFilter implements ClientRequestFilter, ClientResponseFilter {
   public static final String SPAN_PROPERTY_NAME = "datadog.trace.jax-rs-client.span";
 
   @Override

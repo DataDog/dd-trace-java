@@ -25,7 +25,7 @@ import java.util.Set;
  *
  * <p>...
  */
-public class ClassHierarchyIterable implements Iterable<Class<?>> {
+public final class ClassHierarchyIterable implements Iterable<Class<?>> {
   private final Class<?> baseClass;
 
   public ClassHierarchyIterable(final Class<?> baseClass) {
@@ -37,7 +37,7 @@ public class ClassHierarchyIterable implements Iterable<Class<?>> {
     return new ClassIterator();
   }
 
-  public class ClassIterator implements Iterator<Class<?>> {
+  public final class ClassIterator implements Iterator<Class<?>> {
     private Class<?> next;
     private final Set<Class<?>> queuedInterfaces = new HashSet<>();
     private final Queue<Class<?>> classesToExpand = new ArrayDeque<>();

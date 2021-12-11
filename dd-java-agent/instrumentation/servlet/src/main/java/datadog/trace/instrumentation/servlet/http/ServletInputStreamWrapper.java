@@ -4,7 +4,7 @@ import datadog.trace.api.http.StoredByteBody;
 import java.io.IOException;
 import javax.servlet.ServletInputStream;
 
-public class ServletInputStreamWrapper extends ServletInputStream {
+public final class ServletInputStreamWrapper extends ServletInputStream {
   final ServletInputStream is;
   final StoredByteBody storedByteBody;
 

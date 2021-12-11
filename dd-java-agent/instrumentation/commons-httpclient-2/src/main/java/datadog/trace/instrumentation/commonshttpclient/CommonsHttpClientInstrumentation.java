@@ -23,7 +23,7 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 
 @AutoService(Instrumenter.class)
-public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing {
+public final class CommonsHttpClientInstrumentation extends Instrumenter.Tracing {
 
   public CommonsHttpClientInstrumentation() {
     super("commons-http-client");
@@ -51,7 +51,7 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing {
         CommonsHttpClientInstrumentation.class.getName() + "$ExecAdvice");
   }
 
-  public static class ExecAdvice {
+  public static final class ExecAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);

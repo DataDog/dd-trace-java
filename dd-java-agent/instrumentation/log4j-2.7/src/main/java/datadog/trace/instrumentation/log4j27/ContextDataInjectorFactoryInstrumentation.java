@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.logging.log4j.core.ContextDataInjector;
 
 @AutoService(Instrumenter.class)
-public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Tracing {
+public final class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Tracing {
   public ContextDataInjectorFactoryInstrumentation() {
     super("log4j", "log4j-2");
   }
@@ -52,7 +52,7 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
         ContextDataInjectorFactoryInstrumentation.class.getName() + "$CreateInjectorAdvice");
   }
 
-  public static class CreateInjectorAdvice {
+  public static final class CreateInjectorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)

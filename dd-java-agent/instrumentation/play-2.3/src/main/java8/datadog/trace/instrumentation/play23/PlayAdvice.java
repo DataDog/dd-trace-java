@@ -17,7 +17,7 @@ import play.api.mvc.Request;
 import play.api.mvc.Result;
 import scala.concurrent.Future;
 
-public class PlayAdvice {
+public final class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final Request req) {
     final AgentSpan span;

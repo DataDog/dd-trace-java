@@ -7,7 +7,7 @@ import java.net.URISyntaxException;
 import play.shaded.ahc.org.asynchttpclient.Request;
 import play.shaded.ahc.org.asynchttpclient.Response;
 
-public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response> {
+public final class PlayWSClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence PLAY_WS_REQUEST = UTF8BytesString.create("play-ws.request");
   public static final CharSequence PLAY_WS = UTF8BytesString.create("play-ws");
   public static final PlayWSClientDecorator DECORATE = new PlayWSClientDecorator();

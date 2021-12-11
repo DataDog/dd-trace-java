@@ -5,7 +5,7 @@ import io.opentracing.SpanContext;
 import java.util.Map;
 import java.util.Objects;
 
-class OTSpanContext implements SpanContext {
+final class OTSpanContext implements SpanContext {
   private final AgentSpan.Context delegate;
 
   OTSpanContext(final AgentSpan.Context delegate) {

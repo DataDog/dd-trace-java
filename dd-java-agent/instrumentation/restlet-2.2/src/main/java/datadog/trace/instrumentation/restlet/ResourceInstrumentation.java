@@ -55,7 +55,7 @@ public final class ResourceInstrumentation extends Instrumenter.Tracing {
     };
   }
 
-  public static class ResourceHandleAdvice {
+  public static final class ResourceHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(
         @Advice.This final ServerResource serverResource,

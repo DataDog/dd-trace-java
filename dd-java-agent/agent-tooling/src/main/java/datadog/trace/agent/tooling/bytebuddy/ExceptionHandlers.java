@@ -13,7 +13,7 @@ import net.bytebuddy.jar.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExceptionHandlers {
+public final class ExceptionHandlers {
   private static final String LOG_FACTORY_NAME = LoggerFactory.class.getName().replace('.', '/');
   private static final String LOGGER_NAME = Logger.class.getName().replace('.', '/');
   // Bootstrap ExceptionHandler.class will always be resolvable, so we'll use it in the log name

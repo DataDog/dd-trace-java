@@ -25,7 +25,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(Instrumenter.class)
-public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
+public final class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
 
   public ChannelFutureListenerInstrumentation() {
     super(
@@ -69,7 +69,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
         "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
   }
 
-  public static class OperationCompleteAdvice extends AbstractNettyAdvice {
+  public static final class OperationCompleteAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*

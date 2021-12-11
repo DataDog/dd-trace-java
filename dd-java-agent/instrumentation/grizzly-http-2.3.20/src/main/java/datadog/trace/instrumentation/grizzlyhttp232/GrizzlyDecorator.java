@@ -13,7 +13,7 @@ import org.glassfish.grizzly.http.HttpHeader;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.HttpResponsePacket;
 
-public class GrizzlyDecorator
+public final class GrizzlyDecorator
     extends HttpServerDecorator<
         HttpRequestPacket, HttpRequestPacket, HttpResponsePacket, HttpRequestPacket> {
 

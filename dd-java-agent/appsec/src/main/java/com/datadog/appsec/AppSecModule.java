@@ -51,7 +51,7 @@ public interface AppSecModule {
     }
   }
 
-  class AppSecModuleActivationException extends Exception {
+  final class AppSecModuleActivationException extends Exception {
     public AppSecModuleActivationException(String message) {
       super(message);
     }

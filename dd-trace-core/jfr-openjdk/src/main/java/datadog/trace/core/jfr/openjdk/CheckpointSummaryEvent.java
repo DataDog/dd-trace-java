@@ -14,7 +14,7 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @Period("endChunk")
 @StackTrace(false)
-public class CheckpointSummaryEvent extends Event {
+public final class CheckpointSummaryEvent extends Event {
   @Label("Dropped")
   private final long dropped;
 

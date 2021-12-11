@@ -9,7 +9,7 @@ import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 
-public class OTScopeManager implements ScopeManager {
+public final class OTScopeManager implements ScopeManager {
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 
@@ -47,7 +47,7 @@ public class OTScopeManager implements ScopeManager {
     return converter.toSpan(tracer.activeSpan());
   }
 
-  static class OTScope implements Scope, TraceScope {
+  static final class OTScope implements Scope, TraceScope {
     private final AgentScope delegate;
     private final boolean finishSpanOnClose;
     private final TypeConverter converter;

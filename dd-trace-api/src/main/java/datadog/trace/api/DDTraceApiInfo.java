@@ -3,7 +3,7 @@ package datadog.trace.api;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-public class DDTraceApiInfo {
+public final class DDTraceApiInfo {
   public static final String VERSION;
 
   static {

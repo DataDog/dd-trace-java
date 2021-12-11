@@ -39,7 +39,7 @@ public final class RmiServerInstrumentation extends Instrumenter.Tracing {
         isMethod().and(isPublic()).and(not(isStatic())), getClass().getName() + "$ServerAdvice");
   }
 
-  public static class ServerAdvice {
+  public static final class ServerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, inline = true)
     public static AgentScope onEnter(
         @Advice.This final Object thiz, @Advice.Origin final Method method) {

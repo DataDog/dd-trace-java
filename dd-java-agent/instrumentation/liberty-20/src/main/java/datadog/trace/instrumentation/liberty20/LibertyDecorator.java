@@ -15,7 +15,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class LibertyDecorator
+public final class LibertyDecorator
     extends HttpServerDecorator<
         HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
 

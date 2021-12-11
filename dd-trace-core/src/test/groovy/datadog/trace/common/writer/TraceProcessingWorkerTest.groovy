@@ -3,7 +3,7 @@ package datadog.trace.common.writer
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
-import datadog.trace.core.DDSpan
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
@@ -97,7 +97,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     when: "there is pending work it is completed before a flush"
     // processing this span will throw an exception, but it should be caught
     // and not disrupt the flush
-    worker.primaryQueue.offer([Mock(DDSpan)])
+    worker.primaryQueue.offer([Mock(CoreSpan)])
     worker.start()
     boolean flushed = worker.flush(10, TimeUnit.SECONDS)
 
@@ -135,7 +135,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.start()
 
     when: "a trace is processed but can't be passed on"
-    worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)])
+    worker.publish(Mock(CoreSpan), priority, [Mock(CoreSpan)])
 
     then: "the error is reported to the monitor"
     conditions.eventually {
@@ -167,7 +167,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     when: "traces are submitted"
     int submitted = 0
     for (int i = 0; i < traceCount; ++i) {
-      submitted += worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)]) ? 1 : 0
+      submitted += worker.publish(Mock(CoreSpan), priority, [Mock(CoreSpan)]) ? 1 : 0
     }
 
     then: "traces are passed through unless rejected on submission"
@@ -216,7 +216,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.start()
     worker.close()
     int queueSize = 0
-    while (worker.primaryQueue.offer([Mock(DDSpan)])) {
+    while (worker.primaryQueue.offer([Mock(CoreSpan)])) {
       queueSize++
     }
 

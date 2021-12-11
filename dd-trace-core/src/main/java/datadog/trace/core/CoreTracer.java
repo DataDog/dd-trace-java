@@ -193,7 +193,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     checkpointer.onRootSpanStarted(root);
   }
 
-  public static class CoreTracerBuilder {
+  public static final class CoreTracerBuilder {
 
     private Config config;
     private String serviceName;
@@ -848,7 +848,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   /** Spans are built using this builder */
-  public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+  public final class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CharSequence operationName;
     private final CoreTracer tracer;
 
@@ -1092,7 +1092,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
-  private static class ShutdownHook extends Thread {
+  private static final class ShutdownHook extends Thread {
     private final WeakReference<CoreTracer> reference;
 
     private ShutdownHook(final CoreTracer tracer) {

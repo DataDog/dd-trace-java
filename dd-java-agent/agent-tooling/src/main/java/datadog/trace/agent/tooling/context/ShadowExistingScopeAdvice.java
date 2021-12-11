@@ -10,7 +10,7 @@ import net.bytebuddy.asm.Advice;
  * This advice is used to prevent the propagation of a trace across a particular method. This is
  * useful for example a method that would be doing tail call recursion to handle another request.
  */
-public class ShadowExistingScopeAdvice {
+public final class ShadowExistingScopeAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter() {

@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CassandraClientInstrumentation extends Instrumenter.Tracing {
+public final class CassandraClientInstrumentation extends Instrumenter.Tracing {
 
   public CassandraClientInstrumentation() {
     super("cassandra");
@@ -43,7 +43,7 @@ public class CassandraClientInstrumentation extends Instrumenter.Tracing {
         CassandraClientInstrumentation.class.getName() + "$CassandraClientAdvice");
   }
 
-  public static class CassandraClientAdvice {
+  public static final class CassandraClientAdvice {
     /**
      * Strategy: each time we build a connection to a Cassandra cluster, the
      * com.datastax.driver.core.Cluster$Manager.newSession() method is called. The opentracing

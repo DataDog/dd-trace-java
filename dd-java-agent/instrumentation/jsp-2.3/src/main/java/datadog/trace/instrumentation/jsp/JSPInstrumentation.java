@@ -54,7 +54,7 @@ public final class JSPInstrumentation extends Instrumenter.Tracing {
         JSPInstrumentation.class.getName() + "$HttpJspPageAdvice");
   }
 
-  public static class HttpJspPageAdvice {
+  public static final class HttpJspPageAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

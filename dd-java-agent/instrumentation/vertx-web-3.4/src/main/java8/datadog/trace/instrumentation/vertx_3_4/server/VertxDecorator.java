@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 
-public class VertxDecorator
+public final class VertxDecorator
     extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void> {
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
 

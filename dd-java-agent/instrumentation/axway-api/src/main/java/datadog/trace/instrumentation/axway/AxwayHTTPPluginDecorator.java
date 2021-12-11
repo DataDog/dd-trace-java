@@ -20,7 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
-public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object, Void> {
+public final class AxwayHTTPPluginDecorator
+    extends HttpServerDecorator<Object, Object, Object, Void> {
   private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
 
   public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create("axway.request");

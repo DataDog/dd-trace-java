@@ -49,7 +49,7 @@ public class EventDispatcher implements EventProducerService {
     }
   }
 
-  public static class EventSubscriptionSet {
+  public static final class EventSubscriptionSet {
     private final List<List<EventListener>> eventListeners; // index: eventType.serial
 
     public EventSubscriptionSet() {
@@ -74,7 +74,7 @@ public class EventDispatcher implements EventProducerService {
     this.eventListeners = subscriptionSet.eventListeners;
   }
 
-  public static class DataSubscriptionSet {
+  public static final class DataSubscriptionSet {
     private final Map<DataListener, Integer> indexes = new HashMap<>();
     // index: addr.serial
     private final List<List<DataListener>> addrSubs;
@@ -216,7 +216,7 @@ public class EventDispatcher implements EventProducerService {
     return allSubscribedAddresses;
   }
 
-  private static class DataSubscriberInfoImpl implements DataSubscriberInfo {
+  private static final class DataSubscriberInfoImpl implements DataSubscriberInfo {
     final char[] listenerIndices;
 
     private DataSubscriberInfoImpl(char[] listenerIndices) {

@@ -12,7 +12,7 @@ import scala.runtime.AbstractFunction1;
 import scala.util.Try;
 
 public final class AkkaHttpClientHelpers {
-  public static class OnCompleteHandler extends AbstractFunction1<Try<HttpResponse>, Void> {
+  public static final class OnCompleteHandler extends AbstractFunction1<Try<HttpResponse>, Void> {
     private final AgentSpan span;
 
     public OnCompleteHandler(final AgentSpan span) {
@@ -32,7 +32,7 @@ public final class AkkaHttpClientHelpers {
     }
   }
 
-  public static class AkkaHttpHeaders implements AgentPropagation.Setter<HttpRequest> {
+  public static final class AkkaHttpHeaders implements AgentPropagation.Setter<HttpRequest> {
     private HttpRequest request;
     // Did this request have a span when the AkkaHttpHeaders object was created?
     private boolean hadSpan;
@@ -63,7 +63,7 @@ public final class AkkaHttpClientHelpers {
   }
 
   // Custom header to mark that this request has a span associated with it
-  public static class HasSpanHeader extends CustomHeader {
+  public static final class HasSpanHeader extends CustomHeader {
     @Override
     public String name() {
       return "x-datadog-request-has-span";

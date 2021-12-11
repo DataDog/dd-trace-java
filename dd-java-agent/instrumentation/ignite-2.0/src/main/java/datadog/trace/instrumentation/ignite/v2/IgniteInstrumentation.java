@@ -21,7 +21,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 
 @AutoService(Instrumenter.class)
-public class IgniteInstrumentation extends Instrumenter.Tracing {
+public final class IgniteInstrumentation extends Instrumenter.Tracing {
 
   public IgniteInstrumentation() {
     super("ignite");
@@ -64,7 +64,7 @@ public class IgniteInstrumentation extends Instrumenter.Tracing {
         IgniteInstrumentation.class.getName() + "$IgniteCachesAdvice");
   }
 
-  public static class IgniteCacheAdvice {
+  public static final class IgniteCacheAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
@@ -76,7 +76,7 @@ public class IgniteInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class IgniteCachesAdvice {
+  public static final class IgniteCachesAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(

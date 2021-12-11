@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing {
+public final class CouchbaseBucketInstrumentation extends Instrumenter.Tracing {
 
   public CouchbaseBucketInstrumentation() {
     super("couchbase");
@@ -50,7 +50,7 @@ public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing {
         CouchbaseBucketInstrumentation.class.getName() + "$CouchbaseClientAdvice");
   }
 
-  public static class CouchbaseClientAdvice {
+  public static final class CouchbaseClientAdvice {
 
     @Advice.OnMethodEnter
     public static int trackCallDepth() {

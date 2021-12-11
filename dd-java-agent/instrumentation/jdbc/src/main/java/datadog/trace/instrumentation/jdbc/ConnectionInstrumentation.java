@@ -9,7 +9,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ConnectionInstrumentation extends AbstractConnectionInstrumentation {
+public final class ConnectionInstrumentation extends AbstractConnectionInstrumentation {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift

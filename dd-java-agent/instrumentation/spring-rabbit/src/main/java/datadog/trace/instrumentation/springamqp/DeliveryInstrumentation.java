@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(Instrumenter.class)
-public class DeliveryInstrumentation extends Instrumenter.Tracing {
+public final class DeliveryInstrumentation extends Instrumenter.Tracing {
   public DeliveryInstrumentation() {
     super("spring-rabbit");
   }
@@ -37,7 +37,7 @@ public class DeliveryInstrumentation extends Instrumenter.Tracing {
     return singletonMap("org.springframework.amqp.rabbit.support.Delivery", State.class.getName());
   }
 
-  public static class CaptureActiveScope {
+  public static final class CaptureActiveScope {
     @Advice.OnMethodExit
     public static void captureActiveScope(@Advice.This Delivery delivery) {
       AgentScope scope = activeScope();

@@ -28,7 +28,7 @@ public final class AsyncAfterTransmissionInterceptorCallingResponseHandlerInstru
         isMethod().and(named("onHeaders")), getClass().getName() + "$OnHeadersAdvice");
   }
 
-  public static class OnHeadersAdvice {
+  public static final class OnHeadersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
         @Advice.FieldValue("context") final ExecutionContext context) {

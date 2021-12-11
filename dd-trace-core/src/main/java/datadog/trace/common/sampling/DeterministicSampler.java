@@ -6,7 +6,7 @@ import datadog.trace.core.CoreSpan;
  * This implements the deterministic sampling algorithm used by the Datadog Agent as well as the
  * tracers for other languages
  */
-public class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<T> {
+public final class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<T> {
 
   private static final long KNUTH_FACTOR = 1111111111111111111L;
 

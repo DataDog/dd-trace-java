@@ -8,7 +8,7 @@ import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.SqlConnection;
 import net.bytebuddy.asm.Advice;
 
-public class MySQLPoolImplConstructorAdvice {
+public final class MySQLPoolImplConstructorAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterConstructor(
       @Advice.This final SqlClient zis, @Advice.Argument(2) final MySQLConnectOptions options) {

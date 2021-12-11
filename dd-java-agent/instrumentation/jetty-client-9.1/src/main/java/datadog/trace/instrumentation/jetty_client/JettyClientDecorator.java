@@ -6,7 +6,7 @@ import java.net.URI;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
-public class JettyClientDecorator extends HttpClientDecorator<Request, Response> {
+public final class JettyClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence JETTY_CLIENT = UTF8BytesString.create("jetty-client");
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final JettyClientDecorator DECORATE = new JettyClientDecorator();

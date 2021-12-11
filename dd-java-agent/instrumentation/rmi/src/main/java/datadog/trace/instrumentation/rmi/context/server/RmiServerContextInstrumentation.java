@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Target;
 
 @AutoService(Instrumenter.class)
-public class RmiServerContextInstrumentation extends Instrumenter.Tracing {
+public final class RmiServerContextInstrumentation extends Instrumenter.Tracing {
 
   public RmiServerContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-server-context-propagator");
@@ -37,7 +37,7 @@ public class RmiServerContextInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$ObjectTableAdvice");
   }
 
-  public static class ObjectTableAdvice {
+  public static final class ObjectTableAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit(

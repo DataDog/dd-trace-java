@@ -11,7 +11,7 @@ import com.sun.jna.Pointer;
  * <p>It used an ioctl syscall with a dedicated request code that can be handled by the CWS eBPF
  * code.
  */
-public class Erpc {
+public final class Erpc {
   static final NativeLong REQUEST_CODE = new NativeLong(0xdeadc001L);
 
   public interface CLibrary extends Library {

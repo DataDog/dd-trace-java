@@ -13,7 +13,7 @@ import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
 
-public class HandlerAdapterAdvice {
+public final class HandlerAdapterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(

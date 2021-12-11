@@ -4,7 +4,7 @@ import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
-public class AkkaHttpServerHeaders implements AgentPropagation.ContextVisitor<HttpRequest> {
+public final class AkkaHttpServerHeaders implements AgentPropagation.ContextVisitor<HttpRequest> {
 
   public static final AkkaHttpServerHeaders GETTER = new AkkaHttpServerHeaders();
 

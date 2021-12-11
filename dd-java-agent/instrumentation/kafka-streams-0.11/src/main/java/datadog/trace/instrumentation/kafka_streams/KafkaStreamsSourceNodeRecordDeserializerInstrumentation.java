@@ -16,7 +16,8 @@ import org.apache.kafka.common.record.TimestampType;
 
 // This is necessary because SourceNodeRecordDeserializer drops the headers.  :-(
 @AutoService(Instrumenter.class)
-public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation extends Instrumenter.Tracing {
+public final class KafkaStreamsSourceNodeRecordDeserializerInstrumentation
+    extends Instrumenter.Tracing {
 
   public KafkaStreamsSourceNodeRecordDeserializerInstrumentation() {
     super("kafka", "kafka-streams");
@@ -39,7 +40,7 @@ public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation extends Ins
             + "$SaveHeadersAdvice");
   }
 
-  public static class SaveHeadersAdvice {
+  public static final class SaveHeadersAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void saveHeaders(

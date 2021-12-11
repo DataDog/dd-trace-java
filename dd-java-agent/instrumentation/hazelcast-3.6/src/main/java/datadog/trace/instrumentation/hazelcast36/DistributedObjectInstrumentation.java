@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
+public final class DistributedObjectInstrumentation extends Instrumenter.Tracing {
 
   private static final String PROXY_PACKAGE = "com.hazelcast.client.proxy";
 
@@ -202,7 +202,7 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
   }
 
   /** Advice for instrumenting distributed object client proxy classes. */
-  public static class SyncAdvice {
+  public static final class SyncAdvice {
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -261,7 +261,7 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
   }
 
   /** Advice for instrumenting distributed object client proxy classes. */
-  public static class CompletableFutureAdvice {
+  public static final class CompletableFutureAdvice {
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)

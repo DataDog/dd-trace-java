@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutionException;
 import net.spy.memcached.MemcachedConnection;
 import net.spy.memcached.internal.BulkGetFuture;
 
-public class BulkGetCompletionListener extends CompletionListener<BulkGetFuture<?>>
+public final class BulkGetCompletionListener extends CompletionListener<BulkGetFuture<?>>
     implements net.spy.memcached.internal.BulkGetCompletionListener {
 
   public BulkGetCompletionListener(final MemcachedConnection connection, final String methodName) {

@@ -15,7 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 /** Advice for instrumenting distributed object client proxy classes. */
-public class InvocationAdvice {
+public final class InvocationAdvice {
 
   /** Method entry instrumentation. */
   @Advice.OnMethodEnter(suppress = Throwable.class)

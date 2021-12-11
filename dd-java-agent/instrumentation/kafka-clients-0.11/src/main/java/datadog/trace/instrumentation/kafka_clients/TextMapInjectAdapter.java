@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapInjectAdapter implements AgentPropagation.Setter<Headers> {
+public final class TextMapInjectAdapter implements AgentPropagation.Setter<Headers> {
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 

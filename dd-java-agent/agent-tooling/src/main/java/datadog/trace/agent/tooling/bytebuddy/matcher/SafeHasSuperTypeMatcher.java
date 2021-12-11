@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> The type of the matched entity.
  * @see net.bytebuddy.matcher.HasSuperTypeMatcher
  */
-class SafeHasSuperTypeMatcher<T extends TypeDescription>
+final class SafeHasSuperTypeMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
@@ -163,7 +163,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    *
    * <p>This wrapper exists to allow getting interfaces even if the lookup on one fails.
    */
-  private static class SafeInterfaceIterator
+  private static final class SafeInterfaceIterator
       implements Iterator<TypeDefinition>, Iterable<TypeDefinition> {
     private final TypeDefinition typeDefinition;
     private final Iterator<TypeDescription.Generic> it;

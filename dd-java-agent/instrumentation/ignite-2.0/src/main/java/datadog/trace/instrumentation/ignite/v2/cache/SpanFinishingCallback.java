@@ -8,7 +8,7 @@ import org.apache.ignite.lang.IgniteInClosure;
  * FutureCallback, which automatically finishes the span and annotates with any appropriate metadata
  * on a potential failure.
  */
-public class SpanFinishingCallback implements IgniteInClosure<IgniteFuture<?>> {
+public final class SpanFinishingCallback implements IgniteInClosure<IgniteFuture<?>> {
 
   /** Span that we should finish and annotate when the future is complete. */
   private final AgentSpan span;

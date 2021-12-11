@@ -14,7 +14,7 @@ import io.micronaut.web.router.MethodBasedRouteMatch;
 import io.micronaut.web.router.RouteMatch;
 import io.micronaut.web.router.UriRouteMatch;
 
-public class MicronautDecorator
+public final class MicronautDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, MutableHttpResponse, Void> {
   private static final CharSequence MICRONAUT_CONTROLLER =
       UTF8BytesString.create("micronaut-controller");

@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDefinition;
 
-public class Utils {
+public final class Utils {
 
   // This is used in HelperInjectionTest.groovy
   private static Method findLoadedClassMethod = null;

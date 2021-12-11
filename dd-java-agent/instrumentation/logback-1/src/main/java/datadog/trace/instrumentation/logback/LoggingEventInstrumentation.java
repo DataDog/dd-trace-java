@@ -24,7 +24,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LoggingEventInstrumentation extends Instrumenter.Tracing {
+public final class LoggingEventInstrumentation extends Instrumenter.Tracing {
   public LoggingEventInstrumentation() {
     super("logback");
   }
@@ -67,7 +67,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
     };
   }
 
-  public static class GetMdcAdvice {
+  public static final class GetMdcAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This ILoggingEvent event,

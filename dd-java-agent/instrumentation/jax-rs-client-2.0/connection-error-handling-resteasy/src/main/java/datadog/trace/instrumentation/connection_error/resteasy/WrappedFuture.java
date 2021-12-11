@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
 
-public class WrappedFuture<T> implements Future<T> {
+public final class WrappedFuture<T> implements Future<T> {
 
   private final Future<T> wrapped;
   private final ClientConfiguration context;

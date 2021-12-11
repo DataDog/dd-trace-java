@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ReportServiceImpl implements ReportService {
+public final class ReportServiceImpl implements ReportService {
 
   private static final Logger log = LoggerFactory.getLogger(ReportServiceImpl.class);
 
@@ -35,7 +35,7 @@ public class ReportServiceImpl implements ReportService {
     }
   }
 
-  public static class TaskSchedulerImpl implements TaskScheduler {
+  public static final class TaskSchedulerImpl implements TaskScheduler {
     private final AgentTaskScheduler scheduler;
 
     private TaskSchedulerImpl(AgentTaskScheduler scheduler) {
@@ -107,7 +107,7 @@ public class ReportServiceImpl implements ReportService {
     }
   }
 
-  private static class PeriodicFlush implements AgentTaskScheduler.Task<ReportServiceImpl> {
+  private static final class PeriodicFlush implements AgentTaskScheduler.Task<ReportServiceImpl> {
     private static final AgentTaskScheduler.Task<ReportServiceImpl> INSTANCE = new PeriodicFlush();
 
     @Override

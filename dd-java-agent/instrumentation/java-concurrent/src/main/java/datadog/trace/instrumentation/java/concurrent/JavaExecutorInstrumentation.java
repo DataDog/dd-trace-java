@@ -34,7 +34,7 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
   }
 
-  public static class SetExecuteRunnableStateAdvice {
+  public static final class SetExecuteRunnableStateAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State enterJobSubmit(

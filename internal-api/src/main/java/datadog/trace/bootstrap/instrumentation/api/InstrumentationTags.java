@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public class InstrumentationTags {
+public final class InstrumentationTags {
 
   // this exists to make it easy to intern UTF-8 encoding
   // of tag/metric keys used in instrumentations. It should

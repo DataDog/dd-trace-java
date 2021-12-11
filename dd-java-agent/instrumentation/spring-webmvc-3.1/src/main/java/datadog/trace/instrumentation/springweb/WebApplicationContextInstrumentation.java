@@ -20,7 +20,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  * When the context is created, the filter will be added to the beginning of the filter chain
  */
 @AutoService(Instrumenter.class)
-public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
+public final class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
   public WebApplicationContextInstrumentation() {
     super("spring-web");
   }
@@ -63,7 +63,7 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
         WebApplicationContextInstrumentation.class.getName() + "$FilterInjectingAdvice");
   }
 
-  public static class FilterInjectingAdvice {
+  public static final class FilterInjectingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {

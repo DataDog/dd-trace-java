@@ -22,7 +22,7 @@ import org.apache.log4j.MDC;
 import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(Instrumenter.class)
-public class LoggingEventInstrumentation extends Instrumenter.Tracing {
+public final class LoggingEventInstrumentation extends Instrumenter.Tracing {
   public LoggingEventInstrumentation() {
     super("log4j", "log4j-1");
   }
@@ -53,7 +53,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
         LoggingEventInstrumentation.class.getName() + "$GetMdcCopyAdvice");
   }
 
-  public static class GetMdcAdvice {
+  public static final class GetMdcAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getMdcValue(
         @Advice.This LoggingEvent event,
@@ -109,7 +109,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class GetMdcCopyAdvice {
+  public static final class GetMdcCopyAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.This LoggingEvent event,

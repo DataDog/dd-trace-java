@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
-public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
+public final class ProcedureCallInstrumentation extends Instrumenter.Tracing {
 
   public ProcedureCallInstrumentation() {
     super(true, "hibernate", "hibernate-core");
@@ -62,7 +62,7 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
         ProcedureCallInstrumentation.class.getName() + "$ProcedureCallMethodAdvice");
   }
 
-  public static class ProcedureCallMethodAdvice {
+  public static final class ProcedureCallMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(

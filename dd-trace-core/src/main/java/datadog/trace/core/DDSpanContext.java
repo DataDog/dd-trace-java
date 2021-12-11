@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> {
+public final class DDSpanContext implements AgentSpan.Context, RequestContext<Object> {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";

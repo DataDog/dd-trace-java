@@ -17,7 +17,7 @@ import scala.runtime.AbstractFunction0;
  * whole instrumentation, the code and logic for adding a tag to a request has been encapsulated in
  * this helper class.
  */
-public class RequestHelper {
+public final class RequestHelper {
   // This is the method for creating a new Request from a RequestHeader and a value
   private static final MethodHandle APPLY;
   // This is the normal Play 2.5 method for adding a tag to a RequestHeader
@@ -105,7 +105,7 @@ public class RequestHelper {
    * Scala Function0 is not a Java Functional Interface in older Scala versions, so add a helper
    * class to bridge the gap.
    */
-  public static class SFunction0<T> extends AbstractFunction0<T> {
+  public static final class SFunction0<T> extends AbstractFunction0<T> {
     private final Supplier<T> supplier;
 
     public static <A> SFunction0<A> from(final Supplier<A> supplier) {

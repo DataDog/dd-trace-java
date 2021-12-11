@@ -12,7 +12,7 @@ import sun.rmi.transport.Connection;
 import sun.rmi.transport.StreamRemoteCall;
 import sun.rmi.transport.TransportConstants;
 
-public class ContextPropagator {
+public final class ContextPropagator {
   private static final Logger log = LoggerFactory.getLogger(ContextPropagator.class);
   // Internal RMI object ids that we don't want to trace
   private static final ObjID ACTIVATOR_ID = new ObjID(ObjID.ACTIVATOR_ID);

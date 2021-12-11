@@ -49,7 +49,7 @@ public final class ContinuationInstrumentation extends Instrumenter.Tracing {
         ContinuationInstrumentation.class.getName() + "$ResumeAdvice");
   }
 
-  public static class ResumeAdvice {
+  public static final class ResumeAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrap(@Advice.Argument(value = 0, readOnly = false) Block block) {

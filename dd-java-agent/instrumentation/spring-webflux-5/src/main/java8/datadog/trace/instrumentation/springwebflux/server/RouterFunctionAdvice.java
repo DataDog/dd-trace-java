@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
  * This advice is responsible for setting additional span parameters for routes implemented with
  * functional interface.
  */
-public class RouterFunctionAdvice {
+public final class RouterFunctionAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(

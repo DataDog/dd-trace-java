@@ -10,7 +10,7 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.BaseFilter;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 
-public class FilterAdvice {
+public final class FilterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(

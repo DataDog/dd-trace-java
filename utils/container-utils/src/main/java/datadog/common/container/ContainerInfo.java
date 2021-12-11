@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
  * Qard/container-info
  */
 @SuppressForbidden
-public class ContainerInfo {
+public final class ContainerInfo {
 
   private static final Logger log = LoggerFactory.getLogger(ContainerInfo.class);
 
@@ -78,7 +78,7 @@ public class ContainerInfo {
     INSTANCE = containerInfo;
   }
 
-  public static class CGroupInfo {
+  public static final class CGroupInfo {
     public int id;
     public String path;
     public List<String> controllers;

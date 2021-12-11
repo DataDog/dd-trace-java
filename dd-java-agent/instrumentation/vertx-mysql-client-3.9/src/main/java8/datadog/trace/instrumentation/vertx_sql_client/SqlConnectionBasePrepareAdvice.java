@@ -11,7 +11,7 @@ import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;
 
-public class SqlConnectionBasePrepareAdvice {
+public final class SqlConnectionBasePrepareAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beforePrepare(
       @Advice.This final SqlClient zis,

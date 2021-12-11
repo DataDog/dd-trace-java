@@ -11,7 +11,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class QueuedThreadPoolInstrumentation extends Instrumenter.Tracing {
+public final class QueuedThreadPoolInstrumentation extends Instrumenter.Tracing {
   public QueuedThreadPoolInstrumentation() {
     super("jetty-concurrent");
   }

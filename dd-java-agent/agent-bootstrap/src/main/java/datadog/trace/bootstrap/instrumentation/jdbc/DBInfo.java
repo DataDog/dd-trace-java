@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import java.util.Objects;
 
-public class DBInfo {
+public final class DBInfo {
   public static DBInfo DEFAULT = new Builder().type("database").build();
   private final String type;
   private final String subtype;
@@ -32,7 +32,7 @@ public class DBInfo {
     this.port = port;
   }
 
-  public static class Builder {
+  public static final class Builder {
     private String type;
     private String subtype;
     private String url;

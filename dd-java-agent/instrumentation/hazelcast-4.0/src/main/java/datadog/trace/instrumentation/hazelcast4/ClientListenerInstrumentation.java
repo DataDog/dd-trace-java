@@ -24,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientListenerInstrumentation extends Instrumenter.Tracing {
+public final class ClientListenerInstrumentation extends Instrumenter.Tracing {
 
   public ClientListenerInstrumentation() {
     super(INSTRUMENTATION_NAME);
@@ -55,7 +55,7 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
   }
 
   /** Advice for instrumenting distributed object client proxy classes. */
-  public static class ListenerAdvice {
+  public static final class ListenerAdvice {
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)

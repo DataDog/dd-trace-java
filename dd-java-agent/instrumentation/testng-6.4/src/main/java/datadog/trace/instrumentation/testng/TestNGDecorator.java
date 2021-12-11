@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import datadog.trace.util.Strings;
 import org.testng.ITestResult;
 
-public class TestNGDecorator extends TestDecorator {
+public final class TestNGDecorator extends TestDecorator {
   public static final TestNGDecorator DECORATE = new TestNGDecorator();
 
   @Override

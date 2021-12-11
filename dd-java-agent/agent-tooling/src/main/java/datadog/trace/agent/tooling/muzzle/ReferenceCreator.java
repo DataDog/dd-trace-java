@@ -25,7 +25,7 @@ import net.bytebuddy.jar.asm.Type;
 // - outer class
 // - inner class
 // - cast opcodes in method bodies
-public class ReferenceCreator extends ClassVisitor {
+public final class ReferenceCreator extends ClassVisitor {
   /**
    * Classes in this namespace will be scanned and used to create references.
    *
@@ -228,7 +228,7 @@ public class ReferenceCreator extends ClassVisitor {
         super.visitMethod(access, name, descriptor, signature, exceptions));
   }
 
-  private class AdviceReferenceMethodVisitor extends MethodVisitor {
+  private final class AdviceReferenceMethodVisitor extends MethodVisitor {
     private int currentLineNumber = UNDEFINED_LINE;
 
     public AdviceReferenceMethodVisitor(final MethodVisitor methodVisitor) {

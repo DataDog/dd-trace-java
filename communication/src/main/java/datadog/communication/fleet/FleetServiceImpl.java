@@ -68,7 +68,7 @@ public class FleetServiceImpl implements FleetService {
     }
   }
 
-  private class AgentConfigPollingRunnable implements Runnable {
+  private final class AgentConfigPollingRunnable implements Runnable {
     private static final double BACKOFF_INITIAL = 3.0d;
     private static final double BACKOFF_BASE = 3.0d;
     private static final double BACKOFF_MAX_EXPONENT = 3.0d;
@@ -215,7 +215,7 @@ public class FleetServiceImpl implements FleetService {
     }
   }
 
-  private class FleetSubscriptionImpl implements FleetService.FleetSubscription {
+  private final class FleetSubscriptionImpl implements FleetService.FleetSubscription {
     private final Product product;
     private final Map<String, String> headers;
     private final ConfigurationListener listener;

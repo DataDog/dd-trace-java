@@ -45,7 +45,7 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
         AbstractConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
   }
 
-  public static class ConnectionPrepareAdvice {
+  public static final class ConnectionPrepareAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.This Connection connection,

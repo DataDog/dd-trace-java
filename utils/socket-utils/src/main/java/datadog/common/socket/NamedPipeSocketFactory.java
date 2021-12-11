@@ -6,7 +6,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import javax.net.SocketFactory;
 
-public class NamedPipeSocketFactory extends SocketFactory {
+public final class NamedPipeSocketFactory extends SocketFactory {
   private static final String NAMED_PIPE_PREFIX = "\\\\.\\pipe\\";
   private final File pipe;
 

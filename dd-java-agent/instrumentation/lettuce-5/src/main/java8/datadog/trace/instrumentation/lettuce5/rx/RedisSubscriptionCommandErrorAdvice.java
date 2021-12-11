@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 
-public class RedisSubscriptionCommandErrorAdvice {
+public final class RedisSubscriptionCommandErrorAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterError(
       @Advice.This RedisCommand command, @Advice.Argument(value = 0) Throwable throwable) {

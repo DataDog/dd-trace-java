@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Alex Antonov
  */
-class HaystackHttpCodec {
+final class HaystackHttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
 
@@ -44,7 +44,7 @@ class HaystackHttpCodec {
 
   public static final HttpCodec.Injector INJECTOR = new Injector();
 
-  private static class Injector implements HttpCodec.Injector {
+  private static final class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(
@@ -111,7 +111,7 @@ class HaystackHttpCodec {
         });
   }
 
-  private static class HaystackContextInterpreter extends ContextInterpreter {
+  private static final class HaystackContextInterpreter extends ContextInterpreter {
 
     private static final String BAGGAGE_PREFIX_LC = "baggage-";
 

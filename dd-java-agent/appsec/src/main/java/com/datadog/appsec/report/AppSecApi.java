@@ -93,7 +93,7 @@ public class AppSecApi {
     agentTaskScheduler.schedule(task, request, 0, TimeUnit.MILLISECONDS);
   }
 
-  private class AppSecApiHttpTask implements AgentTaskScheduler.Task<Request> {
+  private final class AppSecApiHttpTask implements AgentTaskScheduler.Task<Request> {
     @Override
     public void run(Request request) {
       try {

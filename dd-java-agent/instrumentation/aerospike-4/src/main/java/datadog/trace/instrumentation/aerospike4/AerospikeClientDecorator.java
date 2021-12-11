@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
-public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
+public final class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
   public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
   public static final UTF8BytesString AEROSPIKE_COMMAND =
       UTF8BytesString.create("aerospike.command");

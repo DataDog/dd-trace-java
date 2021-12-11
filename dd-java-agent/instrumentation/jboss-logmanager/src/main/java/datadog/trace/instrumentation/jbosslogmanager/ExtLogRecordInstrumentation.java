@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(Instrumenter.class)
-public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
+public final class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
   }
@@ -71,7 +71,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
     };
   }
 
-  public static class GetMdcAdvice {
+  public static final class GetMdcAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getMdcValue(
         @Advice.This ExtLogRecord record,
@@ -126,7 +126,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class GetMdcCopyAdvice {
+  public static final class GetMdcCopyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This ExtLogRecord record,

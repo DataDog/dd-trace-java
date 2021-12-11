@@ -58,7 +58,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
         KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice");
   }
 
-  public static class ProducerAdvice {
+  public static final class ProducerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

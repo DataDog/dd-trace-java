@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
+public final class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
 
   public AkkaActorCellInstrumentation() {
     super("akka_actor_receive", "akka_actor", "akka_concurrent", "java_concurrent");
@@ -54,7 +54,7 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
    * {@code AkkaHttpServerInstrumentation} so that it propagates to the user provided request
    * handling code that will execute on the same thread in the same actor.
    */
-  public static class InvokeAdvice {
+  public static final class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
         @Advice.Argument(value = 0) Envelope envelope,

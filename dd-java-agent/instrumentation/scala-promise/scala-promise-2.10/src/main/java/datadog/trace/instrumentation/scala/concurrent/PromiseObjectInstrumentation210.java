@@ -25,7 +25,7 @@ import scala.util.Try;
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
 @AutoService(Instrumenter.class)
-public class PromiseObjectInstrumentation210 extends Instrumenter.Tracing {
+public final class PromiseObjectInstrumentation210 extends Instrumenter.Tracing {
 
   public PromiseObjectInstrumentation210() {
     super("scala_promise_resolve", "scala_concurrent");

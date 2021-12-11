@@ -8,7 +8,7 @@ import com.sun.jna.Pointer;
  *
  * <p>A request is made of one op code of 8 bits + 256 bytes of data.
  */
-public class Request {
+public final class Request {
   static final int OP_CODE_SIZE = 1;
   static final int REQUEST_BUFFER_SIZE = OP_CODE_SIZE + 256;
 

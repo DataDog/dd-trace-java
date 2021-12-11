@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class AppSecConfig {
+public final class AppSecConfig {
 
   private static final JsonAdapter<AppSecConfig> ADAPTER =
       new Moshi.Builder().build().adapter(AppSecConfig.class);
@@ -38,7 +38,7 @@ public class AppSecConfig {
     return rawConfig;
   }
 
-  public static class Rule {
+  public static final class Rule {
     private String id;
     private String name;
     private Map<String, String> tags;

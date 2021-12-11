@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
-public class HazelcastDecorator extends ClientDecorator {
+public final class HazelcastDecorator extends ClientDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HazelcastDecorator.class);
 

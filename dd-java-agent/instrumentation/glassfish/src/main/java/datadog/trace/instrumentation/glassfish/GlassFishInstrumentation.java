@@ -38,7 +38,7 @@ public final class GlassFishInstrumentation extends Instrumenter.Tracing {
         GlassFishInstrumentation.class.getName() + "$AvoidGlassFishBlockingAdvice");
   }
 
-  public static class AvoidGlassFishBlockingAdvice {
+  public static final class AvoidGlassFishBlockingAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void preventBlockingOfTracerClasses(

@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * DefaultRequestContextInstrumentation</code>
  */
 @AutoService(Instrumenter.class)
-public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing {
+public final class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing {
 
   public ContainerRequestFilterInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-filter");
@@ -47,7 +47,7 @@ public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing 
         ContainerRequestFilterInstrumentation.class.getName() + "$RequestFilterAdvice");
   }
 
-  public static class RequestFilterAdvice {
+  public static final class RequestFilterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void setFilterClass(
         @Advice.This final ContainerRequestFilter filter,

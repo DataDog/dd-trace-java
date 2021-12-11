@@ -11,7 +11,7 @@ import io.micronaut.http.server.netty.NettyHttpRequest;
 import io.micronaut.web.router.RouteMatch;
 import net.bytebuddy.asm.Advice;
 
-public class HandleRouteMatchAdvice {
+public final class HandleRouteMatchAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beginRequest(
       @Advice.Argument(0) final RouteMatch<?> route,

@@ -7,7 +7,7 @@ import java.nio.CharBuffer;
 import java.util.Arrays;
 
 /** Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types. */
-public class StoredCharBody implements StoredBodySupplier {
+public final class StoredCharBody implements StoredBodySupplier {
   private static final int MIN_BUFFER_SIZE = 128; // chars
   private static final int MAX_BUFFER_SIZE = 128 * 1024; // 256k (char == 2 bytes)
   private static final int GROW_FACTOR = 4;

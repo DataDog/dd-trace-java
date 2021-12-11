@@ -65,7 +65,7 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$Http2BindAndHandleAsync6ArgAdvice");
   }
 
-  public static class Http2BindAndHandleAsync8ArgAdvice {
+  public static final class Http2BindAndHandleAsync8ArgAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(value = 0, readOnly = false)
@@ -75,7 +75,7 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class Http2BindAndHandleAsync7ArgAdvice {
+  public static final class Http2BindAndHandleAsync7ArgAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(value = 0, readOnly = false)
@@ -85,7 +85,7 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class Http2BindAndHandleAsync6ArgAdvice {
+  public static final class Http2BindAndHandleAsync6ArgAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(value = 0, readOnly = false)

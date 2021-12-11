@@ -6,7 +6,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class MapDataBundle implements DataBundle {
+public final class MapDataBundle implements DataBundle {
   private final Map<Address<?>, Object> map;
 
   private MapDataBundle(Map<Address<?>, Object> map) {
@@ -62,7 +62,7 @@ public class MapDataBundle implements DataBundle {
     return map.entrySet().iterator();
   }
 
-  public static class Builder {
+  public static final class Builder {
 
     private final Map<Address<?>, Object> map;
 

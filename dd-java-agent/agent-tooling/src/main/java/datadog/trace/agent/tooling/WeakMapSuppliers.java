@@ -7,7 +7,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
 import java.util.concurrent.TimeUnit;
 
-class WeakMapSuppliers {
+final class WeakMapSuppliers {
   // Comparison with using WeakConcurrentMap vs Guava's implementation:
   // Cleaning:
   // * `WeakConcurrentMap`: centralized but we have to maintain out own code and thread for it
@@ -29,7 +29,7 @@ class WeakMapSuppliers {
    * single thread to clean void weak references out for all instances. Cleaning is done every
    * second.
    */
-  static class WeakConcurrent implements WeakMap.Implementation {
+  static final class WeakConcurrent implements WeakMap.Implementation {
 
     static final long CLEAN_FREQUENCY_SECONDS = 1;
 
@@ -46,7 +46,7 @@ class WeakMapSuppliers {
     }
 
     // Important to use explicit class to avoid implicit hard references to target
-    private static class MapCleaningTask implements Task<WeakConcurrentMap<?, ?>> {
+    private static final class MapCleaningTask implements Task<WeakConcurrentMap<?, ?>> {
 
       static final MapCleaningTask INSTANCE = new MapCleaningTask();
 
@@ -56,7 +56,7 @@ class WeakMapSuppliers {
       }
     }
 
-    private static class Adapter<K, V> implements WeakMap<K, V> {
+    private static final class Adapter<K, V> implements WeakMap<K, V> {
 
       private final WeakConcurrentMap<K, V> map;
 

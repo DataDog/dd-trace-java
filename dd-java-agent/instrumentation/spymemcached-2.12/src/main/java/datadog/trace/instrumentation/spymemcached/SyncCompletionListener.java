@@ -6,7 +6,7 @@ import net.spy.memcached.MemcachedConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SyncCompletionListener extends CompletionListener<Void> {
+public final class SyncCompletionListener extends CompletionListener<Void> {
   private static final Logger log = LoggerFactory.getLogger(SyncCompletionListener.class);
 
   public SyncCompletionListener(final MemcachedConnection connection, final String methodName) {

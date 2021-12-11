@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
-public class HttpResourceDecorator {
+public final class HttpResourceDecorator {
   public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");

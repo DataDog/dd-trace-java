@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.kafka_clients;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public class TracingIterable implements Iterable<ConsumerRecord<?, ?>>, TracingIterableDelegator {
+public final class TracingIterable
+    implements Iterable<ConsumerRecord<?, ?>>, TracingIterableDelegator {
   private final Iterable<ConsumerRecord<?, ?>> delegate;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;

@@ -22,7 +22,7 @@ import io.grpc.Status;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 
-public class TracingServerInterceptor implements ServerInterceptor {
+public final class TracingServerInterceptor implements ServerInterceptor {
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();

@@ -54,7 +54,7 @@ public final class MongoSuspendSpanInstrumentation extends Instrumenter.Tracing 
         MongoSuspendSpanInstrumentation.class.getName() + "$MongoSuspend");
   }
 
-  public static class MongoSuspend {
+  public static final class MongoSuspend {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onBefore(
         @Advice.FieldValue("description") ConnectionDescription description,

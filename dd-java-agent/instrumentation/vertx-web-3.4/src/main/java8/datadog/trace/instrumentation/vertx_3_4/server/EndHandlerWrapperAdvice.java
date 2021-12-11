@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.vertx_3_4.server;
 import io.vertx.core.Handler;
 import net.bytebuddy.asm.Advice;
 
-public class EndHandlerWrapperAdvice {
+public final class EndHandlerWrapperAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void wrapHandler(
       @Advice.FieldValue(value = "endHandler", readOnly = false) final Handler<Void> endHandler,

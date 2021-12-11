@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
+public final class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
   public SqsJmsMessageInstrumentation() {
     super("aws-sdk");
   }
@@ -45,7 +45,7 @@ public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$CopyTracePropertyAdvice");
   }
 
-  public static class CopyTracePropertyAdvice {
+  public static final class CopyTracePropertyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(2) Message sqsMessage, @Advice.FieldValue("properties") Map properties)

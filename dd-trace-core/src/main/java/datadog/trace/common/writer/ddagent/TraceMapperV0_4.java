@@ -180,7 +180,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     return "v0.4";
   }
 
-  private static class PayloadV0_4 extends Payload {
+  private static final class PayloadV0_4 extends Payload {
 
     @Override
     public int sizeInBytes() {

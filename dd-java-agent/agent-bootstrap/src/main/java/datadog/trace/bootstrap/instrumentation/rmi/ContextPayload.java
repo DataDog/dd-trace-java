@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** ContextPayload wraps context information shared between client and server */
-public class ContextPayload {
+public final class ContextPayload {
 
   private static final Logger log = LoggerFactory.getLogger(ContextPayload.class);
   private final Map<String, String> context;
@@ -54,7 +54,7 @@ public class ContextPayload {
     out.writeObject(context);
   }
 
-  public static class InjectAdapter implements AgentPropagation.Setter<ContextPayload> {
+  public static final class InjectAdapter implements AgentPropagation.Setter<ContextPayload> {
     @Override
     public void set(final ContextPayload carrier, final String key, final String value) {
       carrier.getContext().put(key, value);

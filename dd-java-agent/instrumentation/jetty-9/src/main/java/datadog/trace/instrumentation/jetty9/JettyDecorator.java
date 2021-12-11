@@ -14,7 +14,7 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
-public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
+public final class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
   public static final JettyDecorator DECORATE = new JettyDecorator();

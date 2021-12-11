@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Starts an external process and restarts the process if it dies */
-public class ProcessSupervisor implements Closeable {
+public final class ProcessSupervisor implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(ProcessSupervisor.class);
   private static final long MIN_RESTART_INTERVAL_MS = 10 * 1000;
 
@@ -31,7 +31,7 @@ public class ProcessSupervisor implements Closeable {
     supervisorThread.start();
   }
 
-  private class SupervisorLoop implements Runnable {
+  private final class SupervisorLoop implements Runnable {
     @Override
     public void run() {
       try {

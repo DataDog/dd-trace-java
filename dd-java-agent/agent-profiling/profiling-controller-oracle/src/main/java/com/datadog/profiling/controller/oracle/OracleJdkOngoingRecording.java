@@ -10,7 +10,7 @@ import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OracleJdkOngoingRecording implements OngoingRecording {
+public final class OracleJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OracleJdkOngoingRecording.class);
   private final String name;
   private final JfrMBeanHelper helper;

@@ -14,7 +14,7 @@ import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class TracingInterceptor implements Interceptor {
+public final class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
     if (chain.request().header("Datadog-Meta-Lang") != null) {

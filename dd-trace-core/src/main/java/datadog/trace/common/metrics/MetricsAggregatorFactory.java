@@ -5,7 +5,7 @@ import datadog.trace.api.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MetricsAggregatorFactory {
+public final class MetricsAggregatorFactory {
   private static final Logger log = LoggerFactory.getLogger(MetricsAggregatorFactory.class);
 
   public static MetricsAggregator createMetricsAggregator(

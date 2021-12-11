@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
+public final class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
 
   public AkkaEnvelopeInstrumentation() {
     super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
@@ -37,7 +37,7 @@ public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$ConstructAdvice");
   }
 
-  public static class ConstructAdvice {
+  public static final class ConstructAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This Envelope zis) {
       capture(InstrumentationContext.get(Envelope.class, State.class), zis, true);

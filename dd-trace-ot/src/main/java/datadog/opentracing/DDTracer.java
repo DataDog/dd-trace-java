@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-public class DDTracer implements Tracer, datadog.trace.api.Tracer {
+public final class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
@@ -72,7 +72,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   // Perhaps the api can change so that CoreTracer doesn't need to implement scope methods directly
   private ScopeManager scopeManager;
 
-  public static class DDTracerBuilder {
+  public static final class DDTracerBuilder {
 
     private Config config;
     private String serviceName;
@@ -485,7 +485,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     tracer.close();
   }
 
-  private static class TextMapInjectSetter implements AgentPropagation.Setter<TextMapInject> {
+  private static final class TextMapInjectSetter implements AgentPropagation.Setter<TextMapInject> {
     static final TextMapInjectSetter INSTANCE = new TextMapInjectSetter();
 
     @Override
@@ -494,7 +494,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     }
   }
 
-  private static class TextMapExtractGetter
+  private static final class TextMapExtractGetter
       implements AgentPropagation.ContextVisitor<TextMapExtract> {
     private final TextMapExtract carrier;
 
@@ -513,7 +513,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     }
   }
 
-  public class DDSpanBuilder implements SpanBuilder {
+  public final class DDSpanBuilder implements SpanBuilder {
     private final AgentTracer.SpanBuilder delegate;
 
     public DDSpanBuilder(final String operationName) {

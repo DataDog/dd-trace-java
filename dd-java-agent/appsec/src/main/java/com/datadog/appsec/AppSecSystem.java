@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AppSecSystem {
+public final class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();

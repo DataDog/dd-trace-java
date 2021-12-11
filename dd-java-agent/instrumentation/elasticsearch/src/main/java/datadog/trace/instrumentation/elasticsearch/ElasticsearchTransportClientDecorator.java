@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 
-public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorator {
+public final class ElasticsearchTransportClientDecorator extends DatabaseClientDecorator {
 
   public static final CharSequence ELASTICSEARCH_QUERY =
       UTF8BytesString.create("elasticsearch.query");

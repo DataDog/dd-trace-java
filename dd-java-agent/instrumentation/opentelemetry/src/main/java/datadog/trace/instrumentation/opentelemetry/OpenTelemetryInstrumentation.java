@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This is experimental instrumentation and should only be enabled for evaluation/testing purposes.
  */
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Tracing {
+public final class OpenTelemetryInstrumentation extends Instrumenter.Tracing {
   public OpenTelemetryInstrumentation() {
     super("opentelemetry-beta");
   }
@@ -61,14 +61,14 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing {
         OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");
   }
 
-  public static class TracerProviderAdvice {
+  public static final class TracerProviderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
       result = OtelTracerProvider.INSTANCE;
     }
   }
 
-  public static class ContextPropagatorsAdvice {
+  public static final class ContextPropagatorsAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
       result = OtelContextPropagators.INSTANCE;

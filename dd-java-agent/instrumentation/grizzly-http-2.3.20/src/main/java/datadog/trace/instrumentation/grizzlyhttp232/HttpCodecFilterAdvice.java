@@ -6,7 +6,7 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.http.HttpHeader;
 
-public class HttpCodecFilterAdvice {
+public final class HttpCodecFilterAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(

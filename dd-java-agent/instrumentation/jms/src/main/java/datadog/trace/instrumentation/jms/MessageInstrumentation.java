@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class MessageInstrumentation extends Instrumenter.Tracing {
+public final class MessageInstrumentation extends Instrumenter.Tracing {
   public MessageInstrumentation() {
     super("jms", "jms-1", "jms-2");
   }

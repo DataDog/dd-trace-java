@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CursorImplInstrumentation extends Instrumenter.Tracing {
+public final class CursorImplInstrumentation extends Instrumenter.Tracing {
   public CursorImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }

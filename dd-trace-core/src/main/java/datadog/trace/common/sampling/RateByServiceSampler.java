@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
-public class RateByServiceSampler<T extends CoreSpan<T>>
+public final class RateByServiceSampler<T extends CoreSpan<T>>
     implements Sampler<T>, PrioritySampler<T>, DDAgentResponseListener {
 
   private static final Logger log = LoggerFactory.getLogger(RateByServiceSampler.class);

@@ -16,7 +16,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 
-public class NettyHttpServerDecorator
+public final class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");

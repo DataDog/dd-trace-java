@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 
-public class JaxRsAnnotationsDecorator extends BaseDecorator {
+public final class JaxRsAnnotationsDecorator extends BaseDecorator {
   public static JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
 
   private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>>

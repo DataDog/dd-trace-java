@@ -6,7 +6,7 @@ import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.util.concurrent.ConcurrentMap;
 
-public class CLHMWeakCache<K, V> implements WeakCache<K, V> {
+public final class CLHMWeakCache<K, V> implements WeakCache<K, V> {
   public static final class Provider implements WeakCache.Provider {
     @Override
     public <K, V> WeakCache<K, V> newWeakCache(long maxSize) {

@@ -14,7 +14,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 
 @ChannelHandler.Sharable
-public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
+public final class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
   public static HttpServerRequestTracingHandler INSTANCE = new HttpServerRequestTracingHandler();
 
   @Override

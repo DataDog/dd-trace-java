@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * end up causing packaging problems. We should revisit this later.
  */
 @SuppressForbidden
-public class PidHelper {
+public final class PidHelper {
   private static final Logger log = LoggerFactory.getLogger(PidHelper.class);
 
   public static final String PID_TAG = "pid";

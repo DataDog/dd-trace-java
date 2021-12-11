@@ -12,7 +12,7 @@ import jdk.jfr.StackTrace;
 @Description("Datadog event corresponding to a tracing checkpoint.")
 @Category("Datadog")
 @StackTrace(false)
-public class CheckpointEvent extends Event {
+public final class CheckpointEvent extends Event {
 
   @Label("Local Root Span Id Id")
   private final long localRootSpanId;

@@ -6,7 +6,7 @@ import net.bytebuddy.asm.Advice;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.privileged.event.PrivilegedEvent;
 
-public class PrivilegedEventSetCurrentAdvice {
+public final class PrivilegedEventSetCurrentAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(@Advice.Argument(0) final PrivilegedEvent event) {
     CurrentEventHelper.handleEventChange(

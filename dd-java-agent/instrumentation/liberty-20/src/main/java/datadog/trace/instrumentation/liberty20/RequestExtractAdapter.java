@@ -4,7 +4,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
-public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<HttpServletRequest> {
+public final class RequestExtractAdapter
+    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
 
   public static final RequestExtractAdapter GETTER = new RequestExtractAdapter();
 

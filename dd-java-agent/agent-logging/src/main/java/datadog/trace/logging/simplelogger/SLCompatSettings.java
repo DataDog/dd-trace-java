@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Properties;
 
 /** Settings that provide the same configurable options as {@code SimpleLogger} from SLF4J. */
-public class SLCompatSettings {
+public final class SLCompatSettings {
 
   public static final class Names {
     public static final String WARN_LEVEL_STRING = "warnLevelString";
@@ -93,14 +93,14 @@ public class SLCompatSettings {
         StringBuilder builder, long timeMillis, long startTimeMillis);
   }
 
-  public static class DiffDTFormatter extends DTFormatter {
+  public static final class DiffDTFormatter extends DTFormatter {
     @Override
     public void appendFormattedDate(StringBuilder builder, long timeMillis, long startTimeMillis) {
       builder.append(timeMillis - startTimeMillis);
     }
   }
 
-  public static class LegacyDTFormatter extends DTFormatter {
+  public static final class LegacyDTFormatter extends DTFormatter {
     private final DateFormat dateFormat;
 
     public LegacyDTFormatter(String dateTimeFormat) {
@@ -118,7 +118,7 @@ public class SLCompatSettings {
     }
   }
 
-  public static class NewDTFormatter extends DTFormatter {
+  public static final class NewDTFormatter extends DTFormatter {
     private final Object dateTimeFormatter;
     private final MethodHandle formatTo;
     private final MethodHandle instantOfEpochMilli;

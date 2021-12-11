@@ -17,7 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
-public class DatadogServerRequestResponseFlowWrapper
+public final class DatadogServerRequestResponseFlowWrapper
     extends GraphStage<BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest>> {
   private final Inlet<HttpRequest> requestInlet = Inlet.create("Datadog.server.requestIn");
   private final Outlet<HttpRequest> requestOutlet = Outlet.create("Datadog.server.requestOut");

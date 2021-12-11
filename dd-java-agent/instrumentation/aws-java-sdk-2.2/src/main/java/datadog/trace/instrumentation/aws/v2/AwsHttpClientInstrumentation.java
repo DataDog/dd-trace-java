@@ -48,7 +48,7 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
         AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
   }
 
-  public static class AwsHttpClientAdvice {
+  public static final class AwsHttpClientAdvice {
     // scope.close here doesn't actually close the span.
 
     /**

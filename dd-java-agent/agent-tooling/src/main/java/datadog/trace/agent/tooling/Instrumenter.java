@@ -202,7 +202,7 @@ public interface Instrumenter {
       return agentBuilder;
     }
 
-    private static class AdviceBuilder implements AdviceTransformation {
+    private static final class AdviceBuilder implements AdviceTransformation {
       AgentBuilder.Identified.Extendable agentBuilder;
       final ElementMatcher<? super MethodDescription> ignoreMatcher;
 
@@ -225,7 +225,7 @@ public interface Instrumenter {
     }
 
     /** Matches classes for which instrumentation is not muzzled. */
-    private class MuzzleMatcher implements AgentBuilder.RawMatcher {
+    private final class MuzzleMatcher implements AgentBuilder.RawMatcher {
       @Override
       public boolean matches(
           final TypeDescription typeDescription,

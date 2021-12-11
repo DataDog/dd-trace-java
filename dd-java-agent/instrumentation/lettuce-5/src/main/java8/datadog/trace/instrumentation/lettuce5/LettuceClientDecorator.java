@@ -8,7 +8,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.protocol.RedisCommand;
 
-public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
+public final class LettuceClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
   public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
   public static final CharSequence REDIS_QUERY = UTF8BytesString.create("redis.query");
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();

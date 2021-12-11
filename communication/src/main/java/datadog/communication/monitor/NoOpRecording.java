@@ -1,6 +1,6 @@
 package datadog.communication.monitor;
 
-public class NoOpRecording extends Recording {
+public final class NoOpRecording extends Recording {
 
   public static final Recording NO_OP = new NoOpRecording();
 

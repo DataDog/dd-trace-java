@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import net.spy.memcached.MemcachedConnection;
 
-public class MemcacheClientDecorator
+public final class MemcacheClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<MemcachedConnection> {
   private static final CharSequence JAVA_SPYMEMCACHED = UTF8BytesString.create("java-spymemcached");
   public static final MemcacheClientDecorator DECORATE = new MemcacheClientDecorator();

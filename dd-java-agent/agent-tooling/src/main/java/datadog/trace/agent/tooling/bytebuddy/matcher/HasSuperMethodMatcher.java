@@ -11,7 +11,7 @@ import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.matcher.ElementMatcher;
 
 // TODO: add javadoc
-class HasSuperMethodMatcher<T extends MethodDescription>
+final class HasSuperMethodMatcher<T extends MethodDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
   private final ElementMatcher<? super MethodDescription> matcher;

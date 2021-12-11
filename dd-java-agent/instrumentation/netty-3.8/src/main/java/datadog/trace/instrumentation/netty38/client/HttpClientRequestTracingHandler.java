@@ -20,7 +20,7 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
-public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHandler {
+public final class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHandler {
 
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 

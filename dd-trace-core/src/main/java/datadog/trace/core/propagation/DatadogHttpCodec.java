@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A codec designed for HTTP transport via headers using Datadog headers */
-class DatadogHttpCodec {
+final class DatadogHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
 
   private static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
@@ -29,7 +29,7 @@ class DatadogHttpCodec {
 
   public static final HttpCodec.Injector INJECTOR = new Injector();
 
-  private static class Injector implements HttpCodec.Injector {
+  private static final class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(
@@ -62,7 +62,7 @@ class DatadogHttpCodec {
         });
   }
 
-  private static class DatadogContextInterpreter extends ContextInterpreter {
+  private static final class DatadogContextInterpreter extends ContextInterpreter {
 
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;

@@ -21,7 +21,7 @@ import net.bytebuddy.dynamic.ClassFileLocator;
  *
  * <p>Additionally, after a successful muzzle validation run each instrumenter's helper injector.
  */
-public class MuzzleVersionScanPlugin {
+public final class MuzzleVersionScanPlugin {
 
   public static void assertInstrumentationMuzzled(
       final ClassLoader instrumentationLoader,

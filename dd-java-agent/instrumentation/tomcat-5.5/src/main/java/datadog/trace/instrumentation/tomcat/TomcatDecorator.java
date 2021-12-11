@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
-public class TomcatDecorator
+public final class TomcatDecorator
     extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");

@@ -26,7 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nonnull;
 
-public class TracingSession extends SessionWrapper implements CqlSession {
+public final class TracingSession extends SessionWrapper implements CqlSession {
   private static final ExecutorService EXECUTOR_SERVICE =
       Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));
 

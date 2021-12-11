@@ -11,7 +11,7 @@ import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
-public class TracingListener implements ITestListener {
+public final class TracingListener implements ITestListener {
 
   private final String version;
 

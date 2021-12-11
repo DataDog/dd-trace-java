@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.server.Request;
 
-public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
+public final class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
 
   public static final RequestExtractAdapter GETTER = new RequestExtractAdapter();
 

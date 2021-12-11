@@ -25,7 +25,7 @@ import javax.annotation.Nonnull;
 import javax.management.ObjectName;
 
 /** Implementation for profiling recordings. */
-public class OracleJdkRecordingData extends RecordingData {
+public final class OracleJdkRecordingData extends RecordingData {
   private final ObjectName recordingId;
   private final String name;
 
@@ -65,7 +65,7 @@ public class OracleJdkRecordingData extends RecordingData {
     return "OracleJdkRecording: " + getName();
   }
 
-  private class JfrRecordingStream extends InputStream {
+  private final class JfrRecordingStream extends InputStream {
     private byte[] buf = new byte[0];
     private int count = 0;
     private int pos = 0;

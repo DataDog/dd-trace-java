@@ -41,7 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Bridges the instrumentation gateway and the reactive engine. */
-public class GatewayBridge {
+public final class GatewayBridge {
   private static final Events<AppSecRequestContext> EVENTS = Events.get();
 
   private static final Logger log = LoggerFactory.getLogger(GatewayBridge.class);
@@ -180,7 +180,7 @@ public class GatewayBridge {
     this.reportService.close();
   }
 
-  private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
+  private static final class RequestContextSupplier implements Flow<AppSecRequestContext> {
     private final AppSecRequestContext appSecRequestContext = new AppSecRequestContext();
 
     @Override
@@ -194,7 +194,7 @@ public class GatewayBridge {
     }
   }
 
-  private static class NewHeaderCallback
+  private static final class NewHeaderCallback
       implements TriConsumer<RequestContext<AppSecRequestContext>, String, String> {
     @Override
     public void accept(RequestContext<AppSecRequestContext> ctx_, String name, String value) {
@@ -210,7 +210,7 @@ public class GatewayBridge {
     }
   }
 
-  private class MethodAndRawURICallback
+  private final class MethodAndRawURICallback
       implements TriFunction<
           RequestContext<AppSecRequestContext>, String, URIDataAdapter, Flow<Void>> {
     @Override
@@ -243,7 +243,7 @@ public class GatewayBridge {
     }
   }
 
-  private class HeadersDoneCallback
+  private final class HeadersDoneCallback
       implements Function<RequestContext<AppSecRequestContext>, Flow<Void>> {
     public Flow<Void> apply(RequestContext<AppSecRequestContext> ctx_) {
       AppSecRequestContext ctx = ctx_.getData();
@@ -375,7 +375,7 @@ public class GatewayBridge {
     return -1;
   }
 
-  private static class IGAppSecEventDependencies {
+  private static final class IGAppSecEventDependencies {
     private static final Map<EventType, Collection<datadog.trace.api.gateway.EventType<?>>>
         EVENT_DEPENDENCIES = new HashMap<>(3); // ceil(2 / .75)
 

@@ -12,7 +12,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.regex.Pattern;
 
-public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
+public final class GoogleHttpClientDecorator
+    extends HttpClientDecorator<HttpRequest, HttpResponse> {
   private static final Pattern URL_REPLACEMENT = Pattern.compile("%20");
   public static final CharSequence GOOGLE_HTTP_CLIENT =
       UTF8BytesString.create("google-http-client");

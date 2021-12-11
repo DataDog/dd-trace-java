@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TraceStructureWriter implements Writer {
+public final class TraceStructureWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(TraceStructureWriter.class);
   private static final Pattern ARGS_DELIMITER = Pattern.compile(":", Pattern.LITERAL);

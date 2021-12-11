@@ -30,7 +30,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
+public final class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   public ServletRequestBodyInstrumentation() {
     super("servlet-request-body");
   }
@@ -71,7 +71,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   }
 
   @SuppressWarnings("Duplicates")
-  static class HttpServletGetInputStreamAdvice {
+  static final class HttpServletGetInputStreamAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final ServletRequest thiz,
@@ -135,7 +135,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   }
 
   @SuppressWarnings("Duplicates")
-  static class HttpServletGetReaderAdvice {
+  static final class HttpServletGetReaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final ServletRequest thiz,

@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
+public final class ListenableFutureInstrumentation extends Instrumenter.Tracing {
 
   public ListenableFutureInstrumentation() {
     super("guava");
@@ -53,7 +53,7 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
         ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
   }
 
-  public static class AddListenerAdvice {
+  public static final class AddListenerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State addListenerEnter(
         @Advice.Argument(value = 0, readOnly = false) Runnable task,

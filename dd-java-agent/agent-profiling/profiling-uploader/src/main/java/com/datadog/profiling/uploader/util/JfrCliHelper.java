@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /** Call the `jfr` cli on the given recording */
-public class JfrCliHelper {
+public final class JfrCliHelper {
 
   private static ExecutorService executorService =
       new ThreadPoolExecutor(
@@ -152,7 +152,7 @@ public class JfrCliHelper {
     }
   }
 
-  private static class Event {
+  private static final class Event {
     private final String type;
     private final int count;
     private final int size;

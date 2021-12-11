@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
+public final class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
   public ZuulSendForwardFilterInstrumentation() {
     super("spring-cloud-zuul");
   }
@@ -39,7 +39,7 @@ public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
    * a better pattern will be updated on the request after the call returns, so we want to update
    * the resource name with that.
    */
-  public static class FilterInjectingAdvice {
+  public static final class FilterInjectingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("request") HttpServletRequest request,

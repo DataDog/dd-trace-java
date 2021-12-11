@@ -50,7 +50,7 @@ public final class ListenerWrapper {
     }
   }
 
-  private static class GenericProgressiveWrapper<S extends ProgressiveFuture<?>>
+  private static final class GenericProgressiveWrapper<S extends ProgressiveFuture<?>>
       extends GenericWrapper<S> implements GenericProgressiveFutureListener<S> {
 
     private final GenericProgressiveFutureListener<S> listener;

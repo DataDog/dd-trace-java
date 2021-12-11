@@ -9,7 +9,7 @@ import io.opentracing.Span;
 import io.opentracing.SpanContext;
 
 // Centralized place to do conversions
-class TypeConverter {
+final class TypeConverter {
   // TODO maybe add caching to reduce new objects being created
 
   private final LogHandler logHandler;

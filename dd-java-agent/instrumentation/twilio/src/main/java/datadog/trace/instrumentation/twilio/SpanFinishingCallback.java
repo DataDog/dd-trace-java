@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
  * FutureCallback, which automatically finishes the span and annotates with any appropriate metadata
  * on a potential failure.
  */
-public class SpanFinishingCallback implements FutureCallback {
+public final class SpanFinishingCallback implements FutureCallback {
 
   /** Span that we should finish and annotate when the future is complete. */
   private final AgentSpan span;

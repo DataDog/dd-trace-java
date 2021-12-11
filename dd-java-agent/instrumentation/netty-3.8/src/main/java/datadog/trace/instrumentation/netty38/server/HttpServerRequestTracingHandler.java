@@ -15,7 +15,7 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
-public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandler {
+public final class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandler {
 
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 

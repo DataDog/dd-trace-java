@@ -25,7 +25,7 @@ import org.glassfish.grizzly.http.io.NIOInputStream;
 import org.glassfish.grizzly.utils.Charsets;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
+public final class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
   public GrizzlyByteBodyInstrumentation() {
     super("grizzly-byte-body");
   }
@@ -76,7 +76,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
   }
 
   @SuppressWarnings("Duplicates")
-  static class NIOInputStreamSetInputBufferAdvice {
+  static final class NIOInputStreamSetInputBufferAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
@@ -107,7 +107,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOInputStreamReadAdvice {
+  static final class NIOInputStreamReadAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOInputStream thiz, @Advice.Return int ret) {
       StoredByteBody storedByteBody =
@@ -123,7 +123,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOInputStreamReadByteArrayAdvice {
+  static final class NIOInputStreamReadByteArrayAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
@@ -143,7 +143,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOInputStreamReadByteArrayIntIntAdvice {
+  static final class NIOInputStreamReadByteArrayIntIntAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
@@ -163,7 +163,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOInputStreamReadBufferAdvice {
+  static final class NIOInputStreamReadBufferAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOInputStream thiz, @Advice.Return Buffer ret) {
       StoredByteBody storedByteBody =
@@ -180,7 +180,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOInputStreamIsFinishedAdvice {
+  static final class NIOInputStreamIsFinishedAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOInputStream thiz, @Advice.Return boolean ret) {
       StoredByteBody storedByteBody =
@@ -194,7 +194,7 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     }
   }
 
-  static class NIOInputStreamRecycleAdvice {
+  static final class NIOInputStreamRecycleAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This final NIOInputStream thiz) {
       InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).put(thiz, null);

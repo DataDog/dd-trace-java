@@ -11,7 +11,7 @@ import java.util.Map;
  * dependant. Notice that this class must be consider internal. You should not depend on it
  * directly.
  */
-public class CapturedEnvironment {
+public final class CapturedEnvironment {
 
   private static final CapturedEnvironment INSTANCE = new CapturedEnvironment();
 

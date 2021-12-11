@@ -16,7 +16,7 @@ import jdk.jfr.RecordingState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OpenJdkOngoingRecording implements OngoingRecording {
+public final class OpenJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkOngoingRecording.class);
 
   private final Recording recording;

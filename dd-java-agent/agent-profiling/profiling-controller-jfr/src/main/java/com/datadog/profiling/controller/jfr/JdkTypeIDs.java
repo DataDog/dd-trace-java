@@ -1,7 +1,7 @@
 package com.datadog.profiling.controller.jfr;
 
 /** A list of JDK JFR event type IDs */
-public class JdkTypeIDs {
+public final class JdkTypeIDs {
   private static final String PREFIX = "jdk.";
 
   public static final String CPU_LOAD = PREFIX + "CPULoad";

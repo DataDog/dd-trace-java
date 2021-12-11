@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
-public class BoundedLocalCacheAdvice {
+public final class BoundedLocalCacheAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter() {

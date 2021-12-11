@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
+public final class NettyPromiseInstrumentation extends Instrumenter.Tracing {
 
   public NettyPromiseInstrumentation() {
     super("netty-promise");
@@ -49,7 +49,7 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
         NettyPromiseInstrumentation.class.getName() + "$WrapListenersAdvice");
   }
 
-  public static class WrapListenerAdvice {
+  public static final class WrapListenerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrapListener(
         @Advice.Argument(value = 0, readOnly = false)
@@ -58,7 +58,7 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class WrapListenersAdvice {
+  public static final class WrapListenersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrapListener(
         @Advice.Argument(value = 0, readOnly = false)

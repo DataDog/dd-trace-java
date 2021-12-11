@@ -53,7 +53,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
         AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
   }
 
-  public static class HttpClientAdvice {
+  public static final class HttpClientAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Argument(value = 0, optional = true) final Request<?> request,
@@ -101,7 +101,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
           RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
     }
 
-    public static class RequestExecutorAdvice {
+    public static final class RequestExecutorAdvice {
       @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
       public static void methodExit(
           @Advice.FieldValue("request") final Request<?> request,

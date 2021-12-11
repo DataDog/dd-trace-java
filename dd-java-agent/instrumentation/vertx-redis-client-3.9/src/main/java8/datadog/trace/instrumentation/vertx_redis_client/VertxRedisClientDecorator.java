@@ -11,7 +11,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import io.vertx.redis.client.Command;
 
-public class VertxRedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Object> {
+public final class VertxRedisClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<Object> {
 
   public static final VertxRedisClientDecorator DECORATE = new VertxRedisClientDecorator();
 

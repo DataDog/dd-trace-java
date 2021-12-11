@@ -23,7 +23,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracing {
+public final class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch7RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");
@@ -68,7 +68,7 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracin
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
   }
 
-  public static class ElasticsearchRestClientAdvice {
+  public static final class ElasticsearchRestClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(

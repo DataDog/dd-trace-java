@@ -12,8 +12,8 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
-public class JettyServerAdvice {
-  public static class HandleAdvice {
+public final class JettyServerAdvice {
+  public static final class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final HttpChannel channel) {
@@ -52,7 +52,7 @@ public class JettyServerAdvice {
    * Jetty ensures that connections are reset immediately after the response is sent. This provides
    * a reliable point to finish the server span at the last possible moment.
    */
-  public static class ResetAdvice {
+  public static final class ResetAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpChannel channel) {
       Request req = channel.getRequest();

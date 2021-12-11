@@ -6,7 +6,7 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 import reactor.core.publisher.Mono;
 
-public class LettuceMonoCreationAdvice {
+public final class LettuceMonoCreationAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static RedisCommand extractCommandName(

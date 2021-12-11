@@ -16,7 +16,7 @@ import jdk.jfr.StackTrace;
 @Period(value = "endChunk")
 @StackTrace(false)
 @Enabled
-public class ExceptionCountEvent extends Event {
+public final class ExceptionCountEvent extends Event {
   @Label("Exception type")
   private String type;
 

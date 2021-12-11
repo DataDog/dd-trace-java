@@ -5,7 +5,7 @@ import static datadog.trace.instrumentation.hazelcast39.ClientInvocationDecorato
 import com.hazelcast.core.ExecutionCallback;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public class SpanFinishingExecutionCallback<V> implements ExecutionCallback<V> {
+public final class SpanFinishingExecutionCallback<V> implements ExecutionCallback<V> {
 
   /** Span that we should finish and annotate when the future is complete. */
   private final AgentSpan span;

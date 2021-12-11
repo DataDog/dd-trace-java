@@ -14,7 +14,7 @@ import net.bytebuddy.dynamic.DynamicType;
  *
  * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
  */
-public class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
+public final class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;
 
   public NewTaskForGradlePlugin(File targetDir) {

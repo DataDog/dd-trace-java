@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
-public class AkkaHttpServerDecorator
+public final class AkkaHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, HttpRequest> {
   public static final AkkaHttpServerDecorator DECORATE = new AkkaHttpServerDecorator();
 

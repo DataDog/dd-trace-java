@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 import io.grpc.ServerCall;
 import io.grpc.Status;
 
-public class GrpcServerDecorator extends ServerDecorator {
+public final class GrpcServerDecorator extends ServerDecorator {
 
   private static final boolean TRIM_RESOURCE_PACKAGE_NAME =
       Config.get().isGrpcServerTrimPackageResource();

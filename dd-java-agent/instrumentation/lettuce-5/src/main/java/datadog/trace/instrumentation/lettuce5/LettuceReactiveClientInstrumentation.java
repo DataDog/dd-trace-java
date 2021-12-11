@@ -50,7 +50,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  * reactivating each time they are subscribed.
  */
 @AutoService(Instrumenter.class)
-public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
+public final class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
 
   public LettuceReactiveClientInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-rx");

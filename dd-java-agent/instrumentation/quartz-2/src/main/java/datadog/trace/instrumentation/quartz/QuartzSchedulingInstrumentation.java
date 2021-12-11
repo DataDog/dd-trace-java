@@ -50,7 +50,7 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
     return new String[] {packageName + ".QuartzDecorator"};
   }
 
-  public static class QuartzSchedulingAdvice {
+  public static final class QuartzSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(@Advice.Argument(0) JobExecutionContext context) {
       // create a new trace for every job

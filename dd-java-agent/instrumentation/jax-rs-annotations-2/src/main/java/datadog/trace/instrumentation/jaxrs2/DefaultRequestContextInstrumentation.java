@@ -24,8 +24,9 @@ import net.bytebuddy.asm.Advice;
  * specific instrumentations may override this value.
  */
 @AutoService(Instrumenter.class)
-public class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
-  public static class ContainerRequestContextAdvice {
+public final class DefaultRequestContextInstrumentation
+    extends AbstractRequestContextInstrumentation {
+  public static final class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope createGenericSpan(@Advice.This final ContainerRequestContext context) {
 

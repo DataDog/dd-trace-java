@@ -68,7 +68,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
   }
 
-  public static class AsyncResponseAdvice {
+  public static final class AsyncResponseAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final AsyncResponse asyncResponse) {
@@ -85,7 +85,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
     }
   }
 
-  public static class AsyncResponseThrowableAdvice {
+  public static final class AsyncResponseThrowableAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void stopSpan(
@@ -105,7 +105,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
     }
   }
 
-  public static class AsyncResponseCancelAdvice {
+  public static final class AsyncResponseCancelAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final AsyncResponse asyncResponse) {

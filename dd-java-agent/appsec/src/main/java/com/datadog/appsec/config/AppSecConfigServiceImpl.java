@@ -21,7 +21,7 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AppSecConfigServiceImpl implements AppSecConfigService {
+public final class AppSecConfigServiceImpl implements AppSecConfigService {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecConfigServiceImpl.class);
 

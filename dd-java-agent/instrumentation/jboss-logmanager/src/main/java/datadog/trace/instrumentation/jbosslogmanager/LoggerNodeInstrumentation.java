@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(Instrumenter.class)
-public class LoggerNodeInstrumentation extends Instrumenter.Tracing {
+public final class LoggerNodeInstrumentation extends Instrumenter.Tracing {
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
   }
@@ -48,7 +48,7 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing {
         LoggerNodeInstrumentation.class.getName() + "$AttachContextAdvice");
   }
 
-  public static class AttachContextAdvice {
+  public static final class AttachContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean attachContext(@Advice.Argument(0) ExtLogRecord record) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ExtLogRecord.class);

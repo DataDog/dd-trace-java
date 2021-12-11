@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
+public final class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
 
   public JavaForkJoinPoolInstrumentation() {
     super("java_concurrent", "fjp");

@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class MySQLPoolImplInstrumentation extends Instrumenter.Tracing {
+public final class MySQLPoolImplInstrumentation extends Instrumenter.Tracing {
   public MySQLPoolImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }

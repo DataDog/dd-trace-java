@@ -13,7 +13,7 @@ import java.util.Objects;
  * This class should be castable to MutableSpan since that is the way we've encouraged users to
  * interact with non-ot parts of our API.
  */
-class OTSpan implements Span, MutableSpan {
+final class OTSpan implements Span, MutableSpan {
   private final AgentSpan delegate;
   private final TypeConverter converter;
   private final LogHandler logHandler;

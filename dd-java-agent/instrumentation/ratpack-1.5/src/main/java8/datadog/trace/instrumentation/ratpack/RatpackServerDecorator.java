@@ -12,7 +12,8 @@ import ratpack.http.Request;
 import ratpack.http.Response;
 import ratpack.http.Status;
 
-public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response, Void> {
+public final class RatpackServerDecorator
+    extends HttpServerDecorator<Request, Request, Response, Void> {
   public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
   public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");
   public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();

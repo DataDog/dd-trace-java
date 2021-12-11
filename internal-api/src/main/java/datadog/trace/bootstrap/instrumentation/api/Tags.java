@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 // standard tag names (and span kind values) from OpenTracing (see io.opentracing.tag.Tags)
-public class Tags {
+public final class Tags {
 
   public static final String SPAN_KIND_SERVER = "server";
   public static final String SPAN_KIND_CLIENT = "client";

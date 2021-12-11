@@ -11,7 +11,7 @@ public interface ReportStrategy {
 
   boolean shouldFlush(@Nonnull AppSecEvent100 event);
 
-  class Default implements ReportStrategy {
+  final class Default implements ReportStrategy {
     private static final long MIN_INTERVAL_NANOS =
         TimeUnit.SECONDS.toNanos(Config.get().getAppSecReportMinTimeout());
     private static final long MAX_INTERVAL_NANOS =

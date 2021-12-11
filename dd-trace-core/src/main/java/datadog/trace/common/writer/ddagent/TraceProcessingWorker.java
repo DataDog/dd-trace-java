@@ -100,7 +100,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     return new MpscBlockingConsumerArrayQueue<>(capacity);
   }
 
-  public static class TraceSerializingHandler
+  public static final class TraceSerializingHandler
       implements Runnable, MessagePassingQueue.Consumer<Object> {
 
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;

@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(TracerResolver.class)
-public class DDTracerResolver extends TracerResolver {
+public final class DDTracerResolver extends TracerResolver {
 
   private static final Logger log = LoggerFactory.getLogger(DDTracerResolver.class);
 

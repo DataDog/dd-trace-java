@@ -8,7 +8,7 @@ import datadog.trace.api.GenericClassValue;
  * <p>For example, this can be used to track nested calls to super() in constructors by calling
  * #incrementCallDepth at the beginning of each constructor.
  */
-public class CallDepthThreadLocalMap {
+public final class CallDepthThreadLocalMap {
 
   private static final ClassValue<ThreadLocalDepth> TLS =
       GenericClassValue.constructing(ThreadLocalDepth.class);

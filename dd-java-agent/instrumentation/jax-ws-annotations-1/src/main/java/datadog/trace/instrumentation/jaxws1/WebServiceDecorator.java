@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
-public class WebServiceDecorator extends BaseDecorator {
+public final class WebServiceDecorator extends BaseDecorator {
   public static final WebServiceDecorator DECORATE = new WebServiceDecorator();
 
   public static final CharSequence JAX_WS_REQUEST = UTF8BytesString.create("jax-ws.request");

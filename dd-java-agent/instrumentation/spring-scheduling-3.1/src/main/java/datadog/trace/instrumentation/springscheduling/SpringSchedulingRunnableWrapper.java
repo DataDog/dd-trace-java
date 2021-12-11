@@ -8,7 +8,7 @@ import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDec
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public class SpringSchedulingRunnableWrapper implements Runnable {
+public final class SpringSchedulingRunnableWrapper implements Runnable {
   private final Runnable runnable;
 
   private SpringSchedulingRunnableWrapper(final Runnable runnable) {

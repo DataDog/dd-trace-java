@@ -26,7 +26,7 @@ import scala.util.Try;
  * from the {@code resolve} method.
  */
 @AutoService(Instrumenter.class)
-public class DefaultPromiseInstrumentation extends Instrumenter.Tracing {
+public final class DefaultPromiseInstrumentation extends Instrumenter.Tracing {
 
   public DefaultPromiseInstrumentation() {
     super("scala_promise_complete", "scala_concurrent");

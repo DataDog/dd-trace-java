@@ -1,6 +1,6 @@
 package datadog.trace.test.util;
 
-public class ForkedTestUtils {
+public final class ForkedTestUtils {
   public static String getMaxMemoryArgumentForFork() {
     return "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "512M");
   }

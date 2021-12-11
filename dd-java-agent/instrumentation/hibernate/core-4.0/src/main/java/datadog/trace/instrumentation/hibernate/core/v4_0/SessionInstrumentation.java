@@ -32,7 +32,7 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.Transaction;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends AbstractHibernateInstrumentation {
+public final class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public Map<String, String> contextStore() {
@@ -107,7 +107,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
         SessionInstrumentation.class.getName() + "$GetCriteriaAdvice");
   }
 
-  public static class SessionCloseAdvice {
+  public static final class SessionCloseAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeSession(
@@ -139,7 +139,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     }
   }
 
-  public static class SessionMethodAdvice {
+  public static final class SessionMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
@@ -175,7 +175,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     }
   }
 
-  public static class GetQueryAdvice {
+  public static final class GetQueryAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getQuery(
@@ -199,7 +199,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     }
   }
 
-  public static class GetTransactionAdvice {
+  public static final class GetTransactionAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getTransaction(
@@ -224,7 +224,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     }
   }
 
-  public static class GetCriteriaAdvice {
+  public static final class GetCriteriaAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getCriteria(

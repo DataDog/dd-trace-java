@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentracing.SpanContext;
 import java.util.Map;
 
-class OTSpanContext implements SpanContext {
+final class OTSpanContext implements SpanContext {
   private final AgentSpan.Context delegate;
 
   OTSpanContext(final AgentSpan.Context delegate) {

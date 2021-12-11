@@ -8,7 +8,7 @@ import ratpack.file.FileIo;
 import ratpack.http.internal.ByteBufBackedTypedData;
 
 // Calling getText doesn't modify the underlying buffer (doesn't move read index)
-public class RatpackRequestBodyCallGetTextAdvice {
+public final class RatpackRequestBodyCallGetTextAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before(@Advice.This ByteBufBackedTypedData thiz) {
     Boolean bodyPublished =

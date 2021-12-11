@@ -3,7 +3,7 @@ package datadog.trace.core;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-public class DDTraceCoreInfo {
+public final class DDTraceCoreInfo {
 
   public static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
   public static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");

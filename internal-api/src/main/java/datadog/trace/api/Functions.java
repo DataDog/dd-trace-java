@@ -106,7 +106,7 @@ public final class Functions {
     }
   }
 
-  public static class PrefixJoin extends Join {
+  public static final class PrefixJoin extends Join {
 
     public PrefixJoin(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       super(joiner, transformer);
@@ -127,7 +127,7 @@ public final class Functions {
     }
   }
 
-  public static class SuffixJoin extends Join {
+  public static final class SuffixJoin extends Join {
 
     public SuffixJoin(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       super(joiner, transformer);

@@ -8,7 +8,7 @@ package datadog.trace.api;
  * is also based on the assumption that registering callbacks is a rare thing, and as of this
  * writing the only code doing it is the various MDC log injection instrumentations.
  */
-public class WithGlobalTracer {
+public final class WithGlobalTracer {
   private WithGlobalTracer() {}
 
   /**

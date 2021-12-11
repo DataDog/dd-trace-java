@@ -8,7 +8,7 @@ import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
-public class StringKVPair implements List<String> {
+public final class StringKVPair implements List<String> {
   private final String key;
   private final String value;
 

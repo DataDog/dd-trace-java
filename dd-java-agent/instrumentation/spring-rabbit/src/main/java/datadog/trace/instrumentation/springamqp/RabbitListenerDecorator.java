@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
-public class RabbitListenerDecorator extends BaseDecorator {
+public final class RabbitListenerDecorator extends BaseDecorator {
   public static final RabbitListenerDecorator DECORATE = new RabbitListenerDecorator();
 
   public static final CharSequence AMQP_CONSUME = UTF8BytesString.create("amqp.consume");

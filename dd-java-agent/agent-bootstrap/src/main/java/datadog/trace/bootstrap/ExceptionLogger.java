@@ -8,6 +8,6 @@ import org.slf4j.LoggerFactory;
  *
  * <p>See datadog.trace.agent.tooling.ExceptionHandlers
  */
-public class ExceptionLogger {
+public final class ExceptionLogger {
   public static final Logger LOGGER = LoggerFactory.getLogger(ExceptionLogger.class);
 }

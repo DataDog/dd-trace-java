@@ -10,7 +10,7 @@ import net.bytebuddy.asm.Advice;
 import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.internal.event.DefaultEventContext;
 
-public class EventContextCreationAdvice {
+public final class EventContextCreationAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static int onEnter() {
     return CallDepthThreadLocalMap.incrementCallDepth(EventContext.class);

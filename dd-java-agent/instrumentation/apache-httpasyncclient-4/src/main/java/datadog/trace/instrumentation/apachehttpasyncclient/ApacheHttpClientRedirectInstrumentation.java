@@ -21,7 +21,7 @@ import org.apache.http.HttpRequest;
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-plugins/apm-apache-httpclient-plugin/src/main/java/co/elastic/apm/agent/httpclient/ApacheHttpAsyncClientRedirectInstrumentation.java
  */
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracing {
+public final class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracing {
 
   public ApacheHttpClientRedirectInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");
@@ -47,7 +47,7 @@ public class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracin
         ApacheHttpClientRedirectInstrumentation.class.getName() + "$ClientRedirectAdvice");
   }
 
-  public static class ClientRedirectAdvice {
+  public static final class ClientRedirectAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     private static void onAfterExecute(
         @Advice.Argument(value = 0) final HttpRequest original,

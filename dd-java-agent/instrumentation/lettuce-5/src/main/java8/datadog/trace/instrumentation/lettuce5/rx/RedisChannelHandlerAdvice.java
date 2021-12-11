@@ -7,7 +7,7 @@ import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
-public class RedisChannelHandlerAdvice {
+public final class RedisChannelHandlerAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterDispatch(@Advice.Argument(0) RedisCommand command) {

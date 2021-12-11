@@ -23,7 +23,7 @@ import scala.util.Try;
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
 @AutoService(Instrumenter.class)
-public class FutureObjectInstrumentation213 extends Instrumenter.Tracing {
+public final class FutureObjectInstrumentation213 extends Instrumenter.Tracing {
 
   public FutureObjectInstrumentation213() {
     super("scala_future_object", "scala_concurrent");

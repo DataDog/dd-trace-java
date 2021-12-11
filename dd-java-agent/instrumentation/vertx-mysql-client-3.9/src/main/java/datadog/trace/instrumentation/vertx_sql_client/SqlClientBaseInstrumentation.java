@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqlClientBaseInstrumentation extends Instrumenter.Tracing {
+public final class SqlClientBaseInstrumentation extends Instrumenter.Tracing {
   public SqlClientBaseInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
