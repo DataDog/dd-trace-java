@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/appsec-event-1.0.0.json",
+  "title": "AppSec Event 1.0.0",
+  "type": "array",
+  "items": {
+    "type": "string",
+    "properties": {
+      "rule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier of the rule that triggered the event. For example, ``ua-910-xax``."
+          },
+          "name": {
+            "type": "string",
+            "description": "The friendly name of the rule that triggered the event."
+          },
+          "tags": {
+            "type": "object",
+            "description": "The tags associated to the rule in the event rules file.",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "The type of the rule as defined in the ruleset"
+              },
+              "category": {
+                "type": "string",
+                "description": "The category of the rule as defined in the ruleset"
+              }
+            },
+            "required": [
+              "type",
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tags"
+        ],
+        "additionalProperties": false
+      },
+      "rule_matches": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "operator": {
+              "type": "string",
+              "description": "The rule operator that triggered this event. For example, ``match_regex`` or ``phrase_match``."
+            },
+            "operator_value": {
+              "type": "string",
+              "description": "The rule operator operand that triggered this event. For example, the word that triggered using the ``phrase_match`` operator."
+            },
+            "parameters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "description": "The address containing the value that triggered the rule. For example ``http.server.query``."
+                  },
+                  "key_path": {
+                    "type": "array",
+                    "description": "The path of the value that triggered the rule. For example ``[\"query\", 0]`` to refer to the value in ``{\"query\": [\"triggering value\"]}``.",
+                    "items": {
+                      "anyOf": [
+                        { "type": "string" },
+                        { "type": "number" }
+                      ]
+                    }
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "The value that triggered the rule."
+                  },
+                  "highlight": {
+                    "type": "array",
+                    "description": "The part of the value that triggered the rule.",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "address",
+                  "key_path",
+                  "value",
+                  "highlight"
+                ]
+              }
+            }
+
+          },
+          "required": [
+            "operator",
+            "operator_value",
+            "parameters"
+          ]
+        }
+      }
+    },
+    "required": [
+      "rule",
+      "rule_matches"
+    ]
+  }
+}

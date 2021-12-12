@@ -4,20 +4,13 @@ import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.gateway.GatewayBridge;
-import com.datadog.appsec.report.AppSecApi;
-import com.datadog.appsec.report.InbandReportServiceImpl;
-import com.datadog.appsec.report.ReportService;
-import com.datadog.appsec.report.ReportServiceImpl;
-import com.datadog.appsec.report.ReportStrategy;
 import com.datadog.appsec.util.AbortStartupException;
-import com.datadog.appsec.util.JvmTime;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.fleet.FleetService;
 import datadog.communication.fleet.FleetServiceImpl;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
-import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,7 +26,6 @@ public class AppSecSystem {
   private static final AtomicBoolean STARTED = new AtomicBoolean();
   private static final List<String> STARTED_MODULE_NAMES = new ArrayList<>();
   private static AppSecConfigService APP_SEC_CONFIG_SERVICE;
-  private static ReportService REPORT_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -67,19 +59,7 @@ public class AppSecSystem {
 
     EventDispatcher eventDispatcher = new EventDispatcher();
     sco.createRemaining(config);
-    AgentTaskScheduler taskScheduler =
-        new AgentTaskScheduler(AgentThreadFactory.AgentThread.APPSEC_HTTP_DISPATCHER);
-    AppSecApi api = new AppSecApi(sco.monitoring, sco.agentUrl, sco.okHttpClient, taskScheduler);
-    if (!config.isAppSecReportingInband()) {
-      REPORT_SERVICE =
-          new ReportServiceImpl(
-              api,
-              new ReportStrategy.Default(JvmTime.Default.INSTANCE),
-              ReportServiceImpl.TaskScheduler.of(taskScheduler));
-    } else {
-      REPORT_SERVICE = new InbandReportServiceImpl();
-    }
-    GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher, REPORT_SERVICE);
+    GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher);
 
     loadModules(eventDispatcher);
     gatewayBridge.init();
@@ -92,7 +72,6 @@ public class AppSecSystem {
       return;
     }
 
-    REPORT_SERVICE.close();
     APP_SEC_CONFIG_SERVICE.close();
   }
 

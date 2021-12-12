@@ -11,15 +11,10 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
-import com.datadog.appsec.report.raw.events.Parameter100;
-import com.datadog.appsec.report.raw.events.Rule100;
-import com.datadog.appsec.report.raw.events.RuleMatch100;
+import com.datadog.appsec.report.raw.events.*;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
+import com.squareup.moshi.*;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -256,26 +251,30 @@ public class PowerWAFModule implements AppSecModule {
 
     AppSecEvent100 event =
         new AppSecEvent100.AppSecEvent100Builder()
-            .withEventType(ruleInfo.type)
             .withRule(
-                new Rule100.Rule100Builder()
+                new Rule.RuleBuilder()
                     .withId(powerWAFResultData.rule.id)
                     .withName(ruleInfo.name)
-                    .withTags(ruleInfo.tags)
+                    .withTags(
+                        new Tags.TagsBuilder()
+                            .withType(ruleInfo.tags.get("type"))
+                            .withCategory(ruleInfo.tags.get("category"))
+                            .build())
                     .build())
-            .withRuleMatch(
-                new RuleMatch100.RuleMatch100Builder()
-                    .withOperator(ruleMatch.operator)
-                    .withOperatorValue(ruleMatch.operator_value)
-                    .withHighlight(parameter.highlight)
-                    .withParameters(
-                        singletonList(
-                            new Parameter100.Parameter100Builder()
-                                .withAddress(parameter.address)
-                                .withKeyPath(parameter.key_path)
-                                .withValue(parameter.value)
-                                .build()))
-                    .build())
+            .withRuleMatches(
+                singletonList(
+                    new RuleMatch.RuleMatchBuilder()
+                        .withOperator(ruleMatch.operator)
+                        .withOperatorValue(ruleMatch.operator_value)
+                        .withParameters(
+                            singletonList(
+                                new Parameter.ParameterBuilder()
+                                    .withAddress(parameter.address)
+                                    .withKeyPath(parameter.key_path)
+                                    .withValue(parameter.value)
+                                    .withHighlight(parameter.highlight)
+                                    .build()))
+                        .build()))
             .build();
 
     return Optional.of(event);
