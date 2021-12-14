@@ -486,6 +486,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     StatusLogger.logStatus(config);
   }
 
+  StatsDClient getStatsDClient() {
+    return statsDClient;
+  }
+
   @Override
   protected void finalize() {
     try {

@@ -154,6 +154,15 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   PublishState onPublish(final DDSpan span) {
+    try {
+      tracer
+          .getStatsDClient()
+          .histogram(
+              "span.context.transitions",
+              span.processActivations(),
+              "span_id:" + span.getSpanId().toLong());
+    } catch (Throwable ignored) {
+    }
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal

@@ -18,6 +18,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,6 +35,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
+
+  private final ConcurrentLinkedQueue<DDSpanActivation> activations = new ConcurrentLinkedQueue<>();
 
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
     return create(timestampMicro, context, true);
@@ -105,6 +108,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
+    activations.add(new DDSpanActivation((byte) 0, Thread.currentThread().getId(), startTimeNano));
   }
 
   public boolean isFinished() {
@@ -124,11 +128,22 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public final void finish() {
+    activations.add(
+        new DDSpanActivation((byte) 1, Thread.currentThread().getId(), getCurrentNano()));
     if (!externalClock) {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
     } else {
       finish(Clock.currentMicroTime());
+    }
+  }
+
+  private long getCurrentNano() {
+    if (!externalClock) {
+      // no external clock was used, so we can rely on nano time
+      return context.getTrace().getCurrentTimeNano() - startTimeNano;
+    } else {
+      return Clock.currentMicroTime();
     }
   }
 
@@ -462,6 +477,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void startThreadMigration() {
+    activations.add(
+        new DDSpanActivation((byte) 2, Thread.currentThread().getId(), getCurrentNano()));
     if (hasCheckpoints()) {
       context.getTracer().onStartThreadMigration(this);
     }
@@ -469,6 +486,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void finishThreadMigration() {
+    activations.add(
+        new DDSpanActivation((byte) 0, Thread.currentThread().getId(), getCurrentNano()));
     if (hasCheckpoints()) {
       context.getTracer().onFinishThreadMigration(this);
     }
@@ -476,6 +495,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void finishWork() {
+    activations.add(
+        new DDSpanActivation((byte) 1, Thread.currentThread().getId(), getCurrentNano()));
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }
@@ -691,5 +712,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public String toString() {
     return context.toString() + ", duration_ns=" + durationNano;
+  }
+
+  public int processActivations() {
+    int ret = activations.size();
+    activations.clear();
+    return ret;
   }
 }
