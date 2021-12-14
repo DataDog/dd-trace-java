@@ -238,6 +238,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
             rateLimit,
             emitted.sumThenReset(),
             dropped.sumThenReset(),
+            recordingSampleLimit,
             recordingSampleCount > recordingSampleLimit)
         .commit();
   }
@@ -248,8 +249,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
               samplerConfig.windowSize.toMillis(),
               samplerConfig.samplesPerWindow,
               samplerConfig.averageLookback,
-              samplerConfig.budgetLookback,
-              recordingSampleLimit)
+              samplerConfig.budgetLookback)
           .commit();
     } catch (Throwable t) {
       if (log.isDebugEnabled()) {
