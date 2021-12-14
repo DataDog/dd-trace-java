@@ -50,6 +50,9 @@ public final class ConfigDefaults {
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+  static final int DEFAULT_CLOCK_CHECK_PERIOD = 60; // seconds
+  static final int DEFAULT_CLOCK_SKEW_LIMIT = 10; // seconds
+
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 

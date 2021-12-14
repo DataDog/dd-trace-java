@@ -63,5 +63,8 @@ public final class TracerConfig {
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
 
+  public static final String CLOCK_CHECK_PERIOD = "trace.clock.check.period";
+  public static final String CLOCK_SKEW_LIMIT = "trace.clock.skew.limit";
+
   private TracerConfig() {}
 }

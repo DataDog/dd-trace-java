@@ -5,6 +5,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -63,7 +67,6 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +95,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final long startTimeNano;
   /** Nano second ticks value at tracer start */
   private final long startNanoTicks;
+  /** Nano second offset (with millisecond accuracy) to counter clock skew */
+  private volatile long counterSkew;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
@@ -396,6 +401,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.startTimeNano = Clock.currentNanoTime();
     this.startNanoTicks = Clock.currentNanoTicks();
 
+    int clockCheckPeriod = config.getClockCheckPeriod();
+    if (clockCheckPeriod > 0) {
+      long clockSkewLimit = SECONDS.toNanos(Math.min(1, config.getClockSkewLimit()));
+      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+          new ClockSkewDetector(clockSkewLimit), this, clockCheckPeriod, clockCheckPeriod, SECONDS);
+    }
+
     this.checkpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
@@ -421,11 +433,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.monitoring =
         config.isHealthMetricsEnabled()
-            ? new MonitoringImpl(this.statsDClient, 10, TimeUnit.SECONDS)
+            ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
-            ? new MonitoringImpl(this.statsDClient, 10, TimeUnit.SECONDS)
+            ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
@@ -479,7 +491,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         },
         metricsAggregator,
         1,
-        TimeUnit.SECONDS);
+        SECONDS);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -557,7 +569,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * @return timestamp in nanoseconds
    */
   long getTimeWithNanoTicks(long nanoTicks) {
-    return startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    return startTimeNano + counterSkew + Math.max(0, nanoTicks - startNanoTicks);
+  }
+
+  void detectClockSkew(long skewLimit) {
+    long elapsedTimeNano = Clock.currentNanoTime() - startTimeNano;
+    long elapsedNanoTicks = Clock.currentNanoTicks() - startNanoTicks;
+
+    long skew = elapsedNanoTicks - elapsedTimeNano;
+    if (Math.abs(skew + counterSkew) >= skewLimit) {
+      counterSkew = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(skew));
+    }
   }
 
   @Override
@@ -705,7 +727,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return extractor.extract(carrier, getter);
   }
 
-  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, TimeUnit.MINUTES);
+  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**
    * We use the sampler to know if the trace has to be reported/written. The sampler is called on
@@ -1169,6 +1191,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (tracer != null) {
         tracer.close();
       }
+    }
+  }
+
+  private static final class ClockSkewDetector implements AgentTaskScheduler.Task<CoreTracer> {
+    private final long skewLimit;
+
+    ClockSkewDetector(long skewLimit) {
+      this.skewLimit = skewLimit;
+    }
+
+    @Override
+    public void run(CoreTracer tracer) {
+      tracer.detectClockSkew(skewLimit);
     }
   }
 }
