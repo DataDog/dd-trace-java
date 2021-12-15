@@ -3,6 +3,9 @@ package datadog.trace.core;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
@@ -15,7 +18,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -48,16 +50,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   /** The context attached to the span */
   private final DDSpanContext context;
 
-  /**
-   * Creation time of the span in microseconds provided by external clock. Must be greater than
-   * zero.
-   */
-  private final long startTimeMicro;
+  /** Is the source of time an external clock or our internal tick-adjusted clock? */
+  private final boolean externalClock;
 
   /**
-   * Creation time of span in nanoseconds. We use combination of millisecond-precision clock and
-   * nanosecond-precision offset from start of the trace. See {@link PendingTrace} for details. Must
-   * be greater than zero.
+   * Creation time of span in nanoseconds. Must be greater than zero. For our internal clock we use
+   * combination of millisecond-precision clock and nanosecond-precision offset from start of the
+   * trace. See {@link PendingTrace} for details.
    */
   private final long startTimeNano;
 
@@ -98,13 +97,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     this.withCheckpoints = emitLocalCheckpoints;
 
     if (timestampMicro <= 0L) {
-      // record the start time
-      startTimeMicro = Clock.currentMicroTime();
+      // capture internal time
       startTimeNano = context.getTrace().getCurrentTimeNano();
+      externalClock = false;
     } else {
-      startTimeMicro = timestampMicro;
-      // Timestamp has come from an external clock, so use startTimeNano as a flag
-      startTimeNano = 0;
+      startTimeNano = MICROSECONDS.toNanos(timestampMicro);
+      externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
   }
@@ -126,7 +124,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public final void finish() {
-    if (startTimeNano > 0) {
+    if (!externalClock) {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
     } else {
@@ -135,18 +133,25 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public final void finish(final long stoptimeMicros) {
+  public final void finish(final long stopTimeMicros) {
     context.getTrace().touch(); // Update timestamp
-    finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
+    long adjustedStartTimeNano;
+    if (!externalClock) {
+      // remove tick precision part of our internal time to better match external clock
+      adjustedStartTimeNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(startTimeNano));
+    } else {
+      adjustedStartTimeNano = startTimeNano;
+    }
+    finishAndAddToTrace(MICROSECONDS.toNanos(stopTimeMicros) - adjustedStartTimeNano);
   }
 
   @Override
   public final boolean phasedFinish() {
     long durationNano;
-    if (startTimeNano > 0) {
+    if (!externalClock) {
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
     } else {
-      durationNano = TimeUnit.MICROSECONDS.toNanos(Clock.currentMicroTime() - startTimeMicro);
+      durationNano = MICROSECONDS.toNanos(Clock.currentMicroTime()) - startTimeNano;
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
@@ -510,7 +515,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public long getStartTime() {
-    return startTimeNano > 0 ? startTimeNano : TimeUnit.MICROSECONDS.toNanos(startTimeMicro);
+    return startTimeNano;
   }
 
   @Override
