@@ -7,6 +7,7 @@ dependencies {
   api deps.okhttp
   api project(':dd-java-agent:testing')
   api project(':utils:test-utils')
+  api project(':utils:test-agent-utils:decoder')
 }
 
 def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {

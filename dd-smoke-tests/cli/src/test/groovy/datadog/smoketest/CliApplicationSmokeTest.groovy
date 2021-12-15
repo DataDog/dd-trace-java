@@ -41,9 +41,7 @@ abstract class CliApplicationSmokeTest extends AbstractSmokeTest {
     def conditions = new PollingConditions(timeout: TIMEOUT_SECS, initialDelay: 1, factor: 1)
 
     then:
-    conditions.eventually {
-      assert traceRequests.poll(REQUEST_TIMEOUT, TimeUnit.SECONDS)?.getHeader("X-Datadog-Trace-Count")?.size() > 0
-    }
+    waitForTraceCount(1, conditions)
     assert testedProcess.waitFor() == 0
   }
 }

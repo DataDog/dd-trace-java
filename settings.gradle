@@ -64,6 +64,7 @@ include ':dd-java-agent:testing'
 include ':utils:container-utils'
 include ':utils:histograms'
 include ':utils:socket-utils'
+include ':utils:test-agent-utils:decoder'
 include ':utils:test-utils'
 
 // smoke tests
