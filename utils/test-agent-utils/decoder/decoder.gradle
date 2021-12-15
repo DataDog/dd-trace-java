@@ -1,0 +1,15 @@
+apply from: "$rootDir/gradle/java_no_deps.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
+
+ext {
+  minimumInstructionCoverage = 0.7
+  excludedClassesCoverage = ['datadog.trace.test.agent.decoder.v05.raw.*',]
+}
+
+dependencies {
+  implementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.24'
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'com.google.truth:truth:1.1.3'
+}
