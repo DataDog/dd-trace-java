@@ -1,13 +1,15 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.test.agent.decoder.Decoder
+import datadog.trace.test.agent.decoder.DecodedMessage
+import datadog.trace.test.agent.decoder.DecodedTrace
+
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
+import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
@@ -15,10 +17,13 @@ import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFor
 
 abstract class AbstractSmokeTest extends ProcessManager {
   @Shared
-  protected BlockingQueue<TestHttpServer.HandlerApi.RequestApi> traceRequests = new LinkedBlockingQueue<>()
+  protected AtomicInteger traceCount = new AtomicInteger()
 
   @Shared
-  protected AtomicInteger traceCount = new AtomicInteger()
+  protected CopyOnWriteArrayList<DecodedTrace> decodeTraces = new CopyOnWriteArrayList()
+
+  @Shared
+  private boolean decode = shouldDecodeTraces()
 
   @Shared
   @AutoCleanup
@@ -28,8 +33,26 @@ abstract class AbstractSmokeTest extends ProcessManager {
         def countString = request.getHeader("X-Datadog-Trace-Count")
         int count = countString != null ? Integer.parseInt(countString) : 0
         traceCount.addAndGet(count)
-        println("Received traces: " + countString)
-        traceRequests.add(request)
+        println("Received v0.4 traces: " + countString)
+        response.status(200).send()
+      }
+      prefix("/v0.5/traces") {
+        def countString = request.getHeader("X-Datadog-Trace-Count")
+        int count = countString != null ? Integer.parseInt(countString) : 0
+        def body = request.getBody()
+        if (body.length && decode) {
+          try {
+            DecodedMessage message = Decoder.decode(body)
+            assert message.getTraces().size() == count
+            traces.addAll(message.getTraces())
+          } catch (Throwable t) {
+            println("=== Failure during message decoding ===")
+            t.printStackTrace(System.out)
+            throw t
+          }
+        }
+        traceCount.addAndGet(count)
+        println("Received v0.5 traces: " + countString)
         response.status(200).send()
       }
     }
@@ -54,8 +77,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
   ]
 
   def setup() {
-    traceRequests.clear()
     traceCount.set(0)
+    decodeTraces.clear()
+  }
+
+  def cleanup() {
+    decodeTraces.clear()
   }
 
   def setupSpec() {
@@ -74,17 +101,23 @@ abstract class AbstractSmokeTest extends ProcessManager {
     // do nothing; 'server' is autocleanup
   }
 
+  boolean shouldDecodeTraces() {
+    false
+  }
+
   int waitForTraceCount(int count) {
-    long start = System.nanoTime()
-    long timeout = TimeUnit.SECONDS.toNanos(10)
-    int current = traceCount.get()
-    while (current < count) {
-      if (System.nanoTime() - start >= timeout) {
-        throw new TimeoutException("Timed out waiting for " + count + " traces. Have only received " + current + ".")
-      }
-      Thread.sleep(500)
-      current = traceCount.get()
+    def conditions = new PollingConditions(timeout: 10, initialDelay: 0, delay: 0.5, factor: 1)
+    return waitForTraceCount(count, conditions)
+  }
+
+  int waitForTraceCount(int count, PollingConditions conditions) {
+    conditions.eventually {
+      assert traceCount.get() >= count
     }
-    return current
+    traceCount.get()
+  }
+
+  List<DecodedTrace> getTraces() {
+    decodeTraces
   }
 }
