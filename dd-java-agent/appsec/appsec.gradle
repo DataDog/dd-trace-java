@@ -130,6 +130,8 @@ ext {
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
     'com.datadog.appsec.util.AbortStartupException',
+    'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
+    'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

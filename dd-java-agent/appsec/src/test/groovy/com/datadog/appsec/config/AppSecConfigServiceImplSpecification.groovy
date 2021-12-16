@@ -30,7 +30,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'can load from a different location'() {
     setup:
     Path p = Files.createTempFile('appsec', '.json')
-    p.toFile() << '{"waf": {"version":"0.1", "rules": []}}'
+    p.toFile() << '{"waf": {"version":"2.0", "rules": []}}'
     AppSecConfigService.SubconfigListener listener = Mock()
 
     when:
@@ -38,7 +38,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
-    def expected = AppSecConfig.createFromMap([version: '0.1', rules: []])
+    def expected = AppSecConfig.valueOf([version: '2.0', rules: []])
     def actual = appSecConfigService.addSubConfigListener('waf', listener).get()
     actual == expected
   }
@@ -95,16 +95,16 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     savedConfigurationListener.onNewConfiguration(
       new ByteArrayInputStream(
-      '{"waf": {"version": "my config"}, "foo": {"version": "another config"}}'.bytes))
+      '{"waf": {"version": "2.0"}, "foo": {"version": "1.0"}}'.bytes))
 
     then:
-    1 * subconfigListener.onNewSubconfig(AppSecConfig.createFromMap([version: 'my config']))
+    1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']))
 
     when:
     def fooInitialConfig = appSecConfigService.addSubConfigListener('foo', Mock(AppSecConfigService.SubconfigListener))
 
     then:
-    fooInitialConfig.get() == AppSecConfig.createFromMap([version: 'another config'])
+    fooInitialConfig.get() == AppSecConfig.valueOf([version: '1.0'])
   }
 
   void 'error in one listener does not prevent others from running'() {
@@ -126,19 +126,27 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     savedConfigurationListener.onNewConfiguration(new ByteArrayInputStream(
-      '{"waf": {"version": "waf waf"}, "foo": {"version": "bar"}}'.bytes))
+      '{"waf": {"version": "1.0"}, "foo": {"version": "2.0"}}'.bytes))
 
     then:
-    1 * fooListener.onNewSubconfig(AppSecConfig.createFromMap([version: 'bar']))
+    1 * fooListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']))
   }
 
   void 'config should not be created'() {
     def conf
 
     when:
-    conf = AppSecConfig.createFromMap(null)
+    conf = AppSecConfig.valueOf(null)
 
     then:
     conf == null
+  }
+
+  void 'unsupported config version'() {
+    when:
+    AppSecConfig.valueOf([version: '99.0'])
+
+    then:
+    thrown IOException
   }
 }

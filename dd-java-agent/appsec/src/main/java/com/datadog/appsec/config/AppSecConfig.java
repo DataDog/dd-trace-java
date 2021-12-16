@@ -1,44 +1,52 @@
 package com.datadog.appsec.config;
 
-import com.datadog.appsec.util.Generated;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class AppSecConfig {
+public interface AppSecConfig {
 
-  private static final JsonAdapter<AppSecConfig> ADAPTER =
-      new Moshi.Builder().build().adapter(AppSecConfig.class);
+  Moshi MOSHI = new Moshi.Builder().build();
+  JsonAdapter<AppSecConfigV1> ADAPTER_V1 = MOSHI.adapter(AppSecConfigV1.class);
+  JsonAdapter<AppSecConfigV2> ADAPTER_V2 = MOSHI.adapter(AppSecConfigV2.class);
 
-  private String version;
-  private List<Rule> rules;
+  String getVersion();
 
-  // We need to keep original raw config because DDWAF can't consume custom objects
-  // Remove rawConfig when DDWAF will be able to get any object
-  private Map<String, Object> rawConfig;
+  List<Rule> getRules();
 
-  private AppSecConfig() {}
+  Map<String, Object> getRawConfig();
 
-  static AppSecConfig createFromMap(Map<String, Object> rawConfig) {
-    AppSecConfig config = ADAPTER.fromJsonValue(rawConfig);
-    if (config == null) {
+  static AppSecConfig valueOf(Map<String, Object> rawConfig) throws IOException {
+    if (rawConfig == null) {
       return null;
     }
-    config.rawConfig = rawConfig;
-    return config;
+
+    String version = String.valueOf(rawConfig.get("version"));
+    if (version == null) {
+      throw new IOException("Unable deserialize raw json config");
+    }
+
+    // For version 1.x
+    if (version.startsWith("1.")) {
+      AppSecConfigV1 config = ADAPTER_V1.fromJsonValue(rawConfig);
+      config.rawConfig = rawConfig;
+      return config;
+    }
+
+    // For version 2.x
+    if (version.startsWith("2.")) {
+      AppSecConfigV2 config = ADAPTER_V2.fromJsonValue(rawConfig);
+      config.rawConfig = rawConfig;
+      return config;
+    }
+
+    throw new IOException("Config version '" + version + "' is not supported");
   }
 
-  public List<Rule> getRules() {
-    return rules;
-  }
-
-  public Map<String, Object> getRawConfig() {
-    return rawConfig;
-  }
-
-  public static class Rule {
+  class Rule {
     private String id;
     private String name;
     private Map<String, String> tags;
@@ -58,20 +66,77 @@ public class AppSecConfig {
     }
   }
 
-  @Generated
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    AppSecConfig config = (AppSecConfig) o;
-    return Objects.equals(version, config.version)
-        && Objects.equals(rules, config.rules)
-        && Objects.equals(rawConfig, config.rawConfig);
+  class AppSecConfigV1 implements AppSecConfig {
+
+    private String version;
+    private List<Rule> events;
+    private Map<String, Object> rawConfig;
+
+    @Override
+    public String getVersion() {
+      return null;
+    }
+
+    @Override
+    public List<Rule> getRules() {
+      return events;
+    }
+
+    @Override
+    public Map<String, Object> getRawConfig() {
+      return rawConfig;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      AppSecConfigV1 that = (AppSecConfigV1) o;
+      return Objects.equals(version, that.version)
+          && Objects.equals(events, that.events)
+          && Objects.equals(rawConfig, that.rawConfig);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(version, events, rawConfig);
+    }
   }
 
-  @Generated
-  @Override
-  public int hashCode() {
-    return Objects.hash(version, rules, rawConfig);
+  class AppSecConfigV2 implements AppSecConfig {
+
+    private String version;
+    private List<Rule> rules;
+    private Map<String, Object> rawConfig;
+
+    @Override
+    public String getVersion() {
+      return null;
+    }
+
+    @Override
+    public List<Rule> getRules() {
+      return rules;
+    }
+
+    @Override
+    public Map<String, Object> getRawConfig() {
+      return rawConfig;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      AppSecConfigV2 that = (AppSecConfigV2) o;
+      return Objects.equals(version, that.version)
+          && Objects.equals(rules, that.rules)
+          && Objects.equals(rawConfig, that.rawConfig);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(version, rules, rawConfig);
+    }
   }
 }
