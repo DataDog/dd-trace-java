@@ -30,6 +30,9 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final AgentThreadFactory STATSD_CLIENT_THREAD_FACTORY =
       new AgentThreadFactory(STATSD_CLIENT);
 
+  private static final int RETRY_DELAY = 10;
+  private static final int MAX_RETRIES = 20;
+
   private boolean usingDefaultPort;
   private volatile String host;
   private volatile Integer port;
@@ -37,6 +40,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
   private final AtomicInteger clientCount = new AtomicInteger(0);
   private final AtomicInteger errorCount = new AtomicInteger(0);
+  private final AtomicInteger retries = new AtomicInteger(0);
+
   volatile com.timgroup.statsd.StatsDClient statsd = NO_OP;
 
   DDAgentStatsDConnection(final String host, final Integer port, final String namedPipe) {
@@ -111,8 +116,21 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         }
         try {
           statsd = clientBuilder.build();
+          if (log.isDebugEnabled()) {
+            log.debug("StatsD connected to {}", statsDAddress());
+          }
         } catch (final Exception e) {
           log.error("Unable to create StatsD client - {}", statsDAddress(), e);
+          if (retries.getAndIncrement() < MAX_RETRIES) {
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Scheduling StatsD connection in {} seconds - {}", RETRY_DELAY, statsDAddress());
+            }
+            AgentTaskScheduler.INSTANCE.scheduleWithJitter(
+                ConnectTask.INSTANCE, this, RETRY_DELAY, SECONDS);
+          } else {
+            log.debug("Max retries have been reached. Will not attempt again.");
+          }
         }
       }
     }
