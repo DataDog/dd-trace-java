@@ -4,14 +4,12 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
-import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
 import java.io.Closeable;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
-public class AppSecRequestContext implements DataBundle, ReportService, Closeable {
+public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
@@ -219,14 +217,9 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
     return storedRequestBodySupplier.get();
   }
 
-  @Override
   public void reportEvents(Collection<AppSecEvent100> events, TraceSegment traceSegment) {
     for (AppSecEvent100 event : events) {
       StandardizedLogging.attackDetected(log, event);
-
-      if (event.getDetectedAt() == null) {
-        event.setDetectedAt(Instant.now());
-      }
     }
     synchronized (this) {
       if (this.collectedEvents == null) {

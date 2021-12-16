@@ -6,8 +6,7 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
-
-import com.datadog.appsec.report.ReportService
+import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiConsumer
@@ -31,7 +30,6 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class GatewayBridgeSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
-  ReportService reportService = Mock()
   AppSecRequestContext arCtx = new AppSecRequestContext()
   TraceSegment traceSegment = Mock()
   RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
@@ -51,7 +49,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher)
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -93,7 +91,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.close()
-    1 * reportService.reportEvents([event], traceSegment)
+    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('appsec.event', true)
+    1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE

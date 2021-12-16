@@ -7,8 +7,6 @@ import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.test.util.DDSpecification
 
-import java.time.Instant
-
 class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'implements DataBundle'() {
@@ -106,18 +104,15 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'can collect events'() {
     AppSecRequestContext ctx = new AppSecRequestContext()
-    def now = Instant.now()
 
     when:
-    ctx.reportEvents([new AppSecEvent100(detectedAt: now)], null)
     ctx.reportEvents([new AppSecEvent100(), new AppSecEvent100()], null)
     def events = ctx.transferCollectedEvents()
 
     then:
-    events.size() == 3
-    events[0].detectedAt.is(now)
+    events.size() == 2
+    events[0] != null
     events[1] != null
-    events[2] != null
 
     when:
     ctx.reportEvents([new AppSecEvent100()], null)

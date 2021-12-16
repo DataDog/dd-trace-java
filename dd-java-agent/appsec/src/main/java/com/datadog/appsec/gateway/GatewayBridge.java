@@ -9,11 +9,11 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
-import com.datadog.appsec.report.EventEnrichment;
-import com.datadog.appsec.report.ReportService;
+import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
+import datadog.trace.api.TraceSegment;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -52,19 +52,15 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ReportService reportService;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
   private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
 
   public GatewayBridge(
-      SubscriptionService subscriptionService,
-      EventProducerService producerService,
-      ReportService reportService) {
+      SubscriptionService subscriptionService, EventProducerService producerService) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.reportService = reportService;
   }
 
   public void init() {
@@ -89,19 +85,21 @@ public class GatewayBridge {
           AppSecRequestContext ctx = ctx_.getData();
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
-          Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
-          // If detected any events - mark span at appsec.event
-          if (!collectedEvents.isEmpty() && spanInfo != null) {
-            // Keep event related span, because it could be ignored in case of
-            // reduced datadog sampling rate.
-            spanInfo.setTag(DDTags.MANUAL_KEEP, true);
-            spanInfo.setTag("appsec.event", true);
-          }
+          TraceSegment traceSeg = ctx_.getTraceSegment();
 
-          for (AppSecEvent100 event : collectedEvents) {
-            EventEnrichment.enrich(event, spanInfo, ctx);
+          if (traceSeg != null) {
+            Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
+            // If detected any events - mark span at appsec.event
+            if (!collectedEvents.isEmpty() && spanInfo != null) {
+              // Keep event related span, because it could be ignored in case of
+              // reduced datadog sampling rate.
+              traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
+              traceSeg.setTagTop("appsec.event", true);
+
+              AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+              traceSeg.setDataTop("appsec", wrapper);
+            }
           }
-          reportService.reportEvents(collectedEvents, ctx_.getTraceSegment());
 
           ctx.close();
           return NoopFlow.INSTANCE;
@@ -177,7 +175,6 @@ public class GatewayBridge {
   // currently unused; doesn't do anything useful
   public void stop() {
     // TODO: resetting IG not possible
-    this.reportService.close();
   }
 
   private static class RequestContextSupplier implements Flow<AppSecRequestContext> {

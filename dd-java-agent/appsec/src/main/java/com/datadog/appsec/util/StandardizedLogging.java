@@ -2,7 +2,7 @@ package com.datadog.appsec.util;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
-import com.datadog.appsec.report.raw.events.Rule100;
+import com.datadog.appsec.report.raw.events.Rule;
 import io.sqreen.powerwaf.Powerwaf;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
@@ -133,7 +133,7 @@ public class StandardizedLogging {
   // D6, I5
   public static void attackDetected(Logger logger, AppSecEvent100 event) {
     String ruleId = "unknown rule";
-    Rule100 rule = event.getRule();
+    Rule rule = event.getRule();
     if (rule != null) {
       String id = rule.getId();
       if (id != null) {
@@ -142,7 +142,7 @@ public class StandardizedLogging {
     }
 
     logger.info("Detecting an attack from rule {}", ruleId);
-    logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatch());
+    logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatches());
   }
 
   /*
