@@ -8,8 +8,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 
 class RuleBasedSamplingTest extends DDCoreSpecification {
   def "Rule Based Sampler is not created when properties not set"() {
@@ -79,60 +80,60 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     null              | "xx:1"              | null        | "50"      | null             | null              | 1.0               | SAMPLER_KEEP
 
     // Matching neither with default rate
-    null              | null                | "1"         | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | null                | "0"         | "50"      | 0                | null              | null              | SAMPLER_DROP
-    "xx:1"            | null                | "1"         | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | "xx:1"              | "1"         | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "xx:1"            | null                | "0"         | "50"      | 0                | null              | null              | SAMPLER_DROP
-    null              | "xx:1"              | "0"         | "50"      | 0                | null              | null              | SAMPLER_DROP
+    null              | null                | "1"         | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | null                | "0"         | "50"      | 0                | null              | null              | USER_DROP
+    "xx:1"            | null                | "1"         | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | "xx:1"              | "1"         | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "xx:1"            | null                | "0"         | "50"      | 0                | null              | null              | USER_DROP
+    null              | "xx:1"              | "0"         | "50"      | 0                | null              | null              | USER_DROP
 
     // Matching service: keep
-    "service:1"       | null                | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "s.*:1"           | null                | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    ".*e:1"           | null                | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "[a-z]+:1"        | null                | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
+    "service:1"       | null                | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "s.*:1"           | null                | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    ".*e:1"           | null                | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "[a-z]+:1"        | null                | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
 
     // Matching service: drop
-    "service:0"       | null                | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    "s.*:0"           | null                | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    ".*e:0"           | null                | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    "[a-z]+:0"        | null                | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
+    "service:0"       | null                | null        | "50"      | 0                | null              | null              | USER_DROP
+    "s.*:0"           | null                | null        | "50"      | 0                | null              | null              | USER_DROP
+    ".*e:0"           | null                | null        | "50"      | 0                | null              | null              | USER_DROP
+    "[a-z]+:0"        | null                | null        | "50"      | 0                | null              | null              | USER_DROP
 
     // Matching service overrides default rate
-    "service:1"       | null                | "0"         | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "service:0"       | null                | "1"         | "50"      | 0                | null              | null              | SAMPLER_DROP
+    "service:1"       | null                | "0"         | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "service:0"       | null                | "1"         | "50"      | 0                | null              | null              | USER_DROP
 
     // multiple services
-    "xxx:0,service:1" | null                | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "xxx:1,service:0" | null                | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
+    "xxx:0,service:1" | null                | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "xxx:1,service:0" | null                | null        | "50"      | 0                | null              | null              | USER_DROP
 
     // Matching operation : keep
-    null              | "operation:1"       | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | "o.*:1"             | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | ".*n:1"             | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | "[a-z]+:1"          | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
+    null              | "operation:1"       | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | "o.*:1"             | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | ".*n:1"             | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | "[a-z]+:1"          | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
 
     // Matching operation: drop
-    null              | "operation:0"       | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    null              | "o.*:0"             | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    null              | ".*n:0"             | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    null              | "[a-z]+:0"          | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
+    null              | "operation:0"       | null        | "50"      | 0                | null              | null              | USER_DROP
+    null              | "o.*:0"             | null        | "50"      | 0                | null              | null              | USER_DROP
+    null              | ".*n:0"             | null        | "50"      | 0                | null              | null              | USER_DROP
+    null              | "[a-z]+:0"          | null        | "50"      | 0                | null              | null              | USER_DROP
 
     // Matching operation overrides default rate
-    null              | "operation:1"       | "0"         | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | "operation:0"       | "1"         | "50"      | 0                | null              | null              | SAMPLER_DROP
+    null              | "operation:1"       | "0"         | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | "operation:0"       | "1"         | "50"      | 0                | null              | null              | USER_DROP
 
     // multiple operation combinations
-    null              | "xxx:0,operation:1" | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    null              | "xxx:1,operation:0" | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
+    null              | "xxx:0,operation:1" | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    null              | "xxx:1,operation:0" | null        | "50"      | 0                | null              | null              | USER_DROP
 
     // Service and operation name combinations
-    "service:1"       | "operation:0"       | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "service:1"       | "xxx:0"             | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "service:0"       | "operation:1"       | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    "service:0"       | "xxx:1"             | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
-    "xxx:0"           | "operation:1"       | null        | "50"      | 1.0              | 50                | null              | SAMPLER_KEEP
-    "xxx:1"           | "operation:0"       | null        | "50"      | 0                | null              | null              | SAMPLER_DROP
+    "service:1"       | "operation:0"       | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "service:1"       | "xxx:0"             | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "service:0"       | "operation:1"       | null        | "50"      | 0                | null              | null              | USER_DROP
+    "service:0"       | "xxx:1"             | null        | "50"      | 0                | null              | null              | USER_DROP
+    "xxx:0"           | "operation:1"       | null        | "50"      | 1.0              | 50                | null              | USER_KEEP
+    "xxx:1"           | "operation:0"       | null        | "50"      | 0                | null              | null              | USER_DROP
 
     // There are no tests for ordering within service or operation rules because the rule order in that case is unspecified
   }
@@ -165,12 +166,12 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
     span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
     span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
-    span1.getSamplingPriority() == SAMPLER_KEEP
+    span1.getSamplingPriority() == USER_KEEP
 
     span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
     span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
     span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
-    span2.getSamplingPriority() == SAMPLER_DROP
+    span2.getSamplingPriority() == USER_DROP
 
     cleanup:
     tracer.close()
@@ -203,12 +204,12 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
     span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
     span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
-    span1.getSamplingPriority() == SAMPLER_KEEP
+    span1.getSamplingPriority() == USER_KEEP
 
     span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
     span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
     span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
-    span2.getSamplingPriority() == SAMPLER_DROP
+    span2.getSamplingPriority() == USER_DROP
 
     cleanup:
     tracer.close()
