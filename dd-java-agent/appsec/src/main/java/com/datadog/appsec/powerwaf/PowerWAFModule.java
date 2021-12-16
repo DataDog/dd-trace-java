@@ -1,6 +1,6 @@
 package com.datadog.appsec.powerwaf;
 
-import static java.util.Collections.singletonList;
+import static java.util.Collections.*;
 
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
@@ -30,6 +30,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,39 +222,68 @@ public class PowerWAFModule implements AppSecModule {
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
         reqCtx.setBlocked(actionWithData.action == Powerwaf.Action.BLOCK);
-        buildEvent(actionWithData)
-            .ifPresent(event -> reqCtx.reportEvents(singletonList(event), null));
+        Collection<AppSecEvent100> events = buildEvents(actionWithData);
+        reqCtx.reportEvents(events, null);
       }
     }
   }
 
-  private Optional<AppSecEvent100> buildEvent(Powerwaf.ActionWithData actionWithData) {
-    List<PowerWAFResultData> listResults;
+  private Collection<AppSecEvent100> buildEvents(Powerwaf.ActionWithData actionWithData) {
+    Collection<PowerWAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
     } catch (IOException e) {
       throw new UndeclaredThrowableException(e);
     }
 
-    if (listResults == null || listResults.isEmpty()) {
-      return Optional.empty();
+    if (listResults != null && !listResults.isEmpty()) {
+      return listResults.stream()
+          .map(this::buildEvent)
+          .filter(Objects::nonNull)
+          .collect(Collectors.toList());
+    }
+    return emptyList();
+  }
+
+  private AppSecEvent100 buildEvent(PowerWAFResultData wafResult) {
+
+    if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
+      log.warn("WAF result is empty: {}", wafResult);
+      return null;
     }
 
-    // we only take the first match
-    PowerWAFResultData powerWAFResultData = listResults.get(0);
-    if (powerWAFResultData.rule_matches == null || powerWAFResultData.rule_matches.isEmpty()) {
-      return Optional.empty();
-    }
-    PowerWAFResultData.RuleMatch ruleMatch = powerWAFResultData.rule_matches.get(0);
-    PowerWAFResultData.Parameter parameter = ruleMatch.parameters.get(0);
+    List<RuleMatch> ruleMatchList = new ArrayList<>();
+    for (PowerWAFResultData.RuleMatch rule_match : wafResult.rule_matches) {
 
-    RuleInfo ruleInfo = rulesInfoMap.get(powerWAFResultData.rule.id);
+      List<Parameter> parameterList = new ArrayList<>();
+
+      for (PowerWAFResultData.Parameter parameter : rule_match.parameters) {
+        parameterList.add(
+            new Parameter.ParameterBuilder()
+                .withAddress(parameter.address)
+                .withKeyPath(parameter.key_path)
+                .withValue(parameter.value)
+                .withHighlight(parameter.highlight)
+                .build());
+      }
+
+      RuleMatch ruleMatch =
+          new RuleMatch.RuleMatchBuilder()
+              .withOperator(rule_match.operator)
+              .withOperatorValue(rule_match.operator_value)
+              .withParameters(parameterList)
+              .build();
+
+      ruleMatchList.add(ruleMatch);
+    }
+
+    RuleInfo ruleInfo = rulesInfoMap.get(wafResult.rule.id);
 
     AppSecEvent100 event =
         new AppSecEvent100.AppSecEvent100Builder()
             .withRule(
                 new Rule.RuleBuilder()
-                    .withId(powerWAFResultData.rule.id)
+                    .withId(wafResult.rule.id)
                     .withName(ruleInfo.name)
                     .withTags(
                         new Tags.TagsBuilder()
@@ -261,23 +291,10 @@ public class PowerWAFModule implements AppSecModule {
                             .withCategory(ruleInfo.tags.get("category"))
                             .build())
                     .build())
-            .withRuleMatches(
-                singletonList(
-                    new RuleMatch.RuleMatchBuilder()
-                        .withOperator(ruleMatch.operator)
-                        .withOperatorValue(ruleMatch.operator_value)
-                        .withParameters(
-                            singletonList(
-                                new Parameter.ParameterBuilder()
-                                    .withAddress(parameter.address)
-                                    .withKeyPath(parameter.key_path)
-                                    .withValue(parameter.value)
-                                    .withHighlight(parameter.highlight)
-                                    .build()))
-                        .build()))
+            .withRuleMatches(ruleMatchList)
             .build();
 
-    return Optional.of(event);
+    return event;
   }
 
   private static final class DataBundleMapWrapper implements Map<String, Object> {
