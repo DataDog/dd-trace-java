@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,7 +26,8 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return implementsInterface(named("org.junit.platform.launcher.Launcher"));
+    return implementsInterface(named("org.junit.platform.launcher.Launcher"))
+        .and(not(named("org.junit.platform.launcher.core.DefaultLauncherSession$ClosedLauncher")));
   }
 
   @Override
