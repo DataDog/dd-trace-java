@@ -102,8 +102,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
                 .enableTelemetry(false)
                 .hostname(host)
                 .port(port)
-                // FIXME: uncomment when java-dogstatsd-client released
-                // .namedPipe(namedPipe)
+                .namedPipe(namedPipe)
                 .errorHandler(this)
                 .entityID(entityID);
         // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
