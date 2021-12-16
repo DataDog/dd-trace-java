@@ -8,8 +8,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_CHECK_PERIOD;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SKEW_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_DRIFT_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -195,8 +195,8 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
-import static datadog.trace.api.config.TracerConfig.CLOCK_CHECK_PERIOD;
-import static datadog.trace.api.config.TracerConfig.CLOCK_SKEW_LIMIT;
+import static datadog.trace.api.config.TracerConfig.CLOCK_DRIFT_LIMIT;
+import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
@@ -351,8 +351,8 @@ public class Config {
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
-  private final int clockCheckPeriod;
-  private final int clockSkewLimit;
+  private final int clockSyncPeriod;
+  private final int clockDriftLimit;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -737,8 +737,8 @@ public class Config {
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
-    clockCheckPeriod = configProvider.getInteger(CLOCK_CHECK_PERIOD, DEFAULT_CLOCK_CHECK_PERIOD);
-    clockSkewLimit = configProvider.getInteger(CLOCK_SKEW_LIMIT, DEFAULT_CLOCK_SKEW_LIMIT);
+    clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
+    clockDriftLimit = configProvider.getInteger(CLOCK_DRIFT_LIMIT, DEFAULT_CLOCK_DRIFT_LIMIT);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -1204,12 +1204,12 @@ public class Config {
     return propagationStylesToInject;
   }
 
-  public int getClockCheckPeriod() {
-    return clockCheckPeriod;
+  public int getClockSyncPeriod() {
+    return clockSyncPeriod;
   }
 
-  public int getClockSkewLimit() {
-    return clockSkewLimit;
+  public int getClockDriftLimit() {
+    return clockDriftLimit;
   }
 
   public String getDogStatsDNamedPipe() {
@@ -2253,10 +2253,10 @@ public class Config {
         + propagationStylesToExtract
         + ", propagationStylesToInject="
         + propagationStylesToInject
-        + ", clockCheckPeriod="
-        + clockCheckPeriod
-        + ", clockSkewLimit="
-        + clockSkewLimit
+        + ", clockSyncPeriod="
+        + clockSyncPeriod
+        + ", clockDriftLimit="
+        + clockDriftLimit
         + ", jmxFetchEnabled="
         + jmxFetchEnabled
         + ", dogStatsDStartDelay="

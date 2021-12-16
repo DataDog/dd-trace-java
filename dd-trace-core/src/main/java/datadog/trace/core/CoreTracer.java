@@ -91,12 +91,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
-  /** Tracer start time in nano seconds measured up to a millisecond accuracy */
+  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
   private final long startTimeNano;
-  /** Nano second ticks value at tracer start */
+  /** Nanosecond ticks value at tracer start */
   private final long startNanoTicks;
-  /** Nano second offset (with millisecond accuracy) to counter clock skew */
-  private volatile long counterSkew;
+  /** How often should traced threads check clock ticks against the wall clock */
+  private final long clockSyncPeriod;
+  /** Maximum amount of clock drift tolerated between ticks and the wall clock */
+  private final long clockDriftLimit;
+  /** Last time (in nanosecond ticks) the clock was checked for drift */
+  private volatile long lastSyncTicks;
+  /** Nanosecond offset to counter clock drift */
+  private volatile long counterDrift;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
@@ -400,13 +406,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.startTimeNano = Clock.currentNanoTime();
     this.startNanoTicks = Clock.currentNanoTicks();
-
-    int clockCheckPeriod = config.getClockCheckPeriod();
-    if (clockCheckPeriod > 0) {
-      long clockSkewLimit = SECONDS.toNanos(Math.min(1, config.getClockSkewLimit()));
-      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-          new ClockSkewDetector(clockSkewLimit), this, clockCheckPeriod, clockCheckPeriod, SECONDS);
-    }
+    this.clockSyncPeriod = MILLISECONDS.toNanos(config.getClockSyncPeriod());
+    this.clockDriftLimit = MILLISECONDS.toNanos(config.getClockDriftLimit());
+    this.lastSyncTicks = startNanoTicks;
 
     this.checkpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
@@ -569,17 +571,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * @return timestamp in nanoseconds
    */
   long getTimeWithNanoTicks(long nanoTicks) {
-    return startTimeNano + counterSkew + Math.max(0, nanoTicks - startNanoTicks);
-  }
-
-  void detectClockSkew(long skewLimit) {
-    long elapsedTimeNano = Clock.currentNanoTime() - startTimeNano;
-    long elapsedNanoTicks = Clock.currentNanoTicks() - startNanoTicks;
-
-    long skew = elapsedNanoTicks - elapsedTimeNano;
-    if (Math.abs(skew + counterSkew) >= skewLimit) {
-      counterSkew = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(skew));
+    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    if (nanoTicks - lastSyncTicks > clockSyncPeriod) {
+      lastSyncTicks = nanoTicks;
+      long drift = computedNanoTime - Clock.currentNanoTime();
+      if (Math.abs(drift + counterDrift) >= clockDriftLimit) {
+        counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
+      }
     }
+    return computedNanoTime + counterDrift;
   }
 
   @Override
@@ -1191,19 +1191,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (tracer != null) {
         tracer.close();
       }
-    }
-  }
-
-  private static final class ClockSkewDetector implements AgentTaskScheduler.Task<CoreTracer> {
-    private final long skewLimit;
-
-    ClockSkewDetector(long skewLimit) {
-      this.skewLimit = skewLimit;
-    }
-
-    @Override
-    public void run(CoreTracer tracer) {
-      tracer.detectClockSkew(skewLimit);
     }
   }
 }
