@@ -793,6 +793,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
           // mark scope as overdue to allow cleanup and avoid further spans being attached
           scopeStack.overdueRootScope = rootScope;
+          rootScope.span.finishThreadMigration();
           rootScope.span.finishWithEndToEnd();
           itr.remove();
         }
