@@ -97,8 +97,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final long startNanoTicks;
   /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
-  /** Maximum amount of clock drift tolerated between ticks and the wall clock */
-  private final long clockDriftLimit;
   /** Last time (in nanosecond ticks) the clock was checked for drift */
   private volatile long lastSyncTicks;
   /** Nanosecond offset to counter clock drift */
@@ -406,8 +404,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.startTimeNano = Clock.currentNanoTime();
     this.startNanoTicks = Clock.currentNanoTicks();
-    this.clockSyncPeriod = MILLISECONDS.toNanos(config.getClockSyncPeriod());
-    this.clockDriftLimit = MILLISECONDS.toNanos(config.getClockDriftLimit());
+    this.clockSyncPeriod = SECONDS.toNanos(config.getClockSyncPeriod());
     this.lastSyncTicks = startNanoTicks;
 
     this.checkpointer = SamplingCheckpointer.create();
@@ -575,7 +572,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (nanoTicks - lastSyncTicks > clockSyncPeriod) {
       lastSyncTicks = nanoTicks;
       long drift = computedNanoTime - Clock.currentNanoTime();
-      if (Math.abs(drift + counterDrift) >= clockDriftLimit) {
+      if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
         counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
       }
     }
