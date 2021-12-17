@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
@@ -24,7 +25,7 @@ class DatadogHttpCodec {
   private static final String SPAN_ID_KEY = "x-datadog-parent-id";
   private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
   private static final String ORIGIN_KEY = "x-datadog-origin";
-  private static final String E2E_START_KEY = "x-datadog-e2e-start";
+  private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -105,8 +106,6 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
-          } else if (E2E_START_KEY.equalsIgnoreCase(key)) {
-            classification = E2E_START;
           } else if (Config.get().isAwsPropagationEnabled()
               && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
@@ -122,7 +121,9 @@ class DatadogHttpCodec {
           break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
-          if (lowerCaseKey.startsWith(OT_BAGGAGE_PREFIX)) {
+          if (E2E_START_KEY.equals(lowerCaseKey)) {
+            classification = E2E_START;
+          } else if (lowerCaseKey.startsWith(OT_BAGGAGE_PREFIX)) {
             classification = OT_BAGGAGE;
           }
           break;
@@ -152,7 +153,7 @@ class DatadogHttpCodec {
                 samplingPriority = Integer.parseInt(firstValue);
                 break;
               case E2E_START:
-                endToEndStartTime = MILLISECONDS.toNanos(Long.parseLong(firstValue));
+                endToEndStartTime = extractEndToEndStartTime(firstValue);
                 break;
               case TAGS:
                 {
@@ -184,6 +185,15 @@ class DatadogHttpCodec {
         }
       }
       return true;
+    }
+
+    private long extractEndToEndStartTime(String value) {
+      try {
+        return MILLISECONDS.toNanos(Long.parseLong(value));
+      } catch (RuntimeException e) {
+        log.debug("Ignoring invalid end-to-end start time {}", value, e);
+        return 0;
+      }
     }
   }
 }

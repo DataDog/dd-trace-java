@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -35,7 +36,7 @@ class XRayHttpCodec {
   static final String SELF_PREFIX = SELF + '=';
   static final String ORIGIN_PREFIX = ORIGIN_KEY + '=';
 
-  static final String E2E_START_KEY = "e2e.start";
+  static final String E2E_START_KEY = DDTags.TRACE_START_TIME;
   static final String E2E_START_PREFIX = E2E_START_KEY + '=';
 
   static final int MAX_ADDITIONAL_BYTES = 256;
@@ -190,7 +191,7 @@ class XRayHttpCodec {
           interpreter.origin = part.substring(ORIGIN_PREFIX.length());
         } else if (part.startsWith(E2E_START_PREFIX)) {
           interpreter.endToEndStartTime =
-              MILLISECONDS.toNanos(Long.parseLong(part.substring(E2E_START_PREFIX.length())));
+              extractEndToEndStartTime(part.substring(E2E_START_PREFIX.length()));
         } else {
           int eqIndex = part.indexOf('=');
           if (eqIndex > 0) {
@@ -198,6 +199,15 @@ class XRayHttpCodec {
           }
         }
         startPart = endPart + 1;
+      }
+    }
+
+    private static long extractEndToEndStartTime(String value) {
+      try {
+        return MILLISECONDS.toNanos(Long.parseLong(value));
+      } catch (RuntimeException e) {
+        log.debug("Ignoring invalid end-to-end start time {}", value, e);
+        return 0;
       }
     }
 
