@@ -141,7 +141,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
             InstrumentationContext.get(LoggingEvent.class, AgentSpan.Context.class).get(event);
         if (context != null) {
           mdc.put(CorrelationIdentifier.getTraceIdKey(), context.getTraceId().toString());
-          mdc.put(CorrelationIdentifier.getSpanIdKey(), context.getTraceId().toString());
+          mdc.put(CorrelationIdentifier.getSpanIdKey(), context.getSpanId().toString());
         }
 
         Hashtable originalMdc = MDC.getContext();
