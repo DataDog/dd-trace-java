@@ -152,7 +152,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public void finishEndToEnd() {
+  public void finishWithEndToEnd() {
     long recordStartNano = context.getEndToEndStartTime();
     if (recordStartNano > 0) {
       phasedFinish();

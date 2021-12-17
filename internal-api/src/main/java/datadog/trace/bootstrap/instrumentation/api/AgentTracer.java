@@ -602,7 +602,7 @@ public class AgentTracer {
     public void beginEndToEnd() {}
 
     @Override
-    public void finishEndToEnd() {}
+    public void finishWithEndToEnd() {}
 
     @Override
     public boolean phasedFinish() {

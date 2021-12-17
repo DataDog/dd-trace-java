@@ -204,7 +204,7 @@ public class RabbitDecorator extends ClientDecorator {
   public static void finishReceivingSpan(AgentScope scope) {
     AgentSpan span = scope.span();
     if (CONSUMER_DECORATE.endToEndDurationsEnabled) {
-      span.finishEndToEnd();
+      span.finishWithEndToEnd();
     } else {
       span.finish();
     }

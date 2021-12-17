@@ -97,7 +97,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
    *
    * <p>Note: this will also finish the span and publish it.
    */
-  void finishEndToEnd();
+  void finishWithEndToEnd();
 
   /**
    * Finishes the span but does not publish it. The {@link #publish()} method MUST be called once

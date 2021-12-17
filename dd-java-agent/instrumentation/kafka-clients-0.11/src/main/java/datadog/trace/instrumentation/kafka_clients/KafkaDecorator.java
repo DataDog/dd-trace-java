@@ -87,7 +87,7 @@ public class KafkaDecorator extends ClientDecorator {
 
   public void finishConsumerSpan(final AgentSpan span) {
     if (endToEndDurationsEnabled) {
-      span.finishEndToEnd();
+      span.finishWithEndToEnd();
     } else {
       span.finish();
     }
