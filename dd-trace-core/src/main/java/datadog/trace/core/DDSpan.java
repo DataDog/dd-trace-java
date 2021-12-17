@@ -145,15 +145,21 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public final void finish(final long stopTimeMicros) {
-    context.getTrace().touch(); // Update timestamp
-    long adjustedStartTimeNano;
+    long durationNano;
     if (!externalClock) {
-      // remove tick precision part of our internal time to better match external clock
-      adjustedStartTimeNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(startTimeNano + 500_000));
+      // first capture wall-clock offset from 'now' to external stop time
+      long externalOffsetMicros = stopTimeMicros - Clock.currentMicroTime();
+      // immediately afterwards calculate internal duration of span to 'now'
+      durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
+      // drop nanosecond precision part of internal duration (expected behaviour)
+      durationNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(durationNano));
+      // add wall-clock offset to get total duration to external stop time
+      durationNano += MICROSECONDS.toNanos(externalOffsetMicros);
     } else {
-      adjustedStartTimeNano = startTimeNano;
+      durationNano = MICROSECONDS.toNanos(stopTimeMicros) - startTimeNano;
     }
-    finishAndAddToTrace(MICROSECONDS.toNanos(stopTimeMicros) - adjustedStartTimeNano);
+    context.getTrace().touch(); // Update timestamp
+    finishAndAddToTrace(durationNano);
   }
 
   private static final boolean legacyEndToEndEnabled =
