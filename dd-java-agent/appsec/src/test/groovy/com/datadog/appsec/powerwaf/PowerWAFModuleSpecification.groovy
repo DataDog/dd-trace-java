@@ -165,25 +165,25 @@ class PowerWAFModuleSpecification extends DDSpecification {
   void 'bad ActionWithData - empty list'() {
     def waf = new PowerWAFModule()
     Powerwaf.ActionWithData actionWithData = new Powerwaf.ActionWithData(null, "[]")
-    Optional ret
+    Collection ret
 
     when:
-    ret = waf.buildEvent(actionWithData)
+    ret = waf.buildEvents(actionWithData)
 
     then:
-    !ret.isPresent()
+    ret.isEmpty()
   }
 
   void 'bad ActionWithData - empty object'() {
     def waf = new PowerWAFModule()
     Powerwaf.ActionWithData actionWithData = new Powerwaf.ActionWithData(null, "[{}]")
-    Optional ret
+    Collection ret
 
     when:
-    ret = waf.buildEvent(actionWithData)
+    ret = waf.buildEvents(actionWithData)
 
     then:
-    !ret.isPresent()
+    ret.isEmpty()
   }
 
   private Map<String, Object> getDefaultConfig() {
