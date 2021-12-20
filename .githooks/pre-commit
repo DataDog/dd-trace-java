@@ -12,3 +12,6 @@ if ! ./gradlew spotlessCheck; then
   echo ""
   exit 1
 fi
+
+# Run Groovy code check
+./gradlew codenarcTest -PskipTests

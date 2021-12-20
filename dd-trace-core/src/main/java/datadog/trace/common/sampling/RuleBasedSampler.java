@@ -101,19 +101,19 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
       if (matchedRule.sample(span)) {
         if (rateLimiter.tryAcquire()) {
           span.setSamplingPriority(
-              PrioritySampling.SAMPLER_KEEP,
+              PrioritySampling.USER_KEEP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate());
         } else {
           span.setSamplingPriority(
-              PrioritySampling.SAMPLER_DROP,
+              PrioritySampling.USER_DROP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate());
         }
         span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {
         span.setSamplingPriority(
-            PrioritySampling.SAMPLER_DROP,
+            PrioritySampling.USER_DROP,
             SAMPLING_RULE_RATE,
             matchedRule.getSampler().getSampleRate());
       }

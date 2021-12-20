@@ -113,6 +113,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       throw new IOException("Unable deserialize Json config");
     }
 
+    if (rawConfig.containsKey("version")) {
+      // in case if we have single config simulate multi-config structure
+      rawConfig = Collections.singletonMap("waf", rawConfig);
+    }
+
     Map<String, AppSecConfig> ret = new LinkedHashMap<>();
     for (Map.Entry<String, Object> entry : rawConfig.entrySet()) {
       String key = entry.getKey();
@@ -120,7 +125,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       if (!(value instanceof Map)) {
         throw new IOException("Expect config to be a map");
       }
-      ret.put(key, AppSecConfig.createFromMap((Map<String, Object>) value));
+      ret.put(key, AppSecConfig.valueOf((Map<String, Object>) value));
     }
     return ret;
   }
