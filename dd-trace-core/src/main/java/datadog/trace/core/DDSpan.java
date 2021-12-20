@@ -208,6 +208,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
     } else {
       durationNano = MICROSECONDS.toNanos(Clock.currentMicroTime()) - startTimeNano;
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
