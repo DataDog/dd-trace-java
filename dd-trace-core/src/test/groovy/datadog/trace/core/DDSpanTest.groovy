@@ -265,9 +265,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                         | _
-    new TagContext("some-origin", [:])                                       | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", [:], [:]) | _
+    extractedContext                                                            | _
+    new TagContext("some-origin", [:])                                          | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", 0, [:], [:]) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -284,9 +284,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                         | isTraceRootSpan
-    null                                                                     | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", [:], [:]) | false
+    extractedContext                                                            | isTraceRootSpan
+    null                                                                        | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", 0, [:], [:]) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -306,9 +306,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                         | isTraceRootSpan
-    null                                                                     | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", [:], [:]) | false
+    extractedContext                                                            | isTraceRootSpan
+    null                                                                        | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", 0, [:], [:]) | false
   }
 
   def "infer top level from parent service name"() {

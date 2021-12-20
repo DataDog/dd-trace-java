@@ -185,4 +185,26 @@ class XRayHttpExtractorTest extends DDSpecification {
     "f" * 16           | "1"                | DDId.MAX                         | DDId.ONE
     "1"                | "f" * 16           | DDId.ONE                         | DDId.MAX
   }
+
+  def "extract headers with end-to-end"() {
+    setup:
+    def ctx = [
+      'X-Amzn-Trace-Id' : "Root=1-00000000-00000000${traceId.padLeft(16, '0')}" +
+      ";Parent=${spanId.padLeft(16, '0')};k1=v1;t0=${endToEndStartTime};k2=v2"
+    ]
+
+    when:
+    ExtractedContext context = extractor.extract(ctx, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == DDId.from(traceId)
+    context.spanId == DDId.from(spanId)
+    context.baggage == ["k1": "v1", "k2": "v2"]
+    context.endToEndStartTime == endToEndStartTime * 1000000L
+
+    where:
+    traceId | spanId | endToEndStartTime
+    "1"     | "2"    | 0
+    "2"     | "3"    | 1610001234
+  }
 }

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -93,6 +94,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
    * finish of each span).
    */
   private volatile long lastReferenced = 0;
+
+  private volatile long endToEndStartTime;
+  private static final AtomicLongFieldUpdater<PendingTrace> END_TO_END_START_TIME =
+      AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "endToEndStartTime");
 
   private PendingTrace(
       @Nonnull CoreTracer tracer,
@@ -279,5 +284,17 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   public int size() {
     return completedSpanCount;
+  }
+
+  public void beginEndToEnd() {
+    beginEndToEnd(getCurrentTimeNano());
+  }
+
+  void beginEndToEnd(long endToEndStartTime) {
+    END_TO_END_START_TIME.compareAndSet(this, 0, endToEndStartTime);
+  }
+
+  public long getEndToEndStartTime() {
+    return endToEndStartTime;
   }
 }

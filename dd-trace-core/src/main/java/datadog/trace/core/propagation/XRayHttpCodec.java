@@ -3,8 +3,11 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -32,6 +35,9 @@ class XRayHttpCodec {
   static final String SAMPLED_PREFIX = SAMPLED + '=';
   static final String SELF_PREFIX = SELF + '=';
   static final String ORIGIN_PREFIX = ORIGIN_KEY + '=';
+
+  static final String E2E_START_KEY = DDTags.TRACE_START_TIME;
+  static final String E2E_START_PREFIX = E2E_START_KEY + '=';
 
   static final int MAX_ADDITIONAL_BYTES = 256;
 
@@ -63,6 +69,11 @@ class XRayHttpCodec {
       CharSequence origin = context.getOrigin();
       if (origin != null) {
         additionalPart(buf, ORIGIN_KEY, origin.toString(), maxCapacity);
+      }
+      long e2eStart = context.getEndToEndStartTime();
+      if (e2eStart > 0) {
+        additionalPart(
+            buf, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)), maxCapacity);
       }
 
       for (Map.Entry<String, String> entry : context.baggageItems()) {
@@ -178,6 +189,9 @@ class XRayHttpCodec {
           // Self is added by load-balancers and should be ignored
         } else if (part.startsWith(ORIGIN_PREFIX)) {
           interpreter.origin = part.substring(ORIGIN_PREFIX.length());
+        } else if (part.startsWith(E2E_START_PREFIX)) {
+          interpreter.endToEndStartTime =
+              extractEndToEndStartTime(part.substring(E2E_START_PREFIX.length()));
         } else {
           int eqIndex = part.indexOf('=');
           if (eqIndex > 0) {
@@ -185,6 +199,15 @@ class XRayHttpCodec {
           }
         }
         startPart = endPart + 1;
+      }
+    }
+
+    private static long extractEndToEndStartTime(String value) {
+      try {
+        return MILLISECONDS.toNanos(Long.parseLong(value));
+      } catch (RuntimeException e) {
+        log.debug("Ignoring invalid end-to-end start time {}", value, e);
+        return 0;
       }
     }
 

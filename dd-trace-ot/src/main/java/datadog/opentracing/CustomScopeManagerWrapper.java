@@ -97,7 +97,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
         }
         scope.close();
         if (finishSpan) {
-          span.finish();
+          span.finishWithEndToEnd();
         }
       }
     }
@@ -198,14 +198,16 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
           }
           spans.poll();
         }
-        s.finish();
+        s.finishThreadMigration();
+        s.finishWithEndToEnd();
       }
     }
 
     public void finishAllSpans() {
       synchronized (spans) {
         for (AgentSpan s : spans) {
-          s.finish();
+          s.finishThreadMigration();
+          s.finishWithEndToEnd();
         }
         // no need to clear as this is only called when the owning thread is no longer alive
       }
