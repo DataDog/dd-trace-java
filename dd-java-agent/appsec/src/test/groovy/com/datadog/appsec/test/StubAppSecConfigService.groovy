@@ -3,7 +3,6 @@ package com.datadog.appsec.test
 import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecConfigServiceImpl
-import com.squareup.moshi.Moshi
 import okio.Okio
 
 class StubAppSecConfigService implements AppSecConfigService {
@@ -14,7 +13,7 @@ class StubAppSecConfigService implements AppSecConfigService {
 
   private final Map hardcodedConfig
 
-  StubAppSecConfigService(String location = AppSecConfigServiceImpl.DEFAULT_CONFIG_LOCATION) {
+  StubAppSecConfigService(String location = "test_multi_config.json") {
     this.location = location
   }
 
