@@ -230,4 +230,32 @@ class DatadogHttpExtractorTest extends DDSpecification {
     "1"                   | "$TRACE_ID_MAX"       | DDId.ONE        | DDId.MAX
     "1"                   | "${TRACE_ID_MAX + 1}" | null            | null
   }
+
+  def "extract http headers with end to end"() {
+    setup:
+    def headers = [
+      ""                                      : "empty key",
+      (TRACE_ID_KEY.toUpperCase())            : traceId,
+      (SPAN_ID_KEY.toUpperCase())             : spanId,
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "t0"): endToEndStartTime,
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      SOME_HEADER                             : "my-interesting-info",
+    ]
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == DDId.from(traceId)
+    context.spanId == DDId.from(spanId)
+    context.baggage == ["k1": "v1", "k2": "v2"]
+    context.tags == ["some-tag": "my-interesting-info"]
+    context.endToEndStartTime == endToEndStartTime * 1000000L
+
+    where:
+    traceId | spanId | endToEndStartTime
+    "1"     | "2"    | 0
+    "2"     | "3"    | 1610001234
+  }
 }
