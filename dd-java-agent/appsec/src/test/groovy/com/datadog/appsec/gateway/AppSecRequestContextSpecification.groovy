@@ -55,7 +55,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.finishHeaders()
 
     and:
-    ctx.addHeader('a', 'b')
+    ctx.addRequestHeader('a', 'b')
 
     then:
     ctx.finishedHeaders == true
@@ -85,10 +85,10 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     when:
     ctx.addCookie(new StringKVPair('a', 'c'))
-    ctx.addHeader('user-agent', 'foo')
+    ctx.addRequestHeader('user-agent', 'foo')
 
     then:
-    ctx.collectedHeaders['user-agent'] == ['foo']
+    ctx.requestHeaders['user-agent'] == ['foo']
     ctx.collectedCookies == [['a', 'c']]
   }
 
@@ -127,5 +127,58 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     then:
     ctx.transferCollectedEvents().empty
+  }
+
+  void 'headers allow list should contains only lowercase names'() {
+    expect:
+    AppSecRequestContext.HEADERS_ALLOW_LIST.each {
+      assert it == it.toLowerCase() : "REASON: Allow header name \"$it\" MUST be lowercase"
+    }
+  }
+
+  void 'basic headers collection test'() {
+    given:
+    def ctx = new AppSecRequestContext()
+
+    when:
+    ctx.addRequestHeader('Host', '127.0.0.1')
+    ctx.addRequestHeader('Content-Type', 'text/html; charset=UTF-8')
+    ctx.addRequestHeader('Custom-Header', 'value1')
+    ctx.addRequestHeader('Accept', 'application/json')
+
+    then:
+    ctx.requestHeaders == [
+      'host': ['127.0.0.1'],
+      'content-type': ['text/html; charset=UTF-8'],
+      'custom-header': ['value1'],
+      'accept': ['application/json']] as Map
+  }
+
+  void 'null headers should be ignored'() {
+    given:
+    def ctx = new AppSecRequestContext()
+
+    when:
+    ctx.addRequestHeader(null, 'value')
+    ctx.addRequestHeader('key', null)
+
+    then:
+    ctx.requestHeaders.isEmpty()
+  }
+
+  void 'concat multiple values for same header'() {
+    given:
+    def ctx = new AppSecRequestContext()
+
+    when:
+    ctx.addRequestHeader('Custom-Header', 'value1')
+    ctx.addRequestHeader('CUSTOM-HEADER', 'value2')
+    ctx.addRequestHeader('Accept', 'application/json')
+    ctx.addRequestHeader('accept', 'application/xml')
+
+    then:
+    ctx.requestHeaders == [
+      'custom-header': ['value1', 'value2'],
+      'accept': ['application/json', 'application/xml']] as Map
   }
 }

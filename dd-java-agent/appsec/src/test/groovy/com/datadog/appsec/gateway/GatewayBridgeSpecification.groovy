@@ -79,6 +79,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'request_end closes context reports attacks and publishes event'() {
     AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
     RequestContext mockCtx = Mock(RequestContext) {
       getData() >> mockAppSecCtx
       getTraceSegment() >> traceSegment
@@ -94,6 +95,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop('appsec.event', true)
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
+    1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -107,7 +109,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     headerCB.accept(ctx, 'header2', 'value 2')
 
     then:
-    def headers = ctx.data.collectedHeaders
+    def headers = ctx.data.requestHeaders
     assert headers['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
     assert headers['header2'] == ['value 2']
   }
@@ -119,7 +121,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     headerCB.accept(ctx, 'Another-Header', 'another value')
 
     then:
-    def collectedHeaders = ctx.data.collectedHeaders
+    def collectedHeaders = ctx.data.requestHeaders
     assert collectedHeaders['another-header'] == ['another value']
     assert !collectedHeaders.containsKey('cookie')
 
