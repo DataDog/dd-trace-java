@@ -570,11 +570,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   long getTimeWithNanoTicks(long nanoTicks) {
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
     if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      lastSyncTicks = nanoTicks;
       long drift = computedNanoTime - Clock.currentNanoTime();
       if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
         counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
       }
+      lastSyncTicks = nanoTicks;
     }
     return computedNanoTime + counterDrift;
   }
