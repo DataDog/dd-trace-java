@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -78,10 +77,7 @@ public abstract class BaseDecorator {
       span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
     }
     if (endToEndDurationsEnabled) {
-      if (null == span.getBaggageItem(DDTags.TRACE_START_TIME)) {
-        span.setBaggageItem(
-            DDTags.TRACE_START_TIME, Long.toString(NANOSECONDS.toMillis(span.getStartTime())));
-      }
+      span.beginEndToEnd();
     }
     return span;
   }

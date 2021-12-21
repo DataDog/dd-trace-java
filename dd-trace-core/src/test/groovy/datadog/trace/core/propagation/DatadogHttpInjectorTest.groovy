@@ -47,14 +47,14 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId.toString())
     1 * carrier.put(SPAN_ID_KEY, spanId.toString())
-    1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
-    1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     if (samplingPriority != PrioritySampling.UNSET) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
     }
     if (origin) {
       1 * carrier.put(ORIGIN_KEY, origin)
     }
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     0 * _
 
     cleanup:
@@ -66,5 +66,47 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | "saipan"
     "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.UNSET        | "saipan"
     "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null
+  }
+
+  def "inject http headers with end-to-end"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      DDId.from("1"),
+      DDId.from("2"),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      "fakeOrigin",
+      ["k1" : "v1", "k2" : "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
+
+    mockedContext.beginEndToEnd()
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put(TRACE_ID_KEY, "1")
+    1 * carrier.put(SPAN_ID_KEY, "2")
+    1 * carrier.put(ORIGIN_KEY, "fakeOrigin")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    0 * _
+
+    cleanup:
+    tracer.close()
   }
 }

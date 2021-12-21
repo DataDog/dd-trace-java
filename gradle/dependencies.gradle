@@ -28,7 +28,8 @@ final class CachedData {
     moshi         : '1.9.2',
     testcontainers: '1.15.0-rc2',
     jmc           : "8.1.0-SNAPSHOT",
-    autoservice   : "1.0-rc7"
+    autoservice   : "1.0-rc7",
+    asyncprofiler : "2.5.1-DD-20211217"
   ]
 
   static deps = [

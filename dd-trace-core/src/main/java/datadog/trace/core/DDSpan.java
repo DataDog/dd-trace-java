@@ -1,12 +1,15 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.TRACE_START_TIME;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
@@ -143,6 +146,45 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       adjustedStartTimeNano = startTimeNano;
     }
     finishAndAddToTrace(MICROSECONDS.toNanos(stopTimeMicros) - adjustedStartTimeNano);
+  }
+
+  private static final boolean legacyEndToEndEnabled =
+      Config.get().isEndToEndDurationEnabled(false, "legacy");
+
+  @Override
+  public void beginEndToEnd() {
+    if (legacyEndToEndEnabled) {
+      if (null == getBaggageItem(TRACE_START_TIME)) {
+        setBaggageItem(TRACE_START_TIME, Long.toString(NANOSECONDS.toMillis(startTimeNano)));
+      }
+    } else {
+      context.beginEndToEnd();
+    }
+  }
+
+  @Override
+  public void finishWithEndToEnd() {
+    long e2eStart;
+    if (legacyEndToEndEnabled) {
+      String value = context.getBaggageItem(TRACE_START_TIME);
+      try {
+        e2eStart = null != value ? MILLISECONDS.toNanos(Long.parseLong(value)) : 0;
+      } catch (RuntimeException e) {
+        log.debug("Ignoring invalid end-to-end start time {}", value, e);
+        e2eStart = 0;
+      }
+    } else {
+      e2eStart = context.getEndToEndStartTime();
+    }
+    if (e2eStart > 0) {
+      phasedFinish();
+      // get end time from start+duration, ignoring negative bit set by phasedFinish
+      long e2eEnd = startTimeNano + (durationNano & Long.MAX_VALUE);
+      setTag(RECORD_END_TO_END_DURATION_MS, NANOSECONDS.toMillis(Math.max(0, e2eEnd - e2eStart)));
+      publish();
+    } else {
+      finish();
+    }
   }
 
   @Override

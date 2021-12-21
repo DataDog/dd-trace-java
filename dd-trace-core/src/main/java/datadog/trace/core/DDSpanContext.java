@@ -336,6 +336,14 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     }
   }
 
+  public void beginEndToEnd() {
+    trace.beginEndToEnd();
+  }
+
+  public long getEndToEndStartTime() {
+    return trace.getEndToEndStartTime();
+  }
+
   public void setBaggageItem(final String key, final String value) {
     if (baggageItems == EMPTY_BAGGAGE) {
       synchronized (this) {

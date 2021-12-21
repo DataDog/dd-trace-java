@@ -17,6 +17,7 @@ public final class ForwardedExtractedContext extends ExtractedContext {
       final DDId spanId,
       final int samplingPriority,
       final String origin,
+      final long endToEndStartTime,
       final String forwarded,
       final String forwardedProto,
       final String forwardedHost,
@@ -24,7 +25,7 @@ public final class ForwardedExtractedContext extends ExtractedContext {
       final String forwardedPort,
       final Map<String, String> baggage,
       final Map<String, String> tags) {
-    super(traceId, spanId, samplingPriority, origin, baggage, tags);
+    super(traceId, spanId, samplingPriority, origin, endToEndStartTime, baggage, tags);
     this.forwarded = forwarded;
     this.forwardedProto = forwardedProto;
     this.forwardedHost = forwardedHost;

@@ -1018,18 +1018,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
       } else {
+        long endToEndStartTime;
+
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
           final ExtractedContext extractedContext = (ExtractedContext) parentContext;
           traceId = extractedContext.getTraceId();
           parentSpanId = extractedContext.getSpanId();
           samplingPriority = extractedContext.getSamplingPriority();
+          endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
           parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
+          endToEndStartTime = 0;
           baggage = null;
         }
 
@@ -1048,6 +1052,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         rootSpanTags = localRootSpanTags;
 
         parentTrace = createTrace(traceId);
+
+        if (endToEndStartTime > 0) {
+          parentTrace.beginEndToEnd(endToEndStartTime);
+        }
       }
 
       if (serviceName == null) {
