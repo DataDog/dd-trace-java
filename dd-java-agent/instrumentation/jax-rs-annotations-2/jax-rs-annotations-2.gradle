@@ -36,7 +36,9 @@ dependencies {
   // Jersey
   // First version with DropwizardTestSupport:
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.8.0'
-  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.1'
+  // Nested Resource Test fails Java 9+ without a xml impl
+  testImplementation group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: '2.3.5'
   testImplementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: '2.9.10'
 
   latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'

@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.dropwizard.testing.junit.ResourceTestRule
 import org.junit.ClassRule
 import spock.lang.Shared
+
 import javax.ws.rs.core.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -31,24 +32,65 @@ class NestedResourcesTest extends AgentTestRunner {
     }
 
     then:
-    response.statusInfo.getStatusCode() == 200
+    response.readEntity(String) == "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><userRepresentation/>"
+    response.getStatus() == 200
 
     assertTraces(1) {
       sortSpansByStart()
-      trace(2) {
+      trace(6) {
         span {
           operationName "test.span"
-          resourceName "GET /"
+          resourceName "/admin/realms"
           tags {
             "$Tags.COMPONENT" "jax-rs"
-            "$Tags.HTTP_ROUTE" "/"
+            "$Tags.HTTP_ROUTE" "/admin/realms"
             defaultTags()
           }
         }
         span {
           childOf span(0)
           operationName "jax-rs.request"
-          resourceName ""
+          resourceName "AdminRoot.getRealmsAdmin"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+        span {
+          childOf span(0)
+          operationName "jax-rs.request"
+          resourceName "RealmsAdminResource.getRealmAdmin"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+        span {
+          childOf span(0)
+          operationName "jax-rs.request"
+          resourceName "RealmAdminResource.users"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+        span {
+          childOf span(0)
+          operationName "jax-rs.request"
+          resourceName "UsersResource.user"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+        span {
+          childOf span(0)
+          operationName "jax-rs.request"
+          resourceName "UserResource.getUser"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
             "$Tags.COMPONENT" "jax-rs-controller"
