@@ -86,7 +86,7 @@ class AuxiliaryAsyncProfilerTest {
     String cmd = profiler.cmdStartProfiling(targetFile);
 
     if (profiler.enabledModes().contains(ProfilingMode.CPU)) {
-      assertTrue(cmd.contains("event=cpu"));
+      assertTrue(cmd.contains("event=itimer"));
     }
     if (profiler.enabledModes().contains(ProfilingMode.ALLOCATION)) {
       assertTrue(cmd.contains("alloc="));
