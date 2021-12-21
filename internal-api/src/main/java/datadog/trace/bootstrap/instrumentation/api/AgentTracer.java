@@ -599,6 +599,12 @@ public class AgentTracer {
     public void finish(final long finishMicros) {}
 
     @Override
+    public void beginEndToEnd() {}
+
+    @Override
+    public void finishWithEndToEnd() {}
+
+    @Override
     public boolean phasedFinish() {
       return false;
     }

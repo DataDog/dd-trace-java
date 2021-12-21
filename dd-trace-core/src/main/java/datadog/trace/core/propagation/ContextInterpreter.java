@@ -29,6 +29,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
   protected String origin;
+  protected long endToEndStartTime;
   protected boolean hasForwarded;
   protected String forwarded;
   protected String forwardedProto;
@@ -107,6 +108,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     spanId = DDId.ZERO;
     samplingPriority = defaultSamplingPriority();
     origin = null;
+    endToEndStartTime = 0;
     hasForwarded = false;
     forwarded = null;
     forwardedProto = null;
@@ -130,6 +132,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   spanId,
                   samplingPriority,
                   origin,
+                  endToEndStartTime,
                   forwarded,
                   forwardedProto,
                   forwardedHost,
@@ -138,7 +141,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   baggage,
                   tags);
         } else {
-          context = new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
+          context =
+              new ExtractedContext(
+                  traceId, spanId, samplingPriority, origin, endToEndStartTime, baggage, tags);
         }
         return context;
       } else if (hasForwarded) {

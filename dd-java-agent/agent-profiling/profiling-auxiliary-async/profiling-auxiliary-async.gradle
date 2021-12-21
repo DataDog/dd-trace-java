@@ -23,12 +23,12 @@ excludedClassesCoverage += [
 ]
 
 def AP_VERSION = project.findProperty("dd.async_profiler")
-AP_VERSION = AP_VERSION != null ? AP_VERSION : "2.5.1-DD-SNAPSHOT"
+AP_VERSION = AP_VERSION != null ? "${AP_VERSION}" : "${versions.asyncprofiler}"
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation group: "tools.profiler", name: "async-profiler", version: "${AP_VERSION}", changing: true
+  implementation group: "tools.profiler", name: "async-profiler", version: AP_VERSION, changing: AP_VERSION.toLowerCase().equals("snapshot")
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation

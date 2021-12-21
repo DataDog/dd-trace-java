@@ -106,4 +106,42 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     "a" * 8 + "f" * 8  | "1"                | 'Root=1-00000000-00000000aaaaaaaaffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
     "1"                | "f" * 16           | 'Root=1-00000000-000000000000000000000001;Parent=ffffffffffffffff;_dd.origin=fakeOrigin;k=v'
   }
+
+  def "inject http headers with end-to-end"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      DDId.from("1"),
+      DDId.from("2"),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      "fakeOrigin",
+      ["k": "v"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
+
+    mockedContext.beginEndToEnd()
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put('X-Amzn-Trace-Id', "Root=1-00000000-000000000000000000000001;Parent=0000000000000002;" +
+      "_dd.origin=fakeOrigin;t0=${(long) (mockedContext.endToEndStartTime / 1000000L)};k=v")
+    0 * _
+
+    cleanup:
+    tracer.close()
+  }
 }
