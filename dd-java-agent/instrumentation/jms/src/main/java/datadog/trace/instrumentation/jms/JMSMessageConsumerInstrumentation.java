@@ -4,7 +4,8 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
@@ -22,7 +23,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
@@ -98,10 +98,9 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != consumerState) {
-        // closes the scope, and finishes the span for AUTO_ACKNOWLEDGE
-        consumerState.closePreviousMessageScope();
-        if (consumerState.getSessionState().isAutoAcknowledge()) {
-          // likewise, finish any AUTO_ACKNOWLEDGE'd time-in-queue span
+        boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
+        closePrevious(finishSpan);
+        if (finishSpan) {
           consumerState.finishTimeInQueueSpan(false);
         }
       }
@@ -146,14 +145,13 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         }
         span = startSpan(JMS_CONSUME, timeInQueue.context());
       }
-      // this scope is intentionally not closed here
-      // it stays open until the next call to get a
-      // message, or the consumer is closed
-      AgentScope scope = activateSpan(span);
-      consumerState.closeOnIteration(scope);
+
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
       CONSUMER_DECORATE.onError(span, throwable);
+
+      activateNext(span); // scope is left open until next message or it times out
+
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
         // consumed spans will be finished by a call to Message.acknowledge
@@ -174,7 +172,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != consumerState) {
-        consumerState.closePreviousMessageScope();
+        closePrevious(true);
         consumerState.finishTimeInQueueSpan(true);
       }
     }

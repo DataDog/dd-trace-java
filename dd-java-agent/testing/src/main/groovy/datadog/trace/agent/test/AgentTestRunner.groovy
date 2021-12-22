@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
 
@@ -197,6 +198,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     assertThreadsEachCleanup = false
 
+    closePrevious(true) // in case the previous test left a lingering iteration span
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
