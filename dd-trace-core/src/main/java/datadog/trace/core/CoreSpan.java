@@ -69,9 +69,10 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   void processTagsAndBaggage(MetadataConsumer consumer);
 
-  T setSamplingPriority(int samplingPriority);
+  T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
-  T setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate);
+  T setSamplingPriority(
+      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
 
   T setMetric(CharSequence name, int value);
 

@@ -7,6 +7,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -265,9 +266,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                            | _
-    new TagContext("some-origin", [:])                                          | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", 0, [:], [:]) | _
+    extractedContext                                                                                                                | _
+    new TagContext("some-origin", [:])                                                                                              | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, "some-origin", 0, [:], [:]) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -284,9 +285,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                            | isTraceRootSpan
-    null                                                                        | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", 0, [:], [:]) | false
+    extractedContext                                                                                                                   | isTraceRootSpan
+    null                                                                                                                               | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -306,9 +307,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                            | isTraceRootSpan
-    null                                                                        | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", 0, [:], [:]) | false
+    extractedContext                                                                                                                   | isTraceRootSpan
+    null                                                                                                                               | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
   }
 
   def "infer top level from parent service name"() {
@@ -323,6 +324,7 @@ class DDSpanTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       Collections.<String, String> emptyMap(),
       false,
@@ -357,6 +359,7 @@ class DDSpanTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       Collections.<String, String> emptyMap(),
       false,

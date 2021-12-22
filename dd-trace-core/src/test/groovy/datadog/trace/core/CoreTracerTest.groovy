@@ -8,6 +8,7 @@ import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
@@ -382,7 +383,7 @@ class ControllableSampler<T extends CoreSpan<T>> implements Sampler<T>, Priority
 
   @Override
   void setSamplingPriority(T span) {
-    span.setSamplingPriority(nextSamplingPriority)
+    span.setSamplingPriority(nextSamplingPriority, SamplingMechanism.DEFAULT)
   }
 
   @Override

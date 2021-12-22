@@ -5,6 +5,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.context.TraceScope
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
@@ -310,6 +311,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
       false,
@@ -331,6 +333,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
       false,

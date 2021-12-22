@@ -2,7 +2,8 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
-import datadog.trace.api.sampling.PrioritySampling
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -35,6 +36,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
+      samplingMechanism,
       origin,
       ["k1": "v1", "k2": "v2"],
       false,
@@ -54,7 +56,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(DatadogHttpCodec.SPAN_ID_KEY, spanId.toString())
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1")
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2")
-      if (samplingPriority != PrioritySampling.UNSET) {
+      if (samplingPriority != UNSET) {
         1 * carrier.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "$samplingPriority")
       }
       if (origin) {
@@ -64,7 +66,7 @@ class HttpInjectorTest extends DDCoreSpecification {
     if (styles.contains(B3)) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())
       1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, spanId.toString())
-      if (samplingPriority != PrioritySampling.UNSET) {
+      if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
       } else {
@@ -78,14 +80,14 @@ class HttpInjectorTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    styles        | samplingPriority              | origin
-    [DATADOG, B3] | PrioritySampling.UNSET        | null
-    [DATADOG, B3] | PrioritySampling.SAMPLER_KEEP | "saipan"
-    [DATADOG]     | PrioritySampling.UNSET        | null
-    [DATADOG]     | PrioritySampling.SAMPLER_KEEP | "saipan"
-    [B3]          | PrioritySampling.UNSET        | null
-    [B3]          | PrioritySampling.SAMPLER_KEEP | "saipan"
-    [B3, DATADOG] | PrioritySampling.SAMPLER_KEEP | "saipan"
+    styles        | samplingPriority | samplingMechanism | origin
+    [DATADOG, B3] | UNSET            | UNKNOWN           | null
+    [DATADOG, B3] | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [DATADOG]     | UNSET            | UNKNOWN           | null
+    [DATADOG]     | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3]          | UNSET            | UNKNOWN           | null
+    [B3]          | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    [B3, DATADOG] | SAMPLER_KEEP     | DEFAULT           | "saipan"
     // spotless:on
   }
 
@@ -106,6 +108,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
+      samplingMechanism,
       origin,
       ["k1": "v1", "k2": "v2"],
       false,
@@ -125,7 +128,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(DatadogHttpCodec.SPAN_ID_KEY, spanId.toString())
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1")
       1 * carrier.put(DatadogHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2")
-      if (samplingPriority != PrioritySampling.UNSET) {
+      if (samplingPriority != UNSET) {
         1 * carrier.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "$samplingPriority")
       }
       if (origin) {
@@ -134,7 +137,7 @@ class HttpInjectorTest extends DDCoreSpecification {
     } else if (style == B3) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())
       1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, spanId.toString())
-      if (samplingPriority != PrioritySampling.UNSET) {
+      if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
       } else {
@@ -148,13 +151,13 @@ class HttpInjectorTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    style   | samplingPriority              | origin
-    DATADOG | PrioritySampling.UNSET        | null
-    DATADOG | PrioritySampling.SAMPLER_KEEP | null
-    DATADOG | PrioritySampling.SAMPLER_KEEP | "saipan"
-    B3      | PrioritySampling.UNSET        | null
-    B3      | PrioritySampling.SAMPLER_KEEP | null
-    B3      | PrioritySampling.SAMPLER_KEEP | "saipan"
+    style   | samplingPriority | samplingMechanism | origin
+    DATADOG | UNSET            | UNKNOWN           | null
+    DATADOG | SAMPLER_KEEP     | DEFAULT           | null
+    DATADOG | SAMPLER_KEEP     | DEFAULT           | "saipan"
+    B3      | UNSET            | UNKNOWN           | null
+    B3      | SAMPLER_KEEP     | DEFAULT           | null
+    B3      | SAMPLER_KEEP     | DEFAULT           | "saipan"
     // spotless:on
   }
 }

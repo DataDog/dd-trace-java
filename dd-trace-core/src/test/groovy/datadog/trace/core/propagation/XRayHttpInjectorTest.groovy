@@ -1,7 +1,8 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
-import datadog.trace.api.sampling.PrioritySampling
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
@@ -28,6 +29,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
+      samplingMechanism,
       "fakeOrigin",
       ["k": "v"],
       false,
@@ -49,14 +51,14 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    traceId          | spanId           | samplingPriority              | expectedTraceHeader
-    1G               | 2G               | PrioritySampling.UNSET        | 'Root=1-00000000-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;k=v'
-    2G               | 3G               | PrioritySampling.SAMPLER_KEEP | 'Root=1-00000000-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;k=v'
-    4G               | 5G               | PrioritySampling.SAMPLER_DROP | 'Root=1-00000000-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;k=v'
-    5G               | 6G               | PrioritySampling.USER_KEEP    | 'Root=1-00000000-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;k=v'
-    6G               | 7G               | PrioritySampling.USER_DROP    | 'Root=1-00000000-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;k=v'
-    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.UNSET        | 'Root=1-00000000-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;k=v'
-    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | 'Root=1-00000000-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;k=v'
+    traceId          | spanId           | samplingPriority | samplingMechanism | expectedTraceHeader
+    1G               | 2G               | UNSET            | UNKNOWN           | 'Root=1-00000000-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;k=v'
+    2G               | 3G               | SAMPLER_KEEP     | DEFAULT           | 'Root=1-00000000-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;k=v'
+    4G               | 5G               | SAMPLER_DROP     | DEFAULT           | 'Root=1-00000000-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;k=v'
+    5G               | 6G               | USER_KEEP        | MANUAL            | 'Root=1-00000000-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;k=v'
+    6G               | 7G               | USER_DROP        | MANUAL            | 'Root=1-00000000-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;k=v'
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | UNSET            | UNKNOWN           | 'Root=1-00000000-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;k=v'
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | SAMPLER_KEEP     | DEFAULT           | 'Root=1-00000000-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;k=v'
   }
 
   def "inject http headers with extracted original"() {
@@ -77,7 +79,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      UNSET,
+      UNKNOWN,
       "fakeOrigin",
       ["k": "v"],
       false,
@@ -120,7 +123,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      UNSET,
+      UNKNOWN,
       "fakeOrigin",
       ["k": "v"],
       false,

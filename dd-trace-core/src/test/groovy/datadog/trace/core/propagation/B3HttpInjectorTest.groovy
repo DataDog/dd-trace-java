@@ -1,8 +1,9 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.TagContext
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
@@ -32,6 +33,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
+      samplingMechanism,
       "fakeOrigin",
       ["k1": "v1", "k2": "v2"],
       false,
@@ -60,14 +62,14 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    traceId          | spanId           | samplingPriority              | expectedSamplingPriority
-    1G               | 2G               | PrioritySampling.UNSET        | null
-    2G               | 3G               | PrioritySampling.SAMPLER_KEEP | 1
-    4G               | 5G               | PrioritySampling.SAMPLER_DROP | 0
-    5G               | 6G               | PrioritySampling.USER_KEEP    | 1
-    6G               | 7G               | PrioritySampling.USER_DROP    | 0
-    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.UNSET        | null
-    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | 1
+    traceId          | spanId           | samplingPriority | samplingMechanism | expectedSamplingPriority
+    1G               | 2G               | UNSET            | UNKNOWN           | null
+    2G               | 3G               | SAMPLER_KEEP     | DEFAULT           | SAMPLER_KEEP
+    4G               | 5G               | SAMPLER_DROP     | DEFAULT           | SAMPLER_DROP
+    5G               | 6G               | USER_KEEP        | MANUAL            | SAMPLER_KEEP
+    6G               | 7G               | USER_DROP        | MANUAL            | SAMPLER_DROP
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | UNSET            | UNKNOWN           | null
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | SAMPLER_KEEP     | DEFAULT           | SAMPLER_KEEP
   }
 
   def "inject http headers with extracted original"() {
@@ -89,7 +91,8 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      UNSET,
+      UNKNOWN,
       "fakeOrigin",
       ["k1": "v1", "k2": "v2"],
       false,

@@ -2,7 +2,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.api.sampling.PrioritySampling
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
 import datadog.trace.core.propagation.ExtractedContext
@@ -33,7 +34,8 @@ class OpenTracing32Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, 0, [:], [:])))
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
+      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()
     if (tagSpan) {
@@ -271,7 +273,7 @@ class OpenTracing32Test extends AgentTestRunner {
     def adapter = new TextMapAdapter(textMap)
 
     when:
-    context.delegate.samplingPriority = contextPriority
+    context.delegate.setSamplingPriority(contextPriority, samplingMechanism)
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
@@ -290,12 +292,12 @@ class OpenTracing32Test extends AgentTestRunner {
     extract.delegate.samplingPriority == propagatedPriority
 
     where:
-    contextPriority               | propagatedPriority
-    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
-    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.UNSET        | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.USER_KEEP    | PrioritySampling.USER_KEEP
-    PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
+    contextPriority | samplingMechanism | propagatedPriority
+    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP
+    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP
+    UNSET           | DEFAULT           | SAMPLER_KEEP
+    USER_KEEP       | MANUAL            | USER_KEEP
+    USER_DROP       | MANUAL            | USER_DROP
   }
 
   def "tolerate null span activation"() {
