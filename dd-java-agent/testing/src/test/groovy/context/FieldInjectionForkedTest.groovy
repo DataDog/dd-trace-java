@@ -217,6 +217,8 @@ class FieldInjectionForkedTest extends AgentTestRunner {
  */
 class FieldInjectionDisabledForkedTest extends AgentTestRunner {
   void configurePreAgent() {
+    super.configurePreAgent()
+
     injectSysConfig("dd.trace.runtime.context.field.injection", "false")
   }
 

@@ -40,6 +40,8 @@ class TimeInQueueForkedTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
+    super.configurePreAgent()
+
     injectSysConfig(TraceInstrumentationConfig.JMS_LEGACY_TRACING_ENABLED, 'false')
     injectSysConfig(GeneralConfig.SERVICE_NAME, 'myService')
   }

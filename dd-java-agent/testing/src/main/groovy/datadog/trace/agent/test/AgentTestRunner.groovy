@@ -13,6 +13,7 @@ import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.writer.ListWriter
@@ -191,7 +192,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   /** Override to set config before the agent is installed */
-  protected void configurePreAgent() {}
+  protected void configurePreAgent() {
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
+  }
 
   def setup() {
     configureLoggingLevels()
