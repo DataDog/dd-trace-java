@@ -20,11 +20,12 @@ public class TracingListIterator extends TracingIterator
 
   @Override
   public boolean hasPrevious() {
-    boolean hasPrevious = delegateIterator.hasPrevious();
-    if (!hasPrevious) {
+    boolean moreRecords = delegateIterator.hasPrevious();
+    if (!moreRecords) {
+      // no more records, use this as a signal to close the last iteration scope
       closePrevious(true);
     }
-    return hasPrevious;
+    return moreRecords;
   }
 
   @Override
