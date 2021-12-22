@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 public class OpenJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkOngoingRecording.class);
 
+  private static final JfrProfilerSettings CONFIG_MEMENTO = new JfrProfilerSettings();
+
   private final Recording recording;
   private final OngoingRecording auxiliaryRecording;
   private final AuxiliaryProfiler auxiliaryProfiler;
@@ -104,6 +106,8 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot stop recording that is not running");
     }
+    // dump the config to the current JFR recording
+    CONFIG_MEMENTO.publish();
 
     recording.stop();
     OpenJdkRecordingData mainData = new OpenJdkRecordingData(recording);
@@ -119,6 +123,8 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
 
+    // dump the config to the current JFR recording
+    CONFIG_MEMENTO.publish();
     final Recording snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     snapshot.setName(recording.getName()); // Copy name from original recording
     // Since we just requested a snapshot, the end time of the snapshot will be

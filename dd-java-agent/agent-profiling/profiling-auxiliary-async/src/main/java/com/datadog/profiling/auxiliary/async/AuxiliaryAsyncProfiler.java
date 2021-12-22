@@ -70,13 +70,19 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     } else {
       instance = inferFromOsAndArch();
     }
-    if (configProvider.getBoolean(ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED, false)) {
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED,
+        ProfilingConfig.PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT)) {
       profilingModes.add(ProfilingMode.ALLOCATION);
     }
-    if (configProvider.getBoolean(ProfilingConfig.PROFILING_ASYNC_MEMLEAK_ENABLED, false)) {
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_ENABLED,
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT)) {
       profilingModes.add(ProfilingMode.MEMLEAK);
     }
-    if (configProvider.getBoolean(ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED, true)) {
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED,
+        ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED_DEFAULT)) {
       profilingModes.add(ProfilingMode.CPU);
     }
     try {
@@ -105,6 +111,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     try {
       new AsyncProfilerConfigEvent(
               asyncProfiler.getVersion(),
+              configProvider.getString(ProfilingConfig.PROFILING_ASYNC_LIBPATH),
               getCpuInterval(),
               getAllocationInterval(),
               getMemleakInterval(),
