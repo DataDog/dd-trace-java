@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -23,12 +23,6 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
 
-  /**
-   * Note: this may potentially create problems if this iterator is used from different threads. But
-   * at the moment we cannot do much about this.
-   */
-  private AgentScope currentScope;
-
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
@@ -40,25 +34,19 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   @Override
   public boolean hasNext() {
-    final boolean delegateHasNext = delegateIterator.hasNext();
-    if (!delegateHasNext) {
-      // close scope only for last iteration, because next() most probably not going to be called.
-      // If it's not last iteration we expect scope will be closed inside next()
-      maybeCloseCurrentScope();
-    }
-    return delegateHasNext;
+    return delegateIterator.hasNext();
   }
 
   @Override
   public ConsumerRecord<?, ?> next() {
-    maybeCloseCurrentScope();
     final ConsumerRecord<?, ?> next = delegateIterator.next();
-    decorate(next);
+    startNewRecordSpan(next);
     return next;
   }
 
-  protected void decorate(ConsumerRecord<?, ?> val) {
+  protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
     try {
+      closePrevious(true);
       final AgentSpan span;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
@@ -72,19 +60,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val);
-        currentScope = activateSpan(span);
-        currentScope.setAsyncPropagation(true);
+        activateNext(span);
       }
     } catch (final Exception e) {
-      log.debug("Error during decoration", e);
-    }
-  }
-
-  protected void maybeCloseCurrentScope() {
-    if (currentScope != null) {
-      currentScope.close();
-      decorator.finishConsumerSpan(currentScope.span());
-      currentScope = null;
+      log.debug("Error starting new record span", e);
     }
   }
 
