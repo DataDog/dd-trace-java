@@ -34,7 +34,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   @Override
   public boolean hasNext() {
-    return delegateIterator.hasNext();
+    boolean hasNext = delegateIterator.hasNext();
+    if (!hasNext) {
+      closePrevious(true);
+    }
+    return hasNext;
   }
 
   @Override
