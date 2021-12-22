@@ -112,7 +112,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /**
-   * Current timestamp in nanoseconds.
+   * Current timestamp in nanoseconds; 'touches' the trace by updating {@link #lastReferenced}.
    *
    * <p>Note: it is not possible to get 'real' nanosecond time. This method uses trace start time
    * (which has millisecond precision) as a reference and it gets time with nanosecond precision

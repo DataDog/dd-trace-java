@@ -108,7 +108,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     this.withCheckpoints = emitLocalCheckpoints;
 
     if (timestampMicro <= 0L) {
-      // capture internal time
+      // note: getting internal time from the trace implicitly 'touches' it
       startTimeNano = context.getTrace().getCurrentTimeNano();
       externalClock = false;
     } else {
@@ -150,6 +150,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       // first capture wall-clock offset from 'now' to external stop time
       long externalOffsetMicros = stopTimeMicros - Clock.currentMicroTime();
       // immediately afterwards calculate internal duration of span to 'now'
+      // note: getting internal time from the trace implicitly 'touches' it
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
       // drop nanosecond precision part of internal duration (expected behaviour)
       durationNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(durationNano));
@@ -205,6 +206,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   public final boolean phasedFinish() {
     long durationNano;
     if (!externalClock) {
+      // note: getting internal time from the trace implicitly 'touches' it
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
     } else {
       durationNano = MICROSECONDS.toNanos(Clock.currentMicroTime()) - startTimeNano;
