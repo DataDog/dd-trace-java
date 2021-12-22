@@ -34,7 +34,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   @Override
   public boolean hasNext() {
-    return delegateIterator.hasNext();
+    boolean moreRecords = delegateIterator.hasNext();
+    if (!moreRecords) {
+      // no more records, use this as a signal to close the last iteration scope
+      closePrevious(true);
+    }
+    return moreRecords;
   }
 
   @Override

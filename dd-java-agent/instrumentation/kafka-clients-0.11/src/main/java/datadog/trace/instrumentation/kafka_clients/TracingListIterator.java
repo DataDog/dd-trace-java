@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+
 import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -18,7 +20,12 @@ public class TracingListIterator extends TracingIterator
 
   @Override
   public boolean hasPrevious() {
-    return delegateIterator.hasPrevious();
+    boolean moreRecords = delegateIterator.hasPrevious();
+    if (!moreRecords) {
+      // no more records, use this as a signal to close the last iteration scope
+      closePrevious(true);
+    }
+    return moreRecords;
   }
 
   @Override
