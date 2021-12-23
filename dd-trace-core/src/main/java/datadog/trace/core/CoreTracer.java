@@ -115,6 +115,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final PendingTrace.Factory pendingTraceFactory;
   private final SamplingCheckpointer checkpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
+  private boolean disableSamplingMechanismValidation;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -429,6 +430,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     this.externalAgentLauncher = new ExternalAgentLauncher(config);
+
+    this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -1093,7 +1096,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               spanType,
               tagsSize,
               parentTrace,
-              requestContextData);
+              requestContextData,
+              disableSamplingMechanismValidation);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

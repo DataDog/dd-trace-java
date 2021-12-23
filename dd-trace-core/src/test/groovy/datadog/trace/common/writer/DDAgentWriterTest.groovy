@@ -184,6 +184,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
       "",
       0,
       trace,
-      null))
+      null,
+      false))
   }
 }

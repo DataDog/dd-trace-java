@@ -43,7 +43,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
-      null)
+      null,
+      false)
 
     final Map<String, String> carrier = Mock()
 
@@ -115,7 +116,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
-      null)
+      null,
+      false)
 
     final Map<String, String> carrier = Mock()
 

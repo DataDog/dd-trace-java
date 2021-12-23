@@ -7,6 +7,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -100,6 +101,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
   /** RequestContext data for the InstrumentationGateway */
   private final Object requestContextData;
 
+  private final boolean disableSamplingMechanismValidation;
+
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
 
@@ -137,7 +140,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
       final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
-      final Object requestContextData) {
+      final Object requestContextData,
+      final boolean disableSamplingMechanismValidation) {
 
     assert trace != null;
     this.trace = trace;
@@ -179,6 +183,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
+
+    this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
   }
 
   @Override
@@ -297,12 +303,22 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
     }
 
     if (!SamplingMechanism.validateWithSamplingPriority(newMechanism, newPriority)) {
-      log.debug(
-          "{}: Refusing to set samplingMechanism to {}. Provided samplingPriority {} is not allowed.",
-          this,
-          newMechanism,
-          newPriority);
-      return false;
+      if (disableSamplingMechanismValidation) {
+        log.debug(
+            "{}: Bypassing setting setSamplingPriority check ("
+                + TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED
+                + ") for a non valid combination of samplingMechanism {} and samplingPriority {}.",
+            this,
+            newMechanism,
+            newPriority);
+      } else {
+        log.debug(
+            "{}: Refusing to set samplingMechanism to {}. Provided samplingPriority {} is not allowed.",
+            this,
+            newMechanism,
+            newPriority);
+        return false;
+      }
     }
 
     if (trace != null) {
