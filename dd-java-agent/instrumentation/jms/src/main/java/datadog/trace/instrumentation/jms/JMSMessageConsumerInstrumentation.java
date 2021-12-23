@@ -172,7 +172,8 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != consumerState) {
-        closePrevious(true);
+        boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
+        closePrevious(finishSpan);
         consumerState.finishTimeInQueueSpan(true);
       }
     }
