@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.jms
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
@@ -51,44 +50,6 @@ class SessionStateTest extends DDSpecification {
     then: "span is enqueued and not finished"
     0 * span2.finish()
     sessionState.capturedSpanCount == 1
-  }
-
-  def "stale scopes are evicted from session"() {
-    setup:
-    def started = new CountDownLatch(100)
-    def stopped = new CountDownLatch(1)
-    def sessionState = new SessionState(0)
-    def closingTimes = []
-    when: "add thread scopes without triggering eviction"
-    def workers = (1..100).collect {
-      def span = Mock(AgentSpan)
-      def scope = Mock(AgentScope)
-      def startMillis = it * 1000
-      scope.span() >> span
-      scope.close() >> { closingTimes += startMillis }
-      span.startTime >> startMillis
-      Thread.start {
-        sessionState.closeOnIteration(scope)
-        started.countDown()
-        stopped.await()
-      }
-    }
-    started.await()
-    then: "nothing has been closed yet"
-    sessionState.activeScopeCount == 100
-    closingTimes == []
-    when: "trigger eviction of oldest scopes"
-    (1..1).each { Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join() }
-    then: "ten oldest scopes should have been closed"
-    sessionState.activeScopeCount == 91
-    closingTimes as Set == (1..10).collect { it * 1000 } as Set
-    when: "trigger eviction of stopped workers"
-    stopped.countDown()
-    workers.each { it.join() }
-    (1..10).each { Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join() }
-    then: "all worker scopes should have been closed"
-    sessionState.activeScopeCount == 1
-    closingTimes as Set == (1..100).collect { it * 1000 } as Set
   }
 
   def "stale time-in-queue spans are evicted from session"() {
