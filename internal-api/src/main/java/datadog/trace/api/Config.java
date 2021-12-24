@@ -1790,6 +1790,9 @@ public class Config {
       return profilingUrl;
     } else if (profilingAgentless) {
       // when agentless profiling is turned on we send directly to our intake
+      if (isProfilingFormatV4Enabled()) {
+        return "https://intake.profile." + site + "/api/v2/profile";
+      }
       return "https://intake.profile." + site + "/v1/input";
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
