@@ -37,6 +37,8 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation deps.mockito
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 }
 
 /* We use Java8 features, but there is no code needing JFR libraries */

@@ -34,6 +34,8 @@ import com.datadog.profiling.controller.RecordingInputStream;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.datadog.profiling.uploader.util.PidHelper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -41,6 +43,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
+import delight.fileupload.FileUpload;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,6 +53,7 @@ import java.net.ConnectException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +69,7 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import okhttp3.mockwebserver.SocketPolicy;
+import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -143,6 +148,7 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.isProfilingFormatV4Enabled()).thenReturn(false);
 
     uploader =
         new ProfileUploader(
@@ -160,7 +166,64 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testZippedInput() throws Exception {
+  public void testV2_4Format() throws Exception {
+    // Given
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
+    when(config.isProfilingFormatV4Enabled()).thenReturn(true);
+
+    // When
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, request.getRequestUrl());
+
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(request.getBody().readByteArray(), request.getHeader("Content-Type"));
+
+    FileItem rawEvent = multiPartItems.get(0);
+    assertEquals(ProfileUploader.V4_EVENT_NAME, rawEvent.getFieldName());
+    assertEquals(ProfileUploader.V4_EVENT_FILENAME, rawEvent.getName());
+    assertEquals("application/json", rawEvent.getContentType());
+
+    FileItem rawJfr = multiPartItems.get(1);
+    assertEquals(ProfileUploader.V4_ATTACHMENT_NAME, rawJfr.getFieldName());
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, rawJfr.getName());
+    assertEquals("application/octet-stream", rawJfr.getContentType());
+
+    final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(true));
+    byte[] f = rawJfr.get();
+    assertArrayEquals(expectedBytes, f);
+
+    // Event checks
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode event = mapper.readTree(rawEvent.getString());
+
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, event.get("attachments").get(0).asText());
+    assertEquals(ProfileUploader.V4_FAMILY, event.get("family").asText());
+    assertEquals(ProfileUploader.V4_VERSION, event.get("version").asText());
+    assertEquals(Instant.ofEpochSecond(PROFILE_START).toString(), event.get("start").asText());
+    assertEquals(Instant.ofEpochSecond(PROFILE_END).toString(), event.get("end").asText());
+    assertEquals(
+        EXPECTED_TAGS,
+        ProfilingTestUtils.parseTags(
+            Arrays.asList(event.get("tags_profiler").asText().split(","))));
+
+    // Headers
+    // TODO: move these checks into testHeaders() when V1_1 will be removed and V2_4 will be the
+    // default format
+    assertEquals(
+        request.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN),
+        ProfileUploader.JAVA_PROFILING_LIBRARY);
+    assertEquals(
+        request.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN_VERSION), VersionInfo.VERSION);
+    assertEquals(request.getHeader(ProfileUploader.DATADOG_META_LANG), ProfileUploader.JAVA_LANG);
+  }
+
+  @Test
+  public void testZippedInput() throws Exception {
     when(config.getProfilingUploadCompression()).thenReturn("on");
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config);
@@ -188,10 +251,10 @@ public class ProfileUploaderTest {
 
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(PROFILE_START).toString()),
-        parameters.get(ProfileUploader.PROFILE_START_PARAM));
+        parameters.get(ProfileUploader.V1_PROFILE_START_PARAM));
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(PROFILE_END).toString()),
-        parameters.get(ProfileUploader.PROFILE_END_PARAM));
+        parameters.get(ProfileUploader.V1_PROFILE_END_PARAM));
 
     assertEquals(
         EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
@@ -235,10 +298,10 @@ public class ProfileUploaderTest {
 
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(PROFILE_START).toString()),
-        parameters.get(ProfileUploader.PROFILE_START_PARAM));
+        parameters.get(ProfileUploader.V1_PROFILE_START_PARAM));
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(PROFILE_END).toString()),
-        parameters.get(ProfileUploader.PROFILE_END_PARAM));
+        parameters.get(ProfileUploader.V1_PROFILE_END_PARAM));
 
     assertEquals(
         EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
