@@ -52,6 +52,7 @@ import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.Headers;
+import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -64,13 +65,16 @@ import org.slf4j.LoggerFactory;
 public final class ProfileUploader {
 
   private static final Logger log = LoggerFactory.getLogger(ProfileUploader.class);
+  private static final MediaType APPLICATION_JSON = MediaType.get("application/json");
+  static final int TERMINATION_TIMEOUT = 5;
 
+  // V1.1 format
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
   static final String RUNTIME_PARAM = "runtime";
 
-  static final String PROFILE_START_PARAM = "recording-start";
-  static final String PROFILE_END_PARAM = "recording-end";
+  static final String V1_PROFILE_START_PARAM = "recording-start";
+  static final String V1_PROFILE_END_PARAM = "recording-end";
 
   // TODO: We should rename parameter to just `data`
   static final String DATA_PARAM = "chunk-data";
@@ -90,11 +94,38 @@ public final class ProfileUploader {
   static final String PROFILE_TYPE_PREFIX = "jfr-";
   static final String PROFILE_RUNTIME = "jvm";
 
-  static final int TERMINATION_TIMEOUT = 5;
-
-  private static final Headers DATA_HEADERS =
+  private static final Headers V1_DATA_HEADERS =
       Headers.of(
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
+
+  // V2.4 format
+  static final String V4_PROFILE_START_PARAM = "start";
+  static final String V4_PROFILE_END_PARAM = "end";
+  static final String V4_VERSION = "4";
+  static final String V4_FAMILY = "java";
+
+  static final String V4_EVENT_NAME = "event";
+  static final String V4_EVENT_FILENAME = V4_EVENT_NAME + ".json";
+  static final String V4_ATTACHMENT_NAME = "main";
+  static final String V4_ATTACHMENT_FILENAME = V4_ATTACHMENT_NAME + ".jfr";
+
+  static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
+  static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+  static final String JAVA_PROFILING_LIBRARY = "dd-trace-java";
+
+  private static final Headers EVENT_HEADER =
+      Headers.of(
+          "Content-Disposition",
+          "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
+
+  private static final Headers V4_DATA_HEADERS =
+      Headers.of(
+          "Content-Disposition",
+          "form-data; name=\""
+              + V4_ATTACHMENT_NAME
+              + "\"; filename=\""
+              + V4_ATTACHMENT_FILENAME
+              + "\"");
 
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
@@ -107,6 +138,7 @@ public final class ProfileUploader {
   private final int terminationTimeout;
   private final List<String> tags;
   private final CompressionType compressionType;
+  private final boolean useV4Format;
 
   public ProfileUploader(final Config config) throws IOException {
     this(config, new IOLogger(log), ContainerInfo.get().getContainerId(), TERMINATION_TIMEOUT);
@@ -125,6 +157,7 @@ public final class ProfileUploader {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
+    useV4Format = config.isProfilingFormatV4Enabled();
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
     this.ioLogger = ioLogger;
     this.containerId = containerId;
@@ -268,12 +301,49 @@ public final class ProfileUploader {
     client.connectionPool().evictAll();
   }
 
-  /**
-   * Note that this method is only visible for testing and should not be used from outside this
-   * class.
-   */
-  OkHttpClient getClient() {
-    return client;
+  private byte[] createEvent(@Nonnull final RecordingData data) {
+    StringBuilder os = new StringBuilder();
+    os.append("{");
+    os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
+    os.append("\"tags_profiler\":\"" + tags.stream().collect(Collectors.joining(",")) + "\",");
+    os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
+    os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");
+    os.append("\"family\":\"" + V4_FAMILY + "\",");
+    os.append("\"version\":\"" + V4_VERSION + "\"");
+    os.append("}");
+    return os.toString().getBytes();
+  }
+
+  private MultipartBody makeUploadRequestV4(
+      @Nonnull final RecordingData data, CompressingRequestBody body) {
+    final MultipartBody.Builder bodyBuilder =
+        new MultipartBody.Builder().setType(MultipartBody.FORM);
+
+    byte[] event = createEvent(data);
+    RequestBody eventBody = RequestBody.create(APPLICATION_JSON, event);
+    bodyBuilder.addPart(EVENT_HEADER, eventBody);
+    bodyBuilder.addPart(V4_DATA_HEADERS, body);
+    return bodyBuilder.build();
+  }
+
+  private MultipartBody makeUploadRequestV1(
+      @Nonnull final RecordingType type,
+      @Nonnull final RecordingData data,
+      CompressingRequestBody body) {
+    final MultipartBody.Builder bodyBuilder =
+        new MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(FORMAT_PARAM, PROFILE_FORMAT)
+            .addFormDataPart(TYPE_PARAM, PROFILE_TYPE_PREFIX + type.getName())
+            .addFormDataPart(RUNTIME_PARAM, PROFILE_RUNTIME)
+            // Note that toString is well defined for instants - ISO-8601
+            .addFormDataPart(V1_PROFILE_START_PARAM, data.getStart().toString())
+            .addFormDataPart(V1_PROFILE_END_PARAM, data.getEnd().toString());
+    for (final String tag : tags) {
+      bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
+    }
+    bodyBuilder.addPart(V1_DATA_HEADERS, body);
+    return bodyBuilder.build();
   }
 
   private void makeUploadRequest(
@@ -284,22 +354,15 @@ public final class ProfileUploader {
     final CompressingRequestBody body =
         new CompressingRequestBody(compressionType, data::getStream);
 
-    final MultipartBody.Builder bodyBuilder =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(FORMAT_PARAM, PROFILE_FORMAT)
-            .addFormDataPart(TYPE_PARAM, PROFILE_TYPE_PREFIX + type.getName())
-            .addFormDataPart(RUNTIME_PARAM, PROFILE_RUNTIME)
-            // Note that toString is well defined for instants - ISO-8601
-            .addFormDataPart(PROFILE_START_PARAM, data.getStart().toString())
-            .addFormDataPart(PROFILE_END_PARAM, data.getEnd().toString());
-    for (final String tag : tags) {
-      bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
+    Request.Builder requestBuilder;
+    RequestBody requestBody;
+    if (useV4Format) {
+      requestBody = makeUploadRequestV4(data, body);
+    } else {
+      requestBody = makeUploadRequestV1(type, data, body);
     }
-    bodyBuilder.addPart(DATA_HEADERS, body);
-    final RequestBody requestBody = bodyBuilder.build();
 
-    final Request.Builder requestBuilder =
+    requestBuilder =
         new Request.Builder()
             .url(url)
             // Set chunked transfer
@@ -307,6 +370,13 @@ public final class ProfileUploader {
             // Note: this header is used to disable tracing of profiling requests
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
             .post(requestBody);
+
+    if (useV4Format) {
+      requestBuilder
+          .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_PROFILING_LIBRARY)
+          .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
+    }
+
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless profiling. No point in
       // adding it to other agent-based requests since we know the datadog-agent isn't going to
@@ -406,5 +476,13 @@ public final class ProfileUploader {
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
+  }
+
+  /**
+   * Note that this method is only visible for testing and should not be used from outside this
+   * class.
+   */
+  OkHttpClient getClient() {
+    return client;
   }
 }
