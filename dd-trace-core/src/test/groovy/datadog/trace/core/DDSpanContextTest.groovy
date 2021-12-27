@@ -4,9 +4,8 @@ import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class DDSpanContextTest extends DDCoreSpecification {
 
@@ -145,14 +144,14 @@ class DDSpanContextTest extends DDCoreSpecification {
       .start()
     def context = span.context()
     when:
-    context.setSamplingPriority(SAMPLER_DROP)
+    context.setSamplingPriority(SAMPLER_DROP, DEFAULT)
     then: "priority should be set"
     context.getSamplingPriority() == SAMPLER_DROP
 
     when: "sampling priority locked"
     context.lockSamplingPriority()
     then: "override ignored"
-    !context.setSamplingPriority(USER_DROP)
+    !context.setSamplingPriority(USER_DROP, MANUAL)
     context.getSamplingPriority() == SAMPLER_DROP
 
     when:
@@ -162,6 +161,63 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     cleanup:
     span.finish()
+  }
+
+  def "test sampling decision pack/unpack"() {
+    expect:
+    def decision = DDSpanContext.SamplingDecision.create(priority, mechanism)
+    DDSpanContext.SamplingDecision.priority(decision) == priority2
+    DDSpanContext.SamplingDecision.mechanism(decision) == mechanism2
+
+    where:
+    mechanism        | priority     | mechanism2       | priority2
+    UNKNOWN          | UNSET        | UNKNOWN          | UNSET
+    UNKNOWN          | SAMPLER_DROP | UNKNOWN          | SAMPLER_DROP
+    UNKNOWN          | SAMPLER_KEEP | UNKNOWN          | SAMPLER_KEEP
+    UNKNOWN          | USER_DROP    | UNKNOWN          | USER_DROP
+    UNKNOWN          | USER_KEEP    | UNKNOWN          | USER_KEEP
+
+    DEFAULT          | UNSET        | DEFAULT          | UNSET
+    DEFAULT          | SAMPLER_DROP | DEFAULT          | SAMPLER_DROP
+    DEFAULT          | SAMPLER_KEEP | DEFAULT          | SAMPLER_KEEP
+    DEFAULT          | USER_DROP    | DEFAULT          | USER_DROP
+    DEFAULT          | USER_KEEP    | DEFAULT          | USER_KEEP
+
+    AGENT_RATE       | UNSET        | AGENT_RATE       | UNSET
+    AGENT_RATE       | SAMPLER_DROP | AGENT_RATE       | SAMPLER_DROP
+    AGENT_RATE       | SAMPLER_KEEP | AGENT_RATE       | SAMPLER_KEEP
+    AGENT_RATE       | USER_DROP    | AGENT_RATE       | USER_DROP
+    AGENT_RATE       | USER_KEEP    | AGENT_RATE       | USER_KEEP
+
+    REMOTE_AUTO_RATE | UNSET        | REMOTE_AUTO_RATE | UNSET
+    REMOTE_AUTO_RATE | SAMPLER_DROP | REMOTE_AUTO_RATE | SAMPLER_DROP
+    REMOTE_AUTO_RATE | SAMPLER_KEEP | REMOTE_AUTO_RATE | SAMPLER_KEEP
+    REMOTE_AUTO_RATE | USER_DROP    | REMOTE_AUTO_RATE | USER_DROP
+    REMOTE_AUTO_RATE | USER_KEEP    | REMOTE_AUTO_RATE | USER_KEEP
+
+    RULE             | UNSET        | RULE             | UNSET
+    RULE             | SAMPLER_DROP | RULE             | SAMPLER_DROP
+    RULE             | SAMPLER_KEEP | RULE             | SAMPLER_KEEP
+    RULE             | USER_DROP    | RULE             | USER_DROP
+    RULE             | USER_KEEP    | RULE             | USER_KEEP
+
+    MANUAL           | UNSET        | MANUAL           | UNSET
+    MANUAL           | SAMPLER_DROP | MANUAL           | SAMPLER_DROP
+    MANUAL           | SAMPLER_KEEP | MANUAL           | SAMPLER_KEEP
+    MANUAL           | USER_DROP    | MANUAL           | USER_DROP
+    MANUAL           | USER_KEEP    | MANUAL           | USER_KEEP
+
+    REMOTE_USER_RATE | UNSET        |REMOTE_USER_RATE | UNSET
+    REMOTE_USER_RATE | SAMPLER_DROP |REMOTE_USER_RATE | SAMPLER_DROP
+    REMOTE_USER_RATE | SAMPLER_KEEP |REMOTE_USER_RATE | SAMPLER_KEEP
+    REMOTE_USER_RATE | USER_DROP    |REMOTE_USER_RATE | USER_DROP
+    REMOTE_USER_RATE | USER_KEEP    |REMOTE_USER_RATE | USER_KEEP
+
+    APPSEC           | UNSET        |APPSEC           | UNSET
+    APPSEC           | SAMPLER_DROP |APPSEC           | SAMPLER_DROP
+    APPSEC           | SAMPLER_KEEP |APPSEC           | SAMPLER_KEEP
+    APPSEC           | USER_DROP    |APPSEC           | USER_DROP
+    APPSEC           | USER_KEEP    |APPSEC           | USER_KEEP
   }
 
   static void assertTagmap(Map source, Map comparison) {

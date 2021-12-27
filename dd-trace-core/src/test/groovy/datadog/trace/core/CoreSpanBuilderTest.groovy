@@ -2,6 +2,8 @@ package datadog.trace.core
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
@@ -319,9 +321,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.getTag(THREAD_NAME) == thread.name
 
     where:
-    extractedContext                                                                                                                       | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, 0, [:], [:])                                                                     | _
-    new ExtractedContext(DDId.from(3), DDId.from(4), 1, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
+    extractedContext                                                                                                                                                                              | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, null, 0, [:], [:])                                                                     | _
+    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
   }
 
   def "TagContext should populate default span details"() {

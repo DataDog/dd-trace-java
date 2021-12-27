@@ -3,6 +3,7 @@ package datadog.trace.common.writer
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
@@ -176,12 +177,14 @@ class DDAgentWriterTest extends DDCoreSpecification {
       "",
       "",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       "",
       [:],
       false,
       "",
       0,
       trace,
-      null))
+      null,
+      false))
   }
 }

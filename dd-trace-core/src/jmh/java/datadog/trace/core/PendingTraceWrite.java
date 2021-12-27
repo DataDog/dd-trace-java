@@ -1,6 +1,8 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import java.util.Collections;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -46,14 +48,16 @@ public class PendingTraceWrite {
                 "service",
                 "operation",
                 "resource",
-                1,
+                PrioritySampling.SAMPLER_KEEP,
+                SamplingMechanism.DEFAULT,
                 null,
                 Collections.<String, String>emptyMap(),
                 false,
                 "type",
                 0,
                 trace,
-                null));
+                null,
+                false));
     span =
         DDSpan.create(
             System.currentTimeMillis() * 1000,
@@ -65,14 +69,16 @@ public class PendingTraceWrite {
                 "service",
                 "operation",
                 "resource",
-                1,
+                PrioritySampling.SAMPLER_KEEP,
+                SamplingMechanism.DEFAULT,
                 null,
                 Collections.<String, String>emptyMap(),
                 false,
                 "type",
                 0,
                 trace,
-                null));
+                null,
+                false));
   }
 
   @Threads(4)

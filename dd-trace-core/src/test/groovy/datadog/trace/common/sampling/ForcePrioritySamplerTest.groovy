@@ -4,6 +4,8 @@ import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.test.DDCoreSpecification
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class ForcePrioritySamplerTest extends DDCoreSpecification {
 
@@ -11,7 +13,7 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
 
   def "force priority sampling"() {
     setup:
-    def sampler = new ForcePrioritySampler(prioritySampling)
+    def sampler = new ForcePrioritySampler(prioritySampling, samplingMechanism)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
@@ -26,14 +28,18 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    prioritySampling              | expectedSampling
-    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
+    prioritySampling | samplingMechanism | expectedSampling
+    SAMPLER_KEEP     | DEFAULT           | SAMPLER_KEEP
+    SAMPLER_DROP     | DEFAULT           | SAMPLER_DROP
+    SAMPLER_KEEP     | AGENT_RATE        | SAMPLER_KEEP
+    SAMPLER_DROP     | AGENT_RATE        | SAMPLER_DROP
+    SAMPLER_KEEP     | REMOTE_AUTO_RATE  | SAMPLER_KEEP
+    SAMPLER_DROP     | REMOTE_AUTO_RATE  | SAMPLER_DROP
   }
 
   def "sampling priority set"() {
     setup:
-    def sampler = new ForcePrioritySampler(prioritySampling)
+    def sampler = new ForcePrioritySampler(prioritySampling, samplingMechanism)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
@@ -54,14 +60,14 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    prioritySampling              | expectedSampling
-    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
+    prioritySampling | samplingMechanism | expectedSampling
+    SAMPLER_KEEP     | DEFAULT           | SAMPLER_KEEP
+    SAMPLER_DROP     | DEFAULT           | SAMPLER_DROP
   }
 
   def "setting forced tracing via tag"() {
     when:
-    def sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP)
+    def sampler = new ForcePrioritySampler(SAMPLER_KEEP, DEFAULT)
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
@@ -77,13 +83,13 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
 
     where:
     tagName       | tagValue | expectedPriority
-    'manual.drop' | true     | PrioritySampling.USER_DROP
-    'manual.keep' | true     | PrioritySampling.USER_KEEP
+    'manual.drop' | true     | USER_DROP
+    'manual.keep' | true     | USER_KEEP
   }
 
   def "not setting forced tracing via tag or setting it wrong value not causing exception"() {
     setup:
-    def sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP)
+    def sampler = new ForcePrioritySampler(SAMPLER_KEEP, DEFAULT)
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {

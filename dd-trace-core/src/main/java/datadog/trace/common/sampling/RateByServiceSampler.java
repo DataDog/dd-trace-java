@@ -4,6 +4,7 @@ import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
@@ -46,10 +47,16 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
 
     if (sampler.sample(span)) {
       span.setSamplingPriority(
-          PrioritySampling.SAMPLER_KEEP, SAMPLING_AGENT_RATE, sampler.getSampleRate());
+          PrioritySampling.SAMPLER_KEEP,
+          SAMPLING_AGENT_RATE,
+          sampler.getSampleRate(),
+          SamplingMechanism.AGENT_RATE);
     } else {
       span.setSamplingPriority(
-          PrioritySampling.SAMPLER_DROP, SAMPLING_AGENT_RATE, sampler.getSampleRate());
+          PrioritySampling.SAMPLER_DROP,
+          SAMPLING_AGENT_RATE,
+          sampler.getSampleRate(),
+          SamplingMechanism.AGENT_RATE);
     }
   }
 

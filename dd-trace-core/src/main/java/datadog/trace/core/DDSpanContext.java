@@ -1,16 +1,16 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
-import static datadog.trace.api.sampling.PrioritySampling.UNSET;
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -89,21 +89,40 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
   private volatile boolean measured;
 
   private volatile boolean topLevel;
-  /**
-   * When true, the samplingPriority cannot be changed. This prevents the sampling flag from
-   * changing after the context has propagated.
-   *
-   * <p>For thread safety, this boolean is only modified or accessed under instance lock.
-   */
-  private static final AtomicIntegerFieldUpdater<DDSpanContext> SAMPLING_PRIORITY_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingPriorityV1");
 
-  private volatile int samplingPriorityV1 = PrioritySampling.UNSET;
+  private static final AtomicIntegerFieldUpdater<DDSpanContext> SAMPLING_DECISION_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingDecision");
+
+  private volatile int samplingDecision = SamplingDecision.UNSET_UNKNOWN;
+
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
 
   /** RequestContext data for the InstrumentationGateway */
   private final Object requestContextData;
+
+  private final boolean disableSamplingMechanismValidation;
+
+  /** Aims to pack sampling priority and sampling mechanism into one value */
+  protected static class SamplingDecision {
+
+    public static final int UNSET_UNKNOWN =
+        create(PrioritySampling.UNSET, SamplingMechanism.UNKNOWN);
+
+    public static int create(int priority, int mechanism) {
+      return priority << 16 | (byte) mechanism & 0xFFFF;
+    }
+
+    public static int priority(int samplingDecision) {
+      return samplingDecision >> 16;
+    }
+
+    public static int mechanism(int samplingDecision) {
+      return (byte) samplingDecision;
+    }
+
+    private SamplingDecision() {}
+  }
 
   public DDSpanContext(
       final DDId traceId,
@@ -114,13 +133,15 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
       final CharSequence operationName,
       final CharSequence resourceName,
       final int samplingPriority,
+      final int samplingMechanism,
       final CharSequence origin,
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
-      final Object requestContextData) {
+      final Object requestContextData,
+      final boolean disableSamplingMechanismValidation) {
 
     assert trace != null;
     this.trace = trace;
@@ -153,14 +174,17 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
     this.spanType = spanType;
     this.origin = origin;
 
-    if (samplingPriority != PrioritySampling.UNSET) {
-      setSamplingPriority(samplingPriority);
+    long samplingParams = SamplingDecision.create(samplingPriority, samplingMechanism);
+    if (samplingParams != SamplingDecision.UNSET_UNKNOWN) {
+      setSamplingPriority(samplingPriority, samplingMechanism);
     }
 
     // Additional Metadata
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
+
+    this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
   }
 
   @Override
@@ -265,29 +289,55 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
       }
     }
     // if the user really wants to keep this trace chunk, we will let them,
-    // even if the old sampling priority has already propagated
-    SAMPLING_PRIORITY_UPDATER.set(this, USER_KEEP);
+    // even if the old sampling priority and mechanism have already propagated
+    int newSamplingPriorityAndMechanism =
+        SamplingDecision.create(PrioritySampling.USER_KEEP, SamplingMechanism.MANUAL);
+    SAMPLING_DECISION_UPDATER.set(this, newSamplingPriorityAndMechanism);
   }
 
   /** @return if sampling priority was set by this method invocation */
-  public boolean setSamplingPriority(final int newPriority) {
+  public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
     if (newPriority == PrioritySampling.UNSET) {
       log.debug("{}: Refusing to set samplingPriority to UNSET", this);
       return false;
     }
 
+    if (!SamplingMechanism.validateWithSamplingPriority(newMechanism, newPriority)) {
+      if (disableSamplingMechanismValidation) {
+        log.debug(
+            "{}: Bypassing setting setSamplingPriority check ("
+                + TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED
+                + ") for a non valid combination of samplingMechanism {} and samplingPriority {}.",
+            this,
+            newMechanism,
+            newPriority);
+      } else {
+        log.debug(
+            "{}: Refusing to set samplingMechanism to {}. Provided samplingPriority {} is not allowed.",
+            this,
+            newMechanism,
+            newPriority);
+        return false;
+      }
+    }
+
     if (trace != null) {
       final DDSpan rootSpan = trace.getRootSpan();
       if (null != rootSpan && rootSpan.context() != this) {
-        return rootSpan.context().setSamplingPriority(newPriority);
+        return rootSpan.context().setSamplingPriority(newPriority, newMechanism);
       }
     }
-    if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, UNSET, newPriority)) {
+
+    int newSamplingDecision = SamplingDecision.create(newPriority, newMechanism);
+    if (!SAMPLING_DECISION_UPDATER.compareAndSet(
+        this, SamplingDecision.UNSET_UNKNOWN, newSamplingDecision)) {
       if (log.isDebugEnabled()) {
         log.debug(
-            "samplingPriority locked at {}. Refusing to set to {}",
-            samplingPriorityV1,
-            newPriority);
+            "samplingPriority locked at priority: {} mechanism: {}. Refusing to set to priority: {} mechanism: {}",
+            SamplingDecision.priority(samplingDecision),
+            SamplingDecision.mechanism(samplingDecision),
+            SamplingDecision.priority(newSamplingDecision),
+            SamplingDecision.mechanism(newSamplingDecision));
       }
       return false;
     }
@@ -296,12 +346,13 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
 
   /** @return the sampling priority of this span's trace, or null if no priority has been set */
   public int getSamplingPriority() {
+    // TODO find usages and see whether returning SamplingDecision is needed @YG
     final DDSpan rootSpan = trace.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().getSamplingPriority();
     }
 
-    return samplingPriorityV1;
+    return SamplingDecision.priority(samplingDecision);
   }
 
   /**
@@ -316,14 +367,14 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
   @Deprecated
   public boolean lockSamplingPriority() {
     // this is now effectively a no-op - there is no locking.
-    // the priority is just CAS'd against UNSET, unless it's forced to USER_KEEP
-    // but is maintained for backwards compatability, and returns false when it used to
+    // the priority is just CAS'd against UNSET/UNKNOWN, unless it's forced to USER_KEEP/MANUAL
+    // but is maintained for backwards compatibility, and returns false when it used to
     final DDSpan rootSpan = trace.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().lockSamplingPriority();
     }
 
-    return SAMPLING_PRIORITY_UPDATER.get(this) != UNSET;
+    return SAMPLING_DECISION_UPDATER.get(this) != SamplingDecision.UNSET_UNKNOWN;
   }
 
   public CharSequence getOrigin() {
@@ -467,8 +518,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
       Map<String, Object> tags = new HashMap<>(unsafeTags);
       tags.put(DDTags.THREAD_ID, threadId);
       tags.put(DDTags.THREAD_NAME, threadName.toString());
-      if (samplingPriorityV1 != UNSET) {
-        tags.put(SAMPLE_RATE_KEY, samplingPriorityV1);
+      if (samplingDecision != SamplingDecision.UNSET_UNKNOWN) {
+        tags.put(SAMPLE_RATE_KEY, SamplingDecision.priority(samplingDecision));
       }
       if (httpStatusCode != 0) {
         tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
@@ -485,7 +536,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
               threadName,
               unsafeTags,
               baggageItems,
-              samplingPriorityV1,
+              SamplingDecision.priority(samplingDecision),
+              // TODO do we also need to pass samplingMechanism in there? @YG
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),

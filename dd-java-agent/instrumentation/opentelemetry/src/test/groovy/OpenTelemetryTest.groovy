@@ -2,7 +2,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.api.sampling.PrioritySampling
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
 import io.grpc.Context
@@ -133,10 +134,12 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      builder.setParent(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(parentId), 0, null, 0, [:], [:])))
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
+      builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      builder.addLink(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(linkId), 0, null, 0, [:], [:])))
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
+      builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()
 
@@ -285,12 +288,12 @@ class OpenTelemetryTest extends AgentTestRunner {
     span.end()
 
     where:
-    contextPriority               | propagatedPriority
-    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
-    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.UNSET        | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.USER_KEEP    | PrioritySampling.USER_KEEP
-    PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
+    contextPriority | propagatedPriority
+    SAMPLER_DROP    | SAMPLER_DROP
+    SAMPLER_KEEP    | SAMPLER_KEEP
+    UNSET           | SAMPLER_KEEP
+    USER_KEEP       | USER_KEEP
+    USER_DROP       | USER_DROP
   }
 
   def "tolerate null span activation"() {
