@@ -3,7 +3,6 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -47,7 +46,7 @@ class TypeConverter {
         return wrapper.unwrap();
       }
     } else {
-      return new CustomScope(scope);
+      return AgentTracer.NoopAgentScope.INSTANCE;
     }
   }
 
@@ -133,71 +132,6 @@ class TypeConverter {
       }
       if (o instanceof FinishingScope) {
         return delegate.equals(((FinishingScope) o).delegate);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return delegate.hashCode();
-    }
-  }
-
-  /** Wraps an external {@link Scope} to look like an internal {@link AgentScope} */
-  final class CustomScope implements AgentScope {
-    private final Scope delegate;
-
-    private CustomScope(final Scope delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public void close() {
-      delegate.close();
-    }
-
-    @Override
-    public AgentSpan span() {
-      return toAgentSpan(delegate.span());
-    }
-
-    @Override
-    public byte source() {
-      return ScopeSource.MANUAL.id();
-    }
-
-    @Override
-    public Continuation capture() {
-      return null;
-    }
-
-    @Override
-    public Continuation captureConcurrent() {
-      return null;
-    }
-
-    @Override
-    public boolean checkpointed() {
-      return false;
-    }
-
-    @Override
-    public boolean isAsyncPropagating() {
-      return false;
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {
-      // discard setting
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o instanceof CustomScope) {
-        return delegate.equals(((CustomScope) o).delegate);
       }
       return false;
     }
