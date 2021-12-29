@@ -84,19 +84,25 @@ public class GatewayBridge {
 
           TraceSegment traceSeg = ctx_.getTraceSegment();
 
+          // AppSec report metric and events for web span only
           if (traceSeg != null) {
+            traceSeg.setTagTop("_dd.appsec.enabled", 1);
+            traceSeg.setTagTop("_dd.runtime_family", "jvm");
+
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
             // If detected any events - mark span at appsec.event
-            if (!collectedEvents.isEmpty() && spanInfo != null) {
+            if (!collectedEvents.isEmpty()) {
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
               traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
               traceSeg.setTagTop("appsec.event", true);
-              traceSeg.setTagTop("actor.ip", ctx.getPeerAddress());
+              traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
+              // Report AppSec events via "_dd.appsec.json" tag
               AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
               traceSeg.setDataTop("appsec", wrapper);
 
+              // Report collected request headers based on allow list
               ctx.getRequestHeaders()
                   .forEach(
                       (name, value) -> {

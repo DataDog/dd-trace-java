@@ -93,6 +93,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.close()
     1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
+    1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
