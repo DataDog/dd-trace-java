@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.util.Iterator;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 
@@ -107,22 +108,38 @@ public final class Strings {
   }
 
   public static String join(CharSequence joiner, Iterable<? extends CharSequence> strings) {
-    StringBuilder sb = new StringBuilder();
-    for (CharSequence string : strings) {
-      sb.append(string).append(joiner);
+    if (strings == null) {
+      return "";
     }
-    // truncate to remove the last joiner
-    if (sb.length() > 0) {
-      sb.setLength(sb.length() - joiner.length());
+
+    Iterator<? extends CharSequence> it = strings.iterator();
+    // no elements
+    if (!it.hasNext()) {
+      return "";
+    }
+
+    // first element
+    CharSequence first = it.next();
+    if (!it.hasNext()) {
+      return first.toString();
+    }
+
+    // remaining elements with joiner
+    StringBuilder sb = new StringBuilder(first);
+    while (it.hasNext()) {
+      sb.append(joiner).append(it.next());
     }
     return sb.toString();
   }
 
   public static String join(CharSequence joiner, CharSequence... strings) {
-    if (strings.length > 0) {
-      StringBuilder sb = new StringBuilder();
-      sb.append(strings[0]);
-      for (int i = 1; i < strings.length; ++i) {
+    int len = strings.length;
+    if (len > 0) {
+      if (len == 1) {
+        return strings[0].toString();
+      }
+      StringBuilder sb = new StringBuilder(strings[0]);
+      for (int i = 1; i < len; ++i) {
         sb.append(joiner).append(strings[i]);
       }
       return sb.toString();

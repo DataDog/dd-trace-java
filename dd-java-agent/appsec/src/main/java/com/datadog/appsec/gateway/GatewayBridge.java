@@ -4,11 +4,7 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
-import com.datadog.appsec.event.data.Address;
-import com.datadog.appsec.event.data.DataBundle;
-import com.datadog.appsec.event.data.KnownAddresses;
-import com.datadog.appsec.event.data.MapDataBundle;
-import com.datadog.appsec.event.data.StringKVPair;
+import com.datadog.appsec.event.data.*;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
@@ -23,6 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.util.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -95,9 +92,21 @@ public class GatewayBridge {
               // reduced datadog sampling rate.
               traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
               traceSeg.setTagTop("appsec.event", true);
+              traceSeg.setTagTop("actor.ip", ctx.getPeerAddress());
 
               AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
               traceSeg.setDataTop("appsec", wrapper);
+
+              ctx.getRequestHeaders()
+                  .forEach(
+                      (name, value) -> {
+                        if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
+                          String v = Strings.join(",", value);
+                          if (!v.isEmpty()) {
+                            traceSeg.setTagTop("http.request.headers." + name, v);
+                          }
+                        }
+                      });
             }
           }
 
@@ -202,7 +211,7 @@ public class GatewayBridge {
           ctx.addCookie(cookie);
         }
       } else {
-        ctx.addHeader(name, value);
+        ctx.addRequestHeader(name, value);
       }
     }
   }
@@ -290,7 +299,7 @@ public class GatewayBridge {
     }
     MapDataBundle bundle =
         new MapDataBundle.Builder(CAPACITY_6_10)
-            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
+            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
             .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
             .add(KnownAddresses.REQUEST_SCHEME, scheme)
             .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())

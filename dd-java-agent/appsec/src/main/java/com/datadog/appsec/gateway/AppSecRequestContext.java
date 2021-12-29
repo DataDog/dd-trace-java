@@ -1,7 +1,6 @@
 package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.data.Address;
-import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
@@ -10,12 +9,7 @@ import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +19,30 @@ import org.slf4j.LoggerFactory;
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
+  // Values MUST be lowercase! Lookup with Ignore Case
+  // was removed due performance reason
+  public static final Set<String> HEADERS_ALLOW_LIST =
+      new TreeSet<>(
+          Arrays.asList(
+              "x-forwarded-for",
+              "x-client-ip",
+              "x-real-ip",
+              "x-forwarded",
+              "x-cluster-client-ip",
+              "forwarded-for",
+              "forwarded",
+              "via",
+              "true-client-ip",
+              "content-length",
+              "content-type",
+              "content-encoding",
+              "content-language",
+              "host",
+              "user-agent",
+              "accept",
+              "accept-encoding",
+              "accept-language"));
+
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private Collection<AppSecEvent100> collectedEvents; // guarded by this
 
@@ -32,7 +50,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String scheme;
   private String method;
   private String savedRawURI;
-  private final CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
+  private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
+  private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
   private String peerAddress;
@@ -128,15 +147,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.savedRawURI = savedRawURI;
   }
 
-  void addHeader(String name, String value) {
+  void addRequestHeader(String name, String value) {
     if (finishedHeaders) {
       throw new IllegalStateException("Headers were said to be finished before");
     }
-    List<String> strings = collectedHeaders.get(name);
-    if (strings == null) {
-      strings = new ArrayList<>(1);
-      collectedHeaders.put(name, strings);
+
+    if (name == null || value == null) {
+      return;
     }
+
+    List<String> strings =
+        requestHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
+    strings.add(value);
+  }
+
+  void addResponseHeader(String name, String value) {
+    if (name == null || value == null) {
+      return;
+    }
+
+    List<String> strings =
+        responseHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
     strings.add(value);
   }
 
@@ -155,8 +186,12 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return finishedHeaders;
   }
 
-  CaseInsensitiveMap<List<String>> getCollectedHeaders() {
-    return collectedHeaders;
+  Map<String, List<String>> getRequestHeaders() {
+    return requestHeaders;
+  }
+
+  Map<String, List<String>> getResponseHeaders() {
+    return responseHeaders;
   }
 
   List<StringKVPair> getCollectedCookies() {
