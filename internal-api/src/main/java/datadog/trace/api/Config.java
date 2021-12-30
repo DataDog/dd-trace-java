@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AWS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -75,6 +76,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
@@ -415,6 +417,7 @@ public class Config {
   private final boolean profilingUploadSummaryOn413Enabled;
 
   private final boolean appSecEnabled;
+  private final boolean appSecReportingInband;
   private final String appSecRulesFile;
   private final int appSecReportMinTimeout;
   private final int appSecReportMaxTimeout;
@@ -865,6 +868,8 @@ public class Config {
             PROFILING_UPLOAD_SUMMARY_ON_413, DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
+    appSecReportingInband =
+        configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
 
     // Default AppSec report timeout min=5, max=60
@@ -1375,6 +1380,10 @@ public class Config {
 
   public boolean isAppSecEnabled() {
     return appSecEnabled;
+  }
+
+  public boolean isAppSecReportingInband() {
+    return appSecReportingInband;
   }
 
   public int getAppSecReportMinTimeout() {
@@ -2374,6 +2383,8 @@ public class Config {
         + configProvider
         + ", appSecEnabled="
         + appSecEnabled
+        + ", appSecReportingInband="
+        + appSecReportingInband
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"

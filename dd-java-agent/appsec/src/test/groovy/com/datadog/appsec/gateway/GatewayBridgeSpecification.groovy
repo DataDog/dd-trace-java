@@ -6,10 +6,11 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
-import com.datadog.appsec.report.ReportService
+import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiConsumer
+import datadog.trace.api.TraceSegment
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
@@ -29,12 +30,17 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class GatewayBridgeSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
-  ReportService reportService = Mock()
   AppSecRequestContext arCtx = new AppSecRequestContext()
+  TraceSegment traceSegment = Mock()
   RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
     @Override
     AppSecRequestContext getData() {
       return arCtx
+    }
+
+    @Override
+    TraceSegment getTraceSegment() {
+      return traceSegment
     }
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -43,7 +49,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher)
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -73,8 +79,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'request_end closes context reports attacks and publishes event'() {
     AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
     RequestContext mockCtx = Mock(RequestContext) {
       getData() >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
     }
     IGSpanInfo spanInfo = Mock()
 
@@ -84,7 +92,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.close()
-    1 * reportService.reportEvent(event)
+    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('appsec.event', true)
+    1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
+    1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -98,7 +109,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     headerCB.accept(ctx, 'header2', 'value 2')
 
     then:
-    def headers = ctx.data.collectedHeaders
+    def headers = ctx.data.requestHeaders
     assert headers['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
     assert headers['header2'] == ['value 2']
   }
@@ -110,7 +121,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     headerCB.accept(ctx, 'Another-Header', 'another value')
 
     then:
-    def collectedHeaders = ctx.data.collectedHeaders
+    def collectedHeaders = ctx.data.requestHeaders
     assert collectedHeaders['another-header'] == ['another value']
     assert !collectedHeaders.containsKey('cookie')
 

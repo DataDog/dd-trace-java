@@ -11,15 +11,10 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import com.datadog.appsec.report.raw.events.AppSecEvent100;
-import com.datadog.appsec.report.raw.events.Parameter100;
-import com.datadog.appsec.report.raw.events.Rule100;
-import com.datadog.appsec.report.raw.events.RuleMatch100;
+import com.datadog.appsec.report.raw.events.*;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
+import com.squareup.moshi.*;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -224,14 +219,11 @@ public class PowerWAFModule implements AppSecModule {
 
       if (actionWithData.action != Powerwaf.Action.OK) {
         log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
-
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
         reqCtx.setBlocked(actionWithData.action == Powerwaf.Action.BLOCK);
         Collection<AppSecEvent100> events = buildEvents(actionWithData);
-        for (AppSecEvent100 event : events) {
-          reqCtx.reportEvent(event);
-        }
+        reqCtx.reportEvents(events, null);
       }
     }
   }
@@ -254,48 +246,52 @@ public class PowerWAFModule implements AppSecModule {
   }
 
   private AppSecEvent100 buildEvent(PowerWAFResultData wafResult) {
+
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
       return null;
     }
 
-    PowerWAFResultData.RuleMatch rule_match = wafResult.rule_matches.get(0);
-    List<Parameter100> parameterList = new ArrayList<>();
-    List<String> highlights = new ArrayList<>();
+    List<RuleMatch> ruleMatchList = new ArrayList<>();
+    for (PowerWAFResultData.RuleMatch rule_match : wafResult.rule_matches) {
 
-    for (PowerWAFResultData.Parameter parameter : rule_match.parameters) {
-      parameterList.add(
-          new Parameter100.Parameter100Builder()
-              .withAddress(parameter.address)
-              .withKeyPath(parameter.key_path)
-              .withValue(parameter.value)
-              .build());
-      highlights.addAll(parameter.highlight);
+      List<Parameter> parameterList = new ArrayList<>();
+
+      for (PowerWAFResultData.Parameter parameter : rule_match.parameters) {
+        parameterList.add(
+            new Parameter.ParameterBuilder()
+                .withAddress(parameter.address)
+                .withKeyPath(parameter.key_path)
+                .withValue(parameter.value)
+                .withHighlight(parameter.highlight)
+                .build());
+      }
+
+      RuleMatch ruleMatch =
+          new RuleMatch.RuleMatchBuilder()
+              .withOperator(rule_match.operator)
+              .withOperatorValue(rule_match.operator_value)
+              .withParameters(parameterList)
+              .build();
+
+      ruleMatchList.add(ruleMatch);
     }
 
-    RuleMatch100 ruleMatch =
-        new RuleMatch100.RuleMatch100Builder()
-            .withOperator(rule_match.operator)
-            .withOperatorValue(rule_match.operator_value)
-            .withHighlight(highlights)
-            .withParameters(parameterList)
-            .build();
-
     RuleInfo ruleInfo = rulesInfoMap.get(wafResult.rule.id);
-
-    Map<String, String> tags = new HashMap<>();
-    tags.put("type", ruleInfo.tags.get("type"));
-    tags.put("category", ruleInfo.tags.get("category"));
 
     AppSecEvent100 event =
         new AppSecEvent100.AppSecEvent100Builder()
             .withRule(
-                new Rule100.Rule100Builder()
+                new Rule.RuleBuilder()
                     .withId(wafResult.rule.id)
                     .withName(ruleInfo.name)
-                    .withTags(tags)
+                    .withTags(
+                        new Tags.TagsBuilder()
+                            .withType(ruleInfo.tags.get("type"))
+                            .withCategory(ruleInfo.tags.get("category"))
+                            .build())
                     .build())
-            .withRuleMatch(ruleMatch)
+            .withRuleMatches(ruleMatchList)
             .build();
 
     return event;

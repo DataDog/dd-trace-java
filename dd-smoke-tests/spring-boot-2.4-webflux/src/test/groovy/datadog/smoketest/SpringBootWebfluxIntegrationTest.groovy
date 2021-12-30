@@ -35,8 +35,9 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
   }
 
   @Override
-  boolean shouldDecodeTraces() {
-    true
+  Closure decodedTracesCallback() {
+    // we don't want to do anything special with the decoded traces
+    return {}
   }
 
   def "put docs and find all docs"() {

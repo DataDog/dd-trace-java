@@ -1,7 +1,10 @@
 package datadog.trace.core
 
+import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -176,7 +179,6 @@ class DDSpanContextTest extends DDCoreSpecification {
     UNKNOWN          | SAMPLER_KEEP | UNKNOWN          | SAMPLER_KEEP
     UNKNOWN          | USER_DROP    | UNKNOWN          | USER_DROP
     UNKNOWN          | USER_KEEP    | UNKNOWN          | USER_KEEP
-
     DEFAULT          | UNSET        | DEFAULT          | UNSET
     DEFAULT          | SAMPLER_DROP | DEFAULT          | SAMPLER_DROP
     DEFAULT          | SAMPLER_KEEP | DEFAULT          | SAMPLER_KEEP
@@ -194,25 +196,21 @@ class DDSpanContextTest extends DDCoreSpecification {
     REMOTE_AUTO_RATE | SAMPLER_KEEP | REMOTE_AUTO_RATE | SAMPLER_KEEP
     REMOTE_AUTO_RATE | USER_DROP    | REMOTE_AUTO_RATE | USER_DROP
     REMOTE_AUTO_RATE | USER_KEEP    | REMOTE_AUTO_RATE | USER_KEEP
-
     RULE             | UNSET        | RULE             | UNSET
     RULE             | SAMPLER_DROP | RULE             | SAMPLER_DROP
     RULE             | SAMPLER_KEEP | RULE             | SAMPLER_KEEP
     RULE             | USER_DROP    | RULE             | USER_DROP
     RULE             | USER_KEEP    | RULE             | USER_KEEP
-
     MANUAL           | UNSET        | MANUAL           | UNSET
     MANUAL           | SAMPLER_DROP | MANUAL           | SAMPLER_DROP
     MANUAL           | SAMPLER_KEEP | MANUAL           | SAMPLER_KEEP
     MANUAL           | USER_DROP    | MANUAL           | USER_DROP
     MANUAL           | USER_KEEP    | MANUAL           | USER_KEEP
-
     REMOTE_USER_RATE | UNSET        |REMOTE_USER_RATE | UNSET
     REMOTE_USER_RATE | SAMPLER_DROP |REMOTE_USER_RATE | SAMPLER_DROP
     REMOTE_USER_RATE | SAMPLER_KEEP |REMOTE_USER_RATE | SAMPLER_KEEP
     REMOTE_USER_RATE | USER_DROP    |REMOTE_USER_RATE | USER_DROP
     REMOTE_USER_RATE | USER_KEEP    |REMOTE_USER_RATE | USER_KEEP
-
     APPSEC           | UNSET        |APPSEC           | UNSET
     APPSEC           | SAMPLER_DROP |APPSEC           | SAMPLER_DROP
     APPSEC           | SAMPLER_KEEP |APPSEC           | SAMPLER_KEEP
@@ -220,13 +218,51 @@ class DDSpanContextTest extends DDCoreSpecification {
     APPSEC           | USER_KEEP    |APPSEC           | USER_KEEP
   }
 
-  static void assertTagmap(Map source, Map comparison) {
+  def "set TraceSegment tags and data on correct span"() {
+    setup:
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, DEFAULT, "789", 0, [:], [:]).withRequestContextData("dummy")
+    def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
+    def topC = (DDSpanContext) top.context()
+    def topTS = top.getRequestContext().getTraceSegment()
+    def current = tracer.buildSpan("current").asChildOf(top).start()
+    def currentTS = current.getRequestContext().getTraceSegment()
+    def currentC = (DDSpanContext) current.context()
+
+    when:
+    currentTS.setDataTop("ctd", "[1]")
+    currentTS.setTagTop("ctt", "t1")
+    currentTS.setDataCurrent("ccd", "[2]")
+    currentTS.setTagCurrent("cct", "t2")
+    topTS.setDataTop("ttd", "[3]")
+    topTS.setTagTop("ttt", "t3")
+    topTS.setDataCurrent("tcd", "[4]")
+    topTS.setTagCurrent("tct", "t4")
+
+    then:
+    assertTagmap(topC.getTags(), [(dataTag("ctd")): "[1]", "ctt": "t1",
+      (dataTag("ttd")): "[3]", "ttt": "t3",
+      (dataTag("tcd")): "[4]", "tct": "t4"], true)
+    assertTagmap(currentC.getTags(), [(dataTag("ccd")): "[2]", "cct": "t2"], true)
+
+    cleanup:
+    current.finish()
+    top.finish()
+  }
+
+  private static String dataTag(String tag) {
+    "_dd.${tag}.json"
+  }
+
+  static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {
     def sourceWithoutCommonTags = new HashMap(source)
     sourceWithoutCommonTags.remove("runtime-id")
     sourceWithoutCommonTags.remove("language")
     sourceWithoutCommonTags.remove("_dd.agent_psr")
     sourceWithoutCommonTags.remove("_sample_rate")
-
+    if (removeThread) {
+      sourceWithoutCommonTags.remove(DDTags.THREAD_ID)
+      sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)
+    }
     assert sourceWithoutCommonTags == comparison
   }
 }

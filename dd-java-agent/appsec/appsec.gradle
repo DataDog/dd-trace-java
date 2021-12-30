@@ -123,10 +123,8 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'com.datadog.appsec.powerwaf.LibSqreenInitialization',
-    'com.datadog.appsec.report.struct.*',
-    'com.datadog.appsec.report.raw.*',
-    'com.datadog.appsec.report.ReportSerializer.MoshiAdapter',
-    'com.datadog.appsec.report.AppSecApi.1',
+    'com.datadog.appsec.report.raw.events.*',
+    'com.datadog.appsec.report.AppSecEventWrapper',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
     'com.datadog.appsec.util.AbortStartupException',

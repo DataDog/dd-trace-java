@@ -11,7 +11,8 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.raw.events.AppSecEvent100
-import com.datadog.appsec.report.raw.events.Parameter100
+import com.datadog.appsec.report.raw.events.Parameter
+import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
@@ -60,20 +61,23 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    ctx.reportEvent(_ as AppSecEvent100) >> { event = it[0] }
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
     event.rule.name == 'Arachni'
-    event.rule.tags == ['type': 'security_scanner', 'category': 'attack_attempt']
+    event.rule.tags == new Tags.TagsBuilder()
+      .withType('security_scanner')
+      .withCategory('attack_attempt')
+      .build()
 
-    event.ruleMatch.highlight == ['Arachni/v']
-    event.ruleMatch.operator == 'match_regex'
-    event.ruleMatch.operatorValue == '^Arachni\\/v'
-    event.ruleMatch.parameters == [
-      new Parameter100.Parameter100Builder()
+    event.ruleMatches[0].operator == 'match_regex'
+    event.ruleMatches[0].operatorValue == '^Arachni\\/v'
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
       .withAddress('server.request.headers.no_cookies')
       .withKeyPath(['user-agent'])
       .withValue('Arachni/v0')
+      .withHighlight(['Arachni/v'])
       .build()
     ]
   }
@@ -127,7 +131,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.reportEvent(_ as AppSecEvent100)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
   }
 
   void 'bad initial configuration is given results in no attacks detected'() {

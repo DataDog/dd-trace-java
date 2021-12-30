@@ -76,6 +76,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413 = false;
 
   static final boolean DEFAULT_APPSEC_ENABLED = false;
+  static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
 

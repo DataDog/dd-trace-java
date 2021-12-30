@@ -23,7 +23,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   protected CopyOnWriteArrayList<DecodedTrace> decodeTraces = new CopyOnWriteArrayList()
 
   @Shared
-  private boolean decode = shouldDecodeTraces()
+  private Closure decode = decodedTracesCallback()
 
   @Shared
   @AutoCleanup
@@ -44,7 +44,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
           try {
             DecodedMessage message = Decoder.decode(body)
             assert message.getTraces().size() == count
-            traces.addAll(message.getTraces())
+            def traces = message.traces
+            decode(traces)
+            decodeTraces.addAll(traces)
           } catch (Throwable t) {
             println("=== Failure during message decoding ===")
             t.printStackTrace(System.out)
@@ -101,8 +103,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
     // do nothing; 'server' is autocleanup
   }
 
-  boolean shouldDecodeTraces() {
-    false
+  Closure decodedTracesCallback() {
+    null
   }
 
   int waitForTraceCount(int count) {

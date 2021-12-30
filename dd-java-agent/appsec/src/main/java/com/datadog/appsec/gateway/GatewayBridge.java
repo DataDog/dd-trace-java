@@ -4,16 +4,12 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
-import com.datadog.appsec.event.data.Address;
-import com.datadog.appsec.event.data.DataBundle;
-import com.datadog.appsec.event.data.KnownAddresses;
-import com.datadog.appsec.event.data.MapDataBundle;
-import com.datadog.appsec.event.data.StringKVPair;
-import com.datadog.appsec.report.EventEnrichment;
-import com.datadog.appsec.report.ReportService;
+import com.datadog.appsec.event.data.*;
+import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
+import datadog.trace.api.TraceSegment;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -23,6 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.util.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -52,19 +49,15 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ReportService reportService;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
   private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
 
   public GatewayBridge(
-      SubscriptionService subscriptionService,
-      EventProducerService producerService,
-      ReportService reportService) {
+      SubscriptionService subscriptionService, EventProducerService producerService) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.reportService = reportService;
   }
 
   public void init() {
@@ -89,18 +82,32 @@ public class GatewayBridge {
           AppSecRequestContext ctx = ctx_.getData();
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
-          Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
-          // If detected any events - mark span at appsec.event
-          if (!collectedEvents.isEmpty() && spanInfo != null) {
-            // Keep event related span, because it could be ignored in case of
-            // reduced datadog sampling rate.
-            spanInfo.setTag(DDTags.MANUAL_KEEP, true);
-            spanInfo.setTag("appsec.event", true);
-          }
+          TraceSegment traceSeg = ctx_.getTraceSegment();
 
-          for (AppSecEvent100 event : collectedEvents) {
-            EventEnrichment.enrich(event, spanInfo, ctx);
-            reportService.reportEvent(event);
+          if (traceSeg != null) {
+            Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
+            // If detected any events - mark span at appsec.event
+            if (!collectedEvents.isEmpty() && spanInfo != null) {
+              // Keep event related span, because it could be ignored in case of
+              // reduced datadog sampling rate.
+              traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
+              traceSeg.setTagTop("appsec.event", true);
+              traceSeg.setTagTop("actor.ip", ctx.getPeerAddress());
+
+              AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+              traceSeg.setDataTop("appsec", wrapper);
+
+              ctx.getRequestHeaders()
+                  .forEach(
+                      (name, value) -> {
+                        if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
+                          String v = Strings.join(",", value);
+                          if (!v.isEmpty()) {
+                            traceSeg.setTagTop("http.request.headers." + name, v);
+                          }
+                        }
+                      });
+            }
           }
 
           ctx.close();
@@ -177,7 +184,6 @@ public class GatewayBridge {
   // currently unused; doesn't do anything useful
   public void stop() {
     // TODO: resetting IG not possible
-    this.reportService.close();
   }
 
   private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
@@ -205,7 +211,7 @@ public class GatewayBridge {
           ctx.addCookie(cookie);
         }
       } else {
-        ctx.addHeader(name, value);
+        ctx.addRequestHeader(name, value);
       }
     }
   }
@@ -293,7 +299,7 @@ public class GatewayBridge {
     }
     MapDataBundle bundle =
         new MapDataBundle.Builder(CAPACITY_6_10)
-            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
+            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
             .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
             .add(KnownAddresses.REQUEST_SCHEME, scheme)
             .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
