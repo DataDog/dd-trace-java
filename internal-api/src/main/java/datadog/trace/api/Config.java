@@ -1568,11 +1568,6 @@ public class Config {
       }
     }
 
-    if (appSecEnabled) {
-      result.put("_dd.appsec.enabled", 1);
-      result.put("_dd.runtime_family", "jvm");
-    }
-
     if (azureAppServices) {
       result.putAll(getAzureAppServicesTags());
     }
