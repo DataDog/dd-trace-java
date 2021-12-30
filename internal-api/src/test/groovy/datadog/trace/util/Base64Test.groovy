@@ -21,31 +21,33 @@ class Base64Test extends Specification {
     new String(decoder.decode(encodedBytes), charset) == originalString
 
     where:
-    originalString    | encodedString          | padding
-    ""                | ""                     | true
-    ""                | ""                     | false
-    "a"               | "YQ=="                 | true
-    "a"               | "YQ"                   | false
-    "ab"              | "YWI="                 | true
-    "ab"              | "YWI"                  | false
-    "abc1Z"           | "YWJjMVo="             | true
-    "abcd"            | "YWJjZA=="             | true
-    "abcde"           | "YWJjZGU="             | true
-    "abcde"           | "YWJjZGU"              | false
-    "abcdef"          | "YWJjZGVm"             | true
-    "abcdef"          | "YWJjZGVm"             | false
-    "abcdefg"         | "YWJjZGVmZw=="         | true
-    "abcdefg"         | "YWJjZGVmZw"           | false
-    "some_service"    | "c29tZV9zZXJ2aWNl"     | true
-    "some_service"    | "c29tZV9zZXJ2aWNl"     | false
-    "Another-Service" | "QW5vdGhlci1TZXJ2aWNl" | true
-    "Another-Service" | "QW5vdGhlci1TZXJ2aWNl" | false
-    "service-b"       | "c2VydmljZS1i"         | true
-    "service-b"       | "c2VydmljZS1i"         | false
-    "öôò"             | "w7bDtMOy"             | true
-    "öôò"             | "w7bDtMOy"             | false
-    "abc4A"           | "YWJjNEE"              | false
-    "abcd000"         | "YWJjZDAwMA"           | false
-    "abcd000"         | "YWJjZDAwMA=="         | true
+    originalString      | encodedString             | padding
+    ""                  | ""                        | true
+    ""                  | ""                        | false
+    "a"                 | "YQ=="                    | true
+    "a"                 | "YQ"                      | false
+    "ab"                | "YWI="                    | true
+    "ab"                | "YWI"                     | false
+    "abc1Z"             | "YWJjMVo="                | true
+    "abcd"              | "YWJjZA=="                | true
+    "abcde"             | "YWJjZGU="                | true
+    "abcde"             | "YWJjZGU"                 | false
+    "abcdef"            | "YWJjZGVm"                | true
+    "abcdef"            | "YWJjZGVm"                | false
+    "abcdefg"           | "YWJjZGVmZw=="            | true
+    "abcdefg"           | "YWJjZGVmZw"              | false
+    "some_service"      | "c29tZV9zZXJ2aWNl"        | true
+    "some_service"      | "c29tZV9zZXJ2aWNl"        | false
+    "Another-Service"   | "QW5vdGhlci1TZXJ2aWNl"    | true
+    "Another-Service"   | "QW5vdGhlci1TZXJ2aWNl"    | false
+    "service-b"         | "c2VydmljZS1i"            | true
+    "service-b"         | "c2VydmljZS1i"            | false
+    "öôò"               | "w7bDtMOy"                | true
+    "öôò"               | "w7bDtMOy"                | false
+    "abc4A"             | "YWJjNEE"                 | false
+    "abcd000"           | "YWJjZDAwMA"              | false
+    "abcd000"           | "YWJjZDAwMA=="            | true
+    "mcnulty-web"       | "bWNudWx0eS13ZWI"         | false
+    "trace-stats-query" | "dHJhY2Utc3RhdHMtcXVlcnk" | false
   }
 }

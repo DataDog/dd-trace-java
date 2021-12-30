@@ -16,6 +16,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.core.DatadogTags;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String forwardedIp;
   protected String forwardedPort;
   protected boolean valid;
+  protected DatadogTags ddTags;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -143,7 +145,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   forwardedIp,
                   forwardedPort,
                   baggage,
-                  tags);
+                  tags,
+                  ddTags);
         } else {
           context =
               new ExtractedContext(
@@ -154,7 +157,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   origin,
                   endToEndStartTime,
                   baggage,
-                  tags);
+                  tags,
+                  ddTags);
         }
         return context;
       } else if (hasForwarded) {

@@ -989,6 +989,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final DDSpanContext context;
       final Object requestContextData;
+      final DatadogTags ddTags;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -1023,6 +1024,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
+        // TODO probably we don't need to copy ddTags from the parent context
+        ddTags = null;
       } else {
         long endToEndStartTime;
 
@@ -1035,6 +1038,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
+          ddTags = extractedContext.getDdTags();
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
@@ -1043,6 +1047,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;
+          ddTags = null;
         }
 
         // Get header tags and set origin whether propagating or not.
@@ -1097,7 +1102,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               tagsSize,
               parentTrace,
               requestContextData,
-              disableSamplingMechanismValidation);
+              disableSamplingMechanismValidation,
+              ddTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

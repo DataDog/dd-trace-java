@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.core.DatadogTags;
 import java.util.Map;
 
 /**
@@ -14,6 +15,7 @@ public class ExtractedContext extends TagContext {
   private final int samplingMechanism;
   private final long endToEndStartTime;
   private final Map<String, String> baggage;
+  private final DatadogTags ddTags;
 
   public ExtractedContext(
       final DDId traceId,
@@ -23,7 +25,8 @@ public class ExtractedContext extends TagContext {
       final String origin,
       final long endToEndStartTime,
       final Map<String, String> baggage,
-      final Map<String, String> tags) {
+      final Map<String, String> tags,
+      final DatadogTags ddTags) {
     super(origin, tags);
     this.traceId = traceId;
     this.spanId = spanId;
@@ -31,6 +34,7 @@ public class ExtractedContext extends TagContext {
     this.samplingMechanism = samplingMechanism;
     this.endToEndStartTime = endToEndStartTime;
     this.baggage = baggage;
+    this.ddTags = ddTags;
   }
 
   @Override
@@ -62,5 +66,9 @@ public class ExtractedContext extends TagContext {
 
   public final Map<String, String> getBaggage() {
     return baggage;
+  }
+
+  public DatadogTags getDdTags() {
+    return ddTags;
   }
 }

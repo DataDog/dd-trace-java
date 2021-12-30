@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDId;
+import datadog.trace.core.DatadogTags;
 import java.util.Map;
 
 /** {@link ExtractedContext} with non-empty Forwarded metadata. */
@@ -25,7 +26,8 @@ public final class ForwardedExtractedContext extends ExtractedContext {
       final String forwardedIp,
       final String forwardedPort,
       final Map<String, String> baggage,
-      final Map<String, String> tags) {
+      final Map<String, String> tags,
+      final DatadogTags ddTags) {
     super(
         traceId,
         spanId,
@@ -34,7 +36,8 @@ public final class ForwardedExtractedContext extends ExtractedContext {
         origin,
         endToEndStartTime,
         baggage,
-        tags);
+        tags,
+        ddTags);
     this.forwarded = forwarded;
     this.forwardedProto = forwardedProto;
     this.forwardedHost = forwardedHost;

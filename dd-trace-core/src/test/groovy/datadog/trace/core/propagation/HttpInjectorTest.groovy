@@ -11,6 +11,7 @@ import datadog.trace.core.test.DDCoreSpecification
 import static datadog.trace.api.PropagationStyle.B3
 import static datadog.trace.api.PropagationStyle.DATADOG
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
+import static datadog.trace.core.propagation.DatadogHttpCodec.TAGS_KEY
 
 class HttpInjectorTest extends DDCoreSpecification {
 
@@ -44,7 +45,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null) //TODO test with upstream_services ddTags
 
     final Map<String, String> carrier = Mock()
 
@@ -63,6 +65,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       if (origin) {
         1 * carrier.put(DatadogHttpCodec.ORIGIN_KEY, origin)
       }
+      //      1 * carrier.put(TAGS_KEY, "")
     }
     if (styles.contains(B3)) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())
@@ -73,6 +76,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       } else {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
+      //TODO      1 * carrier.put(TAGS_KEY, "")
     }
     0 * _
 
@@ -117,7 +121,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null) //TODO test with upstream_services ddTags
 
     final Map<String, String> carrier = Mock()
 
@@ -136,6 +141,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       if (origin) {
         1 * carrier.put(DatadogHttpCodec.ORIGIN_KEY, origin)
       }
+      //      1 * carrier.put(TAGS_KEY, "")
     } else if (style == B3) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())
       1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, spanId.toString())
@@ -145,6 +151,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       } else {
         1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
+      //TODO      1 * carrier.put(TAGS_KEY, "")
     }
     0 * _
 

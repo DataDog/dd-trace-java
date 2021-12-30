@@ -115,6 +115,7 @@ public class TracerMapperMap {
             0,
             trace,
             null,
-            false));
+            false,
+            null));
   }
 }

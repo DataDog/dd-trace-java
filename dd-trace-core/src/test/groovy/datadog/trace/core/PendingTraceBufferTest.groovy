@@ -319,7 +319,8 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
-      false)
+      false,
+      null)
     return DDSpan.create(0, context)
   }
 
@@ -342,7 +343,8 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
-      false)
+      false,
+      null)
     return DDSpan.create(0, context)
   }
 }

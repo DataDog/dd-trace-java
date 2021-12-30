@@ -11,6 +11,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.DatadogTags;
 import java.util.Map;
 import java.util.TreeMap;
 import org.slf4j.Logger;
@@ -26,6 +27,7 @@ class DatadogHttpCodec {
   private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
   private static final String ORIGIN_KEY = "x-datadog-origin";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
+  private static final String TAGS_KEY = "x-datadog-tags";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -56,6 +58,11 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
+
+      DatadogTags datadogTags = context.getDatadogTags();
+      if (!datadogTags.isEmpty()) {
+        setter.set(carrier, TAGS_KEY, datadogTags.encoded());
+      }
     }
   }
 
@@ -79,6 +86,7 @@ class DatadogHttpCodec {
     private static final int TAGS = 4;
     private static final int OT_BAGGAGE = 5;
     private static final int E2E_START = 6;
+    private static final int DD_TAGS = 7;
     private static final int IGNORE = -1;
 
     private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
@@ -112,6 +120,8 @@ class DatadogHttpCodec {
             return true;
           } else if (handledXForwarding(key, value)) {
             return true;
+          } else if (TAGS_KEY.equalsIgnoreCase(key)) {
+            classification = DD_TAGS;
           }
           break;
         case 'f':
@@ -154,6 +164,9 @@ class DatadogHttpCodec {
                 break;
               case E2E_START:
                 endToEndStartTime = extractEndToEndStartTime(firstValue);
+                break;
+              case DD_TAGS:
+                ddTags = DatadogTags.create(value);
                 break;
               case TAGS:
                 {

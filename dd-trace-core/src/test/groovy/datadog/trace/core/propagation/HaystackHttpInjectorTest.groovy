@@ -36,7 +36,8 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null)
 
     final Map<String, String> carrier = Mock()
 
@@ -87,7 +88,8 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null)
 
     final Map<String, String> carrier = Mock()
 

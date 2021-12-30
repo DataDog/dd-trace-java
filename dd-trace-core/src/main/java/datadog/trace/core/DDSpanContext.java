@@ -104,6 +104,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   private final boolean disableSamplingMechanismValidation;
 
+  private DatadogTags ddTags;
+
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
 
@@ -142,7 +144,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final int tagsSize,
       final PendingTrace trace,
       final Object requestContextData,
-      final boolean disableSamplingMechanismValidation) {
+      final boolean disableSamplingMechanismValidation,
+      final DatadogTags ddTags) {
 
     assert trace != null;
     this.trace = trace;
@@ -167,6 +170,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags = new HashMap<>(capacity);
+
+    this.ddTags = ddTags == null ? DatadogTags.empty() : ddTags;
 
     setServiceName(serviceName);
     this.operationName = operationName;
@@ -207,7 +212,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public void setServiceName(final String serviceName) {
-    this.serviceName = trace.getTracer().mapServiceName(serviceName);
+    String newServiceName = trace.getTracer().mapServiceName(serviceName);
+    ddTags.updateServiceName(serviceName, newServiceName);
+    this.serviceName = newServiceName;
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
@@ -298,6 +305,11 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
+    return setSamplingPriority(newPriority, newMechanism, -1.0);
+  }
+
+  public boolean setSamplingPriority(
+      final int newPriority, final int newMechanism, final double rate) {
     if (newPriority == PrioritySampling.UNSET) {
       log.debug("{}: Refusing to set samplingPriority to UNSET", this);
       return false;
@@ -337,11 +349,13 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             "samplingPriority locked at priority: {} mechanism: {}. Refusing to set to priority: {} mechanism: {}",
             SamplingDecision.priority(samplingDecision),
             SamplingDecision.mechanism(samplingDecision),
-            SamplingDecision.priority(newSamplingDecision),
-            SamplingDecision.mechanism(newSamplingDecision));
+            newPriority,
+            newMechanism);
       }
       return false;
     }
+
+    ddTags.updateUpstreamServices(getServiceName(), newPriority, newMechanism, rate);
     return true;
   }
 
@@ -546,6 +560,10 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     }
   }
 
+  public DatadogTags getDatadogTags() {
+    return ddTags;
+  }
+
   @Override
   public String toString() {
     final StringBuilder s =
@@ -563,6 +581,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             .append("/")
             .append(getResourceName())
             .append(" metrics=");
+    // TODO maybe add ddTags?
     if (errorFlag) {
       s.append(" *errored*");
     }
