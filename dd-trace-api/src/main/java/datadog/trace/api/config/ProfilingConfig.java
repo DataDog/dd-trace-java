@@ -9,7 +9,9 @@ package datadog.trace.api.config;
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
+  public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = false;
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
+  public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
   @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
   @Deprecated // Use dd.api-key instead
@@ -28,20 +30,27 @@ public final class ProfilingConfig {
   // Not intended for production use
   public static final String PROFILING_START_FORCE_FIRST =
       "profiling.experimental.start-force-first";
+  public static final boolean PROFILING_START_FORCE_FIRST_DEFAULT = false;
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+  public static final int PROFILING_UPLOAD_PERIOD_DEFAULT = 60;
   public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
       "profiling.jfr-template-override-file";
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
+  public static final int PROFILING_UPLOAD_TIMEOUT_DEFAULT = 30;
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
+  public static final String PROFILING_UPLOAD_COMPRESSION_DEFAULT = "on";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
+  public static final int PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT = 10_000;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
+  public static final int PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT = 50;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
       "profiling.exception.histogram.max-collection-size";
+  public static final int PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT = 10_000;
   public static final String PROFILING_EXCLUDE_AGENT_THREADS = "profiling.exclude.agent-threads";
   public static final String PROFILING_HOTSPOTS_ENABLED = "profiling.hotspots.enabled";
 
@@ -50,19 +59,23 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
   public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
+  public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_ALLOC_INTERVAL = "profiling.async.alloc.interval";
   public static final int PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
   public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
+  public static final boolean PROFILING_ASYNC_CPU_ENABLED_DEFAULT = true;
   public static final String PROFILING_ASYNC_CPU_MODE = "profiling.async.cpu.mode";
   public static final String PROFILING_ASYNC_CPU_MODE_DEFAULT = "cpu";
   public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
+  public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
   public static final int PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = 256 * 1024;
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
+  public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;
   public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
       "profiling.checkpoints.record.cpu.time";
   public static final String PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT =

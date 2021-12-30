@@ -1,6 +1,7 @@
 package datadog.trace.common.sampling;
 
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
@@ -103,19 +104,22 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
           span.setSamplingPriority(
               PrioritySampling.USER_KEEP,
               SAMPLING_RULE_RATE,
-              matchedRule.getSampler().getSampleRate());
+              matchedRule.getSampler().getSampleRate(),
+              SamplingMechanism.RULE);
         } else {
           span.setSamplingPriority(
               PrioritySampling.USER_DROP,
               SAMPLING_RULE_RATE,
-              matchedRule.getSampler().getSampleRate());
+              matchedRule.getSampler().getSampleRate(),
+              SamplingMechanism.RULE);
         }
         span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {
         span.setSamplingPriority(
             PrioritySampling.USER_DROP,
             SAMPLING_RULE_RATE,
-            matchedRule.getSampler().getSampleRate());
+            matchedRule.getSampler().getSampleRate(),
+            SamplingMechanism.RULE);
       }
     }
   }

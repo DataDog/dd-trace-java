@@ -15,6 +15,7 @@ import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -67,7 +68,8 @@ public class TagInterceptor {
         }
         return false;
       case DDTags.MANUAL_DROP:
-        return interceptSamplingPriority(FORCE_MANUAL_DROP, USER_DROP, span, value);
+        return interceptSamplingPriority(
+            FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
       case InstrumentationTags.SERVLET_CONTEXT:
         return interceptServletContext(span, value);
       case SPAN_TYPE:
@@ -148,10 +150,14 @@ public class TagInterceptor {
   }
 
   private boolean interceptSamplingPriority(
-      RuleFlags.Feature feature, int priority, DDSpanContext span, Object value) {
+      RuleFlags.Feature feature,
+      int samplingPriority,
+      int samplingMechanism,
+      DDSpanContext span,
+      Object value) {
     if (ruleFlags.isEnabled(feature)) {
       if (asBoolean(value)) {
-        span.setSamplingPriority(priority);
+        span.setSamplingPriority(samplingPriority, samplingMechanism);
       }
       return true;
     }

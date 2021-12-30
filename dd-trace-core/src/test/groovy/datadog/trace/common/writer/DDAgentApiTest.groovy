@@ -8,6 +8,7 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
@@ -27,7 +28,6 @@ import okhttp3.OkHttpClient
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout
-
 import java.nio.ByteBuffer
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -432,13 +432,15 @@ class DDAgentApiTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       [:],
       false,
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
-      null)
+      null,
+      false)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

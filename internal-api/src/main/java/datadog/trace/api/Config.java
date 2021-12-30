@@ -1850,6 +1850,10 @@ public class Config {
     return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
   }
 
+  public boolean isSamplingMechanismValidationDisabled() {
+    return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
+  }
+
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);

@@ -2,6 +2,7 @@ package datadog.trace.core
 
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
@@ -138,13 +139,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       baggage,
       false,
       null,
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
-      null)
+      null,
+      false)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -205,13 +208,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       baggage,
       false,
       null,
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
-      null)
+      null,
+      false)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -282,13 +287,15 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
+      SamplingMechanism.UNKNOWN,
       null,
       ["a-baggage": "value"],
       false,
       spanType,
       1,
       tracer.pendingTraceFactory.create(DDId.ONE),
-      null)
+      null,
+      false)
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }

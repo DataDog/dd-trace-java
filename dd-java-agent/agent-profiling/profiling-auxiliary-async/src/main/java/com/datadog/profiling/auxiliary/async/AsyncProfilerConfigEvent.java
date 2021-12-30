@@ -41,9 +41,19 @@ public class AsyncProfilerConfigEvent extends Event {
   @Description("Async profiler version string")
   private final String version;
 
+  @Label("Library Path")
+  @Description("Path to async-profiler library or null")
+  private final String libPath;
+
   public AsyncProfilerConfigEvent(
-      String version, long cpuInterval, long allocInterval, long memleakInterval, int modeMask) {
+      String version,
+      String libPath,
+      long cpuInterval,
+      long allocInterval,
+      long memleakInterval,
+      int modeMask) {
     this.version = version;
+    this.libPath = libPath;
     this.cpuInterval = cpuInterval;
     this.allocInterval = allocInterval;
     this.memleakInterval = memleakInterval;

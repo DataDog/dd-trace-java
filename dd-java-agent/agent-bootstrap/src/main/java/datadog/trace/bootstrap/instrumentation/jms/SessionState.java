@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
@@ -30,20 +29,8 @@ public final class SessionState {
   private static final AtomicIntegerFieldUpdater<SessionState> COMMIT_SEQUENCE =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "commitSequence");
 
-  private static final AtomicIntegerFieldUpdater<SessionState> ACTIVE_SCOPE_COUNT =
-      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "activeScopeCount");
   private static final AtomicIntegerFieldUpdater<SessionState> TIME_IN_QUEUE_SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "timeInQueueSpanCount");
-
-  private static final Comparator<Map.Entry<Thread, AgentScope>> YOUNGEST_SCOPE_FIRST =
-      new Comparator<Map.Entry<Thread, AgentScope>>() {
-        @Override
-        public int compare(Map.Entry<Thread, AgentScope> o1, Map.Entry<Thread, AgentScope> o2) {
-          // reverse natural order to sort start time by largest first (ie. youngest)
-          return Long.compare(
-              o2.getValue().span().getStartTime(), o1.getValue().span().getStartTime());
-        }
-      };
 
   private static final Comparator<Map.Entry<Thread, TimeInQueue>> YOUNGEST_TIME_IN_QUEUE_FIRST =
       new Comparator<Map.Entry<Thread, TimeInQueue>>() {
@@ -69,9 +56,7 @@ public final class SessionState {
 
   // consumer-related session state
   private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
-  private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
   private final Map<Thread, TimeInQueue> timeInQueueSpans;
-  private volatile int activeScopeCount = 0;
   private volatile int timeInQueueSpanCount = 0;
 
   // this field is protected by synchronization of capturedSpans, but SpotBugs miss that
@@ -165,16 +150,9 @@ public final class SessionState {
   private void finishCapturedSpans() {
     // make sure we complete this before any subsequent commit/rollback/ack/close
     synchronized (this) {
-      Iterator<AgentScope> activeScopeIterator = activeScopes.values().iterator();
       Iterator<TimeInQueue> timeInQueueIterator = timeInQueueSpans.values().iterator();
 
-      // first close any session-related scopes that are still open
-      while (activeScopeIterator.hasNext()) {
-        maybeCloseScope(activeScopeIterator.next());
-        activeScopeIterator.remove();
-      }
-
-      // next finish any message spans captured during this session
+      // finish any message spans captured during this session
       int spansToFinish;
       boolean finishingFlipped;
       synchronized (capturedSpans) {
@@ -209,64 +187,9 @@ public final class SessionState {
     }
   }
 
-  /** Closes any active message scopes and finishes any pending client-ack/transacted spans. */
+  /** Finishes any pending client-ack/transacted spans. */
   public void onClose() {
     finishCapturedSpans();
-  }
-
-  /** Closes the given message scope when the next message is consumed or the session is closed. */
-  void closeOnIteration(AgentScope newScope) {
-    if (ACTIVE_SCOPE_COUNT.incrementAndGet(this) > MAX_TRACKED_THREADS) {
-      closeStaleScopes();
-    }
-    maybeCloseScope(activeScopes.put(Thread.currentThread(), newScope));
-  }
-
-  /** Closes the scope previously registered by closeOnIteration, assumes same calling thread. */
-  void closePreviousMessageScope() {
-    maybeCloseScope(activeScopes.remove(Thread.currentThread()));
-  }
-
-  private void maybeCloseScope(AgentScope scope) {
-    if (null != scope) {
-      ACTIVE_SCOPE_COUNT.decrementAndGet(this);
-      scope.close();
-      if (isAutoAcknowledge()) {
-        scope.span().finish();
-      }
-    }
-  }
-
-  private void closeStaleScopes() {
-    Queue<Map.Entry<Thread, AgentScope>> oldestEntries =
-        new PriorityQueue<>(MIN_EVICTED_THREADS + 1, YOUNGEST_SCOPE_FIRST);
-
-    // first evict any scopes linked to stopped threads
-    int evictedThreads = 0;
-    Iterator<Map.Entry<Thread, AgentScope>> itr = activeScopes.entrySet().iterator();
-    while (itr.hasNext()) {
-      Map.Entry<Thread, AgentScope> entry = itr.next();
-      if (!entry.getKey().isAlive()) {
-        evictedThreads++;
-        maybeCloseScope(entry.getValue());
-        itr.remove();
-      } else if (evictedThreads < MIN_EVICTED_THREADS) {
-        // not evicted enough yet - sort scopes so far from youngest (head) to oldest (tail)
-        oldestEntries.offer(entry);
-        if (oldestEntries.size() > MIN_EVICTED_THREADS) {
-          oldestEntries.poll(); // discard the youngest scope to keep the oldest N scopes
-        }
-      }
-    }
-
-    // didn't find enough stopped threads, so evict oldest N spans
-    if (evictedThreads < MIN_EVICTED_THREADS) {
-      for (Map.Entry<Thread, AgentScope> entry : oldestEntries) {
-        if (((ConcurrentMap<?, ?>) activeScopes).remove(entry.getKey(), entry.getValue())) {
-          maybeCloseScope(entry.getValue());
-        }
-      }
-    }
   }
 
   /** Gets the current time-in-queue span; returns {@code null} if this is a new batch. */
