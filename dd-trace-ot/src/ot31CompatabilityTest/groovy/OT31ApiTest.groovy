@@ -1,5 +1,6 @@
 import datadog.opentracing.DDTracer
-import datadog.trace.api.sampling.PrioritySampling
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
@@ -78,7 +79,7 @@ class OT31ApiTest extends DDSpecification {
     def adapter = new TextMapAdapter(textMap)
 
     when:
-    context.delegate.samplingPriority = contextPriority
+    context.delegate.setSamplingPriority(contextPriority, samplingMechanism)
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
@@ -97,12 +98,12 @@ class OT31ApiTest extends DDSpecification {
     extract.delegate.samplingPriority == propagatedPriority
 
     where:
-    contextPriority               | propagatedPriority
-    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
-    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.UNSET        | PrioritySampling.SAMPLER_KEEP
-    PrioritySampling.USER_KEEP    | PrioritySampling.USER_KEEP
-    PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
+    contextPriority | samplingMechanism | propagatedPriority
+    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP
+    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP
+    UNSET           | DEFAULT           | SAMPLER_KEEP
+    USER_KEEP       | MANUAL            | USER_KEEP
+    USER_DROP       | MANUAL            | USER_DROP
   }
 
   static class TextMapAdapter implements TextMap {

@@ -1,9 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-/** Tracks message scopes and spans when consuming messages with {@code receive}. */
+/** Tracks message spans when consuming messages with {@code receive}. */
 public final class MessageConsumerState {
 
   private final SessionState sessionState;
@@ -49,16 +48,6 @@ public final class MessageConsumerState {
 
   public boolean isPropagationDisabled() {
     return propagationDisabled;
-  }
-
-  /** Closes the given message scope when the next message is consumed or the consumer is closed. */
-  public void closeOnIteration(AgentScope newScope) {
-    sessionState.closeOnIteration(newScope); // tracked per-session-thread
-  }
-
-  /** Closes the scope previously registered by closeOnIteration, assumes same calling thread. */
-  public void closePreviousMessageScope() {
-    sessionState.closePreviousMessageScope(); // tracked per-session-thread
   }
 
   /** Gets the current time-in-queue span; returns {@code null} if this is a new batch. */

@@ -9,9 +9,11 @@ public class ForcePrioritySampler<T extends CoreSpan<T>> implements Sampler<T>, 
 
   private static final Logger log = LoggerFactory.getLogger(ForcePrioritySampler.class);
   private final int prioritySampling;
+  private final int samplingMechanism;
 
-  public ForcePrioritySampler(final int prioritySampling) {
+  public ForcePrioritySampler(final int prioritySampling, final int samplingMechanism) {
     this.prioritySampling = prioritySampling;
+    this.samplingMechanism = samplingMechanism;
   }
 
   @Override
@@ -21,6 +23,6 @@ public class ForcePrioritySampler<T extends CoreSpan<T>> implements Sampler<T>, 
 
   @Override
   public void setSamplingPriority(final T span) {
-    span.setSamplingPriority(prioritySampling);
+    span.setSamplingPriority(prioritySampling, samplingMechanism);
   }
 }

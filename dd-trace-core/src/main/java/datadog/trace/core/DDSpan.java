@@ -14,6 +14,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.util.Clock;
@@ -528,20 +529,28 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     return context.getRequestContext();
   }
 
+  @Deprecated
+  @Override
+  public final DDSpan setSamplingPriority(final int newPriority) {
+    // this method exist only to satisfy MutableSpan. It will be removed in 1.0
+    return setSamplingPriority(newPriority, SamplingMechanism.UNKNOWN);
+  }
+
   /**
    * Set the sampling priority of the root span of this span's trace
    *
    * <p>Has no effect if the span priority has been propagated (injected or extracted).
    */
   @Override
-  public final DDSpan setSamplingPriority(final int newPriority) {
-    context.setSamplingPriority(newPriority);
+  public final DDSpan setSamplingPriority(final int newPriority, int samplingMechanism) {
+    context.setSamplingPriority(newPriority, samplingMechanism);
     return this;
   }
 
   @Override
-  public DDSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate) {
-    if (context.setSamplingPriority(samplingPriority)) {
+  public DDSpan setSamplingPriority(
+      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+    if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
       setMetric(rate, sampleRate);
     }
     return this;

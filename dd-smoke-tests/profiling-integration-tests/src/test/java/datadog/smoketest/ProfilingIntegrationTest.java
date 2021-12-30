@@ -500,6 +500,8 @@ class ProfilingIntegrationTest {
                     Aggregators.min("datadog.AvailableProcessorCores", cpuCountAttr)))
             .longValue();
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
+
+    assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
   }
 
   private static String getStringParameter(

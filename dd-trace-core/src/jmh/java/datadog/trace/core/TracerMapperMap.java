@@ -3,6 +3,7 @@ package datadog.trace.core;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
@@ -106,12 +107,14 @@ public class TracerMapperMap {
             "operation",
             "resource",
             PrioritySampling.SAMPLER_KEEP,
+            SamplingMechanism.DEFAULT,
             origin,
             Collections.<String, String>emptyMap(),
             false,
             "type",
             0,
             trace,
-            null));
+            null,
+            false));
   }
 }

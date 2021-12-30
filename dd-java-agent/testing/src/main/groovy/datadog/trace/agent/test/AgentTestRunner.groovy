@@ -13,6 +13,7 @@ import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.writer.ListWriter
@@ -43,6 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
 
@@ -190,13 +192,16 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   /** Override to set config before the agent is installed */
-  protected void configurePreAgent() {}
+  protected void configurePreAgent() {
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
+  }
 
   def setup() {
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
 
+    closePrevious(true) // in case the previous test left a lingering iteration span
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
