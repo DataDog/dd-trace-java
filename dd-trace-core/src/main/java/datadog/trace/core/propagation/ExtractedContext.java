@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.core.DatadogTags;
 import java.util.Map;
 
 /**

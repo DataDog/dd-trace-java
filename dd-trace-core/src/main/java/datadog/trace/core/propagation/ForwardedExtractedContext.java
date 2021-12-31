@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDId;
-import datadog.trace.core.DatadogTags;
 import java.util.Map;
 
 /** {@link ExtractedContext} with non-empty Forwarded metadata. */

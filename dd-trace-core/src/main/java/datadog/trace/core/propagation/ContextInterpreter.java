@@ -16,7 +16,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.core.DatadogTags;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

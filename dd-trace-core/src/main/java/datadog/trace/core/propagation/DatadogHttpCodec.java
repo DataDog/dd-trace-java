@@ -11,7 +11,6 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.DatadogTags;
 import java.util.Map;
 import java.util.TreeMap;
 import org.slf4j.Logger;
