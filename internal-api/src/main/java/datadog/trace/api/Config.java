@@ -34,7 +34,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_FORMAT_V4_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
@@ -119,6 +118,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
+import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -415,7 +415,6 @@ public class Config {
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
-  private final boolean profilingFormatV4Enabled;
 
   private final boolean appSecEnabled;
   private final String appSecRulesFile;
@@ -866,9 +865,6 @@ public class Config {
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413);
-
-    profilingFormatV4Enabled =
-        configProvider.getBoolean(PROFILING_FORMAT_V4_ENABLED, DEFAULT_PROFILING_FORMAT_V4_ENABLED);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
@@ -1375,10 +1371,6 @@ public class Config {
     return profilingUploadSummaryOn413Enabled;
   }
 
-  public boolean isProfilingFormatV4Enabled() {
-    return profilingFormatV4Enabled;
-  }
-
   public boolean isProfilingLegacyTracingIntegrationEnabled() {
     return profilingLegacyTracingIntegrationEnabled;
   }
@@ -1790,7 +1782,8 @@ public class Config {
       return profilingUrl;
     } else if (profilingAgentless) {
       // when agentless profiling is turned on we send directly to our intake
-      if (isProfilingFormatV4Enabled()) {
+      if (configProvider.getBoolean(
+          PROFILING_FORMAT_V4_ENABLED, DEFAULT_PROFILING_FORMAT_V4_ENABLED)) {
         return "https://intake.profile." + site + "/api/v2/profile";
       }
       return "https://intake.profile." + site + "/v1/input";

@@ -15,6 +15,8 @@
  */
 package com.datadog.profiling.uploader;
 
+import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V4_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V4_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,6 +45,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import delight.fileupload.FileUpload;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -131,6 +134,7 @@ public class ProfileUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
+  @Mock private ConfigProvider configProvider;
   @Mock private IOLogger ioLogger;
 
   private final MockWebServer server = new MockWebServer();
@@ -148,11 +152,17 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
-    when(config.isProfilingFormatV4Enabled()).thenReturn(false);
+    when(configProvider.getBoolean(
+            eq(PROFILING_FORMAT_V4_ENABLED), eq(DEFAULT_PROFILING_FORMAT_V4_ENABLED)))
+        .thenReturn(false);
 
     uploader =
         new ProfileUploader(
-            config, ioLogger, "containerId", (int) TERMINATION_TIMEOUT.getSeconds());
+            config,
+            configProvider,
+            ioLogger,
+            "containerId",
+            (int) TERMINATION_TIMEOUT.getSeconds());
   }
 
   @AfterEach
@@ -169,10 +179,12 @@ public class ProfileUploaderTest {
   public void testV2_4Format() throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
-    when(config.isProfilingFormatV4Enabled()).thenReturn(true);
+    when(configProvider.getBoolean(
+            eq(PROFILING_FORMAT_V4_ENABLED), eq(DEFAULT_PROFILING_FORMAT_V4_ENABLED)))
+        .thenReturn(true);
 
     // When
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
@@ -226,7 +238,7 @@ public class ProfileUploaderTest {
   public void testZippedInput() throws Exception {
     when(config.getProfilingUploadCompression()).thenReturn("on");
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     server.enqueue(new MockResponse().setResponseCode(200));
 
@@ -273,7 +285,7 @@ public class ProfileUploaderTest {
   public void testRequestParameters(final String compression) throws Exception {
     when(config.getProfilingUploadCompression()).thenReturn(compression);
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     server.enqueue(new MockResponse().setResponseCode(200));
 
@@ -324,7 +336,11 @@ public class ProfileUploaderTest {
   public void testRequestWithContainerId() throws Exception {
     uploader =
         new ProfileUploader(
-            config, ioLogger, "container-id", (int) TERMINATION_TIMEOUT.getSeconds());
+            config,
+            configProvider,
+            ioLogger,
+            "container-id",
+            (int) TERMINATION_TIMEOUT.getSeconds());
 
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
@@ -338,7 +354,7 @@ public class ProfileUploaderTest {
   public void testAgentRequestWithApiKey() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
@@ -352,7 +368,7 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isProfilingAgentless()).thenReturn(true);
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
@@ -366,7 +382,7 @@ public class ProfileUploaderTest {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(404));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
@@ -382,7 +398,7 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isProfilingAgentless()).thenReturn(true);
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(404));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
@@ -402,7 +418,7 @@ public class ProfileUploaderTest {
     when(config.getProfilingProxyUsername()).thenReturn("username");
     when(config.getProfilingProxyPassword()).thenReturn("password");
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -435,7 +451,7 @@ public class ProfileUploaderTest {
     when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
     when(config.getProfilingProxyUsername()).thenReturn("username");
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -452,7 +468,7 @@ public class ProfileUploaderTest {
   void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() throws Exception {
     when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
@@ -463,7 +479,7 @@ public class ProfileUploaderTest {
   void testOkHttpClientUsesDefaultConnspecsOverTLS() throws Exception {
     when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
@@ -621,7 +637,7 @@ public class ProfileUploaderTest {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
     when(config.getProfilingUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, configProvider);
 
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {

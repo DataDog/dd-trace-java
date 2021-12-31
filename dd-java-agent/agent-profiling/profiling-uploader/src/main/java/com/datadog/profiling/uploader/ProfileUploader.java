@@ -16,6 +16,8 @@
 package com.datadog.profiling.uploader;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V4_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V4_ENABLED;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
@@ -27,6 +29,7 @@ import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentProxySelector;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.File;
@@ -140,8 +143,14 @@ public final class ProfileUploader {
   private final CompressionType compressionType;
   private final boolean useV4Format;
 
-  public ProfileUploader(final Config config) throws IOException {
-    this(config, new IOLogger(log), ContainerInfo.get().getContainerId(), TERMINATION_TIMEOUT);
+  public ProfileUploader(final Config config, final ConfigProvider configProvider)
+      throws IOException {
+    this(
+        config,
+        configProvider,
+        new IOLogger(log),
+        ContainerInfo.get().getContainerId(),
+        TERMINATION_TIMEOUT);
   }
 
   /**
@@ -150,6 +159,7 @@ public final class ProfileUploader {
    */
   ProfileUploader(
       final Config config,
+      final ConfigProvider configProvider,
       final IOLogger ioLogger,
       final String containerId,
       final int terminationTimeout)
@@ -157,7 +167,8 @@ public final class ProfileUploader {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
-    useV4Format = config.isProfilingFormatV4Enabled();
+    useV4Format =
+        configProvider.getBoolean(PROFILING_FORMAT_V4_ENABLED, DEFAULT_PROFILING_FORMAT_V4_ENABLED);
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
     this.ioLogger = ioLogger;
     this.containerId = containerId;
