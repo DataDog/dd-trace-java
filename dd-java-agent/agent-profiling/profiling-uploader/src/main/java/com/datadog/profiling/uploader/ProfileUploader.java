@@ -16,8 +16,8 @@
 package com.datadog.profiling.uploader;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
-import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V4_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V4_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V2_4_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
@@ -141,7 +141,7 @@ public final class ProfileUploader {
   private final int terminationTimeout;
   private final List<String> tags;
   private final CompressionType compressionType;
-  private final boolean useV4Format;
+  private final boolean useV2_4Format;
 
   public ProfileUploader(final Config config, final ConfigProvider configProvider)
       throws IOException {
@@ -167,8 +167,12 @@ public final class ProfileUploader {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
-    useV4Format =
-        configProvider.getBoolean(PROFILING_FORMAT_V4_ENABLED, DEFAULT_PROFILING_FORMAT_V4_ENABLED);
+    useV2_4Format =
+        configProvider.getBoolean(
+            PROFILING_FORMAT_V2_4_ENABLED, DEFAULT_PROFILING_FORMAT_V2_4_ENABLED);
+    if (useV2_4Format) {
+      log.info("Profiling: use V2.4 format for HTTP request");
+    }
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
     this.ioLogger = ioLogger;
     this.containerId = containerId;
@@ -367,7 +371,7 @@ public final class ProfileUploader {
 
     Request.Builder requestBuilder;
     RequestBody requestBody;
-    if (useV4Format) {
+    if (useV2_4Format) {
       requestBody = makeUploadRequestV4(data, body);
     } else {
       requestBody = makeUploadRequestV1(type, data, body);
@@ -382,7 +386,7 @@ public final class ProfileUploader {
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
             .post(requestBody);
 
-    if (useV4Format) {
+    if (useV2_4Format) {
       requestBuilder
           .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_PROFILING_LIBRARY)
           .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);

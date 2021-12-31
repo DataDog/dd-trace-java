@@ -9,6 +9,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
@@ -52,8 +53,9 @@ public class ProfilingAgent {
 
       try {
         final Controller controller = ControllerFactory.createController(config);
+        final ConfigProvider configProvider = ConfigProvider.getInstance();
 
-        final ProfileUploader uploader = new ProfileUploader(config);
+        final ProfileUploader uploader = new ProfileUploader(config, configProvider);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
