@@ -4,9 +4,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.util.Base64Encoder;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /** Encapsulates x-datadog-tags logic */
 public class DatadogTags {
@@ -26,22 +25,42 @@ public class DatadogTags {
   }
 
   private final String rawTags;
-  private final ConcurrentHashMap<String, ServiceSamplingDecision> serviceSamplingDecisions =
-      new ConcurrentHashMap<>();
+
+  // assume that there is only one service and only latest sampling decision that matters
+  private volatile ServiceSamplingDecision samplingDecision;
+
+  private static final AtomicReferenceFieldUpdater<DatadogTags, ServiceSamplingDecision>
+      SAMPLING_DECISION_UPDATER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              DatadogTags.class, ServiceSamplingDecision.class, "samplingDecision");
 
   private static final class ServiceSamplingDecision {
+    public final String service;
     public final int priority;
     public final int mechanism;
     public final double rate;
 
-    private ServiceSamplingDecision(int priority, int mechanism, double rate) {
+    private ServiceSamplingDecision(String service, int priority, int mechanism, double rate) {
+      this.service = service;
       this.priority = priority;
       this.mechanism = mechanism;
       this.rate = rate;
     }
 
-    public String encoded() {
-      return priority + "|" + mechanism + (rate >= 0.0 ? "|" + RATE_FORMATTER.format(rate) : "");
+    public void encoded(StringBuilder sb) {
+      String serviceNameBase64 =
+          new String(
+              BASE_64_ENCODER.encode(service.getBytes(StandardCharsets.UTF_8)),
+              StandardCharsets.UTF_8);
+      sb.append(serviceNameBase64);
+      sb.append('|');
+      sb.append(priority);
+      sb.append('|');
+      sb.append(mechanism);
+      if (rate >= 0.0) {
+        sb.append('|');
+        sb.append(RATE_FORMATTER.format(rate));
+      }
     }
 
     @Override
@@ -75,22 +94,24 @@ public class DatadogTags {
   public void updateUpstreamServices(String serviceName, int priority, int mechanism, double rate) {
     if (priority != PrioritySampling.UNSET) {
       ServiceSamplingDecision newSamplingDecision =
-          new ServiceSamplingDecision(priority, mechanism, rate);
-      serviceSamplingDecisions.put(serviceName, newSamplingDecision);
+          new ServiceSamplingDecision(serviceName, priority, mechanism, rate);
+      SAMPLING_DECISION_UPDATER.compareAndSet(this, samplingDecision, newSamplingDecision);
     }
   }
 
   /** @return encoded header value */
   public String encoded() {
+    boolean isSamplingDecisionEmpty =
+        samplingDecision == null || samplingDecision.priority == PrioritySampling.UNSET;
     if (rawTags.isEmpty()) {
-      if (serviceSamplingDecisions.isEmpty()) {
+      if (isSamplingDecisionEmpty) {
         return "";
       } else {
         StringBuilder sb = new StringBuilder();
         encodeUpstreamServices(sb);
         return sb.toString();
       }
-    } else if (serviceSamplingDecisions.isEmpty()) {
+    } else if (isSamplingDecisionEmpty) {
       // nothing has changed, return rawTags as is
       return rawTags;
     }
@@ -113,17 +134,17 @@ public class DatadogTags {
       // upstream_services tag is the last, prepend whole rawTags
       sb.append(rawTags);
       sb.append(';');
-      encodeUpstreamServicesHeadless(sb);
+      samplingDecision.encoded(sb);
       return sb.toString();
     }
 
     // there is a tag following upstream_services, prepend prefix
-    sb.append(rawTags.substring(0, upstreamEnd));
+    sb.append(rawTags.subSequence(0, upstreamEnd));
     // append sampling decisions
     sb.append(';');
-    encodeUpstreamServicesHeadless(sb);
+    samplingDecision.encoded(sb);
     // append following tags
-    sb.append(rawTags.substring(upstreamEnd, rawTags.length()));
+    sb.append(rawTags.subSequence(upstreamEnd, rawTags.length()));
 
     return sb.toString();
   }
@@ -131,23 +152,7 @@ public class DatadogTags {
   private void encodeUpstreamServices(StringBuilder sb) {
     sb.append(UPSTREAM_SERVICES);
     sb.append('=');
-    encodeUpstreamServicesHeadless(sb);
-  }
-
-  private void encodeUpstreamServicesHeadless(StringBuilder sb) {
-    for (Map.Entry<String, ServiceSamplingDecision> serviceSamplingDecision :
-        serviceSamplingDecisions.entrySet()) {
-      String serviceNameBase64 =
-          new String(
-              BASE_64_ENCODER.encode(
-                  serviceSamplingDecision.getKey().getBytes(StandardCharsets.UTF_8)),
-              StandardCharsets.UTF_8);
-      sb.append(serviceNameBase64);
-      sb.append('|');
-      sb.append(serviceSamplingDecision.getValue().encoded());
-      sb.append(';');
-    }
-    sb.delete(sb.length() - 1, sb.length()); // remove trailing ';'
+    samplingDecision.encoded(sb);
   }
 
   public void updateServiceName(String serviceName, String newServiceName) {

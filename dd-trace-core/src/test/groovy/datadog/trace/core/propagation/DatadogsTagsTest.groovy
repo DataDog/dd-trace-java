@@ -124,6 +124,8 @@ class DatadogsTagsTest extends Specification {
     "service-a" | USER_KEEP        | REMOTE_USER_RATE  | -1.0 | "_dd.p.something=else,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|2|6,_dd.p.hello=world"
   }
 
+  //TODO test various combinations with/without prefix suffix or empty _dd.p.upstream_services
+
   def "multiple update"() {
   }
 
