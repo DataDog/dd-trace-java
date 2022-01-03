@@ -247,7 +247,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       String cmd = cmdStartProfiling(recFile);
       try {
         String rslt = executeProfilerCmd(cmd);
-        log.debug("AsyncProfiler.execute({}) = {}", cmd, rslt);
+        log.warn("AsyncProfiler.execute({}) = {}", cmd, rslt);
       } catch (IOException | IllegalStateException e) {
         if (log.isDebugEnabled()) {
           log.warn("Unable to start async profiler recording", e);
