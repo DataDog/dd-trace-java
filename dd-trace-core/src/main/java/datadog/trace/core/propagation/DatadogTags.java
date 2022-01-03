@@ -128,25 +128,31 @@ public class DatadogTags {
       return sb.toString();
     }
 
-    // there is upstream_services tag
+    // there is only upstream_services tag
     int upstreamEnd = rawTags.indexOf(',', upstreamStart);
     if (upstreamEnd < 0) {
       // upstream_services tag is the last, prepend whole rawTags
       sb.append(rawTags);
-      sb.append(';');
-      samplingDecision.encoded(sb);
+      appendUpstreamServicesEncoded(sb, rawTags.length() - 1);
       return sb.toString();
     }
 
-    // there is a tag following upstream_services, prepend prefix
+    // there is a tag following upstream_services, prepend it as is to avoid parsing
     sb.append(rawTags.subSequence(0, upstreamEnd));
-    // append sampling decisions
-    sb.append(';');
-    samplingDecision.encoded(sb);
+    appendUpstreamServicesEncoded(sb, upstreamEnd - 1);
     // append following tags
     sb.append(rawTags.subSequence(upstreamEnd, rawTags.length()));
 
     return sb.toString();
+  }
+
+  private void appendUpstreamServicesEncoded(StringBuilder sb, int lastCharIndex) {
+    char lastChar = rawTags.charAt(lastCharIndex);
+    // check if a separator needed
+    if (lastChar != '=' && lastChar != ';') {
+      sb.append(';');
+    }
+    samplingDecision.encoded(sb);
   }
 
   private void encodeUpstreamServices(StringBuilder sb) {
