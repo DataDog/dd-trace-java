@@ -37,7 +37,9 @@ class TypeConverter {
   }
 
   public AgentScope toAgentScope(final Span span, final Scope scope) {
-    if (scope == null) {
+    // check both: with OT33 we could have an active span with a null scope
+    // because the method to retrieve the active scope was removed in OT33
+    if (span == null && scope == null) {
       return null;
     } else if (scope instanceof OTScopeManager.OTScope) {
       OTScopeManager.OTScope wrapper = (OTScopeManager.OTScope) scope;
@@ -146,16 +148,18 @@ class TypeConverter {
   /** Wraps an external {@link Scope} to look like an internal {@link AgentScope} */
   final class CustomScope implements AgentScope {
     private final Span span;
-    private final Scope delegate;
+    private final Scope scope; // may be null on OT33 as we can't retrieve the active scope
 
-    private CustomScope(final Span span, final Scope delegate) {
+    private CustomScope(final Span span, final Scope scope) {
       this.span = span;
-      this.delegate = delegate;
+      this.scope = scope;
     }
 
     @Override
     public void close() {
-      delegate.close();
+      if (scope != null) {
+        scope.close();
+      }
     }
 
     @Override
@@ -199,14 +203,18 @@ class TypeConverter {
         return true;
       }
       if (o instanceof CustomScope) {
-        return delegate.equals(((CustomScope) o).delegate);
+        if (scope != null && ((CustomScope) o).scope != null) {
+          return scope.equals(((CustomScope) o).scope);
+        } else {
+          return span.equals(((CustomScope) o).span);
+        }
       }
       return false;
     }
 
     @Override
     public int hashCode() {
-      return delegate.hashCode();
+      return scope != null ? scope.hashCode() : span.hashCode();
     }
   }
 }

@@ -3,6 +3,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.Tracer
+import io.opentracing.util.ThreadLocalScopeManager
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
@@ -42,12 +43,38 @@ class OT33ApiTest extends DDSpecification {
 
   def "test scopemanager"() {
     setup:
-    def span = tracer.buildSpan("some name").start()
+    def coreTracer = tracer.tracer
 
     when:
-    tracer.scopeManager().activate(span) != null
+    def span = tracer.buildSpan("some name").start()
+    def scope = tracer.scopeManager().activate(span)
 
     then:
     tracer.activeSpan().delegate == span.delegate
+    coreTracer.activeScope().span() == span.delegate
+    coreTracer.activeSpan() == span.delegate
+
+    cleanup:
+    scope.close()
+    span.finish()
+  }
+
+  def "test custom scopemanager"() {
+    setup:
+    def customTracer = DDTracer.builder().writer(writer).scopeManager(new ThreadLocalScopeManager()).build()
+    def coreTracer = customTracer.tracer
+
+    when:
+    def span = customTracer.buildSpan("some name").start()
+    def scope = customTracer.scopeManager().activate(span)
+
+    then:
+    customTracer.activeSpan().delegate == span.delegate
+    coreTracer.activeScope().span() == span.delegate
+    coreTracer.activeSpan() == span.delegate
+
+    cleanup:
+    scope.close()
+    span.finish()
   }
 }
