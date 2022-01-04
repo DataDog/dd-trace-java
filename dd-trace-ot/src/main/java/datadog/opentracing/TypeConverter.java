@@ -36,7 +36,7 @@ class TypeConverter {
     return new OTSpan(agentSpan, this, logHandler);
   }
 
-  public AgentScope toAgentScope(final Scope scope) {
+  public AgentScope toAgentScope(final Span span, final Scope scope) {
     if (scope == null) {
       return null;
     } else if (scope instanceof OTScopeManager.OTScope) {
@@ -47,7 +47,7 @@ class TypeConverter {
         return wrapper.unwrap();
       }
     } else {
-      return new CustomScope(scope);
+      return new CustomScope(span, scope);
     }
   }
 
@@ -145,9 +145,11 @@ class TypeConverter {
 
   /** Wraps an external {@link Scope} to look like an internal {@link AgentScope} */
   final class CustomScope implements AgentScope {
+    private final Span span;
     private final Scope delegate;
 
-    private CustomScope(final Scope delegate) {
+    private CustomScope(final Span span, final Scope delegate) {
+      this.span = span;
       this.delegate = delegate;
     }
 
@@ -158,7 +160,7 @@ class TypeConverter {
 
     @Override
     public AgentSpan span() {
-      return toAgentSpan(delegate.span());
+      return toAgentSpan(span);
     }
 
     @Override

@@ -55,7 +55,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   public AgentScope activate(final AgentSpan agentSpan, final ScopeSource source) {
     final Span span = converter.toSpan(agentSpan);
     final Scope scope = delegate.activate(span);
-    return converter.toAgentScope(scope);
+    return converter.toAgentScope(span, scope);
   }
 
   @Override
@@ -63,14 +63,14 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
       final AgentSpan agentSpan, final ScopeSource source, boolean isAsyncPropagating) {
     final Span span = converter.toSpan(agentSpan);
     final Scope scope = delegate.activate(span);
-    final AgentScope agentScope = converter.toAgentScope(scope);
+    final AgentScope agentScope = converter.toAgentScope(span, scope);
     agentScope.setAsyncPropagation(isAsyncPropagating);
     return agentScope;
   }
 
   @Override
   public AgentScope active() {
-    return converter.toAgentScope(delegate.active());
+    return converter.toAgentScope(delegate.activeSpan(), delegate.active());
   }
 
   @Override
@@ -111,7 +111,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     if (iterationKeepAlive > 0) {
       scheduleIterationSpanCleanup(agentSpan);
     }
-    return converter.toAgentScope(scope);
+    return converter.toAgentScope(span, scope);
   }
 
   private void scheduleIterationSpanCleanup(final AgentSpan span) {
