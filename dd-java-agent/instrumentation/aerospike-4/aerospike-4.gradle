@@ -14,6 +14,7 @@ muzzle {
     group = 'com.aerospike'
     module = 'aerospike-client'
     versions = "[4,)"
+    skipVersions += "4.4.19" // bad release
   }
 }
 
