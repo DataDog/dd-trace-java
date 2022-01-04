@@ -4,7 +4,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.util.Base64Encoder;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /** Encapsulates x-datadog-tags logic */
@@ -35,10 +34,10 @@ public class DatadogTags {
               DatadogTags.class, ServiceSamplingDecision.class, "samplingDecision");
 
   private static final class ServiceSamplingDecision {
-    public final String service;
-    public final int priority;
-    public final int mechanism;
-    public final double rate;
+    private final String service;
+    private final int priority;
+    private final int mechanism;
+    private final double rate;
 
     private ServiceSamplingDecision(String service, int priority, int mechanism, double rate) {
       this.service = service;
@@ -63,19 +62,8 @@ public class DatadogTags {
       }
     }
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      ServiceSamplingDecision that = (ServiceSamplingDecision) o;
-      return priority == that.priority
-          && mechanism == that.mechanism
-          && Double.compare(that.rate, rate) == 0;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(priority, mechanism, rate);
+    public boolean isUnset() {
+      return priority == PrioritySampling.UNSET;
     }
   }
 
@@ -101,8 +89,7 @@ public class DatadogTags {
 
   /** @return encoded header value */
   public String encoded() {
-    boolean isSamplingDecisionEmpty =
-        samplingDecision == null || samplingDecision.priority == PrioritySampling.UNSET;
+    boolean isSamplingDecisionEmpty = samplingDecision == null || samplingDecision.isUnset();
     if (rawTags.isEmpty()) {
       if (isSamplingDecisionEmpty) {
         return "";
