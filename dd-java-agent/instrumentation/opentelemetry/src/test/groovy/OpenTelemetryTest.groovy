@@ -263,6 +263,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     def span = tracer.spanBuilder("some name").startSpan()
     def context = TracingContextUtils.withSpan(span, Context.current())
     def textMap = [:]
+    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
 
     when:
     span.delegate.samplingPriority = contextPriority
@@ -273,6 +274,7 @@ class OpenTelemetryTest extends AgentTestRunner {
       "x-datadog-trace-id"         : "$span.delegate.traceId",
       "x-datadog-parent-id"        : "$span.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
+      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
     ]
 
     when:
@@ -288,12 +290,12 @@ class OpenTelemetryTest extends AgentTestRunner {
     span.end()
 
     where:
-    contextPriority | propagatedPriority
-    SAMPLER_DROP    | SAMPLER_DROP
-    SAMPLER_KEEP    | SAMPLER_KEEP
-    UNSET           | SAMPLER_KEEP
-    USER_KEEP       | USER_KEEP
-    USER_DROP       | USER_DROP
+    contextPriority | propagatedPriority | propagatedMechanism | samplingRate
+    SAMPLER_DROP    | SAMPLER_DROP       | UNKNOWN             | null
+    SAMPLER_KEEP    | SAMPLER_KEEP       | UNKNOWN             | null
+    UNSET           | SAMPLER_KEEP       | AGENT_RATE          | 1
+    USER_KEEP       | USER_KEEP          | UNKNOWN             | null
+    USER_DROP       | USER_DROP          | UNKNOWN             | null
   }
 
   def "tolerate null span activation"() {

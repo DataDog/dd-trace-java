@@ -98,6 +98,7 @@ class OT31ApiTest extends DDSpecification {
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
+    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
 
     when:
     context.delegate.setSamplingPriority(contextPriority, samplingMechanism)
@@ -108,6 +109,7 @@ class OT31ApiTest extends DDSpecification {
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
       "x-datadog-sampling-priority": propagatedPriority.toString(),
+      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
     ]
 
     when:
@@ -119,12 +121,12 @@ class OT31ApiTest extends DDSpecification {
     extract.delegate.samplingPriority == propagatedPriority
 
     where:
-    contextPriority | samplingMechanism | propagatedPriority
-    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP
-    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP
-    UNSET           | DEFAULT           | SAMPLER_KEEP
-    USER_KEEP       | MANUAL            | USER_KEEP
-    USER_DROP       | MANUAL            | USER_DROP
+    contextPriority | samplingMechanism | propagatedPriority | propagatedMechanism | samplingRate
+    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP       | DEFAULT             | null
+    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP       | DEFAULT             | null
+    UNSET           | DEFAULT           | SAMPLER_KEEP       | AGENT_RATE          | 1
+    USER_KEEP       | MANUAL            | USER_KEEP          | MANUAL              | null
+    USER_DROP       | MANUAL            | USER_DROP          | MANUAL              | null
   }
 
   static class TextMapAdapter implements TextMap {
