@@ -167,6 +167,6 @@ public class DatadogTags {
   }
 
   public boolean isEmpty() {
-    return rawTags.isEmpty();
+    return rawTags.isEmpty() && samplingDecision == null;
   }
 }

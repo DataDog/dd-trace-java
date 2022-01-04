@@ -304,4 +304,35 @@ class DatadogsTagsTest extends Specification {
     "service-a" | UNSET            | UNKNOWN           | -1.0 | "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1;,_dd.p.hello=world" // keep ddTags as is if no changes applied
     "service-a" | SAMPLER_DROP     | UNKNOWN           | -1.0 | "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1;c2VydmljZS1h|0|-1,_dd.p.hello=world"
   }
+
+  def "test isEmpty"() {
+    when:
+    def ddTags = DatadogTags.create(tags)
+
+    then:
+    ddTags.isEmpty() == isEmpty
+
+    where:
+    tags                                                                | isEmpty
+    "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.hello=world" | false
+    "_dd.p.upstream_services="                                          | false
+    null                                                                | true
+    ""                                                                  | true
+  }
+
+  def "once changed it is not empty unless UNSET"() {
+    setup:
+    def ddTags = DatadogTags.empty()
+
+    when:
+    ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
+
+    then:
+    ddTags.isEmpty() == isEmpty
+
+    where:
+    service     | samplingPriority | samplingMechanism | rate   | isEmpty
+    "service-a" | UNSET            | UNKNOWN           | -1.0   | true
+    "service-a" | SAMPLER_DROP     | DEFAULT           | 0.0001 | false
+  }
 }

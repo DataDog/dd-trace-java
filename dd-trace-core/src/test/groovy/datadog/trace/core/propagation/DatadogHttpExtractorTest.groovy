@@ -8,11 +8,7 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
-import static datadog.trace.core.propagation.DatadogHttpCodec.ORIGIN_KEY
-import static datadog.trace.core.propagation.DatadogHttpCodec.OT_BAGGAGE_PREFIX
-import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY
-import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY
-import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
+import static datadog.trace.core.propagation.DatadogHttpCodec.*
 
 class DatadogHttpExtractorTest extends DDSpecification {
 
@@ -257,5 +253,33 @@ class DatadogHttpExtractorTest extends DDSpecification {
     traceId | spanId | endToEndStartTime
     "1"     | "2"    | 0
     "2"     | "3"    | 1610001234
+  }
+
+  def "extract x-datadog-tags"() {
+    setup:
+    def headers = [
+      (TRACE_ID_KEY.toUpperCase()): traceId,
+      (SPAN_ID_KEY.toUpperCase()) : spanId,
+      (TAGS_KEY.toUpperCase())    : tags
+    ]
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == DDId.from(traceId)
+    context.spanId == DDId.from(spanId)
+    if (tags != null) {
+      context.ddTags.encoded() == tags
+    } else {
+      context.ddTags == null
+    }
+
+    where:
+    traceId | spanId | tags
+    "1"     | "2"    | "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"
+    "2"     | "3"    | "_dd.p.upstream_services="
+    "3"     | "5"    | ""
+    "5"     | "6"    | null
   }
 }

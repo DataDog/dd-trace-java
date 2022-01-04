@@ -37,7 +37,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null) //TODO test with upstream_services ddTags
+      DatadogTags.empty())
 
     final Map<String, String> carrier = Mock()
 
@@ -49,13 +49,13 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(SPAN_ID_KEY, spanId.toString())
     if (samplingPriority != UNSET) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
+      1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=ZmFrZVNlcnZpY2U|$samplingPriority|$samplingMechanism")
     }
     if (origin) {
       1 * carrier.put(ORIGIN_KEY, origin)
     }
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
-    //    1 * carrier.put(TAGS_KEY, "")
     0 * _
 
     cleanup:
@@ -92,7 +92,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null) //TODO test with upstream_services ddTags
+      DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"))
 
     mockedContext.beginEndToEnd()
 
@@ -108,7 +108,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
-    //    1 * carrier.put(TAGS_KEY, "")
+    1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1")
     0 * _
 
     cleanup:
