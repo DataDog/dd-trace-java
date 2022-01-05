@@ -187,6 +187,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
+    config.configFileStatus == "no config file present"
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
@@ -1057,6 +1058,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
     config.serviceName == "set-in-properties"
   }
 
@@ -1069,6 +1071,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
     config.serviceName == "set-in-system"
   }
 
@@ -1081,6 +1084,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
+    config.configFileStatus == "src/test/resources/dd-java-tracer.properties"
     config.serviceName == "set-in-env"
   }
 

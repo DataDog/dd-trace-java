@@ -85,7 +85,6 @@ import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PATH;
@@ -242,10 +241,8 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -459,7 +456,7 @@ public class Config {
   private final boolean traceAgentV05Enabled;
 
   private final boolean debugEnabled;
-  private final String configFile;
+  private final String configFileStatus;
 
   private final IdGenerationStrategy idGenerationStrategy;
 
@@ -495,7 +492,7 @@ public class Config {
 
   private Config(final ConfigProvider configProvider) {
     this.configProvider = configProvider;
-    configFile = findConfigurationFile();
+    configFileStatus = configProvider.getConfigFileStatus();
     runtimeId =
         null != INSTANCE
             ? INSTANCE.runtimeId
@@ -1518,8 +1515,8 @@ public class Config {
     return dogStatsDArgs;
   }
 
-  public String getConfigFile() {
-    return configFile;
+  public String getConfigFileStatus() {
+    return configFileStatus;
   }
 
   public IdGenerationStrategy getIdGenerationStrategy() {
@@ -1997,31 +1994,6 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  @SuppressForbidden
-  private static String findConfigurationFile() {
-    String configurationFilePath =
-        System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
-    if (null == configurationFilePath) {
-      configurationFilePath =
-          System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
-    }
-    if (null != configurationFilePath && !configurationFilePath.isEmpty()) {
-      int homeIndex = configurationFilePath.indexOf('~');
-      if (homeIndex != -1) {
-
-        configurationFilePath =
-            configurationFilePath.substring(0, homeIndex)
-                + System.getProperty("user.home")
-                + configurationFilePath.substring(homeIndex + 1);
-      }
-      final File configurationFile = new File(configurationFilePath);
-      if (!configurationFile.exists()) {
-        return configurationFilePath;
-      }
-    }
-    return "no config file present";
-  }
-
   /** Returns the detected hostname. First tries locally, then using DNS */
   public static String getHostName() {
     String possibleHostname;
@@ -2356,7 +2328,7 @@ public class Config {
         + ", debugEnabled="
         + debugEnabled
         + ", configFile='"
-        + configFile
+        + configFileStatus
         + '\''
         + ", idGenerationStrategy="
         + idGenerationStrategy

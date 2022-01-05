@@ -22,10 +22,23 @@ public final class ConfigProvider {
   }
 
   private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
+
   protected final ConfigProvider.Source[] sources;
 
   private ConfigProvider(ConfigProvider.Source... sources) {
     this.sources = sources;
+  }
+
+  public final String getConfigFileStatus() {
+    for (ConfigProvider.Source source : sources) {
+      if (source instanceof PropertiesConfigSource) {
+        String configFileStatus = ((PropertiesConfigSource) source).getConfigFileStatus();
+        if (null != configFileStatus) {
+          return configFileStatus;
+        }
+      }
+    }
+    return "no config file present";
   }
 
   public final String getString(String key) {
@@ -249,6 +262,8 @@ public final class ConfigProvider {
       log.error(
           "Configuration file '{}' cannot be accessed or correctly parsed.", configurationFilePath);
     }
+
+    properties.setProperty(PropertiesConfigSource.CONFIG_FILE_STATUS, configurationFilePath);
 
     return properties;
   }
