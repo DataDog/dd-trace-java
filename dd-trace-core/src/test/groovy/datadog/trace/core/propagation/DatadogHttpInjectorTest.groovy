@@ -1,12 +1,12 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.DatadogHttpCodec.*
 
@@ -37,7 +37,8 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      DatadogTags.empty())
+      DatadogTags.empty(),
+      enableUpstreamServicesTracking)
 
     final Map<String, String> carrier = Mock()
 
@@ -49,7 +50,9 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(SPAN_ID_KEY, spanId.toString())
     if (samplingPriority != UNSET) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
-      1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=ZmFrZVNlcnZpY2U|$samplingPriority|$samplingMechanism")
+      if (enableUpstreamServicesTracking) {
+        1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=ZmFrZVNlcnZpY2U|$samplingPriority|$samplingMechanism")
+      }
     }
     if (origin) {
       1 * carrier.put(ORIGIN_KEY, origin)
@@ -62,11 +65,16 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    traceId               | spanId                | samplingPriority | samplingMechanism | origin
-    "1"                   | "2"                   | UNSET            | UNKNOWN           | null
-    "1"                   | "2"                   | SAMPLER_KEEP     | DEFAULT           | "saipan"
-    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | UNSET            | UNKNOWN           | "saipan"
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_KEEP     | DEFAULT           | null
+    traceId               | spanId                | samplingPriority | samplingMechanism | origin   | enableUpstreamServicesTracking
+    "1"                   | "2"                   | UNSET            | UNKNOWN           | null     | true
+    "1"                   | "2"                   | SAMPLER_KEEP     | DEFAULT           | "saipan" | true
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | UNSET            | UNKNOWN           | "saipan" | true
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_KEEP     | DEFAULT           | null     | true
+
+    "1"                   | "2"                   | UNSET            | UNKNOWN           | null     | false
+    "1"                   | "2"                   | SAMPLER_KEEP     | DEFAULT           | "saipan" | false
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | UNSET            | UNKNOWN           | "saipan" | false
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | SAMPLER_KEEP     | DEFAULT           | null     | false
   }
 
   def "inject http headers with end-to-end"() {
@@ -85,14 +93,15 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       UNSET,
       UNKNOWN,
       "fakeOrigin",
-      ["k1" : "v1", "k2" : "v2"],
+      ["k1": "v1", "k2": "v2"],
       false,
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"))
+      DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
+      false)
 
     mockedContext.beginEndToEnd()
 

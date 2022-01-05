@@ -105,7 +105,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   private final boolean disableSamplingMechanismValidation;
 
-  private DatadogTags ddTags;
+  private final boolean enableUpstreamServicesTracking;
+  private final DatadogTags ddTags;
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
@@ -146,7 +147,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final PendingTrace trace,
       final Object requestContextData,
       final boolean disableSamplingMechanismValidation,
-      final DatadogTags ddTags) {
+      final DatadogTags ddTags,
+      boolean enableUpstreamServicesTracking) {
 
     assert trace != null;
     this.trace = trace;
@@ -181,10 +183,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     this.spanType = spanType;
     this.origin = origin;
 
-    long samplingParams = SamplingDecision.create(samplingPriority, samplingMechanism);
-    if (samplingParams != SamplingDecision.UNSET_UNKNOWN) {
-      setSamplingPriority(samplingPriority, samplingMechanism);
-    }
+    // enableUpstreamServicesTracking has to be set prior to calling setSamplingPriority
+    this.enableUpstreamServicesTracking = enableUpstreamServicesTracking;
+    setSamplingPriority(samplingPriority, samplingMechanism);
 
     // Additional Metadata
     final Thread current = Thread.currentThread();
@@ -214,7 +215,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   public void setServiceName(final String serviceName) {
     String newServiceName = trace.getTracer().mapServiceName(serviceName);
-    ddTags.updateServiceName(serviceName, newServiceName);
     this.serviceName = newServiceName;
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
@@ -356,7 +356,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       return false;
     }
 
-    ddTags.updateUpstreamServices(getServiceName(), newPriority, newMechanism, rate);
+    if (enableUpstreamServicesTracking) {
+      ddTags.updateUpstreamServices(getServiceName(), newPriority, newMechanism, rate);
+    }
     return true;
   }
 

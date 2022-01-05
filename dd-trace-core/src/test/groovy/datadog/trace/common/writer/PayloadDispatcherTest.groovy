@@ -151,7 +151,8 @@ class PayloadDispatcherTest extends DDSpecification {
     tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
-    return new DDSpan(0, new DDSpanContext(
+
+    def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
       DDId.ZERO,
@@ -169,6 +170,8 @@ class PayloadDispatcherTest extends DDSpecification {
       trace,
       null,
       false,
-      null))
+      null,
+      false)
+    return new DDSpan(0, context)
   }
 }

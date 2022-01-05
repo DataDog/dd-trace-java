@@ -285,7 +285,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       trace,
       null,
       false,
-      null)
+      null,
+      false)
   }
 
   def createMinimalTrace() {

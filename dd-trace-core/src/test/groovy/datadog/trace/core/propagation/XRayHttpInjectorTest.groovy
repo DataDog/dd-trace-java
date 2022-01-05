@@ -38,7 +38,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null)
+      null,
+      false)
 
     final Map<String, String> carrier = Mock()
 
@@ -91,7 +92,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null)
+      null,
+      false)
     final Map<String, String> carrier = Mock()
 
     when:
@@ -137,7 +139,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null)
+      null,
+      false)
 
     mockedContext.beginEndToEnd()
 

@@ -2,8 +2,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
 import datadog.trace.core.propagation.ExtractedContext
@@ -18,6 +16,8 @@ import io.opentracing.util.GlobalTracer
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class OpenTracing32Test extends AgentTestRunner {
 

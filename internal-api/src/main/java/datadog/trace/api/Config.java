@@ -1852,6 +1852,10 @@ public class Config {
     return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
+  public boolean isUpstreamServicesTrackingEnabled() {
+    return configProvider.getBoolean(TracerConfig.UPSTREAM_SERVICES_TRACKING_ENABLED, true);
+  }
+
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);

@@ -2,8 +2,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
 import io.grpc.Context
@@ -14,6 +12,9 @@ import io.opentelemetry.trace.Span
 import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
+
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject

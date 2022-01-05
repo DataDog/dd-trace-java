@@ -80,11 +80,20 @@ public class DatadogTags {
    * @param rate - sampling rate, pass a negative value if not applicable
    */
   public void updateUpstreamServices(String serviceName, int priority, int mechanism, double rate) {
-    if (priority != PrioritySampling.UNSET) {
+    if (priority != PrioritySampling.UNSET
+        && (samplingDecision == null
+            || samplingDecision.priority != priority
+            || samplingDecision.mechanism != mechanism
+            || samplingDecision.rate != rate
+            || !samplingDecision.service.equals(serviceName))) {
       ServiceSamplingDecision newSamplingDecision =
           new ServiceSamplingDecision(serviceName, priority, mechanism, rate);
       SAMPLING_DECISION_UPDATER.compareAndSet(this, samplingDecision, newSamplingDecision);
     }
+  }
+
+  public boolean isEmpty() {
+    return rawTags.isEmpty() && samplingDecision == null;
   }
 
   /** @return encoded header value */
@@ -146,14 +155,5 @@ public class DatadogTags {
     sb.append(UPSTREAM_SERVICES);
     sb.append('=');
     samplingDecision.encoded(sb);
-  }
-
-  public void updateServiceName(String serviceName, String newServiceName) {
-    // TODO update service name
-    // do we even need to update it?
-  }
-
-  public boolean isEmpty() {
-    return rawTags.isEmpty() && samplingDecision == null;
   }
 }

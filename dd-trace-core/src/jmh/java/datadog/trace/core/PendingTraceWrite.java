@@ -58,7 +58,8 @@ public class PendingTraceWrite {
                 trace,
                 null,
                 false,
-                null));
+                null,
+                false));
     span =
         DDSpan.create(
             System.currentTimeMillis() * 1000,
@@ -80,7 +81,8 @@ public class PendingTraceWrite {
                 trace,
                 null,
                 false,
-                null));
+                null,
+                false));
   }
 
   @Threads(4)

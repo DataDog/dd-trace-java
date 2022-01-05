@@ -58,8 +58,20 @@ public final class TracerConfig {
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
+
+  /**
+   * Disables validation that prevents invalid combinations of sampling priority and sampling
+   * mechanism on the set sampling priority calls. This check is enabled by default.
+   */
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
+
+  /**
+   * Enables sampling decision updates to upstream_services part of x-datadog-tags. Enabled by
+   * default.
+   */
+  public static final String UPSTREAM_SERVICES_TRACKING_ENABLED =
+      "trace.upstream.services.tracking.enabled";
 
   private TracerConfig() {}
 }

@@ -45,7 +45,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      DatadogTags.empty())
+      DatadogTags.empty(),
+      true)
 
     final Map<String, String> carrier = Mock()
 
@@ -121,7 +122,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      DatadogTags.empty())
+      DatadogTags.empty(),
+      true)
 
     final Map<String, String> carrier = Mock()
 
