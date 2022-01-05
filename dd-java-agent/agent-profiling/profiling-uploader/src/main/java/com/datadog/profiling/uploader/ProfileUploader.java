@@ -196,7 +196,7 @@ public final class ProfileUploader {
     }
     tags = tagsToList(tagsMap);
     // Comma separated tags string for V2.4 format
-    tagsV2_4 = tags.stream().collect(Collectors.joining(","));
+    tagsV2_4 = String.join(",", tags);
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
