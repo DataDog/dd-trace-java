@@ -43,7 +43,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active() == scope1.delegate
+    scopeManager.active() == scope1.scope
     !spanFinished(span1)
 
     when:
@@ -57,7 +57,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope2.span() == span2
-    scopeManager.active() == scope2.delegate
+    scopeManager.active() == scope2.scope
     !spanFinished(span2)
 
     when:
@@ -72,7 +72,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope3.span() == span3
-    scopeManager.active() == scope3.delegate
+    scopeManager.active() == scope3.scope
     !spanFinished(span3)
 
     when:
@@ -99,7 +99,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active() == scope1.delegate
+    scopeManager.active() == scope1.scope
     !spanFinished(span1)
 
     when:
@@ -113,7 +113,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope2.span() == span2
-    scopeManager.active() == scope2.delegate
+    scopeManager.active() == scope2.scope
     !spanFinished(span2)
 
     when:
@@ -127,7 +127,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope3.span() == span3
-    scopeManager.active() == scope3.delegate
+    scopeManager.active() == scope3.scope
     !spanFinished(span3)
 
     when:
@@ -157,7 +157,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active() == scope1.delegate
+    scopeManager.active() == scope1.scope
     !spanFinished(span1)
 
     when:
@@ -175,7 +175,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1A1.span() == span1A1
-    scopeManager.active() == scope1A1.delegate
+    scopeManager.active() == scope1A1.scope
     !spanFinished(span1A1)
 
     when:
@@ -189,7 +189,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1A2.span() == span1A2
-    scopeManager.active() == scope1A2.delegate
+    scopeManager.active() == scope1A2.scope
     !spanFinished(span1A2)
 
     when:

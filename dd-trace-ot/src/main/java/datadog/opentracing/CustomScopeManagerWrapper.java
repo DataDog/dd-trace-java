@@ -38,6 +38,18 @@ import java.util.concurrent.TimeUnit;
 class CustomScopeManagerWrapper implements AgentScopeManager {
   private static final String DD_ITERATION = "_dd.iteration";
 
+  private static final boolean CAN_GET_ACTIVE_SCOPE;
+
+  static {
+    boolean canGetActiveScope;
+    try {
+      canGetActiveScope = ScopeManager.class.getMethod("active") != null;
+    } catch (Throwable e) {
+      canGetActiveScope = false;
+    }
+    CAN_GET_ACTIVE_SCOPE = canGetActiveScope;
+  }
+
   private final ScopeManager delegate;
   private final TypeConverter converter;
 
@@ -70,7 +82,8 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
 
   @Override
   public AgentScope active() {
-    return converter.toAgentScope(delegate.activeSpan(), delegate.active());
+    return converter.toAgentScope(
+        delegate.activeSpan(), CAN_GET_ACTIVE_SCOPE ? delegate.active() : null);
   }
 
   @Override
@@ -88,16 +101,18 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
 
   @Override
   public void closePrevious(final boolean finishSpan) {
-    Scope scope = delegate.active();
-    if (scope != null) {
-      AgentSpan span = converter.toAgentSpan(scope.span());
-      if (span != null && span.getTag(DD_ITERATION) != null) {
+    Span span = delegate.activeSpan();
+    if (span != null) {
+      AgentSpan agentSpan = converter.toAgentSpan(span);
+      if (agentSpan != null && agentSpan.getTag(DD_ITERATION) != null) {
         if (iterationKeepAlive > 0) {
-          cancelIterationSpanCleanup(span);
+          cancelIterationSpanCleanup(agentSpan);
         }
-        scope.close();
+        if (CAN_GET_ACTIVE_SCOPE) {
+          delegate.active().close();
+        }
         if (finishSpan) {
-          span.finishWithEndToEnd();
+          agentSpan.finishWithEndToEnd();
         }
       }
     }
