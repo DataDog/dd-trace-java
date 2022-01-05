@@ -142,6 +142,7 @@ public final class ProfileUploader {
   private final List<String> tags;
   private final CompressionType compressionType;
   private final boolean useV2_4Format;
+  private final String tagsV2_4;
 
   public ProfileUploader(final Config config, final ConfigProvider configProvider)
       throws IOException {
@@ -194,6 +195,8 @@ public final class ProfileUploader {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
     }
     tags = tagsToList(tagsMap);
+    // Comma separated tags string for V2.4 format
+    tagsV2_4 = tags.stream().collect(Collectors.joining(","));
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
@@ -320,7 +323,7 @@ public final class ProfileUploader {
     StringBuilder os = new StringBuilder();
     os.append("{");
     os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
-    os.append("\"tags_profiler\":\"" + tags.stream().collect(Collectors.joining(",")) + "\",");
+    os.append("\"tags_profiler\":\"" + tagsV2_4 + "\",");
     os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
     os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");
     os.append("\"family\":\"" + V4_FAMILY + "\",");
