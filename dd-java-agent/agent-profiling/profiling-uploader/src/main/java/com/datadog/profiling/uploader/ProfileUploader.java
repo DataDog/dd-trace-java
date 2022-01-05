@@ -163,8 +163,7 @@ public final class ProfileUploader {
       final ConfigProvider configProvider,
       final IOLogger ioLogger,
       final String containerId,
-      final int terminationTimeout)
-      throws IOException {
+      final int terminationTimeout) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
