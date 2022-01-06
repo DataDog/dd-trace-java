@@ -119,6 +119,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
+import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -130,6 +131,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
@@ -1781,6 +1783,10 @@ public class Config {
       return profilingUrl;
     } else if (profilingAgentless) {
       // when agentless profiling is turned on we send directly to our intake
+      if (configProvider.getBoolean(
+          PROFILING_FORMAT_V2_4_ENABLED, DEFAULT_PROFILING_FORMAT_V2_4_ENABLED)) {
+        return "https://intake.profile." + site + "/api/v2/profile";
+      }
       return "https://intake.profile." + site + "/v1/input";
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
