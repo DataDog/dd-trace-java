@@ -59,7 +59,6 @@ public class PendingTraceWrite {
                 null,
                 false,
                 null,
-                false,
                 512));
     span =
         DDSpan.create(
@@ -83,7 +82,6 @@ public class PendingTraceWrite {
                 null,
                 false,
                 null,
-                false,
                 512));
   }
 

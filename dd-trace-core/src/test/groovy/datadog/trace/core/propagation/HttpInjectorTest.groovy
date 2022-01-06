@@ -46,7 +46,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       DatadogTags.empty(),
-      true,
       512)
 
     final Map<String, String> carrier = Mock()
@@ -124,7 +123,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       DatadogTags.empty(),
-      true,
       512)
 
     final Map<String, String> carrier = Mock()

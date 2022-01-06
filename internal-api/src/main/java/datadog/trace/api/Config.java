@@ -1852,10 +1852,6 @@ public class Config {
     return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
-  public boolean isUpstreamServicesTrackingEnabled() {
-    return configProvider.getBoolean(TracerConfig.UPSTREAM_SERVICES_TRACKING_ENABLED, true);
-  }
-
   public int getDatadogTagsLimit() {
     return configProvider.getInteger(TracerConfig.DATADOG_TAGS_LIMIT, 512);
   }

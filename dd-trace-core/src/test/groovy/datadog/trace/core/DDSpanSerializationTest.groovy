@@ -149,7 +149,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
@@ -221,7 +220,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
@@ -303,7 +301,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
     ctx.setAllTags(["k1": "v1"])
     return ctx

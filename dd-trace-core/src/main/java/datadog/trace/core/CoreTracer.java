@@ -117,7 +117,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final SamplingCheckpointer checkpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
-  private boolean enableUpstreamServicesTracking;
   private int datadogTagsLimit;
 
   /**
@@ -435,7 +434,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.externalAgentLauncher = new ExternalAgentLauncher(config);
 
     this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
-    this.enableUpstreamServicesTracking = config.isUpstreamServicesTrackingEnabled();
     this.datadogTagsLimit = config.getDatadogTagsLimit();
 
     if (sharedCommunicationObjects == null) {
@@ -1109,7 +1107,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               requestContextData,
               disableSamplingMechanismValidation,
               ddTags,
-              enableUpstreamServicesTracking,
               datadogTagsLimit);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via

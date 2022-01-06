@@ -334,7 +334,6 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
     then:
     context.isTopLevel() == expectTopLevel
@@ -373,7 +372,6 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
 
     def span = null

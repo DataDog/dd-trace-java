@@ -286,7 +286,6 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
   }
 

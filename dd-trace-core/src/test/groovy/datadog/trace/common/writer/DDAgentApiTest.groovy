@@ -442,7 +442,6 @@ class DDAgentApiTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false,
       512)
 
     def span = DDSpan.create(timestamp, context)

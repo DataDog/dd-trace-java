@@ -171,7 +171,6 @@ class PayloadDispatcherTest extends DDSpecification {
       null,
       false,
       null,
-      false,
       512)
     return new DDSpan(0, context)
   }
