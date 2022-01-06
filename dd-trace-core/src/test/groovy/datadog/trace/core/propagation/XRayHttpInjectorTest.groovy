@@ -39,7 +39,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
 
     final Map<String, String> carrier = Mock()
 
@@ -93,7 +94,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
     final Map<String, String> carrier = Mock()
 
     when:
@@ -140,7 +142,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
 
     mockedContext.beginEndToEnd()
 

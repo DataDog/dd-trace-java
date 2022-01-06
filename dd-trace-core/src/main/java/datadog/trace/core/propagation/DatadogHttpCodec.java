@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
@@ -60,7 +61,19 @@ class DatadogHttpCodec {
 
       DatadogTags datadogTags = context.getDatadogTags();
       if (!datadogTags.isEmpty()) {
-        setter.set(carrier, TAGS_KEY, datadogTags.encoded());
+        String encodedTags = datadogTags.encoded();
+        int limit = context.getDatadogTagsLimit();
+        if (encodedTags.length() > limit) {
+          log.warn(
+              "{} exceeded limit of {} characters and will be dropped. Consider increasing the {} limit",
+              TAGS_KEY,
+              limit,
+              TracerConfig.DATADOG_TAGS_LIMIT);
+          // let backend know
+          setter.set(carrier, TAGS_KEY, "_dd.propagation_error:max_size");
+        } else {
+          setter.set(carrier, TAGS_KEY, encodedTags);
+        }
       }
     }
   }

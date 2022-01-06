@@ -73,5 +73,11 @@ public final class TracerConfig {
   public static final String UPSTREAM_SERVICES_TRACKING_ENABLED =
       "trace.upstream.services.tracking.enabled";
 
+  /**
+   * Limit for x-datadog-tags. When exceeded it will stop propagating x-datadog-tags and log a
+   * warning. 512 by default.
+   */
+  public static final String DATADOG_TAGS_LIMIT = "trace.datadog.tags.limit";
+
   private TracerConfig() {}
 }

@@ -38,7 +38,8 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       DatadogTags.empty(),
-      enableUpstreamServicesTracking)
+      enableUpstreamServicesTracking,
+      512)
 
     final Map<String, String> carrier = Mock()
 
@@ -101,7 +102,8 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
-      false)
+      false,
+      512)
 
     mockedContext.beginEndToEnd()
 
@@ -119,6 +121,52 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1")
     0 * _
+
+    cleanup:
+    tracer.close()
+  }
+
+  def "drop tags when limit exceeded"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    def datadogTags = DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1")
+    def encodedTags = datadogTags.encoded()
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      DDId.from("1"),
+      DDId.from("2"),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      UNSET,
+      UNKNOWN,
+      "fakeOrigin",
+      ["k1": "v1", "k2": "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
+      false,
+      datadogTags,
+      false,
+      encodedTags.size() - 1)
+
+    assert mockedContext.getDatadogTagsLimit() < encodedTags.size()
+
+    mockedContext.beginEndToEnd()
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put(TAGS_KEY, '_dd.propagation_error:max_size')
+    _ * _
 
     cleanup:
     tracer.close()

@@ -106,6 +106,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private final boolean disableSamplingMechanismValidation;
 
   private final boolean enableUpstreamServicesTracking;
+  private final int datadogTagsLimit;
   private final DatadogTags ddTags;
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
@@ -146,9 +147,12 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final int tagsSize,
       final PendingTrace trace,
       final Object requestContextData,
-      final boolean disableSamplingMechanismValidation,
+      final boolean
+          disableSamplingMechanismValidation, // TODO maybe wrap config params and pass as an
+      // object?
       final DatadogTags ddTags,
-      boolean enableUpstreamServicesTracking) {
+      final boolean enableUpstreamServicesTracking,
+      final int datadogTagsLimit) {
 
     assert trace != null;
     this.trace = trace;
@@ -185,6 +189,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
     // enableUpstreamServicesTracking has to be set prior to calling setSamplingPriority
     this.enableUpstreamServicesTracking = enableUpstreamServicesTracking;
+    this.datadogTagsLimit = datadogTagsLimit;
     setSamplingPriority(samplingPriority, samplingMechanism);
 
     // Additional Metadata
@@ -635,5 +640,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private DDSpanContext getTopContext() {
     DDSpan span = trace.getRootSpan();
     return null != span ? span.context() : this;
+  }
+
+  public int getDatadogTagsLimit() {
+    return datadogTagsLimit;
   }
 }

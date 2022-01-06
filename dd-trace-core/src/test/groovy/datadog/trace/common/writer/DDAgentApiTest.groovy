@@ -442,7 +442,8 @@ class DDAgentApiTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

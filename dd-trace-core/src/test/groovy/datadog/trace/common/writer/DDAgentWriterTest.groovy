@@ -188,7 +188,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
     return new DDSpan(0, context)
   }
 }

@@ -1856,6 +1856,10 @@ public class Config {
     return configProvider.getBoolean(TracerConfig.UPSTREAM_SERVICES_TRACKING_ENABLED, true);
   }
 
+  public int getDatadogTagsLimit() {
+    return configProvider.getInteger(TracerConfig.DATADOG_TAGS_LIMIT, 512);
+  }
+
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);

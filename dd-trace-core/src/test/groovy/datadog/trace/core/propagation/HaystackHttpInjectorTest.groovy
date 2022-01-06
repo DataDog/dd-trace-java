@@ -38,7 +38,8 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
 
     final Map<String, String> carrier = Mock()
 
@@ -91,7 +92,8 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       null,
       false,
       null,
-      false)
+      false,
+      512)
 
     final Map<String, String> carrier = Mock()
 
