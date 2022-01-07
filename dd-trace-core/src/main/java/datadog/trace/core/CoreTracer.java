@@ -1027,7 +1027,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
-        // TODO probably we don't need to copy ddTags from the parent context
         ddTags = null;
       } else {
         long endToEndStartTime;

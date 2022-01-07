@@ -73,7 +73,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
         1 * carrier.put(B3_KEY, "$traceId-$spanId-1")
-        //TODO      1 * carrier.put(TAGS_KEY, "")
       } else {
         1 * carrier.put(B3_KEY, "$traceId-$spanId")
       }
@@ -149,7 +148,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       if (samplingPriority != UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
         1 * carrier.put(B3_KEY, "$traceId-$spanId-1")
-        //TODO 1 * carrier.put(TAGS_KEY, "")
       } else {
         1 * carrier.put(B3_KEY, "$traceId-$spanId")
       }

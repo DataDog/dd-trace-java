@@ -183,15 +183,16 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     this.spanType = spanType;
     this.origin = origin;
 
-    this.datadogTagsLimit = datadogTagsLimit;
-    setSamplingPriority(samplingPriority, samplingMechanism);
-
     // Additional Metadata
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
+    this.datadogTagsLimit = datadogTagsLimit;
+    // setSamplingPriority is called the last because it could call DDSpanContext.toString when
+    // an invalid sampling priority/mechanism combination provided
+    setSamplingPriority(samplingPriority, samplingMechanism);
   }
 
   @Override
@@ -361,7 +362,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   /** @return the sampling priority of this span's trace, or null if no priority has been set */
   public int getSamplingPriority() {
-    // TODO find usages and see whether returning SamplingDecision is needed @YG
     final DDSpan rootSpan = trace.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().getSamplingPriority();
@@ -594,7 +594,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             .append("/")
             .append(getResourceName())
             .append(" metrics=");
-    // TODO maybe add ddTags?
+
     if (errorFlag) {
       s.append(" *errored*");
     }
