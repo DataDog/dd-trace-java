@@ -335,4 +335,41 @@ class DatadogsTagsTest extends Specification {
     "service-a" | UNSET            | UNKNOWN           | -1.0   | true
     "service-a" | SAMPLER_DROP     | DEFAULT           | 0.0001 | false
   }
+
+  def "parse rawTags"() {
+    when:
+    def ddTags = DatadogTags.create(tags)
+
+    then:
+    ddTags.parseTags() == expectedResult
+
+    where:
+    tags                                                                                                                | expectedResult
+    "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.hello=world"                                                 | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world']
+    "_dd.p.upstream_services="                                                                                          | [:]
+    "_dd.p.upstream_services=,_dd.p.hello=world"                                                                        | ['_dd.p.hello': 'world']
+    ""                                                                                                                  | [:]
+    null                                                                                                                | [:]
+    "_dd.p.upstream_services"                                                                                           | null
+    "_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|-1|6," | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|-1|6', '_dd.p.hello': 'world']
+  }
+
+  def "parse rawTags and include upstream_services"() {
+    when:
+    def ddTags = DatadogTags.create(tags)
+
+    then:
+    ddTags.updateUpstreamServices("abc-service", USER_DROP, MANUAL, -1.0)
+    ddTags.parseTags() == expectedResult
+
+    where:
+    tags                                                                                                                | expectedResult
+    "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1,_dd.p.hello=world"                                                 | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1;YWJjLXNlcnZpY2U|-1|4', '_dd.p.hello': 'world']
+    "_dd.p.upstream_services="                                                                                          | ['_dd.p.upstream_services': 'YWJjLXNlcnZpY2U|-1|4']
+    "_dd.p.upstream_services=,_dd.p.hello=world"                                                                        | ['_dd.p.upstream_services': 'YWJjLXNlcnZpY2U|-1|4', '_dd.p.hello': 'world']
+    ""                                                                                                                  | ['_dd.p.upstream_services': 'YWJjLXNlcnZpY2U|-1|4']
+    null                                                                                                                | ['_dd.p.upstream_services': 'YWJjLXNlcnZpY2U|-1|4']
+    "_dd.p.upstream_services"                                                                                           | null
+    "_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|-1|6," | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|-1|6;YWJjLXNlcnZpY2U|-1|4', '_dd.p.hello': 'world']
+  }
 }

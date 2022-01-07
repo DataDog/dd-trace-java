@@ -4,6 +4,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.util.Base64Encoder;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /** Encapsulates x-datadog-tags logic */
@@ -140,6 +142,57 @@ public class DatadogTags {
     sb.append(rawTags.subSequence(upstreamEnd, rawTags.length()));
 
     return sb.toString();
+  }
+
+  /**
+   * Parses rawTags to a map and adds upstream_service to the result
+   *
+   * @return tags as a map or null when rawTags is malformed
+   */
+  public Map<String, String> parseTags() {
+    Map<String, String> result = new HashMap<>();
+    if (!rawTags.isEmpty()) {
+      int startIndex = 0;
+      // split rawTags and put them into the map
+      while (startIndex < rawTags.length()) {
+        String tagName;
+        int tagNamePosition = rawTags.indexOf('=', startIndex);
+        if (tagNamePosition > 0) {
+          tagName = rawTags.substring(startIndex, tagNamePosition);
+        } else {
+          // tag name without following `=`
+          return null;
+        }
+        startIndex = tagNamePosition + 1;
+
+        int tagValueEnds = rawTags.indexOf(',', startIndex);
+        if (tagValueEnds < 0) {
+          tagValueEnds = rawTags.length();
+        }
+        String tagValue = rawTags.substring(startIndex, tagValueEnds);
+        if (!tagValue.isEmpty()) {
+          result.put(tagName, tagValue);
+        }
+        startIndex = tagValueEnds + 1;
+      }
+    }
+    // add upstream_services
+    String upstreamServices = result.get(UPSTREAM_SERVICES);
+    StringBuilder sb = new StringBuilder();
+    boolean nonEmptySamplingDecision = samplingDecision != null;
+    if (upstreamServices != null) {
+      sb.append(upstreamServices);
+      if (nonEmptySamplingDecision) {
+        sb.append(';');
+      }
+    }
+    if (nonEmptySamplingDecision) {
+      samplingDecision.encoded(sb);
+    }
+    if (sb.length() > 0) {
+      result.put(UPSTREAM_SERVICES, sb.toString());
+    }
+    return result;
   }
 
   private void appendUpstreamServicesEncoded(StringBuilder sb, int lastCharIndex) {

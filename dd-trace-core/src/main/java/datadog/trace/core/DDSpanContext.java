@@ -544,19 +544,21 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
+    Map<String, String> ddTagsAndBaggageItems = ddTags.parseTags();
     synchronized (unsafeTags) {
+      ddTagsAndBaggageItems.putAll(baggageItems);
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               unsafeTags,
-              baggageItems,
+              ddTagsAndBaggageItems,
               SamplingDecision.priority(samplingDecision),
-              // TODO do we also need to pass samplingMechanism in there? @YG
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
-              getOrigin())); // Get origin from rootSpan.context
+              getOrigin() // Get origin from rootSpan.context
+              ));
     }
   }
 

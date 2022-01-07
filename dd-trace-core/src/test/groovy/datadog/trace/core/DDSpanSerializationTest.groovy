@@ -9,6 +9,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
@@ -148,7 +149,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null,
+      DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
@@ -191,10 +192,10 @@ class DDSpanSerializationTest extends DDCoreSpecification {
 
     where:
     baggage       | tags          | expected
-    [:]           | [:]           | [:]
-    [foo: "bbar"] | [:]           | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+    [:]           | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world']
+    [foo: "bbar"] | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar"]
+    [foo: "bbar"] | [bar: "tfoo"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar", bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "tbar"]
   }
 
   def "serialize trace with baggage and tags correctly v0.5"() {
@@ -219,7 +220,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       false,
-      null,
+      DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
@@ -262,10 +263,10 @@ class DDSpanSerializationTest extends DDCoreSpecification {
 
     where:
     baggage       | tags          | expected
-    [:]           | [:]           | [:]
-    [foo: "bbar"] | [:]           | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
+    [:]           | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world']
+    [foo: "bbar"] | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar"]
+    [foo: "bbar"] | [bar: "tfoo"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar", bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "tbar"]
   }
 
   private class CaptureBuffer implements ByteBufferConsumer {

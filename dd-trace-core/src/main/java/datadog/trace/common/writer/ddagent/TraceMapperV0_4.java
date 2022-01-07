@@ -86,7 +86,6 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(THREAD_ID);
       writable.writeLong(metadata.getThreadId());
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        // TODO pass x-datadog-tags
         if (entry.getValue() instanceof Number) {
           writable.writeString(entry.getKey(), null);
           writable.writeObject(entry.getValue(), null);
