@@ -72,7 +72,8 @@ public final class OpenJdkController implements Controller {
       if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
           || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
-          || isJavaVersionAtLeast(17))) {
+          || (isJavaVersion(17) && isJavaVersionAtLeast(17, 0, 3))
+          || isJavaVersionAtLeast(18))) {
         log.debug(
             "Inexpensive live object profiling is not supported for this JDK. "
                 + "Disabling OldObjectSample JFR event.");
@@ -112,18 +113,17 @@ public final class OpenJdkController implements Controller {
     // Toggle settings from config
 
     if (config.isProfilingHeapEnabled()) {
-      // TODO: when jdk.OldObjectSample is enabled by default in dd.jfp, uncomment the following
-      // if (!Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
-      //   if (((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
-      //       || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
-      //       || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
-      //       || isJavaVersionAtLeast(17))) {
-      //     // It was enabled based on JDK version so disabled by override file
-      //     log.warn(
-      //         "The OldObjectSample JFR event is disabled with the override file but enabled with
-      // the config.");
-      //   }
-      // }
+      if (!Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
+        if (((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
+            || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
+            || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
+            || (isJavaVersion(17) && isJavaVersionAtLeast(17, 0, 3))
+            || isJavaVersionAtLeast(18))) {
+          // It was enabled based on JDK version so disabled by override file
+          log.warn(
+              "The OldObjectSample JFR event is disabled with the override file but enabled with the config.");
+        }
+      }
       log.debug("Enabling OldObjectSample JFR event with the config.");
       recordingSettings.put("jdk.OldObjectSample#enabled", "true");
     }
