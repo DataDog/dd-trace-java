@@ -121,7 +121,7 @@ public final class OpenJdkController implements Controller {
             || isJavaVersionAtLeast(18))) {
           // It was enabled based on JDK version so disabled by override file
           log.warn(
-              "The OldObjectSample JFR event is disabled with the override file but enabled with the config.");
+              "The OldObjectSample JFR event is disabled by the override file but enabled by the config.");
         }
       }
       log.debug("Enabling OldObjectSample JFR event with the config.");
