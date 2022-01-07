@@ -544,9 +544,20 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    Map<String, String> ddTagsAndBaggageItems = ddTags.parseTags();
+    Map<String, String> ddTagsMap = ddTags.parseTags();
+    if (ddTagsMap == null) {
+      log.warn("Malformed Datadog tags `{}` won't be sent to the backend!", ddTags);
+    }
     synchronized (unsafeTags) {
-      ddTagsAndBaggageItems.putAll(baggageItems);
+      Map<String, String> ddTagsAndBaggageItems;
+      if (ddTagsMap != null) {
+        // merge datadog tags and baggage items
+        ddTagsAndBaggageItems = ddTagsMap;
+        ddTagsAndBaggageItems.putAll(baggageItems);
+      } else {
+        // datadog tags malformed, ignore them and use baggage items only
+        ddTagsAndBaggageItems = baggageItems;
+      }
       consumer.accept(
           new Metadata(
               threadId,

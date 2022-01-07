@@ -195,6 +195,11 @@ public class DatadogTags {
     return result;
   }
 
+  @Override
+  public String toString() {
+    return rawTags;
+  }
+
   private void appendUpstreamServicesEncoded(StringBuilder sb, int lastCharIndex) {
     char lastChar = rawTags.charAt(lastCharIndex);
     // check if a separator needed
