@@ -51,10 +51,10 @@ public interface KnownAddresses {
   Address<List<StringKVPair>> REQUEST_COOKIES = new Address<>("server.request.cookies");
 
   /** Same as server transport related field. */
-  Address<String> REQUEST_TRANSPORT = new Address<String>("server.request.transport");
+  Address<String> REQUEST_TRANSPORT = new Address<>("server.request.transport");
 
   /** status code of HTTP response */
-  Address<Integer> RESPONSE_STATUS = new Address<>("server.response.status");
+  Address<String> RESPONSE_STATUS = new Address<>("server.response.status");
 
   /** First chars of HTTP response body */
   Address<String> RESPONSE_BODY_RAW = new Address<>("server.response.body.raw");
@@ -96,7 +96,7 @@ public interface KnownAddresses {
    * <p>TODO: It will be possible to satisfy the spec with other servers. So this parsing should
    * then be moved to the Servlet HttpContext impl.
    */
-  Address<Map<String, List<String>>> REQUEST_QUERY = new Address("server.request.query");
+  Address<Map<String, List<String>>> REQUEST_QUERY = new Address<>("server.request.query");
 
   /** Headers with the cookie fields excluded. */
   Address<CaseInsensitiveMap<List<String>>> HEADERS_NO_COOKIES =

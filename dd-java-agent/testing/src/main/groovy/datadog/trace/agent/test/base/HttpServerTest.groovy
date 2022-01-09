@@ -8,7 +8,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
-import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
@@ -1056,10 +1055,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
 
-    final BiConsumer<RequestContext<Context>, Integer> responseStartedCb =
+    final BiFunction<RequestContext<Context>, Integer, Flow<Void>> responseStartedCb =
     { RequestContext<Context> rqCtxt, Integer resultCode ->
       def context = rqCtxt.data
       context.tags.put(IG_RESPONSE_STATUS, String.valueOf(resultCode))
-    } as BiConsumer<RequestContext<Context>, Integer>
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Integer, Flow<Void>>
   }
 }

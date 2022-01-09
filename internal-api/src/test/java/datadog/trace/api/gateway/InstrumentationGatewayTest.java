@@ -141,7 +141,7 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), callback);
-    gateway.getCallback(events.responseStarted()).accept(null, null);
+    gateway.getCallback(events.responseStarted()).apply(null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -173,7 +173,7 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), throwback);
-    gateway.getCallback(events.responseStarted()).accept(null, null);
+    gateway.getCallback(events.responseStarted()).apply(null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 

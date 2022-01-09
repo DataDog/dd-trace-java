@@ -193,10 +193,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
       if (null != cbp) {
         RequestContext<Object> ctx = span.getRequestContext();
         if (ctx != null) {
-          BiConsumer<RequestContext<Object>, Integer> addrCallback =
+          BiFunction<RequestContext<Object>, Integer, Flow<Void>> addrCallback =
               cbp.getCallback(EVENTS.responseStarted());
           if (null != addrCallback) {
-            addrCallback.accept(ctx, status);
+            addrCallback.apply(ctx, status);
           }
         }
       }

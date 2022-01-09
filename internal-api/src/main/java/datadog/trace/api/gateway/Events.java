@@ -115,8 +115,8 @@ public final class Events<D> {
       new ET<>("response.started", RESPONSE_STARTED_ID);
   /** A response started */
   @SuppressWarnings("unchecked")
-  public EventType<BiConsumer<RequestContext<D>, Integer>> responseStarted() {
-    return (EventType<BiConsumer<RequestContext<D>, Integer>>) RESPONSE_STARTED;
+  public EventType<BiFunction<RequestContext<D>, Integer, Flow<Void>>> responseStarted() {
+    return (EventType<BiFunction<RequestContext<D>, Integer, Flow<Void>>>) RESPONSE_STARTED;
   }
 
   static final int MAX_EVENTS = nextId.get();
