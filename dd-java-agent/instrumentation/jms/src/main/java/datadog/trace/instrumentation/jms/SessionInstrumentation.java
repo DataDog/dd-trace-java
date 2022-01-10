@@ -76,6 +76,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(0, named("javax.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
     transformation.applyAdvice(
+        namedOneOf("recover").and(takesNoArguments()), getClass().getName() + "$Recover");
+    transformation.applyAdvice(
         namedOneOf("commit", "rollback").and(takesNoArguments()), getClass().getName() + "$Commit");
     transformation.applyAdvice(
         named("close").and(takesNoArguments()), getClass().getName() + "$Close");
@@ -162,6 +164,17 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             consumer,
             new MessageConsumerState(
                 sessionState, brokerResourceName, consumerResourceName, propagationDisabled));
+      }
+    }
+  }
+
+  public static final class Recover {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void recover(@Advice.This Session session) {
+      SessionState sessionState =
+          InstrumentationContext.get(Session.class, SessionState.class).get(session);
+      if (null != sessionState && sessionState.isClientAcknowledge()) {
+        sessionState.onAcknowledgeOrRecover();
       }
     }
   }

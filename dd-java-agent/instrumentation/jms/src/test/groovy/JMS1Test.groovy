@@ -245,6 +245,69 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
+  def "recovering messages from #jmsResourceName with manual acknowledgement"() {
+    setup:
+    def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
+    def producer = session.createProducer(destination)
+    def consumer = clientSession.createConsumer(destination)
+
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producer.send(message3)
+
+    TextMessage receivedMessage1 = consumer.receive()
+    TextMessage receivedMessage2 = consumer.receive()
+    clientSession.recover()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    // two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    receivedMessage1 = consumer.receive()
+    receivedMessage2 = consumer.receive()
+    TextMessage receivedMessage3 = consumer.receive()
+    receivedMessage1.acknowledge()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // the two consume traces plus three more will be finished at this point
+    assertTraces(8) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0]) // redelivered message
+      consumerTrace(it, jmsResourceName, trace(1)[0]) // redelivered message
+      consumerTrace(it, jmsResourceName, trace(2)[0])
+    }
+
+    cleanup:
+    receivedMessage3.acknowledge()
+    producer.close()
+    consumer.close()
+    clientSession.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
   def "sending to a MessageListener on #jmsResourceName generates a span"() {
     setup:
     def lock = new CountDownLatch(1)

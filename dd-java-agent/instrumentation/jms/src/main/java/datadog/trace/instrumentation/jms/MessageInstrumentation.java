@@ -54,7 +54,7 @@ public class MessageInstrumentation extends Instrumenter.Tracing {
       SessionState sessionState =
           InstrumentationContext.get(Message.class, SessionState.class).get(message);
       if (null != sessionState && sessionState.isClientAcknowledge()) {
-        sessionState.onAcknowledge();
+        sessionState.onAcknowledgeOrRecover();
       }
     }
   }
