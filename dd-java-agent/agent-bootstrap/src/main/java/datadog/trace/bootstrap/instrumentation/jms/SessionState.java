@@ -142,6 +142,10 @@ public final class SessionState {
     finishCapturedSpans();
   }
 
+  public void onRecover() {
+    finishCapturedSpans();
+  }
+
   public void onCommitOrRollback() {
     COMMIT_SEQUENCE.incrementAndGet(this);
     finishCapturedSpans();
