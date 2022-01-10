@@ -61,7 +61,7 @@ class DatadogHttpCodec {
 
       DatadogTags datadogTags = context.getDatadogTags();
       if (!datadogTags.isEmpty()) {
-        String encodedTags = datadogTags.encoded();
+        String encodedTags = datadogTags.encode();
         int limit = context.getDatadogTagsLimit();
         if (encodedTags.length() > limit) {
           log.warn(

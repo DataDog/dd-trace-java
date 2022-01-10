@@ -48,7 +48,7 @@ public class DatadogTags {
       this.rate = rate;
     }
 
-    public void encoded(StringBuilder sb) {
+    public void encode(StringBuilder sb) {
       String serviceNameBase64 =
           new String(
               BASE_64_ENCODER.encode(service.getBytes(StandardCharsets.UTF_8)),
@@ -99,7 +99,7 @@ public class DatadogTags {
   }
 
   /** @return encoded header value */
-  public String encoded() {
+  public String encode() {
     boolean isSamplingDecisionEmpty = samplingDecision == null || samplingDecision.isUnset();
     if (rawTags.isEmpty()) {
       if (isSamplingDecisionEmpty) {
@@ -187,7 +187,7 @@ public class DatadogTags {
       }
     }
     if (nonEmptySamplingDecision) {
-      samplingDecision.encoded(sb);
+      samplingDecision.encode(sb);
     }
     if (sb.length() > 0) {
       result.put(UPSTREAM_SERVICES, sb.toString());
@@ -206,12 +206,12 @@ public class DatadogTags {
     if (lastChar != '=' && lastChar != ';') {
       sb.append(';');
     }
-    samplingDecision.encoded(sb);
+    samplingDecision.encode(sb);
   }
 
   private void encodeUpstreamServices(StringBuilder sb) {
     sb.append(UPSTREAM_SERVICES);
     sb.append('=');
-    samplingDecision.encoded(sb);
+    samplingDecision.encode(sb);
   }
 }

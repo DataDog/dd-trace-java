@@ -15,7 +15,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -54,7 +54,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate    | expected
@@ -93,7 +93,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -132,7 +132,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -171,7 +171,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -210,7 +210,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -249,7 +249,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -265,7 +265,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -281,7 +281,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -297,7 +297,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encoded() == expected
+    ddTags.encode() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected

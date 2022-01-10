@@ -127,7 +127,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
     def datadogTags = DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1")
-    def encodedTags = datadogTags.encoded()
+    def encodedTags = datadogTags.encode()
     final DDSpanContext mockedContext =
       new DDSpanContext(
       DDId.from("1"),

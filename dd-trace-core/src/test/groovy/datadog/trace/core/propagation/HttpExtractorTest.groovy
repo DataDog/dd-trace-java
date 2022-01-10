@@ -73,7 +73,7 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     if (expectedDdTags != null) {
-      assert context instanceof ExtractedContext && context.ddTags.encoded() == expectedDdTags
+      assert context instanceof ExtractedContext && context.ddTags.encode() == expectedDdTags
     }
 
     where:

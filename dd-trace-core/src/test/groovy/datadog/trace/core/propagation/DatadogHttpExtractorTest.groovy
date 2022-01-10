@@ -270,7 +270,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     context.traceId == DDId.from(traceId)
     context.spanId == DDId.from(spanId)
     if (tags != null) {
-      context.ddTags.encoded() == tags
+      context.ddTags.encode() == tags
     } else {
       context.ddTags == null
     }
