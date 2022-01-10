@@ -174,7 +174,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
       SessionState sessionState =
           InstrumentationContext.get(Session.class, SessionState.class).get(session);
       if (null != sessionState && sessionState.isClientAcknowledge()) {
-        sessionState.onRecover();
+        sessionState.onAcknowledgeOrRecover();
       }
     }
   }

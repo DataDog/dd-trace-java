@@ -138,11 +138,7 @@ public final class SessionState {
     span.finish();
   }
 
-  public void onAcknowledge() {
-    finishCapturedSpans();
-  }
-
-  public void onRecover() {
+  public void onAcknowledgeOrRecover() {
     finishCapturedSpans();
   }
 
