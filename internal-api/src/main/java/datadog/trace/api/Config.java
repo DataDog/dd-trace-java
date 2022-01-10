@@ -23,6 +23,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
@@ -114,6 +116,8 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
@@ -361,6 +365,8 @@ public class Config {
   private final Integer jmxFetchRefreshBeansPeriod;
   private final String jmxFetchStatsdHost;
   private final Integer jmxFetchStatsdPort;
+  private final boolean jmxFetchMultipleRuntimeServicesEnabled;
+  private final int jmxFetchMultipleRuntimeServicesLimit;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -738,6 +744,15 @@ public class Config {
             // default to agent host if an explicit port has been set
             null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
             DOGSTATSD_HOST);
+
+    jmxFetchMultipleRuntimeServicesEnabled =
+        configProvider.getBoolean(
+            JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED,
+            DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED);
+    jmxFetchMultipleRuntimeServicesLimit =
+        configProvider.getInteger(
+            JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT,
+            DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
@@ -1211,6 +1226,14 @@ public class Config {
 
   public Integer getJmxFetchStatsdPort() {
     return jmxFetchStatsdPort;
+  }
+
+  public boolean isJmxFetchMultipleRuntimeServicesEnabled() {
+    return jmxFetchMultipleRuntimeServicesEnabled;
+  }
+
+  public int getJmxFetchMultipleRuntimeServicesLimit() {
+    return jmxFetchMultipleRuntimeServicesLimit;
   }
 
   public boolean isHealthMetricsEnabled() {

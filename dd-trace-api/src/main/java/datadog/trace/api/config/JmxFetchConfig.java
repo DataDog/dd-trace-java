@@ -19,6 +19,10 @@ public final class JmxFetchConfig {
   public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
   public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
   public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+  public static final String JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED =
+      "jmxfetch.multiple-runtime-services.enabled";
+  public static final String JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT =
+      "jmxfetch.multiple-runtime-services.limit";
 
   private JmxFetchConfig() {}
 }
