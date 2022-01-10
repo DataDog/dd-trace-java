@@ -44,7 +44,8 @@ public class OpenJdkControllerTest {
       if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
           || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
-          || isJavaVersionAtLeast(17))) {
+          || (isJavaVersion(17) && isJavaVersionAtLeast(17, 0, 3))
+          || isJavaVersionAtLeast(18))) {
         assertEquals(
             false,
             Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
@@ -63,7 +64,8 @@ public class OpenJdkControllerTest {
       if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
           || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
-          || isJavaVersionAtLeast(17))) {
+          || (isJavaVersion(17) && isJavaVersionAtLeast(17, 0, 3))
+          || isJavaVersionAtLeast(18))) {
         assertEquals(
             true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
       }
