@@ -214,8 +214,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public void setServiceName(final String serviceName) {
-    String newServiceName = trace.getTracer().mapServiceName(serviceName);
-    this.serviceName = newServiceName;
+    this.serviceName = trace.getTracer().mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
