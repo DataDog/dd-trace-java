@@ -174,7 +174,9 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         closePrevious(finishSpan);
-        consumerState.finishTimeInQueueSpan(true);
+        if (finishSpan) {
+          consumerState.finishTimeInQueueSpan(true);
+        }
       }
     }
   }

@@ -55,7 +55,7 @@ public final class SessionState {
   private volatile int commitSequence;
 
   // consumer-related session state
-  private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
+  private final Deque<AgentSpan> capturedSpans;
   private final Map<Thread, TimeInQueue> timeInQueueSpans;
   private volatile int timeInQueueSpanCount = 0;
 
@@ -69,6 +69,11 @@ public final class SessionState {
 
   SessionState(int ackMode, boolean legacyTracing) {
     this.ackMode = ackMode;
+    if (isAutoAcknowledge()) {
+      this.capturedSpans = null; // unused in auto-ack
+    } else {
+      this.capturedSpans = new ArrayDeque<>();
+    }
     if (legacyTracing) {
       this.timeInQueueSpans = Collections.emptyMap();
     } else {
@@ -106,6 +111,9 @@ public final class SessionState {
 
   // only used for testing
   int getCapturedSpanCount() {
+    if (null == capturedSpans) {
+      return 0;
+    }
     synchronized (capturedSpans) {
       return capturedSpans.size();
     }
@@ -122,64 +130,44 @@ public final class SessionState {
   }
 
   private void captureMessageSpan(AgentSpan span) {
-    synchronized (capturedSpans) {
-      if (capturedSpans.size() < MAX_CAPTURED_SPANS) {
-        // change capture direction of the deque on each commit/ack
-        // avoids mixing new spans with the old group while still supporting LIFO
-        if (capturingFlipped) {
-          capturedSpans.addFirst(span);
-        } else {
-          capturedSpans.addLast(span);
+    if (null != capturedSpans) {
+      synchronized (capturedSpans) {
+        if (capturedSpans.size() < MAX_CAPTURED_SPANS) {
+          // change capture direction of the deque on each commit/ack
+          // avoids mixing new spans with the old group while still supporting LIFO
+          if (capturingFlipped) {
+            capturedSpans.addFirst(span);
+          } else {
+            capturedSpans.addLast(span);
+          }
+          return;
         }
-        return;
       }
     }
-    // just finish the span to avoid an unbounded queue
+    // unable to capture span; finish it to avoid unbounded growth
     span.finish();
   }
 
   public void onAcknowledgeOrRecover() {
-    finishCapturedSpans();
+    finishSessionSpans();
   }
 
   public void onCommitOrRollback() {
     COMMIT_SEQUENCE.incrementAndGet(this);
-    finishCapturedSpans();
+    finishSessionSpans();
   }
 
-  private void finishCapturedSpans() {
+  private void finishSessionSpans() {
     // make sure we complete this before any subsequent commit/rollback/ack/close
     synchronized (this) {
       Iterator<TimeInQueue> timeInQueueIterator = timeInQueueSpans.values().iterator();
 
       // finish any message spans captured during this session
-      int spansToFinish;
-      boolean finishingFlipped;
-      synchronized (capturedSpans) {
-        spansToFinish = capturedSpans.size();
-        // if capturing was flipped for this group then we need to flip finishing to match
-        finishingFlipped = capturingFlipped;
-        // update capturing to use the other end of the deque for the next group of spans
-        capturingFlipped = !finishingFlipped;
-      }
-      for (int i = 0; i < spansToFinish; ++i) {
-        AgentSpan span;
-        synchronized (capturedSpans) {
-          // finish spans in LIFO order according to how they were captured
-          // for example addFirst --> pollFirst vs. addLast --> pollLast
-          if (finishingFlipped) {
-            span = capturedSpans.pollFirst();
-          } else {
-            span = capturedSpans.pollLast();
-          }
-        }
-        // it won't be null, but just in case...
-        if (null != span) {
-          span.finish();
-        }
+      if (null != capturedSpans) {
+        finishCapturedSpans();
       }
 
-      // lastly finish any time-in-queue parent spans for this session
+      // finish any time-in-queue parent spans for this session
       while (timeInQueueIterator.hasNext()) {
         maybeFinishTimeInQueueSpan(timeInQueueIterator.next());
         timeInQueueIterator.remove();
@@ -187,9 +175,37 @@ public final class SessionState {
     }
   }
 
+  private void finishCapturedSpans() {
+    int spansToFinish;
+    boolean finishingFlipped;
+    synchronized (capturedSpans) {
+      spansToFinish = capturedSpans.size();
+      // if capturing was flipped for this group then we need to flip finishing to match
+      finishingFlipped = capturingFlipped;
+      // update capturing to use the other end of the deque for the next group of spans
+      capturingFlipped = !finishingFlipped;
+    }
+    for (int i = 0; i < spansToFinish; ++i) {
+      AgentSpan span;
+      synchronized (capturedSpans) {
+        // finish spans in LIFO order according to how they were captured
+        // for example addFirst --> pollFirst vs. addLast --> pollLast
+        if (finishingFlipped) {
+          span = capturedSpans.pollFirst();
+        } else {
+          span = capturedSpans.pollLast();
+        }
+      }
+      // it won't be null, but just in case...
+      if (null != span) {
+        span.finish();
+      }
+    }
+  }
+
   /** Finishes any pending client-ack/transacted spans. */
   public void onClose() {
-    finishCapturedSpans();
+    finishSessionSpans();
   }
 
   /** Gets the current time-in-queue span; returns {@code null} if this is a new batch. */
