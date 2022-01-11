@@ -122,6 +122,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
+    ddTags = null;
     return this;
   }
 

@@ -61,7 +61,7 @@ class DatadogHttpCodec {
 
       DatadogTags datadogTags = context.getDatadogTags();
       if (!datadogTags.isEmpty()) {
-        String encodedTags = datadogTags.encode();
+        String encodedTags = datadogTags.encodeAsHeaderValue();
         int limit = context.getDatadogTagsLimit();
         if (encodedTags.length() > limit) {
           log.warn(
@@ -69,7 +69,7 @@ class DatadogHttpCodec {
               TAGS_KEY,
               limit,
               TracerConfig.DATADOG_TAGS_LIMIT);
-          // let backend know
+          // let the backend know about exceeding the limit
           setter.set(carrier, TAGS_KEY, "_dd.propagation_error:max_size");
         } else {
           setter.set(carrier, TAGS_KEY, encodedTags);
@@ -78,13 +78,14 @@ class DatadogHttpCodec {
     }
   }
 
-  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, final boolean isDatadogTagPropagationEnabled) {
     return new TagContextExtractor(
         tagMapping,
         new ContextInterpreter.Factory() {
           @Override
           protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new DatadogContextInterpreter(mapping);
+            return new DatadogContextInterpreter(mapping, isDatadogTagPropagationEnabled);
           }
         });
   }
@@ -101,8 +102,12 @@ class DatadogHttpCodec {
     private static final int DD_TAGS = 7;
     private static final int IGNORE = -1;
 
-    private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
+    private final boolean isDatadogTagPropagationEnabled;
+
+    private DatadogContextInterpreter(
+        Map<String, String> taggedHeaders, boolean isDatadogTagPropagationEnabled) {
       super(taggedHeaders);
+      this.isDatadogTagPropagationEnabled = isDatadogTagPropagationEnabled;
     }
 
     @Override
@@ -178,7 +183,8 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstValue);
                 break;
               case DD_TAGS:
-                ddTags = DatadogTags.create(value);
+                ddTags =
+                    isDatadogTagPropagationEnabled ? DatadogTags.create(value) : DatadogTags.noop();
                 break;
               case TAGS:
                 {

@@ -15,7 +15,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -54,7 +54,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate    | expected
@@ -93,7 +93,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -132,7 +132,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -171,7 +171,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -210,7 +210,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -249,7 +249,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -265,7 +265,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -281,7 +281,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -297,7 +297,7 @@ class DatadogsTagsTest extends Specification {
     ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, rate)
 
     then:
-    ddTags.encode() == expected
+    ddTags.encodeAsHeaderValue() == expected
 
     where:
     service     | samplingPriority | samplingMechanism | rate | expected
@@ -341,7 +341,7 @@ class DatadogsTagsTest extends Specification {
     def ddTags = DatadogTags.create(tags)
 
     then:
-    ddTags.parseTags() == expectedResult
+    ddTags.parseAndMerge() == expectedResult
 
     where:
     tags                                                                                                                | expectedResult
@@ -360,7 +360,7 @@ class DatadogsTagsTest extends Specification {
 
     then:
     ddTags.updateUpstreamServices("abc-service", USER_DROP, MANUAL, -1.0)
-    ddTags.parseTags() == expectedResult
+    ddTags.parseAndMerge() == expectedResult
 
     where:
     tags                                                                                                                | expectedResult
@@ -371,5 +371,46 @@ class DatadogsTagsTest extends Specification {
     null                                                                                                                | ['_dd.p.upstream_services': 'YWJjLXNlcnZpY2U|-1|4']
     "_dd.p.upstream_services"                                                                                           | null
     "_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|-1|6," | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1;dHJhY2Utc3RhdHMtcXVlcnk|2|4|;c2VydmljZS1h|-1|6;YWJjLXNlcnZpY2U|-1|4', '_dd.p.hello': 'world']
+  }
+
+  def "noop implementation should return constant values"() {
+    setup:
+    def ddTags = DatadogTags.noop()
+
+    when:
+    ddTags.updateUpstreamServices(service, samplingPriority, samplingMechanism, -1.0)
+
+    then:
+    ddTags.encodeAsHeaderValue() == ""
+    assert ddTags.isEmpty()
+    ddTags.parseAndMerge() == null
+
+    where:
+    service     | samplingPriority | samplingMechanism
+    "service-a" | UNSET            | UNKNOWN
+    "service-a" | SAMPLER_DROP     | UNKNOWN
+    "service-a" | SAMPLER_KEEP     | UNKNOWN
+    "service-a" | USER_DROP        | UNKNOWN
+    "service-a" | USER_KEEP        | UNKNOWN
+
+    "service-a" | SAMPLER_DROP     | DEFAULT
+    "service-a" | SAMPLER_KEEP     | DEFAULT
+
+    "service-a" | SAMPLER_DROP     | AGENT_RATE
+    "service-a" | SAMPLER_KEEP     | AGENT_RATE
+
+    "service-a" | SAMPLER_DROP     | REMOTE_AUTO_RATE
+    "service-a" | SAMPLER_KEEP     | REMOTE_AUTO_RATE
+
+    "service-a" | USER_DROP        | RULE
+    "service-a" | USER_KEEP        | RULE
+
+    "service-a" | USER_DROP        | MANUAL
+    "service-a" | USER_KEEP        | MANUAL
+
+    "service-a" | USER_KEEP        | APPSEC
+
+    "service-a" | USER_DROP        | REMOTE_USER_RATE
+    "service-a" | USER_KEEP        | REMOTE_USER_RATE
   }
 }

@@ -66,6 +66,9 @@ public final class TracerConfig {
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
 
+  /** Enables x-datadog-tags propagation and upstream_services tracking. Enabled by default. */
+  public static final String DATADOG_TAGS_ENABLED = "trace.datadog.tags.enabled";
+
   /**
    * Limit for x-datadog-tags. When exceeded it will stop propagating x-datadog-tags and log a
    * warning. 512 by default.

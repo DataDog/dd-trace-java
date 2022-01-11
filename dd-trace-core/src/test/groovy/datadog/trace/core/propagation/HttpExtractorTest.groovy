@@ -24,6 +24,7 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getPropagationStylesToExtract() >> styles
+      isDatadogTagPropagationEnabled() >> ddTagsEnabled
     }
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, ["SOME_HEADER": "some-tag"])
 
@@ -73,27 +74,31 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     if (expectedDdTags != null) {
-      assert context instanceof ExtractedContext && context.ddTags.encode() == expectedDdTags
+      assert context instanceof ExtractedContext && context.getDdTags().encodeAsHeaderValue() == expectedDdTags
     }
 
     where:
     // spotless:off
-    styles        | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | expectedTraceId | expectedSpanId | putDatadogFields | expectDatadogFields | tagContext | ddTags  | expectedDdTags
-    [DATADOG, B3] | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false      | ddTags1 | ddTags1
-    [DATADOG, B3] | null              | null              | "a"               | "b"               | "10"            | "11"           | false            | false               | true       | ddTags1 | null
-    [DATADOG, B3] | null              | null              | "a"               | "b"               | null            | null           | true             | true                | true       | ddTags1 | null
-    [DATADOG]     | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false      | ddTags1 | ddTags1
-    [B3]          | "1"               | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | null
-    [B3, DATADOG] | "1"               | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | null
-    []            | "1"               | "2"               | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | null
-    [DATADOG, B3] | "abc"             | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | null
-    [DATADOG]     | "abc"             | "2"               | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | null
-    [DATADOG, B3] | outOfRangeTraceId | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | null
-    [DATADOG, B3] | "1"               | outOfRangeTraceId | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | null
-    [DATADOG]     | outOfRangeTraceId | "2"               | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | null
-    [DATADOG]     | "1"               | outOfRangeTraceId | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | null
-    [DATADOG, B3] | "1"               | "2"               | outOfRangeTraceId | "b"               | "1"             | "2"            | true             | false               | false      | ddTags1 | ddTags1
-    [DATADOG, B3] | "1"               | "2"               | "a"               | outOfRangeTraceId | "1"             | "2"            | true             | false               | false      | ddTags1 | ddTags1
+    styles        | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | expectedTraceId | expectedSpanId | putDatadogFields | expectDatadogFields | tagContext | ddTags  | ddTagsEnabled | expectedDdTags
+    [DATADOG, B3] | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false      | ddTags1 | true          | ddTags1
+    [DATADOG, B3] | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false      | ddTags1 | false         | ""
+    [DATADOG, B3] | null              | null              | "a"               | "b"               | "10"            | "11"           | false            | false               | true       | ddTags1 | true          | null
+    [DATADOG, B3] | null              | null              | "a"               | "b"               | null            | null           | true             | true                | true       | ddTags1 | true          | null
+    [DATADOG]     | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false      | ddTags1 | true          | ddTags1
+    [DATADOG]     | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false      | ddTags1 | false         | ""
+    [B3]          | "1"               | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | true          | null
+    [B3, DATADOG] | "1"               | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | true          | null
+    []            | "1"               | "2"               | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG, B3] | "abc"             | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG]     | "abc"             | "2"               | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG, B3] | outOfRangeTraceId | "2"               | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG, B3] | "1"               | outOfRangeTraceId | "a"               | "b"               | "10"            | "11"           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG]     | outOfRangeTraceId | "2"               | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG]     | "1"               | outOfRangeTraceId | "a"               | "b"               | null            | null           | false            | false               | false      | ddTags1 | true          | null
+    [DATADOG, B3] | "1"               | "2"               | outOfRangeTraceId | "b"               | "1"             | "2"            | true             | false               | false      | ddTags1 | true          | ddTags1
+    [DATADOG, B3] | "1"               | "2"               | outOfRangeTraceId | "b"               | "1"             | "2"            | true             | false               | false      | ddTags1 | false         | ""
+    [DATADOG, B3] | "1"               | "2"               | "a"               | outOfRangeTraceId | "1"             | "2"            | true             | false               | false      | ddTags1 | true          | ddTags1
+    [DATADOG, B3] | "1"               | "2"               | "a"               | outOfRangeTraceId | "1"             | "2"            | true             | false               | false      | ddTags1 | false         | ""
     // spotless:on
   }
 }
