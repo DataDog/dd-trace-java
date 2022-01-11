@@ -6,12 +6,18 @@ public final class ConfigDefaults {
 
   static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES;
   static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_SERVER_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 
   static {
     DEFAULT_HTTP_SERVER_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES.set(400, 500);
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES.set(2, 17);
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES.set(1, 17);
   }
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
