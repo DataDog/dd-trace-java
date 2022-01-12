@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
+import datadog.trace.api.DataStreamsCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.gateway.InstrumentationGateway;
@@ -130,7 +131,7 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
-  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation, SpanCheckpointer {
+  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation, SpanCheckpointer, DataStreamsCheckpointer {
     AgentSpan startSpan(CharSequence spanName, boolean emitCheckpoint);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros, boolean emitCheckpoint);
@@ -361,6 +362,9 @@ public class AgentTracer {
     public InstrumentationGateway instrumentationGateway() {
       return null;
     }
+
+    @Override
+    public void setDataStreamCheckpoint(String edgeName) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

@@ -14,6 +14,7 @@ import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.DataStreamsCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
@@ -39,6 +40,8 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
+import datadog.trace.core.datastreams.PathwayContext;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -114,7 +117,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final SamplingCheckpointer checkpointer;
+  private final SamplingCheckpointer spanCheckpointer;
+  private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
   private int datadogTagsLimit;
@@ -154,47 +158,47 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void checkpoint(AgentSpan span, int flags) {
-    checkpointer.checkpoint(span, flags);
+    spanCheckpointer.checkpoint(span, flags);
   }
 
   @Override
   public void onStart(AgentSpan span) {
-    checkpointer.onStart(span);
+    spanCheckpointer.onStart(span);
   }
 
   @Override
   public void onStartWork(AgentSpan span) {
-    checkpointer.onStartWork(span);
+    spanCheckpointer.onStartWork(span);
   }
 
   @Override
   public void onFinishWork(AgentSpan span) {
-    checkpointer.onFinishWork(span);
+    spanCheckpointer.onFinishWork(span);
   }
 
   @Override
   public void onStartThreadMigration(AgentSpan span) {
-    checkpointer.onStartThreadMigration(span);
+    spanCheckpointer.onStartThreadMigration(span);
   }
 
   @Override
   public void onFinishThreadMigration(AgentSpan span) {
-    checkpointer.onFinishThreadMigration(span);
+    spanCheckpointer.onFinishThreadMigration(span);
   }
 
   @Override
   public void onFinish(AgentSpan span) {
-    checkpointer.onFinish(span);
+    spanCheckpointer.onFinish(span);
   }
 
   @Override
   public void onRootSpanFinished(AgentSpan root, boolean published) {
-    checkpointer.onRootSpanFinished(root, published);
+    spanCheckpointer.onRootSpanFinished(root, published);
   }
 
   @Override
   public void onRootSpanStarted(AgentSpan root) {
-    checkpointer.onRootSpanStarted(root);
+    spanCheckpointer.onRootSpanStarted(root);
   }
 
   public static class CoreTracerBuilder {
@@ -386,7 +390,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
 
-    this.checkpointer = SamplingCheckpointer.create();
+    this.spanCheckpointer = SamplingCheckpointer.create();
+    this.dataStreamsCheckpointer = new DefaultDataStreamsCheckpointer();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -681,6 +686,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return extractor.extract(carrier, getter);
   }
 
+  @Override
+  public void setDataStreamCheckpoint(String edgeName) {
+    dataStreamsCheckpointer.setDataStreamCheckpoint(edgeName);
+  }
+
   /**
    * We use the sampler to know if the trace has to be reported/written. The sampler is called on
    * the first span (root span) of the trace. If the trace is marked as a sample, we report it.
@@ -781,7 +791,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(Checkpointer checkpointer) {
-    this.checkpointer.register(checkpointer);
+    this.spanCheckpointer.register(checkpointer);
   }
 
   @Override
@@ -998,6 +1008,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DDSpanContext context;
       final Object requestContextData;
       final DatadogTags ddTags;
+      final PathwayContext pathwayContext;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -1033,6 +1044,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
         ddTags = null;
+        pathwayContext = ddsc.getPathwayContext();
       } else {
         long endToEndStartTime;
 

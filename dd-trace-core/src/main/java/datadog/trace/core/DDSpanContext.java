@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.datastreams.PathwayContext;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
@@ -107,6 +108,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   private final int datadogTagsLimit;
   private final DatadogTags ddTags;
+
+  private volatile PathwayContext pathwayContext;
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
@@ -439,6 +442,14 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   public RequestContext<Object> getRequestContext() {
     return null == requestContextData ? null : this;
+  }
+
+  public PathwayContext getPathwayContext() {
+    return pathwayContext;
+  }
+
+  public void setPathwayContext(PathwayContext pathwayContext) {
+    this.pathwayContext = pathwayContext;
   }
 
   public CoreTracer getTracer() {
