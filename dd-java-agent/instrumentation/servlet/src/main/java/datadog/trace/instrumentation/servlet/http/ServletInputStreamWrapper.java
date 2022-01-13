@@ -1,16 +1,69 @@
 package datadog.trace.instrumentation.servlet.http;
 
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
 import datadog.trace.api.http.StoredByteBody;
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import javax.servlet.ServletInputStream;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.matcher.ElementMatchers;
 
 public class ServletInputStreamWrapper extends ServletInputStream {
-  final ServletInputStream is;
+  public final ServletInputStream is;
   final StoredByteBody storedByteBody;
+
+  private static final MethodHandle NEW_WRAPPER;
+
+  static {
+    Class<? extends ServletInputStream> finalClass = ServletInputStreamWrapper.class;
+    try {
+      Class<?> readListenerClass =
+          Class.forName(
+              "javax.servlet.ReadListener", true, ServletInputStreamWrapper.class.getClassLoader());
+      DynamicType.Unloaded<ServletInputStreamWrapper> wrapperSubCls =
+          new ByteBuddy()
+              .subclass(
+                  ServletInputStreamWrapper.class, ConstructorStrategy.Default.IMITATE_SUPER_CLASS)
+              .method(named("isFinished").and(ElementMatchers.takesNoArguments()))
+              .intercept(MethodDelegation.toField("is"))
+              .method(named("isReady").and(ElementMatchers.takesNoArguments()))
+              .intercept(MethodDelegation.toField("is"))
+              .method(named("setReadListener").and(takesArguments(readListenerClass)))
+              .intercept(MethodDelegation.toField("is"))
+              .make();
+      finalClass = wrapperSubCls.load(ServletInputStreamWrapper.class.getClassLoader()).getLoaded();
+    } catch (Exception e) {
+    }
+
+    MethodHandles.Lookup publicLookup = MethodHandles.publicLookup();
+    MethodType mt =
+        MethodType.methodType(void.class, ServletInputStream.class, StoredByteBody.class);
+    try {
+      NEW_WRAPPER = publicLookup.findConstructor(finalClass, mt);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   public ServletInputStreamWrapper(ServletInputStream is, StoredByteBody storedByteBody) {
     this.is = is;
     this.storedByteBody = storedByteBody;
+  }
+
+  public static ServletInputStreamWrapper create(
+      ServletInputStream is, StoredByteBody storedByteBody) {
+    try {
+      return (ServletInputStreamWrapper) NEW_WRAPPER.invoke(is, storedByteBody);
+    } catch (Throwable throwable) {
+      throw new RuntimeException(throwable);
+    }
   }
 
   @Override

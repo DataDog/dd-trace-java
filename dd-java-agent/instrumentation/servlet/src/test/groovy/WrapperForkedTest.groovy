@@ -12,6 +12,8 @@ import javax.servlet.ServletInputStream
 import java.nio.CharBuffer
 import java.nio.charset.Charset
 
+import static org.junit.Assume.assumeTrue
+
 /* Forked to avoid having this test load boot classes into the system
  * classloader and then failing other tests that run under SpockRunner
  * (see datadog.trace.agent.test.SpockRunner#setupBootstrapClasspath()). */
@@ -155,7 +157,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, Charset.forName('UTF-8'), 0)
 
     when:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
     assert inputStream.read() == 0
     assert inputStream.read() == ('H' as char) as int
     assert inputStream.read(new byte[2]) == 2
@@ -188,7 +190,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, Charset.forName('ISO-8859-1'), 0)
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     assert inputStream.read(new byte[128 * 1024 - 1]) == 128 * 1024 - 1
@@ -219,7 +221,7 @@ class WrapperForkedTest extends Specification {
     def read = new byte[2]
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     inputStream.readLine(read, 0, 2)
@@ -239,7 +241,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     assert inputStream.skip(3) == 3
@@ -260,7 +262,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     inputStream.read()
@@ -275,7 +277,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     inputStream.read(new byte[1])
@@ -290,7 +292,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     inputStream.read(new byte[1], 0, 1)
@@ -305,7 +307,7 @@ class WrapperForkedTest extends Specification {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     setup:
-    inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
+    inputStream = ServletInputStreamWrapper.create(mockIs, storedByteBody)
 
     when:
     inputStream.readLine(new byte[1], 0, 1)
@@ -314,5 +316,25 @@ class WrapperForkedTest extends Specification {
     1 * mockIs.readLine(_ as byte[], _, _) >> -1
     1 * startCb.apply(_, _)
     1 * endCb.apply(_, _)
+  }
+
+  void 'forwards servlet 31 methods'() {
+    try {
+      Class.forName('javax.servlet.ReadListener')
+    } catch (ClassNotFoundException cnf) {
+      assumeTrue(false)
+    }
+    setup:
+    inputStream = ServletInputStreamWrapper.create(mockIs, null)
+
+    when:
+    assert inputStream.ready == true
+    assert inputStream.finished == true
+    inputStream.setReadListener(null)
+
+    then:
+    1 * mockIs.ready >> true
+    1 * mockIs.finished >> true
+    1 * mockIs.setReadListener(_)
   }
 }

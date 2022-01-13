@@ -14,10 +14,25 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+configurations {
+  testImplementationServlet31.extendsFrom(testImplementation)
+  testImplementationServlet31 {
+    exclude group: 'javax.servlet', module: 'servlet-api'
+  }
+}
+
+sourceSets {
+  servlet31Test {
+    runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+    runtimeClasspath += configurations.testImplementationServlet31
+  }
+}
+
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
 
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+  testImplementationServlet31 'javax.servlet:javax.servlet-api:3.1.0'
 
   // servlet request instrumentation required for linking request to response.
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
@@ -29,3 +44,10 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:jetty-util')
 }
+
+tasks.register('servlet3.1ForkedTest', Test) {
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output
+  classpath = sourceSets.servlet31Test.runtimeClasspath
+}
+check.dependsOn 'servlet3.1ForkedTest'

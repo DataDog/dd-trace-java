@@ -1,11 +1,14 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.servlet.AbstractHttpServlet
 
+import javax.el.MethodNotFoundException
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -18,6 +21,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
@@ -48,6 +52,21 @@ class TestServlet3 {
           case CREATED:
             resp.status = endpoint.status
             resp.writer.print("${endpoint.body}: ${req.reader.text}")
+            break
+          case CREATED_IS:
+            resp.status = endpoint.status
+            def stream = req.inputStream
+            resp.writer.print("${endpoint.body}: ${stream.getText('UTF-8')}")
+            try {
+              Field f = stream.getClass().getField('is')
+              def innerStream = f.get(stream)
+              def method = innerStream.getClass().getMethod('isFinished')
+              if ((method.getModifiers() & Modifier.ABSTRACT) == 0) {
+                if (!stream.isFinished()) {
+                  throw new RuntimeException("Not finished")
+                }
+              }
+            } catch (MethodNotFoundException | NoSuchFieldException mnf) {}
             break
           case FORWARDED:
             resp.status = endpoint.status
@@ -114,6 +133,10 @@ class TestServlet3 {
                 resp.status = endpoint.status
                 resp.writer.print("${endpoint.body}: ${req.reader.text}")
                 break
+              case CREATED_IS:
+                resp.status = endpoint.status
+                resp.writer.print("${endpoint.body}: ${req.inputStream.getText('UTF-8')}")
+                break
               case FORWARDED:
                 resp.status = endpoint.status
                 resp.writer.print(req.getHeader("x-forwarded-for"))
@@ -170,6 +193,10 @@ class TestServlet3 {
             case CREATED:
               resp.status = endpoint.status
               resp.writer.print("${endpoint.body}: ${req.reader.text}")
+              break
+            case CREATED_IS:
+              resp.status = endpoint.status
+              resp.writer.print("${endpoint.body}: ${req.inputStream.getText('UTF-8')}")
               break
             case FORWARDED:
               resp.status = endpoint.status

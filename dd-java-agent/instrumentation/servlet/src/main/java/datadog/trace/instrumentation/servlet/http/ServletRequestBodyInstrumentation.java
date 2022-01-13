@@ -65,8 +65,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.http.ServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet.http.BufferedReaderWrapper",
+      packageName + ".ServletInputStreamWrapper", packageName + ".BufferedReaderWrapper",
     };
   }
 
@@ -128,7 +127,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       StoredByteBody storedByteBody =
           new StoredByteBody(requestContext, requestStartCb, requestEndedCb, charset, lengthHint);
       ServletInputStreamWrapper servletInputStreamWrapper =
-          new ServletInputStreamWrapper(is, storedByteBody);
+          ServletInputStreamWrapper.create(is, storedByteBody);
 
       is = servletInputStreamWrapper;
     }
