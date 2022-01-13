@@ -20,11 +20,11 @@ import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class RabbitDecorator extends ClientDecorator {
+public class RabbitDecorator extends MessagingClientDecorator {
 
   public static final CharSequence AMQP_COMMAND = UTF8BytesString.create("amqp.command");
   public static final CharSequence AMQP_DELIVER = UTF8BytesString.create("amqp.deliver");
