@@ -59,7 +59,11 @@ public class PersonInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, email, ISO8601Date);
+    int hash = 1;
+    hash = 31 * hash + (name == null ? 0 : name.hashCode());
+    hash = 31 * hash + (email == null ? 0 : email.hashCode());
+    hash = 31 * hash + (ISO8601Date == null ? 0 : ISO8601Date.hashCode());
+    return hash;
   }
 
   @Override

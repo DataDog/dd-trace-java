@@ -60,7 +60,12 @@ public class CommitInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(sha, author, committer, fullMessage);
+    int hash = 1;
+    hash = 31 * hash + (sha == null ? 0 : sha.hashCode());
+    hash = 31 * hash + (author == null ? 0 : author.hashCode());
+    hash = 31 * hash + (committer == null ? 0 : committer.hashCode());
+    hash = 31 * hash + (fullMessage == null ? 0 : fullMessage.hashCode());
+    return hash;
   }
 
   @Override

@@ -41,7 +41,11 @@ public class StringKVPair implements List<String> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(key, value);
+    int hash = 1;
+    // key and value can not be NULL
+    hash = 31 * hash + key.hashCode();
+    hash = 31 * hash + value.hashCode();
+    return hash;
   }
 
   // List implementation follows

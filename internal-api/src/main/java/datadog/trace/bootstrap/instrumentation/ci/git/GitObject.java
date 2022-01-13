@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci.git;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 public final class GitObject {
 
@@ -49,13 +48,15 @@ public final class GitObject {
     }
     final GitObject gitObject = (GitObject) o;
     return size == gitObject.size
-        && Objects.equals(type, gitObject.type)
+        && type == gitObject.type
         && Arrays.equals(content, gitObject.content);
   }
 
   @Override
   public int hashCode() {
-    int result = Objects.hash(type, size);
+    int result = 1;
+    result = 31 * result + (int) type;
+    result = 31 * result + size;
     result = 31 * result + Arrays.hashCode(content);
     return result;
   }
