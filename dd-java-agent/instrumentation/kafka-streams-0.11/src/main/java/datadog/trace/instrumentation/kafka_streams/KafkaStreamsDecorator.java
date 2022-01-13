@@ -11,12 +11,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
-public class KafkaStreamsDecorator extends ClientDecorator {
+public class KafkaStreamsDecorator extends MessagingClientDecorator {
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka-streams");
   public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();

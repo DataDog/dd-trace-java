@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.concurrent.TimeUnit;
 import javax.jms.Destination;
 import javax.jms.Message;
@@ -24,7 +24,7 @@ import javax.jms.Topic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class JMSDecorator extends ClientDecorator {
+public final class JMSDecorator extends MessagingClientDecorator {
   private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
