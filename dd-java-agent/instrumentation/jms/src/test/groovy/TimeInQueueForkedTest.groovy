@@ -42,6 +42,7 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("jms.legacy.tracing.enabled", 'false')
+    injectSysConfig("message.broker.split-by-destination", 'true')
     injectSysConfig(GeneralConfig.SERVICE_NAME, 'myService')
   }
 

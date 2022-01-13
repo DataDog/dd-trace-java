@@ -170,6 +170,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_B
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
@@ -431,6 +432,8 @@ public class Config {
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
   private final Set<String> rabbitPropagationDisabledExchanges;
+
+  private final boolean messageBrokerSplitByDestination;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -904,6 +907,9 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
     rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
+
+    messageBrokerSplitByDestination =
+        configProvider.getBoolean(MESSAGE_BROKER_SPLIT_BY_DESTINATION, false);
 
     grpcIgnoredInboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_INBOUND_METHODS));
@@ -1431,6 +1437,10 @@ public class Config {
     return null != queueOrExchange
         && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
             || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
+  }
+
+  public boolean isMessageBrokerSplitByDestination() {
+    return messageBrokerSplitByDestination;
   }
 
   public boolean isHystrixTagsEnabled() {
@@ -2306,6 +2316,8 @@ public class Config {
         + rabbitPropagationDisabledQueues
         + ", rabbitPropagationDisabledExchanges="
         + rabbitPropagationDisabledExchanges
+        + ", messageBrokerSplitByDestination="
+        + messageBrokerSplitByDestination
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
