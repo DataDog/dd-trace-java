@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -28,7 +27,6 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 class KafkaClientTest extends AgentTestRunner {
@@ -856,7 +854,7 @@ class KafkaClientTest extends AgentTestRunner {
 
     when:
     String message = "Testing without headers"
-    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED, value)
+    injectSysConfig("kafka.client.propagation.enabled", value)
     kafkaTemplate.send(SHARED_TOPIC, message)
 
     then:
@@ -873,8 +871,6 @@ class KafkaClientTest extends AgentTestRunner {
     value                                                    | expected
     "false"                                                  | false
     "true"                                                   | true
-    String.valueOf(DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED) | true
-
   }
 
 
