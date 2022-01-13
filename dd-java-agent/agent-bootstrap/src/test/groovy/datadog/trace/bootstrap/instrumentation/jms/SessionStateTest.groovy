@@ -9,7 +9,7 @@ class SessionStateTest extends DDSpecification {
 
   def "commit transaction"() {
     setup:
-    def sessionState = new SessionState(0)
+    def sessionState = new SessionState(0, true)
     def span1 = Mock(AgentSpan)
     def span2 = Mock(AgentSpan)
     when:
@@ -29,7 +29,7 @@ class SessionStateTest extends DDSpecification {
 
   def "when buffer overflows, spans are finished eagerly"() {
     setup:
-    def sessionState = new SessionState(0)
+    def sessionState = new SessionState(0, true)
     def span1 = Mock(AgentSpan)
     def span2 = Mock(AgentSpan)
     when: "fill the buffer"
