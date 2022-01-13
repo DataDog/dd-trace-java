@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -106,7 +107,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           } catch (Exception ignored) {
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
-          sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
+          sessionState =
+              sessionStateStore.putIfAbsent(session, new SessionState(ackMode, JMS_LEGACY_TRACING));
         }
 
         boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
@@ -145,15 +147,14 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           } catch (Exception ignored) {
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
-          sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
+          sessionState =
+              sessionStateStore.putIfAbsent(session, new SessionState(ackMode, JMS_LEGACY_TRACING));
         }
 
         boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
         String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
         CharSequence brokerResourceName =
-            Config.get().isJmsLegacyTracingEnabled()
-                ? "jms"
-                : BROKER_DECORATE.toResourceName(destinationName, isQueue);
+            JMS_LEGACY_TRACING ? "jms" : BROKER_DECORATE.toResourceName(destinationName, isQueue);
         CharSequence consumerResourceName =
             CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
 

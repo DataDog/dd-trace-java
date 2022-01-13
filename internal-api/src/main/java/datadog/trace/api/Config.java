@@ -424,12 +424,10 @@ public class Config {
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
 
-  private final boolean jmsLegacyTracingEnabled;
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
 
-  private final boolean rabbitLegacyTracingEnabled;
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
   private final Set<String> rabbitPropagationDisabledExchanges;
@@ -889,29 +887,21 @@ public class Config {
     awsPropagationEnabled = isPropagationEnabled(true, "aws");
     sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
 
-    kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka.client");
-
+    kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
-
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
-    jmsLegacyTracingEnabled = isLegacyTracingEnabled(true, "jms");
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
-
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
-
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
 
-    rabbitLegacyTracingEnabled = isLegacyTracingEnabled(true, "rabbit");
-    rabbitPropagationEnabled = isPropagationEnabled(true, "rabbit");
-
+    rabbitPropagationEnabled = isPropagationEnabled(true, "rabbit", "rabbitmq");
     rabbitPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
-
     rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
@@ -1419,10 +1409,6 @@ public class Config {
     return null != topic && kafkaClientPropagationDisabledTopics.contains(topic);
   }
 
-  public boolean isJmsLegacyTracingEnabled() {
-    return jmsLegacyTracingEnabled;
-  }
-
   public boolean isJmsPropagationEnabled() {
     return jmsPropagationEnabled;
   }
@@ -1435,10 +1421,6 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
-  }
-
-  public boolean isRabbitLegacyTracingEnabled() {
-    return rabbitLegacyTracingEnabled;
   }
 
   public boolean isRabbitPropagationEnabled() {
@@ -1847,7 +1829,8 @@ public class Config {
 
   public boolean isLegacyTracingEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return isEnabled(Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
+    return isEnabled(
+        Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(

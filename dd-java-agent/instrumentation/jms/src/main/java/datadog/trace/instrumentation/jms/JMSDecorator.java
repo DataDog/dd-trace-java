@@ -32,11 +32,13 @@ public final class JMSDecorator extends MessagingClientDecorator {
   public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
+  public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
+
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
 
   private static final String LOCAL_SERVICE_NAME =
-      Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName();
+      JMS_LEGACY_TRACING ? "jms" : Config.get().getServiceName();
 
   private final DDCache<CharSequence, CharSequence> resourceNameCache =
       DDCaches.newFixedSizeCache(32);
