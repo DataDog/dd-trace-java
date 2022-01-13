@@ -74,7 +74,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
           "",
           Tags.SPAN_KIND_BROKER,
           DDSpanTypes.MESSAGE_BROKER,
-          null /* will be set per-queue or topic */);
+          null /* service name will be set later on */);
 
   public JMSDecorator(
       String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
