@@ -114,7 +114,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
         boolean propagationDisabled =
-            Config.get().isJMSPropagationDisabledForDestination(destinationName);
+            Config.get().isJmsPropagationDisabledForDestination(destinationName);
 
         producerStateStore.put(
             producer, new MessageProducerState(sessionState, resourceName, propagationDisabled));
@@ -158,7 +158,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
 
         boolean propagationDisabled =
-            Config.get().isJMSPropagationDisabledForDestination(destinationName);
+            Config.get().isJmsPropagationDisabledForDestination(destinationName);
 
         consumerStateStore.put(
             consumer,

@@ -108,7 +108,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
-      if (Config.get().isJMSPropagationEnabled()
+      if (Config.get().isJmsPropagationEnabled()
           && (null == producerState || !producerState.isPropagationDisabled())) {
         propagate().inject(span, message, SETTER);
       }
@@ -153,8 +153,8 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
-      if (Config.get().isJMSPropagationEnabled()
-          && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
+      if (Config.get().isJmsPropagationEnabled()
+          && !Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
       }
       if (!Config.get().isJmsLegacyTracingEnabled()) {

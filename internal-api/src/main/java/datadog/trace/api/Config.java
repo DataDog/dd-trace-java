@@ -1444,11 +1444,11 @@ public class Config {
     return jmsLegacyTracingEnabled;
   }
 
-  public boolean isJMSPropagationEnabled() {
+  public boolean isJmsPropagationEnabled() {
     return jmsPropagationEnabled;
   }
 
-  public boolean isJMSPropagationDisabledForDestination(final String queueOrTopic) {
+  public boolean isJmsPropagationDisabledForDestination(final String queueOrTopic) {
     return null != queueOrTopic
         && (jmsPropagationDisabledQueues.contains(queueOrTopic)
             || jmsPropagationDisabledTopics.contains(queueOrTopic));
