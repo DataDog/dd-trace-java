@@ -101,6 +101,8 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
   abstract boolean hasQueueSpan()
 
+  abstract boolean splitByDestination()
+
   def "test rabbit publish/get"() {
     setup:
     GetResponse response = runUnderTrace("parent") {
@@ -575,7 +577,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   ) {
     internalRabbitSpan(
       trace,
-      "rabbitmq",
+      splitByDestination() ? resource.replace("amqp.deliver ", "") : "rabbitmq",
       "amqp.deliver",
       resource,
       distributedRootSpan,
@@ -724,6 +726,37 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   boolean hasQueueSpan() {
     return true
   }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+}
+
+@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "RabbitMQTest")
+    injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
+    injectSysConfig("dd.message.broker.split-by-destination", "true")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "RabbitMQTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return true
+  }
 }
 
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
@@ -741,6 +774,11 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
 
   @Override
   boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
     return false
   }
 }
