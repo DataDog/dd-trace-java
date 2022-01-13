@@ -3,7 +3,6 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
