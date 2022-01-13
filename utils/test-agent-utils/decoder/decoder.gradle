@@ -5,7 +5,7 @@ targetCompatibility = JavaVersion.VERSION_1_7
 
 ext {
   minimumInstructionCoverage = 0.7
-  excludedClassesCoverage = ['datadog.trace.test.agent.decoder.v05.raw.*',]
+  excludedClassesCoverage = ['datadog.trace.test.agent.decoder.v04.raw.*', 'datadog.trace.test.agent.decoder.v05.raw.*',]
 }
 
 dependencies {

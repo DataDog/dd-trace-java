@@ -4,7 +4,9 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.util.Collections.singletonMap;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -14,9 +16,8 @@ public class DecoderTest {
 
   @Test
   public void decode() throws Throwable {
-    byte[] buffer =
-        Files.readAllBytes(
-            new File(this.getClass().getResource("/greeting.msgpack").getFile()).toPath());
+    String resourceName = "/greeting.msgpack";
+    byte[] buffer = readResourceFile(resourceName);
     DecodedMessage message = Decoder.decode(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertThat(traces).hasSize(1);
@@ -49,10 +50,45 @@ public class DecoderTest {
   }
 
   @Test
+  public void decode04() throws Throwable {
+    byte[] buffer = readResourceFile("/webflux.04.msgpack");
+
+    DecodedMessage message = Decoder.decodeV04(buffer);
+    List<DecodedTrace> traces = message.getTraces();
+    assertThat(traces).hasSize(1);
+    List<DecodedSpan> spans = traces.get(0).getSpans();
+    assertThat(spans).hasSize(2);
+    List<DecodedSpan> sorted = Decoder.sortByStart(spans);
+
+    DecodedSpan first = sorted.get(0);
+    long traceId = first.getTraceId();
+    validateSpan(
+        first,
+        traceId,
+        0,
+        "netty.request",
+        "GET /hello",
+        "smoke-test-java-app",
+        "web",
+        singletonMap("component", "netty"),
+        singletonMap("_dd.agent_psr", 1.0));
+
+    DecodedSpan second = sorted.get(1);
+    validateSpan(
+        second,
+        traceId,
+        first.getSpanId(),
+        "WebController.hello",
+        "WebController.hello",
+        "smoke-test-java-app",
+        "web",
+        singletonMap("component", "spring-webflux-controller"),
+        singletonMap("_dd.measured", 1));
+  }
+
+  @Test
   public void sortByStart() throws Throwable {
-    byte[] buffer =
-        Files.readAllBytes(
-            new File(this.getClass().getResource("/greeting.msgpack").getFile()).toPath());
+    byte[] buffer = readResourceFile("/greeting.msgpack");
     DecodedMessage message = Decoder.decode(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertThat(traces).hasSize(1);
@@ -68,6 +104,11 @@ public class DecoderTest {
     assertThat(tmp).containsExactlyElementsIn(sorted);
     tmp.set(1, tmp.get(0));
     assertThat(Decoder.sortByStart(tmp)).containsExactlyElementsIn(tmp);
+  }
+
+  private byte[] readResourceFile(String resourceName) throws IOException {
+    Path path = new File(this.getClass().getResource(resourceName).getFile()).toPath();
+    return Files.readAllBytes(path);
   }
 
   public static void validateSpan(
