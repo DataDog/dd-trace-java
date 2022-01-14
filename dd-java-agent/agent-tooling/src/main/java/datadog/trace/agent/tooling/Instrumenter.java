@@ -284,6 +284,11 @@ public interface Instrumenter {
       return new String[0];
     }
 
+    /* Classes that the muzzle plugin assumes will be injected */
+    public String[] muzzleIgnoredClassNames() {
+      return helperClassNames();
+    }
+
     /**
      * A type matcher used to match the classloader under transform.
      *

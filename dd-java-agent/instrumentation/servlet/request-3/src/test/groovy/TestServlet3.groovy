@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.servlet.AbstractHttpServlet
 
-import javax.el.MethodNotFoundException
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.annotation.WebServlet
@@ -66,7 +65,7 @@ class TestServlet3 {
                   throw new RuntimeException("Not finished")
                 }
               }
-            } catch (MethodNotFoundException | NoSuchFieldException mnf) {}
+            } catch (NoSuchMethodException | NoSuchFieldException mnf) {}
             break
           case FORWARDED:
             resp.status = endpoint.status
