@@ -3,7 +3,6 @@ package datadog.trace.agent
 import datadog.trace.agent.test.IntegrationTestUtils
 import jvmbootstraptest.AgentLoadedChecker
 import jvmbootstraptest.JmxStartedChecker
-import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Timeout
 
