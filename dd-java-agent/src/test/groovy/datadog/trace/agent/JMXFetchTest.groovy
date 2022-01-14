@@ -9,15 +9,14 @@ import spock.lang.Timeout
 
 @Timeout(30)
 class JMXFetchTest extends Specification {
-  @Shared
   DatagramSocket jmxStatsSocket
 
-  def setupSpec() {
+  def setup() {
     jmxStatsSocket = new DatagramSocket(0)
     jmxStatsSocket.setSoTimeout(30 * 1000)
   }
 
-  def cleanupSpec() {
+  def cleanup() {
     jmxStatsSocket.close()
   }
 
@@ -49,7 +48,7 @@ class JMXFetchTest extends Specification {
   }
 
   def "Agent loads when JmxFetch is misconfigured"() {
-    setup:
+    when:
     // verify the agent starts up correctly with a bogus address.
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(AgentLoadedChecker.getName()
       , [
@@ -61,7 +60,7 @@ class JMXFetchTest extends Specification {
       , [:]
       , true)
 
-    expect:
+    then:
     returnCode == 0
   }
 
@@ -71,6 +70,8 @@ class JMXFetchTest extends Specification {
       "-Ddd.jmxfetch.${it}.enabled=${enable}"
     }
     def testOutput = new ByteArrayOutputStream()
+
+    when:
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
       , [
         "-Ddd.jmxfetch.enabled=true",
@@ -92,7 +93,7 @@ class JMXFetchTest extends Specification {
       }
     }
 
-    expect:
+    then:
     returnCode == 0
     actualConfig as Set == expectedConfig as Set
 
