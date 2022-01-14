@@ -273,7 +273,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
           .append(getCpuMode())
           .append(",interval=")
           .append(getCpuInterval())
-          .append('m');
+          .append('m')
+          .append(",jstackdepth=")
+          .append(getStackDepth());
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
@@ -283,7 +285,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       // memleak profiling is enabled
       cmd.append(",memleak=").append(getMemleakInterval()).append('b');
     }
-    return cmd.toString();
+    String cmdString = cmd.toString();
+    log.debug("Async profiler command line: {}", cmdString);
+    return cmdString;
   }
 
   private int getAllocationInterval() {
@@ -296,6 +300,12 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL,
         ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL_DEFAULT);
+  }
+
+  private int getStackDepth() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH,
+        ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT);
   }
 
   private String getCpuMode() {
