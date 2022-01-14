@@ -29,7 +29,14 @@ public class TypeConverter {
     if (agentSpan == null) {
       return null;
     }
-    return new OTSpan(agentSpan, this, logHandler);
+    // check if a wrapper has already been created and attached to the agent span
+    Object wrapper = agentSpan.getWrapper();
+    if (wrapper instanceof OTSpan) {
+      return (OTSpan) wrapper;
+    }
+    OTSpan otSpan = new OTSpan(agentSpan, this, logHandler);
+    agentSpan.attachWrapper(otSpan);
+    return otSpan;
   }
 
   public Scope toScope(final AgentScope scope, final boolean finishSpanOnClose) {

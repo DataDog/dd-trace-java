@@ -642,6 +642,16 @@ public class AgentTracer {
     public boolean hasCheckpoints() {
       return false;
     }
+
+    @Override
+    public void attachWrapper(Object wrapper) {
+      // ~
+    }
+
+    @Override
+    public Object getWrapper() {
+      return null;
+    }
   }
 
   public static class NoopAgentScope implements AgentScope {

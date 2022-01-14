@@ -23,6 +23,7 @@ import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -84,6 +85,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private final boolean withCheckpoints;
 
   private volatile EndpointTracker endpointTracker;
+
+  // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
+  private volatile Object wrapper;
+  private static final AtomicReferenceFieldUpdater<DDSpan, Object> WRAPPER_FIELD_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, Object.class, "wrapper");
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -742,5 +748,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public String toString() {
     return context.toString() + ", duration_ns=" + durationNano;
+  }
+
+  @Override
+  public void attachWrapper(Object wrapper) {
+    WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+  }
+
+  @Override
+  public Object getWrapper() {
+    return WRAPPER_FIELD_UPDATER.get(this);
   }
 }

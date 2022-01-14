@@ -292,6 +292,10 @@ class TestScopeManager implements ScopeManager {
           void finish() {
             span.finish()
           }
+          void attachWrapper(Object wrapper) {}
+          Object getWrapper() {
+            return null
+          }
         } as AgentSpan
     }
 

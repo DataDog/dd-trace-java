@@ -170,4 +170,13 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
       String getForwardedPort();
     }
   }
+
+  /**
+   * Attaches a OT/OTel span wrapper to the span, only if it's not yet been attached. Used by
+   * TypeConverter.
+   */
+  void attachWrapper(Object wrapper);
+
+  /** Returns an attached OT/OTel span wrapper or null. Used by TypeConverter. */
+  Object getWrapper();
 }
