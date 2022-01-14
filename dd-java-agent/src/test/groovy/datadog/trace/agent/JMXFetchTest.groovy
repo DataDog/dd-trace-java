@@ -14,6 +14,7 @@ class JMXFetchTest extends Specification {
 
   def setupSpec() {
     jmxStatsSocket = new DatagramSocket(0)
+    jmxStatsSocket.setSoTimeout(30 * 1000)
   }
 
   def cleanupSpec() {
@@ -21,7 +22,7 @@ class JMXFetchTest extends Specification {
   }
 
   def "test jmxfetch"() {
-    setup:
+    when:
     // verify that JMX starts and reports metrics through the given socket.
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
       , [
@@ -33,14 +34,17 @@ class JMXFetchTest extends Specification {
       , [:]
       , true)
 
+    then:
+    returnCode == 0
+
+    when:
     byte[] buf = new byte[1500]
     DatagramPacket packet = new DatagramPacket(buf, buf.length)
     jmxStatsSocket.receive(packet)
     String received = new String(packet.getData(), 0, packet.getLength())
     def tags = (received =~ /\|#(.*)/)[0][1].tokenize(',')
 
-    expect:
-    returnCode == 0
+    then:
     tags.contains("service:${JmxStartedChecker.getName()}" as String)
   }
 
