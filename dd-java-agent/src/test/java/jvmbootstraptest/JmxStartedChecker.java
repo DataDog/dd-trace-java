@@ -17,6 +17,6 @@ public class JmxStartedChecker {
     }
 
     // Give time for metrics to flush
-    Thread.sleep(200);
+    Thread.sleep(500);
   }
 }
