@@ -2,6 +2,8 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
+ext.skipSettingCompilerRelease = true
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
