@@ -140,8 +140,13 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
         // modify ServletInputStreamWrapper before injecting it. This should be harmless even if
         // servlet 3.1 is on the
         // classpath without the implementation supporting it
+        ClassFileLocator compoundLocator =
+            new ClassFileLocator.Compound(
+                ClassFileLocator.ForClassLoader.of(getClass().getClassLoader()),
+                ClassFileLocator.ForClassLoader.of(classLoader));
+
         TypePool.Resolution origWrapperRes =
-            TypePool.Default.of(getClass().getClassLoader())
+            TypePool.Default.of(compoundLocator)
                 .describe(packageName + ".ServletInputStreamWrapper");
         if (!origWrapperRes.isResolved()) {
           throw new RuntimeException("Could not load original ServletInputStreamWrapper");
@@ -150,9 +155,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
 
         DynamicType.Unloaded<?> unloaded =
             new ByteBuddy()
-                .rebase(
-                    origWrapperType,
-                    ClassFileLocator.ForClassLoader.of(getClass().getClassLoader()))
+                .rebase(origWrapperType, compoundLocator)
                 .method(ElementMatchers.named("isFinished").and(takesNoArguments()))
                 .intercept(MethodDelegation.toField("is"))
                 .method(ElementMatchers.named("isReady").and(takesNoArguments()))
