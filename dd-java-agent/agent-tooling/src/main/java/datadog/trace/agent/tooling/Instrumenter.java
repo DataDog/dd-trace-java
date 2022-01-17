@@ -244,13 +244,11 @@ public interface Instrumenter {
             if (log.isDebugEnabled()) {
               final List<Reference.Mismatch> mismatches =
                   muzzle.getMismatchedReferenceSources(classLoader);
-              if (log.isDebugEnabled()) {
-                log.debug(
-                    "Instrumentation muzzled: {} -- {} on {}",
-                    instrumentationNames,
-                    Instrumenter.Default.this.getClass().getName(),
-                    classLoader);
-              }
+              log.debug(
+                  "Instrumentation muzzled: {} -- {} on {}",
+                  instrumentationNames,
+                  Instrumenter.Default.this.getClass().getName(),
+                  classLoader);
               for (final Reference.Mismatch mismatch : mismatches) {
                 log.debug("-- {}", mismatch);
               }

@@ -514,7 +514,9 @@ public class Agent {
   /** Enable JMX based system access provider once it is safe to touch JMX */
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
-    log.debug("Initializing JMX system access provider for " + classLoader.toString());
+    if (log.isDebugEnabled()) {
+      log.debug("Initializing JMX system access provider for " + classLoader.toString());
+    }
     try {
       final Class<?> tracerInstallerClass =
           classLoader.loadClass("datadog.trace.core.util.SystemAccess");
