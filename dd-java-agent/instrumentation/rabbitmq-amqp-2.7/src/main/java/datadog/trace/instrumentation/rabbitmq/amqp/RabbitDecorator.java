@@ -20,18 +20,21 @@ import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class RabbitDecorator extends ClientDecorator {
+public class RabbitDecorator extends MessagingClientDecorator {
 
   public static final CharSequence AMQP_COMMAND = UTF8BytesString.create("amqp.command");
   public static final CharSequence AMQP_DELIVER = UTF8BytesString.create("amqp.deliver");
   public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
 
+  public static final boolean RABBITMQ_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(true, "rabbit", "rabbitmq");
+
   private static final String LOCAL_SERVICE_NAME =
-      Config.get().isRabbitLegacyTracingEnabled() ? "rabbitmq" : Config.get().getServiceName();
+      RABBITMQ_LEGACY_TRACING ? "rabbitmq" : Config.get().getServiceName();
   public static final RabbitDecorator CLIENT_DECORATE =
       new RabbitDecorator(
           Tags.SPAN_KIND_CLIENT, InternalSpanTypes.MESSAGE_CLIENT, LOCAL_SERVICE_NAME);
@@ -155,7 +158,7 @@ public class RabbitDecorator extends ClientDecorator {
       spanStartMillis = System.currentTimeMillis();
     }
     long queueStartMillis = 0;
-    if (propagate && null != parentContext && !Config.get().isRabbitLegacyTracingEnabled()) {
+    if (propagate && null != parentContext && !RABBITMQ_LEGACY_TRACING) {
       queueStartMillis = extractTimeInQueueStart(headers);
     } else {
       final AgentSpan parent = activeSpan();

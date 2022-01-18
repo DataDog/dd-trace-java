@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
@@ -63,11 +62,7 @@ public final class SessionState {
   @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   private boolean capturingFlipped = false;
 
-  public SessionState(int ackMode) {
-    this(ackMode, Config.get().isJmsLegacyTracingEnabled());
-  }
-
-  SessionState(int ackMode, boolean legacyTracing) {
+  public SessionState(int ackMode, boolean legacyTracing) {
     this.ackMode = ackMode;
     if (isAutoAcknowledge()) {
       this.capturedSpans = null; // unused in auto-ack

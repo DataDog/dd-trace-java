@@ -33,6 +33,7 @@ import spock.lang.Shared
 import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -228,6 +229,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testRequestBodyISVariant() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -241,6 +246,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
+    CREATED_IS("created_input_stream", 201, "created"),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -848,6 +854,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testRequestBody())
     def request = request(
       CREATED, 'POST',
+      RequestBody.create(MediaType.get('text/plain'), 'my body'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == 'created: my body'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body') == 'my body'
+    }
+  }
+
+  def 'test instrumentation gateway request body interception — InputStream variant'() {
+    setup:
+    assumeTrue(testRequestBodyISVariant())
+    def request = request(
+      CREATED_IS, 'POST',
       RequestBody.create(MediaType.get('text/plain'), 'my body'))
       .build()
     def response = client.newCall(request).execute()

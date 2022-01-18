@@ -1,7 +1,6 @@
 repositories {
   mavenLocal()
   mavenCentral()
-  jcenter()
   maven {
     url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
     content {
@@ -16,4 +15,5 @@ repositories {
     url 'https://raw.githubusercontent.com/DataDog/async-profiler/maven2'
     name "GitHub - DD AsyncProfiler"
   }
+  jcenter()
 }

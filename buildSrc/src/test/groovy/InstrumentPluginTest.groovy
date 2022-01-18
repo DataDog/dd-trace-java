@@ -89,6 +89,8 @@ class InstrumentPluginTest extends Specification {
 
     when:
     BuildResult result = GradleRunner.create()
+      .withTestKitDir(new File(buildDir, '.gradle-test-kit'))  // workaround in case the global test-kit cache becomes corrupted
+      .withDebug(true)                                         // avoids starting daemon which can leave undeleted files post-cleanup
       .withProjectDir(buildDir)
       .withArguments('build')
       .withPluginClasspath()
