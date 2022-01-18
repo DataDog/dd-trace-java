@@ -119,6 +119,28 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext<D>, Integer, Flow<Void>>>) RESPONSE_STARTED;
   }
 
+  static final int RESPONSE_HEADER_ID = 9;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_HEADER =
+      new ET<>("server.response.header", RESPONSE_HEADER_ID);
+  /** A response header as a key and values separated by , */
+  @SuppressWarnings("unchecked")
+  public EventType<TriConsumer<RequestContext<D>, String, String>> responseHeader() {
+    return (EventType<TriConsumer<RequestContext<D>, String, String>>) RESPONSE_HEADER;
+  }
+
+  static final int RESPONSE_HEADER_DONE_ID = 10;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_HEADER_DONE =
+      new ET<>("server.response.header.done", RESPONSE_HEADER_DONE_ID);
+  /** All response headers have been provided */
+  @SuppressWarnings("unchecked")
+  public EventType<Function<RequestContext<D>, Flow<Void>>> responseHeaderDone() {
+    return (EventType<Function<RequestContext<D>, Flow<Void>>>) RESPONSE_HEADER_DONE;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

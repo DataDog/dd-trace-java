@@ -26,7 +26,12 @@ public class GrizzlyDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpRequestPacket> getter() {
-    return ExtractAdapter.GETTER;
+    return ExtractAdapter.requestGetter();
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpResponsePacket> responseGetter() {
+    return ExtractAdapter.responseGetter();
   }
 
   @Override

@@ -8,6 +8,7 @@ import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import datadog.trace.agent.test.utils.PortUtils
 import groovy.lang.Closure
 import spray.can.Http
+import spray.http.HttpHeaders.RawHeader
 import spray.http.HttpResponse
 import spray.routing.{HttpServiceActor, RequestContext}
 
@@ -136,7 +137,10 @@ class ControllerHttpResponseToClosureAdapter(
     endpoint: ServerEndpoint
 ) extends Closure[HttpResponse] {
   override def call(): HttpResponse = {
-    def resp = HttpResponse(endpoint.getStatus, endpoint.getBody)
+    def resp =
+      HttpResponse(endpoint.getStatus, endpoint.getBody).withHeaders(
+        RawHeader(HttpServerTest.getIG_RESPONSE_HEADER, HttpServerTest.getIG_RESPONSE_HEADER_VALUE)
+      )
     ctx.complete(resp)
     resp
   }

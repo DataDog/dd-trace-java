@@ -103,6 +103,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               }
             };
       case REQUEST_HEADER_DONE_ID:
+      case RESPONSE_HEADER_DONE_ID:
         return (C)
             new Function<RequestContext, Flow<Void>>() {
               @Override
@@ -121,6 +122,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               }
             };
       case REQUEST_HEADER_ID:
+      case RESPONSE_HEADER_ID:
         return (C)
             new TriConsumer<RequestContext, String, String>() {
               @Override

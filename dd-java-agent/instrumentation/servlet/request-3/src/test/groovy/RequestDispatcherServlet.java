@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.base.HttpServerTest;
 import java.io.IOException;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
@@ -33,6 +34,8 @@ public class RequestDispatcherServlet {
       final ServletContext context = getServletContext();
       final RequestDispatcher dispatcher = context.getRequestDispatcher(target);
       dispatcher.include(req, resp);
+      resp.setHeader(
+          HttpServerTest.getIG_RESPONSE_HEADER(), HttpServerTest.getIG_RESPONSE_HEADER_VALUE());
     }
   }
 }

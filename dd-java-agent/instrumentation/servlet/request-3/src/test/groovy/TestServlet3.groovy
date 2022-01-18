@@ -43,6 +43,7 @@ class TestServlet3 {
       HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
       HttpServerTest.controller(endpoint) {
         resp.contentType = "text/plain"
+        resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
         switch (endpoint) {
           case SUCCESS:
             resp.status = endpoint.status
@@ -122,6 +123,7 @@ class TestServlet3 {
           phaser.arrive()
           HttpServerTest.controller(endpoint) {
             resp.contentType = "text/plain"
+            resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
             switch (endpoint) {
               case SUCCESS:
                 resp.status = endpoint.status
@@ -184,6 +186,7 @@ class TestServlet3 {
         HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
         HttpServerTest.controller(endpoint) {
           resp.contentType = "text/plain"
+          resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
           switch (endpoint) {
             case SUCCESS:
               resp.status = endpoint.status

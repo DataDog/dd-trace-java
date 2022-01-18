@@ -11,6 +11,7 @@ import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
 import ratpack.error.ServerErrorHandler
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.Context
+import ratpack.handling.HandlerDecorator
 import ratpack.test.embed.EmbeddedApp
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
@@ -34,6 +35,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
       }
       bindings {
         bind TestErrorHandler
+        multiBindInstance(HandlerDecorator, HandlerDecorator.prepend(new ResponseHeaderDecorator()))
       }
       handlers {
         prefix(SUCCESS.relativeRawPath()) {

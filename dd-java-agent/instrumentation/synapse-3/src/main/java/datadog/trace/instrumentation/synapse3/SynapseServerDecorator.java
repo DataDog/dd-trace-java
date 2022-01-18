@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static datadog.trace.instrumentation.synapse3.HttpRequestExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Request;
+import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Response;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -37,7 +38,12 @@ public final class SynapseServerDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
-    return GETTER;
+    return Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+    return Response.GETTER;
   }
 
   @Override

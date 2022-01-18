@@ -53,10 +53,14 @@ public final class DDClassFileLocator extends WeakReference<ClassLoader>
 
   private static Resolution loadClassResource(
       final ClassLoader classLoader, final String resourceName) throws IOException {
-    try (InputStream in = classLoader.getResourceAsStream(resourceName)) {
-      if (null != in) {
-        return new Resolution.Explicit(StreamDrainer.DEFAULT.drain(in));
+    try {
+      try (InputStream in = classLoader.getResourceAsStream(resourceName)) {
+        if (null != in) {
+          return new Resolution.Explicit(StreamDrainer.DEFAULT.drain(in));
+        }
+        return null;
       }
+    } catch (IllegalStateException ignored) {
       return null;
     }
   }

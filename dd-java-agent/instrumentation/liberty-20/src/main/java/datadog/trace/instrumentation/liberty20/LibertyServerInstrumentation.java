@@ -35,8 +35,10 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".HttpServletExtractAdapter",
+      packageName + ".HttpServletExtractAdapter$Request",
+      packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
-      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }

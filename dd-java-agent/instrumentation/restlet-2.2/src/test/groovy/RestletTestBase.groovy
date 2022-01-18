@@ -1,10 +1,9 @@
-package datadog.trace.instrumentation.restlet
-
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.restlet.ResourceDecorator
 import org.restlet.Application
 import org.restlet.Component
 import org.restlet.Request
@@ -16,6 +15,7 @@ import org.restlet.data.Status
 import org.restlet.representation.Representation
 import org.restlet.representation.StringRepresentation
 import org.restlet.resource.ResourceException
+import org.restlet.routing.Filter
 import org.restlet.routing.Router
 import org.restlet.service.StatusService
 
@@ -30,17 +30,17 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-class RestletTest extends HttpServerTest<Component> {
+abstract class RestletTestBase extends HttpServerTest<Component> {
 
   class RestletServer implements HttpServer {
     def port = 0
     Component restletComponent
     Server restletServer
 
-    RestletServer() {
+    RestletServer(Filter headerFilter) {
       restletComponent = new Component()
       restletServer = restletComponent.getServers().add(Protocol.HTTP, 0)
-      restletComponent.getDefaultHost().attachDefault(new App())
+      restletComponent.getDefaultHost().attachDefault(new App(headerFilter))
     }
 
     @Override
@@ -63,7 +63,7 @@ class RestletTest extends HttpServerTest<Component> {
 
   @Override
   HttpServer server() {
-    return new RestletServer()
+    return new RestletServer(createHeaderFilter())
   }
 
   String getContext() {
@@ -158,8 +158,12 @@ class RestletTest extends HttpServerTest<Component> {
     }
   }
 
+  protected abstract Filter createHeaderFilter()
+
   private static class App extends Application {
-    App() {
+    private Filter headerFilter
+    App(Filter headerFilter) {
+      this.headerFilter = headerFilter
       setStatusService(new MyCustomStatusService())
     }
 
@@ -175,7 +179,8 @@ class RestletTest extends HttpServerTest<Component> {
       router.attach(QUERY_PARAM.rawPath, QueryParamResource)
       router.attach(REDIRECT.rawPath, RedirectResource)
       router.attach(SUCCESS.rawPath, SuccessResource)
-      return router
+      headerFilter.setNext(router)
+      return headerFilter
     }
   }
 

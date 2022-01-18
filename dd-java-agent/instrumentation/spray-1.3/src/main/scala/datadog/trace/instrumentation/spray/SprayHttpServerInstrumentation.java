@@ -23,6 +23,8 @@ public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SprayHeaders",
+      packageName + ".SprayHeaders$Request",
+      packageName + ".SprayHeaders$Response",
       packageName + ".SprayHelper",
       packageName + ".SprayHelper$",
       packageName + ".SprayHelper$$anonfun$wrapRequestContext$1",

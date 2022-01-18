@@ -50,6 +50,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
       packageName + ".AbstractNettyAdvice",
       packageName + ".ChannelTraceContext",
       packageName + ".ChannelTraceContext$Factory",
+      packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator"
     };
   }

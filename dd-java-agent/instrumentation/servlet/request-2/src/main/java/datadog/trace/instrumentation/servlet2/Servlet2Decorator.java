@@ -32,6 +32,11 @@ public class Servlet2Decorator
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<Integer> responseGetter() {
+    return null; // There is no way to access the headers
+  }
+
+  @Override
   public CharSequence spanName() {
     return SERVLET_REQUEST;
   }

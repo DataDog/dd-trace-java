@@ -45,7 +45,8 @@ class PlayServerWithErrorHandlerTest extends PlayServerTest {
         } as Supplier)
         .GET(QUERY_ENCODED_BOTH.getRawPath()).routeTo({
           controller(QUERY_ENCODED_BOTH) {
-            Results.status(QUERY_ENCODED_BOTH.getStatus(), QUERY_ENCODED_BOTH.getBody()) // cheating
+            Results.status(QUERY_ENCODED_BOTH.getStatus(), QUERY_ENCODED_BOTH.getBody()).
+              withHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE) // cheating
           }
         } as Supplier)
         .GET(REDIRECT.getPath()).routeTo({

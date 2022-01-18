@@ -15,7 +15,11 @@ import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
+import javax.ws.rs.container.ContainerRequestContext
+import javax.ws.rs.container.ContainerResponseContext
+import javax.ws.rs.container.ContainerResponseFilter
 import javax.ws.rs.core.Response
+import javax.ws.rs.ext.Provider
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -145,6 +149,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
     @Override
     void run(Configuration configuration, Environment environment) {
       environment.jersey().register(ServiceResource)
+      environment.jersey().register(ResponseHeaderFilter)
     }
   }
 
@@ -226,4 +231,12 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   @Path("/")
   static class ServiceResource extends ParentClass {}
+
+  @Provider
+  static class ResponseHeaderFilter implements ContainerResponseFilter {
+    @Override
+    void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {
+      responseContext.headers.add(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
+    }
+  }
 }

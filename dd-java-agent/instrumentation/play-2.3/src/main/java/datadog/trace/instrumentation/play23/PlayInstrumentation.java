@@ -32,9 +32,11 @@ public final class PlayInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".PlayHeaders",
+      packageName + ".PlayHeaders$Request",
+      packageName + ".PlayHeaders$Result",
       packageName + ".PlayHttpServerDecorator",
       packageName + ".RequestCompleteCallback",
-      packageName + ".PlayHeaders",
       packageName + ".RequestURIDataAdapter"
     };
   }
