@@ -5,7 +5,7 @@ import java.io.IOException;
 import javax.servlet.ServletInputStream;
 
 public class ServletInputStreamWrapper extends ServletInputStream {
-  final ServletInputStream is;
+  public final ServletInputStream is;
   final StoredByteBody storedByteBody;
 
   public ServletInputStreamWrapper(ServletInputStream is, StoredByteBody storedByteBody) {
