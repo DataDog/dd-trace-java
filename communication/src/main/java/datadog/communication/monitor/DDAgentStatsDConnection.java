@@ -30,24 +30,30 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final AgentThreadFactory STATSD_CLIENT_THREAD_FACTORY =
       new AgentThreadFactory(STATSD_CLIENT);
 
+  private static final int RETRY_DELAY = 10;
+  private static final int MAX_RETRIES = 20;
+
   private boolean usingDefaultPort;
   private volatile String host;
   private volatile Integer port;
+  private final String namedPipe;
 
   private final AtomicInteger clientCount = new AtomicInteger(0);
   private final AtomicInteger errorCount = new AtomicInteger(0);
+  private final AtomicInteger retries = new AtomicInteger(0);
+
   volatile com.timgroup.statsd.StatsDClient statsd = NO_OP;
 
-  DDAgentStatsDConnection(final String host, final Integer port) {
+  DDAgentStatsDConnection(final String host, final Integer port, final String namedPipe) {
     this.host = host;
     this.port = port;
+    this.namedPipe = namedPipe;
   }
 
   @Override
   public void handle(final Exception e) {
     errorCount.incrementAndGet();
-    String message =
-        e.getClass().getSimpleName() + " in StatsD client - " + statsDAddress(host, port);
+    String message = e.getClass().getSimpleName() + " in StatsD client - " + statsDAddress();
     ioLogger.error(message, e);
   }
 
@@ -76,9 +82,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     if (remainingDelay > 0) {
       if (log.isDebugEnabled()) {
         log.debug(
-            "Scheduling StatsD connection in {} seconds - {}",
-            remainingDelay,
-            statsDAddress(host, port));
+            "Scheduling StatsD connection in {} seconds - {}", remainingDelay, statsDAddress());
       }
       AgentTaskScheduler.INSTANCE.scheduleWithJitter(
           ConnectTask.INSTANCE, this, remainingDelay, SECONDS);
@@ -92,7 +96,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
       if (NO_OP == statsd && clientCount.get() > 0) {
         discoverConnectionSettings();
         if (log.isDebugEnabled()) {
-          log.debug("Creating StatsD client - {}", statsDAddress(host, port));
+          log.debug("Creating StatsD client - {}", statsDAddress());
         }
         // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
         // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)
@@ -103,6 +107,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
                 .enableTelemetry(false)
                 .hostname(host)
                 .port(port)
+                .namedPipe(namedPipe)
                 .errorHandler(this)
                 .entityID(entityID);
         // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
@@ -111,8 +116,21 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         }
         try {
           statsd = clientBuilder.build();
+          if (log.isDebugEnabled()) {
+            log.debug("StatsD connected to {}", statsDAddress());
+          }
         } catch (final Exception e) {
-          log.error("Unable to create StatsD client - {}", statsDAddress(host, port), e);
+          log.error("Unable to create StatsD client - {}", statsDAddress(), e);
+          if (retries.getAndIncrement() < MAX_RETRIES) {
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Scheduling StatsD connection in {} seconds - {}", RETRY_DELAY, statsDAddress());
+            }
+            AgentTaskScheduler.INSTANCE.scheduleWithJitter(
+                ConnectTask.INSTANCE, this, RETRY_DELAY, SECONDS);
+          } else {
+            log.debug("Max retries have been reached. Will not attempt again.");
+          }
         }
       }
     }
@@ -120,6 +138,10 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
   @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
   private void discoverConnectionSettings() {
+    if (namedPipe != null) {
+      return;
+    }
+
     if (null == host) {
       if (!Platform.isWindows() && new File(DEFAULT_DOGSTATSD_SOCKET_PATH).exists()) {
         log.info("Detected {}.  Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
@@ -129,6 +151,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         host = Config.get().getAgentHost();
       }
     }
+
     if (host.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
       host = host.substring(UNIX_DOMAIN_SOCKET_PREFIX.length());
       port = 0; // tells dogstatsd client to treat host as a socket path
@@ -143,7 +166,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     synchronized (this) {
       if (NO_OP != statsd && usingDefaultPort && newPort != port) {
         if (log.isDebugEnabled()) {
-          log.debug("Closing StatsD client - {}", statsDAddress(host, port));
+          log.debug("Closing StatsD client - {}", statsDAddress());
         }
         try {
           statsd.close();
@@ -160,12 +183,12 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     synchronized (this) {
       if (NO_OP != statsd && 0 == clientCount.get()) {
         if (log.isDebugEnabled()) {
-          log.debug("Closing StatsD client - {}", statsDAddress(host, port));
+          log.debug("Closing StatsD client - {}", statsDAddress());
         }
         try {
           statsd.close();
         } catch (final Exception e) {
-          log.debug("Problem closing StatsD client - {}", statsDAddress(host, port), e);
+          log.debug("Problem closing StatsD client - {}", statsDAddress(), e);
         } finally {
           statsd = NO_OP;
         }
@@ -173,7 +196,11 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     }
   }
 
-  private static String statsDAddress(final String host, final Integer port) {
+  private String statsDAddress() {
+    if (namedPipe != null) {
+      return namedPipe;
+    }
+
     return (null != host ? host : "<auto-detect>") + (null != port && port > 0 ? ":" + port : "");
   }
 
