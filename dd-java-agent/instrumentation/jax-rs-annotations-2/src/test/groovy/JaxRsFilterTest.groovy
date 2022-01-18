@@ -62,7 +62,7 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
           resourceName parentResourceName
           tags {
             "$Tags.COMPONENT" "jax-rs"
-            if (httpRoute && !abortNormal) {
+            if (httpRoute) {
               "$Tags.HTTP_ROUTE" httpRoute
             }
             defaultTags()
@@ -92,8 +92,8 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
     // Jersey returns "Test1.class
     // "/test/hello/bob"  | true        | false         | "POST /test/hello/{name}"  | "Test1.hello"                  | "Aborted"
 
-    "/test2/hello/bob" | true        | false         | "test.span" | "/test2/hello/{name}" | "Test2.hello"                  | "Aborted"
-    "/test3/hi/bob"    | true        | false         | "test.span"    | "/test3/hi/{name}" | "Test3.hello"                  | "Aborted"
+    "/test2/hello/bob" | true        | false         | "POST /test2/hello/{name}" | "/test2/hello/{name}" | "Test2.hello"                  | "Aborted"
+    "/test3/hi/bob"    | true        | false         | "POST /test3/hi/{name}"    | "/test3/hi/{name}" | "Test3.hello"                  | "Aborted"
     "/test/hello/bob"  | false       | true          | "test.span"                | null | "PrematchRequestFilter.filter" | "Aborted Prematch"
     "/test2/hello/bob" | false       | true          | "test.span"                | null | "PrematchRequestFilter.filter" | "Aborted Prematch"
     "/test3/hi/bob"    | false       | true          | "test.span"                | null | "PrematchRequestFilter.filter" | "Aborted Prematch"
