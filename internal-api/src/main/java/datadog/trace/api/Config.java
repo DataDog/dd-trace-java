@@ -73,6 +73,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
@@ -255,6 +256,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -418,6 +420,7 @@ public class Config {
   private final String appSecRulesFile;
   private final int appSecReportMinTimeout;
   private final int appSecReportMaxTimeout;
+  private final String appSecIpAddrHeader;
 
   private final boolean ciVisibilityEnabled;
 
@@ -883,6 +886,11 @@ public class Config {
     // Default AppSec report timeout min=5, max=60
     appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
     appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
+    String appSecIpAddrHeader = configProvider.getString(APPSEC_IP_ADDR_HEADER);
+    if (appSecIpAddrHeader != null) {
+      appSecIpAddrHeader = appSecIpAddrHeader.toLowerCase(Locale.ROOT);
+    }
+    this.appSecIpAddrHeader = appSecIpAddrHeader;
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1394,6 +1402,10 @@ public class Config {
 
   public int getAppSecReportMinTimeout() {
     return appSecReportMinTimeout;
+  }
+
+  public String getAppSecIpAddrHeader() {
+    return appSecIpAddrHeader;
   }
 
   public int getAppSecReportMaxTimeout() {

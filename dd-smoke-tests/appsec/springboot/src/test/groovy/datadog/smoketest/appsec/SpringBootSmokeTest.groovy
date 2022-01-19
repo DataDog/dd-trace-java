@@ -22,7 +22,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     String url = "http://localhost:${httpPort}/greeting"
     def request = new Request.Builder()
       .url(url)
-      . addHeader("User-Agent", "Arachni/v1")
+      .addHeader("User-Agent", "Arachni/v1")
+      .addHeader("Forwarded", 'for="[::ffff:1.2.3.4]"')
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
@@ -38,10 +39,10 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       doAndValidateRequest()
     })
     waitForTraceCount(200) == 200
-    appSecEvents.size() == 200
-    appSecEvents.forEach {
-      // TODO check some more parts of the reports
-      assert ((it.get("rule") as Map).get("tags") as Map).get("type") == "security_scanner"
+    rootSpans.size() == 200
+    rootSpans.collectMany {it.triggers }.forEach {
+      assert it['rule']['tags']['type'] == 'security_scanner'
     }
+    rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
   }
 }

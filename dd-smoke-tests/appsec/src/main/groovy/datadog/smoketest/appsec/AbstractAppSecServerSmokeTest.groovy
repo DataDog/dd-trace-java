@@ -1,6 +1,7 @@
 package datadog.smoketest.appsec
 
 import datadog.smoketest.AbstractServerSmokeTest
+import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.test.agent.decoder.Decoder
 import groovy.json.JsonSlurper
@@ -11,8 +12,29 @@ import java.util.concurrent.LinkedBlockingQueue
 
 abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
 
+  static class RootSpan {
+    DecodedSpan span
+
+    Map<String, String> getMeta() {
+      span.meta
+    }
+
+    List<Map<String, Object>> getTriggers() {
+      def appsecJSON = meta.get("_dd.appsec.json")
+      if (appsecJSON) {
+        JsonSlurper jsonParser = new JsonSlurper()
+        Map<String, Object> attack = jsonParser.parse(appsecJSON.toCharArray()) as Map
+        Map<String, Object> triggers = attack.get("triggers") as Map
+        if (triggers) {
+          return triggers
+        }
+      }
+      null
+    }
+  }
+
   @Shared
-  protected BlockingQueue<Map<String, Object>> appSecEvents = new LinkedBlockingQueue<>()
+  protected BlockingQueue<RootSpan> rootSpans = new LinkedBlockingQueue<>()
 
   @Shared
   protected String[] defaultAppSecProperties = [
@@ -25,27 +47,19 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   @Override
   Closure decodedTracesCallback() {
     return { List<DecodedTrace> tr ->
-      JsonSlurper jsonParser = new JsonSlurper()
       tr.forEach {
         // The appsec report json is on the root span
         def root = Decoder.sortByStart(it.spans).head()
-        def appsecJSON = root.meta.get("_dd.appsec.json")
-        if (appsecJSON) {
-          Map<String, Object> attack = jsonParser.parse(appsecJSON.toCharArray()) as Map
-          Map<String, Object> triggers = attack.get("triggers") as Map
-          if (triggers) {
-            appSecEvents.addAll(triggers)
-          }
-        }
+        rootSpans << new RootSpan(span: root)
       }
     }
   }
 
   def setup() {
-    appSecEvents.clear()
+    rootSpans.clear()
   }
 
   def cleanup() {
-    appSecEvents.clear()
+    rootSpans.clear()
   }
 }
