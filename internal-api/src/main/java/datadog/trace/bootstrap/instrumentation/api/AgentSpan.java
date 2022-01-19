@@ -158,6 +158,15 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
     Iterable<Map.Entry<String, String>> baggageItems();
 
+    /**
+     * Attaches a OT/OTel span context wrapper to the span context, only if it's not yet been
+     * attached. Used by TypeConverter.
+     */
+    void attachWrapper(Object wrapper);
+
+    /** Returns an attached OT/OTel span context wrapper or null. Used by TypeConverter. */
+    Object getWrapper();
+
     interface Extracted extends Context {
       String getForwarded();
 

@@ -787,6 +787,16 @@ public class AgentTracer {
     public String getForwardedPort() {
       return null;
     }
+
+    @Override
+    public void attachWrapper(Object wrapper) {
+      // ~
+    }
+
+    @Override
+    public Object getWrapper() {
+      return null;
+    }
   }
 
   public static class NoopAgentTrace implements AgentTrace {

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +104,11 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private final Object requestContextData;
 
   private final boolean disableSamplingMechanismValidation;
+
+  // cached OT wrapper
+  private volatile Object wrapper;
+  private static final AtomicReferenceFieldUpdater<DDSpanContext, Object> WRAPPER_FIELD_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(DDSpanContext.class, Object.class, "wrapper");
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
@@ -613,5 +619,15 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private DDSpanContext getTopContext() {
     DDSpan span = trace.getRootSpan();
     return null != span ? span.context() : this;
+  }
+
+  @Override
+  public void attachWrapper(Object wrapper) {
+    WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+  }
+
+  @Override
+  public Object getWrapper() {
+    return WRAPPER_FIELD_UPDATER.get(this);
   }
 }

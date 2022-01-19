@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import datadog.trace.api.DDId;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
@@ -13,6 +14,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final String origin;
   private final Map<String, String> tags;
   private Object requestContextData;
+
+  // cached OT wrapper
+  private volatile Object wrapper;
+  private static final AtomicReferenceFieldUpdater<TagContext, Object> WRAPPER_FIELD_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(TagContext.class, Object.class, "wrapper");
 
   public TagContext() {
     this(null, null);
@@ -83,5 +89,15 @@ public class TagContext implements AgentSpan.Context.Extracted {
   public final TagContext withRequestContextData(Object requestContextData) {
     this.requestContextData = requestContextData;
     return this;
+  }
+
+  @Override
+  public void attachWrapper(Object wrapper) {
+    WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+  }
+
+  @Override
+  public Object getWrapper() {
+    return WRAPPER_FIELD_UPDATER.get(this);
   }
 }

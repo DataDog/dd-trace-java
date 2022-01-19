@@ -43,7 +43,14 @@ public class TypeConverter {
     if (context == null) {
       return null;
     }
-    return new OtelSpanContext(context);
+    // check if a wrapper has already been created and attached to the agent span context
+    Object wrapper = context.getWrapper();
+    if (wrapper instanceof OtelSpanContext) {
+      return (OtelSpanContext) wrapper;
+    }
+    OtelSpanContext otelSpanContext = new OtelSpanContext(context);
+    context.attachWrapper(otelSpanContext);
+    return otelSpanContext;
   }
 
   public AgentSpan.Context toContext(final SpanContext spanContext) {
