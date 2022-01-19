@@ -44,8 +44,10 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
-      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }

@@ -55,6 +55,11 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<HttpServletResponse> responseGetter() {
+    return null;
+  }
+
+  @Override
   public CharSequence spanName() {
     return SPRING_HANDLER;
   }

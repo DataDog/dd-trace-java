@@ -90,6 +90,7 @@ class Jetty11Test extends HttpServerTest<Server> {
     ServerEndpoint endpoint = ServerEndpoint.forPath(request.requestURI)
     controller(endpoint) {
       response.contentType = "text/plain"
+      response.addHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
       switch (endpoint) {
         case SUCCESS:
           response.status = endpoint.status

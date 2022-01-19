@@ -15,10 +15,12 @@ import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTraceAsync;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.agent.test.base.HttpServerTest;
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 
 public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
@@ -35,6 +37,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     SUCCESS,
                     () ->
                         ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody())));
@@ -43,6 +46,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     FORWARDED,
                     () ->
                         ctx.response()
@@ -53,6 +57,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     QUERY_ENCODED_BOTH,
                     () ->
                         ctx.response()
@@ -63,6 +68,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     QUERY_ENCODED_QUERY,
                     () ->
                         ctx.response()
@@ -73,6 +79,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     QUERY_PARAM,
                     () ->
                         ctx.response()
@@ -83,6 +90,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     PATH_PARAM,
                     () ->
                         ctx.response()
@@ -93,6 +101,7 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     REDIRECT,
                     () ->
                         ctx.response()
@@ -104,11 +113,12 @@ public class VertxTestServer extends AbstractVerticle {
         .handler(
             ctx ->
                 controller(
+                    ctx,
                     ERROR,
                     () -> ctx.response().setStatusCode(ERROR.getStatus()).end(ERROR.getBody())));
     router
         .route(EXCEPTION.getPath())
-        .handler(ctx -> controller(EXCEPTION, VertxTestServer::exception));
+        .handler(ctx -> controller(ctx, EXCEPTION, VertxTestServer::exception));
 
     router = customizeAfterRoutes(router);
 
@@ -120,7 +130,7 @@ public class VertxTestServer extends AbstractVerticle {
 
   protected void customizeBeforeRoutes(Router router) {}
 
-  protected Router customizeAfterRoutes(Router router) {
+  protected Router customizeAfterRoutes(final Router router) {
     return router;
   }
 
@@ -128,9 +138,13 @@ public class VertxTestServer extends AbstractVerticle {
     throw new RuntimeException(EXCEPTION.getBody());
   }
 
-  private static void controller(final ServerEndpoint endpoint, final Runnable runnable) {
+  private static void controller(
+      RoutingContext ctx, final ServerEndpoint endpoint, final Runnable runnable) {
     assert activeSpan() != null : "Controller should have a parent span.";
     assert activeScope().isAsyncPropagating() : "Scope should be propagating async.";
+    ctx.response()
+        .putHeader(
+            HttpServerTest.getIG_RESPONSE_HEADER(), HttpServerTest.getIG_RESPONSE_HEADER_VALUE());
     if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       runnable.run();
       return;

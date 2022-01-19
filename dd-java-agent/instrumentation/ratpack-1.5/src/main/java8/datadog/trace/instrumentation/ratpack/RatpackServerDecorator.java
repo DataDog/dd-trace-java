@@ -38,6 +38,11 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+    return null;
+  }
+
+  @Override
   public CharSequence spanName() {
     return RATPACK_HANDLER;
   }

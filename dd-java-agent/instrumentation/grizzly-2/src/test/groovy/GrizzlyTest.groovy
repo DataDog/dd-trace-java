@@ -9,8 +9,12 @@ import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
+import javax.ws.rs.container.ContainerRequestContext
+import javax.ws.rs.container.ContainerResponseContext
+import javax.ws.rs.container.ContainerResponseFilter
 import javax.ws.rs.core.Response
 import javax.ws.rs.ext.ExceptionMapper
+import javax.ws.rs.ext.Provider
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -39,6 +43,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
       ResourceConfig rc = new ResourceConfig()
       rc.register(SimpleExceptionMapper)
       rc.register(resource())
+      rc.register(ResponseServerFilter)
       server = GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:0"), rc, false)
     }
 
@@ -155,6 +160,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
         throw new Exception(EXCEPTION.body)
       }
       return null
+    }
+  }
+
+  @Provider
+  static class ResponseServerFilter implements ContainerResponseFilter {
+    @Override
+    void filter(ContainerRequestContext requestContext,
+      ContainerResponseContext responseContext) throws IOException {
+      responseContext.getHeaders().add(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
     }
   }
 }

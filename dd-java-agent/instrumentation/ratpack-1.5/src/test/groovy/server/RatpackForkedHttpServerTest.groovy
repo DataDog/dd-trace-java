@@ -4,6 +4,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
+import ratpack.handling.HandlerDecorator
 
 import java.nio.charset.StandardCharsets
 
@@ -28,6 +29,7 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
       }
       bindings {
         bind TestErrorHandler
+        multiBindInstance(HandlerDecorator, HandlerDecorator.prepend(new ResponseHeaderDecorator()))
       }
       handlers {
         prefix(SUCCESS.relativeRawPath()) {

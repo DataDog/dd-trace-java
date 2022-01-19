@@ -7,6 +7,7 @@ import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
+import ratpack.handling.HandlerDecorator
 
 import java.nio.charset.StandardCharsets
 
@@ -31,6 +32,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
       }
       bindings {
         bind TestErrorHandler
+        multiBindInstance(HandlerDecorator, HandlerDecorator.prepend(new ResponseHeaderDecorator()))
       }
       handlers {
         prefix(SUCCESS.relativeRawPath()) {

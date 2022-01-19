@@ -1,6 +1,7 @@
 import com.twitter.finagle.http.{Request, Response}
 import com.twitter.finatra.http.Controller
 import com.twitter.util.Future
+import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.base.HttpServerTest.controller
 import groovy.lang.Closure
@@ -47,11 +48,19 @@ class FinatraController extends Controller {
   }
 
   any(QUERY_ENCODED_BOTH.getRawPath) { request: Request =>
-    controller(QUERY_ENCODED_BOTH, new Closure[Response](null) {
-      override def call(): Response = {
-        response.ok(QUERY_ENCODED_BOTH.getBody)
+    controller(
+      QUERY_ENCODED_BOTH,
+      new Closure[Response](null) {
+        override def call(): Response = {
+          response
+            .ok(QUERY_ENCODED_BOTH.getBody)
+            .header(
+              HttpServerTest.getIG_RESPONSE_HEADER,
+              HttpServerTest.getIG_RESPONSE_HEADER_VALUE
+            )
+        }
       }
-    })
+    )
   }
 
   any(EXCEPTION.getPath) { request: Request =>

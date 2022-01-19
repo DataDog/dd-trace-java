@@ -135,6 +135,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
           HttpResponsePacket.Builder builder = HttpResponsePacket.builder(request)
             .status(responseParameters.getStatus())
             .header("Content-Length", valueOf(responseParameters.getResponseBody().length))
+            .header(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
           responseParameters.fillHeaders(builder)
           HttpResponsePacket responsePacket = builder.build()
           controller(responseParameters.getEndpoint()) {

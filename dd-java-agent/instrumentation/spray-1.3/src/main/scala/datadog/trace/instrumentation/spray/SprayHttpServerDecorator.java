@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spray;
 
-import static datadog.trace.instrumentation.spray.SprayHeaders.GETTER;
+import static datadog.trace.instrumentation.spray.SprayHeaders.Request;
+import static datadog.trace.instrumentation.spray.SprayHeaders.Response;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -20,7 +21,12 @@ public class SprayHttpServerDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
-    return GETTER;
+    return Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+    return Response.GETTER;
   }
 
   @Override

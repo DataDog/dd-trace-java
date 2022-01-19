@@ -83,6 +83,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
+    ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
+    ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
   }
 
   @Shared
@@ -813,6 +815,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
+    extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
+
     when:
     def response = client.newCall(request).execute()
 
@@ -989,6 +993,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
+  static final String IG_RESPONSE_HEADER = "x-ig-response-header"
+  static final String IG_RESPONSE_HEADER_VALUE = "ig-response-header-value"
+  static final String IG_RESPONSE_HEADER_TAG = "ig-response-header"
 
   class IGCallbacks {
     static class Context {
@@ -997,6 +1004,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       String extraSpanName
       HashMap<String, String> tags = new HashMap<>()
       StoredBodySupplier requestBodySupplier
+      String responseEncoding
     }
 
     static final String stringOrEmpty(String string) {
@@ -1083,10 +1091,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
 
     final BiFunction<RequestContext<Context>, Integer, Flow<Void>> responseStartedCb =
-    { RequestContext<Context> rqCtxt, Integer resultCode ->
+    ({ RequestContext<Context> rqCtxt, Integer resultCode ->
       def context = rqCtxt.data
       context.tags.put(IG_RESPONSE_STATUS, String.valueOf(resultCode))
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext<Context>, Integer, Flow<Void>>
+    } as BiFunction<RequestContext<Context>, Integer, Flow<Void>>)
+
+    final TriConsumer<RequestContext<Context>, String, String> responseHeaderCb =
+    { RequestContext<Context> rqCtxt, String key, String value ->
+      def context = rqCtxt.data
+      if (IG_RESPONSE_HEADER.equalsIgnoreCase(key)) {
+        context.responseEncoding = stringOrEmpty(context.responseEncoding) + value
+      }
+    } as TriConsumer<RequestContext<Context>, String, String>
+
+    final Function<RequestContext<Context>, Flow<Void>> responseHeaderDoneCb =
+    ({ RequestContext<Context> rqCtxt ->
+      def context = rqCtxt.data
+      if (null != context.responseEncoding) {
+        context.tags.put(IG_RESPONSE_HEADER_TAG, context.responseEncoding)
+      }
+      Flow.ResultFlow.empty()
+    } as Function<RequestContext<Context>, Flow<Void>>)
   }
 }

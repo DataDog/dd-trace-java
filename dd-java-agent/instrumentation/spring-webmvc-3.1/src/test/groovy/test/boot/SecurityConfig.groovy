@@ -1,10 +1,12 @@
 package test.boot
 
+import datadog.trace.agent.test.base.HttpServerTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.security.web.header.writers.StaticHeadersWriter
 
 @Configuration
 @EnableWebSecurity
@@ -19,6 +21,9 @@ class SecurityConfig extends WebSecurityConfigurerAdapter {
       .and().formLogin()
       .and().authenticationProvider(applicationContext.getBean(SavingAuthenticationProvider))
       .csrf().disable()
+      .headers().addHeaderWriter(
+      new StaticHeadersWriter(HttpServerTest.IG_RESPONSE_HEADER,HttpServerTest.IG_RESPONSE_HEADER_VALUE)
+      )
   }
 
   @Bean
