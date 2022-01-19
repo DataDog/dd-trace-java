@@ -29,7 +29,7 @@ model {
 
 repositories {
   mavenCentral()
-  jcenter()
+  gradlePluginPortal()
   maven {
     name "lightbend-maven-releases"
     url "https://repo.lightbend.com/lightbend/maven-release"

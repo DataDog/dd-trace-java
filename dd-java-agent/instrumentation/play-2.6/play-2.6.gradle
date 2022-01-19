@@ -30,6 +30,10 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+repositories {
+  jcenter() // only place that has 'com.typesafe.netty:netty-http-pipelining:1.1.2' publically accessible (muzzle)
+}
+
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
