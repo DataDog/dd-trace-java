@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    group = "io.undertow"
+    module = "undertow-core"
+    versions = "[2.2.14.Final ,)"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.undertow', name: 'undertow-core', version: '2.0.0.Final'
+
+  testCompile group: 'io.undertow', name: 'undertow-core', version: '2.0.0.Final'
+
+  latestDepTestCompile group: 'io.undertow', name: 'undertow-core', version: '2.2+'
+}
