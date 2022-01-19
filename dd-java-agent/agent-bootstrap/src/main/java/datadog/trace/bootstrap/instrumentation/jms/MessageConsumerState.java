@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Tracks message spans when consuming messages with {@code receive}. */
@@ -21,12 +22,16 @@ public final class MessageConsumerState {
     this.consumerResourceName = consumerResourceName;
     this.propagationDisabled = propagationDisabled;
 
-    // use the destination as the service name, with no prefix
-    String brokerServiceName = brokerResourceName.toString();
-    if (brokerServiceName.startsWith("Queue ") || brokerServiceName.startsWith("Topic ")) {
-      this.brokerServiceName = brokerServiceName.substring(6);
+    if (Config.get().isMessageBrokerSplitByDestination()) {
+      // use the destination as the service name, with no prefix
+      String brokerServiceName = brokerResourceName.toString();
+      if (brokerServiceName.startsWith("Queue ") || brokerServiceName.startsWith("Topic ")) {
+        this.brokerServiceName = brokerServiceName.substring(6);
+      } else {
+        this.brokerServiceName = brokerServiceName;
+      }
     } else {
-      this.brokerServiceName = brokerServiceName;
+      this.brokerServiceName = "jms";
     }
   }
 

@@ -13,7 +13,7 @@ import javax.jms.Connection
 import javax.jms.Session
 import javax.jms.TextMessage
 
-class TimeInQueueForkedTest extends AgentTestRunner {
+abstract class TimeInQueueForkedTestBase extends AgentTestRunner {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
@@ -44,6 +44,8 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     injectSysConfig("jms.legacy.tracing.enabled", 'false')
     injectSysConfig(GeneralConfig.SERVICE_NAME, 'myService')
   }
+
+  abstract boolean splitByDestination()
 
   def setupSpec() {
     broker.start()
@@ -535,13 +537,13 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
-  static producerTrace(ListWriterAssert writer, String jmsResourceName) {
+  def producerTrace(ListWriterAssert writer, String jmsResourceName) {
     writer.trace(1) {
       producerSpan(it, jmsResourceName)
     }
   }
 
-  static producerSpan(TraceAssert traceAssert, String jmsResourceName) {
+  def producerSpan(TraceAssert traceAssert, String jmsResourceName) {
     return traceAssert.span {
       serviceName "myService"
       operationName "jms.produce"
@@ -559,14 +561,14 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+  def consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     writer.trace(2) {
       timeInQueueSpan(it, jmsResourceName, parentSpan)
       consumerSpan(it, jmsResourceName, span(0), isTimestampDisabled)
     }
   }
 
-  static consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+  def consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     return traceAssert.span {
       serviceName "myService"
       operationName "jms.consume"
@@ -587,9 +589,9 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     }
   }
 
-  static timeInQueueSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan) {
+  def timeInQueueSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan) {
     return traceAssert.span {
-      serviceName "${jmsResourceName.replaceFirst(/(Queue |Topic )/,'')}"
+      serviceName splitByDestination() ? "${jmsResourceName.replaceFirst(/(Queue |Topic )/,'')}" : "jms"
       operationName "jms.deliver"
       resourceName "$jmsResourceName"
       spanType DDSpanTypes.MESSAGE_BROKER
@@ -601,5 +603,25 @@ class TimeInQueueForkedTest extends AgentTestRunner {
         defaultTags(true)
       }
     }
+  }
+}
+
+class TimeInQueueForkedTest extends TimeInQueueForkedTestBase {
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+}
+
+class TimeInQueueSplitByDestinationForkedTest extends TimeInQueueForkedTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.message.broker.split-by-destination", "true")
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return true
   }
 }
