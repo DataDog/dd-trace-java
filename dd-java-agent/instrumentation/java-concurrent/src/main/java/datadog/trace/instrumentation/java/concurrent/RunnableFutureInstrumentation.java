@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
@@ -74,7 +75,9 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
         getClass().getName() + "$Construct");
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    transformation.applyAdvice(
+        isMethod().and(namedOneOf("cancel", "set", "setException")),
+        getClass().getName() + "$Cancel");
   }
 
   @Override
