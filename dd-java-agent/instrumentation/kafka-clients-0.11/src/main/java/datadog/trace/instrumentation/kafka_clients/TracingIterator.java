@@ -4,7 +4,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -52,11 +56,24 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
     try {
       closePrevious(true);
-      final AgentSpan span;
+      AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
-          span = startSpan(operationName, spanContext);
+          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
+          if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+            span = startSpan(operationName, spanContext);
+          } else {
+            queueSpan =
+                startSpan(
+                    KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+            BROKER_DECORATE.afterStart(queueSpan);
+            BROKER_DECORATE.onTimeInQueue(queueSpan, val);
+            span = startSpan(operationName, queueSpan.context());
+            BROKER_DECORATE.beforeFinish(queueSpan);
+            // The queueSpan will be finished after inner span has been activated to ensure that
+            // spans are written out together by TraceStructureWriter when running in strict mode
+          }
         } else {
           span = startSpan(operationName, null);
         }
@@ -66,6 +83,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         decorator.afterStart(span);
         decorator.onConsume(span, val);
         activateNext(span);
+        if (null != queueSpan) {
+          queueSpan.finish();
+        }
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);
