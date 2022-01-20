@@ -63,18 +63,29 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
   }
 
   public static final class Reject {
+    // remove our wrapper before calling the handler (save wrapper, so we can cancel it later)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static Wrapper<?> handle(
+        @Advice.Argument(readOnly = false, value = 0) Runnable runnable) {
+      if (runnable instanceof Wrapper) {
+        Wrapper<?> wrapper = (Wrapper<?>) runnable;
+        runnable = wrapper.unwrap();
+        return wrapper;
+      }
+      return null;
+    }
+
     // must execute after in case the handler actually runs the runnable,
     // which is preferable to cancelling the continuation
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void reject(@Advice.Argument(readOnly = false, value = 0) Runnable runnable) {
+    public static void reject(
+        @Advice.Enter Wrapper<?> wrapper, @Advice.Argument(value = 0) Runnable runnable) {
       // not handling rejected work (which will often not manifest in an exception being thrown)
       // leads to unclosed continuations when executors get busy
       // note that this does not handle rejection mechanisms used in Scala, so those need to be
       // handled another way
-      if (runnable instanceof Wrapper) {
-        Wrapper<?> wrapper = (Wrapper<?>) runnable;
+      if (null != wrapper) {
         wrapper.cancel();
-        runnable = wrapper.unwrap();
       } else {
         if (runnable instanceof RunnableFuture) {
           cancelTask(

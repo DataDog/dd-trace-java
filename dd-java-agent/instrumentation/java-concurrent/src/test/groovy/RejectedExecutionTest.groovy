@@ -9,6 +9,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.RejectedExecutionHandler
 import java.util.concurrent.ThreadPoolExecutor
@@ -91,6 +92,8 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     then:
     thrown RejectedExecutionException
+    // expected behaviour: rejected 'submit' returns wrapped FutureTask
+    rejectedExecutionHandler.rejected instanceof FutureTask
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.size() == 1
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -100,7 +103,30 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     where:
     // this test requires these throw
-    rejectedExecutionHandler << [new ThreadPoolExecutor.AbortPolicy()]
+    rejectedExecutionHandler << [new TestRejectedExecutionHandler()]
+  }
+
+  def "trace reported when live executor rejects work and throws with #rejectedExecutionHandler"() {
+    setup:
+    def testClosure = setupBackloggedExecutor(rejectedExecutionHandler, "execute")
+
+    when:
+    testClosure()
+
+    then:
+    thrown RejectedExecutionException
+    // expected behaviour: rejected 'execute' returns original unwrapped runnable
+    rejectedExecutionHandler.rejected instanceof JavaAsyncChild
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.size() == 1
+    List<DDSpan> trace = TEST_WRITER.get(0)
+    trace.size() == 1
+    trace.get(0).getOperationName() == "parent"
+
+
+    where:
+    // this test requires these throw
+    rejectedExecutionHandler << [new TestRejectedExecutionHandler()]
   }
 
   def "trace reported when live thread pool rejects and discards work with #rejectedExecutionHandler"() {
@@ -212,7 +238,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     }
   }
 
-  def setupBackloggedExecutor(RejectedExecutionHandler rejectedExecutionHandler) {
+  def setupBackloggedExecutor(RejectedExecutionHandler rejectedExecutionHandler, String method = "submit") {
     ExecutorService pool = new ThreadPoolExecutor(1,
       1,
       0L,
@@ -233,10 +259,24 @@ class RejectedExecutionTest extends AgentTestRunner {
         activeScope().setAsyncPropagation(true)
         // must be rejected because the queue will be full until some
         // time after the first task is released
-        pool.submit((Runnable) new JavaAsyncChild(true, false))
+        def testTask = new JavaAsyncChild(true, false)
+        if (method == "execute") {
+          pool.execute((Runnable) testTask)
+        } else {
+          pool.submit((Runnable) testTask)
+        }
         latch.countDown()
       }
     }
   }
 
+  static class TestRejectedExecutionHandler extends ThreadPoolExecutor.AbortPolicy {
+    Runnable rejected
+
+    @Override
+    void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+      rejected = r
+      super.rejectedExecution(r, executor)
+    }
+  }
 }
