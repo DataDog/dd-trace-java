@@ -28,6 +28,11 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+    return null;
+  }
+
+  @Override
   public CharSequence spanName() {
     return FINATRA_REQUEST;
   }

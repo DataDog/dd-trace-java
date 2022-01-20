@@ -103,6 +103,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               }
             };
       case REQUEST_HEADER_DONE_ID:
+      case RESPONSE_HEADER_DONE_ID:
         return (C)
             new Function<RequestContext, Flow<Void>>() {
               @Override
@@ -121,6 +122,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               }
             };
       case REQUEST_HEADER_ID:
+      case RESPONSE_HEADER_ID:
         return (C)
             new TriConsumer<RequestContext, String, String>() {
               @Override
@@ -206,13 +208,15 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
             };
       case RESPONSE_STARTED_ID:
         return (C)
-            new BiConsumer<RequestContext, Integer>() {
+            new BiFunction<RequestContext, Integer, Flow<Void>>() {
               @Override
-              public void accept(RequestContext ctx, Integer status) {
+              public Flow<Void> apply(RequestContext ctx, Integer status) {
                 try {
-                  ((BiConsumer<RequestContext, Integer>) callback).accept(ctx, status);
+                  return ((BiFunction<RequestContext, Integer, Flow<Void>>) callback)
+                      .apply(ctx, status);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
                 }
               }
             };

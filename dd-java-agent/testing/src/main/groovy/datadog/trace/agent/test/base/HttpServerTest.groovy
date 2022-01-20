@@ -8,7 +8,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
-import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
@@ -34,6 +33,7 @@ import spock.lang.Shared
 import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -83,6 +83,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
+    ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
+    ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
   }
 
   @Shared
@@ -229,6 +231,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testRequestBodyISVariant() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -242,6 +248,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
+    CREATED_IS("created_input_stream", 201, "created"),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -808,6 +815,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
+    extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
+
     when:
     def response = client.newCall(request).execute()
 
@@ -849,6 +858,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testRequestBody())
     def request = request(
       CREATED, 'POST',
+      RequestBody.create(MediaType.get('text/plain'), 'my body'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == 'created: my body'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body') == 'my body'
+    }
+  }
+
+  def 'test instrumentation gateway request body interception — InputStream variant'() {
+    setup:
+    assumeTrue(testRequestBodyISVariant())
+    def request = request(
+      CREATED_IS, 'POST',
       RequestBody.create(MediaType.get('text/plain'), 'my body'))
       .build()
     def response = client.newCall(request).execute()
@@ -963,6 +993,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
+  static final String IG_RESPONSE_HEADER = "x-ig-response-header"
+  static final String IG_RESPONSE_HEADER_VALUE = "ig-response-header-value"
+  static final String IG_RESPONSE_HEADER_TAG = "ig-response-header"
 
   class IGCallbacks {
     static class Context {
@@ -971,6 +1004,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       String extraSpanName
       HashMap<String, String> tags = new HashMap<>()
       StoredBodySupplier requestBodySupplier
+      String responseEncoding
     }
 
     static final String stringOrEmpty(String string) {
@@ -1056,10 +1090,28 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
 
-    final BiConsumer<RequestContext<Context>, Integer> responseStartedCb =
-    { RequestContext<Context> rqCtxt, Integer resultCode ->
+    final BiFunction<RequestContext<Context>, Integer, Flow<Void>> responseStartedCb =
+    ({ RequestContext<Context> rqCtxt, Integer resultCode ->
       def context = rqCtxt.data
       context.tags.put(IG_RESPONSE_STATUS, String.valueOf(resultCode))
-    } as BiConsumer<RequestContext<Context>, Integer>
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Integer, Flow<Void>>)
+
+    final TriConsumer<RequestContext<Context>, String, String> responseHeaderCb =
+    { RequestContext<Context> rqCtxt, String key, String value ->
+      def context = rqCtxt.data
+      if (IG_RESPONSE_HEADER.equalsIgnoreCase(key)) {
+        context.responseEncoding = stringOrEmpty(context.responseEncoding) + value
+      }
+    } as TriConsumer<RequestContext<Context>, String, String>
+
+    final Function<RequestContext<Context>, Flow<Void>> responseHeaderDoneCb =
+    ({ RequestContext<Context> rqCtxt ->
+      def context = rqCtxt.data
+      if (null != context.responseEncoding) {
+        context.tags.put(IG_RESPONSE_HEADER_TAG, context.responseEncoding)
+      }
+      Flow.ResultFlow.empty()
+    } as Function<RequestContext<Context>, Flow<Void>>)
   }
 }

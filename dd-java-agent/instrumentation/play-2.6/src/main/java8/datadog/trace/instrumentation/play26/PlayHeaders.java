@@ -7,48 +7,66 @@ import java.lang.invoke.MethodType;
 import java.util.List;
 import java.util.Map;
 import play.api.mvc.Headers;
+import scala.Tuple2;
+import scala.collection.Iterator;
 
-public class PlayHeaders implements AgentPropagation.ContextVisitor<Headers> {
+public final class PlayHeaders {
 
-  public static final PlayHeaders GETTER = new PlayHeaders();
+  public static final class Request implements AgentPropagation.ContextVisitor<Headers> {
+    private static final MethodHandle AS_MAP = asMap();
 
-  private static final MethodHandle AS_MAP = asMap();
+    public static final Request GETTER = new Request();
 
-  @Override
-  public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
-    Map<String, List<String>> map = toMap(carrier);
-    for (Map.Entry<String, List<String>> entry : map.entrySet()) {
-      List<String> values = entry.getValue();
-      if (!values.isEmpty() && !classifier.accept(entry.getKey(), values.get(0))) {
-        return;
+    @Override
+    public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
+      for (Map.Entry<String, List<String>> entry : toMap(carrier).entrySet()) {
+        List<String> values = entry.getValue();
+        if (!values.isEmpty() && !classifier.accept(entry.getKey(), values.get(0))) {
+          return;
+        }
       }
     }
-  }
 
-  @SuppressWarnings("unchecked")
-  private static Map<String, List<String>> toMap(Headers headers) {
-    if (null != AS_MAP) {
-      try {
-        return (Map<String, List<String>>) AS_MAP.invokeExact(headers);
-      } catch (Throwable ignore) {
+    @SuppressWarnings("unchecked")
+    protected static Map<String, List<String>> toMap(Headers headers) {
+      if (null != AS_MAP) {
+        try {
+          return (Map<String, List<String>>) AS_MAP.invokeExact(headers);
+        } catch (Throwable ignore) {
+        }
       }
+      return headers.asJava().toMap();
     }
-    return headers.asJava().toMap();
-  }
 
-  private static MethodHandle asMap() {
-    try {
-      // this is available in Play 2.8 and doesn't copy
-      return MethodHandles.lookup()
-          .findVirtual(Headers.class, "asMap", MethodType.methodType(Map.class));
-    } catch (NoSuchMethodException | IllegalAccessException findFallback) {
+    private static MethodHandle asMap() {
       try {
-        // this is available in Play 2.7 and doesn't copy
+        // this is available in Play 2.8 and doesn't copy
         return MethodHandles.lookup()
-            .findVirtual(Headers.class, "toMap", MethodType.methodType(Map.class));
-      } catch (NoSuchMethodException | IllegalAccessException giveup) {
+            .findVirtual(Headers.class, "asMap", MethodType.methodType(Map.class));
+      } catch (NoSuchMethodException | IllegalAccessException findFallback) {
+        try {
+          // this is available in Play 2.7 and doesn't copy
+          return MethodHandles.lookup()
+              .findVirtual(Headers.class, "toMap", MethodType.methodType(Map.class));
+        } catch (NoSuchMethodException | IllegalAccessException giveup) {
+        }
+        return null;
       }
     }
-    return null;
+  }
+
+  public static final class Result implements AgentPropagation.ContextVisitor<play.api.mvc.Result> {
+    public static final Result GETTER = new Result();
+
+    @Override
+    public void forEachKey(play.api.mvc.Result carrier, AgentPropagation.KeyClassifier classifier) {
+      Iterator<Tuple2<String, String>> iterator = carrier.header().headers().iterator();
+      while (iterator.hasNext()) {
+        Tuple2<String, String> entry = iterator.next();
+        if (!classifier.accept(entry._1, entry._2)) {
+          return;
+        }
+      }
+    }
   }
 }

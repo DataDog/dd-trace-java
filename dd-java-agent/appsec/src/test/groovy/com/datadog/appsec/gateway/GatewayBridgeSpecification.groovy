@@ -9,7 +9,6 @@ import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.Function
-import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.TraceSegment
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
@@ -59,7 +58,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
-  BiConsumer<RequestContext, Integer> responseStartedCB
+  BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -439,5 +438,18 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     bundle.get(KnownAddresses.REQUEST_SCHEME) == 'https'
+  }
+
+  void 'response_start produces appsec context and publishes event'() {
+    eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo
+
+    when:
+    Flow<AppSecRequestContext> flow = responseStartedCB.apply(ctx, 404)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    { NoopFlow.INSTANCE }
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
   }
 }

@@ -39,8 +39,10 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".GrizzlyDecorator",
-      packageName + ".GrizzlyRequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
       packageName + ".SpanClosingListener"
     };

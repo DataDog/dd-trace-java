@@ -24,6 +24,11 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   }
 
   @Override
+  boolean testRequestBodyISVariant() {
+    true
+  }
+
+  @Override
   URI buildAddress(int port) {
     if (dispatch) {
       return new URI("http://localhost:$port/$context/dispatch/")

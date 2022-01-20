@@ -28,7 +28,7 @@ AP_VERSION = AP_VERSION != null ? "${AP_VERSION}" : "${versions.asyncprofiler}"
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation group: "tools.profiler", name: "async-profiler", version: AP_VERSION, changing: AP_VERSION.toLowerCase().equals("snapshot")
+  implementation group: "tools.profiler", name: "async-profiler", version: AP_VERSION, changing: AP_VERSION.toLowerCase().contains("snapshot")
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation

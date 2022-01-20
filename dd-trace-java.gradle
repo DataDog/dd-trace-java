@@ -50,7 +50,7 @@ allprojects {
 repositories {
   mavenLocal()
   mavenCentral()
-  jcenter()
+  gradlePluginPortal()
 }
 
 tasks.register("latestDepTest")

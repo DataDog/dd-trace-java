@@ -209,7 +209,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
         mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/ReferenceMatcher");
         mv.visitInsn(Opcodes.DUP);
 
-        writeStrings(mv, instrumenter.helperClassNames());
+        writeStrings(mv, instrumenter.muzzleIgnoredClassNames());
 
         Reference[] references = generateReferences();
         mv.visitLdcInsn(references.length);

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.akkahttp;
 
-import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders.GETTER;
-
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -28,7 +26,12 @@ public class AkkaHttpServerDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
-    return GETTER;
+    return AkkaHttpServerHeaders.requestGetter();
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+    return AkkaHttpServerHeaders.responseGetter();
   }
 
   @Override

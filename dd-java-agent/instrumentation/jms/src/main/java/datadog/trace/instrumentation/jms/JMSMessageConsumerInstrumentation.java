@@ -12,6 +12,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -21,7 +22,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
@@ -128,7 +128,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         propagatedContext = propagate().extract(message, GETTER);
       }
       long startMillis = GETTER.extractTimeInQueueStart(message);
-      if (startMillis == 0 || Config.get().isJmsLegacyTracingEnabled()) {
+      if (startMillis == 0 || JMS_LEGACY_TRACING) {
         span = startSpan(JMS_CONSUME, propagatedContext);
       } else {
         long batchId = GETTER.extractMessageBatchId(message);
@@ -174,7 +174,9 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         closePrevious(finishSpan);
-        consumerState.finishTimeInQueueSpan(true);
+        if (finishSpan) {
+          consumerState.finishTimeInQueueSpan(true);
+        }
       }
     }
   }

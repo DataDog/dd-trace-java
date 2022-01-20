@@ -5,6 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -60,8 +61,19 @@ public class JMXFetch {
 
     String host = config.getJmxFetchStatsdHost();
     Integer port = config.getJmxFetchStatsdPort();
+    String namedPipe = config.getDogStatsDNamedPipe();
 
     if (log.isDebugEnabled()) {
+      String statsDConnectionString;
+      if (namedPipe == null) {
+        statsDConnectionString =
+            "statsd:"
+                + (null != host ? host : "<auto-detect>")
+                + (null != port && port > 0 ? ":" + port : "");
+      } else {
+        statsDConnectionString = "statsd:" + namedPipe;
+      }
+
       log.debug(
           "JMXFetch config: {} {} {} {} {} {} {} {} {}",
           jmxFetchConfigDir,
@@ -72,12 +84,10 @@ public class JMXFetch {
           initialRefreshBeansPeriod,
           refreshBeansPeriod,
           globalTags,
-          "statsd:"
-              + (null != host ? host : "<auto-detect>")
-              + (null != port && port > 0 ? ":" + port : ""));
+          statsDConnectionString);
     }
 
-    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, null, null);
+    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -96,6 +106,14 @@ public class JMXFetch {
             .globalTags(globalTags)
             .reporter(new AgentStatsdReporter(statsd));
 
+    if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
+      ServiceNameCollectingTraceInterceptor serviceNameProvider =
+          new ServiceNameCollectingTraceInterceptor();
+      GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
+
+      configBuilder.serviceNameProvider(serviceNameProvider);
+    }
+
     if (checkPeriod != null) {
       configBuilder.checkPeriod(checkPeriod);
     }
@@ -107,9 +125,10 @@ public class JMXFetch {
             new Runnable() {
               @Override
               public void run() {
+                App app = new App(appConfig);
                 while (true) {
                   try {
-                    final int result = App.run(appConfig);
+                    final int result = app.run();
                     log.error("jmx collector exited with result: " + result);
                   } catch (final Exception e) {
                     log.error("Exception in jmx collector thread", e);

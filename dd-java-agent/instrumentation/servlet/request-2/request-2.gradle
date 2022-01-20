@@ -3,6 +3,7 @@ muzzle {
     group = "javax.servlet"
     module = "servlet-api"
     versions = "[2.2, 3.0)"
+    skipVersions += '0' // broken version on jcenter
     assertInverse = true
   }
 

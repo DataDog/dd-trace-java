@@ -36,7 +36,6 @@ public abstract class BaseDecorator {
           },
           Functions.PrefixJoin.of("."));
 
-  protected final boolean endToEndDurationsEnabled;
   protected final boolean traceAnalyticsEnabled;
   protected final Double traceAnalyticsSampleRate;
 
@@ -49,9 +48,6 @@ public abstract class BaseDecorator {
                 traceAnalyticsDefault(), instrumentationNames);
     this.traceAnalyticsSampleRate =
         (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
-    this.endToEndDurationsEnabled =
-        instrumentationNames.length > 0
-            && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
   }
 
   protected abstract String[] instrumentationNames();
@@ -64,10 +60,6 @@ public abstract class BaseDecorator {
     return false;
   }
 
-  protected boolean endToEndDurationsDefault() {
-    return false;
-  }
-
   public AgentSpan afterStart(final AgentSpan span) {
     if (spanType() != null) {
       span.setSpanType(spanType());
@@ -75,9 +67,6 @@ public abstract class BaseDecorator {
     span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {
       span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
-    }
-    if (endToEndDurationsEnabled) {
-      span.beginEndToEnd();
     }
     return span;
   }

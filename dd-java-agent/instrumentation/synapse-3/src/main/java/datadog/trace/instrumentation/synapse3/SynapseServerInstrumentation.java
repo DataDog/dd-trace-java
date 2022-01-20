@@ -35,7 +35,10 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpRequestExtractAdapter", packageName + ".SynapseServerDecorator",
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
+      packageName + ".SynapseServerDecorator",
     };
   }
 

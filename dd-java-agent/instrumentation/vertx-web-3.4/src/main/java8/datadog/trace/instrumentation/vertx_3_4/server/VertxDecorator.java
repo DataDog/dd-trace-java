@@ -33,6 +33,11 @@ public class VertxDecorator
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<HttpServerResponse> responseGetter() {
+    return null;
+  }
+
+  @Override
   public CharSequence spanName() {
     return INSTRUMENTATION_NAME;
   }

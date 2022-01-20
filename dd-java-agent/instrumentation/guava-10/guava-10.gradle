@@ -3,6 +3,7 @@ muzzle {
     group = "com.google.guava"
     module = "guava"
     versions = "[10.0,]"
+    skipVersions += '13.0-final' // not on maven central
     assertInverse = true
   }
 }

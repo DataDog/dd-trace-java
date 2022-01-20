@@ -87,6 +87,7 @@ public class PowerWAFModule implements AppSecModule {
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_COOKIES);
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_PATH_PARAMS);
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_BODY_RAW);
+    ADDRESSES_OF_INTEREST.add(KnownAddresses.RESPONSE_STATUS);
 
     EVENTS_OF_INTEREST = new HashSet<>();
     EVENTS_OF_INTEREST.add(EventType.REQUEST_START);
@@ -279,22 +280,19 @@ public class PowerWAFModule implements AppSecModule {
 
     RuleInfo ruleInfo = rulesInfoMap.get(wafResult.rule.id);
 
-    AppSecEvent100 event =
-        new AppSecEvent100.AppSecEvent100Builder()
-            .withRule(
-                new Rule.RuleBuilder()
-                    .withId(wafResult.rule.id)
-                    .withName(ruleInfo.name)
-                    .withTags(
-                        new Tags.TagsBuilder()
-                            .withType(ruleInfo.tags.get("type"))
-                            .withCategory(ruleInfo.tags.get("category"))
-                            .build())
-                    .build())
-            .withRuleMatches(ruleMatchList)
-            .build();
-
-    return event;
+    return new AppSecEvent100.AppSecEvent100Builder()
+        .withRule(
+            new Rule.RuleBuilder()
+                .withId(wafResult.rule.id)
+                .withName(ruleInfo.name)
+                .withTags(
+                    new Tags.TagsBuilder()
+                        .withType(ruleInfo.tags.get("type"))
+                        .withCategory(ruleInfo.tags.get("category"))
+                        .build())
+                .build())
+        .withRuleMatches(ruleMatchList)
+        .build();
   }
 
   private static final class DataBundleMapWrapper implements Map<String, Object> {

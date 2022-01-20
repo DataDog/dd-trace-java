@@ -43,7 +43,9 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RequestExtractAdapter",
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".TomcatDecorator",
       packageName + ".RequestURIDataAdapter",
     };

@@ -206,6 +206,9 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (status == 404) {
       1 * span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
     }
+    if (resp) {
+      1 * span.getRequestContext()
+    }
     0 * _
 
     where:
@@ -251,6 +254,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         @Override
         protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
           return ContextVisitors.stringValuesMap()
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map> responseGetter() {
+          return null
         }
 
         @Override

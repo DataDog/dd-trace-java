@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.tomcat;
 
-import static datadog.trace.instrumentation.tomcat.RequestExtractAdapter.GETTER;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -33,7 +31,12 @@ public class TomcatDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<org.apache.coyote.Request> getter() {
-    return GETTER;
+    return ExtractAdapter.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+    return ExtractAdapter.Response.GETTER;
   }
 
   @Override

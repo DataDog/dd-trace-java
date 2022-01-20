@@ -818,7 +818,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
 
       return statsDClientManager()
-          .statsDClient(host, port, "datadog.tracer", generateConstantTags(config));
+          .statsDClient(
+              host,
+              port,
+              config.getDogStatsDNamedPipe(),
+              "datadog.tracer",
+              generateConstantTags(config));
     }
   }
 

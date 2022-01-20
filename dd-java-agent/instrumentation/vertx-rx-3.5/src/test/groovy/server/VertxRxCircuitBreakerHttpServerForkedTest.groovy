@@ -3,6 +3,7 @@ package server
 import datadog.trace.agent.test.base.HttpServerTest
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
+import io.vertx.reactivex.ext.web.RoutingContext
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
 import io.vertx.reactivex.core.AbstractVerticle
 import io.vertx.reactivex.ext.web.Router
@@ -53,7 +54,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(endpoint.body)
           }
         })
@@ -66,7 +67,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader("x-forwarded-for"))
           }
         })
@@ -79,7 +80,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(endpoint.bodyForQuery(ctx.request().query()))
           }
         })
@@ -92,7 +93,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(endpoint.bodyForQuery(ctx.request().query()))
           }
         })
@@ -105,7 +106,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(ctx.request().query())
           }
         })
@@ -118,7 +119,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(ctx.request().getParam("id"))
           }
         })
@@ -131,7 +132,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).putHeader("location", endpoint.body).end()
           }
         })
@@ -144,7 +145,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
             throw it.cause()
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
-          controller(endpoint) {
+          controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(endpoint.body)
           }
         })
@@ -155,7 +156,7 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
         }, {
           try {
             def cause = it.cause()
-            controller(EXCEPTION) {
+            controller(ctx, EXCEPTION) {
               throw cause
             }
           } catch (Exception ex) {
@@ -167,6 +168,11 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
       super.@vertx.createHttpServer()
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
+    }
+
+    static <T> T controller(RoutingContext ctx, HttpServerTest.ServerEndpoint endpoint, Closure<T> closure) {
+      ctx.response().putHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
+      controller(endpoint, closure)
     }
   }
 }

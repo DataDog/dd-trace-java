@@ -32,6 +32,20 @@ abstract class AbstractSmokeTest extends ProcessManager {
       prefix("/v0.4/traces") {
         def countString = request.getHeader("X-Datadog-Trace-Count")
         int count = countString != null ? Integer.parseInt(countString) : 0
+        def body = request.getBody()
+        if (body.length && decode) {
+          try {
+            DecodedMessage message = Decoder.decodeV04(body)
+            assert message.getTraces().size() == count
+            def traces = message.traces
+            decode(traces)
+            decodeTraces.addAll(traces)
+          } catch (Throwable t) {
+            println("=== Failure during message v0.4 decoding ===")
+            t.printStackTrace(System.out)
+            throw t
+          }
+        }
         traceCount.addAndGet(count)
         println("Received v0.4 traces: " + countString)
         response.status(200).send()
@@ -48,7 +62,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
             decode(traces)
             decodeTraces.addAll(traces)
           } catch (Throwable t) {
-            println("=== Failure during message decoding ===")
+            println("=== Failure during message v0.5 decoding ===")
             t.printStackTrace(System.out)
             throw t
           }

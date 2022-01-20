@@ -42,26 +42,21 @@ public final class TraceInstrumentationConfig {
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
 
-  public static final String AWS_PROPAGATION_ENABLED = "aws.propagation.enabled";
-  public static final String SQS_PROPAGATION_ENABLED = "sqs.propagation.enabled";
-
-  public static final String KAFKA_CLIENT_PROPAGATION_ENABLED = "kafka.client.propagation.enabled";
   public static final String KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS =
       "kafka.client.propagation.disabled.topics";
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       "kafka.client.base64.decoding.enabled";
 
-  public static final String JMS_LEGACY_TRACING_ENABLED = "jms.legacy.tracing.enabled";
-  public static final String JMS_PROPAGATION_ENABLED = "jms.propagation.enabled";
   public static final String JMS_PROPAGATION_DISABLED_TOPICS = "jms.propagation.disabled.topics";
   public static final String JMS_PROPAGATION_DISABLED_QUEUES = "jms.propagation.disabled.queues";
 
-  public static final String RABBIT_LEGACY_TRACING_ENABLED = "rabbit.legacy.tracing.enabled";
-  public static final String RABBIT_PROPAGATION_ENABLED = "rabbit.propagation.enabled";
   public static final String RABBIT_PROPAGATION_DISABLED_QUEUES =
       "rabbit.propagation.disabled.queues";
   public static final String RABBIT_PROPAGATION_DISABLED_EXCHANGES =
       "rabbit.propagation.disabled.exchanges";
+
+  public static final String MESSAGE_BROKER_SPLIT_BY_DESTINATION =
+      "message.broker.split-by-destination";
 
   public static final String GRPC_IGNORED_INBOUND_METHODS = "trace.grpc.ignored.inbound.methods";
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";

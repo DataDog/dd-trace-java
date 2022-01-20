@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-import static datadog.trace.instrumentation.play23.PlayHeaders.GETTER;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -14,11 +13,10 @@ import java.lang.reflect.UndeclaredThrowableException;
 import play.api.Routes;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
-import play.api.mvc.Result;
 import scala.Option;
 
 public class PlayHttpServerDecorator
-    extends HttpServerDecorator<Request, Request, Result, Headers> {
+    extends HttpServerDecorator<Request, Request, play.api.mvc.Result, Headers> {
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
@@ -36,7 +34,12 @@ public class PlayHttpServerDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<Headers> getter() {
-    return GETTER;
+    return PlayHeaders.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<play.api.mvc.Result> responseGetter() {
+    return PlayHeaders.Result.GETTER;
   }
 
   @Override
@@ -65,7 +68,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  protected int status(final Result httpResponse) {
+  protected int status(final play.api.mvc.Result httpResponse) {
     return httpResponse.header().status();
   }
 

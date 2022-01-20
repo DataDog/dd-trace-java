@@ -3,25 +3,24 @@ package datadog.trace.agent
 import datadog.trace.agent.test.IntegrationTestUtils
 import jvmbootstraptest.AgentLoadedChecker
 import jvmbootstraptest.JmxStartedChecker
-import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Timeout
 
 @Timeout(30)
 class JMXFetchTest extends Specification {
-  @Shared
   DatagramSocket jmxStatsSocket
 
-  def setupSpec() {
+  def setup() {
     jmxStatsSocket = new DatagramSocket(0)
+    jmxStatsSocket.setSoTimeout(30 * 1000)
   }
 
-  def cleanupSpec() {
+  def cleanup() {
     jmxStatsSocket.close()
   }
 
   def "test jmxfetch"() {
-    setup:
+    when:
     // verify that JMX starts and reports metrics through the given socket.
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
       , [
@@ -33,19 +32,22 @@ class JMXFetchTest extends Specification {
       , [:]
       , true)
 
+    then:
+    returnCode == 0
+
+    when:
     byte[] buf = new byte[1500]
     DatagramPacket packet = new DatagramPacket(buf, buf.length)
     jmxStatsSocket.receive(packet)
     String received = new String(packet.getData(), 0, packet.getLength())
     def tags = (received =~ /\|#(.*)/)[0][1].tokenize(',')
 
-    expect:
-    returnCode == 0
+    then:
     tags.contains("service:${JmxStartedChecker.getName()}" as String)
   }
 
   def "Agent loads when JmxFetch is misconfigured"() {
-    setup:
+    when:
     // verify the agent starts up correctly with a bogus address.
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(AgentLoadedChecker.getName()
       , [
@@ -57,7 +59,7 @@ class JMXFetchTest extends Specification {
       , [:]
       , true)
 
-    expect:
+    then:
     returnCode == 0
   }
 
@@ -67,6 +69,8 @@ class JMXFetchTest extends Specification {
       "-Ddd.jmxfetch.${it}.enabled=${enable}"
     }
     def testOutput = new ByteArrayOutputStream()
+
+    when:
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
       , [
         "-Ddd.jmxfetch.enabled=true",
@@ -88,7 +92,7 @@ class JMXFetchTest extends Specification {
       }
     }
 
-    expect:
+    then:
     returnCode == 0
     actualConfig as Set == expectedConfig as Set
 

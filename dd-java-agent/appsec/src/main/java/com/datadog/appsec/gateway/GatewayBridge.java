@@ -53,6 +53,7 @@ public class GatewayBridge {
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
   private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
+  private volatile EventProducerService.DataSubscriberInfo responseStatusSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService, EventProducerService producerService) {
@@ -181,9 +182,17 @@ public class GatewayBridge {
           ctx.setResponseStatus(status);
 
           MapDataBundle bundle =
-              MapDataBundle.of(KnownAddresses.RESPONSE_STATUS, ctx.getResponseStatus());
+              MapDataBundle.of(
+                  KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()));
 
           ctx.addAll(bundle);
+
+          if (responseStatusSubInfo == null) {
+            responseStatusSubInfo =
+                producerService.getDataSubscribers(KnownAddresses.RESPONSE_STATUS);
+          }
+
+          return producerService.publishDataEvent(responseStatusSubInfo, ctx, bundle, false);
         });
   }
 
@@ -332,11 +341,7 @@ public class GatewayBridge {
       String[] kv = QUERY_PARAM_VALUE_SPLITTER.split(keyValue, 2);
       String value = kv.length > 1 ? urlDecode(kv[1], uriEncoding, true) : "";
       String key = urlDecode(kv[0], uriEncoding, true);
-      List<String> strings = result.get(key);
-      if (strings == null) {
-        strings = new ArrayList<>(1);
-        result.put(key, strings);
-      }
+      List<String> strings = result.computeIfAbsent(key, k -> new ArrayList<>(1));
       strings.add(value);
     }
 

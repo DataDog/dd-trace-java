@@ -95,7 +95,7 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
                   response.setContent(responseContent)
                   break
               }
-              response.headers().set(CONTENT_TYPE, "text/plain")
+              response.headers().set(CONTENT_TYPE, "text/plain").set(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
               if (responseContent) {
                 response.headers().set(CONTENT_LENGTH, responseContent.readableBytes())
               }

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.grizzly;
 
-import static datadog.trace.instrumentation.grizzly.GrizzlyRequestExtractAdapter.GETTER;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -16,7 +14,12 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
 
   @Override
   protected AgentPropagation.ContextVisitor<Request> getter() {
-    return GETTER;
+    return ExtractAdapter.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+    return ExtractAdapter.Response.GETTER;
   }
 
   @Override

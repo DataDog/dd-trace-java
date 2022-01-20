@@ -23,7 +23,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   private final Handler<RoutingContext> actual;
 
   public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
-    log.info("Wrapping {}", handler.getClass().getName());
     actual = handler;
   }
 

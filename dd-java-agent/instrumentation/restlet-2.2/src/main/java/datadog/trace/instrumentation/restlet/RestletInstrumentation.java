@@ -40,8 +40,10 @@ public final class RestletInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RestletDecorator",
       packageName + ".RestletExtractAdapter",
+      packageName + ".RestletExtractAdapter$Request",
+      packageName + ".RestletExtractAdapter$Response",
+      packageName + ".RestletDecorator",
       packageName + ".HttpExchangeURIDataAdapter"
     };
   }

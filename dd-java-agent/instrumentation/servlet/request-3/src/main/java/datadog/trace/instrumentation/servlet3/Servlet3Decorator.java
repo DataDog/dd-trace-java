@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter.GETTER;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -32,7 +30,12 @@ public class Servlet3Decorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpServletRequest> getter() {
-    return GETTER;
+    return HttpServletExtractAdapter.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpServletResponse> responseGetter() {
+    return HttpServletExtractAdapter.Response.GETTER;
   }
 
   @Override

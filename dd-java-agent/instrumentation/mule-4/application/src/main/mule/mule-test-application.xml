@@ -18,7 +18,11 @@ http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/jav
   <flow name="MuleHttpServerTestFlow" doc:id="dd057d61-a178-4e1e-a7e6-1342814d46ab">
     <http:listener doc:name="Http Server Listener" doc:id="29f9ad26-4d9d-4d61-89e9-6cedf5518029"
       config-ref="HTTP_Listener_config" path="/*" outputMimeType="text/plain">
-      <http:response statusCode="#[vars.responseCode]" />
+      <http:response statusCode="#[vars.responseCode]">
+        <http:headers>
+          #[{"x-ig-response-header" : "ig-response-header-value"}]
+        </http:headers>
+      </http:response>
     </http:listener>
     <java:new doc:name="Create Handler" doc:id="b6048082-174a-4cd9-9a80-828feb53c47e"
       class="mule4.HttpServerTestHandler" target="onCallInstance" constructor="HttpServerTestHandler()" />

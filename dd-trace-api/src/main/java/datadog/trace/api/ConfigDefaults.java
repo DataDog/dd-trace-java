@@ -50,6 +50,8 @@ public final class ConfigDefaults {
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+  static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
+  static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
@@ -79,12 +81,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
-
-  static final boolean DEFAULT_AWS_PROPAGATION_ENABLED = true;
-  static final boolean DEFAULT_SQS_PROPAGATION_ENABLED = true;
-  static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
-  static final boolean DEFAULT_JMS_PROPAGATION_ENABLED = true;
-  static final boolean DEFAULT_RABBIT_PROPAGATION_ENABLED = true;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
