@@ -7,6 +7,7 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -66,10 +67,18 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
-      if (parent == parent.getLocalRootSpan()) {
+      if (parent.getLocalRootSpan().getResourceNamePriority()
+          < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
         parent.setTag(Tags.COMPONENT, "jax-rs");
+
+        // current handler is a filter
+        if (!httpMethodAndRoute.hasLeft()
+            && (!httpMethodAndRoute.hasRight() || httpMethodAndRoute.getRight().length() == 0)) {
+          return;
+        }
+
         HTTP_RESOURCE_DECORATOR.withRoute(
-            parent, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+            parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
       }
     }
   }

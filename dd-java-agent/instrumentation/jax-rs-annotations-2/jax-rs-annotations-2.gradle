@@ -23,6 +23,8 @@ testSets {
   resteasy31Test {
     dirName = 'test'
   }
+
+  nestedTest
 }
 
 dependencies {
@@ -36,8 +38,13 @@ dependencies {
   // Jersey
   // First version with DropwizardTestSupport:
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.8.0'
-  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.1'
   testImplementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: '2.9.10'
+
+  // Nested Resource Test fails Java 9+ without a xml impl
+  if (JavaVersion.current().isJava9Compatible()) {
+    nestedTestImplementation group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: '2.3.5'
+  }
 
   latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
 
@@ -53,6 +60,8 @@ dependencies {
   latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '+'
 }
 
+// These are only run with Java 8 on CI
 tasks.named("test").configure {
   dependsOn "resteasy31Test"
+  dependsOn "nestedTest"
 }
