@@ -363,8 +363,10 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentSpan implements AgentSpan {
+  public static final class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
+
+    private NoopAgentSpan() {}
 
     @Override
     public DDId getTraceId() {
@@ -574,7 +576,7 @@ public class AgentTracer {
     public boolean isSameTrace(final AgentSpan otherSpan) {
       // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
       // Not sure if this is the best idea...
-      return otherSpan instanceof NoopAgentSpan;
+      return otherSpan == INSTANCE;
     }
 
     @Override
@@ -644,12 +646,11 @@ public class AgentTracer {
     }
 
     @Override
-    public void attachWrapper(Object wrapper) {
-      // ~
-    }
+    public void attachWrapper(Object wrapper) {}
 
     @Override
     public Object getWrapper() {
+
       return null;
     }
   }
@@ -740,8 +741,10 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopContext implements Context.Extracted {
+  public static final class NoopContext implements Context.Extracted {
     public static final NoopContext INSTANCE = new NoopContext();
+
+    private NoopContext() {}
 
     @Override
     public DDId getTraceId() {

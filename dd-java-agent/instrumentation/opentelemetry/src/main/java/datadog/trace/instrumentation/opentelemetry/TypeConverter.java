@@ -9,7 +9,13 @@ import io.opentelemetry.trace.SpanContext;
 
 // Centralized place to do conversions
 public class TypeConverter {
-  // TODO maybe add caching to reduce new objects being created
+  private final Span noopSpanWrapper;
+  private final SpanContext noopContextWrapper;
+
+  public TypeConverter() {
+    noopSpanWrapper = new OtelSpan(AgentTracer.NoopAgentSpan.INSTANCE, this);
+    noopContextWrapper = new OtelSpanContext(AgentTracer.NoopContext.INSTANCE);
+  }
 
   public AgentSpan toAgentSpan(final Span span) {
     if (span instanceof OtelSpan) {
@@ -26,6 +32,10 @@ public class TypeConverter {
     Object wrapper = agentSpan.getWrapper();
     if (wrapper instanceof OtelSpan) {
       return (OtelSpan) wrapper;
+    }
+    // avoid a new Span wrapper allocation for a noop span
+    if (agentSpan == AgentTracer.NoopAgentSpan.INSTANCE) {
+      return noopSpanWrapper;
     }
     OtelSpan otSpan = new OtelSpan(agentSpan, this);
     agentSpan.attachWrapper(otSpan);
@@ -47,6 +57,10 @@ public class TypeConverter {
     Object wrapper = context.getWrapper();
     if (wrapper instanceof OtelSpanContext) {
       return (OtelSpanContext) wrapper;
+    }
+    // avoid a new SpanContext wrapper allocation for the noop context
+    if (context == AgentTracer.NoopContext.INSTANCE) {
+      return noopContextWrapper;
     }
     OtelSpanContext otelSpanContext = new OtelSpanContext(context);
     context.attachWrapper(otelSpanContext);

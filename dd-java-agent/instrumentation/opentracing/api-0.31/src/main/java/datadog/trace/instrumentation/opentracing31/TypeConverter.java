@@ -10,12 +10,14 @@ import io.opentracing.SpanContext;
 
 // Centralized place to do conversions
 public class TypeConverter {
-  // TODO maybe add caching to reduce new objects being created
-
   private final LogHandler logHandler;
+  private final OTSpan noopSpanWrapper;
+  private final OTSpanContext noopContextWrapper;
 
   public TypeConverter(final LogHandler logHandler) {
     this.logHandler = logHandler;
+    noopSpanWrapper = new OTSpan(AgentTracer.NoopAgentSpan.INSTANCE, this, logHandler);
+    noopContextWrapper = new OTSpanContext(AgentTracer.NoopContext.INSTANCE);
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -33,6 +35,10 @@ public class TypeConverter {
     Object wrapper = agentSpan.getWrapper();
     if (wrapper instanceof OTSpan) {
       return (OTSpan) wrapper;
+    }
+    // avoid a new OTSpan wrapper allocation for the noop span
+    if (agentSpan == AgentTracer.NoopAgentSpan.INSTANCE) {
+      return noopSpanWrapper;
     }
     OTSpan otSpan = new OTSpan(agentSpan, this, logHandler);
     agentSpan.attachWrapper(otSpan);
@@ -54,6 +60,10 @@ public class TypeConverter {
     Object wrapper = context.getWrapper();
     if (wrapper instanceof OTSpanContext) {
       return (OTSpanContext) wrapper;
+    }
+    // avoid a new SpanContext wrapper allocation for the noop context
+    if (context == AgentTracer.NoopContext.INSTANCE) {
+      return noopContextWrapper;
     }
     OTSpanContext otSpanContext = new OTSpanContext(context);
     context.attachWrapper(otSpanContext);
