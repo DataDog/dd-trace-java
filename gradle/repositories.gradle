@@ -15,5 +15,4 @@ repositories {
     url 'https://raw.githubusercontent.com/DataDog/async-profiler/maven2'
     name "GitHub - DD AsyncProfiler"
   }
-  jcenter()
 }
