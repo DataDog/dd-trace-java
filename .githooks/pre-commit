@@ -14,4 +14,4 @@ if ! ./gradlew spotlessCheck; then
 fi
 
 # Run Groovy code check
-./gradlew codenarcTest -PskipTests
+#./gradlew codenarcTest -PskipTests

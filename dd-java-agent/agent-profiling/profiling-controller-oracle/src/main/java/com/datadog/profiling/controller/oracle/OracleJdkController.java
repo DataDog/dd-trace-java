@@ -1,9 +1,11 @@
 package com.datadog.profiling.controller.oracle;
 
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
+
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
@@ -29,14 +31,16 @@ public final class OracleJdkController implements Controller {
    *
    * <p>This has to be public because it is created via reflection
    */
-  public OracleJdkController(@Nonnull final Config config) throws ConfigurationException {
+  public OracleJdkController(@Nonnull final ConfigProvider configProvider)
+      throws ConfigurationException {
     try {
       log.debug("Initializing Oracle JFR controller");
       helper = new JfrMBeanHelper();
       eventSettings =
           Collections.unmodifiableMap(
               JfpUtils.readJfpResources(
-                  JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile()));
+                  JfpUtils.DEFAULT_JFP,
+                  configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }

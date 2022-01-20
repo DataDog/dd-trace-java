@@ -4,7 +4,7 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingInputStream;
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -17,9 +17,9 @@ import jdk.jfr.consumer.RecordingFile;
 
 public class JfrHelper {
 
-  @SuppressWarnings("deprecation") // Config in datadog.trace.api has been deprecated
+  // Config in datadog.trace.api has been deprecated
   public static Object startRecording() throws Exception {
-    Controller controller = ControllerFactory.createController(Config.get());
+    Controller controller = ControllerFactory.createController(ConfigProvider.createDefault());
     return controller.createRecording("recording");
   }
 

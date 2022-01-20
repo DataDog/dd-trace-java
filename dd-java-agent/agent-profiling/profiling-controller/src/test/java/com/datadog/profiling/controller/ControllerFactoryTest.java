@@ -4,18 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.condition.JRE.JAVA_8;
 
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Note: some additional tests for this class are located in profiling-controller-openjdk module */
 @ExtendWith(MockitoExtension.class)
 public class ControllerFactoryTest {
-
-  @Mock private Config config;
 
   @Test
   @EnabledOnJre({JAVA_8})
@@ -24,7 +21,7 @@ public class ControllerFactoryTest {
         assertThrows(
             UnsupportedEnvironmentException.class,
             () -> {
-              ControllerFactory.createController(config);
+              ControllerFactory.createController(ConfigProvider.createDefault());
             });
     String expected =
         "Not enabling profiling; it requires OpenJDK 11+, Oracle Java 11+, or Zulu Java 8 (1.8.0_212+).";

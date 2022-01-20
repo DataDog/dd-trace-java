@@ -29,12 +29,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_AGENTLESS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
@@ -119,9 +117,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
@@ -132,7 +128,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
@@ -142,7 +138,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
@@ -390,8 +385,6 @@ public class Config {
   private final int traceRateLimit;
 
   private final boolean profilingEnabled;
-  private final boolean profilingAllocationEnabled;
-  private final boolean profilingHeapEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
@@ -399,7 +392,6 @@ public class Config {
   private final int profilingStartDelay;
   private final boolean profilingStartForceFirst;
   private final int profilingUploadPeriod;
-  private final String profilingTemplateOverrideFile;
   private final int profilingUploadTimeout;
   private final String profilingUploadCompression;
   private final String profilingProxyHost;
@@ -785,18 +777,12 @@ public class Config {
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
-
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
-    profilingAllocationEnabled =
-        configProvider.getBoolean(
-            PROFILING_ALLOCATION_ENABLED, DEFAULT_PROFILING_ALLOCATION_ENABLED);
-    profilingHeapEnabled =
-        configProvider.getBoolean(PROFILING_HEAP_ENABLED, DEFAULT_PROFILING_HEAP_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingLegacyTracingIntegrationEnabled =
@@ -842,7 +828,6 @@ public class Config {
         configProvider.getBoolean(PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
     profilingUploadPeriod =
         configProvider.getInteger(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
-    profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
     profilingUploadTimeout =
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
     profilingUploadCompression =
@@ -1304,14 +1289,6 @@ public class Config {
     return profilingEnabled;
   }
 
-  public boolean isProfilingAllocationEnabled() {
-    return profilingAllocationEnabled;
-  }
-
-  public boolean isProfilingHeapEnabled() {
-    return profilingHeapEnabled;
-  }
-
   public boolean isProfilingAgentless() {
     return profilingAgentless;
   }
@@ -1326,10 +1303,6 @@ public class Config {
 
   public int getProfilingUploadPeriod() {
     return profilingUploadPeriod;
-  }
-
-  public String getProfilingTemplateOverrideFile() {
-    return profilingTemplateOverrideFile;
   }
 
   public int getProfilingUploadTimeout() {
@@ -1787,7 +1760,7 @@ public class Config {
     } else if (profilingAgentless) {
       // when agentless profiling is turned on we send directly to our intake
       if (configProvider.getBoolean(
-          PROFILING_FORMAT_V2_4_ENABLED, DEFAULT_PROFILING_FORMAT_V2_4_ENABLED)) {
+          PROFILING_FORMAT_V2_4_ENABLED, PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)) {
         return "https://intake.profile." + site + "/api/v2/profile";
       }
       return "https://intake.profile." + site + "/v1/input";
@@ -2260,10 +2233,6 @@ public class Config {
         + traceRateLimit
         + ", profilingEnabled="
         + profilingEnabled
-        + ", profilingAllocationEnabled="
-        + profilingAllocationEnabled
-        + ", profilingHeapEnabled="
-        + profilingHeapEnabled
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
@@ -2277,9 +2246,6 @@ public class Config {
         + profilingStartForceFirst
         + ", profilingUploadPeriod="
         + profilingUploadPeriod
-        + ", profilingTemplateOverrideFile='"
-        + profilingTemplateOverrideFile
-        + '\''
         + ", profilingUploadTimeout="
         + profilingUploadTimeout
         + ", profilingUploadCompression='"

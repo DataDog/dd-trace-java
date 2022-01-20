@@ -36,6 +36,7 @@ public class ProfilingAgent {
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
+      final ConfigProvider configProvider = ConfigProvider.getInstance();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {
         log.debug("Profiling: not starting first");
         // early startup is disabled;
@@ -52,8 +53,7 @@ public class ProfilingAgent {
       }
 
       try {
-        final Controller controller = ControllerFactory.createController(config);
-        final ConfigProvider configProvider = ConfigProvider.getInstance();
+        final Controller controller = ControllerFactory.createController(configProvider);
 
         final ProfileUploader uploader = new ProfileUploader(config, configProvider);
 

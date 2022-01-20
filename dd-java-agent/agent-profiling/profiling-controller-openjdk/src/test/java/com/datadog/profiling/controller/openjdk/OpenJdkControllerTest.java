@@ -4,15 +4,15 @@ import static datadog.trace.api.Platform.isJavaVersion;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.when;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
-import datadog.trace.api.Config;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Properties;
 import jdk.jfr.Recording;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -20,12 +20,13 @@ public class OpenJdkControllerTest {
 
   private static final String TEST_NAME = "recording name";
 
-  @Mock private Config config;
-
   @Test
   public void testCreateContinuousRecording() throws Exception {
-    when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES);
-    OpenJdkController controller = new OpenJdkController(config);
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES);
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
@@ -37,7 +38,8 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testOldObjectSampleIsDisabledOnUnsupportedVersion() throws Exception {
-    OpenJdkController controller = new OpenJdkController(config);
+    ConfigProvider configProvider = ConfigProvider.createDefault();
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
@@ -55,9 +57,12 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testOldObjectSampleIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    when(config.getProfilingTemplateOverrideFile())
-        .thenReturn(JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
-    OpenJdkController controller = new OpenJdkController(config);
+    Properties props = new Properties();
+    props.put(
+        ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
@@ -74,8 +79,11 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testOldObjectSampleIsStillOverriddenThroughConfig() throws Exception {
-    when(config.isProfilingHeapEnabled()).thenReturn(true);
-    OpenJdkController controller = new OpenJdkController(config);
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, true);
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     try (final Recording recording =
         ((OpenJdkRecordingData) controller.createRecording(TEST_NAME).stop()).getRecording()) {
       assertEquals(
@@ -85,7 +93,9 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testObjectAllocationIsDisabledOnUnsupportedVersion() throws Exception {
-    OpenJdkController controller = new OpenJdkController(config);
+    ConfigProvider configProvider = ConfigProvider.createDefault();
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
@@ -104,9 +114,12 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testObjectAllocationIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    when(config.getProfilingTemplateOverrideFile())
-        .thenReturn(JfpUtilsTest.OVERRIDES_OBJECT_ALLOCATION);
-    OpenJdkController controller = new OpenJdkController(config);
+    Properties props = new Properties();
+    props.put(
+        ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_OBJECT_ALLOCATION);
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
@@ -125,8 +138,11 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testObjectAllocationIsStillOverriddenThroughConfig() throws Exception {
-    when(config.isProfilingAllocationEnabled()).thenReturn(true);
-    OpenJdkController controller = new OpenJdkController(config);
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_ALLOCATION_ENABLED, true);
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     try (final Recording recording =
         ((OpenJdkRecordingData) controller.createRecording(TEST_NAME).stop()).getRecording()) {
       assertEquals(
@@ -142,7 +158,9 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testNativeMethodSampleIsDisabledOnUnsupportedVersion() throws Exception {
-    OpenJdkController controller = new OpenJdkController(config);
+    ConfigProvider configProvider = ConfigProvider.createDefault();
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
@@ -156,9 +174,13 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testNativeMethodSampleIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    when(config.getProfilingTemplateOverrideFile())
-        .thenReturn(JfpUtilsTest.OVERRIDES_NATIVE_METHOD_SAMPLE);
-    OpenJdkController controller = new OpenJdkController(config);
+    Properties props = new Properties();
+    props.put(
+        ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE,
+        JfpUtilsTest.OVERRIDES_NATIVE_METHOD_SAMPLE);
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
     RecordingData data = controller.createRecording(TEST_NAME).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {

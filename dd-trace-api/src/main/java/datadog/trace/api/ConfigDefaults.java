@@ -62,8 +62,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
   static final boolean DEFAULT_PROFILING_ENABLED = false;
-  static final boolean DEFAULT_PROFILING_ALLOCATION_ENABLED = false;
-  static final boolean DEFAULT_PROFILING_HEAP_ENABLED = false;
   static final int DEFAULT_PROFILING_START_DELAY = 10;
   static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
   static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min

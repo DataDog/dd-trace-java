@@ -17,12 +17,16 @@ package com.datadog.profiling.controller.openjdk;
 
 import static datadog.trace.api.Platform.isJavaVersion;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
-import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -51,7 +55,7 @@ public final class OpenJdkController implements Controller {
    * <p>This has to be public because it is created via reflection
    */
   @SuppressForbidden
-  public OpenJdkController(final Config config)
+  public OpenJdkController(final ConfigProvider configProvider)
       throws ConfigurationException, ClassNotFoundException {
     // Make sure we can load JFR classes before declaring that we have successfully created
     // factory and can use it.
@@ -105,14 +109,15 @@ public final class OpenJdkController implements Controller {
 
     try {
       recordingSettings.putAll(
-          JfpUtils.readOverrideJfpResource(config.getProfilingTemplateOverrideFile()));
+          JfpUtils.readOverrideJfpResource(
+              configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
 
     // Toggle settings from config
 
-    if (config.isProfilingHeapEnabled()) {
+    if (configProvider.getBoolean(PROFILING_HEAP_ENABLED, PROFILING_HEAP_ENABLED_DEFAULT)) {
       if (!Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
         if (((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
             || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
@@ -128,7 +133,8 @@ public final class OpenJdkController implements Controller {
       recordingSettings.put("jdk.OldObjectSample#enabled", "true");
     }
 
-    if (config.isProfilingAllocationEnabled()) {
+    if (configProvider.getBoolean(
+        PROFILING_ALLOCATION_ENABLED, PROFILING_ALLOCATION_ENABLED_DEFAULT)) {
       if (!Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationInNewTLAB#enabled"))
           || !Boolean.parseBoolean(
               recordingSettings.get("jdk.ObjectAllocationOutsideTLAB#enabled"))) {

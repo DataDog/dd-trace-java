@@ -1,8 +1,11 @@
 package com.datadog.profiling.controller.oracle;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,7 +16,7 @@ class OracleJdkControllerTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new OracleJdkController(Config.get());
+    instance = new OracleJdkController(ConfigProvider.getInstance());
   }
 
   @Test

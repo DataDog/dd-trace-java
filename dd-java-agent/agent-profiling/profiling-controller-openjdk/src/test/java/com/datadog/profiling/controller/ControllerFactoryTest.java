@@ -2,18 +2,16 @@ package com.datadog.profiling.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class ControllerFactoryTest {
-
-  @Mock private Config config;
 
   /**
    * We assume that tests for this module are run only on JVMs that support JFR. Ideally we would
@@ -26,17 +24,21 @@ public class ControllerFactoryTest {
       throws UnsupportedEnvironmentException, ConfigurationException {
     assertEquals(
         "com.datadog.profiling.controller.openjdk.OpenJdkController",
-        ControllerFactory.createController(config).getClass().getName());
+        ControllerFactory.createController(ConfigProvider.createDefault()).getClass().getName());
   }
 
   @Test
   public void testConfigurationException() {
-    when(config.getProfilingTemplateOverrideFile())
-        .thenReturn("some-path-that-is-not-supposed-to-exist!!!");
+    Properties props = new Properties();
+    props.put(
+        ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE,
+        "some-path-that-is-not-supposed-to-exist!!!");
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
     assertThrows(
         ConfigurationException.class,
         () -> {
-          ControllerFactory.createController(config);
+          ControllerFactory.createController(configProvider);
         });
   }
 }

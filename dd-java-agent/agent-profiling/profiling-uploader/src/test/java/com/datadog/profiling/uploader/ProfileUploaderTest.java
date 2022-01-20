@@ -15,8 +15,8 @@
  */
 package com.datadog.profiling.uploader;
 
-import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -153,7 +153,7 @@ public class ProfileUploaderTest {
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
     when(configProvider.getBoolean(
-            eq(PROFILING_FORMAT_V2_4_ENABLED), eq(DEFAULT_PROFILING_FORMAT_V2_4_ENABLED)))
+            eq(PROFILING_FORMAT_V2_4_ENABLED), eq(PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)))
         .thenReturn(false);
 
     uploader =
@@ -180,7 +180,7 @@ public class ProfileUploaderTest {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     when(configProvider.getBoolean(
-            eq(PROFILING_FORMAT_V2_4_ENABLED), eq(DEFAULT_PROFILING_FORMAT_V2_4_ENABLED)))
+            eq(PROFILING_FORMAT_V2_4_ENABLED), eq(PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)))
         .thenReturn(true);
 
     // When
