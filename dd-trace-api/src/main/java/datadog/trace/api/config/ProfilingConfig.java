@@ -8,6 +8,7 @@ package datadog.trace.api.config;
  */
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
+  public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
   public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = false;
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
@@ -26,6 +27,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_TEMPLATE_DEFAULT = "default";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
+  public static final int PROFILING_START_DELAY_DEFAULT = 10;
   // DANGEROUS! May lead on sigsegv on JVMs before 14
   // Not intended for production use
   public static final String PROFILING_START_FORCE_FIRST =
@@ -41,6 +43,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_UPLOAD_COMPRESSION_DEFAULT = "on";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
+  public static final int PROFILING_PROXY_PORT_DEFAULT = 8080;
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
@@ -97,13 +100,14 @@ public final class ProfilingConfig {
   public static final int PROFILING_JFR_REPOSITORY_MAXSIZE_DEFAULT =
       64 * 1024 * 1024; // 64MB default
 
+  public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
+  public static final boolean PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT = false;
+  public static final String PROFILING_FORMAT_V2_4_ENABLED = "profiling.format.v4.enabled";
+  public static final boolean PROFILING_FORMAT_V2_4_ENABLED_DEFAULT = false;
+
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
-
-  public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
-  public static final String PROFILING_FORMAT_V2_4_ENABLED = "profiling.format.v4.enabled";
-
-  public static final boolean DEFAULT_PROFILING_FORMAT_V2_4_ENABLED = false;
+  public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
 
   private ProfilingConfig() {}
 }
