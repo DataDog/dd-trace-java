@@ -2,7 +2,16 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
+import io.undertow.util.Headers
+import io.undertow.util.StatusCodes
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class UndertowTest extends HttpServerTest<Undertow> {
@@ -15,8 +24,50 @@ class UndertowTest extends HttpServerTest<Undertow> {
         .addHttpListener(port, "localhost")
         .setHandler(Handlers.path()
           .addExactPath(SUCCESS.getRawPath()) { exchange ->
-            exchange.getResponseSender().send(SUCCESS.body)
-          }).build();
+            controller(SUCCESS) {
+              exchange.getResponseSender().send(SUCCESS.body)
+            }
+          }
+          .addExactPath(FORWARDED.getRawPath()) { exchange ->
+            controller(FORWARDED) {
+              exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
+            }
+          }
+          .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
+            controller(QUERY_ENCODED_BOTH) {
+              exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
+            }
+          }
+          .addExactPath(QUERY_ENCODED_QUERY.getRawPath()) { exchange ->
+            controller(QUERY_ENCODED_QUERY) {
+              exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
+            }
+          }
+          .addExactPath(QUERY_PARAM.getRawPath()) { exchange ->
+            controller(QUERY_PARAM) {
+              exchange.getResponseSender().send(exchange.getQueryString())
+            }
+          }
+          .addExactPath(REDIRECT.getRawPath()) { exchange ->
+            controller(REDIRECT) {
+              exchange.setStatusCode(StatusCodes.FOUND)
+              exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
+              exchange.endExchange()
+            }
+          }
+          .addExactPath(ERROR.getRawPath()) { exchange ->
+            controller(ERROR) {
+              exchange.setStatusCode(ERROR.status)
+              exchange.getResponseSender().send(ERROR.body)
+            }
+          }
+          .addExactPath(EXCEPTION.getRawPath()) { exchange ->
+            controller(EXCEPTION) {
+              throw new Exception(EXCEPTION.body)
+            }
+          }
+
+        ).build();
     }
 
     @Override
@@ -43,87 +94,21 @@ class UndertowTest extends HttpServerTest<Undertow> {
     return new UndertowServer();
   }
 
-//  @Override
-//  Undertow startServer(int port) {
-//    Undertow server = Undertow.builder()
-//      .addHttpListener(port, "localhost")
-//      .setHandler(Handlers.path()
-//        .addExactPath(SUCCESS.getRawPath()) { exchange ->
-//          controller(SUCCESS) {
-//            exchange.getResponseSender().send(SUCCESS.body)
-//          }
-//        }
-////        .addExactPath(QUERY_PARAM.rawPath()) { exchange ->
-////          controller(QUERY_PARAM) {
-////            exchange.getResponseSender().send(exchange.getQueryString())
-////          }
-////        }
-////        .addExactPath(REDIRECT.rawPath()) { exchange ->
-////          controller(REDIRECT) {
-////            exchange.setStatusCode(StatusCodes.FOUND)
-////            exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
-////            exchange.endExchange()
-////          }
-////        }
-////        .addExactPath(CAPTURE_HEADERS.rawPath()) { exchange ->
-////          controller(CAPTURE_HEADERS) {
-////            exchange.setStatusCode(StatusCodes.OK)
-////            exchange.getResponseHeaders().put(new HttpString("X-Test-Response"), exchange.getRequestHeaders().getFirst("X-Test-Request"))
-////            exchange.getResponseSender().send(CAPTURE_HEADERS.body)
-////          }
-////        }
-////        .addExactPath(ERROR.getRawPath()) { exchange ->
-////          controller(ERROR) {
-////            exchange.setStatusCode(ERROR.status)
-////            exchange.getResponseSender().send(ERROR.body)
-////          }
-////        }
-////        .addExactPath(EXCEPTION.rawPath()) { exchange ->
-////          controller(EXCEPTION) {
-////            throw new Exception(EXCEPTION.body)
-////          }
-////        }
-////        .addExactPath(INDEXED_CHILD.rawPath()) { exchange ->
-////          controller(INDEXED_CHILD) {
-////            INDEXED_CHILD.collectSpanAttributes { name -> exchange.getQueryParameters().get(name).peekFirst() }
-////            exchange.getResponseSender().send(INDEXED_CHILD.body)
-////          }
-////        }
-////        .addExactPath("sendResponse") { exchange ->
-////          Span.current().addEvent("before-event")
-////          runWithSpan("sendResponse") {
-////            exchange.setStatusCode(StatusCodes.OK)
-////            exchange.getResponseSender().send("sendResponse")
-////          }
-////          // event is added only when server span has not been ended
-////          // we need to make sure that sending response does not end server span
-////          Span.current().addEvent("after-event")
-////        }
-////        .addExactPath("sendResponseWithException") { exchange ->
-////          Span.current().addEvent("before-event")
-////          runWithSpan("sendResponseWithException") {
-////            exchange.setStatusCode(StatusCodes.OK)
-////            exchange.getResponseSender().send("sendResponseWithException")
-////          }
-////          // event is added only when server span has not been ended
-////          // we need to make sure that sending response does not end server span
-////          Span.current().addEvent("after-event")
-////          throw new Exception("exception after sending response")
-////        }
-//      ).build()
-//    server.start()
-//    return server
-//  }
-
   @Override
   String component() {
-    return null;
+    return 'undertow-http-server';
   }
 
   @Override
   String expectedOperationName() {
-    return null
+    return 'undertow-http.request';
   }
+
+  @Override
+  boolean testExceptionBody() {
+    false
+  }
+
 
 //  def "test send response"() {
 //    setup:

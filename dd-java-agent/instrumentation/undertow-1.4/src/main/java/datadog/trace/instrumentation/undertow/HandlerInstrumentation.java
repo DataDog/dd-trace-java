@@ -12,7 +12,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -53,31 +53,35 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing {
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpServerExchange exchange) {
 
-      Object existingSpan = exchange.getRequestHeaders().get(DD_SPAN_ATTRIBUTE);
-      if (existingSpan instanceof AgentSpan) {
+      AgentSpan existingSpan = exchange.getAttachment(DD_SPAN_ATTRIBUTE);
+
+      if (existingSpan != null) {
         // Request already gone through initial processing, so just activate the span.
-        ((AgentSpan) existingSpan).finishThreadMigration();
-        return activateSpan((AgentSpan) existingSpan);
+        existingSpan.finishThreadMigration();
+        return activateSpan(existingSpan);
       }
 
-      System.err.println("exchange: " + exchange);
-      System.err.println("Undertow handler");
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
       final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
-      // The openTelemetry implementation does some confusing stuff that I don't know how to
-      // replicate.
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
 
-      return null;
+      exchange.putAttachment(DD_SPAN_ATTRIBUTE, span);
+
+      exchange.addExchangeCompleteListener(new ExchangeEndSpanListener(span));
+
+      // request may be processed on any thread; signal thread migration
+      span.startThreadMigration();
+      return scope;
     }
 
-    //    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    //    public static void onExit(
-    //        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-    //      DECORATE.onError(scope.span(), throwable);
-    //      DECORATE.beforeFinish(scope.span());
-    //      scope.close();
-    //      scope.span().finish();
-    //    }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void closeScope(@Advice.Enter final AgentScope scope) {
+      scope.span().finishWork();
+      scope.close();
+    }
   }
 }

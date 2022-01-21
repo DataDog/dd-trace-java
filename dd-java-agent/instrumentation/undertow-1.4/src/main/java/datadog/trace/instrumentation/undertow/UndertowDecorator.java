@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.undertow;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.util.AttachmentKey;
 
 import static datadog.trace.instrumentation.undertow.UndertowExtractAdapter.GETTER;
 
@@ -16,6 +18,8 @@ public class UndertowDecorator
   public static final CharSequence UNDERTOW_HTTP_SERVER =
       UTF8BytesString.create("undertow-http-server");
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
+  public static final AttachmentKey<AgentSpan> DD_SPAN_ATTRIBUTE =
+      AttachmentKey.create(AgentSpan.class);
 
   @Override
   protected String[] instrumentationNames() {
