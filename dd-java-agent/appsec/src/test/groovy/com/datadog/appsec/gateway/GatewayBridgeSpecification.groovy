@@ -48,7 +48,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null)
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -90,6 +90,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
+    1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
     1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
@@ -97,9 +98,30 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('appsec.event', true)
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
+    1 * traceSegment.setTagTop('network.client.ip', '2001::1')
+    0 * traceSegment._(*_)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'actor ip calculated from headers'() {
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> [
+      'x-real-ip': ['10.0.0.1'],
+      forwarded: ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
+    ]
+    RequestContext mockCtx = Mock(RequestContext) {
+      getData() >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+
+    when:
+    requestEndedCB.apply(mockCtx, Mock(IGSpanInfo))
+
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
+    1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
   void 'bridge can collect headers'() {

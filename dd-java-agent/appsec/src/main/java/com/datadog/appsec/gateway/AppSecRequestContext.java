@@ -32,6 +32,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "forwarded-for",
               "forwarded",
               "via",
+              "client-ip",
               "true-client-ip",
               "content-length",
               "content-type",

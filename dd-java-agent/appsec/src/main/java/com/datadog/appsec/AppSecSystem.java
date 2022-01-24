@@ -59,7 +59,8 @@ public class AppSecSystem {
 
     EventDispatcher eventDispatcher = new EventDispatcher();
     sco.createRemaining(config);
-    GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher);
+    GatewayBridge gatewayBridge =
+        new GatewayBridge(gw, eventDispatcher, config.getAppSecIpAddrHeader());
 
     loadModules(eventDispatcher);
     gatewayBridge.init();

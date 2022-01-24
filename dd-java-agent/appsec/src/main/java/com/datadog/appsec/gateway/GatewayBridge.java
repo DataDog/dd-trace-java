@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.Strings;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -49,6 +50,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
+  private final String ipAddrHeader;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
@@ -56,9 +58,12 @@ public class GatewayBridge {
   private volatile EventProducerService.DataSubscriberInfo responseStatusSubInfo;
 
   public GatewayBridge(
-      SubscriptionService subscriptionService, EventProducerService producerService) {
+      SubscriptionService subscriptionService,
+      EventProducerService producerService,
+      String appSecIpAddrHeader) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
+    this.ipAddrHeader = appSecIpAddrHeader;
   }
 
   public void init() {
@@ -99,21 +104,27 @@ public class GatewayBridge {
               traceSeg.setTagTop("appsec.event", true);
               traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
+              Map<String, List<String>> requestHeaders = ctx.getRequestHeaders();
+              InetAddress inferredAddr =
+                  ClientIpAddressResolver.doResolve(this.ipAddrHeader, requestHeaders);
+              if (inferredAddr != null) {
+                traceSeg.setTagTop("actor.ip", inferredAddr.getHostAddress());
+              }
+
               // Report AppSec events via "_dd.appsec.json" tag
               AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
               traceSeg.setDataTop("appsec", wrapper);
 
               // Report collected request headers based on allow list
-              ctx.getRequestHeaders()
-                  .forEach(
-                      (name, value) -> {
-                        if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
-                          String v = Strings.join(",", value);
-                          if (!v.isEmpty()) {
-                            traceSeg.setTagTop("http.request.headers." + name, v);
-                          }
-                        }
-                      });
+              requestHeaders.forEach(
+                  (name, value) -> {
+                    if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
+                      String v = Strings.join(",", value);
+                      if (!v.isEmpty()) {
+                        traceSeg.setTagTop("http.request.headers." + name, v);
+                      }
+                    }
+                  });
             }
           }
 
