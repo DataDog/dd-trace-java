@@ -17,7 +17,6 @@ import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_AT
 public class ChannelRead0Advice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beginRequest(@Advice.Argument(1) final HttpRequest<?> request) {
-    System.err.println("Channel Read Advice Enter: Eric");
     final AgentSpan nettySpan = activeSpan();
     if (null == nettySpan) {
       // Micronaut-netty uses Netty so there needs to be a Netty span

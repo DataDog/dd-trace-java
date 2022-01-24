@@ -109,6 +109,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
     false
   }
 
+  //Don't think this does anything
+  @Override
+  boolean supportsRaw() {
+    false
+  }
 
 //  def "test send response"() {
 //    setup:

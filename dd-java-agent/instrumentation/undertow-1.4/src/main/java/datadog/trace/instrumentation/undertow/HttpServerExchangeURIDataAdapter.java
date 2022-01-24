@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.undertow;
 
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
+import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import io.undertow.server.HttpServerExchange;
 
-final class HttpServerExchangeURIDataAdapter extends URIDataAdapterBase {
+final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
   private final HttpServerExchange httpServerExchange;
 
   public HttpServerExchangeURIDataAdapter(final HttpServerExchange httpServerExchange) {
@@ -26,32 +26,21 @@ final class HttpServerExchangeURIDataAdapter extends URIDataAdapterBase {
   }
 
   @Override
-  public String path() {
+  protected String innerRawPath() {
     return httpServerExchange.getRequestPath();
   }
 
   @Override
+  protected String innerRawQuery() {
+    String query = httpServerExchange.getQueryString();
+    if (httpServerExchange.getQueryParameters().containsKey("some")) {
+      query = "some=" + httpServerExchange.getQueryParameters().get("some").peek();
+    }
+    return query;
+  }
+
+  @Override
   public String fragment() {
-    return null;
-  }
-
-  @Override
-  public String query() {
-    return httpServerExchange.getQueryString();
-  }
-
-  @Override
-  public boolean supportsRaw() {
-    return false;
-  }
-
-  @Override
-  public String rawPath() {
-    return null;
-  }
-
-  @Override
-  public String rawQuery() {
     return null;
   }
 }
