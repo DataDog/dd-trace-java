@@ -14,7 +14,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 class PlayNettySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  File playDirectory = new File("${buildDirectory}/stage/playBinary")
+  File playDirectory = new File("${buildDirectory}/stage/main")
 
   @Shared
   @AutoCleanup
@@ -41,7 +41,7 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
       runningPid.delete()
     }
     ProcessBuilder processBuilder =
-      new ProcessBuilder("${playDirectory}/bin/playBinary")
+      new ProcessBuilder("${playDirectory}/bin/main")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
