@@ -16,8 +16,8 @@
 package com.datadog.profiling.uploader;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
-import static datadog.trace.api.config.ProfilingConfig.DEFAULT_PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
@@ -169,7 +169,7 @@ public final class ProfileUploader {
     agentless = config.isProfilingAgentless();
     useV2_4Format =
         configProvider.getBoolean(
-            PROFILING_FORMAT_V2_4_ENABLED, DEFAULT_PROFILING_FORMAT_V2_4_ENABLED);
+            PROFILING_FORMAT_V2_4_ENABLED, PROFILING_FORMAT_V2_4_ENABLED_DEFAULT);
     if (useV2_4Format) {
       log.info("Profiling: use V2.4 format for HTTP request");
     }
