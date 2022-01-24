@@ -30,13 +30,15 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       samplingPriority,
       samplingMechanism,
       origin,
-      ["k1" : "v1", "k2" : "v2"],
+      ["k1": "v1", "k2": "v2"],
       false,
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null,
+      512)
 
     final Map<String, String> carrier = Mock()
 
@@ -81,13 +83,15 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       samplingPriority,
       samplingMechanism,
       origin,
-      ["k1" : "v1", "k2" : "v2", (HAYSTACK_TRACE_ID_BAGGAGE_KEY) : haystackUuid],
+      ["k1": "v1", "k2": "v2", (HAYSTACK_TRACE_ID_BAGGAGE_KEY): haystackUuid],
       false,
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null,
+      512)
 
     final Map<String, String> carrier = Mock()
 

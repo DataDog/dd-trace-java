@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.util.Base64Decoder;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
