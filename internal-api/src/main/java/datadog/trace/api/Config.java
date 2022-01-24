@@ -1867,7 +1867,7 @@ public class Config {
   }
 
   public boolean isDatadogTagPropagationEnabled() {
-    return configProvider.getBoolean(TracerConfig.DATADOG_TAGS_ENABLED, true);
+    return configProvider.getBoolean(TracerConfig.DATADOG_TAGS_ENABLED, false);
   }
 
   public int getDatadogTagsLimit() {
