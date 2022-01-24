@@ -79,6 +79,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_APPSEC_ENABLED = false;
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
+  static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
 

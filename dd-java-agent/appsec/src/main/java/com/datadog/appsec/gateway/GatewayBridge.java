@@ -51,6 +51,7 @@ public class GatewayBridge {
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final String ipAddrHeader;
+  private final RateLimiter rateLimiter;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
@@ -60,9 +61,11 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
+      RateLimiter rateLimiter,
       String appSecIpAddrHeader) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
+    this.rateLimiter = rateLimiter;
     this.ipAddrHeader = appSecIpAddrHeader;
   }
 
@@ -97,7 +100,7 @@ public class GatewayBridge {
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
             // If detected any events - mark span at appsec.event
-            if (!collectedEvents.isEmpty()) {
+            if (!collectedEvents.isEmpty() && (rateLimiter == null || !rateLimiter.isThrottled())) {
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
               traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
