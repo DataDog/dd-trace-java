@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_streams;
 
-import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.KAFKA_PRODUCED_KEY;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.lang.invoke.MethodHandle;
@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor
     implements AgentPropagation.ContextVisitor<ProcessorRecordContext> {
+
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
   // Using a method handle here to avoid forking the instrumentation for versions 2.7+

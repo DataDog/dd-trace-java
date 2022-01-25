@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_streams;
 
-import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.KAFKA_PRODUCED_KEY;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;

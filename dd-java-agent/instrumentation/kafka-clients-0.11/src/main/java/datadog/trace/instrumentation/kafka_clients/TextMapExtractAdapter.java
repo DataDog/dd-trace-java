@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.KAFKA_PRODUCED_KEY;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;

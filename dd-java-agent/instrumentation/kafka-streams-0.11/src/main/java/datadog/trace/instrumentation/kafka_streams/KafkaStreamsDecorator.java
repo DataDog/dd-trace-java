@@ -25,6 +25,8 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
   public static final boolean KAFKA_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(true, "kafka");
 
+  public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
+
   private final String spanKind;
   private final CharSequence spanType;
   private final String serviceName;

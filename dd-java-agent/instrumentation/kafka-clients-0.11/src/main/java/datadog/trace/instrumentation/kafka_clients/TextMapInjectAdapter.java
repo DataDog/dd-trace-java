@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -8,8 +10,6 @@ import org.apache.kafka.common.header.Headers;
 public class TextMapInjectAdapter implements AgentPropagation.Setter<Headers> {
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
-
-  public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
 
   @Override
   public void set(final Headers headers, final String key, final String value) {
