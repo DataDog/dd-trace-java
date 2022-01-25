@@ -5,11 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PA
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
@@ -24,7 +24,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create("kafka.produce");
 
   private final String spanKind;
-  private final String spanType;
+  private final CharSequence spanType;
 
   private static final DDCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
@@ -34,12 +34,12 @@ public class KafkaDecorator extends MessagingClientDecorator {
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
   public static final KafkaDecorator PRODUCER_DECORATE =
-      new KafkaDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
+      new KafkaDecorator(Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER);
 
   public static final KafkaDecorator CONSUMER_DECORATE =
-      new KafkaDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
+      new KafkaDecorator(Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER);
 
-  protected KafkaDecorator(String spanKind, String spanType) {
+  protected KafkaDecorator(String spanKind, CharSequence spanType) {
     this.spanKind = spanKind;
     this.spanType = spanType;
   }
