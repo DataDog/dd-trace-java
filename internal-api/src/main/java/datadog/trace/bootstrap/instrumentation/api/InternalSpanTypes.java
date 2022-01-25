@@ -30,4 +30,6 @@ public class InternalSpanTypes {
       UTF8BytesString.create(DDSpanTypes.MESSAGE_PRODUCER);
   public static final CharSequence MESSAGE_BROKER =
       UTF8BytesString.create(DDSpanTypes.MESSAGE_BROKER);
+
+  public static final CharSequence TEST = UTF8BytesString.create(DDSpanTypes.TEST);
 }
