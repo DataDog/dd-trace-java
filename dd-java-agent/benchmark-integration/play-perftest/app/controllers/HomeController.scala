@@ -16,15 +16,16 @@ class HomeController @Inject()(cc: ControllerComponents) extends AbstractControl
   /**
     * Create an Action to perform busy wait
     */
-  def doGet(workTimeMS: Option[Long], error: Option[String]) = Action { implicit request: Request[AnyContent] =>
-    error match {
-      case Some(x) => throw new RuntimeException("some sync error")
-      case None => {
-        var workTime = workTimeMS.getOrElse(0l)
-        scheduleWork(workTime)
-        Ok("Did " + workTime + "ms of work.")
+  def doGet(workTimeMS: Option[Long], error: Option[String]) = Action {
+    implicit request: Request[AnyContent] =>
+      error match {
+        case Some(x) => throw new RuntimeException("some sync error")
+        case None => {
+          var workTime = workTimeMS.getOrElse(0L)
+          scheduleWork(workTime)
+          Ok("Did " + workTime + "ms of work.")
+        }
       }
-    }
 
   }
 

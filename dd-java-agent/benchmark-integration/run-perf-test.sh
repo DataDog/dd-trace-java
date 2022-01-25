@@ -76,9 +76,9 @@ function start_server {
       unzipped_server_path=${unzip_temp}
 
       java_opts_env='JAVA_OPTS="'${javaagent_arg}'"'
-      # it appears the binary script will always be named playBinary at the time of writing
+      # it appears the binary script will always be named main at the time of writing
       # no matter what the zip file is named.
-      play_script=${unzipped_server_path}/${unzipped_dirname}/bin/playBinary
+      play_script=${unzipped_server_path}/${unzipped_dirname}/bin/main
 
       # have to use env to set JAVA_OPTS because of a gradle play plugin bug:
       # https://github.com/gradle/gradle/issues/4471

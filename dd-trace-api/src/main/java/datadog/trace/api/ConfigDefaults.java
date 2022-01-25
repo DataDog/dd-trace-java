@@ -61,22 +61,6 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
-  static final boolean DEFAULT_PROFILING_ENABLED = false;
-  static final boolean DEFAULT_PROFILING_ALLOCATION_ENABLED = false;
-  static final boolean DEFAULT_PROFILING_HEAP_ENABLED = false;
-  static final int DEFAULT_PROFILING_START_DELAY = 10;
-  static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
-  static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
-  static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
-  static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
-  static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
-  static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
-  static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
-  static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
-  static final boolean DEFAULT_PROFILING_AGENTLESS = false;
-  static final boolean DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION = true;
-  static final boolean DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413 = false;
-
   static final boolean DEFAULT_APPSEC_ENABLED = false;
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
 

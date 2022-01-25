@@ -14,8 +14,9 @@ minimumInstructionCoverage = 0.5
 
 excludedClassesCoverage += [
   // This is mainly equals() and hashCode()
-  "datadog.opentracing.OTSpanContext",
+  "datadog.opentracing.OTScopeManager.OTScope",
   "datadog.opentracing.OTSpan",
+  "datadog.opentracing.OTSpanContext",
   // The builder is generated
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
@@ -31,19 +32,18 @@ dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
-  compile project(':dd-trace-api')
-  compile project(':dd-trace-core')
+  api project(':dd-trace-api')
+  api project(':dd-trace-core')
 
   // OpenTracing
-  compile group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
-  compile group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
-  compile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-  compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
+  api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  api group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  api group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
-  compile deps.slf4j
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
-  compile deps.okio
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
+  api deps.slf4j
+  api group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
+  api deps.okio
 
   testImplementation project(":dd-java-agent:testing")
 
