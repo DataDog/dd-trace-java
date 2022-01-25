@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_BATCH_ID_KEY;
-import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_PRODUCED_KEY;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_BATCH_ID_KEY;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCED_KEY;
 
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;

@@ -33,6 +33,9 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
 
+  public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
+  public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
+
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
 
