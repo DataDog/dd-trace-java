@@ -1,11 +1,18 @@
 package datadog.trace.instrumentation.kafka_streams;
 
+import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.KAFKA_PRODUCED_KEY;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StampedRecordContextVisitor implements AgentPropagation.ContextVisitor<StampedRecord> {
+
+  private static final Logger log = LoggerFactory.getLogger(StampedRecordContextVisitor.class);
 
   public static final StampedRecordContextVisitor SR_GETTER = new StampedRecordContextVisitor();
 
@@ -20,5 +27,20 @@ public class StampedRecordContextVisitor implements AgentPropagation.ContextVisi
         }
       }
     }
+  }
+
+  public long extractTimeInQueueStart(StampedRecord carrier) {
+    try {
+      Header header = carrier.value.headers().lastHeader(KAFKA_PRODUCED_KEY);
+      if (null != header) {
+        ByteBuffer buf = ByteBuffer.allocate(8);
+        buf.put(header.value());
+        buf.flip();
+        return buf.getLong();
+      }
+    } catch (Exception e) {
+      log.debug("Unable to get kafka produced time", e);
+    }
+    return 0;
   }
 }

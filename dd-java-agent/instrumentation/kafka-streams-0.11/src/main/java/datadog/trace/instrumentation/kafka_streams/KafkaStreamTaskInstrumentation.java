@@ -4,11 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_DELIVER;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
 import static java.util.Collections.singletonMap;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -16,6 +20,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -125,14 +130,34 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
         return;
       }
 
-      final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
-
-      final AgentSpan span = startSpan(KAFKA_CONSUME, extractedContext);
+      AgentSpan span, queueSpan = null;
+      if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
+        long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
+        if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+          span = startSpan(KAFKA_CONSUME, extractedContext);
+        } else {
+          queueSpan =
+              startSpan(
+                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+          BROKER_DECORATE.afterStart(queueSpan);
+          BROKER_DECORATE.onTimeInQueue(queueSpan, record);
+          span = startSpan(KAFKA_CONSUME, queueSpan.context());
+          BROKER_DECORATE.beforeFinish(queueSpan);
+          // The queueSpan will be finished after inner span has been activated to ensure that
+          // spans are written out together by TraceStructureWriter when running in strict mode
+        }
+      } else {
+        span = startSpan(KAFKA_CONSUME, null);
+      }
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-
       AgentScope agentScope = activateSpan(span);
+      if (null != queueSpan) {
+        queueSpan.finish();
+      }
+
       InstrumentationContext.get(StreamTask.class, AgentScope.class).put(task, agentScope);
     }
   }
@@ -150,13 +175,34 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
         return;
       }
 
-      final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
+      AgentSpan span, queueSpan = null;
+      if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
+        long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
+        if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
+          span = startSpan(KAFKA_CONSUME, extractedContext);
+        } else {
+          queueSpan =
+              startSpan(
+                  KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart), false);
+          BROKER_DECORATE.afterStart(queueSpan);
+          BROKER_DECORATE.onTimeInQueue(queueSpan, record);
+          span = startSpan(KAFKA_CONSUME, queueSpan.context());
+          BROKER_DECORATE.beforeFinish(queueSpan);
+          // The queueSpan will be finished after inner span has been activated to ensure that
+          // spans are written out together by TraceStructureWriter when running in strict mode
+        }
+      } else {
+        span = startSpan(KAFKA_CONSUME, null);
+      }
 
-      final AgentSpan span = startSpan(KAFKA_CONSUME, extractedContext);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-
       AgentScope agentScope = activateSpan(span);
+      if (null != queueSpan) {
+        queueSpan.finish();
+      }
+
       InstrumentationContext.get(StreamTask.class, AgentScope.class).put(task, agentScope);
     }
   }
