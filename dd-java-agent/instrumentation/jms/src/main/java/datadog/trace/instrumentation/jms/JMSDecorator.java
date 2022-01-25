@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
@@ -73,7 +72,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
       new JMSDecorator(
           "",
           Tags.SPAN_KIND_BROKER,
-          DDSpanTypes.MESSAGE_BROKER,
+          InternalSpanTypes.MESSAGE_BROKER,
           null /* service name will be set later on */);
 
   public JMSDecorator(
