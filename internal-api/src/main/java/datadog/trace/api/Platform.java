@@ -1,7 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.util.Strings;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class Platform {
@@ -10,14 +10,13 @@ public final class Platform {
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
   private static List<Integer> splitDigits(String str) {
-    List<Integer> results = new LinkedList<>();
+    List<Integer> results = new ArrayList<>();
 
-    byte[] arr = str.getBytes();
     int len = str.length();
 
     int value = 0;
     for (int i = 0; i < len; i++) {
-      byte ch = arr[i];
+      char ch = str.charAt(i);
       if (ch >= '0' && ch <= '9') {
         value = value * 10 + (ch - '0');
       } else if (ch == '.' || ch == '_' || ch == '+') {
