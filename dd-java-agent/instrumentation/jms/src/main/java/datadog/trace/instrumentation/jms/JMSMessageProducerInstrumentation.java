@@ -50,12 +50,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1",
-      packageName + ".MessageInjectAdapter"
-    };
+    return new String[] {packageName + ".JMSDecorator", packageName + ".MessageInjectAdapter"};
   }
 
   @Override

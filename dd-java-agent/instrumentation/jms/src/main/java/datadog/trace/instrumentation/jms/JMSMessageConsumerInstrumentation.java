@@ -59,7 +59,6 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       packageName + ".JMSDecorator",
       packageName + ".MessageExtractAdapter",
       packageName + ".MessageExtractAdapter$1",
-      packageName + ".MessageInjectAdapter",
       packageName + ".DatadogMessageListener"
     };
   }
