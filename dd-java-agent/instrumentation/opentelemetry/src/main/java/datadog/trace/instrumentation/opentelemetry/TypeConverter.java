@@ -11,10 +11,12 @@ import io.opentelemetry.trace.SpanContext;
 public class TypeConverter {
   private final Span noopSpanWrapper;
   private final SpanContext noopContextWrapper;
+  private final OtelScope noopScopeWrapper;
 
   public TypeConverter() {
     noopSpanWrapper = new OtelSpan(AgentTracer.NoopAgentSpan.INSTANCE, this);
     noopContextWrapper = new OtelSpanContext(AgentTracer.NoopContext.INSTANCE);
+    noopScopeWrapper = new OtelScope(AgentTracer.NoopAgentScope.INSTANCE);
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -46,7 +48,18 @@ public class TypeConverter {
     if (scope == null) {
       return null;
     }
-    return new OtelScope(scope);
+    // check if a wrapper has already been created and attached to the agent scope
+    Object wrapper = scope.getWrapper(false);
+    if (wrapper instanceof OtelScope) {
+      return (OtelScope) wrapper;
+    }
+    // avoid a new OTScope wrapper allocation for the noop scope
+    if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
+      return noopScopeWrapper;
+    }
+    OtelScope otelScope = new OtelScope(scope);
+    scope.attachWrapper(otelScope, false);
+    return otelScope;
   }
 
   public SpanContext toSpanContext(final AgentSpan.Context context) {

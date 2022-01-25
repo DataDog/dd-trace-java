@@ -655,8 +655,10 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentScope implements AgentScope {
+  public static final class NoopAgentScope implements AgentScope {
     public static final NoopAgentScope INSTANCE = new NoopAgentScope();
+
+    private NoopAgentScope() {}
 
     @Override
     public AgentSpan span() {
@@ -692,6 +694,14 @@ public class AgentTracer {
     @Override
     public boolean isAsyncPropagating() {
       return false;
+    }
+
+    @Override
+    public void attachWrapper(Object wrapper, boolean finishSpanOnClose) {}
+
+    @Override
+    public Object getWrapper(boolean finishSpanOnClose) {
+      return null;
     }
   }
 
@@ -792,9 +802,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void attachWrapper(Object wrapper) {
-      // ~
-    }
+    public void attachWrapper(Object wrapper) {}
 
     @Override
     public Object getWrapper() {

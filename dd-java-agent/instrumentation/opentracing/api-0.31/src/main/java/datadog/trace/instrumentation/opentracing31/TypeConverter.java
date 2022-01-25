@@ -13,11 +13,16 @@ public class TypeConverter {
   private final LogHandler logHandler;
   private final OTSpan noopSpanWrapper;
   private final OTSpanContext noopContextWrapper;
+  private final OTScopeManager.OTScope noopScopeWrapper;
+  private final OTScopeManager.OTScope noopScopeWrapperFinishSpanOnClose;
 
   public TypeConverter(final LogHandler logHandler) {
     this.logHandler = logHandler;
     noopSpanWrapper = new OTSpan(AgentTracer.NoopAgentSpan.INSTANCE, this, logHandler);
     noopContextWrapper = new OTSpanContext(AgentTracer.NoopContext.INSTANCE);
+    noopScopeWrapper = new OTScopeManager.OTScope(AgentTracer.NoopAgentScope.INSTANCE, false, this);
+    noopScopeWrapperFinishSpanOnClose =
+        new OTScopeManager.OTScope(AgentTracer.NoopAgentScope.INSTANCE, true, this);
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -49,7 +54,18 @@ public class TypeConverter {
     if (scope == null) {
       return null;
     }
-    return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
+    // check if a wrapper has already been created and attached to the agent scope
+    Object wrapper = scope.getWrapper(finishSpanOnClose);
+    if (wrapper instanceof OTScopeManager.OTScope) {
+      return (OTScopeManager.OTScope) wrapper;
+    }
+    // avoid a new OTScope wrapper allocation for the noop scope
+    if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
+      return finishSpanOnClose ? noopScopeWrapperFinishSpanOnClose : noopScopeWrapper;
+    }
+    OTScopeManager.OTScope otScope = new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
+    scope.attachWrapper(otScope, finishSpanOnClose);
+    return otScope;
   }
 
   public SpanContext toSpanContext(final AgentSpan.Context context) {

@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -249,6 +250,18 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     private short referenceCount = 1;
 
+    // cached OT wrapper
+    private volatile Object wrapper;
+    private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
+        WRAPPER_FIELD_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
+
+    private volatile Object finishSpanOnCloseWrapper;
+    private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
+        FINISH_SPAN_WRAPPER_FIELD_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(
+                ContinuableScope.class, Object.class, "finishSpanOnCloseWrapper");
+
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
         final AgentSpan span,
@@ -418,6 +431,22 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     private boolean notifiedOnActivate() {
       return flags < 0;
+    }
+
+    @Override
+    public void attachWrapper(Object wrapper, boolean finishSpanOnClose) {
+      if (finishSpanOnClose) {
+        FINISH_SPAN_WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+      } else {
+        WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+      }
+    }
+
+    @Override
+    public Object getWrapper(boolean finishSpanOnClose) {
+      return finishSpanOnClose
+          ? FINISH_SPAN_WRAPPER_FIELD_UPDATER.get(this)
+          : WRAPPER_FIELD_UPDATER.get(this);
     }
   }
 
