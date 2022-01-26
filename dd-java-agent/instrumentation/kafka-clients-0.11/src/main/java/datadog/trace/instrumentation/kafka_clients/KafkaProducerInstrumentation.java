@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
@@ -100,6 +101,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
+        }
+        if (!KAFKA_LEGACY_TRACING) {
+          SETTER.injectTimeInQueue(record.headers());
         }
       }
 

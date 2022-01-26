@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -30,14 +32,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-class KafkaClientTest extends AgentTestRunner {
+abstract class KafkaClientTestBase extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
-
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
 
   @Rule
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC)
@@ -48,6 +44,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
+
+  abstract String expectedServiceName()
+
+  abstract boolean hasQueueSpan()
+
+  abstract boolean splitByDestination()
 
   def "test kafka produce and consume"() {
     setup:
@@ -109,42 +111,16 @@ class KafkaClientTest extends AgentTestRunner {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf span(0)
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
-          }
-        }
+        producerSpan(it, span(0), false)
       }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[2]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            // TODO - test with and without feature enabled once Config is easier to control
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1])
+          queueSpan(it, trace(0)[2])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[2])
         }
       }
     }
@@ -206,7 +182,6 @@ class KafkaClientTest extends AgentTestRunner {
       blockUntilChildSpansFinished(2)
     }
 
-
     then:
     // check that the message was received
     def received = records.poll(5, TimeUnit.SECONDS)
@@ -217,42 +192,16 @@ class KafkaClientTest extends AgentTestRunner {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf span(0)
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
-          }
-        }
+        producerSpan(it, span(0), false)
       }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[2]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            // TODO - test with and without feature enabled once Config is easier to control
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1])
+          queueSpan(it, trace(0)[2])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[2])
         }
       }
     }
@@ -266,7 +215,6 @@ class KafkaClientTest extends AgentTestRunner {
     producerFactory.stop()
     container?.stop()
   }
-
 
   def "test pass through tombstone"() {
     setup:
@@ -307,7 +255,6 @@ class KafkaClientTest extends AgentTestRunner {
     when:
     kafkaTemplate.send(SHARED_TOPIC, null)
 
-
     then:
     // check that the message was received
     def received = records.poll(5, TimeUnit.SECONDS)
@@ -316,45 +263,16 @@ class KafkaClientTest extends AgentTestRunner {
 
     assertTraces(2) {
       trace(1) {
-        // PRODUCER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.TOMBSTONE" true
-            defaultTags()
-          }
-        }
+        producerSpan(it, null, false, true)
       }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.TOMBSTONE" true
-            // TODO - test with and without feature enabled once Config is easier to control
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1], 0..0, true)
+          queueSpan(it, trace(0)[0])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[0], 0..0, true)
         }
       }
     }
@@ -399,44 +317,16 @@ class KafkaClientTest extends AgentTestRunner {
 
     assertTraces(2) {
       trace(1) {
-        // PRODUCER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            defaultTags(true)
-          }
-        }
+        producerSpan(it)
       }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            // TODO - test with and without feature enabled once Config is easier to control
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1])
+          queueSpan(it, trace(0)[0])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[0])
         }
       }
     }
@@ -483,44 +373,16 @@ class KafkaClientTest extends AgentTestRunner {
 
     assertTraces(2) {
       trace(1) {
-        // PRODUCER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            defaultTags(true)
-          }
-        }
+        producerSpan(it)
       }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            // TODO - test with and without feature enabled once Config is easier to control
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1])
+          queueSpan(it, trace(0)[0])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[0])
         }
       }
     }
@@ -568,44 +430,16 @@ class KafkaClientTest extends AgentTestRunner {
 
     assertTraces(2) {
       trace(1) {
-        // PRODUCER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            defaultTags(true)
-          }
-        }
+        producerSpan(it)
       }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            // TODO - test with and without feature enabled once Config is easier to control
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1])
+          queueSpan(it, trace(0)[0])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[0])
         }
       }
     }
@@ -654,180 +488,67 @@ class KafkaClientTest extends AgentTestRunner {
     receivedSet.isEmpty()
 
     assertTraces(9) {
+
       // producing traces
       trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            defaultTags(true)
-          }
-        }
+        producerSpan(it)
       }
       trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            defaultTags(true)
-          }
-        }
+        producerSpan(it)
       }
       trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            defaultTags(true)
-          }
-        }
+        producerSpan(it)
       }
 
       // iterating to the end of ListIterator:
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(3)[1], 0..0)
+          queueSpan(it, trace(0)[0])
         }
-      }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(1)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 1
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            defaultTags(true)
-          }
+        trace(2) {
+          consumerSpan(it, trace(4)[1], 1..1)
+          queueSpan(it, trace(1)[0])
         }
-      }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(2)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 2
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            defaultTags(true)
-          }
+        trace(2) {
+          consumerSpan(it, trace(5)[1], 2..2)
+          queueSpan(it, trace(2)[0])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[0], 0..0)
+        }
+        trace(1) {
+          consumerSpan(it, trace(1)[0], 1..1)
+        }
+        trace(1) {
+          consumerSpan(it, trace(2)[0], 2..2)
         }
       }
 
       // backwards iteration over ListIterator to the beginning
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(2)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 2
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(6)[1], 2..2)
+          queueSpan(it, trace(2)[0])
         }
-      }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(1)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 1
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            defaultTags(true)
-          }
+        trace(2) {
+          consumerSpan(it, trace(7)[1], 1..1)
+          queueSpan(it, trace(1)[0])
         }
-      }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            defaultTags(true)
-          }
+        trace(2) {
+          consumerSpan(it, trace(8)[1], 0..0)
+          queueSpan(it, trace(0)[0])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(2)[0], 2..2)
+        }
+        trace(1) {
+          consumerSpan(it, trace(1)[0], 1..1)
+        }
+        trace(1) {
+          consumerSpan(it, trace(0)[0], 0..0)
         }
       }
     }
@@ -893,109 +614,35 @@ class KafkaClientTest extends AgentTestRunner {
       trace(7) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf span(0)
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
-          }
-        }
+        producerSpan(it, span(0), false)
         basicSpan(it, "producer callback", span(0))
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf span(0)
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
-          }
-        }
+        producerSpan(it, span(0), false)
         basicSpan(it, "producer callback", span(0))
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          childOf span(0)
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
-          }
-        }
+        producerSpan(it, span(0), false)
       }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
 
-            defaultTags(true)
-          }
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, trace(1)[1], 0..0)
+          queueSpan(it, trace(0)[6])
         }
-      }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+        trace(2) {
+          consumerSpan(it, trace(2)[1], 0..1)
+          queueSpan(it, trace(0)[4])
         }
-      }
-      trace(1) {
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $SHARED_TOPIC"
-          spanType "queue"
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-
-            defaultTags(true)
-          }
+        trace(2) {
+          consumerSpan(it, trace(3)[1], 0..1)
+          queueSpan(it, trace(0)[2])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, trace(0)[6], 0..0)
+        }
+        trace(1) {
+          consumerSpan(it, trace(0)[4], 0..1)
+        }
+        trace(1) {
+          consumerSpan(it, trace(0)[2], 0..1)
         }
       }
     }
@@ -1063,7 +710,6 @@ class KafkaClientTest extends AgentTestRunner {
     "true"                                                   | true
   }
 
-
   def containerProperties() {
     try {
       // Different class names for test and latestDepTest.
@@ -1073,4 +719,165 @@ class KafkaClientTest extends AgentTestRunner {
     }
   }
 
+  def producerSpan(
+    TraceAssert trace,
+    DDSpan parentSpan = null,
+    boolean partitioned = true,
+    boolean tombstone = false
+  ) {
+    trace.span {
+      serviceName hasQueueSpan() ? expectedServiceName() : "kafka"
+      operationName "kafka.produce"
+      resourceName "Produce Topic $SHARED_TOPIC"
+      spanType "queue"
+      errored false
+      measured true
+      if (parentSpan) {
+        childOf parentSpan
+      } else {
+        parent()
+      }
+      tags {
+        "$Tags.COMPONENT" "java-kafka"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+        if (partitioned) {
+          "$InstrumentationTags.PARTITION" { it >= 0 }
+        }
+        if (tombstone) {
+          "$InstrumentationTags.TOMBSTONE" true
+        }
+        defaultTags()
+      }
+    }
+  }
+
+  def queueSpan(
+    TraceAssert trace,
+    DDSpan parentSpan = null
+  ) {
+    trace.span {
+      serviceName splitByDestination() ? "$SHARED_TOPIC" : "kafka"
+      operationName "kafka.deliver"
+      resourceName "$SHARED_TOPIC"
+      spanType "queue"
+      errored false
+      measured true
+      if (parentSpan) {
+        childOf parentSpan
+      } else {
+        parent()
+      }
+      tags {
+        "$Tags.COMPONENT" "java-kafka"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
+        defaultTags(true)
+      }
+    }
+  }
+
+  def consumerSpan(
+    TraceAssert trace,
+    DDSpan parentSpan = null,
+    Range offset = 0..0,
+    boolean tombstone = false,
+    boolean distributedRootSpan = !hasQueueSpan()
+  ) {
+    trace.span {
+      serviceName hasQueueSpan() ? expectedServiceName() : "kafka"
+      operationName "kafka.consume"
+      resourceName "Consume Topic $SHARED_TOPIC"
+      spanType "queue"
+      errored false
+      measured true
+      if (parentSpan) {
+        childOf parentSpan
+      } else {
+        parent()
+      }
+      tags {
+        "$Tags.COMPONENT" "java-kafka"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+        "$InstrumentationTags.PARTITION" { it >= 0 }
+        "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
+        "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+        "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+        if (tombstone) {
+          "$InstrumentationTags.TOMBSTONE" true
+        }
+        defaultTags(distributedRootSpan)
+      }
+    }
+  }
+}
+
+class KafkaClientForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaClientTest")
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "KafkaClientTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+}
+
+class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaClientTest")
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
+    injectSysConfig("dd.message.broker.split-by-destination", "true")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "KafkaClientTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return true
+  }
+}
+
+class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
+  }
+
+  @Override
+  String expectedServiceName() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
 }
