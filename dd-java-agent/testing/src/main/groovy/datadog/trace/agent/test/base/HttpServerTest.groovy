@@ -85,6 +85,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
+    ig.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
   }
 
   @Shared
@@ -268,6 +269,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     //    FRAGMENT_PARAM("fragment#some-fragment", 200, "some-fragment"),
     //    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
     PATH_PARAM("path/123/param", 200, "123"),
+    MATRIX_PARAM("matrix/a=x,y;a=z", 200, '[a:[x, y, z]]'),
     AUTH_REQUIRED("authRequired", 200, null),
     LOGIN("login", 302, null),
     UNKNOWN("", 451, null), // This needs to have a valid status code
@@ -989,6 +991,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
@@ -996,6 +999,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_RESPONSE_HEADER = "x-ig-response-header"
   static final String IG_RESPONSE_HEADER_VALUE = "ig-response-header-value"
   static final String IG_RESPONSE_HEADER_TAG = "ig-response-header"
+  static final String IG_PATH_PARAMS_TAG = "ig-path-params"
 
   class IGCallbacks {
     static class Context {
@@ -1036,6 +1040,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       def context = rqCtxt.data
       if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
         context.matchingHeaderValue = stringOrEmpty(context.matchingHeaderValue) + value
+      }
+      if (IG_EXTRA_SPAN_NAME_HEADER.equalsIgnoreCase(key)) {
+        context.extraSpanName = value
       }
     } as TriConsumer<RequestContext<Context>, String, String>
 
@@ -1113,5 +1120,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       Flow.ResultFlow.empty()
     } as Function<RequestContext<Context>, Flow<Void>>)
+
+    final BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>> requestParamsCb =
+    { RequestContext<Context> rqCtxt, Map<String, Object> map ->
+      if (map && !map.empty) {
+        def context = rqCtxt.data
+        context.tags.put(IG_PATH_PARAMS_TAG, map)
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>>
   }
 }

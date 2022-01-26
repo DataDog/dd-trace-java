@@ -40,9 +40,27 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     })
     waitForTraceCount(200) == 200
     rootSpans.size() == 200
-    rootSpans.collectMany {it.triggers }.forEach {
+    forEachRootSpan {
       assert it['rule']['tags']['type'] == 'security_scanner'
     }
     rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
+  }
+
+  def "match server request path params value"() {
+    when:
+    String url = "http://localhost:${httpPort}/id/appscan_fingerprint"
+    def request = new Request.Builder()
+      .url(url)
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+    waitForTraceCount 1
+
+    then:
+    responseBodyStr == 'appscan_fingerprint'
+    response.code() == 200
+    forEachRootSpan {
+      assert it['rule']['tags']['type'] == 'security_scanner'
+    }
   }
 }
