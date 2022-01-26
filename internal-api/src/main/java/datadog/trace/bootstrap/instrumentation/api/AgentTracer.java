@@ -644,14 +644,6 @@ public class AgentTracer {
     public boolean hasCheckpoints() {
       return false;
     }
-
-    @Override
-    public void attachWrapper(Object wrapper) {}
-
-    @Override
-    public Object getWrapper() {
-      return null;
-    }
   }
 
   public static final class NoopAgentScope implements AgentScope {
@@ -693,14 +685,6 @@ public class AgentTracer {
     @Override
     public boolean isAsyncPropagating() {
       return false;
-    }
-
-    @Override
-    public void attachWrapper(Object wrapper, boolean finishSpanOnClose) {}
-
-    @Override
-    public Object getWrapper(boolean finishSpanOnClose) {
-      return null;
     }
   }
 

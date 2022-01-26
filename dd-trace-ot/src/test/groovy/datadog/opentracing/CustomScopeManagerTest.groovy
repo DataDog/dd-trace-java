@@ -292,10 +292,6 @@ class TestScopeManager implements ScopeManager {
           void finish() {
             span.finish()
           }
-          void attachWrapper(Object wrapper) {}
-          Object getWrapper() {
-            return null
-          }
         } as AgentSpan
     }
 
@@ -360,14 +356,6 @@ class TestScopeManager implements ScopeManager {
     void close() {
       agentSpan.setTag("testScope", true) // Set a tag so we know the custom scope is used
       currentScope = parent
-    }
-
-    @Override
-    void attachWrapper(Object wrapper, boolean finishSpanOnClose) {}
-
-    @Override
-    Object getWrapper(boolean finishSpanOnClose) {
-      return null
     }
   }
 }

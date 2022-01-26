@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AttachableScopeWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -26,6 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,7 +240,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     return this.tlsScopeStack.get();
   }
 
-  private static class ContinuableScope implements AgentScope {
+  private static class ContinuableScope implements AgentScope, AttachableScopeWrapper {
     private final ContinuableScopeManager scopeManager;
 
     final AgentSpan span; // package-private so scopeManager can access it directly
@@ -434,7 +436,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
-    public void attachWrapper(Object wrapper, boolean finishSpanOnClose) {
+    public void attachWrapper(@Nonnull Object wrapper, boolean finishSpanOnClose) {
       if (finishSpanOnClose) {
         FINISH_SPAN_WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
       } else {

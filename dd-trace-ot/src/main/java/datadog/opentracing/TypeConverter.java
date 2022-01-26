@@ -3,6 +3,8 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AttachableScopeWrapper;
+import datadog.trace.bootstrap.instrumentation.api.AttachableSpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -40,18 +42,20 @@ class TypeConverter {
     if (agentSpan == null) {
       return null;
     }
-    // check if a wrapper has already been created and attached to the agent span
-    Object wrapper = agentSpan.getWrapper();
-    if (wrapper instanceof OTSpan) {
-      return (OTSpan) wrapper;
+    if (agentSpan instanceof AttachableSpanWrapper) {
+      AttachableSpanWrapper attachableSpanWrapper = (AttachableSpanWrapper) agentSpan;
+      Object wrapper = attachableSpanWrapper.getWrapper();
+      if (wrapper instanceof OTSpan) {
+        return (OTSpan) wrapper;
+      }
+      OTSpan spanWrapper = new OTSpan(agentSpan, this, logHandler);
+      attachableSpanWrapper.attachWrapper(spanWrapper);
+      return spanWrapper;
     }
-    // avoid a new OTSpan wrapper allocation for the noop span
     if (agentSpan == AgentTracer.NoopAgentSpan.INSTANCE) {
       return noopSpanWrapper;
     }
-    OTSpan otSpan = new OTSpan(agentSpan, this, logHandler);
-    agentSpan.attachWrapper(otSpan);
-    return otSpan;
+    return new OTSpan(agentSpan, this, logHandler);
   }
 
   public AgentScope toAgentScope(final Span span, final Scope scope) {
@@ -75,18 +79,20 @@ class TypeConverter {
     if (scope == null) {
       return null;
     }
-    // check if a wrapper has already been created and attached to the agent scope
-    Object wrapper = scope.getWrapper(finishSpanOnClose);
-    if (wrapper instanceof OTScopeManager.OTScope) {
-      return (OTScopeManager.OTScope) wrapper;
+    if (scope instanceof AttachableScopeWrapper) {
+      AttachableScopeWrapper attachableScopeWrapper = (AttachableScopeWrapper) scope;
+      Object wrapper = attachableScopeWrapper.getWrapper(finishSpanOnClose);
+      if (wrapper instanceof Scope) {
+        return (Scope) wrapper;
+      }
+      Scope otScope = new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
+      attachableScopeWrapper.attachWrapper(otScope, finishSpanOnClose);
+      return otScope;
     }
-    // avoid a new OTScope wrapper allocation for the noop scope
     if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
       return finishSpanOnClose ? noopScopeWrapperFinishSpanOnClose : noopScopeWrapper;
     }
-    OTScopeManager.OTScope otScope = new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
-    scope.attachWrapper(otScope, finishSpanOnClose);
-    return otScope;
+    return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
   }
 
   public SpanContext toSpanContext(final AgentSpan.Context context) {
@@ -162,16 +168,6 @@ class TypeConverter {
     }
 
     @Override
-    public void attachWrapper(Object wrapper, boolean finishSpanOnClose) {
-      // TODO do we need to cache FinishingScope wrapper?
-    }
-
-    @Override
-    public Object getWrapper(boolean finishSpanOnClose) {
-      return null;
-    }
-
-    @Override
     public boolean equals(Object o) {
       if (this == o) {
         return true;
@@ -238,16 +234,6 @@ class TypeConverter {
     @Override
     public void setAsyncPropagation(final boolean value) {
       // discard setting
-    }
-
-    @Override
-    public void attachWrapper(Object wrapper, boolean finishSpanOnClose) {
-      // TODO do we need to cache CustomScope wrapper?
-    }
-
-    @Override
-    public Object getWrapper(boolean finishSpanOnClose) {
-      return null;
     }
 
     @Override

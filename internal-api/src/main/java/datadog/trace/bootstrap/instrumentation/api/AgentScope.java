@@ -45,17 +45,4 @@ public interface AgentScope extends TraceScope, Closeable {
     /** Provide access to the captured span */
     AgentSpan getSpan();
   }
-
-  /**
-   * Attaches a OT/OTel scope wrapper to the scope, only if it's not yet been attached. Used by
-   * TypeConverter.
-   */
-  void attachWrapper(Object wrapper, boolean finishSpanOnClose);
-
-  /**
-   * Returns an attached OT/OTel scope wrapper or null. Used by TypeConverter.
-   *
-   * @param finishSpanOnClose
-   */
-  Object getWrapper(boolean finishSpanOnClose);
 }

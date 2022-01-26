@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.opentelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AttachableScopeWrapper;
+import datadog.trace.bootstrap.instrumentation.api.AttachableSpanWrapper;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.trace.Span;
 import io.opentelemetry.trace.SpanContext;
@@ -30,36 +32,40 @@ public class TypeConverter {
     if (agentSpan == null) {
       return null;
     }
-    // check if a wrapper has already been created and attached to the agent span
-    Object wrapper = agentSpan.getWrapper();
-    if (wrapper instanceof OtelSpan) {
-      return (OtelSpan) wrapper;
+    if (agentSpan instanceof AttachableSpanWrapper) {
+      AttachableSpanWrapper attachableSpanWrapper = (AttachableSpanWrapper) agentSpan;
+      Object wrapper = attachableSpanWrapper.getWrapper();
+      if (wrapper instanceof Span) {
+        return (Span) wrapper;
+      }
+      Span spanWrapper = new OtelSpan(agentSpan, this);
+      attachableSpanWrapper.attachWrapper(spanWrapper);
+      return spanWrapper;
     }
-    // avoid a new Span wrapper allocation for a noop span
     if (agentSpan == AgentTracer.NoopAgentSpan.INSTANCE) {
       return noopSpanWrapper;
     }
-    OtelSpan otSpan = new OtelSpan(agentSpan, this);
-    agentSpan.attachWrapper(otSpan);
-    return otSpan;
+    return new OtelSpan(agentSpan, this);
   }
 
   public Scope toScope(final AgentScope scope) {
     if (scope == null) {
       return null;
     }
-    // check if a wrapper has already been created and attached to the agent scope
-    Object wrapper = scope.getWrapper(false);
-    if (wrapper instanceof OtelScope) {
-      return (OtelScope) wrapper;
+    if (scope instanceof AttachableScopeWrapper) {
+      AttachableScopeWrapper attachableScopeWrapper = (AttachableScopeWrapper) scope;
+      Object wrapper = attachableScopeWrapper.getWrapper(false);
+      if (wrapper instanceof Scope) {
+        return (Scope) wrapper;
+      }
+      Scope otScope = new OtelScope(scope);
+      attachableScopeWrapper.attachWrapper(otScope, false);
+      return otScope;
     }
-    // avoid a new OTScope wrapper allocation for the noop scope
     if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
       return noopScopeWrapper;
     }
-    OtelScope otelScope = new OtelScope(scope);
-    scope.attachWrapper(otelScope, false);
-    return otelScope;
+    return new OtelScope(scope);
   }
 
   public SpanContext toSpanContext(final AgentSpan.Context context) {
