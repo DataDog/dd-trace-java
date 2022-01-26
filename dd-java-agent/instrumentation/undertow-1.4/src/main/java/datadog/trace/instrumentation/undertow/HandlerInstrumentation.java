@@ -42,8 +42,11 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      // add classes here
+    return new String[]{
+        packageName + ".ExchangeEndSpanListener",
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowExtractAdapter"
     };
   }
 
