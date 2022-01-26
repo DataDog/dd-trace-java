@@ -1,30 +1,13 @@
 package com.datadog.appsec.gateway
 
+import datadog.trace.api.time.TimeSource
 import spock.lang.Specification
 
 class RateLimiterSpecification extends Specification {
-
-  interface NanoProvider {
-    long getNanoTime()
-  }
-
-  static class TestingRateLimiter extends RateLimiter {
-    final mock
-    TestingRateLimiter(int limitPerSec, cb, mock) {
-      super(limitPerSec, cb)
-      this.mock = mock
-    }
-
-    @Override
-    protected long getNanoTime() {
-      mock.nanoTime
-    }
-  }
-
   int throttledCounter = 0
-  def mock = Mock(NanoProvider)
-  RateLimiter testee = new TestingRateLimiter(
-  10, { throttledCounter++ } as RateLimiter.ThrottledCallback, mock)
+  def mock = Mock(TimeSource)
+  RateLimiter testee = new RateLimiter(
+  10, mock, { throttledCounter++ } as RateLimiter.ThrottledCallback)
 
   void 'limit is respected in a single interval'() {
     setup:

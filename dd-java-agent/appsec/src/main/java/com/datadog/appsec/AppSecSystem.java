@@ -14,6 +14,7 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,7 +78,9 @@ public class AppSecSystem {
     int appSecTraceRateLimit = config.getAppSecTraceRateLimit();
     if (appSecTraceRateLimit > 0) {
       Counter counter = monitoring.newCounter("_dd.java.appsec.rate_limit.dropped_traces");
-      rateLimiter = new RateLimiter(appSecTraceRateLimit, () -> counter.increment(1));
+      rateLimiter =
+          new RateLimiter(
+              appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
     }
     return rateLimiter;
   }

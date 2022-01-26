@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
@@ -48,9 +49,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  RateLimiter rateLimiter = new RateLimiter(10, RateLimiter.ThrottledCallback.NOOP) {
-    long nanoTime = 0L
-  }
+  RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null)
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
@@ -107,7 +106,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
-
 
   void 'event publishing is rate limited'() {
     AppSecEvent100 event = Mock()
