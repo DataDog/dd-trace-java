@@ -27,16 +27,12 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
 
   @Override
   protected String innerRawPath() {
-    return httpServerExchange.getRequestPath();
+    return httpServerExchange.getRequestURI();
   }
 
   @Override
   protected String innerRawQuery() {
-    String query = httpServerExchange.getQueryString();
-    if (httpServerExchange.getQueryParameters().containsKey("some")) {
-      query = "some=" + httpServerExchange.getQueryParameters().get("some").peek();
-    }
-    return query;
+    return httpServerExchange.getQueryString();
   }
 
   @Override
