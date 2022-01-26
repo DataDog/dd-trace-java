@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OF
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PROCESSOR_NAME;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -19,11 +20,39 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 public class KafkaStreamsDecorator extends MessagingClientDecorator {
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka-streams");
   public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
-  public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();
+  public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
+
+  public static final boolean KAFKA_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(true, "kafka");
+
+  public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
+
+  private final String spanKind;
+  private final CharSequence spanType;
+  private final String serviceName;
 
   private static final DDCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
+
+  private static final String LOCAL_SERVICE_NAME =
+      KAFKA_LEGACY_TRACING ? "kafka" : Config.get().getServiceName();
+
+  public static final KafkaStreamsDecorator CONSUMER_DECORATE =
+      new KafkaStreamsDecorator(
+          Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER, LOCAL_SERVICE_NAME);
+
+  public static final KafkaStreamsDecorator BROKER_DECORATE =
+      new KafkaStreamsDecorator(
+          Tags.SPAN_KIND_BROKER,
+          InternalSpanTypes.MESSAGE_BROKER,
+          null /* service name will be set later on */);
+
+  protected KafkaStreamsDecorator(String spanKind, CharSequence spanType, String serviceName) {
+    this.spanKind = spanKind;
+    this.spanType = spanType;
+    this.serviceName = serviceName;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -32,7 +61,7 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
 
   @Override
   protected String service() {
-    return "kafka";
+    return serviceName;
   }
 
   @Override
@@ -42,12 +71,12 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
 
   @Override
   protected String spanKind() {
-    return Tags.SPAN_KIND_CONSUMER;
+    return spanKind;
   }
 
   @Override
   protected CharSequence spanType() {
-    return InternalSpanTypes.MESSAGE_CONSUMER;
+    return spanType;
   }
 
   public void onConsume(
@@ -72,6 +101,28 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
     span.setTag(OFFSET, offset);
     if (node != null) {
       span.setTag(PROCESSOR_NAME, node.name());
+    }
+  }
+
+  public void onTimeInQueue(final AgentSpan span, final StampedRecord record) {
+    if (record != null) {
+      onTimeInQueue(span, record.topic());
+    }
+  }
+
+  public void onTimeInQueue(final AgentSpan span, final ProcessorRecordContext record) {
+    if (record != null) {
+      onTimeInQueue(span, record.topic());
+    }
+  }
+
+  public void onTimeInQueue(final AgentSpan span, final String topic2) {
+    String topic = topic2 == null ? "kafka" : topic2;
+    span.setResourceName(topic);
+    if (Config.get().isMessageBrokerSplitByDestination()) {
+      span.setServiceName(topic);
+    } else {
+      span.setServiceName("kafka");
     }
   }
 }

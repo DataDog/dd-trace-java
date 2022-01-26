@@ -25,13 +25,19 @@ import spock.lang.Shared
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class KafkaStreamsTest extends AgentTestRunner {
+abstract class KafkaStreamsTestBase extends AgentTestRunner {
   static final STREAM_PENDING = "test.pending"
   static final STREAM_PROCESSED = "test.processed"
 
   @Shared
   @ClassRule
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, STREAM_PENDING, STREAM_PROCESSED)
+
+  abstract String expectedServiceName()
+
+  abstract boolean hasQueueSpan()
+
+  abstract boolean splitByDestination()
 
   def "test kafka produce and consume with streams in-between"() {
     setup:
@@ -100,11 +106,15 @@ class KafkaStreamsTest extends AgentTestRunner {
     received.value() == greeting.toLowerCase()
     received.key() == null
 
+    boolean hasQueueSpan = hasQueueSpan()
+    def firstProducerSpan, firstQueueSpan = null
+    def secondProducerSpan, secondQueueSpan = null
     assertTraces(3) {
       trace(1) {
         // PRODUCER span 0
         span {
-          serviceName "kafka"
+          firstProducerSpan = it.span
+          serviceName expectedServiceName()
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PENDING"
           spanType "queue"
@@ -118,19 +128,36 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      def producerSpan = null
-      trace(2) {
+      trace(hasQueueSpan ? 3 : 2) {
         sortSpansByStart()
+
+        if (hasQueueSpan) {
+          span {
+            firstQueueSpan = it.span
+            serviceName splitByDestination() ? "$STREAM_PENDING" : "kafka"
+            operationName "kafka.deliver"
+            resourceName "$STREAM_PENDING"
+            spanType "queue"
+            errored false
+            measured true
+            childOf firstProducerSpan
+            tags {
+              "$Tags.COMPONENT" "java-kafka-streams"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
+              defaultTags(true)
+            }
+          }
+        }
 
         // STREAMING span 0
         span {
-          serviceName "kafka"
+          serviceName expectedServiceName()
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
           measured true
-          childOf trace(0)[0]
+          childOf hasQueueSpan ? firstQueueSpan : firstProducerSpan
 
           tags {
             "$Tags.COMPONENT" "java-kafka-streams"
@@ -139,20 +166,20 @@ class KafkaStreamsTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
             "asdf" "testing"
-            defaultTags(true)
+            defaultTags(!hasQueueSpan)
           }
         }
 
         // STREAMING span 1
         span {
-          producerSpan = it.span
-          serviceName "kafka"
+          secondProducerSpan = it.span
+          serviceName expectedServiceName()
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
           measured true
-          childOf span(0)
+          childOf span(hasQueueSpan ? 1 : 0)
 
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -161,16 +188,36 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(1) {
+      trace(hasQueueSpan ? 2 : 1) {
+        sortSpansByStart()
+
+        if (hasQueueSpan) {
+          span {
+            secondQueueSpan = it.span
+            serviceName splitByDestination() ? "$STREAM_PROCESSED" : "kafka"
+            operationName "kafka.deliver"
+            resourceName "$STREAM_PROCESSED"
+            spanType "queue"
+            errored false
+            measured true
+            childOf secondProducerSpan
+            tags {
+              "$Tags.COMPONENT" "java-kafka"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
+              defaultTags(true)
+            }
+          }
+        }
+
         // CONSUMER span 0
         span {
-          serviceName "kafka"
+          serviceName expectedServiceName()
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
           measured true
-          childOf producerSpan
+          childOf hasQueueSpan ? secondQueueSpan : secondProducerSpan
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -178,7 +225,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "testing" 123
-            defaultTags(true)
+            defaultTags(!hasQueueSpan)
           }
         }
       }
@@ -194,5 +241,77 @@ class KafkaStreamsTest extends AgentTestRunner {
     producerFactory?.stop()
     streams?.close()
     consumerContainer?.stop()
+  }
+}
+
+class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaStreamsTest")
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "KafkaStreamsTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+}
+
+class KafkaStreamsSplitByDestinationForkedTest extends KafkaStreamsTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaStreamsTest")
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
+    injectSysConfig("dd.message.broker.split-by-destination", "true")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "KafkaStreamsTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return true
+  }
+}
+
+class KafkaStreamsLegacyTracingForkedTest extends KafkaStreamsTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
+  }
+
+  @Override
+  String expectedServiceName() {
+    return "kafka"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
   }
 }

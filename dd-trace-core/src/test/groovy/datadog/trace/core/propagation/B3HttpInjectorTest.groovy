@@ -41,7 +41,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null,
+      512)
 
     final Map<String, String> carrier = Mock()
 
@@ -101,7 +103,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false)
+      false,
+      null,
+      512)
     final Map<String, String> carrier = Mock()
 
     when:

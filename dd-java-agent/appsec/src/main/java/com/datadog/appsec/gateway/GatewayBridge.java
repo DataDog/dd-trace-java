@@ -199,8 +199,6 @@ public class GatewayBridge {
               MapDataBundle.of(
                   KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()));
 
-          ctx.addAll(bundle);
-
           if (responseStatusSubInfo == null) {
             responseStatusSubInfo =
                 producerService.getDataSubscribers(KnownAddresses.RESPONSE_STATUS);

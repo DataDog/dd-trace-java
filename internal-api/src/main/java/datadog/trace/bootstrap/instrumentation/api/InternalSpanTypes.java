@@ -6,6 +6,7 @@ public class InternalSpanTypes {
   public static final CharSequence HTTP_CLIENT = UTF8BytesString.create(DDSpanTypes.HTTP_CLIENT);
   public static final CharSequence HTTP_SERVER = UTF8BytesString.create(DDSpanTypes.HTTP_SERVER);
   public static final CharSequence RPC = UTF8BytesString.create(DDSpanTypes.RPC);
+  public static final CharSequence CACHE = UTF8BytesString.create(DDSpanTypes.CACHE);
   public static final CharSequence SOAP = UTF8BytesString.create(DDSpanTypes.SOAP);
 
   public static final CharSequence SQL = UTF8BytesString.create(DDSpanTypes.SQL);
@@ -30,4 +31,6 @@ public class InternalSpanTypes {
       UTF8BytesString.create(DDSpanTypes.MESSAGE_PRODUCER);
   public static final CharSequence MESSAGE_BROKER =
       UTF8BytesString.create(DDSpanTypes.MESSAGE_BROKER);
+
+  public static final CharSequence TEST = UTF8BytesString.create(DDSpanTypes.TEST);
 }
