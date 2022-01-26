@@ -38,16 +38,6 @@ class TypeConverterTest extends AgentTestRunner {
     typeConverter.toSpanContext(noopContext) is typeConverter.toSpanContext(noopContext)
   }
 
-  def "should avoid extra allocation for a context wrapper"() {
-    def context1 = createTestSpanContext()
-    def context2 = createTestSpanContext()
-    expect:
-    // return the same wrapper for the same context
-    typeConverter.toSpanContext(context1) is typeConverter.toSpanContext(context1)
-    // return distinct wrapper for another context
-    !typeConverter.toSpanContext(context1).is(typeConverter.toSpanContext(context2))
-  }
-
   def "should avoid the noop scope wrapper allocation"() {
     def noopScope = AgentTracer.NoopAgentScope.INSTANCE
     expect:

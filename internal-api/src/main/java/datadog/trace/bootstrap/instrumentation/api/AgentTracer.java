@@ -650,7 +650,6 @@ public class AgentTracer {
 
     @Override
     public Object getWrapper() {
-
       return null;
     }
   }
@@ -798,14 +797,6 @@ public class AgentTracer {
 
     @Override
     public String getForwardedPort() {
-      return null;
-    }
-
-    @Override
-    public void attachWrapper(Object wrapper) {}
-
-    @Override
-    public Object getWrapper() {
       return null;
     }
   }

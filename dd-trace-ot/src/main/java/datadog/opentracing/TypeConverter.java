@@ -93,18 +93,11 @@ class TypeConverter {
     if (context == null) {
       return null;
     }
-    // check if a wrapper has already been created and attached to the agent span context
-    Object wrapper = context.getWrapper();
-    if (wrapper instanceof OTSpanContext) {
-      return (OTSpanContext) wrapper;
-    }
     // avoid a new SpanContext wrapper allocation for the noop context
     if (context == AgentTracer.NoopContext.INSTANCE) {
       return noopContextWrapper;
     }
-    OTSpanContext otSpanContext = new OTSpanContext(context);
-    context.attachWrapper(otSpanContext);
-    return otSpanContext;
+    return new OTSpanContext(context);
   }
 
   public AgentSpan.Context toContext(final SpanContext spanContext) {
