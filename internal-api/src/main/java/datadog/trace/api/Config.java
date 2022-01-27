@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
@@ -62,6 +63,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -421,6 +423,7 @@ public class Config {
   private final int appSecReportMinTimeout;
   private final int appSecReportMaxTimeout;
   private final String appSecIpAddrHeader;
+  private final int appSecTraceRateLimit;
 
   private final boolean ciVisibilityEnabled;
 
@@ -891,6 +894,9 @@ public class Config {
       appSecIpAddrHeader = appSecIpAddrHeader.toLowerCase(Locale.ROOT);
     }
     this.appSecIpAddrHeader = appSecIpAddrHeader;
+
+    appSecTraceRateLimit =
+        configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1410,6 +1416,10 @@ public class Config {
 
   public int getAppSecReportMaxTimeout() {
     return appSecReportMaxTimeout;
+  }
+
+  public int getAppSecTraceRateLimit() {
+    return appSecTraceRateLimit;
   }
 
   public boolean isCiVisibilityEnabled() {
