@@ -3,8 +3,7 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AttachableScopeWrapper;
-import datadog.trace.bootstrap.instrumentation.api.AttachableSpanWrapper;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -42,8 +41,8 @@ class TypeConverter {
     if (agentSpan == null) {
       return null;
     }
-    if (agentSpan instanceof AttachableSpanWrapper) {
-      AttachableSpanWrapper attachableSpanWrapper = (AttachableSpanWrapper) agentSpan;
+    if (agentSpan instanceof AttachableWrapper) {
+      AttachableWrapper attachableSpanWrapper = (AttachableWrapper) agentSpan;
       Object wrapper = attachableSpanWrapper.getWrapper();
       if (wrapper instanceof OTSpan) {
         return (OTSpan) wrapper;
@@ -65,7 +64,7 @@ class TypeConverter {
       return null;
     } else if (scope instanceof OTScopeManager.OTScope) {
       OTScopeManager.OTScope wrapper = (OTScopeManager.OTScope) scope;
-      if (wrapper.finishSpanOnClose()) {
+      if (wrapper.isFinishSpanOnClose()) {
         return new FinishingScope(wrapper.unwrap());
       } else {
         return wrapper.unwrap();
@@ -79,14 +78,17 @@ class TypeConverter {
     if (scope == null) {
       return null;
     }
-    if (scope instanceof AttachableScopeWrapper) {
-      AttachableScopeWrapper attachableScopeWrapper = (AttachableScopeWrapper) scope;
-      Object wrapper = attachableScopeWrapper.getWrapper(finishSpanOnClose);
-      if (wrapper instanceof Scope) {
-        return (Scope) wrapper;
+    if (scope instanceof AttachableWrapper) {
+      AttachableWrapper attachableScopeWrapper = (AttachableWrapper) scope;
+      Object wrapper = attachableScopeWrapper.getWrapper();
+      if (wrapper instanceof OTScopeManager.OTScope) {
+        OTScopeManager.OTScope attachedScopeWrapper = (OTScopeManager.OTScope) wrapper;
+        if (attachedScopeWrapper.isFinishSpanOnClose() == finishSpanOnClose) {
+          return (Scope) wrapper;
+        }
       }
       Scope otScope = new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
-      attachableScopeWrapper.attachWrapper(otScope, finishSpanOnClose);
+      attachableScopeWrapper.attachWrapper(otScope);
       return otScope;
     }
     if (scope == AgentTracer.NoopAgentScope.INSTANCE) {

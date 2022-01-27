@@ -3,8 +3,7 @@ package datadog.trace.instrumentation.opentelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AttachableScopeWrapper;
-import datadog.trace.bootstrap.instrumentation.api.AttachableSpanWrapper;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.trace.Span;
 import io.opentelemetry.trace.SpanContext;
@@ -32,8 +31,8 @@ public class TypeConverter {
     if (agentSpan == null) {
       return null;
     }
-    if (agentSpan instanceof AttachableSpanWrapper) {
-      AttachableSpanWrapper attachableSpanWrapper = (AttachableSpanWrapper) agentSpan;
+    if (agentSpan instanceof AttachableWrapper) {
+      AttachableWrapper attachableSpanWrapper = (AttachableWrapper) agentSpan;
       Object wrapper = attachableSpanWrapper.getWrapper();
       if (wrapper instanceof Span) {
         return (Span) wrapper;
@@ -52,14 +51,14 @@ public class TypeConverter {
     if (scope == null) {
       return null;
     }
-    if (scope instanceof AttachableScopeWrapper) {
-      AttachableScopeWrapper attachableScopeWrapper = (AttachableScopeWrapper) scope;
-      Object wrapper = attachableScopeWrapper.getWrapper(false);
+    if (scope instanceof AttachableWrapper) {
+      AttachableWrapper attachableScopeWrapper = (AttachableWrapper) scope;
+      Object wrapper = attachableScopeWrapper.getWrapper();
       if (wrapper instanceof Scope) {
         return (Scope) wrapper;
       }
       Scope otScope = new OtelScope(scope);
-      attachableScopeWrapper.attachWrapper(otScope, false);
+      attachableScopeWrapper.attachWrapper(otScope);
       return otScope;
     }
     if (scope == AgentTracer.NoopAgentScope.INSTANCE) {

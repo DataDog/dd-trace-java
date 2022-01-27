@@ -116,7 +116,7 @@ class OTScopeManager implements ScopeManager {
       return delegate;
     }
 
-    boolean finishSpanOnClose() {
+    boolean isFinishSpanOnClose() {
       return finishSpanOnClose;
     }
   }

@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AttachableScopeWrapper;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -240,7 +240,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     return this.tlsScopeStack.get();
   }
 
-  private static class ContinuableScope implements AgentScope, AttachableScopeWrapper {
+  private static class ContinuableScope implements AgentScope, AttachableWrapper {
     private final ContinuableScopeManager scopeManager;
 
     final AgentSpan span; // package-private so scopeManager can access it directly
@@ -252,17 +252,10 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     private short referenceCount = 1;
 
-    // cached OT wrapper
     private volatile Object wrapper;
     private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
         WRAPPER_FIELD_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
-
-    private volatile Object finishSpanOnCloseWrapper;
-    private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
-        FINISH_SPAN_WRAPPER_FIELD_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(
-                ContinuableScope.class, Object.class, "finishSpanOnCloseWrapper");
 
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
@@ -436,19 +429,13 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
-    public void attachWrapper(@Nonnull Object wrapper, boolean finishSpanOnClose) {
-      if (finishSpanOnClose) {
-        FINISH_SPAN_WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
-      } else {
-        WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
-      }
+    public void attachWrapper(@Nonnull Object wrapper) {
+      WRAPPER_FIELD_UPDATER.set(this, wrapper);
     }
 
     @Override
-    public Object getWrapper(boolean finishSpanOnClose) {
-      return finishSpanOnClose
-          ? FINISH_SPAN_WRAPPER_FIELD_UPDATER.get(this)
-          : WRAPPER_FIELD_UPDATER.get(this);
+    public Object getWrapper() {
+      return WRAPPER_FIELD_UPDATER.get(this);
     }
   }
 
