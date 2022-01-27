@@ -27,7 +27,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
 
   public RuleBasedSampler(
       final List<SamplingRule<T>> samplingRules,
-      final long rateLimit,
+      final int rateLimit,
       final PrioritySampler<T> fallbackSampler) {
     this.samplingRules = samplingRules;
     this.fallbackSampler = fallbackSampler;
@@ -40,7 +40,7 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
       final Map<String, String> serviceRules,
       final Map<String, String> operationRules,
       final Double defaultRate,
-      final long rateLimit) {
+      final int rateLimit) {
 
     final List<SamplingRule<T>> samplingRules = new ArrayList<>();
 
