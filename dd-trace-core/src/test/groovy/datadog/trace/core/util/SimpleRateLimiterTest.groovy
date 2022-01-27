@@ -40,4 +40,32 @@ class SimpleRateLimiterTest extends DDSpecification {
     where:
     rate << [10, 100, 1000]
   }
+
+  def "tokens are consumed and replenished"() {
+    setup:
+    def timeSource = new ControllableTimeSource()
+    def limiter = new SimpleRateLimiter(rate, timeSource)
+    long nanosIncrement = (long) (TimeUnit.SECONDS.toNanos(1) / (rate + 1)) + 1
+
+    when:
+    rate.times {
+      timeSource.advance(nanosIncrement)
+      assert limiter.tryAcquire(): "failed for $it"
+    }
+
+    then:
+    assert !limiter.tryAcquire()
+
+    when:
+    rate.times {
+      timeSource.advance(nanosIncrement)
+      assert limiter.tryAcquire(): "failed for $it"
+    }
+
+    then:
+    assert !limiter.tryAcquire()
+
+    where:
+    rate << [10, 100, 1000]
+  }
 }
