@@ -43,6 +43,25 @@ class RateLimiterSpecification extends Specification {
     count == 8 + (10 - 4)
   }
 
+  void 'limit may be applied even when 1 sec ahead'() {
+    setup:
+    def initialTime = 0
+    def count = 0
+
+    when:
+    10.times {testee.throttled || count++ }
+
+    then:
+    10 * mock.nanoTime >> initialTime
+    count == 10
+
+    when:
+    testee.throttled || count++
+
+    then:
+    1 * mock.nanoTime >> initialTime + 1_000_000_000L
+    count == 10
+  }
 
   void 'limit considers fraction of previous interval — ushort wrap around'() {
     setup:
@@ -98,41 +117,50 @@ class RateLimiterSpecification extends Specification {
     count == 8 + 10 + 10
   }
 
-  void 'if 1 sec behind consider it is in the same second'() {
+  void 'if 1 sec behind reread the time with initialTime=#initialTime'() {
+    setup:
+    def count = 0
+
+    when:
+    9.times {testee.throttled || count++ }
+
+    then:
+    9 * mock.nanoTime >> initialTime
+
+    when:
+    testee.throttled || count++
+
+    then:
+    2 * mock.nanoTime >>> [initialTime - 1_000_000_000L, initialTime]
+    count == 10
+
+    when:
+    testee.throttled || count++
+
+    then:
+    2 * mock.nanoTime >>> [initialTime - 1_000_000_000L, initialTime]
+    count == 10
+
+    where:
+    initialTime << [1_000_000_000L, 0L]
+  }
+
+  void 'if still 1 sec behind after reread assume the time has wrapped around'() {
     setup:
     def initialTime = 1_000_000_000L
     def count = 0
 
     when:
-    8.times {testee.throttled || count++ }
+    10.times {testee.throttled || count++ }
 
     then:
-    8 * mock.nanoTime >> initialTime
+    10 * mock.nanoTime >> initialTime
 
     when:
-    20.times {testee.throttled || count++ }
+    testee.throttled || count++
 
     then:
-    20 * mock.nanoTime >> initialTime - 1_000_000_000L
-    count == 10
-  }
-
-  void 'if 1 sec behind consider it is in the same second — ushort wrap variant'() {
-    setup:
-    def initialTime = 0
-    def count = 0
-
-    when:
-    8.times {testee.throttled || count++ }
-
-    then:
-    8 * mock.nanoTime >> initialTime
-
-    when:
-    20.times {testee.throttled || count++ }
-
-    then:
-    20 * mock.nanoTime >> initialTime - 1_000_000_000L
-    count == 10
+    2 * mock.nanoTime >> initialTime - 1_000_000_000L
+    count == 11
   }
 }

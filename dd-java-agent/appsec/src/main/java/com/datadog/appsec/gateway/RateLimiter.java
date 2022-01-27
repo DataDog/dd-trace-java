@@ -10,39 +10,24 @@ import java.util.concurrent.atomic.AtomicLong;
  * second count, does not exceed a set limit.
  *
  * <p>The state is stored in a single 64-bit number, so that it can be updated atomically in an
- * efficient manner. The least significant 24 bits are reserved to the current second count, the
- * next 24 bits to the previous second count, and the most significant 16-bits for the time of the
+ * efficient manner. The least significant 20 bits are reserved to the current second count, the
+ * next 20 bits to the previous second count, and the most significant 24-bits for the time of the
  * last update.
  *
- * <p>The fact that only 16-bits are used for the time, and therefore that the time wraps around
- * every 2^16 seconds (~18 hours) results in two limitations:
- *
- * <ol>
- *   <li>We might erroneously think that the last update was done in the current second, when in
- *       fact it was done 18 hours before. This could be used by an attacker to force throttling by
- *       performing their attacks in a 1-second span every 18 hours. However, for this to work, the
- *       server would have to get no other events by other users in this same time span.
- *   <li>We consider the current count to refer to current second both if the timestamp that we got,
- *       which we read only once, corresponds to the stored timestamp and if it is 1 second behind
- *       (rather than simply being either the stored timestamp or any number of seconds behind) in
- *       order to limit the amount of times we erroneously think the stored timestamp is current
- *       after a wrap around. If 1) isThrottled takes more than 1 second to run, and 2) the limit is
- *       not reached during this interval, it is possible that we erroneously reset the count.
- *       Taking more than 1 second to run is unlikely though, and in the scenario where this
- *       happens, there are likely many concurrent updates in other threads that cause multiple CAS
- *       failures and retries, therefore the limit is more likely to be reached in that scenario.
- * </ol>
- *
- * <p>If this is deemed a serious problem, it could be fixed by reserving more bits to the timestamp
- * (32 bits would mean we would get the same value every 136 years), at the cost of reducing the max
- * limit to 2^16 operations. Fewer bits can be used, but then subtracting the time of the
- * construction is probably advised.
+ * <p>The fact that only 24-bits are used for the time, and therefore that the time wraps around
+ * every 2^24 seconds (~194 days) results in that ew might erroneously think that the last update
+ * was done in the current second, when in fact it was done 194 days before. This could be used by
+ * an attacker to force throttling by performing their attacks in a 1-second span every 194 days.
+ * However, for this to work, the server would have to get no other events by other users in this
+ * same time span.
  */
 public class RateLimiter {
-  private static final long MASK_COUNT_CUR_SEC = 0xFFFFFFL;
-  private static final long MASK_COUNT_PREV_SEC = 0xFFFFFF000000L;
-  private static final int SHIFT_COUNT_PREV_SEC = 24;
-  private static final int SHIFT_CUR_SEC = 48;
+  private static final long MASK_COUNT_CUR_SEC = 0xFFFFFL;
+  private static final long MASK_COUNT_PREV_SEC = 0xFFFFF00000L;
+  private static final int SHIFT_COUNT_PREV_SEC = 20;
+  private static final int SHIFT_CUR_SEC = 40;
+  private static final int MAX_LIMIT = 0xFFFFF; // 2^20 -1
+  private static final int TIME_RING_MASK = 0xFFFFFF; // 24 bits
 
   private final TimeSource timeSource;
   private final ThrottledCallback throttledCb;
@@ -57,7 +42,7 @@ public class RateLimiter {
   private final AtomicLong state = new AtomicLong();
 
   public RateLimiter(int limitPerSec, TimeSource timeSource, ThrottledCallback cb) {
-    this.limitPerSec = limitPerSec;
+    this.limitPerSec = Math.min(Math.max(limitPerSec, 0), MAX_LIMIT);
     this.timeSource = timeSource;
     this.throttledCb = cb;
   }
@@ -71,39 +56,65 @@ public class RateLimiter {
       storedState = this.state.get();
       int storedCurCount = (int) (storedState & MASK_COUNT_CUR_SEC);
       int storedPrevCount = (int) ((storedState & MASK_COUNT_PREV_SEC) >> SHIFT_COUNT_PREV_SEC);
-      int storedCurSec16 = (int) (storedState >>> SHIFT_CUR_SEC);
+      int storedCurSec24 = (int) (storedState >>> SHIFT_CUR_SEC);
 
-      int curSec16 = curSecond16bit(curSec);
-      int diff = (curSec16 - storedCurSec16) & 0xFFFF;
-      if (diff == 0 || diff == 0xFFFF /* -1 in ring Z_{0x10000} */) {
-        int count =
-            storedCurCount
-                + (int) (storedPrevCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
-        if (count >= limitPerSec) {
-          this.throttledCb.onThrottled();
-          return true;
+      int curSec24 = curSecond24bit(curSec);
+      int diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
+      while (true) {
+        switch (diff) {
+          case 0:
+            {
+              int count =
+                  storedCurCount
+                      + (int)
+                          (storedPrevCount
+                              * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
+              if (count >= limitPerSec) {
+                this.throttledCb.onThrottled();
+                return true;
+              }
+              newState = storedState + 1;
+              break;
+            }
+          case 1:
+            {
+              int count =
+                  (int) (storedCurCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
+              if (count >= limitPerSec) {
+                // this is very unlikely to happen because the 2nd factor above must be 1
+                // (we effectively round down when we cast to int)
+                this.throttledCb.onThrottled();
+                return true;
+              }
+              newState =
+                  ((long) curSec24 << SHIFT_CUR_SEC)
+                      | (((long) storedCurCount) << SHIFT_COUNT_PREV_SEC)
+                      | 1L;
+              break;
+            }
+          case 0xFFFFFF:
+            {
+              // we fell 1 second behind the current second (mod 0x1000000)
+              curSec = this.timeSource.getNanoTime();
+              curSec24 = curSecond24bit(curSec);
+              diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
+              if (diff != 0xFFFFFF) {
+                continue; // reevaluate switch
+              }
+              // else we're still behind, so we likely wrapped around since the last write
+              // in that case, fall to default case
+            }
+          default:
+            newState = ((long) curSec24 << SHIFT_CUR_SEC) | 1L;
         }
-        newState = storedState + 1;
-      } else if (diff == 1) {
-        int count =
-            (int) (storedCurCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
-        if (count >= limitPerSec) {
-          this.throttledCb.onThrottled();
-          return true;
-        }
-        newState =
-            ((long) curSec16 << SHIFT_CUR_SEC)
-                | (((long) storedCurCount) << SHIFT_COUNT_PREV_SEC)
-                | 1L;
-      } else {
-        newState = ((long) curSec16 << SHIFT_CUR_SEC) | 1L;
+        break; // while (true)
       }
     } while (!state.compareAndSet(storedState, newState));
     return false;
   }
 
-  private static int curSecond16bit(long nanoTime) {
+  private static int curSecond24bit(long nanoTime) {
     long secs = nanoTime / 1000000000L;
-    return (int) (secs & 0xFFFFL);
+    return (int) (secs & TIME_RING_MASK);
   }
 }
