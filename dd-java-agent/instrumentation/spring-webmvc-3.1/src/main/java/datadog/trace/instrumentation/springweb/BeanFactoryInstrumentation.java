@@ -46,7 +46,6 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".PairList",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
       packageName + ".PathMatchingHttpServletRequestWrapper",
     };

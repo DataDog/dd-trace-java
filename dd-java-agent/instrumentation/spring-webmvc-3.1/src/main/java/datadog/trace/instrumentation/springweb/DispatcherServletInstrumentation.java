@@ -43,7 +43,6 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".PairList",
       packageName + ".PathMatchingHttpServletRequestWrapper",
     };
   }
