@@ -8,11 +8,10 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
 
-import static datadog.trace.instrumentation.undertow.UndertowExtractAdapter.GETTER;
 
 public class UndertowDecorator
     extends HttpServerDecorator<
-        HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
+    HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
   public static final CharSequence UNDERTOW_REQUEST =
       UTF8BytesString.create("undertow-http.request");
   public static final CharSequence UNDERTOW_HTTP_SERVER =
@@ -23,7 +22,7 @@ public class UndertowDecorator
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"undertow-http", "undertow-http-server"};
+    return new String[]{"undertow-http", "undertow-http-server"};
   }
 
   @Override
@@ -33,7 +32,12 @@ public class UndertowDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpServerExchange> getter() {
-    return GETTER;
+    return UndertowExtractAdapter.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpServerExchange> responseGetter() {
+    return UndertowExtractAdapter.Response.GETTER;
   }
 
   @Override
