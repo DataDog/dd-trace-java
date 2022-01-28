@@ -14,7 +14,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-class UndertowTest extends HttpServerTest<Undertow> {
+class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   class UndertowServer implements HttpServer {
     def port = 0
     Undertow undertowServer;
@@ -24,42 +24,83 @@ class UndertowTest extends HttpServerTest<Undertow> {
         .addHttpListener(port, "localhost")
         .setHandler(Handlers.path()
           .addExactPath(SUCCESS.getPath()) { exchange ->
-            controller(SUCCESS) {
-              exchange.getResponseSender().send(SUCCESS.body)
-            }
+            exchange.dispatch(
+              controller(SUCCESS) {
+                new Runnable() {
+                  public void run() {
+                    exchange.getResponseSender().send(SUCCESS.body)
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(FORWARDED.getPath()) { exchange ->
-            controller(FORWARDED) {
-              exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
-            }
+            exchange.dispatch(
+              controller(FORWARDED) {
+                new Runnable() {
+                  public void run() {
+                    exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
-            controller(QUERY_ENCODED_BOTH) {
-              exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
-            }
+            exchange.dispatch(
+              controller(QUERY_ENCODED_BOTH) {
+                new Runnable() {
+                  public void run() {
+                    exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(QUERY_ENCODED_QUERY.getPath()) { exchange ->
-            controller(QUERY_ENCODED_QUERY) {
-              exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
-            }
+            exchange.dispatch(
+              controller(QUERY_ENCODED_QUERY) {
+                new Runnable() {
+                  public void run() {
+                    exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(QUERY_PARAM.getPath()) { exchange ->
-            controller(QUERY_PARAM) {
-              exchange.getResponseSender().send(exchange.getQueryString())
-            }
+            exchange.dispatch(
+              controller(QUERY_PARAM) {
+                new Runnable() {
+                  public void run() {
+                    exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(REDIRECT.getPath()) { exchange ->
-            controller(REDIRECT) {
-              exchange.setStatusCode(StatusCodes.FOUND)
-              exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
-              exchange.endExchange()
-            }
+            exchange.dispatch(
+              controller(REDIRECT) {
+                new Runnable() {
+                  public void run() {
+                    exchange.setStatusCode(StatusCodes.FOUND)
+                    exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(ERROR.getPath()) { exchange ->
-            controller(ERROR) {
-              exchange.setStatusCode(ERROR.status)
-              exchange.getResponseSender().send(ERROR.body)
-            }
+            exchange.dispatch(
+              controller(ERROR) {
+                new Runnable() {
+                  public void run() {
+                    exchange.setStatusCode(ERROR.status)
+                    exchange.getResponseSender().send(ERROR.body)
+                    exchange.endExchange()
+                  }
+                }
+              })
           }
           .addExactPath(EXCEPTION.getPath()) { exchange ->
             controller(EXCEPTION) {
