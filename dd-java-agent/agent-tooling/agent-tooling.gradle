@@ -43,7 +43,7 @@ compileMain_java11Java.doFirst {
 dependencies {
   main_java11CompileOnly deps.bytebuddy
   main_java11CompileOnly sourceSets.main.output
-  runtimeOnly sourceSets.main_java11.output
+  runtime sourceSets.main_java11.output
 }
 jar {
   from sourceSets.main_java11.output
