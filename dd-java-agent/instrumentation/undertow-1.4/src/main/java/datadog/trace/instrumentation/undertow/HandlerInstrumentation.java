@@ -46,7 +46,9 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing {
         packageName + ".ExchangeEndSpanListener",
         packageName + ".HttpServerExchangeURIDataAdapter",
         packageName + ".UndertowDecorator",
-        packageName + ".UndertowExtractAdapter"
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response"
     };
   }
 

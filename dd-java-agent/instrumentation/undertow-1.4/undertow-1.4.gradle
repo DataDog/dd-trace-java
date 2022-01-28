@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "io.undertow"
     module = "undertow-core"
-    versions = "[2.2.14.Final ,)"
+    versions = "[2.0.0.Final ,)"
     assertInverse = false
   }
 }
