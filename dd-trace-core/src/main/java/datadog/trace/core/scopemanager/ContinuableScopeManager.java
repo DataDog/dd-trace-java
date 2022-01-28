@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -190,6 +191,9 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     if (iterationKeepAlive > 0 && currentDepth == 0) {
       // no surrounding scope to aid cleanup, so use background task instead
       scheduleRootIterationScopeCleanup(scopeStack, scope);
+    } else {
+      span.setTag("debug.scope.stack", scopeStack.dump());
+      span.setTag("debug.java.stack", Arrays.toString(Thread.currentThread().getStackTrace()));
     }
 
     scopeStack.push(scope);
@@ -456,6 +460,17 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
 
     ContinuableScope top; // current scope
+
+    String dump() {
+      StringBuilder buf = new StringBuilder();
+      if (top != null) {
+        buf.append(top.span).append('\n');
+      }
+      for (ContinuableScope s : stack) {
+        buf.append(s.span).append('\n');
+      }
+      return buf.toString();
+    }
 
     // set by background task when a root iteration scope remains unclosed for too long
     volatile ContinuableScope overdueRootScope;
