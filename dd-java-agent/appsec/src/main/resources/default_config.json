@@ -5580,6 +5580,31 @@
       "transformers": []
     },
     {
+      "id": "ua0-600-55x",
+      "name": "Datadog test scanner: user-agent",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^dd-test-scanner-log$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
       "id": "ua0-600-5xx",
       "name": "Blind Sql Injection Brute Forcer",
       "tags": {
