@@ -3,7 +3,7 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'org.springframework.boot:spring-boot-gradle-plugin:1.5.22.RELEASE'
+    classpath 'org.springframework.boot:spring-boot-gradle-plugin:1.5.9.RELEASE'
   }
 }
 
@@ -38,10 +38,12 @@ if (project.hasProperty('testExecutable') && project.testExecutable) {
   }
 }
 
-ext['jetty.version'] = '9.4.44.v20210927'
+/* Last versions supporting Java 6
+ * (this can be updated now though, because we support only 8+) */
+ext['jetty.version'] = '8.1.22.v20160922'
 ext['jackson.version'] = '2.7.9'
 
-def groovyVersion = '2.5.13'
+def groovyVersion = '2.5.8'
 ext['groovy.version'] = groovyVersion
 
 dependencies {
@@ -53,7 +55,7 @@ dependencies {
   implementation group: 'io.sqreen', name: 'sqreen-sdk', version: '0.3'
   implementation group: 'io.sqreen', name: 'sqreen-sdk-standalone', version: '0.3.0'
 
-  implementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.5.13'
+  implementation group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.5.8'
   implementation 'org.springframework.boot:spring-boot-starter-web'
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa', {
     exclude module: 'tomcat-jdbc'
@@ -208,7 +210,7 @@ def createBundleTarget = { name, deps ->
       if (!(d instanceof List)) {
         d = [d]
       }
-      delegate."${name}Implementation"(*d)
+      delegate."${name}Compile"(*d)
     }
   }
 

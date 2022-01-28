@@ -1,35 +1,27 @@
 plugins {
-  id 'org.gradle.playframework'
+  id 'play'
 }
 
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
-apply from: "$rootDir/gradle/java.gradle"
+def playVersion = "2.5.19"
+def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.11")
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-def playVer = "2.5.19"
-def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")
-
-play {
-  platform {
-    playVersion = playVer
-    scalaVersion = scalaVer
-    javaVersion = JavaVersion.VERSION_1_8
+model {
+  components {
+    play {
+      platform play: playVersion, scala: scalaVersion, java: '1.8'
+      injectedRoutesGenerator = true
+    }
   }
-  injectedRoutesGenerator = true
-}
-
-distributions {
-  main {
-    contents {
-      from("conf") {
-        into "conf"
+  distributions {
+    playBinary {
+      contents {
+        from("conf") {
+          into "conf"
+        }
       }
     }
   }
@@ -49,30 +41,28 @@ repositories {
   }
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 description = 'Play 2.5 Integration Tests.'
 
 dependencies {
-  implementation "com.typesafe.play:play-logback_$scalaVer:$playVer"
-  implementation "com.typesafe.play:filters-helpers_$scalaVer:$playVer"
-  implementation "com.typesafe.play:play-java-ws_$scalaVer:$playVer"
+  play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
+  play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
+  play "com.typesafe.play:play-java-ws_$scalaVersion:$playVersion"
   // jaxb is not there anymore in java11+
-  implementation "javax.xml.bind:jaxb-api:2.3.1"
+  play "javax.xml.bind:jaxb-api:2.3.1"
 
-  implementation project(':dd-trace-api')
-  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
-  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  play project(':dd-trace-api')
+  play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   testImplementation project(':dd-smoke-tests')
 }
 
-configurations.testImplementation {
-  exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
-}
-
 tasks.named("compileTestGroovy").configure {
-  dependsOn 'stageMainDist'
+  dependsOn 'stagePlayBinaryDist'
   outputs.upToDateWhen {
-    !stageMainDist.didWork
+    !stagePlayBinaryDist.didWork
   }
 }
 

@@ -30,18 +30,18 @@ testSets {
 }
 
 dependencies {
-  api project(':dd-trace-api')
+  compile project(':dd-trace-api')
   api project(':communication')
-  api project(':internal-api')
-  implementation project(':utils:histograms')
-  implementation project(':utils:container-utils')
-  implementation project(':utils:socket-utils')
-  implementation project(':dd-cws-tls')
+  compile project(':internal-api')
+  compile project(':utils:histograms')
+  compile project(':utils:container-utils')
+  compile project(':utils:socket-utils')
+  compile project(':dd-cws-tls')
 
-  implementation deps.slf4j
+  compile deps.slf4j
   implementation deps.moshi
 
-  implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
+  compile group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 

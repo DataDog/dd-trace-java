@@ -1,8 +1,8 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  implementation deps.slf4j
-  implementation project(':internal-api')
+  compile deps.slf4j
+  compile project(':internal-api')
 
-  implementation group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
+  compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
 }

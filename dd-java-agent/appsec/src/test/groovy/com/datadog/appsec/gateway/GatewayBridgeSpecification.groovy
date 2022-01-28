@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
@@ -48,7 +49,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null)
+  RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null)
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -104,6 +106,26 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'event publishing is rate limited'() {
+    AppSecEvent100 event = Mock()
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> [:]
+    RequestContext mockCtx = Mock(RequestContext) {
+      getData() >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock()
+
+    when:
+    11.times {requestEndedCB.apply(mockCtx, spanInfo) }
+
+    then:
+    11 * mockAppSecCtx.transferCollectedEvents() >> [event]
+    11 * mockAppSecCtx.close()
+    11 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
+    10 * traceSegment.setDataTop("appsec", _)
   }
 
   void 'actor ip calculated from headers'() {

@@ -42,6 +42,8 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     "-Ddd.profiling.enabled=false",
     // decoding received traces is only available for v0.5 right now
     "-Ddd.trace.agent.v0.5.enabled=true",
+    // disable AppSec rate limit
+    "-Ddd.appsec.trace.rate.limit=-1"
   ]
 
   @Override
