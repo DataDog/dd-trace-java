@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.ClassFileVersion;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -150,6 +151,14 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
       final Set<String> adviceClasses = new HashSet<>();
       instrumenter.adviceTransformations(
           new Instrumenter.AdviceTransformation() {
+            @Override
+            public void applyAdvice(
+                ElementMatcher<? super MethodDescription> matcher,
+                String name,
+                Advice.WithCustomMapping adviceWithCustomMapping) {
+              adviceClasses.add(name);
+            }
+
             @Override
             public void applyAdvice(
                 ElementMatcher<? super MethodDescription> matcher, String name) {

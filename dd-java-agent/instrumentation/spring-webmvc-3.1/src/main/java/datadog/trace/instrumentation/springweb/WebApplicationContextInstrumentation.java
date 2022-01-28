@@ -9,6 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -21,6 +24,8 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  */
 @AutoService(Instrumenter.class)
 public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
+  private boolean appSecEnabled;
+
   public WebApplicationContextInstrumentation() {
     super("spring-web");
   }
@@ -45,10 +50,14 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HandlerMappingResourceNameFilter",
+      packageName + ".PairList",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
       packageName + ".PathMatchingHttpServletRequestWrapper",
     };
   }
+
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface AppSecEnabled {}
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -60,20 +69,30 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
                     0,
                     named(
                         "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
-        WebApplicationContextInstrumentation.class.getName() + "$FilterInjectingAdvice");
+        WebApplicationContextInstrumentation.class.getName() + "$FilterInjectingAdvice",
+        Advice.withCustomMapping().bind(AppSecEnabled.class, appSecEnabled));
   }
 
   public static class FilterInjectingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
+        @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory,
+        @AppSecEnabled boolean appSecEnabled) {
       if (beanFactory instanceof BeanDefinitionRegistry
           && !beanFactory.containsBean("ddDispatcherFilter")) {
 
         ((BeanDefinitionRegistry) beanFactory)
             .registerBeanDefinition(
-                "ddDispatcherFilter", new HandlerMappingResourceNameFilter.BeanDefinition());
+                "ddDispatcherFilter",
+                new HandlerMappingResourceNameFilter.BeanDefinition(appSecEnabled));
       }
     }
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // abuse isApplicable to determine if appsec is enabled
+    this.appSecEnabled = enabledSystems.contains(TargetSystem.APPSEC);
+    return enabledSystems.contains(TargetSystem.TRACING);
   }
 }

@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -214,13 +215,21 @@ public interface Instrumenter {
       }
 
       @Override
-      public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
+      public void applyAdvice(
+          ElementMatcher<? super MethodDescription> matcher,
+          String name,
+          Advice.WithCustomMapping adviceWithCustomMapping) {
         agentBuilder =
             agentBuilder.transform(
-                new AgentBuilder.Transformer.ForAdvice()
+                new AgentBuilder.Transformer.ForAdvice(adviceWithCustomMapping)
                     .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                     .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
                     .advice(not(ignoreMatcher).and(matcher), name));
+      }
+
+      @Override
+      public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
+        applyAdvice(matcher, name, Advice.withCustomMapping());
       }
     }
 
@@ -432,6 +441,11 @@ public interface Instrumenter {
   }
 
   interface AdviceTransformation {
+    void applyAdvice(
+        ElementMatcher<? super MethodDescription> matcher,
+        String name,
+        Advice.WithCustomMapping adviceWithCustomMapping);
+
     void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
   }
 }
