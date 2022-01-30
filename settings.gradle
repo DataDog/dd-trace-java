@@ -278,4 +278,6 @@ def setBuildFile(project) {
 }
 
 setBuildFile(rootProject)
+include 'dd-java-agent:instrumentation:redisson-3.10.2'
+findProject(':dd-java-agent:instrumentation:redisson-3.10.2')?.name = 'redisson-3.10.2'
 
