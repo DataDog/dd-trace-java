@@ -108,6 +108,7 @@ public class GatewayBridge {
               traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
               Map<String, List<String>> requestHeaders = ctx.getRequestHeaders();
+              Map<String, List<String>> responseHeaders = ctx.getResponseHeaders();
               InetAddress inferredAddr =
                   ClientIpAddressResolver.doResolve(this.ipAddrHeader, requestHeaders);
               if (inferredAddr != null) {
@@ -118,16 +119,29 @@ public class GatewayBridge {
               AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
               traceSeg.setDataTop("appsec", wrapper);
 
-              // Report collected request headers based on allow list
-              requestHeaders.forEach(
-                  (name, value) -> {
-                    if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
-                      String v = Strings.join(",", value);
-                      if (!v.isEmpty()) {
-                        traceSeg.setTagTop("http.request.headers." + name, v);
+              // Report collected request and response headers based on allow list
+              if (requestHeaders != null) {
+                requestHeaders.forEach(
+                    (name, value) -> {
+                      if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
+                        String v = Strings.join(",", value);
+                        if (!v.isEmpty()) {
+                          traceSeg.setTagTop("http.request.headers." + name, v);
+                        }
                       }
-                    }
-                  });
+                    });
+              }
+              if (responseHeaders != null) {
+                responseHeaders.forEach(
+                    (name, value) -> {
+                      if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
+                        String v = String.join(",", value);
+                        if (!v.isEmpty()) {
+                          traceSeg.setTagTop("http.response.headers." + name, v);
+                        }
+                      }
+                    });
+              }
             }
           }
 
@@ -135,8 +149,9 @@ public class GatewayBridge {
           return NoopFlow.INSTANCE;
         });
 
-    subscriptionService.registerCallback(EVENTS.requestHeader(), new NewHeaderCallback());
-    subscriptionService.registerCallback(EVENTS.requestHeaderDone(), new HeadersDoneCallback());
+    subscriptionService.registerCallback(EVENTS.requestHeader(), new NewRequestHeaderCallback());
+    subscriptionService.registerCallback(
+        EVENTS.requestHeaderDone(), new RequestHeadersDoneCallback());
 
     subscriptionService.registerCallback(
         EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback());
@@ -182,11 +197,7 @@ public class GatewayBridge {
           AppSecRequestContext ctx = ctx_.getData();
           ctx.setPeerAddress(ip);
           ctx.setPeerPort(port);
-          if (isInitialRequestDataPublished(ctx)) {
-            return publishInitialRequestData(ctx);
-          } else {
-            return NoopFlow.INSTANCE;
-          }
+          return maybePublishRequestData(ctx);
         });
 
     subscriptionService.registerCallback(
@@ -206,6 +217,11 @@ public class GatewayBridge {
 
           return producerService.publishDataEvent(responseStatusSubInfo, ctx, bundle, false);
         });
+
+    subscriptionService.registerCallback(
+        EVENTS.responseHeader(),
+        (ctx, name, value) -> ctx.getData().addResponseHeader(name, value));
+    subscriptionService.registerCallback(EVENTS.responseHeaderDone(), ctx -> NoopFlow.INSTANCE);
   }
 
   // currently unused; doesn't do anything useful
@@ -227,7 +243,7 @@ public class GatewayBridge {
     }
   }
 
-  private static class NewHeaderCallback
+  private static class NewRequestHeaderCallback
       implements TriConsumer<RequestContext<AppSecRequestContext>, String, String> {
     @Override
     public void accept(RequestContext<AppSecRequestContext> ctx_, String name, String value) {
@@ -240,6 +256,15 @@ public class GatewayBridge {
       } else {
         ctx.addRequestHeader(name, value);
       }
+    }
+  }
+
+  private class RequestHeadersDoneCallback
+      implements Function<RequestContext<AppSecRequestContext>, Flow<Void>> {
+    public Flow<Void> apply(RequestContext<AppSecRequestContext> ctx_) {
+      AppSecRequestContext ctx = ctx_.getData();
+      ctx.finishRequestHeaders();
+      return maybePublishRequestData(ctx);
     }
   }
 
@@ -268,37 +293,18 @@ public class GatewayBridge {
           log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
         }
       }
-      if (isInitialRequestDataPublished(ctx)) {
-        return publishInitialRequestData(ctx);
-      } else {
-        return NoopFlow.INSTANCE;
-      }
+      return maybePublishRequestData(ctx);
     }
   }
 
-  private class HeadersDoneCallback
-      implements Function<RequestContext<AppSecRequestContext>, Flow<Void>> {
-    public Flow<Void> apply(RequestContext<AppSecRequestContext> ctx_) {
-      AppSecRequestContext ctx = ctx_.getData();
-
-      ctx.finishHeaders();
-
-      if (isInitialRequestDataPublished(ctx)) {
-        return publishInitialRequestData(ctx);
-      } else {
-        return NoopFlow.INSTANCE;
-      }
-    }
-  }
-
-  private static boolean isInitialRequestDataPublished(AppSecRequestContext ctx) {
-    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getPeerAddress() != null;
-  }
-
-  private Flow<Void> publishInitialRequestData(AppSecRequestContext ctx) {
+  private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
-    Map<String, List<String>> queryParams = EMPTY_QUERY_PARAMS;
 
+    if (savedRawURI == null || !ctx.isFinishedRequestHeaders() || ctx.getPeerAddress() == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    Map<String, List<String>> queryParams = EMPTY_QUERY_PARAMS;
     int i = savedRawURI.indexOf("?");
     if (i != -1) {
       String qs = savedRawURI.substring(i + 1);
