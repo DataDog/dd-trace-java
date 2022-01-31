@@ -57,6 +57,19 @@ public class AgentTooling {
       } catch (Throwable e) {
         log.warn("Problem loading Java9 Module support, falling back to legacy transformer", e);
       }
+    } else if (Platform.isJavaVersionAtLeast(8, 0, 262)) {
+      try {
+        return (TransformerDecorator)
+            AgentInstaller.class
+                .getClassLoader()
+                .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava8ClassFileTransformer")
+                .getField("DECORATOR")
+                .get(null);
+      } catch (Throwable e) {
+        log.warn(
+            "Problem loading Java8 (u262+) instrumentation JFR support, falling back to legacy transformer",
+            e);
+      }
     }
     return DDClassFileTransformer.DECORATOR;
   }
