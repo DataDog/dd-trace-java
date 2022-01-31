@@ -36,6 +36,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       false,
       null,
       512)
@@ -88,6 +89,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       false,
       null,

@@ -57,6 +57,7 @@ public class PendingTraceWrite {
                 0,
                 trace,
                 null,
+                null,
                 false,
                 null,
                 512));
@@ -79,6 +80,7 @@ public class PendingTraceWrite {
                 "type",
                 0,
                 trace,
+                null,
                 null,
                 false,
                 null,

@@ -148,6 +148,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       false,
       DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
@@ -218,6 +219,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       false,
       DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
@@ -290,6 +292,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       false,
       DatadogTags.create("_dd.p.hello"), // malformed tags
       512)
@@ -360,6 +363,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       false,
       DatadogTags.create("_dd.p.hello"), // malformed tags
@@ -441,6 +445,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       spanType,
       1,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       false,
       null,

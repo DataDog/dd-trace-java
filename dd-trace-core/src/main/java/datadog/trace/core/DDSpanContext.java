@@ -149,6 +149,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final int tagsSize,
       final PendingTrace trace,
       final Object requestContextData,
+      final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final DatadogTags ddTags,
       final int datadogTagsLimit) {
@@ -171,6 +172,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     }
 
     this.requestContextData = requestContextData;
+
+    this.pathwayContext = pathwayContext;
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately

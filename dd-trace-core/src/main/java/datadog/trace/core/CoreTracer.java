@@ -1088,6 +1088,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (endToEndStartTime > 0) {
           parentTrace.beginEndToEnd(endToEndStartTime);
         }
+
+        pathwayContext = null;
       }
 
       if (serviceName == null) {
@@ -1121,6 +1123,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               tagsSize,
               parentTrace,
               requestContextData,
+              pathwayContext,
               disableSamplingMechanismValidation,
               ddTags,
               datadogTagsLimit);

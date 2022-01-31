@@ -169,6 +169,7 @@ class PayloadDispatcherTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       false,
       null,
       512)

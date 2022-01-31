@@ -44,6 +44,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       false,
       DatadogTags.empty(),
       512)
@@ -119,6 +120,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       false,
       DatadogTags.empty(),

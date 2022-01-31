@@ -440,6 +440,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
+      null,
       false,
       null,
       512)

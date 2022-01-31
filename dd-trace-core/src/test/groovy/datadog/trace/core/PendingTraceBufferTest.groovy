@@ -319,6 +319,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       false,
       null,
       512)
@@ -343,6 +344,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeType",
       0,
       trace,
+      null,
       null,
       false,
       null,
