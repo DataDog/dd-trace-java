@@ -14,7 +14,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
 public final class NameMatchers<T extends NamedElement>
-    extends ElementMatcher.Junction.AbstractBase<T> implements AgentBuilder.RawMatcher, FailSafe {
+    extends ElementMatcher.Junction.ForNonNullValues<T>
+    implements AgentBuilder.RawMatcher, FailSafe {
 
   private static final int NAMED = 0;
   private static final int NAME_STARTS_WITH = 1;
@@ -145,7 +146,7 @@ public final class NameMatchers<T extends NamedElement>
   }
 
   @Override
-  public boolean matches(T target) {
+  protected boolean doMatch(T target) {
     return match(target.getActualName());
   }
 

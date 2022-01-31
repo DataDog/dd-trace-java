@@ -12,7 +12,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 // TODO: add javadoc
 class HasSuperMethodMatcher<T extends MethodDescription>
-    extends ElementMatcher.Junction.AbstractBase<T> {
+    extends ElementMatcher.Junction.ForNonNullValues<T> {
 
   private final ElementMatcher<? super MethodDescription> matcher;
 
@@ -21,7 +21,7 @@ class HasSuperMethodMatcher<T extends MethodDescription>
   }
 
   @Override
-  public boolean matches(final MethodDescription target) {
+  protected boolean doMatch(final MethodDescription target) {
     if (target.isConstructor()) {
       return false;
     }
