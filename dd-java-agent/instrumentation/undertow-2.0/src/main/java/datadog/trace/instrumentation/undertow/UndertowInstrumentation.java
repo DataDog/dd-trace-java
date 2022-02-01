@@ -26,7 +26,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 public final class UndertowInstrumentation extends Instrumenter.Tracing {
 
   public UndertowInstrumentation() {
-    super("undertow", "wildfly");
+    super("undertow", "undertow-1.4");
   }
 
   @Override

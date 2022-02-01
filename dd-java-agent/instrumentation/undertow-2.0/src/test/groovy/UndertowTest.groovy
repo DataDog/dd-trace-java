@@ -8,6 +8,7 @@ import io.undertow.util.StatusCodes
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -52,6 +53,13 @@ class UndertowTest extends HttpServerTest<Undertow> {
             controller(REDIRECT) {
               exchange.setStatusCode(StatusCodes.FOUND)
               exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
+              exchange.endExchange()
+            }
+          }
+          .addExactPath(PATH_PARAM.getPath()) { exchange ->
+            controller(PATH_PARAM) {
+              exchange.setStatusCode(PATH_PARAM.status)
+              exchange.getResponseSender().send(PATH_PARAM.body)
               exchange.endExchange()
             }
           }
@@ -112,5 +120,10 @@ class UndertowTest extends HttpServerTest<Undertow> {
   boolean testEncodedPath() {
     // Don't know why Undertow is unable to match the encoded path
     false
+  }
+
+  @Override
+  String testPathParam() {
+    "/path/{id}/param"
   }
 }
