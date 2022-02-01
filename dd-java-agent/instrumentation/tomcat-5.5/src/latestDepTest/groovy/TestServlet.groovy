@@ -3,6 +3,9 @@ import jakarta.servlet.http.HttpServlet
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -37,6 +40,20 @@ class TestServlet extends HttpServlet {
         case FORWARDED:
           resp.status = endpoint.status
           resp.writer.print(req.remoteAddr)
+          break
+        case CREATED:
+          resp.status = endpoint.status
+          resp.writer.print("${endpoint.body}: ${req.reader.text}")
+          break
+        case CREATED_IS:
+          resp.status = endpoint.status
+          def stream = req.inputStream
+          resp.writer.print("${endpoint.body}: ${stream.getText('UTF-8')}")
+          break
+        case BODY_URLENCODED:
+          resp.status = endpoint.status
+          resp.writer.print(
+            req.parameterMap.collectEntries {[it.key, it.value as List]} as String)
           break
         case QUERY_ENCODED_BOTH:
         case QUERY_ENCODED_QUERY:

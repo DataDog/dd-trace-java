@@ -1,0 +1,61 @@
+muzzle {
+  pass {
+    group = "org.eclipse.jetty"
+    module = 'jetty-server'
+    versions = "[7.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest
+  jetty9Test {
+    dirName = 'test'
+  }
+}
+
+tasks.withType(Test).configureEach {
+  if (name != 'forkedTest') {
+    scanForTestClasses = false
+    include "**/*Test.class"
+  }
+}
+
+latestDepTest {
+  doFirst {
+    if (!System.env.JAVA_11_HOME) {
+      throw new GradleException('JAVA_11_HOME must be set for latestDepTest')
+    }
+    executable = file("${System.env.JAVA_11_HOME}/bin/java")
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
+
+  // Don't want to conflict with jetty from the test server.
+  testImplementation(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+  testImplementation project(':dd-java-agent:instrumentation:jetty-util')
+
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-7.0'))
+
+  jetty9TestImplementation sourceSets.test.output
+  jetty9TestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
+  jetty9TestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.+'
+  jetty9TestImplementation project(':dd-java-agent:instrumentation:jetty-9')
+
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '+'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '+'
+  latestDepTestImplementation group: 'org.slf4j', name: 'slf4j-api', {
+    version {
+      strictly '1.7.30' // avoid upgrade to 2.0
+    }
+  }
+  latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty-11'))
+}

@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -82,6 +83,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.requestClientSocketAddress(), callbacks.requestClientSocketAddressCb)
     ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
+    ig.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
     ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
@@ -236,6 +238,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyUrlencoded() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -250,6 +256,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
     CREATED_IS("created_input_stream", 201, "created"),
+    BODY_URLENCODED("body-urlencoded", 200, '[a:[x]]'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -897,6 +904,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test instrumentation gateway urlencoded request body'() {
+    setup:
+    assumeTrue(testBodyUrlencoded())
+    def request = request(
+      BODY_URLENCODED, 'POST',
+      RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == '[a:[x]]'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -1096,6 +1124,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
+
+    final BiFunction<RequestContext<Context>, Object, Flow<Void>> requestBodyObjectCb =
+    ({ RequestContext<Context> rqCtxt, Object obj ->
+      if (obj instanceof Map) {
+        obj = obj.collectEntries {
+          [
+            it.key,
+            (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
+          ]}
+      }
+      activeSpan().localRootSpan.setTag('request.body.converted', obj as String)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Object, Flow<Void>>)
 
     final BiFunction<RequestContext<Context>, Integer, Flow<Void>> responseStartedCb =
     ({ RequestContext<Context> rqCtxt, Integer resultCode ->

@@ -11,6 +11,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'java-test-fixtures'
 
 testSets {
   latestDepTest {
@@ -18,17 +19,29 @@ testSets {
   }
 }
 
+tasks.withType(Test).configureEach {
+  if (name != 'forkedTest') {
+    scanForTestClasses = false // scanForTestClasses can't find parent of Jetty70Test
+    include "**/*Test.class"
+  }
+}
+
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
 
   // Don't want to conflict with jetty from the test server.
+  // Avoid testFixturesApi because exclusion doesn't seem to then apply to test runtime cp
   testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
+  testFixturesCompileOnly(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+
   testImplementation project(':dd-java-agent:instrumentation:jetty-util')
 
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.0.0.v20091005'
+  testFixturesApi group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
+  testFixturesApi group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.0.0.v20091005'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '7.0.0.v20091005'
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.0.+'
