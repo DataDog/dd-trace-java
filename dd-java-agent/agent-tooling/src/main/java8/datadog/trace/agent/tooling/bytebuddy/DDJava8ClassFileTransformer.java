@@ -37,13 +37,25 @@ public final class DDJava8ClassFileTransformer
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
-    if (true) throw new IllegalStateException("TEST");
-
     if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
       return null;
     }
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    ClassTransformationEvent event = new ClassTransformationEvent(internalClassName);
+
+    try {
+      event.begin();
+      byte[] result =
+          classFileTransformer.transform(
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+      event.setTransformed(result != null);
+      return result;
+    } finally {
+      event.commit();
+    }
   }
 }

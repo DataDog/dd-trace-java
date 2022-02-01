@@ -55,6 +55,7 @@ compileMain_java11Java.doFirst {
 dependencies {
   main_java8CompileOnly deps.bytebuddy
   main_java8CompileOnly sourceSets.main.output
+  main_java11CompileOnly sourceSets.main_java8.output
   main_java11CompileOnly deps.bytebuddy
   main_java11CompileOnly sourceSets.main.output
   runtime sourceSets.main_java11.output

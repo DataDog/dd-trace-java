@@ -59,12 +59,22 @@ public final class DDJava9ClassFileTransformer
       return null;
     }
 
-    return classFileTransformer.transform(
-        module,
-        classLoader,
-        internalClassName,
-        classBeingRedefined,
-        protectionDomain,
-        classFileBuffer);
+    ClassTransformationEvent event = new ClassTransformationEvent(internalClassName);
+
+    try {
+      event.begin();
+      byte[] result =
+          classFileTransformer.transform(
+              module,
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+      event.setTransformed(result != null);
+      return result;
+    } finally {
+      event.commit();
+    }
   }
 }
