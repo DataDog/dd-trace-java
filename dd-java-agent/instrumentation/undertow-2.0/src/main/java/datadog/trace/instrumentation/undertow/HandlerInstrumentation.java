@@ -22,7 +22,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 public final class HandlerInstrumentation extends Instrumenter.Tracing {
 
   public HandlerInstrumentation() {
-    super("undertow", "wildfly");
+    super("undertow", "undertow-1.4");
   }
 
   @Override
