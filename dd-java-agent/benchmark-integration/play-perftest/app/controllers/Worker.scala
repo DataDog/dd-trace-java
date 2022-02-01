@@ -15,7 +15,7 @@ object Worker {
       span.setTag("additionalInfo", "interesting stuff")
     }
     val doneTimestamp = System.nanoTime + TimeUnit.MILLISECONDS.toNanos(workTimeMS)
-    while ( {
+    while ({
       System.nanoTime < doneTimestamp
     }) {
       // busy-wait to simulate work

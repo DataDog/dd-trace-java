@@ -24,7 +24,7 @@ testSets {
 dependencies {
   compileOnly(group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0')
 
-  compile(project(':dd-java-agent:agent-tooling')) {
+  implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: 'okhttp'
   }
 
