@@ -124,9 +124,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
+    cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
-    cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
@@ -134,7 +134,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
   }
 
-  void 'bad initial configuration is given results in no attacks detected'() {
+  void 'bad initial configuration is given results in no subscriptions'() {
     def cfgService = new StubAppSecConfigService([waf: [:]])
 
     when:
@@ -143,13 +143,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
-
-    when:
-    dataListener = pwafModule.dataSubscriptions.first()
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
-
-    then:
-    0 * ctx._
+    pwafModule.dataSubscriptions.empty
   }
 
   void 'rule data not a config'() {
@@ -163,7 +157,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     then:
-    pwafModule.ctx.get() == null
+    pwafModule.ctxAndAddresses.get() == null
   }
 
   void 'bad ActionWithData - empty list'() {
