@@ -83,7 +83,7 @@ public class PathwayContext {
   }
 
   private static long generateNodeHash(String serviceName, String edge) {
-    return FNV64Hash.generateHash(serviceName + edge);
+    return FNV64Hash.generateHash(serviceName + edge, FNV64Hash.Version.v1);
   }
 
   private static long generatePathwayHash(long nodeHash, long parentHash) {
@@ -94,6 +94,6 @@ public class PathwayContext {
     output.writeLongLE(nodeHash);
     output.writeLongLE(parentHash);
 
-    return FNV64Hash.generateHash(output.backingArray(), 0, 16);
+    return FNV64Hash.generateHash(output.backingArray(), 0, 16, FNV64Hash.Version.v1);
   }
 }
