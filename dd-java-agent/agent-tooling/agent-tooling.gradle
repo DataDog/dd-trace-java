@@ -35,11 +35,6 @@ sourceSets {
   }
 }
 compileMain_java8Java.doFirst {
-  if (!System.env.JAVA_8_HOME) {
-    throw new GradleException('JAVA_8_HOME must be set to build transformer helpers')
-  }
-  options.fork = true
-  options.forkOptions.javaHome = file(System.env.JAVA_8_HOME)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }

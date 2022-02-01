@@ -5,21 +5,48 @@ import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 
-@Category({"Data Dog Tracer", "Class Transformation"})
+@Category({"Datadog", "Tracer"})
 @Name("datadog.trace.agent.ClassTransformation")
 @Label("Class Transformation")
 public class ClassTransformationEvent extends Event {
   @Label("Class Name")
-  String className;
+  final String className;
+
+  @Label("Class Size before transformation")
+  final int classSizeBeforeTransformation;
+
+  @Label("Class Size after transformation")
+  int classSizeAfterTransformation;
+
+  @Label("Class Size difference")
+  int classSizeDifference;
 
   @Label("Transformed")
   boolean transformed;
 
-  protected ClassTransformationEvent(String className) {
-    this.className = className;
+  public static ClassTransformationEvent beforeClassTransformation(
+      String className, byte[] classfileBuffer) {
+    ClassTransformationEvent event = new ClassTransformationEvent(className, classfileBuffer);
+    event.begin();
+    return event;
   }
 
-  protected void setTransformed(boolean value) {
-    transformed = value;
+  private ClassTransformationEvent(String className, byte[] classfileBuffer) {
+    this.className = className;
+    this.classSizeBeforeTransformation = classfileBuffer.length;
+  }
+
+  public void afterClassTransformation(byte[] classfileBuffer) {
+    if (classfileBuffer == null) {
+      classSizeAfterTransformation = classSizeBeforeTransformation;
+      transformed = false;
+    } else {
+      classSizeAfterTransformation = classfileBuffer.length;
+      transformed = classSizeBeforeTransformation != classSizeAfterTransformation;
+    }
+    classSizeDifference = classSizeAfterTransformation - classSizeBeforeTransformation;
+    if (shouldCommit()) {
+      commit();
+    }
   }
 }
