@@ -154,11 +154,18 @@ class GatewayBridgeSpecification extends DDSpecification {
     reqHeaderCB.accept(ctx, 'header1', 'value 1.2')
     reqHeaderCB.accept(ctx, 'Header1', 'value 1.3')
     reqHeaderCB.accept(ctx, 'header2', 'value 2')
+    respHeaderCB.accept(ctx, 'header3', 'value 3.1')
+    respHeaderCB.accept(ctx, 'header3', 'value 3.2')
+    respHeaderCB.accept(ctx, 'header3', 'value 3.3')
+    respHeaderCB.accept(ctx, 'header4', 'value 4')
 
     then:
-    def headers = ctx.data.requestHeaders
-    assert headers['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
-    assert headers['header2'] == ['value 2']
+    def reqHeaders = ctx.data.requestHeaders
+    assert reqHeaders['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
+    assert reqHeaders['header2'] == ['value 2']
+    def respHeaders = ctx.data.responseHeaders
+    assert respHeaders['header3'] == ['value 3.1', 'value 3.2', 'value 3.3']
+    assert respHeaders['header4'] == ['value 4']
   }
 
   void 'headers are split between cookies and non cookies'() {
@@ -492,13 +499,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo
 
     when:
-    Flow<AppSecRequestContext> flow1 = responseStartedCB.apply(ctx, 404)
-    Flow<AppSecRequestContext> flow2 = respHeadersDoneCB.apply(ctx)
+    Flow<AppSecRequestContext> flow = responseStartedCB.apply(ctx, 404)
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { NoopFlow.INSTANCE }
-    flow2.result == null
-    flow2.action == Flow.Action.Noop.INSTANCE
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
   }
 }
