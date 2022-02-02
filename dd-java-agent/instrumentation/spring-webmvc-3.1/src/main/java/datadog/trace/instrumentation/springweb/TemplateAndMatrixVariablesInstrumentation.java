@@ -102,7 +102,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.AppS
         }
       }
 
-      if (map != null) {
+      if (map != null && !map.isEmpty()) {
         CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
         BiFunction<RequestContext<Object>, Map<String, Object>, Flow<Void>> callback =
             cbp.getCallback(EVENTS.requestPathParams());

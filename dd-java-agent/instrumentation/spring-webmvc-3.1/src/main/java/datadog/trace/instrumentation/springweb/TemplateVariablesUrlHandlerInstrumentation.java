@@ -74,6 +74,10 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.App
       }
 
       Map<String, Object> map = (Map<String, Object>) templateVars;
+      if (map.isEmpty()) {
+        return;
+      }
+
       CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
       BiFunction<RequestContext<Object>, Map<String, Object>, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestPathParams());
