@@ -6,9 +6,11 @@ def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfig
 boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? groovySkipJavaExclude : false
 
 spotless {
-  java {
-    toggleOffOn()
-    googleJavaFormat()
+  if (project.plugins.hasPlugin('java')) {
+    java {
+      toggleOffOn()
+      googleJavaFormat()
+    }
   }
 
   groovyGradle {
@@ -38,15 +40,19 @@ spotless {
     }
   }
 
-  scala {
-    toggleOffOn()
-    scalafmt("2.0.1").configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+  if (project.plugins.hasPlugin('scala')) {
+    scala {
+      toggleOffOn()
+      scalafmt("2.0.1").configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+    }
   }
 
-  kotlin {
-    toggleOffOn()
-    //    ktfmt() // Requires newer version of java
-    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+  if (project.plugins.hasPlugin('kotlin')) {
+    kotlin {
+      toggleOffOn()
+      //    ktfmt() // Requires newer version of java
+      ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    }
   }
 
   format 'misc', {

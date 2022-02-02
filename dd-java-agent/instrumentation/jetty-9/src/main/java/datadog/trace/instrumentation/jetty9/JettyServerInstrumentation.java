@@ -64,9 +64,9 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
                         // (without the risk of double instrumenting).
                         named("run")
                             .and(
-                                new ElementMatcher.Junction.AbstractBase<MethodDescription>() {
+                                new ElementMatcher.Junction.ForNonNullValues<MethodDescription>() {
                                   @Override
-                                  public boolean matches(MethodDescription target) {
+                                  protected boolean doMatch(MethodDescription target) {
                                     // TODO this could probably be made into a nicer matcher.
                                     return !declaresMethod(named("handle"))
                                         .matches(target.getDeclaringType().asErasure());
