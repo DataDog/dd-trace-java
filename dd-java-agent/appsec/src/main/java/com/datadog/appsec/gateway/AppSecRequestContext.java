@@ -55,6 +55,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedRequestHeaders;
+  private boolean finishedResponseHeaders;
   private String peerAddress;
   private int peerPort;
 
@@ -176,6 +177,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void addResponseHeader(String name, String value) {
+    if (finishedResponseHeaders) {
+      throw new IllegalStateException("Response headers were said to be finished before");
+    }
+
     if (name == null || value == null) {
       return;
     }
@@ -183,6 +188,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     List<String> strings =
         responseHeaders.computeIfAbsent(name.toLowerCase(), h -> new ArrayList<>(1));
     strings.add(value);
+  }
+
+  public void finishResponseHeaders() {
+    this.finishedResponseHeaders = true;
+  }
+
+  public boolean isFinishedResponseHeaders() {
+    return finishedResponseHeaders;
   }
 
   Map<String, List<String>> getResponseHeaders() {

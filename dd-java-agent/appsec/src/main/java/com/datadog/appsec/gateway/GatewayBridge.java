@@ -56,7 +56,7 @@ public class GatewayBridge {
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
   private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
-  private volatile EventProducerService.DataSubscriberInfo responseStatusSubInfo;
+  private volatile EventProducerService.DataSubscriberInfo respDataSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -205,23 +205,19 @@ public class GatewayBridge {
         (ctx_, status) -> {
           AppSecRequestContext ctx = ctx_.getData();
           ctx.setResponseStatus(status);
-
-          MapDataBundle bundle =
-              MapDataBundle.of(
-                  KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()));
-
-          if (responseStatusSubInfo == null) {
-            responseStatusSubInfo =
-                producerService.getDataSubscribers(KnownAddresses.RESPONSE_STATUS);
-          }
-
-          return producerService.publishDataEvent(responseStatusSubInfo, ctx, bundle, false);
+          return maybePublishResponseData(ctx);
         });
 
     subscriptionService.registerCallback(
         EVENTS.responseHeader(),
         (ctx, name, value) -> ctx.getData().addResponseHeader(name, value));
-    subscriptionService.registerCallback(EVENTS.responseHeaderDone(), ctx -> NoopFlow.INSTANCE);
+    subscriptionService.registerCallback(
+        EVENTS.responseHeaderDone(),
+        ctx_ -> {
+          AppSecRequestContext ctx = ctx_.getData();
+          ctx.finishResponseHeaders();
+          return maybePublishResponseData(ctx);
+        });
   }
 
   // currently unused; doesn't do anything useful
@@ -343,6 +339,28 @@ public class GatewayBridge {
             .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
+  }
+
+  private Flow<Void> maybePublishResponseData(AppSecRequestContext ctx) {
+
+    int status = ctx.getResponseStatus();
+
+    if (status == 0 || !ctx.isFinishedResponseHeaders()) {
+      return NoopFlow.INSTANCE;
+    }
+
+    MapDataBundle bundle =
+        MapDataBundle.of(
+            KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
+            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
+
+    if (respDataSubInfo == null) {
+      respDataSubInfo =
+          producerService.getDataSubscribers(
+              KnownAddresses.RESPONSE_STATUS, KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
+    }
+
+    return producerService.publishDataEvent(respDataSubInfo, ctx, bundle, false);
   }
 
   private static Map<String, List<String>> parseQueryStringParams(

@@ -499,12 +499,15 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo
 
     when:
-    Flow<AppSecRequestContext> flow = responseStartedCB.apply(ctx, 404)
+    Flow<AppSecRequestContext> flow1 = responseStartedCB.apply(ctx, 404)
+    Flow<AppSecRequestContext> flow2 = respHeadersDoneCB.apply(ctx)
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { NoopFlow.INSTANCE }
-    flow.result == null
-    flow.action == Flow.Action.Noop.INSTANCE
+    flow1.result == null
+    flow1.action == Flow.Action.Noop.INSTANCE
+    flow2.result == null
+    flow2.action == Flow.Action.Noop.INSTANCE
   }
 }
