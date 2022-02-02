@@ -6,8 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
+import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
@@ -75,7 +75,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    return TomcatDecorator.DECORATE.component()
   }
 
   String getServletContext() {
@@ -104,6 +104,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
     true
   }
 

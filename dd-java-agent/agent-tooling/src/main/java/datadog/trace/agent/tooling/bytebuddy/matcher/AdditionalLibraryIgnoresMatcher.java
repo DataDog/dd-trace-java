@@ -151,6 +151,9 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
         if (name.startsWith("org.springframework.http.server.reactive.")) {
           return false;
         }
+        if (name.endsWith("HttpMessageConverter")) {
+          return false;
+        }
         return true;
       }
 

@@ -9,6 +9,7 @@ import org.springframework.util.MultiValueMap
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.MatrixVariable
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
@@ -19,6 +20,7 @@ import org.springframework.web.servlet.view.RedirectView
 import javax.servlet.http.HttpServletRequest
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -93,9 +95,19 @@ class TestController {
   @RequestMapping(value = "/body-urlencoded",
   method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
   @ResponseBody
-  String body_urlencoded(@RequestParam Map<String, String> body) {
+  String body_urlencoded(@RequestParam MultiValueMap<String, String> body) {
     HttpServerTest.controller(BODY_URLENCODED) {
       body as String
+    }
+  }
+
+  @PostMapping(value = "/body-json",
+  consumes = MediaType.APPLICATION_JSON_VALUE,
+  produces = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseBody
+  Map<String, Object> body_json(@RequestBody Map<String, Object> body) {
+    HttpServerTest.controller(BODY_JSON) {
+      body
     }
   }
 

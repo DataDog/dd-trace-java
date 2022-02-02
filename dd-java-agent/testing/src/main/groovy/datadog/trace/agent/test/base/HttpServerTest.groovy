@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -242,6 +243,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyJson() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -257,6 +262,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CREATED("created", 201, "created"),
     CREATED_IS("created_input_stream", 201, "created"),
     BODY_URLENCODED("body-urlencoded", 200, '[a:[x]]'),
+    BODY_JSON("body-json", 200, '{"a":"x"}'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -915,6 +921,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     expect:
     response.body().charStream().text == '[a:[x]]'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
+  def 'test instrumentation gateway json request body'() {
+    setup:
+    assumeTrue(testBodyJson())
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == BODY_JSON.body
 
     when:
     TEST_WRITER.waitForTraces(1)
