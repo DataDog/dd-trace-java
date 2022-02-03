@@ -83,6 +83,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
+    mockAppSecCtx.responseHeaders >> [
+      'some-header': ['123'],
+      'content-type':['text/html; charset=UTF-8']]
     RequestContext mockCtx = Mock(RequestContext) {
       getData() >> mockAppSecCtx
       getTraceSegment() >> traceSegment
@@ -102,6 +105,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('appsec.event', true)
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
     0 * traceSegment._(*_)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
