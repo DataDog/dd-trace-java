@@ -67,6 +67,7 @@ class AppSecSystemSpecification extends DDSpecification {
     1 * requestContext.traceSegment >> traceSegment
     1 * appSecReqCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
     1 * appSecReqCtx.getRequestHeaders() >> ['foo-bar': ['1.1.1.1']]
+    1 * appSecReqCtx.getResponseHeaders() >> [:]
     1 * traceSegment.setTagTop('actor.ip', '1.1.1.1')
   }
 
@@ -93,6 +94,7 @@ class AppSecSystemSpecification extends DDSpecification {
     7 * appSecReqCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
     // allow for one extra in case we move to another second and round down the prev count
     (5..6) * appSecReqCtx.getRequestHeaders() >> [:]
+    (5..6) * appSecReqCtx.getResponseHeaders() >> [:]
     (5..6) * traceSegment.setDataTop("appsec", _)
     (1..2) * throttledCounter.increment(1)
   }

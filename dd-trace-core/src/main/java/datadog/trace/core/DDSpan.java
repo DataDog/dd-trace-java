@@ -16,6 +16,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
@@ -23,6 +24,7 @@ import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -34,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
@@ -84,6 +86,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private final boolean withCheckpoints;
 
   private volatile EndpointTracker endpointTracker;
+
+  // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
+  private volatile Object wrapper;
+  private static final AtomicReferenceFieldUpdater<DDSpan, Object> WRAPPER_FIELD_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, Object.class, "wrapper");
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -742,5 +749,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public String toString() {
     return context.toString() + ", duration_ns=" + durationNano;
+  }
+
+  @Override
+  public void attachWrapper(Object wrapper) {
+    WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+  }
+
+  @Override
+  public Object getWrapper() {
+    return WRAPPER_FIELD_UPDATER.get(this);
   }
 }

@@ -82,5 +82,9 @@ public class OTScopeManager implements ScopeManager {
     public void setAsyncPropagation(final boolean value) {
       delegate.setAsyncPropagation(value);
     }
+
+    public boolean isFinishSpanOnClose() {
+      return finishSpanOnClose;
+    }
   }
 }

@@ -52,13 +52,13 @@ class AppSecRequestContextSpecification extends DDSpecification {
     AppSecRequestContext ctx = new AppSecRequestContext()
 
     when:
-    ctx.finishHeaders()
+    ctx.finishRequestHeaders()
 
     and:
     ctx.addRequestHeader('a', 'b')
 
     then:
-    ctx.finishedHeaders == true
+    ctx.finishedRequestHeaders
     thrown(IllegalStateException)
 
     when:

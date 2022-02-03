@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -25,6 +26,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -227,7 +230,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     extendedScopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
     AgentSpan activeSpan = activeSpan();
-    if (activeSpan != null && !(activeSpan instanceof NoopAgentSpan)) {
+    if (activeSpan != null && activeSpan != NoopAgentSpan.INSTANCE) {
       // Notify the listener about the currently active scope
       listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.context().getSpanId());
     }
@@ -237,7 +240,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     return this.tlsScopeStack.get();
   }
 
-  private static class ContinuableScope implements AgentScope {
+  private static class ContinuableScope implements AgentScope, AttachableWrapper {
     private final ContinuableScopeManager scopeManager;
 
     final AgentSpan span; // package-private so scopeManager can access it directly
@@ -248,6 +251,11 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private byte flags;
 
     private short referenceCount = 1;
+
+    private volatile Object wrapper;
+    private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
+        WRAPPER_FIELD_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
 
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
@@ -418,6 +426,16 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     private boolean notifiedOnActivate() {
       return flags < 0;
+    }
+
+    @Override
+    public void attachWrapper(@Nonnull Object wrapper) {
+      WRAPPER_FIELD_UPDATER.set(this, wrapper);
+    }
+
+    @Override
+    public Object getWrapper() {
+      return WRAPPER_FIELD_UPDATER.get(this);
     }
   }
 

@@ -43,6 +43,9 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
       if (Short.class == clazz) {
         return new ShortWriter();
       }
+      // This is some other Number type, that will be treated as a metric by the
+      // serializer, so let's write out its double value to be protocol compatible
+      return new NumberDoubleWriter();
     }
     if (clazz.isArray()) {
       if (byte[].class == clazz) {
@@ -247,6 +250,14 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
     @Override
     public void write(Long value, Writable packer, EncodingCache encodingCache) {
       packer.writeLong(value);
+    }
+  }
+
+  private static final class NumberDoubleWriter implements ValueWriter<Number> {
+
+    @Override
+    public void write(Number value, Writable packer, EncodingCache encodingCache) {
+      packer.writeDouble(value.doubleValue());
     }
   }
 
