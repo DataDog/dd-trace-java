@@ -54,7 +54,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
-  private boolean finishedHeaders;
+  private boolean finishedRequestHeaders;
+  private boolean finishedResponseHeaders;
   private String peerAddress;
   private int peerPort;
 
@@ -110,6 +111,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T get(Address<T> addr) {
     return (T) persistentData.get(addr);
   }
@@ -149,8 +151,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void addRequestHeader(String name, String value) {
-    if (finishedHeaders) {
-      throw new IllegalStateException("Headers were said to be finished before");
+    if (finishedRequestHeaders) {
+      throw new IllegalStateException("Request headers were said to be finished before");
     }
 
     if (name == null || value == null) {
@@ -162,7 +164,23 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     strings.add(value);
   }
 
+  void finishRequestHeaders() {
+    this.finishedRequestHeaders = true;
+  }
+
+  boolean isFinishedRequestHeaders() {
+    return finishedRequestHeaders;
+  }
+
+  Map<String, List<String>> getRequestHeaders() {
+    return requestHeaders;
+  }
+
   void addResponseHeader(String name, String value) {
+    if (finishedResponseHeaders) {
+      throw new IllegalStateException("Response headers were said to be finished before");
+    }
+
     if (name == null || value == null) {
       return;
     }
@@ -172,27 +190,23 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     strings.add(value);
   }
 
-  void addCookie(StringKVPair cookie) {
-    if (finishedHeaders) {
-      throw new IllegalStateException("Headers were said to be finished before");
-    }
-    collectedCookies.add(cookie);
+  public void finishResponseHeaders() {
+    this.finishedResponseHeaders = true;
   }
 
-  void finishHeaders() {
-    this.finishedHeaders = true;
-  }
-
-  boolean isFinishedHeaders() {
-    return finishedHeaders;
-  }
-
-  Map<String, List<String>> getRequestHeaders() {
-    return requestHeaders;
+  public boolean isFinishedResponseHeaders() {
+    return finishedResponseHeaders;
   }
 
   Map<String, List<String>> getResponseHeaders() {
     return responseHeaders;
+  }
+
+  void addCookie(StringKVPair cookie) {
+    if (finishedRequestHeaders) {
+      throw new IllegalStateException("Request headers were said to be finished before");
+    }
+    collectedCookies.add(cookie);
   }
 
   List<StringKVPair> getCollectedCookies() {

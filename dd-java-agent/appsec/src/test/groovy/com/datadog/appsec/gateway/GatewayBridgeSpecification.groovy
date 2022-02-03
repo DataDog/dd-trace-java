@@ -54,13 +54,15 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
-  TriConsumer<RequestContext, String, String> headerCB
-  Function<RequestContext, Flow<Void>> headersDoneCB
+  TriConsumer<RequestContext, String, String> reqHeaderCB
+  Function<RequestContext, Flow<Void>> reqHeadersDoneCB
   TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestMethodURICB
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
+  TriConsumer<RequestContext, String, String> respHeaderCB
+  Function<RequestContext, Flow<Void>> respHeadersDoneCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -81,6 +83,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     AppSecEvent100 event = Mock()
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> ['accept':['header_value']]
+    mockAppSecCtx.responseHeaders >> [
+      'some-header': ['123'],
+      'content-type':['text/html; charset=UTF-8']]
     RequestContext mockCtx = Mock(RequestContext) {
       getData() >> mockAppSecCtx
       getTraceSegment() >> traceSegment
@@ -100,6 +105,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('appsec.event', true)
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
     0 * traceSegment._(*_)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
@@ -148,22 +154,29 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'bridge can collect headers'() {
     when:
-    headerCB.accept(ctx, 'header1', 'value 1.1')
-    headerCB.accept(ctx, 'header1', 'value 1.2')
-    headerCB.accept(ctx, 'Header1', 'value 1.3')
-    headerCB.accept(ctx, 'header2', 'value 2')
+    reqHeaderCB.accept(ctx, 'header1', 'value 1.1')
+    reqHeaderCB.accept(ctx, 'header1', 'value 1.2')
+    reqHeaderCB.accept(ctx, 'Header1', 'value 1.3')
+    reqHeaderCB.accept(ctx, 'header2', 'value 2')
+    respHeaderCB.accept(ctx, 'header3', 'value 3.1')
+    respHeaderCB.accept(ctx, 'header3', 'value 3.2')
+    respHeaderCB.accept(ctx, 'header3', 'value 3.3')
+    respHeaderCB.accept(ctx, 'header4', 'value 4')
 
     then:
-    def headers = ctx.data.requestHeaders
-    assert headers['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
-    assert headers['header2'] == ['value 2']
+    def reqHeaders = ctx.data.requestHeaders
+    assert reqHeaders['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
+    assert reqHeaders['header2'] == ['value 2']
+    def respHeaders = ctx.data.responseHeaders
+    assert respHeaders['header3'] == ['value 3.1', 'value 3.2', 'value 3.3']
+    assert respHeaders['header4'] == ['value 4']
   }
 
   void 'headers are split between cookies and non cookies'() {
     when:
-    headerCB.accept(ctx, 'Cookie', 'foo=bar;foo2=bar2')
-    headerCB.accept(ctx, 'Cookie', 'foo3=bar3')
-    headerCB.accept(ctx, 'Another-Header', 'another value')
+    reqHeaderCB.accept(ctx, 'Cookie', 'foo=bar;foo2=bar2')
+    reqHeaderCB.accept(ctx, 'Cookie', 'foo3=bar3')
+    reqHeaderCB.accept(ctx, 'Another-Header', 'another value')
 
     then:
     def collectedHeaders = ctx.data.requestHeaders
@@ -187,8 +200,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    headersDoneCB.apply(ctx)
-    headerCB.accept(ctx, 'header', 'value')
+    reqHeadersDoneCB.apply(ctx)
+    reqHeaderCB.accept(ctx, 'header', 'value')
 
     then:
     thrown(IllegalStateException)
@@ -204,7 +217,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    headersDoneCB.apply(ctx)
+    reqHeadersDoneCB.apply(ctx)
     requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
@@ -222,7 +235,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    headersDoneCB.apply(ctx)
+    reqHeadersDoneCB.apply(ctx)
     requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
@@ -241,7 +254,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
-    headersDoneCB.apply(ctx)
+    reqHeadersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
@@ -272,7 +285,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
-    headersDoneCB.apply(ctx)
+    reqHeadersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 80)
 
     then:
@@ -300,12 +313,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> { requestMethodURICB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { headerCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { headersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { reqHeaderCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { reqHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -459,7 +474,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     requestMethodURICB.apply(ctx, 'POST', adapter)
-    headersDoneCB.apply(ctx)
+    reqHeadersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
@@ -477,7 +492,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
-    headersDoneCB.apply(ctx)
+    reqHeadersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
@@ -488,12 +503,15 @@ class GatewayBridgeSpecification extends DDSpecification {
     eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo
 
     when:
-    Flow<AppSecRequestContext> flow = responseStartedCB.apply(ctx, 404)
+    Flow<AppSecRequestContext> flow1 = responseStartedCB.apply(ctx, 404)
+    Flow<AppSecRequestContext> flow2 = respHeadersDoneCB.apply(ctx)
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { NoopFlow.INSTANCE }
-    flow.result == null
-    flow.action == Flow.Action.Noop.INSTANCE
+    flow1.result == null
+    flow1.action == Flow.Action.Noop.INSTANCE
+    flow2.result == null
+    flow2.action == Flow.Action.Noop.INSTANCE
   }
 }

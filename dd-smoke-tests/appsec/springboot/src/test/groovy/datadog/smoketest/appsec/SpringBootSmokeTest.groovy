@@ -44,5 +44,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       assert it['rule']['tags']['type'] == 'security_scanner'
     }
     rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
+    rootSpans.each {
+      assert it.meta['http.response.headers.content-type'] == 'text/plain;charset=UTF-8'
+      assert it.meta['http.response.headers.content-length'] == '15'
+    }
   }
 }
