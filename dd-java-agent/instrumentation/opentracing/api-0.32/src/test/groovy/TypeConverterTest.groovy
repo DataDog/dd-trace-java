@@ -43,8 +43,9 @@ class TypeConverterTest extends AgentTestRunner {
     expect:
     typeConverter.toScope(noopScope, true) is typeConverter.toScope(noopScope, true)
     typeConverter.toScope(noopScope, false) is typeConverter.toScope(noopScope, false)
-    !typeConverter.toScope(noopScope, true).is(typeConverter.toScope(noopScope, false))
-    !typeConverter.toScope(noopScope, false).is(typeConverter.toScope(noopScope, true))
+    // noop scopes expected to be the same despite the finishSpanOnClose flag
+    typeConverter.toScope(noopScope, true) is typeConverter.toScope(noopScope, false)
+    typeConverter.toScope(noopScope, false) is typeConverter.toScope(noopScope, true)
   }
 
   def "should avoid extra allocation for a scope wrapper"() {

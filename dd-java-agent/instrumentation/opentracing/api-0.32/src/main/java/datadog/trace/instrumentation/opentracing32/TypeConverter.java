@@ -15,15 +15,12 @@ public class TypeConverter {
   private final OTSpan noopSpanWrapper;
   private final OTSpanContext noopContextWrapper;
   private final OTScopeManager.OTScope noopScopeWrapper;
-  private final OTScopeManager.OTScope noopScopeWrapperFinishSpanOnClose;
 
   public TypeConverter(final LogHandler logHandler) {
     this.logHandler = logHandler;
     noopSpanWrapper = new OTSpan(AgentTracer.NoopAgentSpan.INSTANCE, this, logHandler);
     noopContextWrapper = new OTSpanContext(AgentTracer.NoopContext.INSTANCE);
     noopScopeWrapper = new OTScopeManager.OTScope(AgentTracer.NoopAgentScope.INSTANCE, false, this);
-    noopScopeWrapperFinishSpanOnClose =
-        new OTScopeManager.OTScope(AgentTracer.NoopAgentScope.INSTANCE, true, this);
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -71,7 +68,7 @@ public class TypeConverter {
       return otScope;
     }
     if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
-      return finishSpanOnClose ? noopScopeWrapperFinishSpanOnClose : noopScopeWrapper;
+      return noopScopeWrapper;
     }
     return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
   }
