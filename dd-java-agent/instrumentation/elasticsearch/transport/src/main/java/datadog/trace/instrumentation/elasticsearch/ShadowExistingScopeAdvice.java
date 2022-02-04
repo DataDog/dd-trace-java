@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.context;
+package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
