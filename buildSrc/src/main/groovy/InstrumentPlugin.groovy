@@ -1,3 +1,4 @@
+import net.bytebuddy.ClassFileVersion
 import net.bytebuddy.build.EntryPoint
 import net.bytebuddy.build.gradle.ByteBuddyTask
 import net.bytebuddy.build.gradle.Discovery
@@ -38,6 +39,7 @@ class InstrumentPlugin implements Plugin<Project> {
           byteBuddyTask.extendedParsing = false
           byteBuddyTask.discovery = Discovery.NONE
           byteBuddyTask.threads = 0
+          byteBuddyTask.classFileVersion = ClassFileVersion.JAVA_V7
 
           byteBuddyTask.incrementalResolver = IncrementalResolver.ForChangedFiles.INSTANCE
 
