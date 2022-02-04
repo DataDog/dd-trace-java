@@ -133,7 +133,7 @@ public final class MongoClient34Instrumentation extends Instrumenter.Tracing {
         @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
       MongoCommandListener.tryRegister(
           new MongoCommandListener(
-              1,
+              2,
               MongoDecorator34.INSTANCE,
               InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
               InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
