@@ -121,7 +121,7 @@ class FilteredAppConfig extends WebMvcConfigurerAdapter {
                 break
               case BODY_URLENCODED:
                 resp.status = endpoint.status
-                resp.writer.print(req.parameterMap as String)
+                resp.writer.print(req.parameterMap.findAll { it.key != 'ignore' } as String)
                 break
               case QUERY_ENCODED_BOTH:
               case QUERY_ENCODED_QUERY:

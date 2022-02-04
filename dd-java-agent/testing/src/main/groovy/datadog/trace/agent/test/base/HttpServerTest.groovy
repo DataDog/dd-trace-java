@@ -261,7 +261,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
     CREATED_IS("created_input_stream", 201, "created"),
-    BODY_URLENCODED("body-urlencoded", 200, '[a:[x]]'),
+    BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),

@@ -50,7 +50,11 @@ class TestServlet extends HttpServlet {
         case BODY_URLENCODED:
           resp.status = endpoint.status
           resp.writer.print(
-            req.parameterMap.collectEntries {[it.key, it.value as List]} as String)
+            req.parameterMap
+            .findAll{
+              it.key != 'ignore'
+            }
+            .collectEntries {[it.key, it.value as List]} as String)
           break
         case FORWARDED:
           resp.status = endpoint.status

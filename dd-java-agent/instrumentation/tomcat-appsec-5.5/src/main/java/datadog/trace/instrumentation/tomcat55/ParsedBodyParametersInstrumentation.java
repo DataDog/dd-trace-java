@@ -20,9 +20,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -59,22 +57,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec {
               .build());
 
   private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher() {
-      @Override
-      public boolean matches(ClassLoader loader) {
-        return origMatcher.matches(loader)
-            && PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER.matches(loader);
-      }
-
-      @Override
-      public List<Reference.Mismatch> getMismatchedReferenceSources(ClassLoader loader) {
-        List<Reference.Mismatch> allMismatches =
-            new ArrayList<>(origMatcher.getMismatchedReferenceSources(loader));
-        allMismatches.addAll(
-            PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER.getMismatchedReferenceSources(loader));
-        return allMismatches;
-      }
-    };
+    return new IReferenceMatcher.ConjunctionReferenceMatcher(
+        origMatcher, PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER);
   }
 
   @Override

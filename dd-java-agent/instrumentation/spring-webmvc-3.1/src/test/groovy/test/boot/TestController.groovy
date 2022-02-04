@@ -97,7 +97,7 @@ class TestController {
   @ResponseBody
   String body_urlencoded(@RequestParam MultiValueMap<String, String> body) {
     HttpServerTest.controller(BODY_URLENCODED) {
-      body as String
+      body.findAll { it.key != 'ignore' } as String
     }
   }
 

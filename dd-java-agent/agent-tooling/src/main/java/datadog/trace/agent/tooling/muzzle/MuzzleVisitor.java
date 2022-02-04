@@ -145,7 +145,6 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
         hasPostProcessReferenceMatcher = true;
       } catch (NoSuchMethodException e) {
       }
-      ;
 
       if (hasPostProcessReferenceMatcher) {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
