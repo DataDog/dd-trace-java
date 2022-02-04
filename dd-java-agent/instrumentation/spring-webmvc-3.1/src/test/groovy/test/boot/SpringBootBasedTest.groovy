@@ -6,8 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
-import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
@@ -35,6 +35,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Shared
   EmbeddedWebApplicationContext context
+
+  Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
     return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
@@ -75,7 +77,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String component() {
-    return TomcatDecorator.DECORATE.component()
+    return Servlet3Decorator.DECORATE.component()
   }
 
   String getServletContext() {
@@ -127,7 +129,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"]
+    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"] +
+    extraServerTags
   }
 
   @Override
@@ -157,6 +160,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   def "test character encoding of #testPassword"() {
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
+    extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
 
     RequestBody formBody = new FormBody.Builder()
       .add("username", "test")

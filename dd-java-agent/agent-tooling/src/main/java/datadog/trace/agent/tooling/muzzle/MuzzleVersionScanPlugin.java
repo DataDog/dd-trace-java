@@ -49,7 +49,7 @@ public class MuzzleVersionScanPlugin {
       try {
         m = instrumenter.getClass().getDeclaredMethod("getInstrumentationMuzzle");
         m.setAccessible(true);
-        final ReferenceMatcher muzzle = (ReferenceMatcher) m.invoke(instrumenter);
+        final IReferenceMatcher muzzle = (IReferenceMatcher) m.invoke(instrumenter);
         final List<Reference.Mismatch> mismatches =
             muzzle.getMismatchedReferenceSources(userClassLoader);
 

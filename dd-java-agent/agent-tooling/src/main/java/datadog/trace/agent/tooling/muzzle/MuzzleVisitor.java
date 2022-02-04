@@ -30,6 +30,7 @@ import net.bytebuddy.pool.TypePool;
 public class MuzzleVisitor implements AsmVisitorWrapper {
   public static final String MUZZLE_FIELD_NAME = "instrumentationMuzzle";
   public static final String MUZZLE_METHOD_NAME = "getInstrumentationMuzzle";
+  public static final String POST_PROCESS_REFERENCE_MATCHER_METHOD = "postProcessReferenceMatcher";
 
   private final File targetDir;
 
@@ -124,7 +125,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           super.visitMethod(
               Opcodes.ACC_PROTECTED,
               MUZZLE_METHOD_NAME,
-              "()Ldatadog/trace/agent/tooling/muzzle/ReferenceMatcher;",
+              "()" + Type.getDescriptor(IReferenceMatcher.class),
               null,
               null);
 
@@ -135,6 +136,30 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           instrumentationClassName + "$Muzzle",
           MUZZLE_FIELD_NAME,
           Type.getDescriptor(ReferenceMatcher.class));
+
+      boolean hasPostProcessReferenceMatcher = false;
+      try {
+        instrumenter
+            .getClass()
+            .getDeclaredMethod(POST_PROCESS_REFERENCE_MATCHER_METHOD, ReferenceMatcher.class);
+        hasPostProcessReferenceMatcher = true;
+      } catch (NoSuchMethodException e) {
+      }
+      ;
+
+      if (hasPostProcessReferenceMatcher) {
+        mv.visitIntInsn(Opcodes.ALOAD, 0);
+        mv.visitInsn(Opcodes.SWAP);
+        mv.visitMethodInsn(
+            Opcodes.INVOKESPECIAL,
+            instrumentationClassName,
+            POST_PROCESS_REFERENCE_MATCHER_METHOD,
+            "("
+                + Type.getDescriptor(ReferenceMatcher.class)
+                + ")"
+                + Type.getDescriptor(IReferenceMatcher.class),
+            false);
+      }
 
       mv.visitInsn(Opcodes.ARETURN);
       mv.visitMaxs(0, 0);
