@@ -56,6 +56,7 @@ public class GatewayBridge {
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
   private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
+  private volatile EventProducerService.DataSubscriberInfo pathParamsSubInfo;
   private volatile EventProducerService.DataSubscriberInfo respDataSubInfo;
 
   public GatewayBridge(
@@ -164,6 +165,21 @@ public class GatewayBridge {
             ctx.setStoredRequestBodySupplier(supplier);
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_START);
             return null;
+          });
+    }
+
+    if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
+      subscriptionService.registerCallback(
+          EVENTS.requestPathParams(),
+          (ctx_, data) -> {
+            AppSecRequestContext ctx = ctx_.getData();
+
+            if (pathParamsSubInfo == null) {
+              pathParamsSubInfo =
+                  producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+            }
+            MapDataBundle bundle = MapDataBundle.of(KnownAddresses.REQUEST_PATH_PARAMS, data);
+            return producerService.publishDataEvent(pathParamsSubInfo, ctx, bundle, false);
           });
     }
 
@@ -433,7 +449,7 @@ public class GatewayBridge {
         EVENT_DEPENDENCIES = new HashMap<>(3); // ceil(2 / .75)
 
     private static final Map<Address<?>, Collection<datadog.trace.api.gateway.EventType<?>>>
-        DATA_DEPENDENCIES = new HashMap<>(2);
+        DATA_DEPENDENCIES = new HashMap<>(3);
 
     static {
       EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_START, l(EVENTS.requestBodyStart()));
@@ -441,6 +457,7 @@ public class GatewayBridge {
 
       DATA_DEPENDENCIES.put(
           KnownAddresses.REQUEST_BODY_RAW, l(EVENTS.requestBodyStart(), EVENTS.requestBodyDone()));
+      DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_PATH_PARAMS, l(EVENTS.requestPathParams()));
     }
 
     private static Collection<datadog.trace.api.gateway.EventType<?>> l(

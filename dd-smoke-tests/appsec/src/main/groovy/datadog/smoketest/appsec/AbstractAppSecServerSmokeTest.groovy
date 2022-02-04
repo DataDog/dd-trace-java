@@ -64,4 +64,8 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   def cleanup() {
     rootSpans.clear()
   }
+
+  void forEachRootSpan(Closure closure) {
+    rootSpans.collectMany {it.triggers }.forEach closure
+  }
 }

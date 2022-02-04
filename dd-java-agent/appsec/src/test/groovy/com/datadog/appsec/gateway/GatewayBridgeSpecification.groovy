@@ -57,6 +57,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriConsumer<RequestContext, String, String> reqHeaderCB
   Function<RequestContext, Flow<Void>> reqHeadersDoneCB
   TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestMethodURICB
+  BiFunction<RequestContext, Map<String, Object>, Flow<Void>> pathParamsCB
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
@@ -305,14 +306,30 @@ class GatewayBridgeSpecification extends DDSpecification {
     '%C2%80' | '\u0080'
   }
 
+  void 'path params are published'() {
+    DataBundle bundle
+
+    when:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_PATH_PARAMS in it }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    and:
+    pathParamsCB.apply(ctx, [a: 'b'])
+
+    then:
+    assert bundle.get(KnownAddresses.REQUEST_PATH_PARAMS) == [a: 'b']
+  }
+
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
     1 * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
-    1 * eventDispatcher.allSubscribedDataAddresses() >> []
+    1 * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> { requestMethodURICB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestPathParams(), _) >> { pathParamsCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { reqHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { reqHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
