@@ -14,6 +14,8 @@ minimumInstructionCoverage = 0.5
 
 excludedClassesCoverage += [
   // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTScopeManager.OTScope",
+  "datadog.opentracing.OTSpan",
   "datadog.opentracing.OTSpanContext",
   // The builder is generated
   "datadog.opentracing.DDTracer.DDTracerBuilder"
