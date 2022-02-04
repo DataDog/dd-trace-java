@@ -9,7 +9,7 @@ muzzle {
   pass {
     group = "org.apache.httpcomponents"
     module = "httpclient"
-    versions = "[4.0,)"
+    versions = "[4.0,5.0)"
     assertInverse = true
   }
   pass {
