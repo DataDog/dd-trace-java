@@ -2,7 +2,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.context.ShadowExistingScopeAdvice;
+import datadog.trace.instrumentation.elasticsearch.ShadowExistingScopeAdvice;
 import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 
