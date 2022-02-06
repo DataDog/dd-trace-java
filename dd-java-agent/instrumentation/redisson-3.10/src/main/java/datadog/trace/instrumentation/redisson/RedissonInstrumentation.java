@@ -4,11 +4,15 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.util.Strings;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -77,7 +81,12 @@ public final class RedissonInstrumentation extends Instrumenter.Tracing {
     public static AgentScope onEnter(@Advice.Argument(0) final CommandsData command) {
       final AgentSpan span = startSpan(RedissonClientDecorator.REDIS_COMMAND);
       RedissonClientDecorator.DECORATE.afterStart(span);
-      RedissonClientDecorator.DECORATE.onStatement(span, command.toString());
+//      List<String> commandResourceNames = new ArrayList<>();
+//      for (CommandData<?, ?> commandData : command.getCommands()) {
+//        commandResourceNames.add(commandData.getCommand().getName());
+//      }
+      // Strings.join(",", commandResourceNames)
+      RedissonClientDecorator.DECORATE.onStatement(span, "TEST");
       return activateSpan(span);
     }
 
