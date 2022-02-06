@@ -260,7 +260,7 @@ include ':dd-java-agent:instrumentation:vertx-redis-client-3.9'
 include ':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs'
 include ':dd-java-agent:instrumentation:vertx-rx-3.5'
 include ':dd-java-agent:instrumentation:vertx-web-3.4'
-include 'dd-java-agent:instrumentation:redisson-3.10'
+include ':dd-java-agent:instrumentation:redisson-3.10'
 
 // benchmark
 include ':dd-java-agent:benchmark'
