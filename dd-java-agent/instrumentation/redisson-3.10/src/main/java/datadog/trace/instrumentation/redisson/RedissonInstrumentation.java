@@ -81,12 +81,11 @@ public final class RedissonInstrumentation extends Instrumenter.Tracing {
     public static AgentScope onEnter(@Advice.Argument(0) final CommandsData command) {
       final AgentSpan span = startSpan(RedissonClientDecorator.REDIS_COMMAND);
       RedissonClientDecorator.DECORATE.afterStart(span);
-//      List<String> commandResourceNames = new ArrayList<>();
-//      for (CommandData<?, ?> commandData : command.getCommands()) {
-//        commandResourceNames.add(commandData.getCommand().getName());
-//      }
-      // Strings.join(",", commandResourceNames)
-      RedissonClientDecorator.DECORATE.onStatement(span, "TEST");
+      List<String> commandResourceNames = new ArrayList<>();
+      for (CommandData<?, ?> commandData : command.getCommands()) {
+        commandResourceNames.add(commandData.getCommand().getName());
+      }
+      RedissonClientDecorator.DECORATE.onStatement(span, Strings.join(";", commandResourceNames));
       return activateSpan(span);
     }
 

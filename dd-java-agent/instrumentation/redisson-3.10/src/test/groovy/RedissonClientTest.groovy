@@ -3,6 +3,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.redisson.Redisson
+import org.redisson.api.BatchOptions
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
 import org.redisson.config.SingleServerConfig
@@ -861,4 +862,100 @@ class RedissonClientTest extends AgentTestRunner {
 //      }
 //    }
 //  }
+
+  def "simple pipelining command"() {
+    when:
+    def batch = redissonClient.createBatch(BatchOptions.defaults())
+    batch.getBucket("foo").setAsync("bar")
+    batch.execute()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "SET"
+          spanType DDSpanTypes.REDIS
+          topLevel true
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "bucket set and get pipelining commands"() {
+    when:
+    def batch = redissonClient.createBatch(BatchOptions.defaults())
+    batch.getBucket("foo").setAsync("bar")
+    def future = batch.getBucket("foo").getAsync()
+    batch.execute()
+    def result = future.get()
+
+    then:
+    result == "bar"
+
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "SET;GET"
+          spanType DDSpanTypes.REDIS
+          topLevel true
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "complex pipelining commands"() {
+    when:
+    def batch = redissonClient.createBatch(BatchOptions.defaults())
+
+    batch.getBucket("bucket").setAsync("barOne")
+    batch.getBucket("bucket").setAsync("barTwo")
+    def futureBucketVal = batch.getBucket("bucket").getAsync()
+
+    batch.getQueue("queue").offerAsync("qBarOne")
+    batch.getQueue("queue").offerAsync("qBarTwo")
+    def futureQueueValues = batch.getQueue("queue").readAllAsync()
+
+    batch.execute()
+    def bucketResult = futureBucketVal.get()
+    def queueValues = futureQueueValues.get()
+
+    then:
+    bucketResult == "barTwo"
+    queueValues.contains("qBarOne")
+    queueValues.contains("qBarTwo")
+
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "SET;SET;GET;RPUSH;RPUSH;LRANGE"
+          spanType DDSpanTypes.REDIS
+          topLevel true
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
 }
