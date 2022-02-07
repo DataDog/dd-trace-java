@@ -1,6 +1,5 @@
 package com.datadog.appsec.event.data;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -45,7 +44,7 @@ public interface KnownAddresses {
   Address<String> RESPONSE_BODY_RAW = new Address<>("server.response.body.raw");
 
   /** Reponse headers excluding cookies */
-  Address<Map<String, Collection<String>>> RESPONSE_HEADERS_NO_COOKIES =
+  Address<Map<String, List<String>>> RESPONSE_HEADERS_NO_COOKIES =
       new Address<>("server.response.headers.no_cookies");
 
   /**
