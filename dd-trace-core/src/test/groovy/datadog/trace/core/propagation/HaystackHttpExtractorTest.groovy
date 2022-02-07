@@ -27,7 +27,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
       (TRACE_ID_KEY.toUpperCase())            : traceUuid,
       (SPAN_ID_KEY.toUpperCase())             : spanUuid,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
-      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "%76%32",             // v2 encoded once
+      (OT_BAGGAGE_PREFIX.toUpperCase() + "k3"): "%25%37%36%25%33%33", // v3 encoded twice
       SOME_HEADER                             : "my-interesting-info",
     ]
 
@@ -37,7 +38,9 @@ class HaystackHttpExtractorTest extends DDSpecification {
     then:
     context.traceId == DDId.from(traceId)
     context.spanId == DDId.from(spanId)
-    context.baggage == ["k1": "v1", "k2": "v2", "Haystack-Trace-ID": traceUuid, "Haystack-Span-ID": spanUuid]
+    context.baggage == ["k1": "v1", "k2": "v2",
+      "k3": "%76%33", // expect value decoded only once
+      "Haystack-Trace-ID": traceUuid, "Haystack-Span-ID": spanUuid]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
