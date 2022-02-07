@@ -57,7 +57,7 @@ public class AgentTooling {
       } catch (Throwable e) {
         log.warn("Problem loading Java9 Module support, falling back to legacy transformer", e);
       }
-    } else if (Platform.isJavaVersionAtLeast(8, 262)) {
+    } else if (Platform.isJavaVersionAtLeast(8, 0, 262)) {
       try {
         return (TransformerDecorator)
             AgentInstaller.class
