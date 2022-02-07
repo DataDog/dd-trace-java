@@ -69,10 +69,17 @@ configurations.testImplementation {
   exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
 }
 
-tasks.named("compileTestGroovy").configure {
+tasks.named('compileTestGroovy').configure {
   dependsOn 'stageMainDist'
   outputs.upToDateWhen {
     !stageMainDist.didWork
+  }
+}
+
+tasks.withType(AbstractCopyTask).each {
+  // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
+  it.configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
 }
 

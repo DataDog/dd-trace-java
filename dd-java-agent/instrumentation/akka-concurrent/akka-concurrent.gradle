@@ -67,7 +67,7 @@ dependencies {
   latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
 }
 
-[configurations.akka23TestCompile, configurations.akka23TestRuntime].each {
+[configurations.akka23TestImplementation, configurations.akka23TestRuntimeClasspath].each {
   it.resolutionStrategy {
     force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: "2.3.16"
     force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: "2.3.16"
