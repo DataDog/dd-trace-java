@@ -57,7 +57,6 @@ include ':communication'
 
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
-include ':dd-java-agent:appsec:weblog:weblog-spring-app'
 
 // misc
 include ':dd-java-agent:testing'
