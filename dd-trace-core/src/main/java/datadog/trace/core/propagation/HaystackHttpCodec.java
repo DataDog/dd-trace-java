@@ -185,14 +185,14 @@ class HaystackHttpCodec {
             switch (classification) {
               case TRACE_ID:
                 traceId = convertUUIDToBigInt(value);
-                addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, HttpCodec.decode(value));
+                addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
                 break;
               case SPAN_ID:
                 spanId = convertUUIDToBigInt(value);
-                addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, HttpCodec.decode(value));
+                addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, value);
                 break;
               case PARENT_ID:
-                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, HttpCodec.decode(value));
+                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, value);
                 break;
               case TAGS:
                 {
@@ -207,8 +207,7 @@ class HaystackHttpCodec {
                 }
               case BAGGAGE:
                 {
-                  addBaggageItem(
-                      lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), HttpCodec.decode(value));
+                  addBaggageItem(lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), value);
                   break;
                 }
               default:
