@@ -32,9 +32,13 @@ import javax.jms.ConnectionFactory
 
 class SpringSAListenerTest extends AgentTestRunner {
 
+  def configClass() {
+    return Config
+  }
+
   def "receiving message in spring session aware listener generates spans"() {
     setup:
-    def context = new AnnotationConfigApplicationContext(Config)
+    def context = new AnnotationConfigApplicationContext(configClass())
     def factory = context.getBean(ConnectionFactory)
     def container = context.getBean(MessageListenerContainer)
     container.start()
