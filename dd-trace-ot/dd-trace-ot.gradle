@@ -47,33 +47,24 @@ dependencies {
 
   testImplementation project(":dd-java-agent:testing")
 
-  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
-  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
-  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
-
-  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
-  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
-  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
-}
-
-[
-  configurations.ot31CompatabilityTestImplementation,
-  configurations.ot31CompatabilityTestRuntimeClasspath
-].each {
-  it.resolutionStrategy {
-    force group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
-    force group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
-    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-api:0.31.0') {
+    force = true
   }
-}
-[
-  configurations.ot33CompatabilityTestImplementation,
-  configurations.ot33CompatabilityTestRuntimeClasspath
-].each {
-  it.resolutionStrategy {
-    force group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
-    force group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
-    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-util:0.31.0')  {
+    force = true
+  }
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.31.0')  {
+    force = true
+  }
+
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api:0.33.0') {
+    force = true
+  }
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util:0.33.0')  {
+    force = true
+  }
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.33.0')  {
+    force = true
   }
 }
 
