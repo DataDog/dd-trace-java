@@ -306,8 +306,13 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       return true;
     }
 
-    // kotlin, note we do not ignore kotlinx because we instrument coroutins code
+    // kotlin, note we do not ignore kotlinx because we instrument coroutines code
     if (name.startsWith("kotlin.")) {
+      return true;
+    }
+
+    if (name.startsWith("scala.collection.")) {
+      // saves up to half a second skipping instrumentation of almost 500 classes
       return true;
     }
 
