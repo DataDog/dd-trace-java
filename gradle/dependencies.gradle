@@ -44,7 +44,9 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
-    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
+    // TODO: revert the temp snapshot binary dependency before final PR
+    asyncprofiler        : new java.net.URL("https://binaries.ddbuild.io/async-profiler-build/2.6-DD-SNAPSHOT/ap-tools-2.6-DD-SNAPSHOT.jar"),
+//    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
 
     // Testing
 

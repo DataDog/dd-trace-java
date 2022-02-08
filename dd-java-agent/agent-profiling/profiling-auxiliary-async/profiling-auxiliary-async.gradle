@@ -31,6 +31,11 @@ def apFileName = "async-profiler-DD.jar"
 def apDownloadDir = "$rootDir/build/agent-snapshot"
 def apDownloadPath = "$apDownloadDir/$apFileName"
 def apUrl = System.env.get('AP_TOOLS_URL')
+// AP_TOOLS_URL environment variable has always precedency over the configured dependency
+if (apUrl == null && (apDependency instanceof java.net.URL)) {
+  // if the dependency is defined as URL make sure it is downloaded
+  apUrl = apDependency
+}
 if (apUrl != null) {
   task downloadApTools(type: Download) {
     mkdir(apDownloadDir)
