@@ -29,7 +29,7 @@ final class CachedData {
     testcontainers: '1.15.0-rc2',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.6-DD-20220207"
+    asyncprofiler : "2.6-DD-SNAPSHOT"
   ]
 
   static deps = [
@@ -44,9 +44,7 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
-    // TODO: revert the temp snapshot binary dependency before final PR
-    asyncprofiler        : new java.net.URL("https://binaries.ddbuild.io/async-profiler-build/2.6-DD-SNAPSHOT/ap-tools-2.6-DD-SNAPSHOT.jar"),
-//    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
+    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
 
     // Testing
 
