@@ -53,7 +53,8 @@ if (apUrl != null) {
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation apDependency
+  //  implementation group: "com.datadoghq", name: "ap-tools", version: "2.6-DD-20220208", changing: true
+  implementation deps.asyncprofiler
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
@@ -76,7 +77,7 @@ shadowJar {
     rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
     // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
     rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64") || it.path.startsWith("native-libs/linux-musl-x64")
-    rslt |= (it.path.contains("async-profiler") && it.path.endsWith(".jar"))
+    rslt |= (it.path.contains("ap-tools") && it.path.endsWith(".jar"))
     return rslt
   }
 }
