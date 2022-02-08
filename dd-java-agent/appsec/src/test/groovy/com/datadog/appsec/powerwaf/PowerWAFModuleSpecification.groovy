@@ -1,6 +1,7 @@
 package com.datadog.appsec.powerwaf
 
 import com.datadog.appsec.AppSecModule
+import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
 import com.datadog.appsec.event.EventListener
@@ -132,6 +133,41 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+  }
+
+  void 'initial configuration has unknown addresses'() {
+    def cfgService = new StubAppSecConfigService(waf: AppSecConfig.valueOf([
+      version: '2.1',
+      rules: [
+        [
+          id: 'ua0-600-12x',
+          name: 'Arachni',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.does-not-exist',
+                    key_path: ['user-agent']]
+                ],
+                regex: '^Arachni\\/v'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+        ]]
+    ]))
+
+    when:
+    cfgService.init(false)
+    pwafModule.config(cfgService)
+
+    then:
+    pwafModule.dataSubscriptions.first().subscribedAddresses.empty
   }
 
   void 'bad initial configuration is given results in no subscriptions'() {
