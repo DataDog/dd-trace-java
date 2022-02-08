@@ -67,7 +67,8 @@ class Utf8ByteStringTest extends DDSpecification {
       0x72,
       0x69,
       0x6e,
-      0x67] as byte[]
+      0x67
+    ] as byte[]
   }
 
   def "behave like a proper CharSequence"() {
