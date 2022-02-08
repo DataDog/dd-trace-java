@@ -4,6 +4,10 @@ import com.mongodb.MongoTimeoutException
 import com.mongodb.ServerAddress
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.event.CommandFailedEvent
+import com.mongodb.event.CommandListener
+import com.mongodb.event.CommandStartedEvent
+import com.mongodb.event.CommandSucceededEvent
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -26,6 +30,17 @@ class MongoJava34ClientTest extends MongoBaseTest {
     client = new MongoClient(new ServerAddress("localhost", port),
       MongoClientOptions.builder()
       .description("some-description")
+      .addCommandListener(new CommandListener() {
+        @Override
+        void commandStarted(CommandStartedEvent event) {
+        }
+        @Override
+        void commandSucceeded(CommandSucceededEvent event) {
+        }
+        @Override
+        void commandFailed(CommandFailedEvent event) {
+        }
+      })
       .build())
   }
 

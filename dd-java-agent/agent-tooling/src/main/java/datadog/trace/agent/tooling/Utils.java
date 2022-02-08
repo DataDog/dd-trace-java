@@ -1,12 +1,8 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
 import java.lang.reflect.Method;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDefinition;
 
 public class Utils {
 
@@ -37,32 +33,6 @@ public class Utils {
       // in a unit test
       return unitTestBootstrapProxy;
     }
-  }
-
-  /**
-   * Get method definition for given {@link TypeDefinition} and method name.
-   *
-   * @param type type
-   * @param methodName method name
-   * @return {@link MethodDescription} for given method
-   * @throws IllegalStateException if more then one method matches (i.e. in case of overloaded
-   *     methods) or if no method found
-   */
-  public static MethodDescription getMethodDefinition(
-      final TypeDefinition type, final String methodName) {
-    return type.getDeclaredMethods().filter(named(methodName)).getOnly();
-  }
-
-  /** @return The current stack trace with multiple entries on new lines. */
-  public static String getStackTraceAsString() {
-    final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-    final StringBuilder stringBuilder = new StringBuilder();
-    final String lineSeparator = System.getProperty("line.separator");
-    for (final StackTraceElement element : stackTrace) {
-      stringBuilder.append(element.toString());
-      stringBuilder.append(lineSeparator);
-    }
-    return stringBuilder.toString();
   }
 
   private Utils() {}
