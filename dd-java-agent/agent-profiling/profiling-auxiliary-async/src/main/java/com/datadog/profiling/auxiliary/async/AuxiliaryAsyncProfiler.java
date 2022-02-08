@@ -283,7 +283,11 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     }
     if (profilingModes.contains(ProfilingMode.MEMLEAK)) {
       // memleak profiling is enabled
-      cmd.append(",memleak=").append(getMemleakInterval()).append('b');
+      cmd.append(",memleak=")
+          .append(getMemleakInterval())
+          .append('b')
+          .append(",memleakcap=")
+          .append(getMemleakCapacity());
     }
     String cmdString = cmd.toString();
     log.debug("Async profiler command line: {}", cmdString);
@@ -319,6 +323,14 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
         configProvider.getInteger(
             ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
             ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
+  }
+
+  private int getMemleakCapacity() {
+    return Math.max(
+        memleakMinInterval,
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_CAPACITY,
+            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT));
   }
 
   private String getLogLevel() {
