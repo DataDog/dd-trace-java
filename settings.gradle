@@ -57,7 +57,6 @@ include ':communication'
 
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
-include ':dd-java-agent:appsec:weblog:weblog-spring-app'
 
 // misc
 include ':dd-java-agent:testing'
@@ -102,6 +101,7 @@ include ':dd-java-agent:instrumentation:akka-http-10.0'
 include ':dd-java-agent:instrumentation:akka-init'
 include ':dd-java-agent:instrumentation:apache-httpasyncclient-4'
 include ':dd-java-agent:instrumentation:apache-httpclient-4'
+include ':dd-java-agent:instrumentation:apache-httpclient-5'
 include ':dd-java-agent:instrumentation:aws-java-sdk-1.11.0'
 include ':dd-java-agent:instrumentation:aws-java-sdk-2.2'
 include ':dd-java-agent:instrumentation:aws-java-sqs-1.0'

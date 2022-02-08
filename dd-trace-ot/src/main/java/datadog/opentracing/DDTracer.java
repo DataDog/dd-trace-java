@@ -22,8 +22,7 @@ import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
-import io.opentracing.propagation.TextMapExtract;
-import io.opentracing.propagation.TextMapInject;
+import io.opentracing.propagation.TextMap;
 import io.opentracing.tag.Tag;
 import java.util.Collections;
 import java.util.HashMap;
@@ -457,10 +456,10 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   @Override
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
-    if (carrier instanceof TextMapInject) {
+    if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMapInject) carrier, TextMapInjectSetter.INSTANCE);
+      tracer.inject(context, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -468,10 +467,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
-    if (carrier instanceof TextMapExtract) {
+    if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract(
-              (TextMapExtract) carrier, new TextMapExtractGetter((TextMapExtract) carrier));
+          tracer.extract((TextMap) carrier, new TextMapGetter((TextMap) carrier));
 
       return converter.toSpanContext(tagContext);
     } else {
@@ -485,26 +483,24 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     tracer.close();
   }
 
-  private static class TextMapInjectSetter implements AgentPropagation.Setter<TextMapInject> {
-    static final TextMapInjectSetter INSTANCE = new TextMapInjectSetter();
+  private static class TextMapSetter implements AgentPropagation.Setter<TextMap> {
+    static final TextMapSetter INSTANCE = new TextMapSetter();
 
     @Override
-    public void set(final TextMapInject carrier, final String key, final String value) {
+    public void set(final TextMap carrier, final String key, final String value) {
       carrier.put(key, value);
     }
   }
 
-  private static class TextMapExtractGetter
-      implements AgentPropagation.ContextVisitor<TextMapExtract> {
-    private final TextMapExtract carrier;
+  private static class TextMapGetter implements AgentPropagation.ContextVisitor<TextMap> {
+    private final TextMap carrier;
 
-    private TextMapExtractGetter(final TextMapExtract carrier) {
+    private TextMapGetter(final TextMap carrier) {
       this.carrier = carrier;
     }
 
     @Override
-    public void forEachKey(
-        final TextMapExtract ignored, final AgentPropagation.KeyClassifier classifier) {
+    public void forEachKey(final TextMap ignored, final AgentPropagation.KeyClassifier classifier) {
       for (final Entry<String, String> entry : carrier) {
         if (!classifier.accept(entry.getKey(), entry.getValue())) {
           return;

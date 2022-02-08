@@ -16,7 +16,7 @@ spotless {
   groovyGradle {
     toggleOffOn()
     // same as groovy, but for .gradle (defaults to '*.gradle')
-    target '*.gradle', '**/gradle/*.gradle'
+    target '*.gradle', 'gradle/**/*.gradle'
     greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
   }
 

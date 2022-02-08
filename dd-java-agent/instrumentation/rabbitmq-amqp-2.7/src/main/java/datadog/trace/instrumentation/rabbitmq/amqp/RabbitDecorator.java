@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_EXCHANGE;
@@ -155,11 +154,10 @@ public class RabbitDecorator extends MessagingClientDecorator {
       AMQP.BasicProperties properties,
       byte[] body,
       String queue) {
-    final Map<String, Object> headers = null != properties ? properties.getHeaders() : null;
+    final Map<String, Object> headers =
+        propagate && null != properties ? properties.getHeaders() : null;
     AgentSpan.Context parentContext =
-        (null == headers || !propagate)
-            ? null
-            : propagate().extract(headers, ContextVisitors.objectValuesMap());
+        null != headers ? propagate().extract(headers, ContextVisitors.objectValuesMap()) : null;
     // TODO: check dynamically bound queues -
     // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
 
@@ -167,13 +165,8 @@ public class RabbitDecorator extends MessagingClientDecorator {
       spanStartMillis = System.currentTimeMillis();
     }
     long queueStartMillis = 0;
-    if (propagate && null != parentContext && !RABBITMQ_LEGACY_TRACING) {
+    if (null != headers && !RABBITMQ_LEGACY_TRACING) {
       queueStartMillis = extractTimeInQueueStart(headers);
-    } else {
-      final AgentSpan parent = activeSpan();
-      if (null != parent) {
-        parentContext = parent.context();
-      }
     }
     long spanStartMicros = TimeUnit.MILLISECONDS.toMicros(spanStartMillis);
     AgentSpan queueSpan = null;
@@ -189,12 +182,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       // The queueSpan will be finished after the inner span has been activated to ensure that the
       // spans are written out together by the TraceStructureWriter when running in strict mode
     }
-    final AgentSpan span;
-    if (null != parentContext) {
-      span = startSpan(AMQP_COMMAND, parentContext, spanStartMicros);
-    } else {
-      span = startSpan(AMQP_COMMAND, spanStartMicros);
-    }
+    final AgentSpan span = startSpan(AMQP_COMMAND, parentContext, spanStartMicros);
     if (null != body) {
       span.setTag("message.size", body.length);
     }

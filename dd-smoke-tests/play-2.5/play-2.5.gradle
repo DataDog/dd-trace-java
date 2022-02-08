@@ -76,6 +76,13 @@ tasks.named("compileTestGroovy").configure {
   }
 }
 
+tasks.withType(AbstractCopyTask).each {
+  // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
+  it.configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
+}
+
 spotless {
   java {
     target "**/*.java"
