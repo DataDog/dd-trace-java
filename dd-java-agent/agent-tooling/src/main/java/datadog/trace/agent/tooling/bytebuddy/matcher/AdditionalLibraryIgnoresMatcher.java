@@ -312,8 +312,51 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
     }
 
     if (name.startsWith("scala.collection.")) {
-      // saves up to half a second skipping instrumentation of almost 500 classes
+      // saves up ~0.5s skipping instrumentation of almost ~470 classes
       return true;
+    }
+
+    if (name.startsWith("akka.")) {
+      if (name.startsWith("akka.http.")) {
+        // saves ~0.1s skipping ~233 classes
+        if (name.startsWith("akka.http.scaladsl.")) {
+          if (name.equals("akka.http.scaladsl.HttpExt")
+              || name.equals("akka.http.scaladsl.Http2Ext")) {
+            return false;
+          }
+          return true;
+        }
+        // saves ~0.1s skipping ~272 classes
+        if (name.startsWith("akka.http.impl.")) {
+          if (name.equals("akka.http.impl.engine.client.PoolMasterActor")) {
+            return false;
+          }
+          return true;
+        }
+      }
+
+      // saves ~0.1s skipping ~320 classes
+      if (name.startsWith("akka.actor.")) {
+        if (name.startsWith("akka.actor.LightArrayRevolverScheduler$")
+            || name.startsWith("akka.actor.Scheduler$")
+            || name.startsWith("akka.actor.ActorSystemImpl$")
+            || name.startsWith("akka.actor.CoordinatedShutdown$")
+            || name.startsWith("akka.actor.ActorSystem$")
+            || name.equals("akka.actor.ActorCell")) {
+          return false;
+        }
+        return true;
+      }
+
+      // saves ~0.1s skipping ~407 classes
+      if (name.startsWith("akka.stream.")) {
+        if (name.startsWith("akka.stream.impl.fusing.ActorGraphInterpreter$")
+            || name.equals("akka.stream.impl.FanOut$SubstreamSubscription")
+            || name.equals("akka.stream.impl.FanIn$SubInput")) {
+          return false;
+        }
+        return true;
+      }
     }
 
     return false;
