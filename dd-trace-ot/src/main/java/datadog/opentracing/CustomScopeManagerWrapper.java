@@ -38,16 +38,25 @@ import java.util.concurrent.TimeUnit;
 class CustomScopeManagerWrapper implements AgentScopeManager {
   private static final String DD_ITERATION = "_dd.iteration";
 
+  private static final boolean CAN_GET_ACTIVE_SPAN;
   private static final boolean CAN_GET_ACTIVE_SCOPE;
 
   static {
-    boolean canGetActiveScope;
+    boolean canGetActiveScope = true;
+    boolean canGetActiveSpan = true;
     try {
-      canGetActiveScope = ScopeManager.class.getMethod("active") != null;
+      ScopeManager.class.getMethod("active");
     } catch (Throwable e) {
       canGetActiveScope = false;
     }
+    try {
+      ScopeManager.class.getMethod("activeSpan");
+    } catch (Throwable e) {
+      canGetActiveSpan = false;
+    }
+
     CAN_GET_ACTIVE_SCOPE = canGetActiveScope;
+    CAN_GET_ACTIVE_SPAN = canGetActiveSpan;
   }
 
   private final ScopeManager delegate;
@@ -80,15 +89,24 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     return agentScope;
   }
 
+  private Span delegateActiveSpan() {
+    if (CAN_GET_ACTIVE_SPAN) {
+      return delegate.activeSpan();
+    } else {
+      Scope scope = delegate.active();
+      return scope == null ? null : scope.span();
+    }
+  }
+
   @Override
   public AgentScope active() {
     return converter.toAgentScope(
-        delegate.activeSpan(), CAN_GET_ACTIVE_SCOPE ? delegate.active() : null);
+        delegateActiveSpan(), CAN_GET_ACTIVE_SCOPE ? delegate.active() : null);
   }
 
   @Override
   public AgentSpan activeSpan() {
-    return converter.toAgentSpan(delegate.activeSpan());
+    return converter.toAgentSpan(delegateActiveSpan());
   }
 
   @Override
@@ -101,7 +119,7 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
 
   @Override
   public void closePrevious(final boolean finishSpan) {
-    Span span = delegate.activeSpan();
+    Span span = delegateActiveSpan();
     if (span != null) {
       AgentSpan agentSpan = converter.toAgentSpan(span);
       if (agentSpan != null && agentSpan.getTag(DD_ITERATION) != null) {
