@@ -44,7 +44,6 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
-    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
 
     // Testing
 
