@@ -176,7 +176,7 @@ public class AgentTracer {
 
     InstrumentationGateway instrumentationGateway();
 
-    void setDataStreamCheckpoint(String edgeName);
+    void setDataStreamCheckpoint(AgentSpan span, String edgeName);
   }
 
   public interface SpanBuilder {
@@ -328,7 +328,15 @@ public class AgentTracer {
     public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
+    public <C> void injectPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {}
+
+    @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> Object extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
       return null;
     }
 
@@ -365,7 +373,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setDataStreamCheckpoint(String edgeName) {}
+    public void setDataStreamCheckpoint(AgentSpan span, String edgeName) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {
@@ -501,6 +509,9 @@ public class AgentTracer {
     public RequestContext<Object> getRequestContext() {
       return null;
     }
+
+    @Override
+    public void setPathwayContext(Object pathwayContext) {}
 
     @Override
     public Integer getSamplingPriority() {
@@ -711,8 +722,16 @@ public class AgentTracer {
     public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
+    public <C> void injectPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {}
+
+    @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
+    }
+
+    @Override
+    public <C> Object extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+      return null;
     }
   }
 

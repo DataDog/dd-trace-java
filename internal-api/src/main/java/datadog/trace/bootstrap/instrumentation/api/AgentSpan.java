@@ -149,6 +149,9 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** RequestContext for the Instrumentation Gateway */
   RequestContext<Object> getRequestContext();
 
+  // FIXME object hierarchy
+  void setPathwayContext(Object pathwayContext);
+
   interface Context {
     DDId getTraceId();
 

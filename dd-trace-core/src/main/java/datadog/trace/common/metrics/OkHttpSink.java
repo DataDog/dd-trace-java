@@ -30,7 +30,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private static final Logger log = LoggerFactory.getLogger(OkHttpSink.class);
 
-  private static final Map<String, String> HEADERS =
+  private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
   private final OkHttpClient client;
@@ -41,12 +41,13 @@ public final class OkHttpSink implements Sink, EventListener {
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final long asyncThresholdLatency;
   private final boolean bufferingEnabled;
+  private final Map<String, String> headers;
 
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
 
   public OkHttpSink(OkHttpClient client, String agentUrl, String path, boolean bufferingEnabled) {
-    this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled);
+    this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled, DEFAULT_HEADERS);
   }
 
   public OkHttpSink(
@@ -54,12 +55,14 @@ public final class OkHttpSink implements Sink, EventListener {
       String agentUrl,
       String path,
       long asyncThresholdLatency,
-      boolean bufferingEnabled) {
+      boolean bufferingEnabled,
+      Map<String, String> headers) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
     this.listeners = new CopyOnWriteArrayList<>();
     this.asyncThresholdLatency = asyncThresholdLatency;
     this.bufferingEnabled = bufferingEnabled;
+    this.headers = headers;
   }
 
   @Override
@@ -70,7 +73,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < asyncThresholdLatency) {
       send(
-          prepareRequest(metricsUrl, HEADERS)
+          prepareRequest(metricsUrl, headers)
               .put(msgpackRequestBodyOf(Collections.singletonList(buffer)))
               .build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
@@ -93,7 +96,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private void sendAsync(int messageCount, ByteBuffer buffer) {
     asyncRequestCounter.getAndIncrement();
     if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, HEADERS)
+        prepareRequest(metricsUrl, headers)
             .put(msgpackRequestBodyOf(Collections.singletonList(buffer.duplicate())))
             .build())) {
       log.debug(

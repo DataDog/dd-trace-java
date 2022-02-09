@@ -14,7 +14,6 @@ import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
@@ -40,6 +39,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.PathwayContext;
 import datadog.trace.core.monitor.MonitoringImpl;
@@ -50,6 +50,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -666,6 +667,30 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     inject(span.context(), carrier, setter, style);
   }
 
+  @Override
+  public <C> void injectPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {
+    log.debug("Injecting pathway context called");
+    if (!(span.context() instanceof DDSpanContext)) {
+      log.debug("Not injecting: pathway context is {}", span.context().getClass());
+      return;
+    }
+
+    final DDSpanContext ddSpanContext = (DDSpanContext) span.context();
+    PathwayContext pathwayContext = ddSpanContext.getPathwayContext();
+
+    if (pathwayContext != null) {
+      log.debug("Injecting pathway context");
+      try {
+        byte[] encodedContext = pathwayContext.encode();
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+      } catch (IOException e) {
+        log.debug("Unable to set encode pathway context", e);
+      }
+    } else {
+      log.debug("Not injecting: Pathway context null");
+    }
+  }
+
   private <C> void inject(
       AgentSpan.Context context, C carrier, Setter<C> setter, PropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {
@@ -688,14 +713,36 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return extractor.extract(carrier, getter);
   }
 
-  @Override
-  public void setDataStreamCheckpoint(String edgeName) {
-    AgentSpan.Context context = null;
+  private static class PathwayContextExtractor implements BinaryKeyClassifier {
+    private PathwayContext extractedContext;
 
-    AgentSpan span = scopeManager.activeSpan();
-    if (span != null) {
-      context = span.context();
+    @Override
+    public boolean accept(String key, byte[] value) {
+      if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
+        try {
+          extractedContext = PathwayContext.decode(value);
+          log.debug("Extracted pathway context");
+        } catch (IOException e) {
+          return false;
+        }
+        extractedContext = null;
+      }
+      return true;
     }
+  }
+
+  @Override
+  public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    log.debug("Extracting pathway context");
+    PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
+    getter.forEachKey(carrier, pathwayContextExtractor);
+
+    return pathwayContextExtractor.extractedContext;
+  }
+
+  @Override
+  public void setDataStreamCheckpoint(AgentSpan span, String edgeName) {
+    AgentSpan.Context context = span.context();
 
     // FIXME this can probably be done better
     // The main issue is how to have PathwayContext on AgentSpan.Context without putting a lot of classes into internal-api

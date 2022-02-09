@@ -18,6 +18,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.core.datastreams.PathwayContext;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -534,6 +535,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public RequestContext<Object> getRequestContext() {
     return context.getRequestContext();
+  }
+
+  @Override
+  public void setPathwayContext(Object pathwayContext) {
+    if (pathwayContext instanceof PathwayContext) {
+      context.setPathwayContext((PathwayContext) pathwayContext);
+    }
   }
 
   @Deprecated

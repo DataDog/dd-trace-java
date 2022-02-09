@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -11,6 +12,7 @@ import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -38,26 +40,31 @@ public class DefaultDataStreamsCheckpointer
 
   public DefaultDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
-    this(
+
+    Sink sink =
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
-            "https://trace.agent.datadoghq.com/",
-            "api/v0.1/pipeline_stats",
-            false),
-        config.getEnv(),
-        BUCKET_DURATION_MILLIS);
-  }
+            "https://trace.agent." + config.getSite(),
+            "/api/v0.1/pipeline_stats",
+            SECONDS.toNanos(1),
+            false,
+            Collections.singletonMap("DD-API-KEY", config.getApiKey()));
 
-  public DefaultDataStreamsCheckpointer(Sink sink, String env, long reportingInterval) {
-    payloadWriter = new DatastreamsPayloadWriter(sink, Config.get().getEnv());
+    payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);
     cancellation =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(), this, reportingInterval, reportingInterval, TimeUnit.MILLISECONDS);
+            new ReportTask(),
+            this,
+            BUCKET_DURATION_MILLIS,
+            BUCKET_DURATION_MILLIS,
+            TimeUnit.MILLISECONDS);
+    thread.start();
   }
 
   @Override
   public void setDataStreamCheckpoint(String edgeName, PathwayContextHolder holder) {
+    log.debug("Adding checkpoint for: {}", edgeName);
     PathwayContext pathwayContext = holder.getOrCreatePathwayContext();
 
     StatsPoint statsPoint = pathwayContext.setCheckpoint(edgeName);
@@ -128,7 +135,12 @@ public class DefaultDataStreamsCheckpointer
       }
     }
 
-    payloadWriter.writePayload(includedGroups);
+    if (includedGroups.isEmpty()) {
+      log.debug("No data to flush");
+    } else {
+      log.debug("Flushing {} groups", includedGroups.size());
+      payloadWriter.writePayload(includedGroups);
+    }
   }
 
   @Override

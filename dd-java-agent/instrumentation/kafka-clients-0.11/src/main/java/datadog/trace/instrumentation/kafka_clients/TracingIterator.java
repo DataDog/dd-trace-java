@@ -74,6 +74,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
+
+          Object pathwayContext = propagate().extractPathwayContext(val.headers(), GETTER);
+          if (pathwayContext != null) {
+            span.setPathwayContext(pathwayContext);
+          }
         } else {
           span = startSpan(operationName, null);
         }
