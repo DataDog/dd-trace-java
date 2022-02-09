@@ -7,9 +7,16 @@ import datadog.trace.api.Config;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class PathwayContext {
   public static String PROPAGATION_KEY = "dd-pathway-ctx";
+
+  private final ReadWriteLock lock = new ReentrantReadWriteLock();
+  private final Lock readLock = lock.readLock();
+  private final Lock writeLock = lock.writeLock();
 
   // Nanotime is necessary because time differences should use a monotonically increasing clock
   // Milliseconds are kept because nanotime is not comparable across JVMs
@@ -28,40 +35,61 @@ public class PathwayContext {
     setCheckpoint("", pathwayStartNanoTime);
   }
 
-  public PathwayContext(long pathwayStartMillis, long pathwayStartNanoTime, long edgeStartNanoTime, long hash) {
+  public PathwayContext(
+      long pathwayStartMillis, long pathwayStartNanoTime, long edgeStartNanoTime, long hash) {
     this.pathwayStartMillis = pathwayStartMillis;
     this.pathwayStart = pathwayStartNanoTime;
     this.edgeStart = edgeStartNanoTime;
     this.hash = hash;
   }
 
-  public void setCheckpoint(String edge) {
-    setCheckpoint(edge, System.nanoTime());
+  public StatsPoint setCheckpoint(String edge) {
+    return setCheckpoint(edge, System.nanoTime());
   }
 
-  public void setCheckpoint(String edge, long nanoTime) {
-    long nodeHash = generateNodeHash(Config.get().getServiceName(), edge);
-    long newHash = generatePathwayHash(nodeHash, hash);
+  public StatsPoint setCheckpoint(String edge, long nanoTime) {
+    writeLock.lock();
+    try {
+      long nodeHash = generateNodeHash(Config.get().getServiceName(), edge);
+      long newHash = generatePathwayHash(nodeHash, hash);
 
-    long pathwayLatency = nanoTime - pathwayStart;
-    long edgeLatency = nanoTime - edgeStart;
+      long pathwayLatency = nanoTime - pathwayStart;
+      long edgeLatency = nanoTime - edgeStart;
 
-    // TODO submit everything
-    edgeStart = nanoTime;
-    hash = newHash;
+      StatsPoint point =
+          new StatsPoint(
+              Config.get().getServiceName(),
+              edge,
+              newHash,
+              hash,
+              System.currentTimeMillis(),
+              pathwayLatency,
+              edgeLatency);
+      edgeStart = nanoTime;
+      hash = newHash;
+
+      return point;
+    } finally {
+      writeLock.unlock();
+    }
   }
 
   public byte[] encode() throws IOException {
-    GrowingByteArrayOutput output = GrowingByteArrayOutput.withInitialCapacity(20);
+    readLock.lock();
+    try {
+      GrowingByteArrayOutput output = GrowingByteArrayOutput.withInitialCapacity(20);
 
-    output.writeLongLE(hash);
-    VarEncodingHelper.encodeSignedVarLong(output, pathwayStartMillis);
+      output.writeLongLE(hash);
+      VarEncodingHelper.encodeSignedVarLong(output, pathwayStartMillis);
 
-    long edgeStartMillis = pathwayStartMillis + TimeUnit.NANOSECONDS.toMillis(edgeStart - pathwayStart);
+      long edgeStartMillis =
+          pathwayStartMillis + TimeUnit.NANOSECONDS.toMillis(edgeStart - pathwayStart);
 
-    VarEncodingHelper.encodeSignedVarLong(output, edgeStartMillis);
-
-    return output.trimmedCopy();
+      VarEncodingHelper.encodeSignedVarLong(output, edgeStartMillis);
+      return output.trimmedCopy();
+    } finally {
+      readLock.unlock();
+    }
   }
 
   public static PathwayContext decode(byte[] data) throws IOException {
@@ -74,10 +102,12 @@ public class PathwayContext {
     long nowMillis = System.currentTimeMillis();
     long nowNano = System.nanoTime();
 
-    long pathwayStartNano = nowNano - TimeUnit.MILLISECONDS.toMicros(nowMillis - pathwayStartMillis);
+    long pathwayStartNano =
+        nowNano - TimeUnit.MILLISECONDS.toMicros(nowMillis - pathwayStartMillis);
 
     long edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
-    long edgeStartNano = pathwayStartNano + TimeUnit.MILLISECONDS.toMicros(edgeStartMillis - pathwayStartMillis);
+    long edgeStartNano =
+        pathwayStartNano + TimeUnit.MILLISECONDS.toMicros(edgeStartMillis - pathwayStartMillis);
 
     return new PathwayContext(pathwayStartMillis, pathwayStartNano, edgeStartNano, hash);
   }

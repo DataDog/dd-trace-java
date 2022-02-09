@@ -14,7 +14,7 @@ import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.DataStreamsCheckpointer;
+import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
@@ -391,7 +391,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.spanCheckpointer = SamplingCheckpointer.create();
-    this.dataStreamsCheckpointer = new DefaultDataStreamsCheckpointer();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -476,6 +475,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         metricsAggregator,
         1,
         TimeUnit.SECONDS);
+
+    // TODO enable/diable via config and version check
+    dataStreamsCheckpointer = new DefaultDataStreamsCheckpointer(config, sharedCommunicationObjects);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -688,7 +690,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setDataStreamCheckpoint(String edgeName) {
-    dataStreamsCheckpointer.setDataStreamCheckpoint(edgeName);
+    AgentSpan.Context context = null;
+
+    AgentSpan span = scopeManager.activeSpan();
+    if (span != null) {
+      context = span.context();
+    }
+
+    // FIXME this can probably be done better
+    // The main issue is how to have PathwayContext on AgentSpan.Context without putting a lot of classes into internal-api
+    if (context instanceof DDSpanContext) {
+      dataStreamsCheckpointer.setDataStreamCheckpoint(edgeName, (DDSpanContext) context);
+    }
   }
 
   /**

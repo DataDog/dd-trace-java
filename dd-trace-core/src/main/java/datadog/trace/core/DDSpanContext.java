@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.datastreams.PathwayContext;
+import datadog.trace.core.datastreams.PathwayContextHolder;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>, TraceSegment {
+public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>, TraceSegment, PathwayContextHolder {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -109,6 +111,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private final int datadogTagsLimit;
   private final DatadogTags ddTags;
 
+  private static final AtomicReferenceFieldUpdater<DDSpanContext, PathwayContext> PATHWAY_CONTEXT_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(DDSpanContext.class, PathwayContext.class, "pathwayContext");
   private volatile PathwayContext pathwayContext;
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
@@ -448,6 +452,12 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public PathwayContext getPathwayContext() {
+    return pathwayContext;
+  }
+
+  @Override
+  public PathwayContext getOrCreatePathwayContext() {
+    PATHWAY_CONTEXT_UPDATER.compareAndSet(this, null, new PathwayContext());
     return pathwayContext;
   }
 
