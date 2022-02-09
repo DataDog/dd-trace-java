@@ -31,7 +31,7 @@ def apFileName = "async-profiler-DD.jar"
 def apDownloadDir = "$rootDir/build/agent-snapshot"
 def apDownloadPath = "$apDownloadDir/$apFileName"
 def apUrl = System.env.get('AP_TOOLS_URL')
-// AP_TOOLS_URL environment variable has always precedency over the configured dependency
+// AP_TOOLS_URL environment variable has always precedence over the configured dependency
 if (apUrl == null && (apDependency instanceof java.net.URL)) {
   // if the dependency is defined as URL make sure it is downloaded
   apUrl = apDependency
@@ -53,8 +53,7 @@ if (apUrl != null) {
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  //  implementation group: "com.datadoghq", name: "ap-tools", version: "2.6-DD-20220208", changing: true
-  implementation deps.asyncprofiler
+  implementation apDependency
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
