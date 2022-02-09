@@ -31,7 +31,7 @@ def apFileName = "async-profiler-DD.jar"
 def apDownloadDir = "$rootDir/build/agent-snapshot"
 def apDownloadPath = "$apDownloadDir/$apFileName"
 def apUrl = System.env.get('AP_TOOLS_URL')
-// AP_TOOLS_URL environment variable has always precedency over the configured dependency
+// AP_TOOLS_URL environment variable has always precedence over the configured dependency
 if (apUrl == null && (apDependency instanceof java.net.URL)) {
   // if the dependency is defined as URL make sure it is downloaded
   apUrl = apDependency
@@ -76,7 +76,7 @@ shadowJar {
     rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
     // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
     rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64") || it.path.startsWith("native-libs/linux-musl-x64")
-    rslt |= (it.path.contains("async-profiler") && it.path.endsWith(".jar"))
+    rslt |= (it.path.contains("ap-tools") && it.path.endsWith(".jar"))
     return rslt
   }
 }
