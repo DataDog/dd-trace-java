@@ -1161,7 +1161,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
           ]}
       }
-      activeSpan().localRootSpan.setTag('request.body.converted', obj as String)
+      rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext<Context>, Object, Flow<Void>>)
 
