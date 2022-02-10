@@ -3,6 +3,8 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeHasSuperTypeMatcher.safeGetSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.hasSignature;
 
+import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvent;
+import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvents;
 import java.util.HashSet;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -22,23 +24,27 @@ class HasSuperMethodMatcher<T extends MethodDescription>
 
   @Override
   protected boolean doMatch(final MethodDescription target) {
-    if (target.isConstructor()) {
-      return false;
-    }
-    final Junction<MethodDescription> signatureMatcher = hasSignature(target.asSignatureToken());
-    TypeDefinition declaringType = target.getDeclaringType();
-    final Set<TypeDefinition> checkedInterfaces = new HashSet<>(8);
+    try (MatchingEvent event = MatchingEvents.get().hasSuperMethodMatchingEvent(target, matcher)) {
+      if (target.isConstructor()) {
+        return false;
+      }
+      final Junction<MethodDescription> signatureMatcher = hasSignature(target.asSignatureToken());
+      TypeDefinition declaringType = target.getDeclaringType();
+      final Set<TypeDefinition> checkedInterfaces = new HashSet<>(8);
 
-    while (declaringType != null) {
-      for (final MethodDescription methodDescription : declaringType.getDeclaredMethods()) {
-        if (signatureMatcher.matches(methodDescription) && matcher.matches(methodDescription)) {
+      while (declaringType != null) {
+        for (final MethodDescription methodDescription : declaringType.getDeclaredMethods()) {
+          if (signatureMatcher.matches(methodDescription) && matcher.matches(methodDescription)) {
+            event.setMatched(true);
+            return true;
+          }
+        }
+        if (matchesInterface(declaringType.getInterfaces(), signatureMatcher, checkedInterfaces)) {
+          event.setMatched(true);
           return true;
         }
+        declaringType = safeGetSuperClass(declaringType);
       }
-      if (matchesInterface(declaringType.getInterfaces(), signatureMatcher, checkedInterfaces)) {
-        return true;
-      }
-      declaringType = safeGetSuperClass(declaringType);
     }
     return false;
   }

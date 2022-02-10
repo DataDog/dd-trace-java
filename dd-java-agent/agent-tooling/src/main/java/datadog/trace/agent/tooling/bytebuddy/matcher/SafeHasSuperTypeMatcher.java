@@ -2,6 +2,8 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 
+import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvent;
+import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvents;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -68,19 +70,27 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     TypeDefinition typeDefinition = target;
     if (checkInterfaces) {
       final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
-      while (typeDefinition != null) {
-        if (((!interfacesOnly || isInterface) && erasureMatches(typeDefinition.asGenericType()))
-            || (hasInterface(typeDefinition, checkedInterfaces))) {
-          return true;
+      try (MatchingEvent event =
+          MatchingEvents.get().hasInterfaceMatchingEvent(typeDefinition, matcher)) {
+        while (typeDefinition != null) {
+          if (((!interfacesOnly || isInterface) && erasureMatches(typeDefinition.asGenericType()))
+              || (hasInterface(typeDefinition, checkedInterfaces))) {
+            event.setMatched(true);
+            return true;
+          }
+          typeDefinition = safeGetSuperClass(typeDefinition);
         }
-        typeDefinition = safeGetSuperClass(typeDefinition);
       }
     } else {
-      while (typeDefinition != null) {
-        if (erasureMatches(typeDefinition.asGenericType())) {
-          return true;
+      try (MatchingEvent event =
+          MatchingEvents.get().hasSuperTypeMatchingEvent(typeDefinition, matcher)) {
+        while (typeDefinition != null) {
+          if (erasureMatches(typeDefinition.asGenericType())) {
+            event.setMatched(true);
+            return true;
+          }
+          typeDefinition = safeGetSuperClass(typeDefinition);
         }
-        typeDefinition = safeGetSuperClass(typeDefinition);
       }
     }
     return false;
