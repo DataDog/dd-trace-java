@@ -150,7 +150,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   RequestContext<Object> getRequestContext();
 
   // FIXME object hierarchy
-  void setPathwayContext(Object pathwayContext);
+  void mergePathwayContext(Object pathwayContext);
 
   interface Context {
     DDId getTraceId();

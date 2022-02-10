@@ -511,7 +511,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setPathwayContext(Object pathwayContext) {}
+    public void mergePathwayContext(Object pathwayContext) {}
 
     @Override
     public Integer getSamplingPriority() {

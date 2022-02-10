@@ -71,7 +71,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record);
-      AgentTracer.get().setDataStreamCheckpoint(span, record.topic());
 
       callback = new KafkaProducerCallback(callback, parent, span);
 

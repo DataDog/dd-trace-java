@@ -676,18 +676,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     final DDSpanContext ddSpanContext = (DDSpanContext) span.context();
-    PathwayContext pathwayContext = ddSpanContext.getPathwayContext();
+    PathwayContext pathwayContext = ddSpanContext.getOrCreatePathwayContext(dataStreamsCheckpointer);
 
-    if (pathwayContext != null) {
-      log.debug("Injecting pathway context");
-      try {
-        byte[] encodedContext = pathwayContext.encode();
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
-      } catch (IOException e) {
-        log.debug("Unable to set encode pathway context", e);
-      }
-    } else {
-      log.debug("Not injecting: Pathway context null");
+    try {
+      byte[] encodedContext = pathwayContext.encode();
+      setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
     }
   }
 

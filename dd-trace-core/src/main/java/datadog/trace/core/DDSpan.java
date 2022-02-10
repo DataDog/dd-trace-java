@@ -538,9 +538,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public void setPathwayContext(Object pathwayContext) {
+  public void mergePathwayContext(Object pathwayContext) {
     if (pathwayContext instanceof PathwayContext) {
-      context.setPathwayContext((PathwayContext) pathwayContext);
+      context.mergePathwayContext((PathwayContext) pathwayContext);
     }
   }
 

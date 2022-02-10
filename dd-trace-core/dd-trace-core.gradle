@@ -42,6 +42,7 @@ dependencies {
   implementation deps.moshi
 
   implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
+  implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.2'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 

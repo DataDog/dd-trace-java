@@ -4,8 +4,11 @@ import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
+import datadog.trace.api.function.BiConsumer;
+import datadog.trace.api.function.Consumer;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -25,14 +28,14 @@ public class PathwayContext {
   private long edgeStart;
   private long hash;
 
-  public PathwayContext() {
-    this(System.currentTimeMillis(), System.nanoTime());
+  public PathwayContext(Consumer<StatsPoint> pointConsumer) {
+    this(pointConsumer, System.currentTimeMillis(), System.nanoTime());
   }
 
-  public PathwayContext(long pathwayStartMillis, long pathwayStartNanoTime) {
+  public PathwayContext(Consumer<StatsPoint> pointConsumer, long pathwayStartMillis, long pathwayStartNanoTime) {
     this(pathwayStartMillis, pathwayStartNanoTime, pathwayStartNanoTime, 0);
 
-    setCheckpoint("", pathwayStartNanoTime);
+    setCheckpoint( "", pathwayStartNanoTime, pointConsumer);
   }
 
   public PathwayContext(
@@ -43,11 +46,11 @@ public class PathwayContext {
     this.hash = hash;
   }
 
-  public StatsPoint setCheckpoint(String edge) {
-    return setCheckpoint(edge, System.nanoTime());
+  public void setCheckpoint(String edge, Consumer<StatsPoint> pointConsumer) {
+    setCheckpoint(edge, System.nanoTime(), pointConsumer);
   }
 
-  public StatsPoint setCheckpoint(String edge, long nanoTime) {
+  public void setCheckpoint(String edge, long nanoTime, Consumer<StatsPoint> pointConsumer) {
     writeLock.lock();
     try {
       long nodeHash = generateNodeHash(Config.get().getServiceName(), edge);
@@ -68,7 +71,7 @@ public class PathwayContext {
       edgeStart = nanoTime;
       hash = newHash;
 
-      return point;
+      pointConsumer.accept(point);
     } finally {
       writeLock.unlock();
     }

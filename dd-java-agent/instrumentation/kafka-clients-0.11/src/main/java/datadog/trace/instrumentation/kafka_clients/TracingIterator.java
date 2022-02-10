@@ -13,6 +13,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -77,8 +78,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           Object pathwayContext = propagate().extractPathwayContext(val.headers(), GETTER);
           if (pathwayContext != null) {
-            span.setPathwayContext(pathwayContext);
+            span.mergePathwayContext(pathwayContext);
           }
+          AgentTracer.get().setDataStreamCheckpoint(span, val.topic());
         } else {
           span = startSpan(operationName, null);
         }

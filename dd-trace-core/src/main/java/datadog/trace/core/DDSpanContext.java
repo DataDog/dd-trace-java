@@ -9,6 +9,7 @@ import datadog.trace.api.TraceSegment;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.function.Consumer;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -18,11 +19,14 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.datastreams.PathwayContext;
 import datadog.trace.core.datastreams.PathwayContextHolder;
+import datadog.trace.core.datastreams.StatsPoint;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.util.GatedConsumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -114,6 +118,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private static final AtomicReferenceFieldUpdater<DDSpanContext, PathwayContext> PATHWAY_CONTEXT_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(DDSpanContext.class, PathwayContext.class, "pathwayContext");
   private volatile PathwayContext pathwayContext;
+  private final Random contextSelector = new Random();
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
@@ -456,13 +461,28 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   @Override
-  public PathwayContext getOrCreatePathwayContext() {
-    PATHWAY_CONTEXT_UPDATER.compareAndSet(this, null, new PathwayContext());
+  public PathwayContext getOrCreatePathwayContext(Consumer<StatsPoint> pointConsumer) {
+    GatedConsumer<StatsPoint> gate = new GatedConsumer<StatsPoint>(pointConsumer);
+    boolean updated = PATHWAY_CONTEXT_UPDATER.compareAndSet(this, null, new PathwayContext(gate));
+    if (updated) {
+      gate.release();
+    }
     return pathwayContext;
   }
 
   public void setPathwayContext(PathwayContext pathwayContext) {
     this.pathwayContext = pathwayContext;
+  }
+
+  public void mergePathwayContext(PathwayContext pathwayContext) {
+    if (this.pathwayContext != null) {
+      // Randomly select between keeping the current context (0) or replacing (1)
+      if (contextSelector.nextInt(2) == 1) {
+        this.pathwayContext = pathwayContext;
+      }
+    } else {
+      this.pathwayContext = pathwayContext;
+    }
   }
 
   public CoreTracer getTracer() {

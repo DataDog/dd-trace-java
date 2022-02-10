@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.function.Consumer;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -24,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultDataStreamsCheckpointer
-    implements DataStreamsCheckpointer, AutoCloseable, Runnable, EventListener {
+    implements DataStreamsCheckpointer, AutoCloseable, Runnable, EventListener, Consumer<StatsPoint> {
   private static final Logger log = LoggerFactory.getLogger(DataStreamsCheckpointer.class);
 
   private static final long BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
@@ -65,9 +66,13 @@ public class DefaultDataStreamsCheckpointer
   @Override
   public void setDataStreamCheckpoint(String edgeName, PathwayContextHolder holder) {
     log.debug("Adding checkpoint for: {}", edgeName);
-    PathwayContext pathwayContext = holder.getOrCreatePathwayContext();
+    PathwayContext pathwayContext = holder.getOrCreatePathwayContext(this);
+    pathwayContext.setCheckpoint(edgeName, this);
+  }
 
-    StatsPoint statsPoint = pathwayContext.setCheckpoint(edgeName);
+  // With Java 8, this becomes unnecessary
+  @Override
+  public void accept(StatsPoint statsPoint) {
     inbox.offer(statsPoint);
   }
 
