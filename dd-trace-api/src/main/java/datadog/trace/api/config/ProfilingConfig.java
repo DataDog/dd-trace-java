@@ -76,7 +76,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
-  public static final int PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = 256 * 1024;
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
 
