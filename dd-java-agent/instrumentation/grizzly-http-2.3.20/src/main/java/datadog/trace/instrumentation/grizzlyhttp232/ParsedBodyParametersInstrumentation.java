@@ -1,0 +1,116 @@
+package datadog.trace.instrumentation.grizzlyhttp232;
+
+import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
+import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.glassfish.grizzly.http.util.Parameters;
+
+// tested in GlassFishServerTest
+@AutoService(Instrumenter.class)
+public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec {
+
+  public ParsedBodyParametersInstrumentation() {
+    super("grizzly");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return named("org.glassfish.grizzly.http.util.Parameters");
+  }
+
+  private static final ReferenceMatcher PARAM_HASH_VALUES_HASH_MAP_REFERENCE_MATCHER =
+      new ReferenceMatcher(
+          new Reference.Builder("org.glassfish.grizzly.http.util.Parameters")
+              .withField(new String[0], 0, "paramHashValues", "Ljava/util/LinkedHashMap;")
+              .build());
+
+  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
+    return new IReferenceMatcher.ConjunctionReferenceMatcher(
+        origMatcher, PARAM_HASH_VALUES_HASH_MAP_REFERENCE_MATCHER);
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        // also matches the variant taking an extra encoding parameter
+        named("processParameters")
+            .and(takesArgument(0, named("org.glassfish.grizzly.Buffer")))
+            .and(takesArgument(1, int.class))
+            .and(takesArgument(2, int.class))
+            .and(takesArgument(3, Charset.class)),
+        getClass().getName() + "$ProcessParametersAdvice");
+  }
+
+  @SuppressWarnings("Duplicates")
+  public static class ProcessParametersAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static int before(
+        @Advice.FieldValue(value = "paramHashValues")
+            final Map<String, ArrayList<String>> paramValuesField,
+        @Advice.Local("origParamHashValues") Map<String, ArrayList<String>> origParamValues) {
+      int depth = CallDepthThreadLocalMap.incrementCallDepth(Parameters.class);
+      if (depth == 0 && !paramValuesField.isEmpty()) {
+        // field is final
+        origParamValues = new HashMap<>(paramValuesField);
+        paramValuesField.clear();
+      }
+      return depth;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Local("origParamHashValues") Map<String, ArrayList<String>> origParamValues,
+        @Advice.FieldValue("paramHashValues") final Map<String, ArrayList<String>> paramValuesField,
+        @Advice.Enter final int depth) {
+      if (depth > 0) {
+        return;
+      }
+      CallDepthThreadLocalMap.reset(Parameters.class);
+
+      try {
+        if (paramValuesField.isEmpty()) {
+          return;
+        }
+
+        AgentSpan agentSpan = activeSpan();
+        if (agentSpan == null) {
+          return;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+        BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+            cbp.getCallback(EVENTS.requestBodyProcessed());
+        RequestContext<Object> requestContext = agentSpan.getRequestContext();
+        if (requestContext == null || callback == null) {
+          return;
+        }
+        callback.apply(requestContext, paramValuesField);
+      } finally {
+        if (origParamValues != null) {
+          paramValuesField.putAll(origParamValues);
+        }
+      }
+    }
+  }
+}

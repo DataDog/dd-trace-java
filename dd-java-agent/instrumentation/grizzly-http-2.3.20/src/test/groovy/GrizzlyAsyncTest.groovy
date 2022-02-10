@@ -1,3 +1,5 @@
+import javax.ws.rs.Consumes
+import javax.ws.rs.FormParam
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.POST
@@ -5,10 +7,12 @@ import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.AsyncResponse
 import javax.ws.rs.container.Suspended
+import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -57,6 +61,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
       executor.execute {
         controller(FORWARDED) {
           asyncResponse.resume(Response.status(FORWARDED.status).entity(forwarded).build())
+        }
+      }
+    }
+
+    @POST
+    @Path("body-urlencoded")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    Response bodyUrlencoded(@Suspended final AsyncResponse asyncResponse, @FormParam("a") String a) {
+      executor.execute {
+        controller(BODY_URLENCODED) {
+          asyncResponse.resume(Response.status(BODY_URLENCODED.status).entity([a: [a]] as String).build())
         }
       }
     }

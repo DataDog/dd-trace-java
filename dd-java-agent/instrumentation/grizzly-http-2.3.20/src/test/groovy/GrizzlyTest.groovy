@@ -4,6 +4,8 @@ import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
 import org.glassfish.jersey.server.ResourceConfig
 
+import javax.ws.rs.Consumes
+import javax.ws.rs.FormParam
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
@@ -13,11 +15,13 @@ import javax.ws.rs.QueryParam
 import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.ContainerResponseContext
 import javax.ws.rs.container.ContainerResponseFilter
+import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 import javax.ws.rs.ext.ExceptionMapper
 import javax.ws.rs.ext.Provider
 import java.util.concurrent.TimeoutException
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -90,6 +94,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override
@@ -126,6 +135,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response forwarded(@HeaderParam("x-forwarded-for") String forwarded) {
       controller(FORWARDED) {
         Response.status(FORWARDED.status).entity(forwarded).build()
+      }
+    }
+
+    @POST
+    @Path("body-urlencoded")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    Response bodyUrlencoded(@FormParam("a") List<String> a) {
+      controller(BODY_URLENCODED) {
+        Response.status(BODY_URLENCODED.status).entity([a: a] as String).build()
       }
     }
 
