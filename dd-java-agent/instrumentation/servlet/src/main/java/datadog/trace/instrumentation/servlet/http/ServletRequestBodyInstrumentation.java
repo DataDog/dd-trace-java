@@ -44,7 +44,8 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
-public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
+public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForTypeHierarchy {
   public ServletRequestBodyInstrumentation() {
     super("servlet-request-body");
   }
@@ -56,7 +57,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.servlet.ServletRequest"));
   }
 

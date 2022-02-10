@@ -15,18 +15,17 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class CommandInstrumentation extends Instrumenter.Tracing {
+public final class CommandInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public CommandInstrumentation() {
     super("aerospike");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.aerospike.client.command.Command");
+  public String instrumentedType() {
+    return "com.aerospike.client.command.Command";
   }
 
   @Override

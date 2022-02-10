@@ -39,7 +39,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  */
 @AutoService(Instrumenter.class)
 public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public ScalaForkJoinTaskInstrumentation() {
     super("java_concurrent", "scala_concurrent");
@@ -51,7 +51,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // this type is constructed on entry to the JFP, and can be used to track
     // the lifecycle of tasks
     return notExcludedByName(FORK_JOIN_TASK)

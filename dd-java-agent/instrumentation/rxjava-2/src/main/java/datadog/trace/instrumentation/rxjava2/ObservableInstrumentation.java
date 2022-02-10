@@ -18,18 +18,17 @@ import io.reactivex.Observable;
 import io.reactivex.Observer;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ObservableInstrumentation extends Instrumenter.Tracing {
+public final class ObservableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public ObservableInstrumentation() {
     super("rxjava");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.reactivex.Observable");
+  public String instrumentedType() {
+    return "io.reactivex.Observable";
   }
 
   @Override

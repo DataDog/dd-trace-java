@@ -14,11 +14,11 @@ import datadog.trace.api.Config;
 import java.util.Map;
 import javax.jms.JMSException;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
+public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public SqsJmsMessageInstrumentation() {
     super("aws-sdk");
   }
@@ -34,8 +34,8 @@ public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.amazon.sqs.javamessaging.message.SQSMessage");
+  public String instrumentedType() {
+    return "com.amazon.sqs.javamessaging.message.SQSMessage";
   }
 
   @Override

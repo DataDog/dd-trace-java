@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.apachehttpclient;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -25,7 +24,8 @@ import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpUriRequest;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
+public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public ApacheHttpClientInstrumentation() {
     super("httpclient", "apache-httpclient", "apache-http-client");
@@ -38,20 +38,26 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.apache.http.impl.client.AbstractHttpClient",
-        "software.amazon.awssdk.http.apache.internal.impl.ApacheSdkHttpClient",
-        "org.apache.http.impl.client.AutoRetryHttpClient",
-        "org.apache.http.impl.client.CloseableHttpClient",
-        "org.apache.http.impl.client.ContentEncodingHttpClient",
-        "org.apache.http.impl.client.DecompressingHttpClient",
-        "org.apache.http.impl.client.DefaultHttpClient",
-        "org.apache.http.impl.client.InternalHttpClient",
-        "org.apache.http.impl.client.MinimalHttpClient",
-        "org.apache.http.impl.client.SystemDefaultHttpClient",
-        "com.netflix.http4.NFHttpClient",
-        "com.amazonaws.http.apache.client.impl.SdkHttpClient");
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.http.impl.client.AbstractHttpClient",
+      "software.amazon.awssdk.http.apache.internal.impl.ApacheSdkHttpClient",
+      "org.apache.http.impl.client.AutoRetryHttpClient",
+      "org.apache.http.impl.client.CloseableHttpClient",
+      "org.apache.http.impl.client.ContentEncodingHttpClient",
+      "org.apache.http.impl.client.DecompressingHttpClient",
+      "org.apache.http.impl.client.DefaultHttpClient",
+      "org.apache.http.impl.client.InternalHttpClient",
+      "org.apache.http.impl.client.MinimalHttpClient",
+      "org.apache.http.impl.client.SystemDefaultHttpClient",
+      "com.netflix.http4.NFHttpClient",
+      "com.amazonaws.http.apache.client.impl.SdkHttpClient"
+    };
   }
 
   @Override

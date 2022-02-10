@@ -13,7 +13,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Tracing {
+public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public BasePlayWSClientInstrumentation() {
     super("play-ws");
   }
@@ -25,7 +26,7 @@ public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     // CachingAsyncHttpClient rejects overrides to AsyncHandler
     // It also delegates to another AsyncHttpClient
     return nameStartsWith("play.")

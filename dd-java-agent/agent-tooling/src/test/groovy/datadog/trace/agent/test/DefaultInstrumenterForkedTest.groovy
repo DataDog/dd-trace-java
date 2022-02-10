@@ -6,6 +6,8 @@ import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.matcher.ElementMatcher
 
+import static net.bytebuddy.matcher.ElementMatchers.none
+
 class DefaultInstrumenterForkedTest extends DDSpecification {
   def "default enabled"() {
     setup:
@@ -143,7 +145,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     "PERIOD_TEST"     | true    | "period.test" | "asdf"
   }
 
-  class TestDefaultInstrumenter extends Instrumenter.Tracing {
+  class TestDefaultInstrumenter extends Instrumenter.Tracing implements Instrumenter.ForTypeHierarchy {
     boolean applyCalled = false
 
     TestDefaultInstrumenter(
@@ -157,14 +159,9 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     }
 
     @Override
-    ElementMatcher<? super TypeDescription> typeMatcher() {
+    ElementMatcher<? super TypeDescription> hierarchyMatcher() {
       applyCalled = true
-      return new ElementMatcher() {
-          @Override
-          boolean matches(Object target) {
-            return false
-          }
-        }
+      return none()
     }
 
     @Override

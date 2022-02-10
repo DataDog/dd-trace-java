@@ -16,8 +16,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * This instrumentation captures the operation name when it is being set on the Client Message.
@@ -25,7 +23,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>It is required because there is no getter for this value until 4.0.
  */
 @AutoService(Instrumenter.class)
-public class ClientMessageInstrumentation extends Instrumenter.Tracing {
+public class ClientMessageInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ClientMessageInstrumentation() {
     super(INSTRUMENTATION_NAME);
@@ -42,8 +41,8 @@ public class ClientMessageInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.hazelcast.client.impl.protocol.ClientMessage");
+  public String instrumentedType() {
+    return "com.hazelcast.client.impl.protocol.ClientMessage";
   }
 
   @Override

@@ -24,7 +24,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing {
+public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public HandlerAdapterInstrumentation() {
     super("spring-web");
@@ -37,7 +38,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.springframework.web.servlet.HandlerAdapter"));
   }
 

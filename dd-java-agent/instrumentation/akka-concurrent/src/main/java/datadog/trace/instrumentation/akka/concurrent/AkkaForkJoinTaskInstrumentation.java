@@ -38,7 +38,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  */
 @AutoService(Instrumenter.class)
 public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public AkkaForkJoinTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
@@ -50,7 +50,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(ElementMatchers.<TypeDescription>declaresMethod(namedOneOf("exec", "fork", "cancel")))
         .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));

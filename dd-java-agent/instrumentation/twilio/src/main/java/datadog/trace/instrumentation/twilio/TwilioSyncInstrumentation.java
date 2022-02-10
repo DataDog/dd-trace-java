@@ -19,11 +19,13 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
 @AutoService(Instrumenter.class)
-public class TwilioSyncInstrumentation extends Instrumenter.Tracing {
+public class TwilioSyncInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public TwilioSyncInstrumentation() {
     super("twilio-sdk");
@@ -37,9 +39,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing {
 
   /** Match any child class of the base Twilio service classes. */
   @Override
-  public net.bytebuddy.matcher.ElementMatcher<
-          ? super net.bytebuddy.description.type.TypeDescription>
-      typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return extendsClass(
         namedOneOf(
             "com.twilio.base.Creator",

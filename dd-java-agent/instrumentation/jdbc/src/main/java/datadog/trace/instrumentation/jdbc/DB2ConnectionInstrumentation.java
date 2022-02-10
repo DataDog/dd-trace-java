@@ -10,13 +10,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentation {
+public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentation
+    implements Instrumenter.ForTypeHierarchy {
   public DB2ConnectionInstrumentation() {
     super("jdbc", "db2");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("com.ibm.db2.jcc.DB2Connection"));
   }
 

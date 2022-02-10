@@ -25,7 +25,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class WebServiceInstrumentation extends Instrumenter.Tracing {
+public final class WebServiceInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   private static final String WEB_SERVICE_ANNOTATION_NAME = "javax.jws.WebService";
 
   public WebServiceInstrumentation() {
@@ -38,7 +39,7 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME)));
   }
 

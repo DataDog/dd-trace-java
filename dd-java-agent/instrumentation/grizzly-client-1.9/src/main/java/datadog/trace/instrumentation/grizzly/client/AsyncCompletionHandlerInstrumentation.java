@@ -26,7 +26,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tracing {
+public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public AsyncCompletionHandlerInstrumentation() {
     super("grizzly-client", "ning");
@@ -48,7 +49,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return hasSuperClass(named("com.ning.http.client.AsyncCompletionHandler"));
   }
 

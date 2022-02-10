@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
@@ -23,23 +22,33 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracing {
+public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public RejectedExecutionHandlerInstrumentation() {
     super("java_concurrent", "rejected-execution-handler");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return NameMatchers.<TypeDescription>namedOneOf(
-            "java.util.concurrent.ThreadPoolExecutor$AbortPolicy",
-            "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
-            "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
-            "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy")
-        .or(
-            hasInterface(
-                named("java.util.concurrent.RejectedExecutionHandler")
-                    .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler"))));
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "java.util.concurrent.ThreadPoolExecutor$AbortPolicy",
+      "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
+      "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
+      "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy"
+    };
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+    return implementsInterface(
+        named("java.util.concurrent.RejectedExecutionHandler")
+            .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
   }
 
   @Override

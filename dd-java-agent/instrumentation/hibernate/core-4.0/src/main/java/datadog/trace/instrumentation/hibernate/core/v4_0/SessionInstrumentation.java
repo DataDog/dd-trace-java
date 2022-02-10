@@ -45,9 +45,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.hibernate.internal.SessionImpl", "org.hibernate.internal.StatelessSessionImpl");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.hibernate.internal.SessionImpl", "org.hibernate.internal.StatelessSessionImpl"
+    };
   }
 
   @Override

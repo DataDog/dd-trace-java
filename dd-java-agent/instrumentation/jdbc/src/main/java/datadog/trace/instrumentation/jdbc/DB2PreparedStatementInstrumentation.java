@@ -10,7 +10,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DB2PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation {
+public class DB2PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
+    implements Instrumenter.ForTypeHierarchy {
   public DB2PreparedStatementInstrumentation() {
     super("jdbc", "db2");
   }
@@ -19,7 +20,7 @@ public class DB2PreparedStatementInstrumentation extends AbstractPreparedStateme
       hasClassesNamed("com.ibm.db2.jcc.DB2PreparedStatement");
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("com.ibm.db2.jcc.DB2PreparedStatement"));
   }
 

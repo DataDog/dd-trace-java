@@ -3,18 +3,17 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class IBMResourceLevelInstrumentation extends Instrumenter.Tracing {
+public class IBMResourceLevelInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public IBMResourceLevelInstrumentation() {
     super(IBMResourceLevelInstrumentation.class.getName());
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.ibm.as400.resource.ResourceLevel");
+  public String instrumentedType() {
+    return "com.ibm.as400.resource.ResourceLevel";
   }
 
   @Override

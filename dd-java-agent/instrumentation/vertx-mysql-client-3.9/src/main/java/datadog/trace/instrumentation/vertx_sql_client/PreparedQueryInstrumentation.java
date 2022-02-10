@@ -18,7 +18,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class PreparedQueryInstrumentation extends Instrumenter.Tracing {
+public class PreparedQueryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public PreparedQueryInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -41,7 +42,7 @@ public class PreparedQueryInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("io.vertx.sqlclient.PreparedQuery"));
   }
 

@@ -2,27 +2,25 @@
 
 package datadog.trace.instrumentation.springdata;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.data.repository.core.support.RepositoryProxyPostProcessor;
 
 @AutoService(Instrumenter.class)
-public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing {
+public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SpringRepositoryInstrumentation() {
     super("spring-data");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.springframework.data.repository.core.support.RepositoryFactorySupport");
+  public String instrumentedType() {
+    return "org.springframework.data.repository.core.support.RepositoryFactorySupport";
   }
 
   @Override

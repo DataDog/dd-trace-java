@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,21 +12,21 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class MongoSuspendSpanInstrumentation extends Instrumenter.Tracing {
+public final class MongoSuspendSpanInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public MongoSuspendSpanInstrumentation() {
     super("mongo", "mongo-suspend");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "com.mongodb.connection.InternalStreamConnection",
-        "com.mongodb.internal.connection.InternalStreamConnection");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "com.mongodb.connection.InternalStreamConnection",
+      "com.mongodb.internal.connection.InternalStreamConnection"
+    };
   }
 
   @Override

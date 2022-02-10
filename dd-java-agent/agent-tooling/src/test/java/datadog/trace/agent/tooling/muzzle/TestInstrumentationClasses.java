@@ -1,11 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import static net.bytebuddy.matcher.ElementMatchers.none;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class TestInstrumentationClasses {
   static final Reference[] SOME_ADVICE_REFS;
@@ -21,11 +17,6 @@ public abstract class TestInstrumentationClasses {
 
     public BaseInst() {
       super("test");
-    }
-
-    @Override
-    public ElementMatcher<? super TypeDescription> typeMatcher() {
-      return none();
     }
 
     @Override

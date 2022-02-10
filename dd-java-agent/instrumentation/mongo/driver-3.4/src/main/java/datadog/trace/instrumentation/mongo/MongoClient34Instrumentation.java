@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -37,19 +36,25 @@ import org.bson.ByteBuf;
  * effectively overriding the previous instrumentation when necessary.
  */
 @AutoService(Instrumenter.class)
-public final class MongoClient34Instrumentation extends Instrumenter.Tracing {
+public final class MongoClient34Instrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
 
   public MongoClient34Instrumentation() {
     super("mongo", "mongo-3.4");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-            "com.mongodb.MongoClientOptions$Builder",
-            "com.mongodb.async.client.MongoClientSettings$Builder",
-            "com.mongodb.MongoClientSettings$Builder")
-        .and(declaresField(named("commandListeners")));
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "com.mongodb.MongoClientOptions$Builder",
+      "com.mongodb.async.client.MongoClientSettings$Builder",
+      "com.mongodb.MongoClientSettings$Builder"
+    };
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> structureMatcher() {
+    return declaresField(named("commandListeners"));
   }
 
   @Override

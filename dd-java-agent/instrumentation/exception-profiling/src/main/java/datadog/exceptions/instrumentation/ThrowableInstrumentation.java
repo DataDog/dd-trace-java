@@ -11,7 +11,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Provides instrumentation of {@linkplain Throwable} constructor. <br> */
 @AutoService(Instrumenter.class)
-public final class ThrowableInstrumentation extends Instrumenter.Profiling {
+public final class ThrowableInstrumentation extends Instrumenter.Profiling
+    implements Instrumenter.ForTypeHierarchy {
   private final boolean hasJfr;
 
   public ThrowableInstrumentation() {
@@ -27,7 +28,7 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     if (hasJfr) {
       return is(Throwable.class);
     }

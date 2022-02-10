@@ -20,14 +20,15 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RmiClientInstrumentation extends Instrumenter.Tracing {
+public final class RmiClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RmiClientInstrumentation() {
     super("rmi", "rmi-client");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("sun.rmi.server.UnicastRef"));
   }
 

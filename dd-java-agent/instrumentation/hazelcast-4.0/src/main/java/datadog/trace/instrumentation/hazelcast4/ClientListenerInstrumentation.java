@@ -20,11 +20,10 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientListenerInstrumentation extends Instrumenter.Tracing {
+public class ClientListenerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ClientListenerInstrumentation() {
     super(INSTRUMENTATION_NAME);
@@ -36,8 +35,8 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.hazelcast.client.impl.spi.impl.listener.ClientListenerServiceImpl");
+  public String instrumentedType() {
+    return "com.hazelcast.client.impl.spi.impl.listener.ClientListenerServiceImpl";
   }
 
   @Override

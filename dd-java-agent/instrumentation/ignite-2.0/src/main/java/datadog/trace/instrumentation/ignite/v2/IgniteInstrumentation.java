@@ -21,7 +21,8 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 
 @AutoService(Instrumenter.class)
-public class IgniteInstrumentation extends Instrumenter.Tracing {
+public class IgniteInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public IgniteInstrumentation() {
     super("ignite");
@@ -33,7 +34,7 @@ public class IgniteInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.apache.ignite.Ignite"));
   }
 

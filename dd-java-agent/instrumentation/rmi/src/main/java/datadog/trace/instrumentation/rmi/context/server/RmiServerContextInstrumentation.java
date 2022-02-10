@@ -16,14 +16,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Target;
 
 @AutoService(Instrumenter.class)
-public class RmiServerContextInstrumentation extends Instrumenter.Tracing {
+public class RmiServerContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RmiServerContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-server-context-propagator");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return extendsClass(named("sun.rmi.transport.ObjectTable"));
   }
 

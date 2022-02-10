@@ -2,7 +2,6 @@ package excludefilter;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -14,8 +13,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
@@ -23,11 +20,6 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
 
   public ExcludeFilterTestInstrumentation() {
     super("excludefilter-test");
-  }
-
-  @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return none();
   }
 
   @Override

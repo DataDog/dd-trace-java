@@ -14,7 +14,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public final class FilterInstrumentation extends Instrumenter.Tracing {
+public final class FilterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public FilterInstrumentation() {
     super("grizzly-filterchain");
@@ -26,7 +27,7 @@ public final class FilterInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return hasSuperClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
         // HttpCodecFilter is instrumented in the server instrumentation
         .and(

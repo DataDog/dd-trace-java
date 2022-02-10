@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.apachehttpclient5;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -25,7 +24,8 @@ import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
+public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public ApacheHttpClientInstrumentation() {
     super("httpclient5", "apache-httpclient5", "apache-http-client5");
@@ -38,10 +38,16 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.apache.hc.client5.http.impl.classic.CloseableHttpClient",
-        "org.apache.hc.client5.http.impl.classic.MinimalHttpClient");
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.hc.client5.http.impl.classic.CloseableHttpClient",
+      "org.apache.hc.client5.http.impl.classic.MinimalHttpClient"
+    };
   }
 
   @Override

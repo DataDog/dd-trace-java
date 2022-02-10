@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.log4j2;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -10,11 +9,11 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.WithGlobalTracer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ThreadContextInstrumentation extends Instrumenter.Tracing {
+public class ThreadContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
 
   public ThreadContextInstrumentation() {
@@ -33,8 +32,8 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named(TYPE_NAME);
+  public String instrumentedType() {
+    return TYPE_NAME;
   }
 
   @Override

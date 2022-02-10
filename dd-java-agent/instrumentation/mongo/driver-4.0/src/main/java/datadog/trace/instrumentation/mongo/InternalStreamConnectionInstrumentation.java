@@ -8,18 +8,17 @@ import com.google.auto.service.AutoService;
 import com.mongodb.internal.async.SingleResultCallback;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class InternalStreamConnectionInstrumentation extends Instrumenter.Tracing {
+public class InternalStreamConnectionInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public InternalStreamConnectionInstrumentation() {
     super("mongo", "mongo-reactivestreams");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.mongodb.internal.connection.InternalStreamConnection");
+  public String instrumentedType() {
+    return "com.mongodb.internal.connection.InternalStreamConnection";
   }
 
   @Override

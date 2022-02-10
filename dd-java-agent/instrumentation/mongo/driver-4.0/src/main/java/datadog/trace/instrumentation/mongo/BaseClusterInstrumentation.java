@@ -6,18 +6,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class BaseClusterInstrumentation extends Instrumenter.Tracing {
+public class BaseClusterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public BaseClusterInstrumentation() {
     super("mongo", "mongo-reactivestreams");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.mongodb.internal.connection.BaseCluster");
+  public String instrumentedType() {
+    return "com.mongodb.internal.connection.BaseCluster";
   }
 
   @Override

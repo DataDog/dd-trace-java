@@ -15,13 +15,12 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.restlet.engine.resource.AnnotationInfo;
 import org.restlet.resource.ServerResource;
 
 @AutoService(Instrumenter.class)
-public final class ResourceInstrumentation extends Instrumenter.Tracing {
+public final class ResourceInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   private static final String RESTLET_HTTP_OPERATION_NAME = "restlet.request";
 
@@ -30,8 +29,8 @@ public final class ResourceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.restlet.resource.ServerResource");
+  public String instrumentedType() {
+    return "org.restlet.resource.ServerResource";
   }
 
   @Override

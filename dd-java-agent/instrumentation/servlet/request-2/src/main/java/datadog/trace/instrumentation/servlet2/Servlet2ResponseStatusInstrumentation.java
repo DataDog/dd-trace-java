@@ -12,7 +12,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tracing {
+public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public Servlet2ResponseStatusInstrumentation() {
     super("servlet", "servlet-2");
   }
@@ -24,7 +25,7 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(named("javax.servlet.http.HttpServletResponse"));
   }
 

@@ -6,19 +6,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class MicronautInstrumentation extends Instrumenter.Tracing {
+public final class MicronautInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public MicronautInstrumentation() {
     super("micronaut", "micronaut-http-server-netty", "micronaut-http-server-netty-2");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.micronaut.http.server.netty.RoutingInBoundHandler");
+  public String instrumentedType() {
+    return "io.micronaut.http.server.netty.RoutingInBoundHandler";
   }
 
   @Override

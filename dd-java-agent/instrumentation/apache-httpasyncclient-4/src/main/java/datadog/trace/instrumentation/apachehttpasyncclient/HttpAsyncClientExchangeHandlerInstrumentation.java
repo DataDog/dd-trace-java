@@ -9,18 +9,17 @@ import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.http.concurrent.BasicFuture;
 import org.apache.http.concurrent.FutureCallback;
 
 @AutoService(Instrumenter.class)
-public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.Tracing {
+public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.WithTypeStructure {
 
   public HttpAsyncClientExchangeHandlerInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");
@@ -32,22 +31,30 @@ public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-    return NameMatchers.<TypeDescription>namedOneOf(
-            "org.apache.http.impl.nio.client.DefaultClientExchangeHandlerImpl",
-            "org.apache.http.impl.nio.client.PipeliningClientExchangeHandlerImpl",
-            "org.apache.http.impl.nio.client.MinimalClientExchangeHandlerImpl")
-        .and(declaresField(named("resultFuture")));
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.http.impl.nio.client.DefaultClientExchangeHandlerImpl",
+      "org.apache.http.impl.nio.client.PipeliningClientExchangeHandlerImpl",
+      "org.apache.http.impl.nio.client.MinimalClientExchangeHandlerImpl"
+    };
   }
 
   @Override
   public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
-    // must ensure the field is declared (if it is no longer declared, we miss a profiler event,
-    // but tracing is unaffected
-    return ElementMatchers.<TypeDescription>declaresField(named("resultFuture"))
-        .and(
-            implementsInterface(
-                named("org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler")));
+    return implementsInterface(
+        named("org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler"));
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> structureMatcher() {
+    // must ensure the field is declared (if it is no longer declared
+    // we miss a profiler event, but tracing is unaffected)
+    return declaresField(named("resultFuture"));
   }
 
   @Override

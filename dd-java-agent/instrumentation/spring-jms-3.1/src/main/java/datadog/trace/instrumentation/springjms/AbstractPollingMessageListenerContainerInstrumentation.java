@@ -12,19 +12,18 @@ import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import java.util.Map;
 import javax.jms.MessageConsumer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AbstractPollingMessageListenerContainerInstrumentation extends Instrumenter.Tracing {
+public class AbstractPollingMessageListenerContainerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AbstractPollingMessageListenerContainerInstrumentation() {
     super("spring-jms", "jms");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.jms.listener.AbstractPollingMessageListenerContainer");
+  public String instrumentedType() {
+    return "org.springframework.jms.listener.AbstractPollingMessageListenerContainer";
   }
 
   @Override
