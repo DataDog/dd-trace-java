@@ -159,7 +159,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
               operator: 'match_regex'
             ]
           ],
-        ]]
+        ]
+      ]
     ]))
 
     when:
