@@ -129,7 +129,7 @@ public class DefaultDataStreamsCheckpointer
   private void flush(long timestampMillis) {
     long cutoff = timestampMillis - BUCKET_DURATION_MILLIS;
 
-    List<StatsBucket> includedGroups = new ArrayList<>();
+    List<StatsBucket> includedBuckets = new ArrayList<>();
     Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
 
     while (mapIterator.hasNext()) {
@@ -137,13 +137,13 @@ public class DefaultDataStreamsCheckpointer
 
       if (entry.getKey() < cutoff) {
         mapIterator.remove();
-        includedGroups.add(entry.getValue());
+        includedBuckets.add(entry.getValue());
       }
     }
 
-    if (!includedGroups.isEmpty()) {
-      log.debug("Flushing {} groups", includedGroups.size());
-      payloadWriter.writePayload(includedGroups);
+    if (!includedBuckets.isEmpty()) {
+      log.debug("Flushing {} buckets", includedBuckets.size());
+      payloadWriter.writePayload(includedBuckets);
     }
   }
 

@@ -21,7 +21,7 @@ public class DatastreamsPayloadWriter {
   private static final byte[] PATHWAY_LATENCY = "PathwayLatency".getBytes(ISO_8859_1);
   private static final byte[] EDGE_LATENCY = "EdgeLatency".getBytes(ISO_8859_1);
   private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
-  private static final byte[] EDGE = "Service".getBytes(ISO_8859_1);
+  private static final byte[] EDGE = "Edge".getBytes(ISO_8859_1);
   private static final byte[] HASH = "Hash".getBytes(ISO_8859_1);
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
 
@@ -99,11 +99,11 @@ public class DatastreamsPayloadWriter {
 
       /* 5 */
       packer.writeUTF8(HASH);
-      packer.writeLong(group.getHash());
+      packer.writeUnsignedLong(group.getHash());
 
       /* 6 */
       packer.writeUTF8(PARENT_HASH);
-      packer.writeLong(group.getParentHash());
+      packer.writeUnsignedLong(group.getParentHash());
     }
   }
 }
