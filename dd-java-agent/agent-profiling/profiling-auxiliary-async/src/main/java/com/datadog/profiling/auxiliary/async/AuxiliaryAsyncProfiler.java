@@ -32,14 +32,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
 
   public static final String TYPE = "async";
 
-  // see https://github.com/DataDog/async-profiler/blob/main/src/memleakTracer.h
-  private static final int MEMLEAK_TABLE_MAX_SIZE = 8192;
-  private static final int memleakMinInterval;
-
-  static {
-    long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
-    memleakMinInterval = maxheap > 0 ? (int) (maxheap / MEMLEAK_TABLE_MAX_SIZE) : -1;
-  }
+  private final int memleakIntervalDefault;
 
   @AutoService(AuxiliaryImplementation.Provider.class)
   public static final class ImplementerProvider implements AuxiliaryImplementation.Provider {
@@ -105,6 +98,10 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     if (instance != null) {
       FlightRecorder.addPeriodicEvent(AsyncProfilerConfigEvent.class, this::emitConfiguration);
     }
+
+    this.memleakIntervalDefault =
+        Math.max(0, (int) ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax())
+            / Math.max(1, getMemleakCapacity());
   }
 
   private void emitConfiguration() {
@@ -287,7 +284,8 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
           .append(getMemleakInterval())
           .append('b')
           .append(",memleakcap=")
-          .append(getMemleakCapacity());
+          .append(getMemleakCapacity())
+          .append('b');
     }
     String cmdString = cmd.toString();
     log.debug("Async profiler command line: {}", cmdString);
@@ -318,16 +316,15 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   }
 
   private int getMemleakInterval() {
-    return Math.max(
-        memleakMinInterval,
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL,
-            ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT));
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL, memleakIntervalDefault);
   }
 
   private int getMemleakCapacity() {
-    return Math.max(
-        memleakMinInterval,
+    return clamp(
+        0,
+        // see https://github.com/DataDog/async-profiler/blob/main/src/memleakTracer.h
+        8192,
         configProvider.getInteger(
             ProfilingConfig.PROFILING_ASYNC_MEMLEAK_CAPACITY,
             ProfilingConfig.PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT));
@@ -350,5 +347,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       return "error";
     }
     return "none";
+  }
+
+  private int clamp(int min, int max, int value) {
+    return Math.max(min, Math.min(max, value));
   }
 }
