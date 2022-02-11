@@ -112,22 +112,16 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
       return channel.basicGet(queueName, true)
     }
-    def expectedTraces = hasQueueSpan() ? 2 : 1
-    def expectedSpans = hasQueueSpan() ? 5 : 6
 
     expect:
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(expectedTraces) {
-      def getParentSpan = null
-      trace(expectedSpans, true) {
-        def parentSpan = span(expectedSpans - 1)
-        if (!hasQueueSpan()) {
-          rabbitSpan(it, "basic.get <generated>", false, parentSpan)
-        } else {
-          getParentSpan = span(0)
-        }
+    assertTraces(2) {
+      def publishSpan = null
+      trace(5, true) {
+        publishSpan = span(0)
+        def parentSpan = span(4)
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, parentSpan)
         rabbitSpan(it, "exchange.declare", false, parentSpan)
         rabbitSpan(it, "queue.bind", false, parentSpan)
@@ -137,7 +131,11 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       if (hasQueueSpan()) {
         trace(2, true) {
           rabbitSpan(it, "basic.get <generated>", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver <generated>", true, getParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
+        }
+      } else {
+        trace(1) {
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
         }
       }
     }
@@ -158,22 +156,22 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      def getParentSpan = null
+      def publishSpan = null
       trace(1) {
         rabbitSpan(it, "queue.declare")
       }
       trace(1) {
-        getParentSpan = span(0)
+        publishSpan = span(0)
         rabbitSpan(it, "basic.publish <default> -> <generated>")
       }
       if (hasQueueSpan()) {
         trace(2, true) {
           rabbitSpan(it, "basic.get <generated>", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver <generated>", true, getParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get <generated>", true, getParentSpan)
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
         }
       }
     }
@@ -377,19 +375,19 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       trace(1) {
         rabbitSpan(it, "queue.declare")
       }
-      def getParentSpan = null
+      def publishSpan = null
       trace(1) {
-        getParentSpan = span(0)
+        publishSpan = span(0)
         rabbitSpan(it, "basic.publish <default> -> some-routing-queue")
       }
       if (hasQueueSpan()) {
         trace(2, true) {
           rabbitSpan(it, "basic.get ${queue.name}", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver ${queue.name}", true, getParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver ${queue.name}", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get ${queue.name}", !hasQueueSpan(), getParentSpan)
+          rabbitSpan(it, "basic.get ${queue.name}", true, publishSpan)
         }
       }
     }
@@ -429,9 +427,9 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     assertTraces(expectedTraces) {
-      def typeParentSpan = null
+      def publishSpan = null
       trace(5) {
-        typeParentSpan = span(1)
+        publishSpan = span(1)
         basicSpan(it, "parent")
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
@@ -446,15 +444,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       if (hasQueueSpan() && !noParent) {
         trace(2) {
           rabbitSpan(it, "basic.$type $queueName", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver $queueName", true, typeParentSpan)
-          typeParentSpan = span(0)
+          rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
             rabbitSpan(it, "basic.$type $queueName")
           } else {
-            rabbitSpan(it, "basic.$type $queueName", !hasQueueSpan(), typeParentSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
           }
         }
       }
@@ -504,9 +501,9 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     assertTraces(expectedTraces) {
-      def typeParentSpan = null
+      def publishSpan = null
       trace(5) {
-        typeParentSpan = span(1)
+        publishSpan = span(1)
         basicSpan(it, "parent")
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
@@ -521,14 +518,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       if (hasQueueSpan() && !noParent) {
         trace(2, true) {
           rabbitSpan(it, "basic.$type $queueName", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver $queueName", true, typeParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
             rabbitSpan(it, "basic.$type $queueName")
           } else {
-            rabbitSpan(it, "basic.$type $queueName", !hasQueueSpan(), typeParentSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
           }
         }
       }

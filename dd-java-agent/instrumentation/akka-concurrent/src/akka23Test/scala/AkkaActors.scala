@@ -30,8 +30,10 @@ class AkkaActors extends AutoCloseable {
   val routerGreeter: ActorRef =
     system.actorOf(Greeter.props("How you doin'", router), "router-greeter")
 
+  val is23 = AkkaActors.isAkka23
+
   override def close(): Unit = {
-    system.terminate()
+    AkkaActors.terminate(system)
   }
 
   import Greeter._
@@ -71,6 +73,36 @@ class AkkaActors extends AutoCloseable {
     activeSpan().setSpanName("leak all the things")
     tellGreeter ! WhoToGreet(who)
     tellGreeter ! Leak(leak)
+  }
+}
+
+object AkkaActors {
+  // If we can't load the Version class, then assume 2.3
+  val isAkka23: Boolean = try {
+    Class.forName("akka.Version")
+    false
+  } catch {
+    case _: Throwable => true
+  }
+
+  // The way to terminate an actor system has changed between versions
+  val terminate: (ActorSystem) => Unit = {
+    val t = try {
+      ActorSystem.getClass.getMethod("terminate")
+    } catch {
+      case _: Throwable => try {
+        ActorSystem.getClass.getMethod("awaitTermination")
+      } catch {
+        case _: Throwable => null
+      }
+    }
+    if (t ne null) {
+      { system: ActorSystem =>
+        t.invoke(system)
+      }
+    } else {
+      { _ => ??? }
+    }
   }
 }
 

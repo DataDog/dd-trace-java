@@ -16,10 +16,8 @@ import org.elasticsearch.http.HttpServerTransport
 import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
 import org.elasticsearch.transport.Netty4Plugin
-import spock.lang.Retry
 import spock.lang.Shared
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch7RestClientTest extends AgentTestRunner {
   @Shared
   TransportAddress httpTransportAddress
@@ -68,7 +66,7 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
     }
   }
 
-  def "test elasticsearch status"() {
+  def "test elasticsearch status #nr"() {
     setup:
     Request request = new Request("GET", "_cluster/health")
     Response response = client.performRequest(request)
@@ -79,6 +77,7 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
     result.status == "green"
 
     assertTraces(1) {
+      sortSpansByStart()
       trace(2) {
         span {
           serviceName "elasticsearch"
@@ -114,5 +113,8 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
         }
       }
     }
+
+    where:
+    nr << (1..101)
   }
 }

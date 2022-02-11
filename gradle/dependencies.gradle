@@ -29,7 +29,7 @@ final class CachedData {
     testcontainers: '1.15.0-rc2',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.6-DD-20220125"
+    asyncprofiler : "2.6-DD-20220210"
   ]
 
   static deps = [
@@ -44,6 +44,7 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
+    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
 
     // Testing
 
