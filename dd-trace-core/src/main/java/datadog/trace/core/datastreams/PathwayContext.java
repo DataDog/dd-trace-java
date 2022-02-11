@@ -61,7 +61,6 @@ public class PathwayContext {
 
       StatsPoint point =
           new StatsPoint(
-              Config.get().getServiceName(),
               edge,
               newHash,
               hash,

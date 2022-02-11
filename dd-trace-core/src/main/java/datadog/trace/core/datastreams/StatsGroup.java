@@ -9,15 +9,13 @@ public class StatsGroup {
   private static final IndexMapping SKETCH_MAPPING = new LogarithmicMapping(0.01);
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;
 
-  private final String service;
   private final String edge;
   private final long hash;
   private final long parentHash;
   private final DDSketch pathwayLatency;
   private final DDSketch edgeLatency;
 
-  public StatsGroup(String service, String edge, long hash, long parentHash) {
-    this.service = service;
+  public StatsGroup(String edge, long hash, long parentHash) {
     this.edge = edge;
     this.hash = hash;
     this.parentHash = parentHash;
@@ -28,10 +26,6 @@ public class StatsGroup {
   public void add(long pathwayLatencyNano, long edgeLatencyNano) {
     pathwayLatency.accept(((double) pathwayLatencyNano) / NANOSECONDS_TO_SECOND);
     edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
-  }
-
-  public String getService() {
-    return service;
   }
 
   public String getEdge() {

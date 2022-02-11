@@ -30,8 +30,8 @@ public class DefaultDataStreamsCheckpointer
 
   private static final long BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
-  private static final StatsPoint REPORT = new StatsPoint(null, null, 0, 0, 0, 0, 0);
-  private static final StatsPoint POISON_PILL = new StatsPoint(null, null, 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT = new StatsPoint(null, 0, 0, 0, 0, 0);
+  private static final StatsPoint POISON_PILL = new StatsPoint( null, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
@@ -141,9 +141,7 @@ public class DefaultDataStreamsCheckpointer
       }
     }
 
-    if (includedGroups.isEmpty()) {
-      log.debug("No data to flush");
-    } else {
+    if (!includedGroups.isEmpty()) {
       log.debug("Flushing {} groups", includedGroups.size());
       payloadWriter.writePayload(includedGroups);
     }
@@ -151,6 +149,7 @@ public class DefaultDataStreamsCheckpointer
 
   @Override
   public void onEvent(EventType eventType, String message) {
+    log.debug("Received event {} {}", eventType, message);
     // TODO implement downgrade logic
   }
 

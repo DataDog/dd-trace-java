@@ -6,10 +6,14 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.Config;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DatastreamsPayloadWriter {
+  private static final Logger log = LoggerFactory.getLogger(DatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
   private static final byte[] START = "Start".getBytes(ISO_8859_1);
@@ -85,17 +89,19 @@ public class DatastreamsPayloadWriter {
 
       /* 3 */
       packer.writeUTF8(SERVICE);
-      packer.writeString(group.getService(), null);
+      log.debug("Writing service name {}", Config.get().getServiceName());
+      packer.writeString(Config.get().getServiceName(), null);
 
-      /* 3 */
+      /* 4 */
       packer.writeUTF8(EDGE);
+      log.debug("Writing edge name {}", group.getEdge());
       packer.writeString(group.getEdge(), null);
 
-      /* 3 */
+      /* 5 */
       packer.writeUTF8(HASH);
       packer.writeLong(group.getHash());
 
-      /* 3 */
+      /* 6 */
       packer.writeUTF8(PARENT_HASH);
       packer.writeLong(group.getParentHash());
     }
