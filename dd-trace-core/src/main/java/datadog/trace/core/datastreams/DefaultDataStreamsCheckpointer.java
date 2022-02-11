@@ -49,6 +49,7 @@ public class DefaultDataStreamsCheckpointer
             "/api/v0.1/pipeline_stats",
             SECONDS.toNanos(1),
             false,
+            true,
             Collections.singletonMap("DD-API-KEY", config.getApiKey()));
 
     payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());

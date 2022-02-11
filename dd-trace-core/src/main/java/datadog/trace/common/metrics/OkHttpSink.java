@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD;
@@ -14,6 +15,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -22,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,13 +44,14 @@ public final class OkHttpSink implements Sink, EventListener {
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final long asyncThresholdLatency;
   private final boolean bufferingEnabled;
+  private final boolean compressionEnabled;
   private final Map<String, String> headers;
 
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
 
   public OkHttpSink(OkHttpClient client, String agentUrl, String path, boolean bufferingEnabled) {
-    this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled, DEFAULT_HEADERS);
+    this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled, false, DEFAULT_HEADERS);
   }
 
   public OkHttpSink(
@@ -56,13 +60,19 @@ public final class OkHttpSink implements Sink, EventListener {
       String path,
       long asyncThresholdLatency,
       boolean bufferingEnabled,
+      boolean compressionEnabled,
       Map<String, String> headers) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
     this.listeners = new CopyOnWriteArrayList<>();
     this.asyncThresholdLatency = asyncThresholdLatency;
     this.bufferingEnabled = bufferingEnabled;
-    this.headers = headers;
+    this.compressionEnabled = compressionEnabled;
+    this.headers = new HashMap<>(headers);
+
+    if (compressionEnabled) {
+      this.headers.put("Content-Encoding", "gzip");
+    }
   }
 
   @Override
@@ -74,7 +84,8 @@ public final class OkHttpSink implements Sink, EventListener {
     if (!bufferingEnabled || lastRequestTime.get() < asyncThresholdLatency) {
       send(
           prepareRequest(metricsUrl, headers)
-              .put(msgpackRequestBodyOf(Collections.singletonList(buffer)))
+              // FIXME: This is a PUT for agent requests
+              .post(makeRequestBody(buffer))
               .build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
@@ -93,11 +104,20 @@ public final class OkHttpSink implements Sink, EventListener {
     }
   }
 
+  private RequestBody makeRequestBody(ByteBuffer buffer) {
+    if (compressionEnabled) {
+      return gzippedMsgpackRequestBodyOf(Collections.singletonList(buffer));
+    } else {
+      return msgpackRequestBodyOf(Collections.singletonList(buffer));
+    }
+  }
+
   private void sendAsync(int messageCount, ByteBuffer buffer) {
     asyncRequestCounter.getAndIncrement();
     if (!enqueuedRequests.offer(
         prepareRequest(metricsUrl, headers)
-            .put(msgpackRequestBodyOf(Collections.singletonList(buffer.duplicate())))
+            // FIXME: This is a PUT for agent requests
+            .post(makeRequestBody(buffer.duplicate()))
             .build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
