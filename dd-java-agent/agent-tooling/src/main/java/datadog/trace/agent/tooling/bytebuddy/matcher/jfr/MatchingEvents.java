@@ -14,6 +14,11 @@ public class MatchingEvents {
     return INSTANCE;
   }
 
+  public <T> ElementMatcher<T> matcherWithEvents(
+      ElementMatcher<T> matcher, String instrumenterClass) {
+    return matcher;
+  }
+
   public MatchingEvent namedMatchingEvent(String name, int mode, Object data) {
     return MatchingEvent.NOOP;
   }

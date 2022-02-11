@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafe;
+import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvents;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
@@ -172,7 +173,11 @@ public interface Instrumenter {
     private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
       final AgentBuilder.Identified.Narrowable narrowable;
       ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
-      ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
+
+      ElementMatcher<? super TypeDescription> typeMatcher =
+          //          typeMatcher();
+          MatchingEvents.get().matcherWithEvents(typeMatcher(), "" + getClass());
+
       if (classLoaderMatcher == ANY_CLASS_LOADER // Don't bypass the classLoaderMatcher
           && typeMatcher instanceof AgentBuilder.RawMatcher
           && typeMatcher instanceof FailSafe) {
@@ -215,6 +220,7 @@ public interface Instrumenter {
 
       @Override
       public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
+        matcher = MatchingEvents.get().matcherWithEvents(matcher, name);
         agentBuilder =
             agentBuilder.transform(
                 new AgentBuilder.Transformer.ForAdvice()

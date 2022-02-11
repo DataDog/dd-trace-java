@@ -119,4 +119,41 @@ public class MatchingEventsImpl extends MatchingEvents {
     }
     return MatchingEvent.NOOP;
   }
+
+  private static class MatcherWrapper<T> implements ElementMatcher<T> {
+    final ElementMatcher<T> matcher;
+    final String instrumenterClass;
+
+    private MatcherWrapper(ElementMatcher<T> matcher, String instrumenterClass) {
+      this.matcher = matcher;
+      this.instrumenterClass = instrumenterClass;
+    }
+
+    @Override
+    public boolean matches(T target) {
+      try (MatchingEventImpl event = newMatchingEvent(target)) {
+        boolean matched = matcher.matches(target);
+        event.matched = matched;
+        return matched;
+      }
+    }
+
+    private MatchingEventImpl newMatchingEvent(T target) {
+      MatchingEventImpl event = new MatchingEventImpl();
+      if (event.isEnabled()) {
+        event.matcher = instrumenterClass;
+        event.params = matcher.toString();
+        event.target = target.toString();
+
+        event.begin();
+      }
+      return event;
+    }
+  }
+
+  @Override
+  public <T> ElementMatcher<T> matcherWithEvents(
+      ElementMatcher<T> matcher, String instrumenterClass) {
+    return new MatcherWrapper<T>(matcher, instrumenterClass);
+  }
 }
