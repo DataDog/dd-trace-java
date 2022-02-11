@@ -13,6 +13,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.profiling.ContextTracker;
+import datadog.trace.api.profiling.ContextTrackerFactory;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -50,6 +52,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
+    span.contextTracker.activateContext();
     return span;
   }
 
@@ -102,6 +105,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     this(timestampMicro, context, true);
   }
 
+  private final ContextTracker contextTracker;
   private DDSpan(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
     this.context = context;
@@ -116,6 +120,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
+    this.contextTracker = ContextTrackerFactory.instance();
   }
 
   public boolean isFinished() {
@@ -127,6 +132,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
+      contextTracker.deactivateContext(false);
+      contextTracker.persist();
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
@@ -224,6 +231,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     } else if (DURATION_NANO_UPDATER.compareAndSet(
         this, durationNano, durationNano & Long.MAX_VALUE)) {
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
+      contextTracker.persist();
       log.debug("Published span ({}): {}", publishState, this);
     }
   }
@@ -512,6 +520,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void startThreadMigration() {
+    contextTracker.deactivateContext(true);
     if (hasCheckpoints()) {
       context.getTracer().onStartThreadMigration(this);
     }
@@ -519,6 +528,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void finishThreadMigration() {
+    contextTracker.activateContext();
     if (hasCheckpoints()) {
       context.getTracer().onFinishThreadMigration(this);
     }
@@ -526,6 +536,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void finishWork() {
+    contextTracker.deactivateContext(false);
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }
