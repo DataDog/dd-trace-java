@@ -6,6 +6,9 @@ import org.redisson.Redisson
 import org.redisson.RedissonClient
 import org.redisson.Config
 import org.redisson.SingleServerConfig
+import org.redisson.client.RedisClient
+import org.redisson.client.RedisConnection
+import org.redisson.client.protocol.RedisCommands
 import redis.embedded.RedisServer
 import spock.lang.Shared
 
@@ -35,6 +38,9 @@ class RedissonClientTest extends AgentTestRunner {
   @Shared
   RedissonClient redissonClient
 
+  @Shared
+  RedisClient lowLevelRedisClient
+
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -47,10 +53,12 @@ class RedissonClientTest extends AgentTestRunner {
     println "Using redis: $redisServer.args"
     redisServer.start()
     redissonClient = Redisson.create(config)
+    lowLevelRedisClient = new RedisClient("127.0.0.1", port)
   }
 
   def cleanupSpec() {
     redisServer.stop()
+    lowLevelRedisClient.shutdown()
     redissonClient.shutdown()
   }
 
@@ -63,7 +71,9 @@ class RedissonClientTest extends AgentTestRunner {
   }
 
   def cleanup() {
-    redissonClient.flushdb()
+    RedisConnection conn = lowLevelRedisClient.connect()
+    conn.sync(RedisCommands.FLUSHDB)
+    conn.closeAsync().await()
   }
 
   def "bucket set command"() {
@@ -428,63 +438,6 @@ class RedissonClientTest extends AgentTestRunner {
           serviceName "redis"
           operationName "redis.query"
           resourceName "RPUSH"
-          spanType DDSpanTypes.REDIS
-          topLevel true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
-      }
-    }
-  }
-
-  def "list add and remove command"() {
-    when:
-    redissonClient.getList("foo").add("bar")
-    def value = redissonClient.getList("foo").remove(0)
-
-    then:
-    value == "bar"
-
-    assertTraces(3) {
-      trace(1) {
-        span {
-          serviceName "redis"
-          operationName "redis.query"
-          resourceName "RPUSH"
-          spanType DDSpanTypes.REDIS
-          topLevel true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "redis"
-          operationName "redis.query"
-          resourceName "LLEN"
-          spanType DDSpanTypes.REDIS
-          topLevel true
-          tags {
-            "$Tags.COMPONENT" "redis-command"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "redis"
-          operationName "redis.query"
-          resourceName "LPOP"
           spanType DDSpanTypes.REDIS
           topLevel true
           tags {
