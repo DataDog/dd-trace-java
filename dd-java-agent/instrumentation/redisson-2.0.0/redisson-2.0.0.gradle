@@ -28,5 +28,5 @@ dependencies {
   testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
   testImplementation group: 'org.redisson', name: 'redisson', version: '2.0.0'
 
-  latestDepTestImplementation group: 'org.redisson', name: 'redisson', version: '2.3.+'
+  latestDepTestImplementation group: 'org.redisson', name: 'redisson', version: '2.2.+'
 }
