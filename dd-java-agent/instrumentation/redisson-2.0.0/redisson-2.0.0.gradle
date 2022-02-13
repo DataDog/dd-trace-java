@@ -1,8 +1,13 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 muzzle {
   pass {
     group = "org.redisson"
     module = "redisson"
-    versions = "[3.10.0,)"
+    versions = "[2.0.0,)"
+    skipVersions += "0.9.0"
     assertInverse = true
   }
 }
@@ -18,10 +23,10 @@ testSets {
 }
 
 dependencies {
-  compileOnly group: 'org.redisson', name: 'redisson', version: '3.10.0'
+  compileOnly group: 'org.redisson', name: 'redisson', version: '2.0.0'
 
   testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
-  testImplementation group: 'org.redisson', name: 'redisson', version: '3.10.0'
+  testImplementation group: 'org.redisson', name: 'redisson', version: '2.0.0'
 
   latestDepTestImplementation group: 'org.redisson', name: 'redisson', version: '+'
 }
