@@ -5,7 +5,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import org.redisson.client.protocol.CommandData;
 
-public class RedissonClientDecorator extends DBTypeProcessingDatabaseClientDecorator<CommandData<?, ?>> {
+public class RedissonClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<CommandData<?, ?>> {
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
   public static final RedissonClientDecorator DECORATE = new RedissonClientDecorator();
 

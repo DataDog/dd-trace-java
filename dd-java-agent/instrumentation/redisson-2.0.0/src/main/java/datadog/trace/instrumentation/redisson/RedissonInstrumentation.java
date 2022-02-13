@@ -1,23 +1,22 @@
 package datadog.trace.instrumentation.redisson;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static net.bytebuddy.matcher.ElementMatchers.*;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.Strings;
+import java.util.ArrayList;
+import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(Instrumenter.class)
 public final class RedissonInstrumentation extends Instrumenter.Tracing {
@@ -33,8 +32,8 @@ public final class RedissonInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".RedissonClientDecorator",
+    return new String[] {
+      packageName + ".RedissonClientDecorator",
     };
   }
 
