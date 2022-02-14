@@ -57,7 +57,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.servlet.ServletRequest"));
   }
 

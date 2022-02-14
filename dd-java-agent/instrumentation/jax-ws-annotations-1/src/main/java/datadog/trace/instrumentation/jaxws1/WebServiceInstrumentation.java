@@ -39,7 +39,7 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME)));
   }
 

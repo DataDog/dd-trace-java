@@ -17,7 +17,7 @@ public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentat
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("com.ibm.db2.jcc.DB2Connection"));
   }
 

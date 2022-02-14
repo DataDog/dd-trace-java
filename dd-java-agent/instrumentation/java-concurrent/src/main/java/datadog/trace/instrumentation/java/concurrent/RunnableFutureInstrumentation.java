@@ -41,7 +41,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.<TypeDescription>notExcludedByName(RUNNABLE_FUTURE)
         .and(
             extendsClass(

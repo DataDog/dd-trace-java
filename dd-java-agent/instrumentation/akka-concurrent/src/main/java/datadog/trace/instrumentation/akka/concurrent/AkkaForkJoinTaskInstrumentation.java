@@ -50,7 +50,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(ElementMatchers.<TypeDescription>declaresMethod(namedOneOf("exec", "fork", "cancel")))
         .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));

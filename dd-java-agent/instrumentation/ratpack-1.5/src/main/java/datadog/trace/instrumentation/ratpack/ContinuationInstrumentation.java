@@ -31,7 +31,7 @@ public final class ContinuationInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("ratpack.exec.")
         .<TypeDescription>and(implementsInterface(named("ratpack.exec.internal.Continuation")));
   }

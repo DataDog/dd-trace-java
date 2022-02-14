@@ -22,7 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Hashtable;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
@@ -46,7 +46,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> structureMatcher() {
+  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
     return declaresField(named("paramHashStringArray"));
   }
 

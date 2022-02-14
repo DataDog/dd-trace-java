@@ -26,7 +26,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.junit.platform.launcher.Launcher"))
         .and(not(named("org.junit.platform.launcher.core.DefaultLauncherSession$ClosedLauncher")));
   }

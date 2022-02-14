@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.concurrent.BasicFuture;
@@ -45,13 +46,13 @@ public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(
         named("org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler"));
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> structureMatcher() {
+  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
     // must ensure the field is declared (if it is no longer declared
     // we miss a profiler event, but tracing is unaffected)
     return declaresField(named("resultFuture"));

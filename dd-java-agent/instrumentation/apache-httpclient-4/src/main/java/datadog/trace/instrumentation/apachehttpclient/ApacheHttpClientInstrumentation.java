@@ -61,7 +61,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.apache.http.client.HttpClient"));
   }
 

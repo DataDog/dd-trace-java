@@ -43,7 +43,7 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return ElementMatchers.<TypeDescription>not(
             named("java.util.concurrent.ScheduledThreadPoolExecutor"))
         .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));

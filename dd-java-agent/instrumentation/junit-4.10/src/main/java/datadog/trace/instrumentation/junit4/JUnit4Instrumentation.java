@@ -24,7 +24,7 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.junit.runner.Runner"));
   }
 

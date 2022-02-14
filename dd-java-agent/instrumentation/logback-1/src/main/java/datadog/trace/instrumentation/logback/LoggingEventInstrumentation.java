@@ -42,7 +42,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("ch.qos.logback.classic.spi.ILoggingEvent"));
   }
 

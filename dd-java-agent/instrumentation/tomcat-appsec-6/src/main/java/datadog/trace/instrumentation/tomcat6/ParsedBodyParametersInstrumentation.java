@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
@@ -47,7 +47,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> structureMatcher() {
+  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
     return declaresField(named("paramHashValues"));
   }
 

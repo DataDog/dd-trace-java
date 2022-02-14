@@ -43,7 +43,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.jboss.logmanager.ExtLogRecord"));
   }
 

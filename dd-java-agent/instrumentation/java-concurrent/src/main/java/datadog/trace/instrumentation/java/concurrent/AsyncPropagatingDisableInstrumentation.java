@@ -91,7 +91,7 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return RX_WORKERS.or(GRPC_MANAGED_CHANNEL).or(REACTOR_DISABLED_TYPE_INITIALIZERS);
   }
 

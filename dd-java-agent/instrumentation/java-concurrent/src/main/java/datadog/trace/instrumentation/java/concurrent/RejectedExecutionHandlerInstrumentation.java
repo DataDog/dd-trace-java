@@ -45,7 +45,7 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(
         named("java.util.concurrent.RejectedExecutionHandler")
             .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));

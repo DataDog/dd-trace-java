@@ -27,7 +27,7 @@ public final class FilterInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
         // HttpCodecFilter is instrumented in the server instrumentation
         .and(

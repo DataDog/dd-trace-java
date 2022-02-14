@@ -25,7 +25,7 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(named("javax.servlet.http.HttpServletResponse"));
   }
 

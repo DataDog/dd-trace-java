@@ -37,7 +37,7 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.Criteria"));
   }
 

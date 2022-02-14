@@ -37,7 +37,7 @@ public final class WebServiceProviderInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(WEB_SERVICE_PROVIDER_INTERFACE_NAME))
         .and(isAnnotatedWith(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
   }

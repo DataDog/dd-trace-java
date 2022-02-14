@@ -26,7 +26,7 @@ public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // CachingAsyncHttpClient rejects overrides to AsyncHandler
     // It also delegates to another AsyncHttpClient
     return nameStartsWith("play.")

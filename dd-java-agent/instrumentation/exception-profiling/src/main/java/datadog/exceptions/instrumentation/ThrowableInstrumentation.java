@@ -28,7 +28,7 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     if (hasJfr) {
       return is(Throwable.class);
     }

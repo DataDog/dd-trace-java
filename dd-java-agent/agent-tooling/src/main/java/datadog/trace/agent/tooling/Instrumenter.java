@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -78,7 +79,7 @@ public interface Instrumenter {
 
   /** Instrumentation that matches based on the type hierarchy. */
   interface ForTypeHierarchy {
-    ElementMatcher<? super TypeDescription> hierarchyMatcher();
+    ElementMatcher<TypeDescription> hierarchyMatcher();
   }
 
   /** Instrumentation that can optionally widen matching to consider the type hierarchy. */
@@ -88,7 +89,7 @@ public interface Instrumenter {
 
   /** Instrumentation that wants to apply additional structure checks after type matching. */
   interface WithTypeStructure {
-    ElementMatcher<? super TypeDescription> structureMatcher();
+    ElementMatcher<? extends ByteCodeElement> structureMatcher();
   }
 
   /**

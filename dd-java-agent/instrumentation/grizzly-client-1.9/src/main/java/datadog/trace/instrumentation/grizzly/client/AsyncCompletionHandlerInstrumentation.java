@@ -49,7 +49,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperClass(named("com.ning.http.client.AsyncCompletionHandler"));
   }
 

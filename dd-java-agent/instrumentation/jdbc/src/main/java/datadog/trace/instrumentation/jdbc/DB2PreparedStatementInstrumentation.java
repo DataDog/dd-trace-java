@@ -20,7 +20,7 @@ public class DB2PreparedStatementInstrumentation extends AbstractPreparedStateme
       hasClassesNamed("com.ibm.db2.jcc.DB2PreparedStatement");
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("com.ibm.db2.jcc.DB2PreparedStatement"));
   }
 

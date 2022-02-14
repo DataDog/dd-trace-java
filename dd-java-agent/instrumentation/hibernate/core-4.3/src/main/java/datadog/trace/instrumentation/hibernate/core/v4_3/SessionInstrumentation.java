@@ -74,7 +74,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.SharedSessionContract"));
   }
 

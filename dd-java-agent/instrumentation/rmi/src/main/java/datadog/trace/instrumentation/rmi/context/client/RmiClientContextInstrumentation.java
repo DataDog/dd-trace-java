@@ -50,7 +50,7 @@ public class RmiClientContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("sun.rmi.transport.StreamRemoteCall"));
   }
 

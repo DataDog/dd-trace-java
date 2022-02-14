@@ -33,7 +33,7 @@ public final class SlickRunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.<TypeDescription>nameStartsWith("slick.")
         .and(hasInterface(named(Runnable.class.getName())));
   }

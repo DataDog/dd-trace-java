@@ -44,7 +44,7 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing
 
   /** Match any child class of the base Twilio service classes. */
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(
         namedOneOf(
             "com.twilio.base.Creator",

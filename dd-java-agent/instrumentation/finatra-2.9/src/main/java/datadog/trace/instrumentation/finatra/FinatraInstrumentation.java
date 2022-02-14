@@ -47,7 +47,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("com.twitter.finatra.")
         .<TypeDescription>and(
             extendsClass(named("com.twitter.finatra.http.internal.routing.Route")));

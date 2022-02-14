@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.bson.BsonDocument;
 import org.bson.ByteBuf;
@@ -30,7 +30,7 @@ public class ByteBufBsonDocumentInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> structureMatcher() {
+  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
     return declaresField(named("byteBuf"));
   }
 
