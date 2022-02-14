@@ -99,9 +99,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       FlightRecorder.addPeriodicEvent(AsyncProfilerConfigEvent.class, this::emitConfiguration);
     }
 
+    int maxheap = (int) ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     this.memleakIntervalDefault =
-        Math.max(0, (int) ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax())
-            / Math.max(1, getMemleakCapacity());
+        maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
   }
 
   private void emitConfiguration() {
