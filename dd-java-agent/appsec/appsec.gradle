@@ -134,6 +134,7 @@ ext {
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
     'com.datadog.appsec.event.data.Address',
+    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
     'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFEventsCallback',
     // assert never fails
     'com.datadog.appsec.util.StandardizedLogging',

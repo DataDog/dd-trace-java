@@ -15,8 +15,8 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafe;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
+import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.api.Config;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
@@ -237,7 +237,7 @@ public interface Instrumenter {
          * prevents unnecessary loading of muzzle references during agentBuilder
          * setup.
          */
-        final ReferenceMatcher muzzle = getInstrumentationMuzzle();
+        final IReferenceMatcher muzzle = getInstrumentationMuzzle();
         if (null != muzzle) {
           final boolean isMatch = muzzle.matches(classLoader);
           if (!isMatch) {
@@ -273,7 +273,7 @@ public interface Instrumenter {
      *
      * <p>{@see datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin}
      */
-    protected ReferenceMatcher getInstrumentationMuzzle() {
+    protected IReferenceMatcher getInstrumentationMuzzle() {
       return null;
     }
 

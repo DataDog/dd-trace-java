@@ -64,6 +64,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int responseStatus;
   private boolean blocked;
 
+  private boolean convertedReqBodyPublished;
+
   private Additive additive;
 
   // to be called by the Event Dispatcher
@@ -247,6 +249,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setBlocked(boolean blocked) {
     this.blocked = blocked;
+  }
+
+  public boolean isConvertedReqBodyPublished() {
+    return convertedReqBodyPublished;
+  }
+
+  public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
+    this.convertedReqBodyPublished = convertedReqBodyPublished;
   }
 
   @Override

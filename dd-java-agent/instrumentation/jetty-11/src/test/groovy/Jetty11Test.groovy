@@ -82,6 +82,11 @@ class Jetty11Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }
@@ -99,6 +104,14 @@ class Jetty11Test extends HttpServerTest<Server> {
         case FORWARDED:
           response.status = endpoint.status
           response.writer.print(request.getHeader("x-forwarded-for"))
+          break
+        case BODY_URLENCODED:
+          response.status = endpoint.status
+          response.writer.print(
+            request.parameterMap
+            .findAll {
+              it.key != 'ignore'}
+            .collectEntries {[it.key, it.value as List]} as String)
           break
         case QUERY_ENCODED_BOTH:
         case QUERY_ENCODED_QUERY:
