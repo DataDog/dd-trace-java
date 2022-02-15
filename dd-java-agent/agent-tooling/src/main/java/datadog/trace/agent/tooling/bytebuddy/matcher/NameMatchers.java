@@ -1,7 +1,5 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvent;
-import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvents;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -19,12 +17,12 @@ public final class NameMatchers<T extends NamedElement>
     extends ElementMatcher.Junction.ForNonNullValues<T>
     implements AgentBuilder.RawMatcher, FailSafe {
 
-  static final int NAMED = 0;
-  static final int NAME_STARTS_WITH = 1;
-  static final int NAME_ENDS_WITH = 2;
-  static final int NOT_EXCLUDED_BY_NAME = 3;
-  static final int NAMED_ONE_OF = 4;
-  static final int NAMED_NONE_OF = 5;
+  private static final int NAMED = 0;
+  private static final int NAME_STARTS_WITH = 1;
+  private static final int NAME_ENDS_WITH = 2;
+  private static final int NOT_EXCLUDED_BY_NAME = 3;
+  private static final int NAMED_ONE_OF = 4;
+  private static final int NAMED_NONE_OF = 5;
 
   @SuppressWarnings("unchecked")
   private static final ConcurrentHashMap<String, NameMatchers<?>>[] DEDUPLICATORS =
@@ -149,12 +147,7 @@ public final class NameMatchers<T extends NamedElement>
 
   @Override
   protected boolean doMatch(T target) {
-    String actualName = target.getActualName();
-    try (MatchingEvent event = MatchingEvents.get().namedMatchingEvent(actualName, mode, data)) {
-      boolean matched = match(actualName);
-      event.setMatched(matched);
-      return matched;
-    }
+    return match(target.getActualName());
   }
 
   private boolean match(String name) {

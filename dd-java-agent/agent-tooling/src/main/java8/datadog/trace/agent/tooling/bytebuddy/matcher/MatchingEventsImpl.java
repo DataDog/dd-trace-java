@@ -2,13 +2,15 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvent;
 import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvents;
+import java.security.ProtectionDomain;
 import jdk.jfr.Category;
 import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.utility.JavaModule;
 
 /** Instantiated by reflection when current JDK supports JFR */
 public class MatchingEventsImpl extends MatchingEvents {
@@ -19,11 +21,11 @@ public class MatchingEventsImpl extends MatchingEvents {
   @Name("datadog.trace.agent.Matching")
   @Label("Matching")
   static class MatchingEventImpl extends Event implements MatchingEvent {
+    @Label("Instrumentation")
+    String instrumentation;
+
     @Label("Matcher")
     String matcher;
-
-    @Label("Params")
-    String params;
 
     @Label("Target")
     String target;
@@ -32,92 +34,11 @@ public class MatchingEventsImpl extends MatchingEvents {
     boolean matched;
 
     @Override
-    public void setMatched(boolean matched) {
-      this.matched = matched;
-    }
-
-    @Override
     public void close() {
       if (shouldCommit()) {
         commit();
       }
     }
-  }
-
-  @Override
-  public MatchingEvent namedMatchingEvent(String name, int mode, Object data) {
-    MatchingEventImpl result = new MatchingEventImpl();
-    if (result.isEnabled()) {
-      result.matcher = namedMatchingMode(mode);
-      result.params = data.toString();
-
-      result.begin();
-      return result;
-    }
-    return MatchingEvent.NOOP;
-  }
-
-  private String namedMatchingMode(int mode) {
-    switch (mode) {
-      case NameMatchers.NAMED:
-        return "exact-match";
-      case NameMatchers.NAME_STARTS_WITH:
-        return "starts-with";
-      case NameMatchers.NAME_ENDS_WITH:
-        return "ends-with";
-      case NameMatchers.NOT_EXCLUDED_BY_NAME:
-        return "not-excluded-by-name";
-      case NameMatchers.NAMED_ONE_OF:
-        return "one-of";
-      case NameMatchers.NAMED_NONE_OF:
-        return "none-of";
-      default:
-        return "";
-    }
-  }
-
-  @Override
-  public MatchingEvent hasInterfaceMatchingEvent(
-      TypeDefinition typeDefinition, ElementMatcher<?> matcher) {
-    MatchingEventImpl result = new MatchingEventImpl();
-    if (result.isEnabled()) {
-      result.matcher = "has-interface";
-      result.params = matcher.toString();
-      result.target = typeDefinition.getTypeName();
-
-      result.begin();
-      return result;
-    }
-    return MatchingEvent.NOOP;
-  }
-
-  @Override
-  public MatchingEvent hasSuperTypeMatchingEvent(
-      TypeDefinition typeDefinition, ElementMatcher<?> matcher) {
-    MatchingEventImpl result = new MatchingEventImpl();
-    if (result.isEnabled()) {
-      result.matcher = "has-super-type";
-      result.params = matcher.toString();
-      result.target = typeDefinition.getTypeName();
-
-      result.begin();
-      return result;
-    }
-    return MatchingEvent.NOOP;
-  }
-
-  public MatchingEvent hasSuperMethodMatchingEvent(
-      MethodDescription methodDescription, ElementMatcher<?> matcher) {
-    MatchingEventImpl result = new MatchingEventImpl();
-    if (result.isEnabled()) {
-      result.matcher = "has-super-method";
-      result.params = matcher.toString();
-      result.target = methodDescription.toString();
-
-      result.begin();
-      return result;
-    }
-    return MatchingEvent.NOOP;
   }
 
   private static class MatcherWrapper<T> implements ElementMatcher<T> {
@@ -141,8 +62,46 @@ public class MatchingEventsImpl extends MatchingEvents {
     private MatchingEventImpl newMatchingEvent(T target) {
       MatchingEventImpl event = new MatchingEventImpl();
       if (event.isEnabled()) {
-        event.matcher = instrumenterClass;
-        event.params = matcher.toString();
+        event.instrumentation = instrumenterClass;
+        event.matcher = matcher.toString();
+        event.target = target.toString();
+
+        event.begin();
+      }
+      return event;
+    }
+  }
+
+  private static class RawMatcherWrapper implements AgentBuilder.RawMatcher {
+    final AgentBuilder.RawMatcher matcher;
+    final String instrumenterClass;
+
+    private RawMatcherWrapper(AgentBuilder.RawMatcher matcher, String instrumenterClass) {
+      this.matcher = matcher;
+      this.instrumenterClass = instrumenterClass;
+    }
+
+    @Override
+    public boolean matches(
+        TypeDescription typeDescription,
+        ClassLoader classLoader,
+        JavaModule module,
+        Class<?> classBeingRedefined,
+        ProtectionDomain protectionDomain) {
+      try (MatchingEventImpl event = newMatchingEvent(typeDescription)) {
+        boolean matched =
+            matcher.matches(
+                typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
+        event.matched = matched;
+        return matched;
+      }
+    }
+
+    private MatchingEventImpl newMatchingEvent(TypeDescription target) {
+      MatchingEventImpl event = new MatchingEventImpl();
+      if (event.isEnabled()) {
+        event.instrumentation = instrumenterClass;
+        event.matcher = matcher.toString();
         event.target = target.toString();
 
         event.begin();
@@ -155,5 +114,11 @@ public class MatchingEventsImpl extends MatchingEvents {
   public <T> ElementMatcher<T> matcherWithEvents(
       ElementMatcher<T> matcher, String instrumenterClass) {
     return new MatcherWrapper<T>(matcher, instrumenterClass);
+  }
+
+  @Override
+  public AgentBuilder.RawMatcher rawMatcherWithEvents(
+      AgentBuilder.RawMatcher matcher, String instrumenterClass) {
+    return new RawMatcherWrapper(matcher, instrumenterClass);
   }
 }

@@ -2,8 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.matcher.jfr;
 
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.api.Platform;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,23 +18,9 @@ public class MatchingEvents {
     return matcher;
   }
 
-  public MatchingEvent namedMatchingEvent(String name, int mode, Object data) {
-    return MatchingEvent.NOOP;
-  }
-
-  public MatchingEvent hasInterfaceMatchingEvent(
-      TypeDefinition typeDefinition, ElementMatcher<?> matcher) {
-    return MatchingEvent.NOOP;
-  }
-
-  public MatchingEvent hasSuperMethodMatchingEvent(
-      MethodDescription methodDescription, ElementMatcher<?> matcher) {
-    return MatchingEvent.NOOP;
-  }
-
-  public MatchingEvent hasSuperTypeMatchingEvent(
-      TypeDefinition typeDefinition, ElementMatcher<?> matcher) {
-    return MatchingEvent.NOOP;
+  public AgentBuilder.RawMatcher rawMatcherWithEvents(
+      AgentBuilder.RawMatcher matcher, String instrumenterClass) {
+    return matcher;
   }
 
   private static final Logger log = LoggerFactory.getLogger(MatchingEvents.class);

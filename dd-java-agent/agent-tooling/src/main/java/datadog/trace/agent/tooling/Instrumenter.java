@@ -174,26 +174,36 @@ public interface Instrumenter {
       final AgentBuilder.Identified.Narrowable narrowable;
       ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
 
-      ElementMatcher<? super TypeDescription> typeMatcher =
-          //          typeMatcher();
-          MatchingEvents.get().matcherWithEvents(typeMatcher(), "" + getClass());
+      ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
 
       if (classLoaderMatcher == ANY_CLASS_LOADER // Don't bypass the classLoaderMatcher
           && typeMatcher instanceof AgentBuilder.RawMatcher
           && typeMatcher instanceof FailSafe) {
-        narrowable = agentBuilder.type((AgentBuilder.RawMatcher) typeMatcher);
+        AgentBuilder.RawMatcher wrappedMatcher =
+            MatchingEvents.get()
+                .rawMatcherWithEvents((AgentBuilder.RawMatcher) typeMatcher, "" + getClass());
+        narrowable = agentBuilder.type(wrappedMatcher);
       } else {
         narrowable =
             agentBuilder.type(
-                failSafe(
-                    typeMatcher,
-                    "Instrumentation type matcher unexpected exception: " + getClass().getName()),
-                failSafe(
-                    classLoaderMatcher,
-                    "Instrumentation class loader matcher unexpected exception: "
-                        + getClass().getName()));
+                MatchingEvents.get()
+                    .matcherWithEvents(
+                        failSafe(
+                            typeMatcher,
+                            "Instrumentation type matcher unexpected exception: "
+                                + getClass().getName()),
+                        "" + getClass()),
+                MatchingEvents.get()
+                    .matcherWithEvents(
+                        failSafe(
+                            classLoaderMatcher,
+                            "Instrumentation class loader matcher unexpected exception: "
+                                + getClass().getName()),
+                        "" + getClass()));
       }
-      return narrowable.and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
+      return narrowable
+          .and(MatchingEvents.get().matcherWithEvents(NOT_DECORATOR_MATCHER, "" + getClass()))
+          .and(MatchingEvents.get().rawMatcherWithEvents(new MuzzleMatcher(), "" + getClass()));
     }
 
     private AgentBuilder.Identified.Extendable injectHelperClasses(
@@ -220,13 +230,14 @@ public interface Instrumenter {
 
       @Override
       public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
-        matcher = MatchingEvents.get().matcherWithEvents(matcher, name);
+        ElementMatcher<MethodDescription> wrappedMatcher =
+            MatchingEvents.get().matcherWithEvents(not(ignoreMatcher).and(matcher), name);
         agentBuilder =
             agentBuilder.transform(
                 new AgentBuilder.Transformer.ForAdvice()
                     .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                     .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                    .advice(not(ignoreMatcher).and(matcher), name));
+                    .advice(wrappedMatcher, name));
       }
     }
 
