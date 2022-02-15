@@ -186,7 +186,7 @@ class RedissonClientTest extends AgentTestRunner {
         span {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "INCRBY"
+          resourceName "GET"
           spanType DDSpanTypes.REDIS
           topLevel true
           tags {
