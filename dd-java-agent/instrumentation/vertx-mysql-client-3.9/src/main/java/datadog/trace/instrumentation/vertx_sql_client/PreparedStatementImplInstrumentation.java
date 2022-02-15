@@ -9,11 +9,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class PreparedStatementImplInstrumentation extends Instrumenter.Tracing {
+public class PreparedStatementImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public PreparedStatementImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -27,8 +26,8 @@ public class PreparedStatementImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.sqlclient.impl.PreparedStatementImpl");
+  public String instrumentedType() {
+    return "io.vertx.sqlclient.impl.PreparedStatementImpl";
   }
 
   @Override

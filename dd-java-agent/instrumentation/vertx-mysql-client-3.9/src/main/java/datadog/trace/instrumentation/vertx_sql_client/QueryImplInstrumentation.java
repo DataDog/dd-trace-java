@@ -12,11 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class QueryImplInstrumentation extends Instrumenter.Tracing {
+public class QueryImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public QueryImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -34,8 +33,8 @@ public class QueryImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.sqlclient.impl.SqlClientBase$QueryImpl");
+  public String instrumentedType() {
+    return "io.vertx.sqlclient.impl.SqlClientBase$QueryImpl";
   }
 
   @Override

@@ -18,7 +18,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing {
+public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   static final String CONFIG_FORMAT = "(?:\\s*[\\w.$]+\\s*;)*\\s*[\\w.$]+\\s*;?\\s*";
 
@@ -59,7 +60,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(declaresMethod(isAnnotatedWith(methodTraceMatcher)));
   }
 

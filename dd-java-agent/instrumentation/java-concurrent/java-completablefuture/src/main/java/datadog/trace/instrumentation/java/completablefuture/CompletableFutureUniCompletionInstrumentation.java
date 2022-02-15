@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -18,8 +17,6 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Instrumentation for {@code UniCompletion} in {@code CompletableFuture}.
@@ -49,7 +46,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(Instrumenter.class)
 public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
   static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
   static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
   static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";
@@ -60,8 +57,8 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named(UNI_COMPLETION);
+  public String instrumentedType() {
+    return UNI_COMPLETION;
   }
 
   @Override

@@ -8,18 +8,17 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AkkaPoolMasterActorInstrumentation extends Instrumenter.Tracing {
+public final class AkkaPoolMasterActorInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public AkkaPoolMasterActorInstrumentation() {
     super("akka-http", "akka-http-client");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("akka.http.impl.engine.client.PoolMasterActor");
+  public String instrumentedType() {
+    return "akka.http.impl.engine.client.PoolMasterActor";
   }
 
   @Override

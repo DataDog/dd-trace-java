@@ -15,21 +15,20 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(Instrumenter.class)
-public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
+public final class SynapseServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SynapseServerInstrumentation() {
     super("synapse3-server", "synapse3");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.synapse.transport.passthru.SourceHandler");
+  public String instrumentedType() {
+    return "org.apache.synapse.transport.passthru.SourceHandler";
   }
 
   @Override

@@ -12,20 +12,21 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RestletInstrumentation extends Instrumenter.Tracing {
+public final class RestletInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public RestletInstrumentation() {
     super("restlet-http", "restlet-http-server");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.restlet.engine.connector.HttpServerHelper$1")
-        .or(named("org.restlet.engine.connector.HttpsServerHelper$2"));
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.restlet.engine.connector.HttpServerHelper$1",
+      "org.restlet.engine.connector.HttpsServerHelper$2"
+    };
   }
 
   @Override

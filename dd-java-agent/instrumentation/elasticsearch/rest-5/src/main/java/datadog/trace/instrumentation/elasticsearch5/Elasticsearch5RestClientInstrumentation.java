@@ -15,12 +15,11 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracing {
+public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public Elasticsearch5RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-5");
@@ -35,8 +34,8 @@ public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.elasticsearch.client.RestClient");
+  public String instrumentedType() {
+    return "org.elasticsearch.client.RestClient";
   }
 
   @Override

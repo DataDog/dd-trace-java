@@ -21,21 +21,19 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.amqp.core.Message;
 
 @AutoService(Instrumenter.class)
 public class AbstractMessageListenerContainerInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public AbstractMessageListenerContainerInstrumentation() {
     super("spring-rabbit");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer");
+  public String instrumentedType() {
+    return "org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer";
   }
 
   @Override

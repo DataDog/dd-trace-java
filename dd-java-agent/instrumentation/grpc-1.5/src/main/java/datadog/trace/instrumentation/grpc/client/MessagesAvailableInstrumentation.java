@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.grpc.client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -20,11 +19,10 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing {
+public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public MessagesAvailableInstrumentation() {
     super("grpc", "grpc-client");
@@ -40,10 +38,11 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessagesAvailable",
-        "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessageRead");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessagesAvailable",
+      "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessageRead"
+    };
   }
 
   @Override

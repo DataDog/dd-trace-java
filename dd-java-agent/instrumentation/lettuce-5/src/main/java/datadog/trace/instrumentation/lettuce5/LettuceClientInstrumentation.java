@@ -10,19 +10,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class LettuceClientInstrumentation extends Instrumenter.Tracing {
+public final class LettuceClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public LettuceClientInstrumentation() {
     super("lettuce", "lettuce-5");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.lettuce.core.RedisClient");
+  public String instrumentedType() {
+    return "io.lettuce.core.RedisClient";
   }
 
   @Override

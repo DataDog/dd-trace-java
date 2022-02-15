@@ -1,24 +1,22 @@
 package datadog.trace.instrumentation.jetty_util;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class QueuedThreadPoolInstrumentation extends Instrumenter.Tracing {
+public class QueuedThreadPoolInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public QueuedThreadPoolInstrumentation() {
     super("jetty-concurrent");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.util.thread.QueuedThreadPool");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.util.thread.QueuedThreadPool";
   }
 
   @Override

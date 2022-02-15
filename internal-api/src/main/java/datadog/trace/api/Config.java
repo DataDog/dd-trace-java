@@ -1824,7 +1824,7 @@ public class Config {
     return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
   }
 
-  public boolean isIntegrationShortCutMatchingEnabled(
+  public boolean isIntegrationShortcutMatchingEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(
         integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);

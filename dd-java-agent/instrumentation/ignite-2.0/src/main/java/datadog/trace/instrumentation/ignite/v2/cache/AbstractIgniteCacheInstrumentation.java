@@ -1,14 +1,11 @@
 package datadog.trace.instrumentation.ignite.v2.cache;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Collections;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractIgniteCacheInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractIgniteCacheInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public AbstractIgniteCacheInstrumentation() {
     super("ignite");
@@ -24,12 +21,13 @@ public abstract class AbstractIgniteCacheInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "org.apache.ignite.internal.processors.cache.IgniteCacheProxy",
-        "org.apache.ignite.internal.processors.cache.IgniteCacheProxyImpl",
-        "org.apache.ignite.internal.processors.cache.GatewayProtectedCacheProxy",
-        "org.apache.ignite.IgniteCache");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.apache.ignite.internal.processors.cache.IgniteCacheProxy",
+      "org.apache.ignite.internal.processors.cache.IgniteCacheProxyImpl",
+      "org.apache.ignite.internal.processors.cache.GatewayProtectedCacheProxy",
+      "org.apache.ignite.IgniteCache"
+    };
   }
 
   @Override

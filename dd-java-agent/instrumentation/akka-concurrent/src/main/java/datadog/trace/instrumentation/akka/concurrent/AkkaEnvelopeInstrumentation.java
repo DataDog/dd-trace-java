@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -12,19 +11,18 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
+public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AkkaEnvelopeInstrumentation() {
     super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("akka.dispatch.Envelope");
+  public String instrumentedType() {
+    return "akka.dispatch.Envelope";
   }
 
   @Override

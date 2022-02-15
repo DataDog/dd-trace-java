@@ -1,15 +1,12 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ConnectionInstrumentation extends AbstractConnectionInstrumentation {
+public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
+    implements Instrumenter.ForKnownTypes {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift
@@ -76,7 +73,7 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(CONCRETE_TYPES);
+  public String[] knownMatchingTypes() {
+    return CONCRETE_TYPES;
   }
 }

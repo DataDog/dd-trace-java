@@ -25,7 +25,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(Instrumenter.class)
-public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
+public class ExtLogRecordInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
   }
@@ -42,7 +43,7 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.jboss.logmanager.ExtLogRecord"));
   }
 

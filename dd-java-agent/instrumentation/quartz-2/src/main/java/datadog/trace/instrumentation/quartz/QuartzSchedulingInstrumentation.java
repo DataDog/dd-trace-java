@@ -19,7 +19,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.quartz.JobExecutionContext;
 
 @AutoService(Instrumenter.class)
-public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing {
+public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public QuartzSchedulingInstrumentation() {
     super("quartz");
@@ -31,7 +32,7 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.quartz.Job"));
   }
 

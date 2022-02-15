@@ -37,14 +37,14 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(Instrumenter.class)
 public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public JavaForkJoinTaskInstrumentation() {
     super(AbstractExecutorInstrumentation.EXEC_NAME);
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(declaresMethod(namedOneOf("doExec", "exec", "fork", "cancel")))
         .and(extendsClass(named("java.util.concurrent.ForkJoinTask")));

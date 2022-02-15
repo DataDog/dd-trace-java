@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -19,29 +18,29 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(Instrumenter.class)
-public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tracing {
+public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
   public WrapRunnableAsNewTaskInstrumentation() {
     super("java_concurrent", "new-task-for");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "io.netty.channel.epoll.EpollEventLoop",
-        "io.netty.channel.nio.NioEventLoop",
-        "io.netty.channel.SingleThreadEventLoop",
-        "io.netty.util.concurrent.AbstractEventExecutor",
-        "io.netty.util.concurrent.AbstractScheduledEventExecutor",
-        "io.netty.util.concurrent.DefaultEventExecutor",
-        "io.netty.util.concurrent.GlobalEventExecutor",
-        "io.netty.util.concurrent.SingleThreadEventExecutor",
-        "java.util.concurrent.AbstractExecutorService",
-        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.netty.channel.epoll.EpollEventLoop",
+      "io.netty.channel.nio.NioEventLoop",
+      "io.netty.channel.SingleThreadEventLoop",
+      "io.netty.util.concurrent.AbstractEventExecutor",
+      "io.netty.util.concurrent.AbstractScheduledEventExecutor",
+      "io.netty.util.concurrent.DefaultEventExecutor",
+      "io.netty.util.concurrent.GlobalEventExecutor",
+      "io.netty.util.concurrent.SingleThreadEventExecutor",
+      "java.util.concurrent.AbstractExecutorService",
+      "org.glassfish.grizzly.threadpool.GrizzlyExecutorService"
+    };
   }
 
   @Override

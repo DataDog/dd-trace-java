@@ -22,7 +22,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelInstrumentation extends Instrumenter.Tracing {
+public class NettyChannelInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }
@@ -37,7 +38,7 @@ public class NettyChannelInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.jboss.netty.channel.Channel"));
   }
 

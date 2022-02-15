@@ -19,19 +19,18 @@ import io.grpc.internal.ClientStreamListener;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracing {
+public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ClientStreamListenerImplInstrumentation() {
     super("grpc", "grpc-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl");
+  public String instrumentedType() {
+    return "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl";
   }
 
   @Override

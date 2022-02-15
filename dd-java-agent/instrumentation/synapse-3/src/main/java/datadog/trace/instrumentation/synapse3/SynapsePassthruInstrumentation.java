@@ -11,21 +11,20 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Iterator;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.axis2.context.MessageContext;
 
 /** Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation. */
 @AutoService(Instrumenter.class)
-public final class SynapsePassthruInstrumentation extends Instrumenter.Tracing {
+public final class SynapsePassthruInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SynapsePassthruInstrumentation() {
     super("synapse3-client", "synapse3");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.synapse.transport.passthru.DeliveryAgent");
+  public String instrumentedType() {
+    return "org.apache.synapse.transport.passthru.DeliveryAgent";
   }
 
   @Override

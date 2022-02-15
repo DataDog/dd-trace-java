@@ -9,23 +9,22 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.http.AbstractGenerator;
 import org.eclipse.jetty.http.Generator;
 import org.eclipse.jetty.server.AbstractHttpConnection;
 import org.eclipse.jetty.server.Response;
 
 @AutoService(Instrumenter.class)
-public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing {
+public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public JettyGeneratorInstrumentation() {
     super("jetty");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.http.AbstractGenerator");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.http.AbstractGenerator";
   }
 
   @Override

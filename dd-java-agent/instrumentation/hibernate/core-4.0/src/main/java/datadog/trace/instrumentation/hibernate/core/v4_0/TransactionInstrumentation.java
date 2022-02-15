@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.hibernate.core.v4_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -30,16 +29,17 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.hibernate.engine.transaction.spi.AbstractTransactionImpl",
-        "org.hibernate.engine.transaction.internal.jta.CMTTransaction",
-        "org.hibernate.engine.transaction.internal.jdbc.JdbcTransaction",
-        "org.hibernate.engine.transaction.internal.jta.JtaTransaction");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.hibernate.engine.transaction.spi.AbstractTransactionImpl",
+      "org.hibernate.engine.transaction.internal.jta.CMTTransaction",
+      "org.hibernate.engine.transaction.internal.jdbc.JdbcTransaction",
+      "org.hibernate.engine.transaction.internal.jta.JtaTransaction"
+    };
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.Transaction"));
   }
 

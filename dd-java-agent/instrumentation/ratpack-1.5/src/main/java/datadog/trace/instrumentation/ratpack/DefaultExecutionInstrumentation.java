@@ -10,22 +10,21 @@ import com.google.common.net.HostAndPort;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import ratpack.exec.internal.Continuation;
 import ratpack.func.Action;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class DefaultExecutionInstrumentation extends Instrumenter.Tracing {
+public final class DefaultExecutionInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public DefaultExecutionInstrumentation() {
     super("ratpack");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("ratpack.exec.internal.DefaultExecution");
+  public String instrumentedType() {
+    return "ratpack.exec.internal.DefaultExecution";
   }
 
   @Override

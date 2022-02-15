@@ -16,12 +16,12 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import redis.clients.jedis.Protocol.Command;
 
 @AutoService(Instrumenter.class)
-public final class JedisInstrumentation extends Instrumenter.Tracing {
+public final class JedisInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   private static final String SERVICE_NAME = "redis";
   private static final String COMPONENT_NAME = SERVICE_NAME + "-command";
@@ -37,8 +37,8 @@ public final class JedisInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("redis.clients.jedis.Protocol");
+  public String instrumentedType() {
+    return "redis.clients.jedis.Protocol";
   }
 
   @Override

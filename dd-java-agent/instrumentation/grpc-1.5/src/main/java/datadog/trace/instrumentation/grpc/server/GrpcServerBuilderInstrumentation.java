@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.grpc.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.CallDepthThreadLocalMap.incrementCallDepth;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -21,27 +20,34 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
+public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public GrpcServerBuilderInstrumentation() {
-    super(true, "grpc", "grpc-server");
+    super("grpc", "grpc-server");
+  }
+
+  @Override
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(true);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.grpc.internal.AbstractServerImplBuilder",
+      "io.grpc.alts.AltsServerBuilder",
+      "io.grpc.ForwardingServerBuilder",
+      "io.grpc.inprocess.InProcessServerBuilder",
+      "io.grpc.netty.NettyServerBuilder",
+      "io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder",
+      "io.grpc.internal.ServerImplBuilder"
+    };
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("io.grpc.ServerBuilder"));
-  }
-
-  @Override
-  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "io.grpc.internal.AbstractServerImplBuilder",
-        "io.grpc.alts.AltsServerBuilder",
-        "io.grpc.ForwardingServerBuilder",
-        "io.grpc.inprocess.InProcessServerBuilder",
-        "io.grpc.netty.NettyServerBuilder",
-        "io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder",
-        "io.grpc.internal.ServerImplBuilder");
   }
 
   @Override

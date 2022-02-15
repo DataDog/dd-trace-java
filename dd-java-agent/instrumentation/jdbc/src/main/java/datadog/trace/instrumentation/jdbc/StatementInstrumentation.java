@@ -29,7 +29,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class StatementInstrumentation extends Instrumenter.Tracing {
+public final class StatementInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public StatementInstrumentation() {
     super("jdbc");
@@ -41,7 +42,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("java.sql.Statement"));
   }
 

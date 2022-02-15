@@ -18,18 +18,17 @@ import io.reactivex.Single;
 import io.reactivex.SingleObserver;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SingleInstrumentation extends Instrumenter.Tracing {
+public final class SingleInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public SingleInstrumentation() {
     super("rxjava");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.reactivex.Single");
+  public String instrumentedType() {
+    return "io.reactivex.Single";
   }
 
   @Override
