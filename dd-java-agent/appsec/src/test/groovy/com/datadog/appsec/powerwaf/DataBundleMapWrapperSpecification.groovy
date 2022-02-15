@@ -10,7 +10,10 @@ class DataBundleMapWrapperSpecification extends DDSpecification {
   DataBundle dataBundle = MapDataBundle.ofDelegate([
     (KnownAddresses.REQUEST_URI_RAW): '/b',
     (KnownAddresses.REQUEST_CLIENT_IP): '::1'])
-  Map<String, Object> mapWrapper = new PowerWAFModule.DataBundleMapWrapper(dataBundle)
+  Map<String, Object> mapWrapper =
+  new PowerWAFModule.DataBundleMapWrapper(
+  [KnownAddresses.REQUEST_URI_RAW], // REQUEST_CLIENT_IP will be filtered into an empty map
+  dataBundle)
 
   void size() {
     expect:

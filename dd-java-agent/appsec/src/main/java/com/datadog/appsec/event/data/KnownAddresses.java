@@ -1,27 +1,11 @@
 package com.datadog.appsec.event.data;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 public interface KnownAddresses {
   /** Body, as parsed by the server/framework. */
   Address<Object> REQUEST_BODY_OBJECT = new Address<>("server.request.body");
-
-  /**
-   * Body, as parsed by the server/framework, converted into a map. The hierarchy of the map is
-   * flattened. The structure:
-   *
-   * <p>{ a: { b: 3 }}
-   *
-   * <p>should be converted to:
-   *
-   * <p>{ a.b: [3] }
-   *
-   * <p>Non-standard.
-   */
-  Address<Map<String, Collection<String>>> REQUEST_BODY_OBJECT_MAP =
-      new Address<>("server.request.body.map");
 
   /** The first characters of the raw HTTP body */
   Address<CharSequence> REQUEST_BODY_RAW = new Address<>("server.request.body.raw");
@@ -45,7 +29,7 @@ public interface KnownAddresses {
    * incoming url parameters as parsed by the framework (e.g /foo/:id gives a id param that is not
    * part of the query
    */
-  Address<Map<String, String>> REQUEST_PATH_PARAMS = new Address<>("server.request.path_params");
+  Address<Map<String, Object>> REQUEST_PATH_PARAMS = new Address<>("server.request.path_params");
 
   /** Cookies as parsed by the server */
   Address<List<StringKVPair>> REQUEST_COOKIES = new Address<>("server.request.cookies");
@@ -101,4 +85,47 @@ public interface KnownAddresses {
   /** Headers with the cookie fields excluded. */
   Address<CaseInsensitiveMap<List<String>>> HEADERS_NO_COOKIES =
       new Address<>("server.request.headers.no_cookies");
+
+  static Address<?> forName(String name) {
+    switch (name) {
+      case "server.request.body":
+        return REQUEST_BODY_OBJECT;
+      case "server.request.body.raw":
+        return REQUEST_BODY_RAW;
+      case "_server.request.scheme":
+        return REQUEST_SCHEME;
+      case "server.request.uri.raw":
+        return REQUEST_URI_RAW;
+      case "server.request.client_ip":
+        return REQUEST_CLIENT_IP;
+      case "_server.request.client_port":
+        return REQUEST_CLIENT_PORT;
+      case "server.request.method":
+        return REQUEST_METHOD;
+      case "server.request.path_params":
+        return REQUEST_PATH_PARAMS;
+      case "server.request.cookies":
+        return REQUEST_COOKIES;
+      case "server.request.transport":
+        return REQUEST_TRANSPORT;
+      case "server.response.status":
+        return RESPONSE_STATUS;
+      case "server.response.body.raw":
+        return RESPONSE_BODY_RAW;
+      case "server.response.headers.no_cookies":
+        return RESPONSE_HEADERS_NO_COOKIES;
+      case "server.request.body.files_field_names":
+        return REQUEST_FILES_FIELD_NAMES;
+      case "server.request.body.filenames":
+        return REQUEST_FILES_FILENAMES;
+      case "server.request.body.combined_file_size":
+        return REQUEST_COMBINED_FILE_SIZE;
+      case "server.request.query":
+        return REQUEST_QUERY;
+      case "server.request.headers.no_cookies":
+        return HEADERS_NO_COOKIES;
+      default:
+        return null;
+    }
+  }
 }

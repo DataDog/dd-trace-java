@@ -99,8 +99,8 @@ java {
       // with Java8+ compiler. This likely would require some modifications when we switch to java11 compiler.
       // Using proper Java7 bootstrap and extensions allows to be sure our code will run on real Java7.
       if (JavaVersion.toVersion(sourceCompatibility) == JavaVersion.VERSION_1_7
-      && JavaVersion.current() != JavaVersion.VERSION_1_7
-      && System.env.JAVA_7_HOME != null) {
+        && JavaVersion.current() != JavaVersion.VERSION_1_7
+        && System.env.JAVA_7_HOME != null) {
         options.fork = true
         options.bootstrapClasspath = fileTree(include: ['*.jar'], dir: "${System.env.JAVA_7_HOME}/jre/lib/")
         options.extensionDirs = "${System.env.JAVA_7_HOME}/jre/lib/ext/"

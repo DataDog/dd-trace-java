@@ -23,7 +23,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
-        "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"] as String[]
+        "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
+      ] as String[]
       , "" as String[]
       , ["DD_API_KEY": API_KEY]
       , true) == 0
@@ -38,7 +39,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
-        "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"] as String[]
+        "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
+      ] as String[]
       , "" as String[]
       , ["DD_API_KEY": API_KEY]
       , true) == 0
@@ -53,7 +55,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
-        "-Djava.util.logging.manager=jvmbootstraptest.MissingLogManager"] as String[]
+        "-Djava.util.logging.manager=jvmbootstraptest.MissingLogManager"
+      ] as String[]
       , "" as String[]
       , ["DD_API_KEY": API_KEY]
       , true) == 0
@@ -68,7 +71,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
-        "-Ddd.app.customlogmanager=true"] as String[]
+        "-Ddd.app.customlogmanager=true"
+      ] as String[]
       , "" as String[]
       , ["DD_API_KEY": API_KEY]
       , true) == 0
@@ -83,7 +87,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
-        "-Ddd.app.customjmxbuilder=false"] as String[]
+        "-Ddd.app.customjmxbuilder=false"
+      ] as String[]
       , "" as String[]
       , ["JBOSS_HOME": "/", "DD_API_KEY": API_KEY]
       , true) == 0
@@ -100,7 +105,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customlogmanager=false",
         "-Ddd.app.customjmxbuilder=false",
-        "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"] as String[]
+        "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
+      ] as String[]
       , "" as String[]
       , ["JBOSS_HOME": "/", "DD_API_KEY": API_KEY]
       , true) == 0

@@ -110,6 +110,8 @@ public class AppSecSystem {
         continue;
       }
 
+      // TODO: the set needs to be updated upon runtime module reconfiguration (when supported)
+      //       (and the subscription caches invalidated)
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
         eventSubscriptionSet.addSubscription(sub.eventType, sub);
       }

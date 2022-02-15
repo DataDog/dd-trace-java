@@ -25,14 +25,16 @@ class ReferenceMatcherTest extends DDSpecification {
     MethodBodyAdvice.SomeInterface,
     MethodBodyAdvice.SkipLevel, // pattern in e.g. AWS SDK where empty interfaces join other interfaces
     MethodBodyAdvice.HasMethod,
-    MethodBodyAdvice.SomeImplementation)] as URL[],
+    MethodBodyAdvice.SomeImplementation)
+  ] as URL[],
   (ClassLoader) null)
 
   @Shared
   ClassLoader unsafeClasspath = new URLClassLoader([
     ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
     MethodBodyAdvice.SomeInterface,
-    MethodBodyAdvice.SomeImplementation)] as URL[],
+    MethodBodyAdvice.SomeImplementation)
+  ] as URL[],
   (ClassLoader) null)
 
   def "match safe classpaths"() {
@@ -73,7 +75,8 @@ class ReferenceMatcherTest extends DDSpecification {
         MethodBodyAdvice.SomeInterface,
         MethodBodyAdvice.SkipLevel,
         MethodBodyAdvice.HasMethod,
-        MethodBodyAdvice.SomeImplementation)] as URL[],
+        MethodBodyAdvice.SomeImplementation)
+      ] as URL[],
       (ClassLoader) null)
     Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), this.getClass().getClassLoader()).values().toArray(new Reference[0])
     ReferenceMatcher refMatcher1 = new ReferenceMatcher(refs)

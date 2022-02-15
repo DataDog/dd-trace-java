@@ -4,6 +4,7 @@ import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** All known {@code EventType} that the {@code InstrumentationGateway} can handle. */
@@ -71,7 +72,20 @@ public final class Events<D> {
         REQUEST_METHOD_URI_RAW;
   }
 
-  static final int REQUEST_CLIENT_SOCKET_ADDRESS_ID = 5;
+  static final int REQUEST_PATH_PARAMS_ID = 5;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_PATH_PARAMS =
+      new ET<>("server.request.method.uri.raw", REQUEST_PATH_PARAMS_ID);
+  /** The parameters the framework got from the request uri (but not the query string) */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext<D>, Map<String, Object>, Flow<Void>>>
+      requestPathParams() {
+    return (EventType<BiFunction<RequestContext<D>, Map<String, Object>, Flow<Void>>>)
+        REQUEST_PATH_PARAMS;
+  }
+
+  static final int REQUEST_CLIENT_SOCKET_ADDRESS_ID = 6;
 
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_CLIENT_SOCKET_ADDRESS =
@@ -84,7 +98,7 @@ public final class Events<D> {
         REQUEST_CLIENT_SOCKET_ADDRESS;
   }
 
-  static final int REQUEST_BODY_START_ID = 6;
+  static final int REQUEST_BODY_START_ID = 7;
 
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_BODY_START =
@@ -95,7 +109,7 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext<D>, StoredBodySupplier, Void>>) REQUEST_BODY_START;
   }
 
-  static final int REQUEST_BODY_DONE_ID = 7;
+  static final int REQUEST_BODY_DONE_ID = 8;
 
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_BODY_DONE =
@@ -108,7 +122,18 @@ public final class Events<D> {
         REQUEST_BODY_DONE;
   }
 
-  static final int RESPONSE_STARTED_ID = 8;
+  static final int REQUEST_BODY_CONVERTED_ID = 9;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_BODY_CONVERTED =
+      new ET<>("request.body.done", REQUEST_BODY_CONVERTED_ID);
+  /** The request body has been converted by the framework */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>> requestBodyProcessed() {
+    return (EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>>) REQUEST_BODY_CONVERTED;
+  }
+
+  static final int RESPONSE_STARTED_ID = 10;
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_STARTED =
@@ -119,7 +144,7 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext<D>, Integer, Flow<Void>>>) RESPONSE_STARTED;
   }
 
-  static final int RESPONSE_HEADER_ID = 9;
+  static final int RESPONSE_HEADER_ID = 11;
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_HEADER =
@@ -130,7 +155,7 @@ public final class Events<D> {
     return (EventType<TriConsumer<RequestContext<D>, String, String>>) RESPONSE_HEADER;
   }
 
-  static final int RESPONSE_HEADER_DONE_ID = 10;
+  static final int RESPONSE_HEADER_DONE_ID = 12;
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_HEADER_DONE =

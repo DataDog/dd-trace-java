@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
@@ -38,7 +39,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
       //    ConstraintSecurityHandler security = setupAuthentication(jettyServer)
       //    servletContext.setSecurityHandler(security)
 
-      HttpServerTest.ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
+      HttpServerTest.ServerEndpoint.values().findAll { !(it in [NOT_FOUND, UNKNOWN, MATRIX_PARAM]) }.each {
         servletContext.addServlet(TestServlet2.Sync, it.path)
       }
 

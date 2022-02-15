@@ -82,7 +82,8 @@ public final class MongoCommandListener implements CommandListener {
   }
 
   /**
-   * A convenience method to register a listener instance and obeying the priority.
+   * A convenience method to register a listener instance and obeying the priority. There will ever
+   * only be 1 MongoCommandListener in the List of listeners.
    *
    * @param listener the instance to register
    * @param listeners the existing collection of listeners
@@ -90,23 +91,31 @@ public final class MongoCommandListener implements CommandListener {
    */
   public static MongoCommandListener tryRegister(
       MongoCommandListener listener, List<CommandListener> listeners) {
+    // Short circuit if the list is empty. Extra code > extra objects
     if (listeners.isEmpty()) {
       listeners.add(listener);
       return listener;
     }
 
     ListIterator<CommandListener> iterator = listeners.listIterator();
-    while (iterator.hasPrevious()) {
-      CommandListener previous = iterator.previous();
-      if (previous instanceof MongoCommandListener) {
-        if (((MongoCommandListener) previous).getPriority() < listener.getPriority()) {
+    while (iterator.hasNext()) {
+      CommandListener current = iterator.next();
+      if (current instanceof MongoCommandListener) {
+        if (((MongoCommandListener) current).getPriority() < listener.getPriority()) {
+          // Remove the lower priority MongoCommandListener
           iterator.remove();
           listeners.add(listener);
           return listener;
+        } else {
+          // Ignore this listener since there is a higher priority MongoCommandListener
+          return null;
         }
       }
     }
-    return null;
+
+    // This is the first MongoCommandListener so add it
+    listeners.add(listener);
+    return listener;
   }
 
   @Override
