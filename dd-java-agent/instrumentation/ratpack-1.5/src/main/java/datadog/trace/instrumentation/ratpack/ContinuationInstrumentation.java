@@ -17,7 +17,8 @@ import ratpack.func.Block;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class ContinuationInstrumentation extends Instrumenter.Tracing {
+public final class ContinuationInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ContinuationInstrumentation() {
     super("ratpack");
@@ -30,7 +31,7 @@ public final class ContinuationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("ratpack.exec.")
         .<TypeDescription>and(implementsInterface(named("ratpack.exec.internal.Continuation")));
   }

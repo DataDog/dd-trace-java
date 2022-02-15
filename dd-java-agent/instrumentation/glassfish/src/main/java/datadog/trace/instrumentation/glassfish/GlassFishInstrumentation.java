@@ -8,8 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.Constants;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * This instrumenter prevents a mechanism from GlassFish classloader to produces a class not found
@@ -20,15 +18,16 @@ import net.bytebuddy.matcher.ElementMatcher;
  * blocking method to avoid specific namespaces to be blocked.
  */
 @AutoService(Instrumenter.class)
-public final class GlassFishInstrumentation extends Instrumenter.Tracing {
+public final class GlassFishInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public GlassFishInstrumentation() {
     super("glassfish");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.sun.enterprise.v3.server.APIClassLoaderServiceImpl$APIClassLoader");
+  public String instrumentedType() {
+    return "com.sun.enterprise.v3.server.APIClassLoaderServiceImpl$APIClassLoader";
   }
 
   @Override

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springamqp;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -12,19 +11,18 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(Instrumenter.class)
-public class DeliveryInstrumentation extends Instrumenter.Tracing {
+public class DeliveryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public DeliveryInstrumentation() {
     super("spring-rabbit");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.amqp.rabbit.support.Delivery");
+  public String instrumentedType() {
+    return "org.springframework.amqp.rabbit.support.Delivery";
   }
 
   @Override

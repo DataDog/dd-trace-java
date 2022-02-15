@@ -59,6 +59,13 @@ sourceSets {
   }
 }
 
+
+tasks.named('processLoggingResources').configure {
+  // Don't know why this tries to copy the logback.xml file twice, but only accept it once
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+
 dependencies {
   implementation project(':dd-trace-api')
 

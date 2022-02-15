@@ -29,7 +29,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
 
 @AutoService(Instrumenter.class)
-public class FinatraInstrumentation extends Instrumenter.Tracing {
+public class FinatraInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public FinatraInstrumentation() {
     super("finatra");
   }
@@ -46,7 +47,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("com.twitter.finatra.")
         .<TypeDescription>and(
             extendsClass(named("com.twitter.finatra.http.internal.routing.Route")));

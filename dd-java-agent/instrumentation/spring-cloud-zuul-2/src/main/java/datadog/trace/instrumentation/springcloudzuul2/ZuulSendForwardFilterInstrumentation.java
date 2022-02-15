@@ -12,18 +12,17 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
+public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public ZuulSendForwardFilterInstrumentation() {
     super("spring-cloud-zuul");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.springframework.cloud.netflix.zuul.filters.route.SendForwardFilter");
+  public String instrumentedType() {
+    return "org.springframework.cloud.netflix.zuul.filters.route.SendForwardFilter";
   }
 
   @Override

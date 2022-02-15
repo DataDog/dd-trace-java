@@ -16,14 +16,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Described in {@link CompletableFutureUniCompletionInstrumentation} */
 @AutoService(Instrumenter.class)
-public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Tracing {
+public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Tracing
+    implements ForTypeHierarchy {
 
   public CompletableFutureUniCompletionSubclassInstrumentation() {
     super("java_completablefuture", "java_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith(COMPLETABLE_FUTURE).and(extendsClass(named(UNI_COMPLETION)));
   }
 

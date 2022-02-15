@@ -13,20 +13,19 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.jasper.JspCompilationContext;
 
 @AutoService(Instrumenter.class)
-public final class JasperJSPCompilationContextInstrumentation extends Instrumenter.Tracing {
+public final class JasperJSPCompilationContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public JasperJSPCompilationContextInstrumentation() {
     super("jsp", "jsp-compile");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.jasper.JspCompilationContext");
+  public String instrumentedType() {
+    return "org.apache.jasper.JspCompilationContext";
   }
 
   @Override

@@ -9,22 +9,21 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
 // This is necessary because SourceNodeRecordDeserializer drops the headers.  :-(
 @AutoService(Instrumenter.class)
-public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation extends Instrumenter.Tracing {
+public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public KafkaStreamsSourceNodeRecordDeserializerInstrumentation() {
     super("kafka", "kafka-streams");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.kafka.streams.processor.internals.SourceNodeRecordDeserializer");
+  public String instrumentedType() {
+    return "org.apache.kafka.streams.processor.internals.SourceNodeRecordDeserializer";
   }
 
   @Override

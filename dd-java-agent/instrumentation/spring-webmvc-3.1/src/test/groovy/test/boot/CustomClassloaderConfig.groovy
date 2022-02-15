@@ -1,5 +1,6 @@
 package test.boot
 
+import groovy.transform.CompileStatic
 import org.springframework.beans.BeansException
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -25,6 +26,7 @@ class CustomClassloaderConfig {
   }
 }
 
+@CompileStatic // avoid references to java.lang.Module (in super$2$loadClass)
 class DatadogFilteringClassloader extends URLClassLoader {
   DatadogFilteringClassloader(ClassLoader parent) {
     super(new URL[0], parent)

@@ -121,4 +121,10 @@ public class MatchingEventsImpl extends MatchingEvents {
       AgentBuilder.RawMatcher matcher, String instrumenterClass) {
     return new RawMatcherWrapper(matcher, instrumenterClass);
   }
+
+  @Override
+  public AgentBuilder.RawMatcher rawMatcherWithEvents(
+      AgentBuilder.RawMatcher matcher, Class<?> instrumenterClass) {
+    return rawMatcherWithEvents(matcher, "" + instrumenterClass);
+  }
 }

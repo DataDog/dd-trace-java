@@ -11,13 +11,12 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import spark.route.HttpMethod;
 import spark.routematch.RouteMatch;
 
 @AutoService(Instrumenter.class)
-public class RoutesInstrumentation extends Instrumenter.Tracing {
+public class RoutesInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public RoutesInstrumentation() {
     super("sparkjava", "sparkjava-2.4");
@@ -29,8 +28,8 @@ public class RoutesInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("spark.route.Routes");
+  public String instrumentedType() {
+    return "spark.route.Routes";
   }
 
   @Override

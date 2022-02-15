@@ -35,7 +35,8 @@ import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends AbstractHibernateInstrumentation {
+public class SessionInstrumentation extends AbstractHibernateInstrumentation
+    implements Instrumenter.CanShortcutTypeMatching {
 
   @Override
   public Map<String, String> contextStore() {
@@ -49,8 +50,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return namedOneOf("org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
+    };
   }
 
   @Override

@@ -26,7 +26,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AsyncContextInstrumentation extends Instrumenter.Tracing {
+public final class AsyncContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public AsyncContextInstrumentation() {
     super("servlet", "servlet-3");
@@ -39,7 +40,7 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.servlet.AsyncContext"));
   }
 

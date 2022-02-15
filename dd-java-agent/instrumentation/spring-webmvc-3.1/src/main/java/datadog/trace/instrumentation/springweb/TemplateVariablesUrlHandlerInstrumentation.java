@@ -20,12 +20,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
-public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.AppSec {
+public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
 
   public TemplateVariablesUrlHandlerInstrumentation() {
     super("spring-web");
@@ -38,9 +38,8 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.App
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named(
-        "org.springframework.web.servlet.handler.AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor");
+  public String instrumentedType() {
+    return "org.springframework.web.servlet.handler.AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor";
   }
 
   @Override

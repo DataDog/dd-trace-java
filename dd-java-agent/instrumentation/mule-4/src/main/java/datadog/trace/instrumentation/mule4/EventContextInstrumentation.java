@@ -2,13 +2,10 @@ package datadog.trace.instrumentation.mule4;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Events in Mule have an {@code EventContext} attached to them, that travels with the event through
@@ -16,7 +13,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * and activate/deactivate the span when mule changes which event it is processing.
  */
 @AutoService(Instrumenter.class)
-public final class EventContextInstrumentation extends Instrumenter.Tracing {
+public final class EventContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public EventContextInstrumentation() {
     super("mule");
@@ -28,10 +26,11 @@ public final class EventContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "org.mule.runtime.core.internal.event.DefaultEventContext",
-        "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.mule.runtime.core.internal.event.DefaultEventContext",
+      "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext"
+    };
   }
 
   @Override

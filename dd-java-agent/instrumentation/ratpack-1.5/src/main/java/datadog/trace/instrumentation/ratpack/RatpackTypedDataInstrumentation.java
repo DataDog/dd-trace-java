@@ -9,18 +9,17 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RatpackTypedDataInstrumentation extends Instrumenter.AppSec {
+public class RatpackTypedDataInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public RatpackTypedDataInstrumentation() {
     super("ratpack-request-body");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("ratpack.http.internal.ByteBufBackedTypedData");
+  public String instrumentedType() {
+    return "ratpack.http.internal.ByteBufBackedTypedData";
   }
 
   @Override

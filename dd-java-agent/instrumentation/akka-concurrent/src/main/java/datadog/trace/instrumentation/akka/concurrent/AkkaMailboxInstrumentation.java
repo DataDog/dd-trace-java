@@ -18,20 +18,18 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class AkkaMailboxInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public AkkaMailboxInstrumentation() {
     super("akka_actor_mailbox", "akka_actor", "akka_concurrent", "java_concurrent");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("akka.dispatch.Mailbox");
+  public String instrumentedType() {
+    return "akka.dispatch.Mailbox";
   }
 
   @Override

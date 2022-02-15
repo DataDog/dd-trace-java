@@ -6,7 +6,11 @@ excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 configurations {
   // classpath used by the instrumentation muzzle plugin
-  instrumentationMuzzle.extendsFrom implementation
+  instrumentationMuzzle {
+    canBeConsumed = true
+    canBeResolved = false
+    extendsFrom implementation
+  }
 }
 
 dependencies {

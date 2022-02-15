@@ -14,11 +14,11 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing {
+public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
   public SqsReceiveRequestInstrumentation() {
     super("aws-sdk");
   }
@@ -34,10 +34,11 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "com.amazonaws.services.sqs.model.ReceiveMessageRequest",
-        "com.amazonaws.services.sqs.buffered.QueueBufferConfig");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "com.amazonaws.services.sqs.model.ReceiveMessageRequest",
+      "com.amazonaws.services.sqs.buffered.QueueBufferConfig"
+    };
   }
 
   @Override

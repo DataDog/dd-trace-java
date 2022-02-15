@@ -21,11 +21,11 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing {
+public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AsyncHttpClientInstrumentation() {
     super("grizzly-client", "ning");
@@ -50,8 +50,8 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.ning.http.client.AsyncHttpClient");
+  public String instrumentedType() {
+    return "com.ning.http.client.AsyncHttpClient";
   }
 
   @Override

@@ -31,6 +31,7 @@ import javax.servlet.ServletResponse
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -117,6 +118,10 @@ class FilteredAppConfig extends WebMvcConfigurerAdapter {
               case FORWARDED:
                 resp.status = endpoint.status
                 resp.writer.print(req.getHeader("x-forwarded-for"))
+                break
+              case BODY_URLENCODED:
+                resp.status = endpoint.status
+                resp.writer.print(req.parameterMap.findAll { it.key != 'ignore' } as String)
                 break
               case QUERY_ENCODED_BOTH:
               case QUERY_ENCODED_QUERY:

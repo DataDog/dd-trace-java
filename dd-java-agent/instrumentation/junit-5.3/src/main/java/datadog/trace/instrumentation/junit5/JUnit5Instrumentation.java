@@ -18,14 +18,15 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.junit.platform.launcher.Launcher;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
+public class JUnit5Instrumentation extends Instrumenter.CiVisibility
+    implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5Instrumentation() {
     super("junit", "junit-5");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.junit.platform.launcher.Launcher"))
         .and(not(named("org.junit.platform.launcher.core.DefaultLauncherSession$ClosedLauncher")));
   }

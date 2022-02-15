@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.datanucleus;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -15,21 +14,20 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
 @AutoService(Instrumenter.class)
-public class JDOQueryInstrumentation extends Instrumenter.Tracing {
+public class JDOQueryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public JDOQueryInstrumentation() {
     super("datanucleus");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.datanucleus.api.jdo.JDOQuery");
+  public String instrumentedType() {
+    return "org.datanucleus.api.jdo.JDOQuery";
   }
 
   @Override

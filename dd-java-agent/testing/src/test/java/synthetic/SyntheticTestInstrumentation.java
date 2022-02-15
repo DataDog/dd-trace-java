@@ -7,19 +7,19 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SyntheticTestInstrumentation extends Instrumenter.Tracing {
+public class SyntheticTestInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SyntheticTestInstrumentation() {
     super("synthetic-test");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named(getClass().getName() + "$WithSynthetic");
+  public String instrumentedType() {
+    return getClass().getName() + "$WithSynthetic";
   }
 
   @Override

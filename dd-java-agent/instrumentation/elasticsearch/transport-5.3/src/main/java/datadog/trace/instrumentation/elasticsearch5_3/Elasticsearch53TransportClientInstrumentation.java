@@ -13,8 +13,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -22,17 +20,18 @@ import org.elasticsearch.action.ActionResponse;
 
 /** Beginning in version 5.3.0, DocumentRequest was renamed to DocWriteRequest. */
 @AutoService(Instrumenter.class)
-public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.Tracing {
+public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public Elasticsearch53TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-5");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public String instrumentedType() {
     // If we want to be more generic, we could instrument the interface instead:
     // .and(safeHasSuperType(named("org.elasticsearch.client.ElasticsearchClient"))))
-    return named("org.elasticsearch.client.support.AbstractClient");
+    return "org.elasticsearch.client.support.AbstractClient";
   }
 
   @Override

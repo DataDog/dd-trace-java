@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.couchbase.client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -12,22 +11,22 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing {
+public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public CouchbaseBucketInstrumentation() {
     super("couchbase");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "com.couchbase.client.java.bucket.DefaultAsyncBucketManager",
-        "com.couchbase.client.java.CouchbaseAsyncBucket");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "com.couchbase.client.java.bucket.DefaultAsyncBucketManager",
+      "com.couchbase.client.java.CouchbaseAsyncBucket"
+    };
   }
 
   @Override

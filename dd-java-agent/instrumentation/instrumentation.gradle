@@ -21,15 +21,21 @@ subprojects { Project subProj ->
   apply plugin: 'instrument'
   apply plugin: 'muzzle'
 
+  configurations {
+    // classpath used by the instrumentation muzzle plugin
+    instrumentationMuzzle {
+      visible = false
+      canBeConsumed = false
+      canBeResolved = true
+    }
+  }
+
   instrument.plugins = [
     'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
     'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin'
   ]
 
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
-
-  // needs fetching this project's configurations.instrumentationMuzzle
-  evaluationDependsOn ':dd-java-agent:agent-tooling'
 
   subProj.afterEvaluate {
     String jdkCompile = null
@@ -62,6 +68,8 @@ subprojects { Project subProj ->
       testImplementation project(':dd-java-agent:testing')
       testAnnotationProcessor deps.autoserviceProcessor
       testCompileOnly deps.autoserviceAnnotation
+
+      instrumentationMuzzle project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentationMuzzle')
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->

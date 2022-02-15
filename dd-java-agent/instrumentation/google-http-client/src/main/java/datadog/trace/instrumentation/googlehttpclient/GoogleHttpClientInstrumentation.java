@@ -18,21 +18,20 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
+public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public String instrumentedType() {
     // HttpRequest is a final class.  Only need to instrument it exactly
     // Note: the rest of com.google.api is ignored in AdditionalLibraryIgnoresMatcher to speed
     // things up
-    return named("com.google.api.client.http.HttpRequest");
+    return "com.google.api.client.http.HttpRequest";
   }
 
   @Override

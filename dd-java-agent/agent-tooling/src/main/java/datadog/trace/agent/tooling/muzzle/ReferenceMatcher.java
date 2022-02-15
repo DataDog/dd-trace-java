@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
-public final class ReferenceMatcher {
+public final class ReferenceMatcher implements IReferenceMatcher {
   private final WeakCache<ClassLoader, Boolean> mismatchCache = AgentTooling.newWeakCache();
   private final Reference[] references;
   private final Set<String> helperClassNames;
@@ -46,6 +46,7 @@ public final class ReferenceMatcher {
    * @param loader Classloader to validate against (or null for bootstrap)
    * @return true if all references match the classpath of loader
    */
+  @Override
   public boolean matches(ClassLoader loader) {
     if (loader == BOOTSTRAP_LOADER) {
       loader = Utils.getBootstrapProxy();
@@ -83,6 +84,7 @@ public final class ReferenceMatcher {
    * @param loader Classloader to validate against (or null for bootstrap)
    * @return A list of all mismatches between this ReferenceMatcher and loader's classpath.
    */
+  @Override
   public List<Reference.Mismatch> getMismatchedReferenceSources(ClassLoader loader) {
     if (loader == BOOTSTRAP_LOADER) {
       loader = Utils.getBootstrapProxy();

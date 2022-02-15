@@ -44,7 +44,7 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
     checkLog {
       // check for additional OSGi class-loader issues
       if (it.contains("Cannot resolve type description") ||
-      it.contains("Instrumentation muzzled")) {
+        it.contains("Instrumentation muzzled")) {
         println it
         logHasErrors = true
       }

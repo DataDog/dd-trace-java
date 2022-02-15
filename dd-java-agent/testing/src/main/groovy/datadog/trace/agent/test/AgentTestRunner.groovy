@@ -307,7 +307,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     // Incorrect* classes assert on incorrect api usage. Error expected.
     if (typeName.startsWith('context.FieldInjectionTestInstrumentation$Incorrect')
-    && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+      && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
       return
     }
 

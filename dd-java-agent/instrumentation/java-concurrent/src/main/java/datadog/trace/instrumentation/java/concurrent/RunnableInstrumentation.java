@@ -24,14 +24,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument {@link Runnable} */
 @AutoService(Instrumenter.class)
-public final class RunnableInstrumentation extends Instrumenter.Tracing {
+public final class RunnableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RunnableInstrumentation() {
     super(AbstractExecutorInstrumentation.EXEC_NAME, "runnable");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE)
         .and(implementsInterface(named(Runnable.class.getName())))
         .and(not(implementsInterface(named(RunnableFuture.class.getName()))));

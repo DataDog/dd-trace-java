@@ -21,11 +21,10 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LogbackLoggerInstrumentation extends Instrumenter.Tracing {
+public class LogbackLoggerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public LogbackLoggerInstrumentation() {
     super("logback");
@@ -37,8 +36,8 @@ public class LogbackLoggerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("ch.qos.logback.classic.Logger");
+  public String instrumentedType() {
+    return "ch.qos.logback.classic.Logger";
   }
 
   @Override

@@ -5,20 +5,19 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class SpringAsyncInstrumentation extends Instrumenter.Tracing {
+public class SpringAsyncInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SpringAsyncInstrumentation() {
     super("spring-async");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.aop.interceptor.AsyncExecutionInterceptor");
+  public String instrumentedType() {
+    return "org.springframework.aop.interceptor.AsyncExecutionInterceptor";
   }
 
   @Override

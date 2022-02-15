@@ -7,21 +7,20 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
 @AutoService(Instrumenter.class)
-public class OkHttp3Instrumentation extends Instrumenter.Tracing {
+public class OkHttp3Instrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public OkHttp3Instrumentation() {
     super("okhttp", "okhttp-3");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("okhttp3.OkHttpClient");
+  public String instrumentedType() {
+    return "okhttp3.OkHttpClient";
   }
 
   @Override

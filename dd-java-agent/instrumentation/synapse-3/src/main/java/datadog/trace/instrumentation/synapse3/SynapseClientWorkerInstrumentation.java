@@ -13,21 +13,20 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.HttpResponse;
 import org.apache.synapse.transport.passthru.TargetResponse;
 
 @AutoService(Instrumenter.class)
-public final class SynapseClientWorkerInstrumentation extends Instrumenter.Tracing {
+public final class SynapseClientWorkerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SynapseClientWorkerInstrumentation() {
     super("synapse3-client", "synapse3");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.synapse.transport.passthru.ClientWorker");
+  public String instrumentedType() {
+    return "org.apache.synapse.transport.passthru.ClientWorker";
   }
 
   @Override

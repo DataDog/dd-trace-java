@@ -14,8 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 /**
@@ -50,18 +48,20 @@ import net.bytebuddy.matcher.ElementMatchers;
  * reactivating each time they are subscribed.
  */
 @AutoService(Instrumenter.class)
-public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
+public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public LettuceReactiveClientInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-rx");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "io.lettuce.core.RedisPublisher$RedisSubscription",
-        "io.lettuce.core.RedisPublisher$SubscriptionCommand",
-        "io.lettuce.core.AbstractRedisReactiveCommands");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.lettuce.core.RedisPublisher$RedisSubscription",
+      "io.lettuce.core.RedisPublisher$SubscriptionCommand",
+      "io.lettuce.core.AbstractRedisReactiveCommands"
+    };
   }
 
   @Override

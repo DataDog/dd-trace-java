@@ -25,6 +25,11 @@ public class MatchingEvents {
     return matcher;
   }
 
+  public AgentBuilder.RawMatcher rawMatcherWithEvents(
+      AgentBuilder.RawMatcher matcher, Class<?> instrumenterClass) {
+    return matcher;
+  }
+
   private static final Logger log = LoggerFactory.getLogger(MatchingEvents.class);
   private static final MatchingEvents INSTANCE =
       ENABLED ? loadMatchingJfrEvents() : new MatchingEvents();

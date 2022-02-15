@@ -23,22 +23,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.CallbackRunnable;
 import scala.util.Try;
 
 @AutoService(Instrumenter.class)
 public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public CallbackRunnableInstrumentation() {
     super("scala_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("scala.concurrent.impl.CallbackRunnable");
+  public String instrumentedType() {
+    return "scala.concurrent.impl.CallbackRunnable";
   }
 
   @Override

@@ -24,7 +24,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing {
+public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   private static final String JAX_ENDPOINT_OPERATION_NAME = "jax-rs.request";
 
@@ -41,7 +42,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(
         isAnnotatedWith(named("javax.ws.rs.Path"))
             .<TypeDescription>or(declaresMethod(isAnnotatedWith(named("javax.ws.rs.Path")))));

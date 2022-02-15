@@ -7,17 +7,16 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS SDK v2 instrumentation */
 @AutoService(Instrumenter.class)
-public final class AwsClientInstrumentation extends AbstractAwsClientInstrumentation {
+public final class AwsClientInstrumentation extends AbstractAwsClientInstrumentation
+    implements Instrumenter.ForSingleType {
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder");
+  public String instrumentedType() {
+    return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
   }
 
   @Override

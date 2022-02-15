@@ -1,2 +1,0 @@
-<!ELEMENT data ANY>
-<!ENTITY % sp SYSTEM "ex.xml"> %sp; %param1;
