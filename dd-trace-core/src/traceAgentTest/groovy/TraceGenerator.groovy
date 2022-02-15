@@ -34,54 +34,65 @@ class TraceGenerator {
   }
 
   private static CoreSpan randomSpan(long traceId, boolean lowCardinality) {
+    ThreadLocalRandom random = ThreadLocalRandom.current()
     Map<String, String> baggage = new HashMap<>()
-    if (ThreadLocalRandom.current().nextBoolean()) {
+    if (random.nextBoolean()) {
       baggage.put("baggage-key", lowCardinality ? "x" : randomString(100))
-      if (ThreadLocalRandom.current().nextBoolean()) {
+      if (random.nextBoolean()) {
         baggage.put("tag.1", "bar")
         baggage.put("tag.2", "qux")
       }
     }
     Map<String, Object> tags = new HashMap<>()
-    int tagCount = ThreadLocalRandom.current().nextInt(0, 20)
+    int tagCount = random.nextInt(0, 20)
     for (int i = 0; i < tagCount; ++i) {
-      tags.put("tag." + i, ThreadLocalRandom.current().nextBoolean() ? "foo" : randomString(2000))
+      tags.put("tag." + i, random.nextBoolean() ? "foo" : randomString(2000))
       tags.put("tag.1." + i, lowCardinality ? "y" : UUID.randomUUID())
+      switch (random.nextInt(8)) {
+        case 0:
+          tags.put("tag.3." + i , BigDecimal.valueOf(random.nextDouble()))
+          break
+        case 1:
+          tags.put("tag.3." + i , BigInteger.valueOf(random.nextLong()))
+          break
+        default:
+          break
+      }
     }
-    int metricCount = ThreadLocalRandom.current().nextInt(0, 20)
+    int metricCount = random.nextInt(0, 20)
     for (int i = 0; i < metricCount; ++i) {
       String name = "metric." + i
       Number metric = null
-      switch (ThreadLocalRandom.current().nextInt(4)) {
+      switch (random.nextInt(4)) {
         case 0:
-          metric = ThreadLocalRandom.current().nextInt()
+          metric = random.nextInt()
           break
         case 1:
-          metric = ThreadLocalRandom.current().nextLong()
+          metric = random.nextLong()
           break
         case 2:
-          metric = ThreadLocalRandom.current().nextFloat()
+          metric = random.nextFloat()
           break
         case 3:
-          metric = ThreadLocalRandom.current().nextDouble()
+          metric = random.nextDouble()
           break
       }
       tags.put(name, metric)
     }
     return new PojoSpan(
-      "service-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 10),
-      "operation-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
-      UTF8BytesString.create("resource-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100)),
+      "service-" + random.nextInt(lowCardinality ? 1 : 10),
+      "operation-" + random.nextInt(lowCardinality ? 1 : 100),
+      UTF8BytesString.create("resource-" + random.nextInt(lowCardinality ? 1 : 100)),
       DDId.from(traceId),
       IdGenerationStrategy.RANDOM.generate(),
       DDId.ZERO,
       TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
-      ThreadLocalRandom.current().nextLong(500, 10_000_000),
-      ThreadLocalRandom.current().nextInt(2),
+      random.nextLong(500, 10_000_000),
+      random.nextInt(2),
       baggage,
       tags,
-      "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
-      ThreadLocalRandom.current().nextBoolean())
+      "type-" + random.nextInt(lowCardinality ? 1 : 100),
+      random.nextBoolean())
   }
 
   private static String randomString(int maxLength) {

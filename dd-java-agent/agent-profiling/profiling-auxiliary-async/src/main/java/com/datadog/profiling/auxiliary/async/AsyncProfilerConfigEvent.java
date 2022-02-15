@@ -33,6 +33,10 @@ public class AsyncProfilerConfigEvent extends Event {
   @DataAmount
   private final long memleakInterval;
 
+  @Label("MemLeak Sampling Capacity")
+  @Description("Number of objects to track")
+  private final long memleakCapacity;
+
   @Label("Profiling Mode")
   @Description("Profiling mode bitmask")
   private final int modeMask;
@@ -51,12 +55,14 @@ public class AsyncProfilerConfigEvent extends Event {
       long cpuInterval,
       long allocInterval,
       long memleakInterval,
+      long memleakCapacity,
       int modeMask) {
     this.version = version;
     this.libPath = libPath;
     this.cpuInterval = cpuInterval;
     this.allocInterval = allocInterval;
     this.memleakInterval = memleakInterval;
+    this.memleakCapacity = memleakCapacity;
     this.modeMask = modeMask;
   }
 }

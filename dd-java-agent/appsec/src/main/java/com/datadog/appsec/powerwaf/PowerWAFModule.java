@@ -54,7 +54,6 @@ public class PowerWAFModule implements AppSecModule {
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
-  private static final Set<Address<?>> ADDRESSES_OF_INTEREST;
   private static final Set<EventType> EVENTS_OF_INTEREST;
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
@@ -73,21 +72,22 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
+  private static class CtxAndAddresses {
+    final Collection<Address<?>> addressesOfInterest;
+    final PowerwafContext ctx;
+
+    private CtxAndAddresses(Collection<Address<?>> addressesOfInterest, PowerwafContext ctx) {
+      this.addressesOfInterest = addressesOfInterest;
+      this.ctx = ctx;
+    }
+  }
+
   static {
     try {
       PROXY_CLASS_CONSTRUCTOR = PROXY_CLASS.getConstructor(InvocationHandler.class);
     } catch (NoSuchMethodException e) {
       throw new UndeclaredThrowableException(e);
     }
-
-    ADDRESSES_OF_INTEREST = new HashSet<>();
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_URI_RAW);
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_QUERY);
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.HEADERS_NO_COOKIES);
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_COOKIES);
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_PATH_PARAMS);
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_BODY_RAW);
-    ADDRESSES_OF_INTEREST.add(KnownAddresses.RESPONSE_STATUS);
 
     EVENTS_OF_INTEREST = new HashSet<>();
     EVENTS_OF_INTEREST.add(EventType.REQUEST_START);
@@ -98,7 +98,7 @@ public class PowerWAFModule implements AppSecModule {
         moshi.adapter(Types.newParameterizedType(List.class, PowerWAFResultData.class));
   }
 
-  private final AtomicReference<PowerwafContext> ctx = new AtomicReference<>();
+  private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
 
   @Override
   public void config(AppSecConfigService appSecConfigService)
@@ -118,8 +118,8 @@ public class PowerWAFModule implements AppSecModule {
   private void applyConfig(AppSecConfig config) throws AppSecModuleActivationException {
     log.info("Configuring WAF");
 
-    PowerwafContext prevContext = this.ctx.get();
-    PowerwafContext newContext;
+    CtxAndAddresses prevContextAndAddresses = this.ctxAndAddresses.get();
+    CtxAndAddresses newContextAndAddresses;
 
     if (!LibSqreenInitialization.ONLINE) {
       throw new AppSecModuleActivationException(
@@ -127,7 +127,9 @@ public class PowerWAFModule implements AppSecModule {
     } else {
       try {
         String uniqueId = UUID.randomUUID().toString();
-        newContext = Powerwaf.createContext(uniqueId, config.getRawConfig());
+        PowerwafContext context = Powerwaf.createContext(uniqueId, config.getRawConfig());
+        Collection<Address<?>> addresses = getUsedAddresses(context);
+        newContextAndAddresses = new CtxAndAddresses(addresses, context);
 
         rulesInfoMap.clear();
         config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
@@ -137,12 +139,12 @@ public class PowerWAFModule implements AppSecModule {
       }
     }
 
-    if (!this.ctx.compareAndSet(prevContext, newContext)) {
+    if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
 
-    if (prevContext != null) {
-      prevContext.delReference();
+    if (prevContextAndAddresses != null) {
+      prevContextAndAddresses.ctx.delReference();
     }
   }
 
@@ -175,23 +177,42 @@ public class PowerWAFModule implements AppSecModule {
 
   @Override
   public Collection<DataSubscription> getDataSubscriptions() {
+    if (this.ctxAndAddresses.get() == null) {
+      log.warn("No subscriptions provided because module is not configured");
+      return Collections.emptyList();
+    }
     return singletonList(new PowerWAFDataCallback());
+  }
+
+  private static Collection<Address<?>> getUsedAddresses(PowerwafContext ctx) {
+    String[] usedAddresses = ctx.getUsedAddresses();
+    List<Address<?>> addressList = new ArrayList<>(usedAddresses.length);
+    for (String addrKey : usedAddresses) {
+      Address<?> address = KnownAddresses.forName(addrKey);
+      if (address != null) {
+        addressList.add(address);
+      } else {
+        log.warn("WAF has rule against unknown address {}", addrKey);
+      }
+    }
+    return addressList;
   }
 
   private class PowerWAFDataCallback extends DataSubscription {
     public PowerWAFDataCallback() {
-      super(ADDRESSES_OF_INTEREST, Priority.DEFAULT);
+      super(ctxAndAddresses.get().addressesOfInterest, Priority.DEFAULT);
     }
 
     @Override
     public void onDataAvailable(
         ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData) {
       Powerwaf.ActionWithData actionWithData;
-      PowerwafContext powerwafContext = ctx.get();
-      if (powerwafContext == null) {
+      CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
+      if (ctxAndAddr == null) {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
+      PowerwafContext powerwafContext = ctxAndAddr.ctx;
       try {
         StandardizedLogging.executingWAF(log);
         long start = 0L;
@@ -204,7 +225,8 @@ public class PowerWAFModule implements AppSecModule {
           additive = powerwafContext.openAdditive();
           reqCtx.setAdditive(additive);
         }
-        actionWithData = additive.run(new DataBundleMapWrapper(newData), LIMITS);
+        actionWithData =
+            additive.run(new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS);
 
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
@@ -296,9 +318,12 @@ public class PowerWAFModule implements AppSecModule {
   }
 
   private static final class DataBundleMapWrapper implements Map<String, Object> {
+    private final Collection<Address<?>> addressesOfInterest;
     private final DataBundle dataBundle;
 
-    private DataBundleMapWrapper(DataBundle dataBundle) {
+    private DataBundleMapWrapper(
+        Collection<Address<?>> addressesOfInterest, DataBundle dataBundle) {
+      this.addressesOfInterest = addressesOfInterest;
       this.dataBundle = dataBundle;
     }
 
@@ -345,9 +370,7 @@ public class PowerWAFModule implements AppSecModule {
             // the usage pattern in powerwaf allows object recycling here
             entry.key = next.getKey();
             entry.value =
-                ADDRESSES_OF_INTEREST.contains(next)
-                    ? dataBundle.get(next)
-                    : Collections.emptyMap();
+                addressesOfInterest.contains(next) ? dataBundle.get(next) : Collections.emptyMap();
             next = computeNextAddress();
             return entry;
           }

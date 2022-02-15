@@ -37,7 +37,7 @@ publishing {
             pom.withXml { xml ->
               def dependenciesNode = xml.asNode().appendNode('dependencies')
 
-              project.configurations.compile.allDependencies.each {
+              project.configurations.api.allDependencies.each {
                 if ((it instanceof ProjectDependency) || !(it instanceof SelfResolvingDependency)) {
                   def dependencyNode = dependenciesNode.appendNode('dependency')
                   dependencyNode.appendNode('groupId', it.group)

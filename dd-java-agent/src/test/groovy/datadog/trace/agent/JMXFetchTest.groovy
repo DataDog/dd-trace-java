@@ -27,7 +27,8 @@ class JMXFetchTest extends Specification {
         "-Ddd.jmxfetch.enabled=true",
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
-        "-Ddd.writer.type=DDAgentWriter"] as String[]
+        "-Ddd.writer.type=DDAgentWriter"
+      ] as String[]
       , "" as String[]
       , [:]
       , true)
@@ -54,7 +55,8 @@ class JMXFetchTest extends Specification {
         "-Ddd.jmxfetch.enabled=true",
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.statsd.host=example.local",
-        "-Ddd.writer.type=DDAgentWriter"] as String[]
+        "-Ddd.writer.type=DDAgentWriter"
+      ] as String[]
       , "" as String[]
       , [:]
       , true)
@@ -77,7 +79,8 @@ class JMXFetchTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
         "-Ddd.trace.debug=true",
-        "-Ddd.writer.type=DDAgentWriter"]
+        "-Ddd.writer.type=DDAgentWriter"
+      ]
       + configSettings as String[]
       , "" as String[]
       , [:]

@@ -3,11 +3,15 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.Tracer
+import io.opentracing.propagation.Format
+import io.opentracing.propagation.TextMap
 import io.opentracing.util.ThreadLocalScopeManager
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 
 // This test focuses on things that are different between OpenTracing API 0.32.0 and 0.33.0
 class OT33ApiTest extends DDSpecification {
@@ -76,5 +80,60 @@ class OT33ApiTest extends DDSpecification {
     cleanup:
     scope.close()
     span.finish()
+    customTracer.close()
+  }
+
+  def "test inject extract"() {
+    setup:
+    def context = tracer.buildSpan("some name").start().context()
+    def textMap = [:]
+    def adapter = new TextMapAdapter(textMap)
+    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
+
+    when:
+    context.delegate.setSamplingPriority(contextPriority, samplingMechanism)
+    tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
+
+    then:
+    textMap == [
+      "x-datadog-trace-id"         : context.toTraceId(),
+      "x-datadog-parent-id"        : context.toSpanId(),
+      "x-datadog-sampling-priority": propagatedPriority.toString(),
+      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
+    ]
+
+    when:
+    def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)
+
+    then:
+    extract.toTraceId() == context.toTraceId()
+    extract.toSpanId() == context.toSpanId()
+    extract.delegate.samplingPriority == propagatedPriority
+
+    where:
+    contextPriority | samplingMechanism | propagatedPriority | propagatedMechanism | samplingRate
+    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP       | DEFAULT             | null
+    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP       | DEFAULT             | null
+    UNSET           | DEFAULT           | SAMPLER_KEEP       | AGENT_RATE          | 1
+    USER_KEEP       | MANUAL            | USER_KEEP          | MANUAL              | null
+    USER_DROP       | MANUAL            | USER_DROP          | MANUAL              | null
+  }
+
+  static class TextMapAdapter implements TextMap {
+    private final Map<String, String> map
+
+    TextMapAdapter(Map<String, String> map) {
+      this.map = map
+    }
+
+    @Override
+    Iterator<Map.Entry<String, String>> iterator() {
+      return map.entrySet().iterator()
+    }
+
+    @Override
+    void put(String key, String value) {
+      map.put(key, value)
+    }
   }
 }

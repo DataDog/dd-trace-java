@@ -1,3 +1,4 @@
+import net.bytebuddy.ClassFileVersion
 import net.bytebuddy.build.EntryPoint
 import net.bytebuddy.build.gradle.ByteBuddyTask
 import net.bytebuddy.build.gradle.Discovery
@@ -18,8 +19,6 @@ class InstrumentPlugin implements Plugin<Project> {
   void apply(Project project) {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
-    Project toolingProject = project.findProject(':dd-java-agent:agent-tooling')
-
     project.tasks.matching { it.name in ['compileJava', 'compileScala', 'compileKotlin'] }.all {
       AbstractCompile compileTask = it as AbstractCompile
       project.afterEvaluate {
@@ -38,6 +37,7 @@ class InstrumentPlugin implements Plugin<Project> {
           byteBuddyTask.extendedParsing = false
           byteBuddyTask.discovery = Discovery.NONE
           byteBuddyTask.threads = 0
+          byteBuddyTask.classFileVersion = ClassFileVersion.JAVA_V7
 
           byteBuddyTask.incrementalResolver = IncrementalResolver.ForChangedFiles.INSTANCE
 
@@ -50,7 +50,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
           compileTask.destinationDir = rawClassesDir.asFile
 
-          byteBuddyTask.classPath.from((toolingProject?.configurations?.instrumentationMuzzle ?: []) +
+          byteBuddyTask.classPath.from((project.configurations.findByName('instrumentationMuzzle') ?: []) +
               project.configurations.compileClasspath + compileTask.destinationDir)
 
           byteBuddyTask.transformation {
@@ -62,9 +62,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
           // insert task between compile and jar, and before test*
           byteBuddyTask.dependsOn(compileTask)
-          compileTask.finalizedBy(byteBuddyTask)
-          project.tasks.findByName('jar')?.dependsOn(byteBuddyTask)
-          project.tasks.withType(Test).configureEach {
+          project.tasks.named(project.sourceSets.main.classesTaskName).configure {
             dependsOn(byteBuddyTask)
           }
         }

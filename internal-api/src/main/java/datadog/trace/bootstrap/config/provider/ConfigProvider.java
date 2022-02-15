@@ -105,6 +105,18 @@ public final class ConfigProvider {
     return get(key, defaultValue, Integer.class, aliases);
   }
 
+  public final Long getLong(String key) {
+    return get(key, null, Long.class);
+  }
+
+  public final Long getLong(String key, String... aliases) {
+    return get(key, null, Long.class, aliases);
+  }
+
+  public final long getLong(String key, long defaultValue, String... aliases) {
+    return get(key, defaultValue, Long.class, aliases);
+  }
+
   public final Float getFloat(String key, String... aliases) {
     return get(key, null, Float.class, aliases);
   }

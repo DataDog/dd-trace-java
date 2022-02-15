@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * </ul>
  */
 public class GlobalIgnoresMatcher<T extends TypeDescription>
-    extends ElementMatcher.Junction.AbstractBase<T> {
+    extends ElementMatcher.Junction.ForNonNullValues<T> {
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> globalIgnoresMatcher(
       final boolean skipAdditionalLibraryMatcher) {
@@ -52,7 +52,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
    * @see DDRediscoveryStrategy#shouldRetransformBootstrapClass(String)
    */
   @Override
-  public boolean matches(final T target) {
+  protected boolean doMatch(final T target) {
     final String name = target.getActualName();
     switch (name.charAt(0) - 'a') {
         // starting at zero to get a tableswitch from javac, though it looks horrendous
@@ -208,6 +208,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       if (name.contains("$JaxbAccessor")
           || name.contains("CGLIB$$")
           || name.contains("$__sisu")
+          || name.contains("$$EnhancerByGuice$$")
           || name.contains("$$EnhancerByProxool$$")
           || name.startsWith("org.springframework.core.$Proxy")) {
         return true;

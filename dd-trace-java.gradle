@@ -1,7 +1,8 @@
 buildscript {
   configurations.classpath {
     resolutionStrategy {
-      force 'org.eclipse.jgit:org.eclipse.jgit:5.7.0.202003110725-r'
+      // both axion-release and spotless use jgit, use the axion-release version
+      force 'org.eclipse.jgit:org.eclipse.jgit:5.12.0.202106070339-r'
     }
   }
 }
@@ -9,17 +10,18 @@ buildscript {
 plugins {
   id 'com.github.ben-manes.versions' version '0.27.0'
 
-  id "com.diffplug.spotless" version "5.12.5"
+  id "com.diffplug.spotless" version "5.17.1"
   id 'com.github.spotbugs' version '4.6.0'
   id 'com.dorongold.task-tree' version '2.1.0'
-  id "de.thetaphi.forbiddenapis" version "3.1"
+  id "de.thetaphi.forbiddenapis" version "3.2"
 
-  id 'org.unbroken-dome.test-sets' version '3.0.1'
-  id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+  id 'org.unbroken-dome.test-sets' version '4.0.0'
+  id 'pl.allegro.tech.build.axion-release' version '1.13.6'
   id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
 
-  id "com.github.johnrengelman.shadow" version "5.2.0" apply false
+  id "com.github.johnrengelman.shadow" version "7.1.2" apply false
   id "me.champeau.jmh" version "0.6.5" apply false
+  id 'org.gradle.playframework' version '0.12' apply false
 }
 
 description = 'dd-trace-java'

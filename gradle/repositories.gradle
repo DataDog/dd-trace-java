@@ -10,9 +10,14 @@ repositories {
       snapshotsOnly()
     }
   }
+  // add sonatype repository for snapshot dependencies
   maven {
-    // M2 package repository for the custom Datadog build of async-profiler
-    url 'https://raw.githubusercontent.com/DataDog/async-profiler/maven2'
-    name "GitHub - DD AsyncProfiler"
+    content {
+      includeGroup "com.datadoghq"
+    }
+    mavenContent {
+      snapshotsOnly()
+    }
+    url 'https://oss.sonatype.org/content/repositories/snapshots/'
   }
 }

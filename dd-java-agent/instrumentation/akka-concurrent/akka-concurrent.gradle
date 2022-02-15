@@ -31,7 +31,7 @@ tasks.named("compileAkka23TestGroovy").configure {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
-// Run the akk23Test against the normal and latestDep akka version as well
+// Run the akka23Test against the normal and latestDep akka version as well
 sourceSets {
   test {
     scala {
@@ -65,12 +65,12 @@ dependencies {
 
   latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
   latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
-}
 
-[configurations.akka23TestCompile, configurations.akka23TestRuntime].each {
-  it.resolutionStrategy {
-    force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: "2.3.16"
-    force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: "2.3.16"
+  akka23TestImplementation("com.typesafe.akka:akka-actor_$scalaVersion:2.3.16") {
+    force = true
+  }
+  akka23TestImplementation("com.typesafe.akka:akka-testkit_$scalaVersion:2.3.16") {
+    force = true
   }
 }
 

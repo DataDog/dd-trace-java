@@ -32,7 +32,9 @@ dependencies {
   testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
 
   // These two version sets are compatible together:
-  testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:2.3.5.RELEASE')
+  testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:2.3.5.RELEASE') {
+    exclude group: 'net.bytebuddy', module: 'byte-buddy' // we don't want this shared dependency pinned
+  }
   testImplementation enforcedPlatform('org.springframework.cloud:spring-cloud-netflix-dependencies:2.2.6.RELEASE')
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test'

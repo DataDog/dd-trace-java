@@ -1,0 +1,16 @@
+muzzle {
+  pass {
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    versions = '[7.0,9.2)'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'
+}
+
+// testing happens in the jetty-* modules

@@ -12,7 +12,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * Moreover, no classes matched by this matcher should be modified during test run.
  */
 public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
-    extends ElementMatcher.Junction.AbstractBase<T> {
+    extends ElementMatcher.Junction.ForNonNullValues<T> {
 
   public static <T extends TypeDescription> Junction<T> additionalLibraryIgnoresMatcher() {
     return new AdditionalLibraryIgnoresMatcher<>();
@@ -24,7 +24,7 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
    * don't have to load additional info.
    */
   @Override
-  public boolean matches(final T target) {
+  protected boolean doMatch(final T target) {
     final String name = target.getActualName();
 
     if (name.startsWith("com.beust.jcommander.")
@@ -149,6 +149,9 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       if (name.startsWith("org.springframework.http.")) {
         // There are some Mono implementation that get instrumented
         if (name.startsWith("org.springframework.http.server.reactive.")) {
+          return false;
+        }
+        if (name.endsWith("HttpMessageConverter")) {
           return false;
         }
         return true;

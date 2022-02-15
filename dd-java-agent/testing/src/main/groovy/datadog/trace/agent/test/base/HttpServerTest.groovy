@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -82,9 +84,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.requestClientSocketAddress(), callbacks.requestClientSocketAddressCb)
     ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
+    ig.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
     ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
+    ig.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
   }
 
   @Shared
@@ -235,6 +239,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyUrlencoded() {
+    false
+  }
+
+  boolean testBodyJson() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -249,6 +261,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
     CREATED_IS("created_input_stream", 201, "created"),
+    BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
+    BODY_JSON("body-json", 200, '{"a":"x"}'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -268,6 +282,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     //    FRAGMENT_PARAM("fragment#some-fragment", 200, "some-fragment"),
     //    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
     PATH_PARAM("path/123/param", 200, "123"),
+    MATRIX_PARAM("matrix/a=x,y;a=z", 200, '[a:[x, y, z]]'),
     AUTH_REQUIRED("authRequired", 200, null),
     LOGIN("login", 302, null),
     UNKNOWN("", 451, null), // This needs to have a valid status code
@@ -895,6 +910,48 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test instrumentation gateway urlencoded request body'() {
+    setup:
+    assumeTrue(testBodyUrlencoded())
+    def request = request(
+      BODY_URLENCODED, 'POST',
+      RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == '[a:[x]]'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
+  def 'test instrumentation gateway json request body'() {
+    setup:
+    assumeTrue(testBodyJson())
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == BODY_JSON.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -989,6 +1046,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
@@ -996,6 +1054,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_RESPONSE_HEADER = "x-ig-response-header"
   static final String IG_RESPONSE_HEADER_VALUE = "ig-response-header-value"
   static final String IG_RESPONSE_HEADER_TAG = "ig-response-header"
+  static final String IG_PATH_PARAMS_TAG = "ig-path-params"
 
   class IGCallbacks {
     static class Context {
@@ -1036,6 +1095,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       def context = rqCtxt.data
       if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
         context.matchingHeaderValue = stringOrEmpty(context.matchingHeaderValue) + value
+      }
+      if (IG_EXTRA_SPAN_NAME_HEADER.equalsIgnoreCase(key)) {
+        context.extraSpanName = value
       }
     } as TriConsumer<RequestContext<Context>, String, String>
 
@@ -1090,6 +1152,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
 
+    final BiFunction<RequestContext<Context>, Object, Flow<Void>> requestBodyObjectCb =
+    ({ RequestContext<Context> rqCtxt, Object obj ->
+      if (obj instanceof Map) {
+        obj = obj.collectEntries {
+          [
+            it.key,
+            (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
+          ]}
+      }
+      rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Object, Flow<Void>>)
+
     final BiFunction<RequestContext<Context>, Integer, Flow<Void>> responseStartedCb =
     ({ RequestContext<Context> rqCtxt, Integer resultCode ->
       def context = rqCtxt.data
@@ -1113,5 +1188,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       Flow.ResultFlow.empty()
     } as Function<RequestContext<Context>, Flow<Void>>)
+
+    final BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>> requestParamsCb =
+    { RequestContext<Context> rqCtxt, Map<String, Object> map ->
+      if (map && !map.empty) {
+        def context = rqCtxt.data
+        context.tags.put(IG_PATH_PARAMS_TAG, map)
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>>
   }
 }

@@ -22,7 +22,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test assertInstrumentationMuzzled advice"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
+      ElementMatcher, ReferenceMatcher, IReferenceMatcher, Reference, ReferenceCreator)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
@@ -48,7 +48,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "verify advice match failure"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
+      ElementMatcher, ReferenceMatcher, IReferenceMatcher, Reference, ReferenceCreator)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
@@ -71,7 +71,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test assertInstrumentationMuzzled helpers"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default, BaseInst,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst)
+      ElementMatcher, ReferenceMatcher, IReferenceMatcher, Reference, ReferenceCreator, inst)
     helpers.each { instrumentationLoader.addClass(it) }
     def userClassLoader = new AddableClassLoader()
 
@@ -92,7 +92,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test nested helpers failure"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default, BaseInst,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst)
+      ElementMatcher, ReferenceMatcher, IReferenceMatcher, Reference, ReferenceCreator, inst)
     helpers.each { instrumentationLoader.addClass(it) }
     def userClassLoader = new AddableClassLoader()
 

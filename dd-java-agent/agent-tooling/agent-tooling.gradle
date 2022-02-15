@@ -6,7 +6,11 @@ excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 configurations {
   // classpath used by the instrumentation muzzle plugin
-  instrumentationMuzzle.extendsFrom implementation
+  instrumentationMuzzle {
+    canBeConsumed = true
+    canBeResolved = false
+    extendsFrom implementation
+  }
 }
 
 dependencies {
@@ -43,7 +47,7 @@ compileMain_java11Java.doFirst {
 dependencies {
   main_java11CompileOnly deps.bytebuddy
   main_java11CompileOnly sourceSets.main.output
-  runtime sourceSets.main_java11.output
+  runtimeOnly sourceSets.main_java11.output
 }
 jar {
   from sourceSets.main_java11.output

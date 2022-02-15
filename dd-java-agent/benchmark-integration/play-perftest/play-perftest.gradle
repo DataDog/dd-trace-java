@@ -1,29 +1,33 @@
 plugins {
-  id 'play'
-  // id 'idea'
+  id 'org.gradle.playframework'
 }
 
-def playVersion = "2.6.20"
-def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.12")
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
 
-model {
-  components {
-    play {
-      platform play: playVersion, scala: scalaVersion, java: '1.8'
-      injectedRoutesGenerator = true
-    }
+def playVer = "2.6.20"
+def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.12")
+
+play {
+  platform {
+    playVersion = playVer
+    scalaVersion = scalaVer
+    javaVersion = JavaVersion.VERSION_1_8
   }
+  injectedRoutesGenerator = true
 }
 
 dependencies {
-  play "com.typesafe.play:play-guice_$scalaVersion:$playVersion"
-  play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
-  play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
+  implementation "com.typesafe.play:play-guice_$scalaVer:$playVer"
+  implementation "com.typesafe.play:play-logback_$scalaVer:$playVer"
+  implementation "com.typesafe.play:filters-helpers_$scalaVer:$playVer"
 
-  play project(':dd-trace-api')
-  play project(':dd-java-agent:benchmark-integration')
-  play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
-  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  implementation project(':dd-trace-api')
+  implementation project(':dd-java-agent:benchmark-integration')
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 }
 
 repositories {
@@ -37,5 +41,14 @@ repositories {
     name "lightbend-ivy-release"
     url "https://repo.lightbend.com/lightbend/ivy-releases"
     layout "ivy"
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+  scala {
+    target "**/*.scala"
   }
 }

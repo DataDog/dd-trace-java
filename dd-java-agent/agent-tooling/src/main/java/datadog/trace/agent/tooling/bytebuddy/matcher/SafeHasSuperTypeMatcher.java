@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * @see net.bytebuddy.matcher.HasSuperTypeMatcher
  */
 class SafeHasSuperTypeMatcher<T extends TypeDescription>
-    extends ElementMatcher.Junction.AbstractBase<T> {
+    extends ElementMatcher.Junction.ForNonNullValues<T> {
 
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
 
@@ -58,7 +58,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   }
 
   @Override
-  public boolean matches(final T target) {
+  protected boolean doMatch(final T target) {
     boolean isInterface = target.isInterface();
     if (rejectInterfaceTargets && isInterface) {
       return false;

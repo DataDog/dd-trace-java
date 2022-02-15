@@ -2,20 +2,29 @@ package test.boot
 
 import datadog.trace.agent.test.base.HttpServerTest
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
+import org.springframework.util.MultiValueMap
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.MatrixVariable
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.servlet.view.RedirectView
 
 import javax.servlet.http.HttpServletRequest
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
@@ -72,6 +81,33 @@ class TestController {
   String path_param(@PathVariable Integer id) {
     HttpServerTest.controller(PATH_PARAM) {
       "$id"
+    }
+  }
+
+  @RequestMapping("/matrix/{var}")
+  @ResponseBody
+  String matrix_param(@MatrixVariable(pathVar = 'var') MultiValueMap<String, String> v) {
+    HttpServerTest.controller(MATRIX_PARAM) {
+      v as String
+    }
+  }
+
+  @RequestMapping(value = "/body-urlencoded",
+  method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+  @ResponseBody
+  String body_urlencoded(@RequestParam MultiValueMap<String, String> body) {
+    HttpServerTest.controller(BODY_URLENCODED) {
+      body.findAll { it.key != 'ignore' } as String
+    }
+  }
+
+  @PostMapping(value = "/body-json",
+  consumes = MediaType.APPLICATION_JSON_VALUE,
+  produces = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseBody
+  Map<String, Object> body_json(@RequestBody Map<String, Object> body) {
+    HttpServerTest.controller(BODY_JSON) {
+      body
     }
   }
 

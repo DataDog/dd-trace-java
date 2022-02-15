@@ -14,6 +14,8 @@ minimumInstructionCoverage = 0.5
 
 excludedClassesCoverage += [
   // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTScopeManager.OTScope",
+  "datadog.opentracing.OTSpan",
   "datadog.opentracing.OTSpanContext",
   // The builder is generated
   "datadog.opentracing.DDTracer.DDTracerBuilder"
@@ -30,43 +32,39 @@ dependencies {
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
-  compile project(':dd-trace-api')
-  compile project(':dd-trace-core')
+  api project(':dd-trace-api')
+  api project(':dd-trace-core')
 
   // OpenTracing
-  compile group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
-  compile group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
-  compile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-  compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
+  api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  api group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  api group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
-  compile deps.slf4j
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
-  compile deps.okio
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
+  api deps.slf4j
+  api group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
+  api deps.okio
 
   testImplementation project(":dd-java-agent:testing")
 
-  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
-  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
-  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
-
-  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
-  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
-  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
-}
-
-[configurations.ot31CompatabilityTestCompile, configurations.ot31CompatabilityTestRuntime].each {
-  it.resolutionStrategy {
-    force group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
-    force group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
-    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-api:0.31.0') {
+    force = true
   }
-}
-[configurations.ot33CompatabilityTestCompile, configurations.ot33CompatabilityTestRuntime].each {
-  it.resolutionStrategy {
-    force group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
-    force group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
-    force group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-util:0.31.0')  {
+    force = true
+  }
+  ot31CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.31.0')  {
+    force = true
+  }
+
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-api:0.33.0') {
+    force = true
+  }
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-util:0.33.0')  {
+    force = true
+  }
+  ot33CompatabilityTestImplementation('io.opentracing:opentracing-noop:0.33.0')  {
+    force = true
   }
 }
 

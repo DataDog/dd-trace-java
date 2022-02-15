@@ -71,7 +71,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
   @Override
   void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
     if (throwable instanceof IllegalStateException
-    && throwable.message.startsWith("Illegal access: this web application instance has been stopped already. Could not load")) {
+      && throwable.message.startsWith("Illegal access: this web application instance has been stopped already. Could not load")) {
       println "Ignoring class load error at shutdown"
     } else {
       super.onError(typeName, classLoader, module, loaded, throwable)

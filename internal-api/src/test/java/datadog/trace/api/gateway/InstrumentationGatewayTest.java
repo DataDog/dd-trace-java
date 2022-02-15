@@ -132,6 +132,8 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestMethodUriRaw(), callback);
     assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(flow);
+    gateway.registerCallback(events.requestPathParams(), callback);
+    assertThat(gateway.getCallback(events.requestPathParams()).apply(null, null)).isEqualTo(flow);
     gateway.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
     assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(flow);
@@ -139,6 +141,9 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
     gateway.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.requestBodyProcessed(), callback);
+    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), callback);
     gateway.getCallback(events.responseStarted()).apply(null, null);
@@ -167,6 +172,9 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestMethodUriRaw(), throwback);
     assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
+    gateway.registerCallback(events.requestPathParams(), throwback);
+    assertThat(gateway.getCallback(events.requestPathParams()).apply(null, null))
+        .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(
         events.requestClientSocketAddress(), throwback.asClientSocketAddress());
     assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
@@ -175,6 +183,9 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
     gateway.registerCallback(events.requestBodyDone(), throwback.asRequestBodyDone());
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.requestBodyProcessed(), throwback);
+    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), throwback);
     gateway.getCallback(events.responseStarted()).apply(null, null);

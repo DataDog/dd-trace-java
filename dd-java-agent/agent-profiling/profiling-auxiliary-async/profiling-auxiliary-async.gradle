@@ -22,13 +22,10 @@ excludedClassesCoverage += [
   'com.datadog.profiling.auxiliary.async.AsyncProfilerConfigEvent'
 ]
 
-def AP_VERSION = project.findProperty("dd.async_profiler")
-AP_VERSION = AP_VERSION != null ? "${AP_VERSION}" : "${versions.asyncprofiler}"
-
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation group: "tools.profiler", name: "async-profiler", version: AP_VERSION, changing: AP_VERSION.toLowerCase().contains("snapshot")
+  implementation project.hasProperty('ap.tools.jar') ? files(project.getProperty('ap.tools.jar')) : deps.asyncprofiler
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
@@ -51,7 +48,8 @@ shadowJar {
     rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
     // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
     rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64") || it.path.startsWith("native-libs/linux-musl-x64")
-    rslt |= (it.path.contains("async-profiler") && it.path.endsWith(".jar"))
+    rslt |= (it.path.contains("ap-tools") && it.path.endsWith(".jar"))
+    println ">>> ${it.path}: ${rslt}"
     return rslt
   }
 }
