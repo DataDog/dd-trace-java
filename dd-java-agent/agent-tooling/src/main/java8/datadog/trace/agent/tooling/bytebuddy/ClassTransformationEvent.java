@@ -9,6 +9,9 @@ import jdk.jfr.Name;
 @Name("datadog.trace.agent.ClassTransformation")
 @Label("Class Transformation")
 public class ClassTransformationEvent extends Event {
+
+  private static boolean ENABLED = false;
+
   @Label("Class Name")
   final String className;
 
@@ -24,11 +27,25 @@ public class ClassTransformationEvent extends Event {
   @Label("Transformed")
   boolean transformed;
 
+  private static ClassTransformationEvent NOOP =
+      new ClassTransformationEvent() {
+        @Override
+        public void afterClassTransformation(byte[] classfileBuffer) {}
+      };
+
   public static ClassTransformationEvent beforeClassTransformation(
       String className, byte[] classfileBuffer) {
-    ClassTransformationEvent event = new ClassTransformationEvent(className, classfileBuffer);
-    event.begin();
-    return event;
+    if (ENABLED) {
+      ClassTransformationEvent event = new ClassTransformationEvent(className, classfileBuffer);
+      event.begin();
+      return event;
+    }
+    return NOOP;
+  }
+
+  private ClassTransformationEvent() {
+    className = null;
+    classSizeBeforeTransformation = 0;
   }
 
   private ClassTransformationEvent(String className, byte[] classfileBuffer) {
