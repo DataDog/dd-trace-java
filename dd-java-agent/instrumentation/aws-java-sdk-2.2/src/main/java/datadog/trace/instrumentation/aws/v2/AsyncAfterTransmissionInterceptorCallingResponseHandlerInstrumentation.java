@@ -7,19 +7,16 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.core.http.ExecutionContext;
 
 /** AWS SDK v2 instrumentation */
 @AutoService(Instrumenter.class)
 public final class AsyncAfterTransmissionInterceptorCallingResponseHandlerInstrumentation
-    extends AbstractAwsClientInstrumentation {
+    extends AbstractAwsClientInstrumentation implements Instrumenter.ForSingleType {
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named(
-        "software.amazon.awssdk.core.internal.http.async.AsyncAfterTransmissionInterceptorCallingResponseHandler");
+  public String instrumentedType() {
+    return "software.amazon.awssdk.core.internal.http.async.AsyncAfterTransmissionInterceptorCallingResponseHandler";
   }
 
   @Override

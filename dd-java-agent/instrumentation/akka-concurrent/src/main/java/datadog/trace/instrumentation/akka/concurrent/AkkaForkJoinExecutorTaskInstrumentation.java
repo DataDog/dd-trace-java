@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
@@ -26,7 +25,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * error handling.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.Tracing {
+public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
@@ -45,8 +45,8 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask");
+  public String instrumentedType() {
+    return "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask";
   }
 
   @Override

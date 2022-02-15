@@ -21,7 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.osgi.framework.BundleReference;
 
 @AutoService(Instrumenter.class)
-public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
+public final class BundleReferenceInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public BundleReferenceInstrumentation() {
     super("classloading", "osgi");
   }
@@ -32,7 +33,7 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("java.lang.ClassLoader"))
         .and(implementsInterface(named("org.osgi.framework.BundleReference")));
   }

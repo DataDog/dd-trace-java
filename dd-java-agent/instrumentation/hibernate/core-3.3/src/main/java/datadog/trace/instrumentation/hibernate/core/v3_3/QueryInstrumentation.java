@@ -33,17 +33,18 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.Query"));
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.hibernate.impl.AbstractQueryImpl",
+      "org.hibernate.impl.CollectionFilterImpl",
+      "org.hibernate.impl.QueryImpl",
+      "org.hibernate.impl.SQLQueryImpl"
+    };
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.hibernate.impl.AbstractQueryImpl",
-        "org.hibernate.impl.CollectionFilterImpl",
-        "org.hibernate.impl.QueryImpl",
-        "org.hibernate.impl.SQLQueryImpl");
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named("org.hibernate.Query"));
   }
 
   @Override

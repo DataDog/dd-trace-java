@@ -19,22 +19,21 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.context.ApplicationContext;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(Instrumenter.class)
-public final class DispatcherServletInstrumentation extends Instrumenter.Tracing {
+public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public DispatcherServletInstrumentation() {
     super("spring-web");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.springframework.web.servlet.DispatcherServlet");
+  public String instrumentedType() {
+    return "org.springframework.web.servlet.DispatcherServlet";
   }
 
   @Override

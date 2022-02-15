@@ -25,7 +25,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec {
+public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForTypeHierarchy {
 
   public HttpMessageConverterInstrumentation() {
     super("spring-web");
@@ -39,7 +40,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.springframework.http.converter.HttpMessageConverter"));
   }
 

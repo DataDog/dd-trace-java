@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.opentracing31;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -11,7 +10,6 @@ import datadog.trace.agent.tooling.muzzle.ReferenceCreator;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentracing.util.GlobalTracer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
@@ -20,7 +18,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * prefix.
  */
 @AutoService(Instrumenter.class)
-public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
+public class GlobalTracerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public GlobalTracerInstrumentation() {
     super("opentracing", "opentracing-globaltracer");
   }
@@ -31,8 +30,8 @@ public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.opentracing.util.GlobalTracer");
+  public String instrumentedType() {
+    return "io.opentracing.util.GlobalTracer";
   }
 
   @Override

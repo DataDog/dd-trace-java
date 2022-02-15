@@ -5,11 +5,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ReactorHooksInstrumentation extends Instrumenter.Tracing {
+public final class ReactorHooksInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ReactorHooksInstrumentation() {
     super("reactor-hooks");
@@ -21,8 +20,8 @@ public final class ReactorHooksInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("reactor.core.publisher.Hooks");
+  public String instrumentedType() {
+    return "reactor.core.publisher.Hooks";
   }
 
   @Override

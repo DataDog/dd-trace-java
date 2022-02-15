@@ -20,7 +20,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Tracing {
+public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public JaxRsAsyncResponseInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-annotations");
@@ -42,7 +43,7 @@ public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.ws.rs.container.AsyncResponse"));
   }
 

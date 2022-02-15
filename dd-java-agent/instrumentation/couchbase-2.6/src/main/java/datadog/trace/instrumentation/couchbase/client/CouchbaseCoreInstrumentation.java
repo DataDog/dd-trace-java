@@ -16,11 +16,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing {
+public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public CouchbaseCoreInstrumentation() {
     super("couchbase");
@@ -32,8 +32,8 @@ public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.couchbase.client.core.CouchbaseCore");
+  public String instrumentedType() {
+    return "com.couchbase.client.core.CouchbaseCore";
   }
 
   @Override

@@ -26,7 +26,8 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 @AutoService(Instrumenter.class)
-public final class RediscalaInstrumentation extends Instrumenter.Tracing {
+public final class RediscalaInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RediscalaInstrumentation() {
     super("rediscala", "redis");
@@ -38,7 +39,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.nameStartsWith("redis.")
         .and(
             safeHasSuperType(

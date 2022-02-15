@@ -195,7 +195,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
   }
 
   // Not Using AutoService to hook up this instrumentation
-  public static class TracerClassInstrumentation extends Tracing {
+  public static class TracerClassInstrumentation extends Tracing implements ForTypeHierarchy {
     private final String className;
     private final Set<String> methodNames;
 
@@ -217,7 +217,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
     }
 
     @Override
-    public ElementMatcher<TypeDescription> typeMatcher() {
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
       return safeHasSuperType(named(className));
     }
 

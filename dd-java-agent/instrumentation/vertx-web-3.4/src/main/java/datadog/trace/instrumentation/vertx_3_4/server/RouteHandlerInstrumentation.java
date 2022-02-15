@@ -7,11 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RouteHandlerInstrumentation extends Instrumenter.Tracing {
+public class RouteHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public RouteHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
   }
@@ -27,8 +26,8 @@ public class RouteHandlerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.ext.web.impl.RouteImpl");
+  public String instrumentedType() {
+    return "io.vertx.ext.web.impl.RouteImpl";
   }
 
   @Override

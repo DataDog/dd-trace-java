@@ -28,11 +28,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
+public class ClientInvocationInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ClientInvocationInstrumentation() {
     super(INSTRUMENTATION_NAME);
@@ -53,8 +52,8 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.hazelcast.client.spi.impl.ClientInvocation");
+  public String instrumentedType() {
+    return "com.hazelcast.client.spi.impl.ClientInvocation";
   }
 
   @Override

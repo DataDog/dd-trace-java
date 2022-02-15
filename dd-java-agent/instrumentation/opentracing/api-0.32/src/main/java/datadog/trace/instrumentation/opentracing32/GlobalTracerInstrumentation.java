@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.opentracing32;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
@@ -9,8 +8,6 @@ import datadog.trace.agent.tooling.muzzle.ReferenceCreator;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentracing.util.GlobalTracer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * OT interface is reimplemented here rather than using dd-trace-ot as a dependency to allow muzzle
@@ -18,14 +15,15 @@ import net.bytebuddy.matcher.ElementMatcher;
  * prefix.
  */
 @AutoService(Instrumenter.class)
-public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
+public class GlobalTracerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public GlobalTracerInstrumentation() {
     super("opentracing", "opentracing-globaltracer");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.opentracing.util.GlobalTracer");
+  public String instrumentedType() {
+    return "io.opentracing.util.GlobalTracer";
   }
 
   @Override

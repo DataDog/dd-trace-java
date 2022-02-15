@@ -9,21 +9,20 @@ import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CassandraClientInstrumentation extends Instrumenter.Tracing {
+public class CassandraClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public CassandraClientInstrumentation() {
     super("cassandra");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public String instrumentedType() {
     // Note: Cassandra has a large driver and we instrument single class in it.
     // The rest is ignored in AdditionalLibraryIgnoresMatcher
-    return named("com.datastax.driver.core.Cluster$Manager");
+    return "com.datastax.driver.core.Cluster$Manager";
   }
 
   @Override

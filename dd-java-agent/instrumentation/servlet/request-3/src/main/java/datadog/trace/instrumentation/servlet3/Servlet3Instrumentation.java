@@ -13,7 +13,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet3Instrumentation extends Instrumenter.Tracing {
+public final class Servlet3Instrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public Servlet3Instrumentation() {
     super("servlet", "servlet-3");
   }
@@ -28,7 +29,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(
         namedOneOf("javax.servlet.FilterChain", "javax.servlet.http.HttpServlet"));
   }

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
@@ -16,19 +15,18 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
+public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AkkaForkJoinPoolInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("akka.dispatch.forkjoin.ForkJoinPool");
+  public String instrumentedType() {
+    return "akka.dispatch.forkjoin.ForkJoinPool";
   }
 
   @Override

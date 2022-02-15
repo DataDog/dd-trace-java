@@ -20,7 +20,7 @@ class ApacheHttpClientResponseHandlerTest extends HttpClientTest {
   def client = HttpClients.custom()
   .setConnectionManager(new BasicHttpClientConnectionManager())
   .setDefaultRequestConfig(RequestConfig.custom()
-  .setConnectionRequestTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+  .setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
   .build()).build()
 
   @Shared

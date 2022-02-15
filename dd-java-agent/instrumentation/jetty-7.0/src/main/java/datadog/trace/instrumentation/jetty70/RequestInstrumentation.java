@@ -13,21 +13,20 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
-public final class RequestInstrumentation extends Instrumenter.Tracing {
+public final class RequestInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public RequestInstrumentation() {
     super("jetty");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.server.Request");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.server.Request";
   }
 
   @Override
