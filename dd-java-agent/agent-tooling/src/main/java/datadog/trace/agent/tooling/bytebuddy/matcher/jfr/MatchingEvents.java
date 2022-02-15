@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 public class MatchingEvents {
 
+  private static boolean ENABLED = false;
+
   public static MatchingEvents get() {
     return INSTANCE;
   }
@@ -24,7 +26,8 @@ public class MatchingEvents {
   }
 
   private static final Logger log = LoggerFactory.getLogger(MatchingEvents.class);
-  private static final MatchingEvents INSTANCE = loadMatchingJfrEvents();
+  private static final MatchingEvents INSTANCE =
+      ENABLED ? loadMatchingJfrEvents() : new MatchingEvents();
 
   private static MatchingEvents loadMatchingJfrEvents() {
     // check JFR support
