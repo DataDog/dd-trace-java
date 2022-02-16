@@ -10,12 +10,13 @@ class LongSequenceTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new LongSequence();
+    instance = new LongSequence(new Allocator(205000 * 8, 256));
   }
 
   @Test
   void test() {
-    for (int i = 0; i < 100000; i++) {
+    int items = 200000;
+    for (int i = 0; i < items; i++) {
       try {
         instance.add(i);
       } catch (Throwable t) {
@@ -23,6 +24,7 @@ class LongSequenceTest {
         throw t;
       }
     }
+    assertEquals(items, instance.size());
     LongIterator iterator = instance.iterator();
     long value = 0;
     while (iterator.hasNext()) {

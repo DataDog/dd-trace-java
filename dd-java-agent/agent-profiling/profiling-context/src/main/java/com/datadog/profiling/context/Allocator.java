@@ -1,12 +1,21 @@
 package com.datadog.profiling.context;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class Allocator {
-  public static final class Chunk {
+  private static final Logger log = LoggerFactory.getLogger(Allocator.class);
+
+  static final class Chunk {
     private final Allocator allocator;
-    private final ByteBuffer buffer;
+    final ByteBuffer buffer;
     private final int ref;
+    private int len = 1;
 
     Chunk(Allocator allocator, ByteBuffer buffer, int ref) {
       this.allocator = allocator;
@@ -14,23 +23,25 @@ public final class Allocator {
       this.ref = ref;
     }
 
-    public ByteBuffer getBuffer() {
-      return buffer;
+    void extend() {
+      len++;
+      buffer.limit(buffer.limit() + allocator.chunkSize);
     }
 
     void release() {
-      allocator.release(ref);
+      allocator.release(ref, len);
     }
   }
 
-  public static final class Block {
+  public static final class ChunkBuffer {
     private final Chunk[] chunks;
-    Block(Chunk ... chunks) {
-      this.chunks = chunks;
-    }
+    private final int capacity;
+    private int chunkWriteIndex = 0;
+    private int valueWriteIndex = 0;
 
-    public Chunk[] getChunks() {
-      return chunks;
+    ChunkBuffer(int bufferSize, Chunk ... chunks) {
+      this.chunks = chunks;
+      this.capacity = bufferSize;
     }
 
     public void release() {
@@ -38,83 +49,233 @@ public final class Allocator {
         chunk.release();
       }
     }
+
+    public int capacity() {
+      return capacity;
+    }
+
+    public boolean putLong(long value) {
+      if (valueWriteIndex == chunks[chunkWriteIndex].buffer.limit()) {
+        valueWriteIndex = 0;
+        if (++chunkWriteIndex == chunks.length) {
+          return false;
+        }
+      }
+      chunks[chunkWriteIndex].buffer.putLong(value);
+      valueWriteIndex += 8;
+      return true;
+    }
+
+    public LongIterator iterator() {
+      return new LongIterator() {
+        int valueReadIndex = 0;
+        int chunkReadIndex = -1;
+        ByteBuffer currentBuffer = null;
+        @Override
+        public boolean hasNext() {
+          while (chunkWriteIndex >= 0 && valueReadIndex < valueWriteIndex && chunkReadIndex <= chunkWriteIndex) {
+            if (chunkReadIndex < 0) {
+              chunkReadIndex = 0;
+              currentBuffer = (ByteBuffer) chunks[chunkReadIndex].buffer.duplicate().flip();
+            }
+            if (valueReadIndex >= currentBuffer.limit()) {
+              chunkReadIndex++;
+              if (chunkReadIndex <= chunkWriteIndex) {
+                valueReadIndex = 0;
+                currentBuffer = (ByteBuffer) chunks[chunkReadIndex].buffer.duplicate().flip();
+              }
+            } else {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        @Override
+        public long next() {
+          try {
+            long value = currentBuffer.getLong();
+            valueReadIndex += 8;
+            return value;
+          } catch (Throwable t) {
+            System.out.println("===> " + valueReadIndex);
+            throw t;
+          }
+        }
+      };
+    }
+  }
+
+  private static final class AllocationResult {
+    static final AllocationResult EMPTY = new AllocationResult(0, 0);
+
+    final int allocatedChunks;
+    final int usedChunks;
+
+    AllocationResult(int allocatedChunks, int usedChunks) {
+      this.allocatedChunks = allocatedChunks;
+      this.usedChunks = usedChunks;
+    }
   }
 
   private final ByteBuffer pool;
   private final ByteBuffer memorymap;
   private final int chunkSize;
   private final int numChunks;
+  private final ReentrantLock[] memoryMapLocks;
+  private int lockSectionSize;
+
+  private final AtomicLong allocatedBytes = new AtomicLong(0);
 
   public Allocator(int capacity, int chunkSize) {
-    this.chunkSize = chunkSize;
-    this.numChunks = (capacity / chunkSize) + 1;
+    int cpus = Runtime.getRuntime().availableProcessors();
+
+    int targetNumChunks = (int)Math.ceil(capacity / (double)chunkSize);
+    this.lockSectionSize = (int)Math.ceil((targetNumChunks / (double)(cpus * 8))) * 8;
+    this.numChunks = (int)(Math.ceil(targetNumChunks / (double)lockSectionSize) * lockSectionSize);
+    chunkSize = (int)Math.ceil(((double)capacity / (numChunks * chunkSize)) * chunkSize);
+    chunkSize = (int)Math.ceil(((chunkSize / 8d) * 8));
     int alignedCapacity = numChunks * chunkSize;
+    this.chunkSize = chunkSize;
     this.pool = ByteBuffer.allocateDirect(alignedCapacity);
-    this.memorymap = ByteBuffer.allocateDirect((numChunks / 8) + 1);
+    this.memorymap = ByteBuffer.allocateDirect((int)Math.ceil(numChunks / 8d));
+
+    this.memoryMapLocks = new ReentrantLock[numChunks / lockSectionSize];
+    for (int i = 0; i < memoryMapLocks.length; i++) {
+      memoryMapLocks[i] = new ReentrantLock();
+    }
   }
 
-  public synchronized Block allocate(int chunks) {
-    if (chunks > numChunks) {
+  public int getChunkSize() {
+    return chunkSize;
+  }
+
+  public ChunkBuffer allocate(int bytes) {
+    return allocateChunks((int) Math.ceil(bytes / (double) chunkSize));
+  }
+
+  public ChunkBuffer allocateChunks(int chunks) {
+    chunks = Math.min(chunks, numChunks);
+
+    int lockSection = 0;
+    int offset = 0;
+    int allocated = 0;
+    Chunk[] chunkArray = new Chunk[chunks];
+    int bitmapSize = lockSectionSize / 8;
+    byte[] buffer = new byte[bitmapSize];
+    ReentrantLock sectionLock;
+    long ts = System.nanoTime();
+
+    while (allocated < chunks && (System.nanoTime() - ts) < 5_000_000L) {
+      for (lockSection = 0; lockSection < memoryMapLocks.length; lockSection++) {
+        sectionLock = null;
+        try {
+          if (memoryMapLocks[lockSection].tryLock()) {
+            sectionLock = memoryMapLocks[lockSection];
+
+            int memorymapOffset = lockSection * bitmapSize;
+            for (int pos = 0; pos < bitmapSize; pos++) {
+              buffer[pos] = memorymap.get(memorymapOffset + pos);
+            }
+            AllocationResult rslt = allocateChunks(buffer, lockSection, chunkArray, chunks - allocated, offset);
+            offset += rslt.usedChunks;
+            allocated += rslt.allocatedChunks;
+            if (allocated == chunks) {
+              break;
+            }
+          }
+        } finally {
+          if (sectionLock != null) {
+            sectionLock.unlock();
+          }
+        }
+      }
+    }
+    log.info("Chunk allocation took {}ns", System.nanoTime() - ts);
+    if (allocated == 0) {
+      log.warn("Failed to allocate chunk");
       return null;
     }
-    memorymap.rewind();
-    byte[] buffer = new byte[512];
-    Chunk[] chunkArray = new Chunk[chunks];
-    int chunkIndex = 0;
-    int pos = 0;
-    outer:
-    while (pos < numChunks) {
-      int toRead = Math.min(memorymap.remaining(), 512);
-      memorymap.get(buffer, 0, toRead);
-      for (int i = 0; i < toRead; i++) {
-        int slot = buffer[i] & 0xff;
-        if (slot == 0xff) {
+    long newVal = allocatedBytes.addAndGet(chunkSize * allocated);
+    log.info("Allocated bytes: {}", newVal);
+    return new ChunkBuffer(chunkSize * allocated, Arrays.copyOf(chunkArray, offset));
+  }
+
+  private AllocationResult allocateChunks(byte[] bitmap, int lockSection, Chunk[] chunks, int toAllocate, int offset) {
+    int allocated = 0;
+    int chunkCounter = 0;
+    int overlay = 0x00;
+    for (int index = 0; index < bitmap.length; index++) {
+      int slot = bitmap[index] & 0xff;
+      if (slot == 0xff) {
+        overlay = 0;
+        continue;
+      }
+      if ((overlay & 0x01) != 0) {
+        overlay = 0x01 << 8;
+      } else {
+        overlay = 0;
+      }
+      int mask = 0x80;
+      int bitIndex = 0;
+      while (slot != 0xff && allocated < toAllocate) {
+        if ((slot & mask) != 0) {
+          bitIndex++;
+          mask = mask >>> 1;
           continue;
         }
-        int mask = 0x80;
-        int bitIndex = 0;
-        while (slot != 0xff && chunkIndex < chunks) {
-          if ((slot & mask) != 0) {
-            bitIndex++;
-            mask = mask >>> 1;
+        int previousMask = mask;
+        int lockOffset = lockSection * (lockSectionSize / 8);
+        int slotOffset = lockOffset + index;
+        slot |= mask;
+        memorymap.put(slotOffset, (byte) (slot & 0xff));
+
+        allocated++;
+        overlay |= mask;
+        mask = mask >>> 1;
+
+        int ref = (slotOffset * 8 + bitIndex++);
+        if (chunkCounter > 0) {
+          Chunk previous = chunks[chunkCounter + offset - 1];
+          if ((overlay & (previousMask << 1)) != 0) {
+            // can create a contiguous chunk
+            previous.extend();
             continue;
           }
-          slot |= mask;
-          memorymap.put(pos + i, (byte)(slot & 0xff));
-          mask = mask >>> 1;
-          int ref = (pos + (i * 8) + bitIndex++);
-          if (ref >= numChunks) {
-            break outer;
-          }
-          pool.position(ref * chunkSize);
-          ByteBuffer sliced = pool.slice();
-          sliced.limit(chunkSize);
-          chunkArray[chunkIndex++] = new Chunk(this, sliced, ref);
         }
-        if (chunkIndex == chunks) {
-          break outer;
-        }
+        pool.position(ref * chunkSize);
+        ByteBuffer sliced = pool.slice();
+        sliced.limit(chunkSize);
+        chunks[chunkCounter++ + offset] = new Chunk(this, sliced, ref);
       }
-      pos += (toRead * 8);
     }
-    if (chunkIndex < chunks) {
-      // unable to allocate the requested size
-      // release the chunks
-      for (int i = 0; i < chunkIndex; i++) {
-        chunkArray[i].release();
-      }
-      // and return null
-      return null;
-    }
-    return new Block(chunkArray);
+    return allocated == 0 ? AllocationResult.EMPTY : new AllocationResult(allocated, chunkCounter);
   }
 
-  void release(int ref) {
-    int pos = ref / 8;
-    synchronized (this) {
-      int slot = memorymap.get(pos);
-      int mask = ~(0x80 >>> (ref % 8));
-      memorymap.put(pos, (byte)((slot & mask) & 0xff));
+  void release(int ref, int len) {
+    long delta = chunkSize * len;
+    log.info("Release: bytes={}, ref={}, len={}, delta={}", allocatedBytes.get(), ref, len, delta);
+    int offset = 0;
+    while (offset < len) {
+      int pos = (ref + offset) / 8;
+      int lockIndex = pos / lockSectionSize;
+      ReentrantLock lock = memoryMapLocks[lockIndex];
+      try {
+        lock.lock();
+        int slot = memorymap.get(pos);
+        int mask = 0;
+        int bitPos = (ref + offset) % 8;
+        int bitStop = Math.min(bitPos + len, 8);
+        for (int i = bitPos; i < bitStop; i++) {
+          mask |= (0x80 >>> i);
+        }
+        memorymap.put(pos, (byte) ((slot & ~mask) & 0xff));
+        len -= (bitStop - bitPos);
+      } finally {
+        lock.unlock();
+      }
     }
+    long newVal = allocatedBytes.addAndGet(-delta);
+    log.info("Allocated bytes [release]: {}", newVal);
   }
 }

@@ -131,9 +131,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
-      PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       contextTracker.deactivateContext(false);
-      contextTracker.persist();
+      PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
@@ -231,9 +230,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     } else if (DURATION_NANO_UPDATER.compareAndSet(
         this, durationNano, durationNano & Long.MAX_VALUE)) {
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
-      contextTracker.persist();
-      log.debug("Published span ({}): {}", publishState, this);
+      log.info("Published span ({}): {}", publishState, this);
     }
+  }
+
+  public void processContext() {
+    contextTracker.persist();
   }
 
   @Override

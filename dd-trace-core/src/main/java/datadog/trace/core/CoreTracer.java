@@ -710,6 +710,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
     }
+    for (DDSpan span: writtenTrace) {
+      span.processContext();
+    }
 
     if (!writtenTrace.isEmpty()) {
       boolean forceKeep = metricsAggregator.publish(writtenTrace);

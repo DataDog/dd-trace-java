@@ -15,11 +15,16 @@ class AllocatorTest {
 
   @Test
   void allocate() {
-    Allocator.Block block = instance.allocate(10);
-    assertNotNull(block);
-    Allocator.Block block1 = instance.allocate(5);
-    assertNull(block1);
-    block.release();
+    Allocator.ChunkBuffer chunkBuffer = instance.allocate(800);
+    assertNotNull(chunkBuffer);
+    assertTrue(chunkBuffer.capacity() >= 800);
+    Allocator.ChunkBuffer chunkBuffer1 = instance.allocate(500);
+    assertNotNull(chunkBuffer1);
+    assertTrue(chunkBuffer1.capacity() < 500);
+    Allocator.ChunkBuffer chunkBuffer2 = instance.allocate(50);
+    assertNull(chunkBuffer2);
+    chunkBuffer.release();
+    chunkBuffer1.release();
   }
 
   @Test
