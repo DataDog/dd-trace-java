@@ -2,12 +2,17 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
+import io.undertow.UndertowOptions
+import io.undertow.util.HeaderMap
 import io.undertow.util.Headers
+import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -22,6 +27,7 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
     UndertowServer() {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
+        .setServerOption(UndertowOptions.DECODE_URL, true)
         .setHandler(Handlers.path()
           .addExactPath(SUCCESS.getPath()) { exchange ->
             exchange.dispatch(
@@ -50,6 +56,7 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
               controller(QUERY_ENCODED_BOTH) {
                 new Runnable() {
                   public void run() {
+                    exchange.getResponseHeaders().put(new HttpString(HttpServerTest.IG_RESPONSE_HEADER), HttpServerTest.IG_RESPONSE_HEADER_VALUE)
                     exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
                     exchange.endExchange()
                   }
@@ -150,8 +157,18 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   }
 
   @Override
-  boolean testEncodedPath() {
-    // Don't know why Undertow is unable to match the encoded path
-    false
+  boolean hasExtraErrorInformation() {
+    true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint.throwsException) {
+      ["error.msg": "${endpoint.body}",
+        "error.type": { it == Exception.name || it == InputMismatchException.name },
+        "error.stack": String]
+    } else {
+      Collections.emptyMap()
+    }
   }
 }

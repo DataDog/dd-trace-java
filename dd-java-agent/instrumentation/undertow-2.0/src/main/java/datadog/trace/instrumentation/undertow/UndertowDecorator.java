@@ -14,10 +14,15 @@ public class UndertowDecorator
     HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
   public static final CharSequence UNDERTOW_REQUEST =
       UTF8BytesString.create("undertow-http.request");
+  // TODO CRG do we need this?
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.create("servlet.request");
   public static final CharSequence UNDERTOW_HTTP_SERVER =
       UTF8BytesString.create("undertow-http-server");
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
-  public static final AttachmentKey<AgentSpan> DD_SPAN_ATTRIBUTE =
+  public static final AttachmentKey<Boolean> DD_HTTPSERVEREXCHANGE_DISPATCH =
+      AttachmentKey.create(Boolean.class);
+  public static final AttachmentKey<AgentSpan> DD_UNDERTOW_SPAN =
       AttachmentKey.create(AgentSpan.class);
 
   @Override

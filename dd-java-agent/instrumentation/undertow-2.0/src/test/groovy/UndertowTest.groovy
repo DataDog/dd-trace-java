@@ -2,12 +2,19 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
+import io.undertow.UndertowOptions
+import io.undertow.server.HttpHandler
+import io.undertow.server.HttpServerExchange
+import io.undertow.util.PathTemplateMatch
 import io.undertow.util.Headers
+import io.undertow.util.HeaderMap
+import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
@@ -23,6 +30,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
     UndertowServer() {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
+        .setServerOption(UndertowOptions.DECODE_URL, true)
         .setHandler(Handlers.path()
           .addExactPath(SUCCESS.getPath()) { exchange ->
             controller(SUCCESS) {
@@ -36,6 +44,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
           }
           .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
             controller(QUERY_ENCODED_BOTH) {
+              exchange.getResponseHeaders().put(new HttpString(HttpServerTest.IG_RESPONSE_HEADER), HttpServerTest.IG_RESPONSE_HEADER_VALUE)
               exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
             }
           }
@@ -56,13 +65,15 @@ class UndertowTest extends HttpServerTest<Undertow> {
               exchange.endExchange()
             }
           }
-          .addExactPath(PATH_PARAM.getPath()) { exchange ->
-            controller(PATH_PARAM) {
-              exchange.setStatusCode(PATH_PARAM.status)
-              exchange.getResponseSender().send(PATH_PARAM.body)
-              exchange.endExchange()
-            }
-          }
+          // Still not sure about how to get the route properly
+          // .addPrefixPath("/", Handlers.routing()
+          //   .get("/path/{id}/param", { exchange ->
+          //     controller(PATH_PARAM) {
+          //       PathTemplateMatch pathMatch = exchange.getAttachment(PathTemplateMatch.ATTACHMENT_KEY)
+          //       String id = pathMatch.getParameters().get("id")
+          //       exchange.getResponseSender().send(id)
+          //     }
+          //   }))
           .addExactPath(ERROR.getPath()) { exchange ->
             controller(ERROR) {
               exchange.setStatusCode(ERROR.status)
@@ -93,7 +104,6 @@ class UndertowTest extends HttpServerTest<Undertow> {
     URI address() {
       return new URI("http://localhost:$port/")
     }
-
   }
 
   @Override
@@ -117,13 +127,18 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
-  boolean testEncodedPath() {
-    // Don't know why Undertow is unable to match the encoded path
-    false
+  boolean hasExtraErrorInformation() {
+    true
   }
 
   @Override
-  String testPathParam() {
-    "/path/{id}/param"
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint.throwsException) {
+      ["error.msg": "${endpoint.body}",
+        "error.type": { it == Exception.name || it == InputMismatchException.name },
+        "error.stack": String]
+    } else {
+      Collections.emptyMap()
+    }
   }
 }
