@@ -1,25 +1,19 @@
 package datadog.trace.instrumentation.undertow;
 
 import com.google.auto.service.AutoService;
-
-import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
-import io.undertow.util.HeaderMap;
-import io.undertow.util.HttpString;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_SPAN;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
@@ -28,14 +22,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 @AutoService(Instrumenter.class)
-public final class HandlerInstrumentation extends Instrumenter.Tracing {
+public final class HandlerInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForTypeHierarchy {
 
   public HandlerInstrumentation() {
     super("undertow", "undertow-2.0");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("io.undertow.server.HttpHandler"));
   }
 
@@ -97,15 +91,15 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing {
       //   new HttpString(CorrelationIdentifier.getTraceIdKey()), GlobalTracer.get().getTraceId());
       // exchange.getRequestHeaders().add(
       //   new HttpString(CorrelationIdentifier.getSpanIdKey()), GlobalTracer.get().getSpanId());
-       
+
       return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(
-      @Advice.Enter final AgentScope scope,
-      @Advice.Argument(value = 0) HttpServerExchange exchange,
-      @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Argument(value = 0) HttpServerExchange exchange,
+        @Advice.Thrown final Throwable throwable) {
       if (null != scope) {
         if (null != throwable) {
           // end exchange will be called after setting response code / exception

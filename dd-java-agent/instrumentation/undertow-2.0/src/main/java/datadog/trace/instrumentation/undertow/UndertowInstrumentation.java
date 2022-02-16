@@ -5,39 +5,32 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-import io.undertow.server.HttpServerExchange;
-
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 @AutoService(Instrumenter.class)
-public final class UndertowInstrumentation extends Instrumenter.Tracing {
+public final class UndertowInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
 
   public UndertowInstrumentation() {
     super("undertow", "undertow-2.0");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.undertow.server.HttpServerExchange");
+  public String instrumentedType() {
+    return "io.undertow.server.HttpServerExchange";
   }
 
   @Override
