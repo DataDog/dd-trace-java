@@ -1,13 +1,16 @@
 package com.datadog.profiling.context;
 
+import com.datadog.profiling.context.allocator.AllocatedBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class LongSequence {
   private static final Logger log = LoggerFactory.getLogger(LongSequence.class);
 
   // with capacity increment c[n] = c[n -1] + 2 * c[n - 1] we can safely accommodate 100k elements
-  private final Allocator.ChunkBuffer[] buffers = new Allocator.ChunkBuffer[10];
+  private AllocatedBuffer[] buffers = new AllocatedBuffer[10];
   private int bufferWriteSlot = 0;
   private int capacity = 0;
   private int capacityInChunks = 0;
@@ -19,6 +22,7 @@ public final class LongSequence {
   private static int align(int size) {
     return (int)(Math.ceil(size / 8d) * 8);
   }
+  private final AtomicBoolean released = new AtomicBoolean(false);
 
   public LongSequence(Allocator allocator) {
     this.allocator = allocator;
@@ -26,10 +30,14 @@ public final class LongSequence {
   }
 
   public boolean add(long value) {
+    if (released.get()) {
+      return false;
+    }
+
     if (bufferWriteSlot == -1) {
       capacityInChunks = 1;
       bufferWriteSlot = 0;
-      Allocator.ChunkBuffer cBuffer = allocator.allocateChunks(capacityInChunks);
+      AllocatedBuffer cBuffer = allocator.allocateChunks(capacityInChunks);
       buffers[bufferWriteSlot] = cBuffer;
       if (cBuffer != null) {
         capacity = cBuffer.capacity();
@@ -41,7 +49,7 @@ public final class LongSequence {
     } else {
       if (threshold > -1 && sizeInBytes == threshold) {
         int newCapacity = 2 * capacityInChunks; // capacity stays aligned
-        Allocator.ChunkBuffer cBuffer = allocator.allocateChunks(newCapacity);
+        AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
         if (cBuffer != null) {
           buffers[bufferWriteSlot + 1] = cBuffer;
           capacityInChunks += newCapacity;
@@ -72,10 +80,17 @@ public final class LongSequence {
   }
 
   public void release() {
-    for (Allocator.ChunkBuffer buffer : buffers) {
-      if (buffer != null) {
-        buffer.release();
+    if (released.compareAndSet(false, true)) {
+      log.info("Releasing long sequence");
+      for (int i = 0; i < buffers.length; i++) {
+        AllocatedBuffer buffer = buffers[i];
+        if (buffer != null) {
+          buffer.release();
+        }
       }
+      // this (LongSequence) instance will get stuck in the TLS reference
+      // clear out the buffer slots to allow the most of the retained data to be GCed
+      buffers = null;
     }
   }
 

@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -40,34 +39,34 @@ public final class ProfilingContextTracker implements ContextTracker {
 
   private final ConcurrentMap<Long, LongSequence> threadSequences = new ConcurrentHashMap<>(64);
   private final ThreadLocal<LongSequence> localThreadBuffer = ThreadLocal.withInitial(this::initThreadBuffer);
-  private final ByteBuffer mainBuffer;
   private final long timestamp;
+  private final Allocator allocator;
 
-  public ProfilingContextTracker() {
-    this.mainBuffer = ByteBuffer.allocateDirect(500 * 1024);
+  public ProfilingContextTracker(Allocator allocator) {
     this.timestamp = timestamp();
+    this.allocator = allocator;
   }
 
   private LongSequence initThreadBuffer() {
-    return threadSequences.computeIfAbsent(Thread.currentThread().getId(), k -> new LongSequence());
+    return threadSequences.computeIfAbsent(Thread.currentThread().getId(), k -> new LongSequence(allocator));
   }
 
 
   @Override
   public void activateContext() {
     if (TIMESTAMP_MH != null) {
-      long ts = timestamp();
+      long ts = timestamp() - timestamp;
       store(ts & TIMESTAMP_MASK);
-      log.info("activated[{}]", ts);
+//      log.info("activated[{}]", ts);
     }
   }
 
   @Override
   public void deactivateContext(boolean maybe) {
     if (TIMESTAMP_MH != null) {
-      long ts = timestamp();
+      long ts = timestamp() - timestamp;
       store((ts & TIMESTAMP_MASK) | (maybe ? 0x4000000000000000L : 0x8000000000000000L));
-      log.info("deactivated[{}]: {}", ts, maybe);
+//      log.info("deactivated[{}]: {}", ts, maybe);
     }
   }
 
@@ -75,16 +74,27 @@ public final class ProfilingContextTracker implements ContextTracker {
   public void persist() {
     int size = threadSequences.values().stream().mapToInt(v -> {
       synchronized(v) {
-        return v.size();
+        int s = v.size();
+//        v.release();
+        return s;
       }
     }).sum();
     log.info("span transition data: {}", size * 8);
   }
 
+  @Override
+  public void release() {
+    threadSequences.values().forEach(LongSequence::release);
+  }
+
   private void store(long value) {
     LongSequence sequence = localThreadBuffer.get();
+    boolean added = true;
     synchronized (sequence) {
-      sequence.add(value);
+      added = sequence.add(value);
+    }
+    if (!added) {
+      log.warn("Profiling Context Buffer is full. Losing data.");
     }
   }
 }

@@ -5,9 +5,16 @@ import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.util.Clock;
+
+import java.lang.ref.PhantomReference;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -99,6 +106,30 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private static final AtomicLongFieldUpdater<PendingTrace> END_TO_END_START_TIME =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "endToEndStartTime");
 
+  private static final class CleanupReference extends PhantomReference<PendingTrace> implements Comparable<CleanupReference> {
+    private final Deque<DDSpan> spans;
+
+    CleanupReference(PendingTrace referent, ReferenceQueue<? super PendingTrace> q) {
+      super(referent, q);
+      this.spans = referent.finishedSpans;
+    }
+
+    void cleanup() {
+      log.info("Cleaning up {} spans", spans.size());
+      for (DDSpan span : spans) {
+        span.releaseContext();
+      }
+    }
+
+    @Override
+    public int compareTo(CleanupReference o) {
+      return Integer.compare(System.identityHashCode(this), System.identityHashCode(o));
+    }
+  }
+
+  private static final Collection<CleanupReference> cleanupRefHolder = new ConcurrentSkipListSet<>();
+  private static final ReferenceQueue<PendingTrace> cleanupQueue = new ReferenceQueue<>();
+
   private PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDId traceId,
@@ -111,6 +142,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
+    cleanupRefHolder.add(new CleanupReference(this, cleanupQueue));
   }
 
   CoreTracer getTracer() {
@@ -159,12 +191,17 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   PublishState onPublish(final DDSpan span) {
-    finishedSpans.addFirst(span);
-    // There is a benign race here where the span added above can get written out by a writer in
-    // progress before the count has been incremented. It's being taken care of in the internal
-    // write method.
-    COMPLETED_SPAN_COUNT.incrementAndGet(this);
-    return decrementRefAndMaybeWrite(span == getRootSpan());
+    log.info("OnPublish");
+    try {
+      finishedSpans.addFirst(span);
+      // There is a benign race here where the span added above can get written out by a writer in
+      // progress before the count has been incremented. It's being taken care of in the internal
+      // write method.
+      COMPLETED_SPAN_COUNT.incrementAndGet(this);
+      return decrementRefAndMaybeWrite(span == getRootSpan());
+    } finally {
+      cleanupReferences();
+    }
   }
 
   @Override
@@ -296,5 +333,23 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   public long getEndToEndStartTime() {
     return endToEndStartTime;
+  }
+
+  public void cleanupReferences() {
+    log.info("Cleanup reference attempt: {}", cleanupRefHolder.size());
+    CleanupReference ref = null;
+    int cnt = 0;
+    while ((ref = (CleanupReference)cleanupQueue.poll()) != null) {
+      try {
+        ref.cleanup();
+        cleanupRefHolder.remove(ref);
+        cnt++;
+      } catch (Throwable t) {
+        log.warn("", t);
+      }
+    }
+    if (cnt > 0) {
+      log.info("Cleaned up {} references to pending trace", cnt);
+    }
   }
 }

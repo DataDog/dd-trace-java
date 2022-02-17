@@ -238,6 +238,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     contextTracker.persist();
   }
 
+  public void releaseContext() {
+    contextTracker.release();
+  }
+
   @Override
   public DDSpan setError(final boolean error) {
     context.setErrorFlag(error);

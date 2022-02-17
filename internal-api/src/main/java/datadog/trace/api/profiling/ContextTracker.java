@@ -10,9 +10,13 @@ public interface ContextTracker {
 
     @Override
     public void persist() {}
+
+    @Override
+    public void release() {}
   };
 
   void activateContext();
   void deactivateContext(boolean maybe);
   void persist();
+  void release();
 }

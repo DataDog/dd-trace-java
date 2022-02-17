@@ -1,5 +1,7 @@
 package com.datadog.profiling.context;
 
+import com.datadog.profiling.context.allocator.Allocators;
+import com.datadog.profiling.context.allocator.AllocatedBuffer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -10,21 +12,21 @@ class AllocatorTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new Allocator(1024, 80);
+    instance = Allocators.directAllocator(1024, 80);
   }
 
   @Test
   void allocate() {
-    Allocator.ChunkBuffer chunkBuffer = instance.allocate(800);
-    assertNotNull(chunkBuffer);
-    assertTrue(chunkBuffer.capacity() >= 800);
-    Allocator.ChunkBuffer chunkBuffer1 = instance.allocate(500);
-    assertNotNull(chunkBuffer1);
-    assertTrue(chunkBuffer1.capacity() < 500);
-    Allocator.ChunkBuffer chunkBuffer2 = instance.allocate(50);
-    assertNull(chunkBuffer2);
-    chunkBuffer.release();
-    chunkBuffer1.release();
+    AllocatedBuffer allocatedBuffer = instance.allocate(800);
+    assertNotNull(allocatedBuffer);
+    assertTrue(allocatedBuffer.capacity() >= 800);
+    AllocatedBuffer allocatedBuffer1 = instance.allocate(500);
+    assertNotNull(allocatedBuffer1);
+    assertTrue(allocatedBuffer1.capacity() < 500);
+    AllocatedBuffer allocatedBuffer2 = instance.allocate(50);
+    assertNull(allocatedBuffer2);
+    allocatedBuffer.release();
+    allocatedBuffer1.release();
   }
 
   @Test

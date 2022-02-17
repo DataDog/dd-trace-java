@@ -691,49 +691,52 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (trace.isEmpty()) {
       return;
     }
-    List<DDSpan> writtenTrace = trace;
-    if (!interceptors.isEmpty()) {
-      Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
+    try {
+      List<DDSpan> writtenTrace = trace;
+      if (!interceptors.isEmpty()) {
+        Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
 
-      try {
-        for (final TraceInterceptor interceptor : interceptors) {
-          interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+        try {
+          for (final TraceInterceptor interceptor : interceptors) {
+            interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+          }
+        } catch (Exception e) {
+          log.debug("Exception in TraceInterceptor", e);
+          return;
         }
-      } catch (Exception e) {
-        log.debug("Exception in TraceInterceptor", e);
-        return;
-      }
-      writtenTrace = new ArrayList<>(interceptedTrace.size());
-      for (final MutableSpan span : interceptedTrace) {
-        if (span instanceof DDSpan) {
-          writtenTrace.add((DDSpan) span);
+        writtenTrace = new ArrayList<>(interceptedTrace.size());
+        for (final MutableSpan span : interceptedTrace) {
+          if (span instanceof DDSpan) {
+            writtenTrace.add((DDSpan) span);
+          }
         }
       }
-    }
-    for (DDSpan span: writtenTrace) {
-      span.processContext();
-    }
 
-    if (!writtenTrace.isEmpty()) {
-      boolean forceKeep = metricsAggregator.publish(writtenTrace);
+      if (!writtenTrace.isEmpty()) {
+        boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-      DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
-      setSamplingPriorityIfNecessary(rootSpan);
+        DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
+        setSamplingPriorityIfNecessary(rootSpan);
 
-      DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
-      spanToSample.forceKeep(forceKeep);
-      boolean published = forceKeep || sampler.sample(spanToSample);
-      if (published) {
-        writer.write(writtenTrace);
-      } else {
-        // with span streaming this won't work - it needs to be changed
-        // to track an effective sampling rate instead, however, tests
-        // checking that a hard reference on a continuation prevents
-        // reporting fail without this, so will need to be fixed first.
-        writer.incrementDropCounts(writtenTrace.size());
+        DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+        spanToSample.forceKeep(forceKeep);
+        boolean published = forceKeep || sampler.sample(spanToSample);
+        if (published) {
+          writer.write(writtenTrace);
+        } else {
+          // with span streaming this won't work - it needs to be changed
+          // to track an effective sampling rate instead, however, tests
+          // checking that a hard reference on a continuation prevents
+          // reporting fail without this, so will need to be fixed first.
+          writer.incrementDropCounts(writtenTrace.size());
+        }
+        if (null != rootSpan) {
+          onRootSpanFinished(rootSpan, published);
+        }
       }
-      if (null != rootSpan) {
-        onRootSpanFinished(rootSpan, published);
+    } finally {
+      for (DDSpan span: trace) {
+        span.releaseContext();
       }
     }
   }

@@ -1,5 +1,6 @@
 package com.datadog.profiling.context;
 
+import com.datadog.profiling.context.allocator.Allocators;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +11,7 @@ class LongSequenceTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new LongSequence(new Allocator(205000 * 8, 256));
+    instance = new LongSequence(Allocators.directAllocator(205000 * 8, 256));
   }
 
   @Test
