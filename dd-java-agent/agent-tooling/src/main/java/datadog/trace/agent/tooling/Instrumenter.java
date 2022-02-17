@@ -34,6 +34,7 @@ import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
@@ -187,9 +188,21 @@ public interface Instrumenter {
           filter(parentAgentBuilder).transform(defaultTransformers());
       agentBuilder = injectHelperClasses(agentBuilder);
       agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
-      AgentBuilder.Transformer transformer = transformer();
-      if (transformer != null) {
-        agentBuilder = agentBuilder.transform(transformer);
+      final AdviceTransformer customTransformer = transformer();
+      if (customTransformer != null) {
+        agentBuilder =
+            agentBuilder.transform(
+                new AgentBuilder.Transformer() {
+                  @Override
+                  public DynamicType.Builder<?> transform(
+                      DynamicType.Builder<?> builder,
+                      TypeDescription typeDescription,
+                      ClassLoader classLoader,
+                      JavaModule module) {
+                    return customTransformer.transform(
+                        builder, typeDescription, classLoader, module);
+                  }
+                });
       }
       AdviceBuilder adviceBuilder = new AdviceBuilder(agentBuilder, methodIgnoreMatcher());
       adviceTransformations(adviceBuilder);
@@ -349,7 +362,7 @@ public interface Instrumenter {
     }
 
     /** @return A transformer for further transformation of the class */
-    public AgentBuilder.Transformer transformer() {
+    public AdviceTransformer transformer() {
       return null;
     }
 
@@ -457,5 +470,13 @@ public interface Instrumenter {
 
   interface AdviceTransformation {
     void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
+  }
+
+  interface AdviceTransformer {
+    DynamicType.Builder<?> transform(
+        DynamicType.Builder<?> builder,
+        TypeDescription typeDescription,
+        ClassLoader classLoader,
+        JavaModule module);
   }
 }
