@@ -27,7 +27,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Tracing {
+public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   private static final String JAKARTA_ENDPOINT_OPERATION_NAME = "jakarta-rs.request";
 
@@ -47,7 +48,7 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return safeHasSuperType(
         isAnnotatedWith(named("jakarta.ws.rs.Path"))
             .<TypeDescription>or(declaresMethod(isAnnotatedWith(named("jakarta.ws.rs.Path")))));

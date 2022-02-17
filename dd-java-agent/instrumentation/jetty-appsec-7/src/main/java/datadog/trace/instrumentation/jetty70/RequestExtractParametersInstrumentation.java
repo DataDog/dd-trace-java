@@ -10,19 +10,18 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
-public class RequestExtractParametersInstrumentation extends Instrumenter.AppSec {
+public class RequestExtractParametersInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public RequestExtractParametersInstrumentation() {
     super("jetty");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.server.Request");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.server.Request";
   }
 
   @Override

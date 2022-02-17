@@ -61,6 +61,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
+  BiFunction<RequestContext, Object, Flow<Void>> requestBodyProcessedCB
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
@@ -321,10 +322,24 @@ class GatewayBridgeSpecification extends DDSpecification {
     assert bundle.get(KnownAddresses.REQUEST_PATH_PARAMS) == [a: 'b']
   }
 
+  void 'path params does not published twice'() {
+    AppSecRequestContext reqCtx = Mock()
+    Flow flow
+
+    when:
+    ctx.data.setPathParamsPublished(true)
+    flow = pathParamsCB.apply(ctx, [a: 'b'])
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS)
+    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, reqCtx, _ as DataBundle, false)
+  }
+
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
-    1 * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
-    1 * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS]
+    _ * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
+    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
@@ -335,6 +350,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
@@ -480,6 +496,51 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 
+  void 'request body does not published twice'() {
+    StoredBodySupplier supplier = Mock()
+    Flow flow
+
+    given:
+    supplier.get() >> 'foobar'
+
+    when:
+    ctx.data.setRawReqBodyPublished(true)
+    flow = requestBodyDoneCB.apply(ctx, supplier)
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW)
+    0 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_END)
+  }
+
+  void 'forward request body processed'() {
+    DataBundle bundle
+    Object obj = 'hello'
+
+    setup:
+    eventDispatcher.getDataSubscribers({KnownAddresses.REQUEST_BODY_OBJECT in it}) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >> { bundle = it[2]; NoopFlow.INSTANCE }
+
+    when:
+    requestBodyProcessedCB.apply(ctx, obj)
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == 'hello'
+  }
+
+  void 'processed body does not published twice'() {
+    Flow flow
+
+    when:
+    ctx.data.setConvertedReqBodyPublished(true)
+    flow = requestBodyProcessedCB.apply(ctx, new Object())
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT)
+    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false)
+  }
+
   void 'forwards request method'() {
     DataBundle bundle
     def adapter = TestURIDataAdapter.create('http://example.com/')
@@ -515,6 +576,25 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     bundle.get(KnownAddresses.REQUEST_SCHEME) == 'https'
   }
+
+  void 'request data does not published twice'() {
+    AppSecRequestContext reqCtx = Mock()
+    Flow flow1, flow2, flow3
+
+    when:
+    ctx.data.setReqDataPublished(true)
+    flow1 = requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    flow2 = reqHeadersDoneCB.apply(ctx)
+    flow3 = requestMethodURICB.apply(ctx, "GET", TestURIDataAdapter.create('/a'))
+
+    then:
+    flow1 == NoopFlow.INSTANCE
+    flow2 == NoopFlow.INSTANCE
+    flow3 == NoopFlow.INSTANCE
+    0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_SCHEME)
+    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, reqCtx, _ as DataBundle, false)
+  }
+
 
   void 'response_start produces appsec context and publishes event'() {
     eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo

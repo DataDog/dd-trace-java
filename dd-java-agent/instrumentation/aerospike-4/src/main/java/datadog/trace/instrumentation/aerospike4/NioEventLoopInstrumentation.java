@@ -12,18 +12,17 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class NioEventLoopInstrumentation extends Instrumenter.Tracing {
+public final class NioEventLoopInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public NioEventLoopInstrumentation() {
     super("aerospike", "java_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.aerospike.client.async.NioEventLoop");
+  public String instrumentedType() {
+    return "com.aerospike.client.async.NioEventLoop";
   }
 
   @Override

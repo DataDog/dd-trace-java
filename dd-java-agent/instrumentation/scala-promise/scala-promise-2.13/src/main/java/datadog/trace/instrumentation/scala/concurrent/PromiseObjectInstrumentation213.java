@@ -15,8 +15,6 @@ import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.util.Try;
 
 /**
@@ -25,16 +23,17 @@ import scala.util.Try;
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
 @AutoService(Instrumenter.class)
-public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing {
+public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public PromiseObjectInstrumentation213() {
     super("scala_promise_resolve", "scala_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public String instrumentedType() {
     // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
-    return named("scala.concurrent.impl.Promise$");
+    return "scala.concurrent.impl.Promise$";
   }
 
   @Override

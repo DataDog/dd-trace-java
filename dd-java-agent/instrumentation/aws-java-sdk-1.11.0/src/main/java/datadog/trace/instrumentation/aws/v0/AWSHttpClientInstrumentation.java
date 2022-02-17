@@ -16,7 +16,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
@@ -25,7 +24,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * {@link RequestHandler2#afterError} is not called.
  */
 @AutoService(Instrumenter.class)
-public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
+public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AWSHttpClientInstrumentation() {
     super("aws-sdk");
@@ -37,8 +37,8 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.amazonaws.http.AmazonHttpClient");
+  public String instrumentedType() {
+    return "com.amazonaws.http.AmazonHttpClient";
   }
 
   @Override
@@ -85,8 +85,8 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
     }
 
     @Override
-    public ElementMatcher<TypeDescription> typeMatcher() {
-      return named("com.amazonaws.http.AmazonHttpClient$RequestExecutor");
+    public String instrumentedType() {
+      return "com.amazonaws.http.AmazonHttpClient$RequestExecutor";
     }
 
     @Override

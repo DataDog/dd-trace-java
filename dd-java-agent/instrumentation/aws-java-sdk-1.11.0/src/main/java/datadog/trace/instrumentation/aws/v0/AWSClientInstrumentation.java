@@ -10,7 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
@@ -18,7 +18,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * is tested. It could possibly be extended earlier.
  */
 @AutoService(Instrumenter.class)
-public final class AWSClientInstrumentation extends Instrumenter.Tracing {
+public final class AWSClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
 
   public AWSClientInstrumentation() {
     super("aws-sdk");
@@ -33,9 +34,13 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.amazonaws.AmazonWebServiceClient")
-        .and(declaresField(named("requestHandler2s")));
+  public String instrumentedType() {
+    return "com.amazonaws.AmazonWebServiceClient";
+  }
+
+  @Override
+  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+    return declaresField(named("requestHandler2s"));
   }
 
   @Override

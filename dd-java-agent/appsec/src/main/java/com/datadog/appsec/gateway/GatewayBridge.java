@@ -174,6 +174,10 @@ public class GatewayBridge {
           EVENTS.requestPathParams(),
           (ctx_, data) -> {
             AppSecRequestContext ctx = ctx_.getData();
+            if (ctx.isPathParamsPublished()) {
+              return NoopFlow.INSTANCE;
+            }
+            ctx.setPathParamsPublished(true);
 
             if (pathParamsSubInfo == null) {
               pathParamsSubInfo =
@@ -189,6 +193,12 @@ public class GatewayBridge {
           EVENTS.requestBodyDone(),
           (RequestContext<AppSecRequestContext> ctx_, StoredBodySupplier supplier) -> {
             AppSecRequestContext ctx = ctx_.getData();
+
+            if (ctx.isRawReqBodyPublished()) {
+              return NoopFlow.INSTANCE;
+            }
+            ctx.setRawReqBodyPublished(true);
+
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
             if (rawRequestBodySubInfo == null) {
@@ -215,12 +225,13 @@ public class GatewayBridge {
           (RequestContext<AppSecRequestContext> ctx_, Object obj) -> {
             AppSecRequestContext ctx = ctx_.getData();
             if (ctx.isConvertedReqBodyPublished()) {
-              log.info(
+              log.debug(
                   "Request body already published; will ignore new value of type {}",
                   obj.getClass());
               return NoopFlow.INSTANCE;
             }
             ctx.setConvertedReqBodyPublished(true);
+
             if (requestBodySubInfo == null) {
               requestBodySubInfo =
                   producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
@@ -237,6 +248,9 @@ public class GatewayBridge {
         EVENTS.requestClientSocketAddress(),
         (ctx_, ip, port) -> {
           AppSecRequestContext ctx = ctx_.getData();
+          if (ctx.isReqDataPublished()) {
+            return NoopFlow.INSTANCE;
+          }
           ctx.setPeerAddress(ip);
           ctx.setPeerPort(port);
           return maybePublishRequestData(ctx);
@@ -246,6 +260,9 @@ public class GatewayBridge {
         EVENTS.responseStarted(),
         (ctx_, status) -> {
           AppSecRequestContext ctx = ctx_.getData();
+          if (ctx.isRespDataPublished()) {
+            return NoopFlow.INSTANCE;
+          }
           ctx.setResponseStatus(status);
           return maybePublishResponseData(ctx);
         });
@@ -257,6 +274,9 @@ public class GatewayBridge {
         EVENTS.responseHeaderDone(),
         ctx_ -> {
           AppSecRequestContext ctx = ctx_.getData();
+          if (ctx.isRespDataPublished()) {
+            return NoopFlow.INSTANCE;
+          }
           ctx.finishResponseHeaders();
           return maybePublishResponseData(ctx);
         });
@@ -301,6 +321,9 @@ public class GatewayBridge {
       implements Function<RequestContext<AppSecRequestContext>, Flow<Void>> {
     public Flow<Void> apply(RequestContext<AppSecRequestContext> ctx_) {
       AppSecRequestContext ctx = ctx_.getData();
+      if (ctx.isReqDataPublished()) {
+        return NoopFlow.INSTANCE;
+      }
       ctx.finishRequestHeaders();
       return maybePublishRequestData(ctx);
     }
@@ -313,6 +336,11 @@ public class GatewayBridge {
     public Flow<Void> apply(
         RequestContext<AppSecRequestContext> ctx_, String method, URIDataAdapter uri) {
       AppSecRequestContext ctx = ctx_.getData();
+      if (ctx.isReqDataPublished()) {
+        log.debug(
+            "Request method and URI already published; will ignore new values {}, {}", method, uri);
+        return NoopFlow.INSTANCE;
+      }
       ctx.setMethod(method);
       ctx.setScheme(uri.scheme());
       if (uri.supportsRaw()) {
@@ -356,6 +384,8 @@ public class GatewayBridge {
       scheme = "http";
     }
 
+    ctx.setReqDataPublished(true);
+
     if (initialReqDataSubInfo == null) {
       initialReqDataSubInfo =
           producerService.getDataSubscribers(
@@ -390,6 +420,8 @@ public class GatewayBridge {
     if (status == 0 || !ctx.isFinishedResponseHeaders()) {
       return NoopFlow.INSTANCE;
     }
+
+    ctx.setRespDataPublished(true);
 
     MapDataBundle bundle =
         MapDataBundle.of(

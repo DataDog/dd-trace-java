@@ -8,23 +8,22 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.restlet.Request;
 import org.restlet.engine.header.Header;
 import org.restlet.routing.TemplateRoute;
 import org.restlet.util.Series;
 
 @AutoService(Instrumenter.class)
-public final class RouteInstrumentation extends Instrumenter.Tracing {
+public final class RouteInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public RouteInstrumentation() {
     super("restlet-http");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.restlet.routing.TemplateRoute");
+  public String instrumentedType() {
+    return "org.restlet.routing.TemplateRoute";
   }
 
   @Override

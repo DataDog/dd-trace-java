@@ -28,7 +28,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   // executors which do their own wrapping before calling super,
   // leading to double wrapping, once at the child level and once
@@ -43,7 +43,7 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return ElementMatchers.<TypeDescription>not(
             named("java.util.concurrent.ScheduledThreadPoolExecutor"))
         .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));

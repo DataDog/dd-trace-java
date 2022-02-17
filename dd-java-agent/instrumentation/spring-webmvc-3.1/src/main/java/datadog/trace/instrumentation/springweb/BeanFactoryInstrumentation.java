@@ -24,7 +24,8 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  * which sometimes only copies the classname
  */
 @AutoService(Instrumenter.class)
-public class BeanFactoryInstrumentation extends Instrumenter.Tracing {
+public class BeanFactoryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public BeanFactoryInstrumentation() {
     super("spring-web");
   }
@@ -36,7 +37,7 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.springframework.beans.factory.support.AbstractBeanFactory"));
   }
 

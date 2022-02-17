@@ -27,8 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
@@ -36,15 +34,16 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.apache.kafka.streams.processor.internals.StreamTask;
 
 @AutoService(Instrumenter.class)
-public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
+public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public KafkaStreamTaskInstrumentation() {
     super("kafka", "kafka-streams");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.kafka.streams.processor.internals.StreamTask");
+  public String instrumentedType() {
+    return "org.apache.kafka.streams.processor.internals.StreamTask";
   }
 
   @Override

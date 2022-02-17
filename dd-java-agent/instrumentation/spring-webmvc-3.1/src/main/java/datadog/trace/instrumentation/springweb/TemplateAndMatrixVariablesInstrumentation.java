@@ -21,12 +21,12 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(Instrumenter.class)
-public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.AppSec {
+public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public TemplateAndMatrixVariablesInstrumentation() {
     super("spring-web");
   }
@@ -38,8 +38,8 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.AppS
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping");
+  public String instrumentedType() {
+    return "org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping";
   }
 
   @Override

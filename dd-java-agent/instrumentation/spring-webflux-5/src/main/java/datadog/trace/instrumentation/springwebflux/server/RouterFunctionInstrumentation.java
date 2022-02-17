@@ -16,7 +16,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrumentation {
+public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrumentation
+    implements Instrumenter.ForTypeHierarchy {
 
   public RouterFunctionInstrumentation() {
     super("spring-webflux-functional");
@@ -29,7 +30,7 @@ public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrume
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return not(isAbstract())
         .and(
             extendsClass(

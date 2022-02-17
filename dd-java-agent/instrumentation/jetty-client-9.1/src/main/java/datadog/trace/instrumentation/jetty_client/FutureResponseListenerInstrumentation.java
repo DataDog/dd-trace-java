@@ -12,21 +12,20 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 @AutoService(Instrumenter.class)
-public final class FutureResponseListenerInstrumentation extends Instrumenter.Tracing {
+public final class FutureResponseListenerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public FutureResponseListenerInstrumentation() {
     super("jetty-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.client.util.FutureResponseListener");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.client.util.FutureResponseListener";
   }
 
   @Override

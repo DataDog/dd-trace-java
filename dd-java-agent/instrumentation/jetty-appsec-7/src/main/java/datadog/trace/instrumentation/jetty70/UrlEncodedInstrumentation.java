@@ -20,20 +20,19 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(Instrumenter.class)
-public class UrlEncodedInstrumentation extends Instrumenter.AppSec {
+public class UrlEncodedInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public UrlEncodedInstrumentation() {
     super("jetty");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.util.UrlEncoded");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.util.UrlEncoded";
   }
 
   // so both instrumentations fall and rise together

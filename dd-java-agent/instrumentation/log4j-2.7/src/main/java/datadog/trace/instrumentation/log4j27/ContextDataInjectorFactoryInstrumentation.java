@@ -15,13 +15,12 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.logging.log4j.core.ContextDataInjector;
 
 @AutoService(Instrumenter.class)
-public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Tracing {
+public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public ContextDataInjectorFactoryInstrumentation() {
     super("log4j", "log4j-2");
   }
@@ -32,8 +31,8 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory");
+  public String instrumentedType() {
+    return "org.apache.logging.log4j.core.impl.ContextDataInjectorFactory";
   }
 
   @Override

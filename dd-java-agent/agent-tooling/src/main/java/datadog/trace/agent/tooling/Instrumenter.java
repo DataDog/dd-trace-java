@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
@@ -11,7 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
-import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafe;
+import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
@@ -21,7 +23,6 @@ import datadog.trace.api.Config;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,11 +30,14 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
+import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
+import net.bytebuddy.matcher.ElementMatcher.Junction.Disjunction;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +65,31 @@ public interface Instrumenter {
     PROFILING,
     APPSEC,
     CIVISIBILITY
+  }
+
+  /** Instrumentation that only matches a single named type. */
+  interface ForSingleType {
+    String instrumentedType();
+  }
+
+  /** Instrumentation that can match a series of named types. */
+  interface ForKnownTypes {
+    String[] knownMatchingTypes();
+  }
+
+  /** Instrumentation that matches based on the type hierarchy. */
+  interface ForTypeHierarchy {
+    ElementMatcher<TypeDescription> hierarchyMatcher();
+  }
+
+  /** Instrumentation that can optionally widen matching to consider the type hierarchy. */
+  interface CanShortcutTypeMatching extends ForKnownTypes, ForTypeHierarchy {
+    boolean onlyMatchKnownTypes();
+  }
+
+  /** Instrumentation that wants to apply additional structure checks after type matching. */
+  interface WithTypeStructure {
+    ElementMatcher<? extends ByteCodeElement> structureMatcher();
   }
 
   /**
@@ -170,25 +199,44 @@ public interface Instrumenter {
     }
 
     private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
-      final AgentBuilder.Identified.Narrowable narrowable;
-      ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
-      ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
-      if (classLoaderMatcher == ANY_CLASS_LOADER // Don't bypass the classLoaderMatcher
-          && typeMatcher instanceof AgentBuilder.RawMatcher
-          && typeMatcher instanceof FailSafe) {
-        narrowable = agentBuilder.type((AgentBuilder.RawMatcher) typeMatcher);
+      ElementMatcher<? super TypeDescription> typeMatcher;
+      if (this instanceof ForSingleType) {
+        typeMatcher = new SingleTypeMatcher(((ForSingleType) this).instrumentedType());
+      } else if (this instanceof ForKnownTypes) {
+        typeMatcher = new KnownTypesMatcher(((ForKnownTypes) this).knownMatchingTypes());
+      } else if (this instanceof ForTypeHierarchy) {
+        typeMatcher = ((ForTypeHierarchy) this).hierarchyMatcher();
       } else {
-        narrowable =
-            agentBuilder.type(
-                failSafe(
-                    typeMatcher,
-                    "Instrumentation type matcher unexpected exception: " + getClass().getName()),
-                failSafe(
-                    classLoaderMatcher,
-                    "Instrumentation class loader matcher unexpected exception: "
-                        + getClass().getName()));
+        return agentBuilder.type(AgentBuilder.RawMatcher.Trivial.NON_MATCHING);
       }
-      return narrowable.and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
+
+      if (this instanceof CanShortcutTypeMatching
+          && !((CanShortcutTypeMatching) this).onlyMatchKnownTypes()) {
+        // not taking shortcuts, so include wider hierarchical matching
+        typeMatcher = new Disjunction(typeMatcher, ((ForTypeHierarchy) this).hierarchyMatcher());
+      }
+
+      if (this instanceof WithTypeStructure) {
+        // only perform structure matching after we've matched the type
+        typeMatcher = new Conjunction(typeMatcher, ((WithTypeStructure) this).structureMatcher());
+      }
+
+      ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
+
+      AgentBuilder.RawMatcher rawMatcher;
+      if (classLoaderMatcher == ANY_CLASS_LOADER
+          && typeMatcher instanceof AgentBuilder.RawMatcher) {
+        // optimization when using raw (named) type matcher with no classloader filtering
+        rawMatcher = (AgentBuilder.RawMatcher) typeMatcher;
+      } else {
+        rawMatcher =
+            new FailSafeRawMatcher(
+                typeMatcher,
+                classLoaderMatcher,
+                "Instrumentation matcher unexpected exception: " + getClass().getName());
+      }
+
+      return agentBuilder.type(rawMatcher).and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
     }
 
     private AgentBuilder.Identified.Extendable injectHelperClasses(
@@ -300,9 +348,6 @@ public interface Instrumenter {
       return ANY_CLASS_LOADER;
     }
 
-    /** @return A type matcher used to match the class under transform. */
-    public abstract ElementMatcher<? super TypeDescription> typeMatcher();
-
     /** @return A transformer for further transformation of the class */
     public AgentBuilder.Transformer transformer() {
       return null;
@@ -329,7 +374,7 @@ public interface Instrumenter {
      * associated with a context of the value.
      */
     public Map<String, String> contextStore() {
-      return Collections.emptyMap();
+      return emptyMap();
     }
 
     /**
@@ -339,7 +384,7 @@ public interface Instrumenter {
      * associated with a context of the value.
      */
     public Map<String, String> contextStoreForAll() {
-      return Collections.emptyMap();
+      return emptyMap();
     }
 
     protected boolean defaultEnabled() {
@@ -354,49 +399,26 @@ public interface Instrumenter {
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return false;
     }
+
+    protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
+      return Config.get()
+          .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
+    }
   }
 
   /** Parent class for all tracing related instrumentations */
   abstract class Tracing extends Default {
-
-    private final boolean shortCutEnabled;
-
     public Tracing(String instrumentationName, String... additionalNames) {
-      this(false, instrumentationName, additionalNames);
-    }
-
-    public Tracing(
-        boolean defaultToShortCutMatching, String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
-      this.shortCutEnabled =
-          Config.get()
-              .isIntegrationShortCutMatchingEnabled(
-                  Collections.singletonList(instrumentationName), defaultToShortCutMatching);
     }
 
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.TRACING);
     }
-
-    @Override
-    public ElementMatcher<? super TypeDescription> typeMatcher() {
-      if (shortCutEnabled) {
-        return shortCutMatcher();
-      }
-      return hierarchyMatcher();
-    }
-
-    public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-      throw new IllegalStateException("shortCutMatcher not implemented");
-    }
-
-    public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
-      throw new IllegalStateException("hierarchyMatcher not implemented");
-    }
   }
 
-  /** Parent class for */
+  /** Parent class for all profiling related instrumentations */
   abstract class Profiling extends Default {
     public Profiling(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -408,6 +430,7 @@ public interface Instrumenter {
     }
   }
 
+  /** Parent class for all AppSec related instrumentations */
   abstract class AppSec extends Default {
     public AppSec(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -419,6 +442,7 @@ public interface Instrumenter {
     }
   }
 
+  /** Parent class for all CI related instrumentations */
   abstract class CiVisibility extends Default {
 
     public CiVisibility(String instrumentationName, String... additionalNames) {

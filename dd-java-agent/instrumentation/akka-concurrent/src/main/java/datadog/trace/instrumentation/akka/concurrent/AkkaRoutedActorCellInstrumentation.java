@@ -14,20 +14,19 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
+public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AkkaRoutedActorCellInstrumentation() {
     super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("akka.routing.RoutedActorCell");
+  public String instrumentedType() {
+    return "akka.routing.RoutedActorCell";
   }
 
   @Override

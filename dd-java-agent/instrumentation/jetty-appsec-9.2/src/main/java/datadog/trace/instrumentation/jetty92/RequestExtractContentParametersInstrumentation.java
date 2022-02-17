@@ -17,12 +17,11 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(Instrumenter.class)
-public class RequestExtractContentParametersInstrumentation extends Instrumenter.AppSec {
+public class RequestExtractContentParametersInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
 
   public RequestExtractContentParametersInstrumentation() {
@@ -30,8 +29,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.server.Request");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.server.Request";
   }
 
   @Override

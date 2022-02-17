@@ -17,19 +17,18 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.reactivex.Flowable;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Subscriber;
 
 @AutoService(Instrumenter.class)
-public final class FlowableInstrumentation extends Instrumenter.Tracing {
+public final class FlowableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public FlowableInstrumentation() {
     super("rxjava");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.reactivex.Flowable");
+  public String instrumentedType() {
+    return "io.reactivex.Flowable";
   }
 
   @Override

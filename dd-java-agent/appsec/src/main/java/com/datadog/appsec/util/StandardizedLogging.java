@@ -141,7 +141,9 @@ public class StandardizedLogging {
       }
     }
 
-    logger.info("Detecting an attack from rule {}", ruleId);
+    if (logger.isDebugEnabled()) {
+      logger.info("Detecting an attack from rule {}", ruleId);
+    }
     logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatches());
   }
 
@@ -183,13 +185,19 @@ public class StandardizedLogging {
    * The following nonstandard alternative was instead chosen.
    */
   public static void _initialConfigSourceAndLibddwafVersion(Logger logger, String source) {
-    logger.info(
-        "AppSec initial configuration from {}, libddwaf version: {}", source, Powerwaf.LIB_VERSION);
+    if (logger.isDebugEnabled()) {
+      logger.info(
+          "AppSec initial configuration from {}, libddwaf version: {}",
+          source,
+          Powerwaf.LIB_VERSION);
+    }
   }
 
   // I2
   public static void numLoadedRules(Logger logger, String source, int numRules) {
-    logger.info("AppSec loaded {} rules from file {}", numRules, source);
+    if (logger.isDebugEnabled()) {
+      logger.info("AppSec loaded {} rules from file {}", numRules, source);
+    }
   }
 
   // I3: high volume; should really not be at info level

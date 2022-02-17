@@ -14,12 +14,11 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(Instrumenter.class)
-public class LoggerNodeInstrumentation extends Instrumenter.Tracing {
+public class LoggerNodeInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
   }
@@ -30,8 +29,8 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.jboss.logmanager.LoggerNode");
+  public String instrumentedType() {
+    return "org.jboss.logmanager.LoggerNode";
   }
 
   @Override
