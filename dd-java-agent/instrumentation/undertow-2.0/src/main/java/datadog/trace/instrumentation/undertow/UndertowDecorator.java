@@ -14,7 +14,6 @@ public class UndertowDecorator
     HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
   public static final CharSequence UNDERTOW_REQUEST =
       UTF8BytesString.create("undertow-http.request");
-  // TODO CRG do we need this?
   public static final CharSequence SERVLET_REQUEST =
       UTF8BytesString.create("servlet.request");
   public static final CharSequence UNDERTOW_HTTP_SERVER =

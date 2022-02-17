@@ -12,6 +12,7 @@ import javax.servlet.ServletRequest;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_SPAN;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 @AutoService(Instrumenter.class)
@@ -51,12 +52,9 @@ public final class ServletInstrumentation extends Instrumenter.Tracing implement
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
       AgentSpan undertow_span = exchange.getAttachment(DD_UNDERTOW_SPAN);
       if (null != undertow_span) {
-        // Set the DD_SPAN_ATTRIBUTE so the servlet insturmentation does not create a new span
-        // TODO CRG is this right?
         ServletRequest request = servletRequestContext.getServletRequest();
         request.setAttribute(DD_SPAN_ATTRIBUTE, undertow_span);
-        // TODO CRG Should the Servlet Decorator onRequest get run to change
-        // values?????? If so which one?
+        undertow_span.setSpanName(SERVLET_REQUEST);
       }
     }
   }

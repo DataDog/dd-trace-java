@@ -81,7 +81,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   String expectedOperationName() {
-    return 'undertow-http.request';
+    return 'servlet.request';
   }
 
   @Override
