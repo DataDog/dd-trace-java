@@ -17,12 +17,10 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
-  latestRedisson20{}
   latestRedisson20Test {
     dirName = 'test/redisson20'
   }
 
-  latestRedisson23{}
   latestRedisson23Test {
     dirName = 'test/redisson23'
   }
@@ -30,6 +28,10 @@ testSets {
   latestDepTest {
     dirName = 'test/redissonLatest'
   }
+}
+
+tasks.named('test').configure {
+  dependsOn('latestRedisson20Test', 'latestRedisson23Test')
 }
 
 dependencies {

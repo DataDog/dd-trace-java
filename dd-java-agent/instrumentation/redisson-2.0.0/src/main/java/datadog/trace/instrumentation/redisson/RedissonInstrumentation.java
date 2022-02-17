@@ -13,21 +13,20 @@ import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
 
 @AutoService(Instrumenter.class)
-public final class RedissonInstrumentation extends Instrumenter.Tracing {
+public final class RedissonInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public RedissonInstrumentation() {
     super("redisson", "redis");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.redisson.client.RedisConnection");
+  public String instrumentedType() {
+    return "org.redisson.client.RedisConnection";
   }
 
   @Override
