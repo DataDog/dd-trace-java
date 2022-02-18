@@ -24,13 +24,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(Instrumenter.class)
 public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
@@ -44,11 +43,6 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   @Override
   public String instrumentedType() {
     return "org.apache.tomcat.util.http.Parameters";
-  }
-
-  @Override
-  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
-    return declaresField(named("paramHashValues"));
   }
 
   // paramHashValues was also of type Hashtable, but only for 4 days between

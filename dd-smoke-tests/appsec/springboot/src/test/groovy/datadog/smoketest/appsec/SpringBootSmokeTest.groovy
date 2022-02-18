@@ -1,7 +1,9 @@
 package datadog.smoketest.appsec
 
 import datadog.trace.agent.test.utils.ThreadUtils
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
   @Override
@@ -65,6 +67,25 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     response.code() == 200
     forEachRootSpan {
       assert it['rule']['tags']['type'] == 'security_scanner'
+    }
+  }
+
+  def 'post request with mapped request body'() {
+    when:
+    String url = "http://localhost:${httpPort}/request-body"
+    def request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.get('application/json'), '{"v":".htaccess"}'  ))
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+    waitForTraceCount 1
+
+    then:
+    responseBodyStr == '.htaccess'
+    response.code() == 200
+    forEachRootSpan {
+      assert it['rule']['tags']['type'] == 'lfi'
     }
   }
 }

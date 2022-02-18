@@ -19,21 +19,22 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.List;
 import javax.ws.rs.core.MultivaluedMap;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec {
+public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForKnownTypes {
 
   public DecodedFormParametersInstrumentation() {
     super("resteasy");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.jboss.resteasy.plugins.server.BaseHttpRequest")
-        .or(named("org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage"))
-        .or(named("org.jboss.resteasy.plugins.server.netty.NettyHttpRequest"));
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.jboss.resteasy.plugins.server.BaseHttpRequest",
+      "org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage",
+      "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest"
+    };
   }
 
   @Override

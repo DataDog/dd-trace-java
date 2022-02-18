@@ -21,13 +21,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Hashtable;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(Instrumenter.class)
 public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
+    implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");

@@ -541,6 +541,25 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false)
   }
 
+  void 'request body transforms object and publishes'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_OBJECT in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+
+    when:
+    Flow<?> flow = requestBodyProcessedCB.apply(ctx, new Object() {
+        @SuppressWarnings('UnusedPrivateField')
+        private String foo = 'bar'
+      })
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == [foo: 'bar']
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+  }
+
   void 'forwards request method'() {
     DataBundle bundle
     def adapter = TestURIDataAdapter.create('http://example.com/')

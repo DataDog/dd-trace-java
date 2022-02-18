@@ -14,13 +14,12 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import jakarta.ws.rs.core.Form;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
+// keep in sync with jersey2 (javax packages)
 @AutoService(Instrumenter.class)
-public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec {
+public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public MessageBodyReaderInstrumentation() {
     super("jersey");
   }
@@ -28,8 +27,8 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec {
   // This is a caller for the MessageBodyReaders in jersey
   // We instrument it instead of the MessageBodyReaders in order to avoid hierarchy inspections
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.jersey.message.internal.ReaderInterceptorExecutor");
+  public String instrumentedType() {
+    return "org.glassfish.jersey.message.internal.ReaderInterceptorExecutor";
   }
 
   @Override
@@ -53,10 +52,8 @@ public class MessageBodyReaderInstrumentation extends Instrumenter.AppSec {
       Object objToPass;
       if (ret instanceof Form) {
         objToPass = ((Form) ret).asMap();
-      } else if (ret.getClass() == String.class || ret instanceof Map || ret instanceof Iterable) {
-        objToPass = ret;
       } else {
-        return;
+        objToPass = ret;
       }
 
       CallbackProvider cbp = AgentTracer.get().instrumentationGateway();

@@ -12,6 +12,7 @@ import javax.ws.rs.core.Response
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -72,6 +73,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
       executor.execute {
         controller(BODY_URLENCODED) {
           asyncResponse.resume(Response.status(BODY_URLENCODED.status).entity([a: [a]] as String).build())
+        }
+      }
+    }
+
+    @POST
+    @Path("body-json")
+    Response bodyJson(@Suspended final AsyncResponse asyncResponse, ClassToConvertBodyTo obj) {
+      executor.execute {
+        controller(BODY_JSON) {
+          asyncResponse.resume(
+            Response.status(BODY_JSON.status).entity("""{"a":"${obj.a}"}""" as String).build())
         }
       }
     }

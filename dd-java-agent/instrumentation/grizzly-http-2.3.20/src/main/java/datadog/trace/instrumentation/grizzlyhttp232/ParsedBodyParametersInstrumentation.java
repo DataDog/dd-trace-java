@@ -22,21 +22,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.grizzly.http.util.Parameters;
 
 // tested in GlassFishServerTest
 @AutoService(Instrumenter.class)
-public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec {
+public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
     super("grizzly");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.util.Parameters");
+  public String instrumentedType() {
+    return "org.glassfish.grizzly.http.util.Parameters";
   }
 
   private static final ReferenceMatcher PARAM_HASH_VALUES_HASH_MAP_REFERENCE_MATCHER =

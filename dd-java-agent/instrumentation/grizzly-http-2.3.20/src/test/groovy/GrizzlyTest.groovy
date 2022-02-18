@@ -21,7 +21,9 @@ import javax.ws.rs.ext.ExceptionMapper
 import javax.ws.rs.ext.Provider
 import java.util.concurrent.TimeoutException
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -30,7 +32,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
@@ -50,6 +51,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
       rc.register(SimpleExceptionMapper)
       rc.register(resource())
       rc.register(ResponseServerFilter)
+      rc.register(new TestMessageBodyReader())
       server = GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:0"), rc, false)
     }
 
@@ -99,6 +101,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  @Override
+  boolean testBodyJson() {
+    true
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override
@@ -144,6 +151,14 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response bodyUrlencoded(@FormParam("a") List<String> a) {
       controller(BODY_URLENCODED) {
         Response.status(BODY_URLENCODED.status).entity([a: a] as String).build()
+      }
+    }
+
+    @POST
+    @Path("body-json")
+    Response bodyJson(ClassToConvertBodyTo obj) {
+      controller(BODY_JSON) {
+        Response.status(BODY_JSON.status).entity("""{"a":"${obj.a}"}""" as String).build()
       }
     }
 
