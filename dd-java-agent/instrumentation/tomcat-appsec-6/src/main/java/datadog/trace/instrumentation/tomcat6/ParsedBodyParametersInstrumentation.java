@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.tomcat6;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.*;
@@ -34,11 +33,6 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.apache.tomcat.util.http.Parameters");
   }
 
   @Override
