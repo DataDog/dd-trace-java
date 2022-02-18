@@ -59,6 +59,7 @@ public class GatewayBridge {
   private volatile EventProducerService.DataSubscriberInfo requestBodySubInfo;
   private volatile EventProducerService.DataSubscriberInfo pathParamsSubInfo;
   private volatile EventProducerService.DataSubscriberInfo respDataSubInfo;
+  private volatile EventProducerService.DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -281,6 +282,23 @@ public class GatewayBridge {
           }
           ctx.finishResponseHeaders();
           return maybePublishResponseData(ctx);
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.grpcServerRequestMessage(),
+        (ctx_, obj) -> {
+          AppSecRequestContext ctx = ctx_.getData();
+          if (grpcServerRequestMsgSubInfo == null) {
+            grpcServerRequestMsgSubInfo =
+                producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+          }
+          if (grpcServerRequestMsgSubInfo.isEmpty()) {
+            return Flow.ResultFlow.empty();
+          }
+          Object convObj = ObjectIntrospection.convert(obj);
+          DataBundle bundle =
+              new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
+          return producerService.publishDataEvent(grpcServerRequestMsgSubInfo, ctx, bundle, true);
         });
   }
 

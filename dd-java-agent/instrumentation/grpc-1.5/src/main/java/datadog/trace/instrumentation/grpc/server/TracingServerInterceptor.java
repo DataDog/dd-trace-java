@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.grpc.server;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -9,18 +10,33 @@ import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Function;
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.function.Supplier;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
+import io.grpc.Grpc;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import javax.annotation.Nonnull;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
@@ -28,6 +44,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
 
   private TracingServerInterceptor() {}
+
+  protected static AgentTracer.TracerAPI tracer() {
+    return AgentTracer.get();
+  }
 
   @Override
   public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
@@ -38,8 +58,20 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return next.startCall(call, headers);
     }
 
-    final Context spanContext = propagate().extract(headers, GETTER);
+    Context spanContext = propagate().extract(headers, GETTER);
+
+    CallbackProvider cbp = tracer().instrumentationGateway();
+    if (cbp != null) {
+      spanContext = callIGCallbackRequestStarted(cbp, spanContext);
+    }
+
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+    RequestContext<Object> reqContext = span.getRequestContext();
+    if (reqContext != null) {
+      callIGCallbackClientAddress(cbp, reqContext, call);
+      callIGCallbackHeaders(cbp, reqContext, headers);
+    }
+
     DECORATE.afterStart(span);
     DECORATE.onCall(span, call);
 
@@ -56,6 +88,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       if (span.phasedFinish()) {
         DECORATE.onError(span, e);
         DECORATE.beforeFinish(span);
+        callIGCallbackRequestEnded(span);
         span.publish();
       }
       throw e;
@@ -87,6 +120,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       } finally {
         if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
+          callIGCallbackRequestEnded(span);
           span.publish();
         }
       }
@@ -109,12 +143,14 @@ public class TracingServerInterceptor implements ServerInterceptor {
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
       try (AgentScope scope = activateSpan(msgSpan)) {
+        callIGCallbackGrpcMessage(msgSpan, message);
         delegate().onMessage(message);
       } catch (final Throwable e) {
         // I'm not convinced we should actually be finishing the span here...
         if (span.phasedFinish()) {
           DECORATE.onError(msgSpan, e);
           DECORATE.beforeFinish(span);
+          callIGCallbackRequestEnded(span);
           span.publish();
         }
         throw e;
@@ -132,6 +168,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
         if (span.phasedFinish()) {
           DECORATE.onError(span, e);
           DECORATE.beforeFinish(span);
+          callIGCallbackRequestEnded(span);
           span.publish();
         }
         throw e;
@@ -153,6 +190,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       } finally {
         if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
+          callIGCallbackRequestEnded(span);
           span.publish();
         }
       }
@@ -173,6 +211,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
          */
         if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
+          callIGCallbackRequestEnded(span);
           span.publish();
         }
       }
@@ -186,10 +225,104 @@ public class TracingServerInterceptor implements ServerInterceptor {
         if (span.phasedFinish()) {
           DECORATE.onError(span, e);
           DECORATE.beforeFinish(span);
+          callIGCallbackRequestEnded(span);
           span.publish();
         }
         throw e;
       }
     }
+  }
+
+  // IG helpers follow
+
+  private static Context callIGCallbackRequestStarted(CallbackProvider cbp, Context context) {
+    Supplier<Flow<Object>> startedCB = cbp.getCallback(EVENTS.requestStarted());
+    if (startedCB == null) {
+      return context;
+    }
+    Object requestContextData = startedCB.get().getResult();
+    if (requestContextData != null) {
+      TagContext tagContext = null;
+      if (context == null) {
+        tagContext = new TagContext();
+      } else if (context instanceof TagContext) {
+        tagContext = (TagContext) context;
+      }
+      if (tagContext != null) {
+        tagContext.withRequestContextData(requestContextData);
+      }
+      return tagContext;
+    }
+    return context;
+  }
+
+  private static <ReqT, RespT> void callIGCallbackClientAddress(
+      CallbackProvider cbp, RequestContext<Object> ctx, ServerCall<ReqT, RespT> call) {
+    SocketAddress socketAddress = call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
+    TriFunction<RequestContext<Object>, String, Integer, Flow<Void>> cb =
+        cbp.getCallback(EVENTS.requestClientSocketAddress());
+    if (socketAddress == null || !(socketAddress instanceof InetSocketAddress) || cb == null) {
+      return;
+    }
+
+    InetSocketAddress inetSockAddr = (InetSocketAddress) socketAddress;
+    cb.apply(ctx, inetSockAddr.getHostString(), inetSockAddr.getPort());
+  }
+
+  private static void callIGCallbackHeaders(
+      CallbackProvider cbp, RequestContext<Object> reqCtx, Metadata metadata) {
+    TriConsumer<RequestContext<Object>, String, String> headerCb =
+        cbp.getCallback(EVENTS.requestHeader());
+    Function<RequestContext<Object>, Flow<Void>> headerEndCb =
+        cbp.getCallback(EVENTS.requestHeaderDone());
+    if (headerCb == null || headerEndCb == null) {
+      return;
+    }
+    for (String key : metadata.keys()) {
+      if (!key.endsWith(Metadata.BINARY_HEADER_SUFFIX)) {
+        Metadata.Key<String> mdKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+        for (String value : metadata.getAll(mdKey)) {
+          headerCb.accept(reqCtx, key, value);
+        }
+      }
+    }
+
+    headerEndCb.apply(reqCtx);
+  }
+
+  private static void callIGCallbackRequestEnded(@Nonnull final AgentSpan span) {
+    CallbackProvider cbp = tracer().instrumentationGateway();
+    if (cbp == null) {
+      return;
+    }
+    RequestContext<Object> requestContext = span.getRequestContext();
+    if (requestContext != null) {
+      BiFunction<RequestContext<Object>, IGSpanInfo, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestEnded());
+      if (callback != null) {
+        callback.apply(requestContext, span);
+      }
+    }
+  }
+
+  private static void callIGCallbackGrpcMessage(@Nonnull final AgentSpan span, Object obj) {
+    if (obj == null) {
+      return;
+    }
+
+    CallbackProvider cbp = tracer().instrumentationGateway();
+    if (cbp == null) {
+      return;
+    }
+    BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.grpcServerRequestMessage());
+    if (callback == null) {
+      return;
+    }
+    RequestContext<Object> requestContext = span.getRequestContext();
+    if (requestContext == null) {
+      return;
+    }
+    callback.apply(requestContext, obj);
   }
 }
