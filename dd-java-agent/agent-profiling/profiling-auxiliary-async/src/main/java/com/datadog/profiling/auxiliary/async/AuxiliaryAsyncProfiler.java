@@ -272,7 +272,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
           .append(getCpuInterval())
           .append('m')
           .append(",jstackdepth=")
-          .append(getStackDepth());
+          .append(getStackDepth())
+          .append(",safemode=")
+          .append(getSafeMode());
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
@@ -308,6 +310,12 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH,
         ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT);
+  }
+
+  private int getSafeMode() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_CPU_SAFEMODE,
+        ProfilingConfig.PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT);
   }
 
   private String getCpuMode() {
