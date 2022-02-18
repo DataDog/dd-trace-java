@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.aws.v0;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -23,14 +22,6 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing
 
   public AWSClientInstrumentation() {
     super("aws-sdk");
-  }
-
-  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("com.amazonaws.AmazonWebServiceRequest");
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
   }
 
   @Override
