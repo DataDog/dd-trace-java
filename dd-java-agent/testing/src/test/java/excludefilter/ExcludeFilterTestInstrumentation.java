@@ -26,7 +26,7 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {}
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put(Runnable.class.getName(), Object.class.getName());
     contextStores.put(Executor.class.getName(), Object.class.getName());

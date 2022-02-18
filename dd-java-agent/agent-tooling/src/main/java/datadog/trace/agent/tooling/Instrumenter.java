@@ -23,7 +23,6 @@ import datadog.trace.api.Config;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -147,28 +146,13 @@ public interface Instrumenter {
     private void lazyInit() {
       synchronized (this) {
         if (!initialized) {
-          Map<ElementMatcher<ClassLoader>, Map<String, String>> contextStores;
-          Map<String, String> allClassLoaderContextStores = contextStoreForAll();
           Map<String, String> matchedContextStores = contextStore();
-          if (allClassLoaderContextStores.isEmpty()) {
-            if (matchedContextStores.isEmpty()) {
-              contextStores = emptyMap();
-            } else {
-              contextStores = singletonMap(classLoaderMatcher(), matchedContextStores);
-            }
-          } else {
-            if (contextStore().isEmpty()) {
-              contextStores = singletonMap(ANY_CLASS_LOADER, allClassLoaderContextStores);
-            } else {
-              contextStores = new HashMap<>();
-              contextStores.put(classLoaderMatcher(), matchedContextStores);
-              contextStores.put(ANY_CLASS_LOADER, allClassLoaderContextStores);
-            }
-          }
-          if (!contextStores.isEmpty()) {
-            contextProvider = new FieldBackedContextProvider(this, contextStores);
-          } else {
+          if (matchedContextStores.isEmpty()) {
             contextProvider = NoopContextProvider.INSTANCE;
+          } else {
+            contextProvider =
+                new FieldBackedContextProvider(
+                    this, singletonMap(classLoaderMatcher(), matchedContextStores));
           }
           initialized = true;
         }
@@ -387,16 +371,6 @@ public interface Instrumenter {
      * associated with a context of the value.
      */
     public Map<String, String> contextStore() {
-      return emptyMap();
-    }
-
-    /**
-     * Context stores to define for this instrumentation. Are added to all class loaders.
-     *
-     * <p>A map of {class-name -> context-class-name}. Keys (and their subclasses) will be
-     * associated with a context of the value.
-     */
-    public Map<String, String> contextStoreForAll() {
       return emptyMap();
     }
 
