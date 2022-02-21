@@ -60,6 +60,8 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
 
   public static final String NETTY_HTTP_REQUEST_CLASS_NAME =
       "org.jboss.resteasy.plugins.server.netty.NettyHttpRequest";
+  public static final String NETTY_HTTP_REQUEST_RESOURCE_NAME =
+      "org/jboss/resteasy/plugins/server/netty/NettyHttpRequest.class";
   private static final ReferenceMatcher NETTY_HTTP_REQUEST_DECODED_PARAMETERS_MATCHER =
       new ReferenceMatcher(
           new Reference.Builder(NETTY_HTTP_REQUEST_CLASS_NAME)
@@ -97,14 +99,7 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
       }
 
       private boolean hasNetty(ClassLoader loader) {
-        boolean hasNetty = false;
-        try {
-          loader.loadClass(NETTY_HTTP_REQUEST_CLASS_NAME);
-          hasNetty = true;
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-        }
-
-        return hasNetty;
+        return loader.getResource(NETTY_HTTP_REQUEST_RESOURCE_NAME) != null;
       }
     };
   }
