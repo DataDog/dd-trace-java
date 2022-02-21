@@ -13,19 +13,22 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import org.codehaus.jackson.map.ObjectMapper
 import spock.lang.Shared
 
 import javax.ws.rs.Consumes
 import javax.ws.rs.FormParam
 import javax.ws.rs.POST
 import javax.ws.rs.Path
+import javax.ws.rs.Produces
 import javax.ws.rs.core.Application
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
+import javax.ws.rs.ext.ContextResolver
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
 
@@ -88,17 +91,64 @@ abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
     }
   }
 
-  @Path("/body-urlencoded")
-  static class BodyUrlEncodedResource {
+  def 'test instrumentation gateway json request body'() {
+    setup:
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(okhttp3.MediaType.get('application/json'), '{"a":"x"}\n'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == '{"a":"x"}'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
+  @Path("/")
+  static class BodyResource {
     @POST
+    @Path("body-urlencoded")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     Response bodyUrlencoded(@FormParam("a") List<String> a) {
       Response.status(BODY_URLENCODED.status).entity([a: a] as String).build()
     }
+
+    @POST
+    @Path("body-json")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    Response bodyJson(ClassForBodyToBeConvertedTo obj) {
+      Response.status(BODY_JSON.status).entity(obj).build()
+    }
+  }
+
+  static class ClassForBodyToBeConvertedTo {
+    String a
+
+    @Override
+    String toString() {
+      "[a:[$a]]"
+    }
+  }
+
+  /* avoid the jackson provider looking for jaxb annotations */
+  static class ObjectMapperContextResolver implements ContextResolver<ObjectMapper> {
+    @Override
+    ObjectMapper getContext(Class<?> type) {
+      new ObjectMapper()
+    }
   }
 
   static class TestJaxRsApplication extends Application {
-    private static final RESOURCE = new AbstractResteasyAppsecTest.BodyUrlEncodedResource()
-    final Set<Object> singletons = [RESOURCE] as Set
+    private static final RESOURCE = new BodyResource()
+    private static final OBJECT_MAPPER_CONTEXT_RESOLVER = new ObjectMapperContextResolver()
+    final Set<Object> singletons = [RESOURCE, OBJECT_MAPPER_CONTEXT_RESOLVER] as Set
   }
 }
