@@ -2,9 +2,10 @@ package com.datadog.profiling.controller.oracle;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,10 @@ class OracleJdkControllerTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new OracleJdkController(Config.get());
+    Properties props = new Properties();
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    instance = new OracleJdkController(configProvider);
   }
 
   @Test
