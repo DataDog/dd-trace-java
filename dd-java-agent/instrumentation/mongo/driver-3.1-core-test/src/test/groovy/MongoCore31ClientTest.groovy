@@ -20,6 +20,7 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class MongoCore31ClientTest extends MongoBaseTest {
 
@@ -108,12 +109,14 @@ class MongoCore31ClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -136,14 +139,16 @@ class MongoCore31ClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       def coll = db.getCollection(collectionName)
       coll.insertOne(new Document("password", "OLDPW"))
       return coll
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -169,14 +174,16 @@ class MongoCore31ClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       def coll = db.getCollection(collectionName)
       coll.insertOne(new Document("password", "SECRET"))
       return coll
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -200,12 +207,14 @@ class MongoCore31ClientTest extends MongoBaseTest {
 
   def "test error"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:

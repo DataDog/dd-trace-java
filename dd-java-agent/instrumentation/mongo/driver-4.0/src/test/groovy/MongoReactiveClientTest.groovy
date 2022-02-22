@@ -14,15 +14,14 @@ import org.bson.Document
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import spock.lang.Shared
-import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Timeout(10)
 class MongoReactiveClientTest extends MongoBaseTest {
 
   @Shared
@@ -38,14 +37,16 @@ class MongoReactiveClientTest extends MongoBaseTest {
   }
 
   MongoCollection<Document> setupCollection(String collectionName) {
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       def latch = new CountDownLatch(1)
       db.createCollection(collectionName).subscribe(toSubscriber { latch.countDown() })
       latch.await()
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
     return collection
   }
@@ -55,12 +56,15 @@ class MongoReactiveClientTest extends MongoBaseTest {
     if (null != subscriber) {
       publisher.subscribe(subscriber)
     } else {
-      def latch = new CountDownLatch(1)
-      publisher.subscribe(toSubscriber {
-        latch.countDown()
-      })
-      latch.await()
-      TEST_WRITER.waitForTraces(1)
+      DDSpan setupSpan = runUnderTrace("setup") {
+        def latch = new CountDownLatch(1)
+        publisher.subscribe(toSubscriber {
+          latch.countDown()
+        })
+        latch.await()
+        return activeSpan() as DDSpan
+      }
+      TEST_WRITER.waitUntilReported(setupSpan)
       TEST_WRITER.clear()
     }
   }
