@@ -32,11 +32,16 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
         || name.startsWith("com.github.mustachejava.")
         || name.startsWith("com.jayway.jsonpath.")
         || name.startsWith("com.lightbend.lagom.")
+        || name.startsWith("com.netflix.graphql.")
         || name.startsWith("javax.el.")
         || name.startsWith("net.sf.cglib.")
+        || name.startsWith("org.antlr.")
+        || name.startsWith("org.apache.ibatis.")
         || name.startsWith("org.apache.lucene.")
         || name.startsWith("org.apache.tartarus.")
+        || name.startsWith("org.hibernate.validator.")
         || name.startsWith("org.json.simple.")
+        || name.startsWith("org.flywaydb.")
         || name.startsWith("org.yaml.snakeyaml.")) {
       return true;
     }
@@ -59,6 +64,12 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
           || name.startsWith("org.springframework.orm.")
           || name.startsWith("org.springframework.remoting.")
           || name.startsWith("org.springframework.scripting.")
+          || (name.startsWith("org.springframework.security.config.")
+              // Runnables
+              && !name.startsWith(
+                  "org.springframework.security.config.annotation.web.builders.WebSecurity$")
+              && !name.startsWith(
+                  "org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter$"))
           || name.startsWith("org.springframework.stereotype.")
           || name.startsWith("org.springframework.transaction.")
           || name.startsWith("org.springframework.ui.")
