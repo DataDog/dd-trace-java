@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Arrays.asList;
@@ -14,7 +13,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
@@ -26,11 +24,6 @@ public class SqsReceiveRequestInstrumentation extends Instrumenter.Tracing
   @Override
   protected boolean defaultEnabled() {
     return super.defaultEnabled() && Config.get().isSqsPropagationEnabled();
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("com.amazonaws.services.sqs.model.ReceiveMessageRequest");
   }
 
   @Override

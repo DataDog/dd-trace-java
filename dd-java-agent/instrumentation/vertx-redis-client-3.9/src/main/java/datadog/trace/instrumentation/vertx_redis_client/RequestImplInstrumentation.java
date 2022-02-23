@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Arrays;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -39,10 +38,10 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public AgentBuilder.Transformer transformer() {
+  public AdviceTransformer transformer() {
     // This Transformer will add the Cloneable interface to RequestImpl, as well as a clone method
     // that calls the protected shallow clone method in Object
-    return new AgentBuilder.Transformer() {
+    return new AdviceTransformer() {
       @Override
       public DynamicType.Builder<?> transform(
           DynamicType.Builder<?> builder,

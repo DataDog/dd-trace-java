@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.aws.v0.AWSClientInstrumentation.CLASS_LOADER_MATCHER;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SCOPE_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
@@ -16,7 +15,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * This is additional 'helper' to catch cases when HTTP request throws exception different from
@@ -29,11 +27,6 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
 
   public AWSHttpClientInstrumentation() {
     super("aws-sdk");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
   }
 
   @Override
@@ -78,11 +71,6 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
    */
   @AutoService(Instrumenter.class)
   public static final class RequestExecutorInstrumentation extends AWSHttpClientInstrumentation {
-
-    @Override
-    public ElementMatcher<ClassLoader> classLoaderMatcher() {
-      return CLASS_LOADER_MATCHER;
-    }
 
     @Override
     public String instrumentedType() {

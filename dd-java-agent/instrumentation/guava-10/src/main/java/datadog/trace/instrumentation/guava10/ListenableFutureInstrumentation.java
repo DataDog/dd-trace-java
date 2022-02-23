@@ -33,6 +33,9 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // prevents Runnable from being instrumented unless this
+    // instrumentation would take effect (unless something else
+    // instruments it).
     return CLASS_LOADER_MATCHER;
   }
 

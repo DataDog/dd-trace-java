@@ -51,7 +51,7 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
   }
 

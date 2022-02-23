@@ -116,7 +116,9 @@ public class PowerWAFModule implements AppSecModule {
   }
 
   private void applyConfig(AppSecConfig config) throws AppSecModuleActivationException {
-    log.info("Configuring WAF");
+    if (log.isDebugEnabled()) {
+      log.info("Configuring WAF");
+    }
 
     CtxAndAddresses prevContextAndAddresses = this.ctxAndAddresses.get();
     CtxAndAddresses newContextAndAddresses;
@@ -151,6 +153,15 @@ public class PowerWAFModule implements AppSecModule {
   @Override
   public String getName() {
     return "powerwaf";
+  }
+
+  @Override
+  public String getInfo() {
+    return "powerwaf(libddwaf: "
+        + Powerwaf.LIB_VERSION
+        + ") loaded "
+        + rulesInfoMap.size()
+        + " rules";
   }
 
   @Override
@@ -241,7 +252,9 @@ public class PowerWAFModule implements AppSecModule {
       StandardizedLogging.inAppWafReturn(log, actionWithData);
 
       if (actionWithData.action != Powerwaf.Action.OK) {
-        log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
+        if (log.isDebugEnabled()) {
+          log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
+        }
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
         reqCtx.setBlocked(actionWithData.action == Powerwaf.Action.BLOCK);

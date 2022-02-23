@@ -64,7 +64,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int responseStatus;
   private boolean blocked;
 
+  private boolean reqDataPublished;
+  private boolean pathParamsPublished;
+  private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
+  private boolean respDataPublished;
 
   private Additive additive;
 
@@ -251,12 +255,44 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.blocked = blocked;
   }
 
+  public boolean isReqDataPublished() {
+    return reqDataPublished;
+  }
+
+  public void setReqDataPublished(boolean reqDataPublished) {
+    this.reqDataPublished = reqDataPublished;
+  }
+
+  public boolean isPathParamsPublished() {
+    return pathParamsPublished;
+  }
+
+  public void setPathParamsPublished(boolean pathParamsPublished) {
+    this.pathParamsPublished = pathParamsPublished;
+  }
+
+  public boolean isRawReqBodyPublished() {
+    return rawReqBodyPublished;
+  }
+
+  public void setRawReqBodyPublished(boolean rawReqBodyPublished) {
+    this.rawReqBodyPublished = rawReqBodyPublished;
+  }
+
   public boolean isConvertedReqBodyPublished() {
     return convertedReqBodyPublished;
   }
 
   public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
     this.convertedReqBodyPublished = convertedReqBodyPublished;
+  }
+
+  public boolean isRespDataPublished() {
+    return respDataPublished;
+  }
+
+  public void setRespDataPublished(boolean respDataPublished) {
+    this.respDataPublished = respDataPublished;
   }
 
   @Override
