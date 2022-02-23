@@ -108,10 +108,10 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("decodedFormParameters") final MultivaluedMap<String, String> map) {
-      if (map == null) {
-        return true; // proceed
-      }
-      return false;
+      // only if the field is initially null do we run the after() advice
+      // this is so that further calls to getDecodedFormParameters(), when the
+      // data has already been processed and saved, do not make the data be resubmitted to the IG
+      return map == null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)

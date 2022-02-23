@@ -15,6 +15,19 @@ public final class ObjectIntrospection {
 
   private ObjectIntrospection() {}
 
+  /**
+   * Converts arbitrary objects to strings, maps and lists, by using reflection. This serves two
+   * main purposes: - the objects can be inspected by the appsec subsystem and passed to the WAF. -
+   * By creating new containers and not transforming only immutable objects like strings, the new
+   * object can be safely manipulated by the appsec subsystem without worrying about modifications
+   * in other threads.
+   *
+   * <p>Certain instance fields are excluded. Right now, this includes metaClass fields in Groovy
+   * objects and this$0 fields in inner classes.
+   *
+   * @param obj an arbitrary object
+   * @return the converted object
+   */
   public static Object convert(Object obj) {
     return guardedConversion(obj, 0, new int[] {MAX_ELEMENTS});
   }
