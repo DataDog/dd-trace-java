@@ -1,12 +1,13 @@
-package datadog.trace.agent.tooling.bytebuddy.matcher;
+package datadog.trace.agent.tooling.bytebuddy.matcher.jfr;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvent;
-import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEvents;
 import java.security.ProtectionDomain;
+import jdk.jfr.BooleanFlag;
 import jdk.jfr.Category;
+import jdk.jfr.Enabled;
 import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
+import jdk.jfr.StackTrace;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -20,6 +21,8 @@ public class MatchingEventsImpl extends MatchingEvents {
   @Category({"Datadog", "Tracer"})
   @Name("datadog.trace.agent.Matching")
   @Label("Matching")
+  @StackTrace(true)
+  @Enabled(true)
   static class MatchingEventImpl extends Event implements MatchingEvent {
     @Label("Instrumentation")
     String instrumentation;
@@ -31,6 +34,7 @@ public class MatchingEventsImpl extends MatchingEvents {
     String target;
 
     @Label("Matched")
+    @BooleanFlag
     boolean matched;
 
     @Override

@@ -1,16 +1,21 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import jdk.jfr.BooleanFlag;
 import jdk.jfr.Category;
+import jdk.jfr.Enabled;
 import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
+import jdk.jfr.StackTrace;
 
 @Category({"Datadog", "Tracer"})
 @Name("datadog.trace.agent.ClassTransformation")
 @Label("Class Transformation")
+@StackTrace(false)
+@Enabled(true)
 public class ClassTransformationEvent extends Event {
 
-  private static boolean ENABLED = false;
+  private static boolean ENABLED = true;
 
   @Label("Class Name")
   final String className;
@@ -25,6 +30,7 @@ public class ClassTransformationEvent extends Event {
   int classSizeDifference;
 
   @Label("Transformed")
+  @BooleanFlag
   boolean transformed;
 
   private static ClassTransformationEvent NOOP =

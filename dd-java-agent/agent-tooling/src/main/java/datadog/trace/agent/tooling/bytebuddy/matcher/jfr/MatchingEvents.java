@@ -35,27 +35,18 @@ public class MatchingEvents {
       ENABLED ? loadMatchingJfrEvents() : new MatchingEvents();
 
   private static MatchingEvents loadMatchingJfrEvents() {
-    // check JFR support
     if (Platform.isJavaVersionAtLeast(8, 0, 262)) {
-      boolean hasJfrSupport = false;
       try {
         AgentInstaller.class.getClassLoader().loadClass("jdk.jfr.Event");
-        hasJfrSupport = true;
-      } catch (ClassNotFoundException e) {
-        e.printStackTrace();
-      }
-      if (hasJfrSupport) {
-        try {
-          return (MatchingEvents)
-              AgentInstaller.class
-                  .getClassLoader()
-                  .loadClass("datadog.trace.agent.tooling.bytebuddy.matcher.MatchingEventsImpl")
-                  .getField("INSTANCE")
-                  .get(null);
-        } catch (Throwable e) {
-          log.warn(
-              "Problem loading Java 8 JFR events support, falling back to no-op implementation.");
-        }
+        return (MatchingEvents)
+            AgentInstaller.class
+                .getClassLoader()
+                .loadClass("datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatchingEventsImpl")
+                .getField("INSTANCE")
+                .get(null);
+      } catch (Throwable e) {
+        log.warn(
+            "Problem loading Java 8 JFR events support, falling back to no-op implementation.", e);
       }
     }
     return new MatchingEvents();
