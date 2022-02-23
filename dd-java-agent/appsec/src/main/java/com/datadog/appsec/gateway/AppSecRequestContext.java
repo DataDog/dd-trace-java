@@ -96,6 +96,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void setAdditive(Additive additive) {
+    Additive curAdditive = this.additive;
+    // the better check would be if the curAdditive has been closed,
+    // but this is behind a private field
+    if (curAdditive != null && additive != null) {
+      log.warn("Replacing WAF object. This is a bug");
+      curAdditive.close();
+    }
     this.additive = additive;
   }
 
@@ -297,7 +304,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   @Override
   public void close() {
-    // currently no-op
+    if (additive != null) {
+      log.warn("WAF object had not been closed (probably missed request-end event)");
+      additive.close();
+      additive = null;
+    }
   }
 
   /* end interface for GatewayBridge */
