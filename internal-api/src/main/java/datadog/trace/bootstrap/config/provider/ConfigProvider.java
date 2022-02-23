@@ -89,6 +89,10 @@ public final class ConfigProvider {
     return get(key, null, Boolean.class);
   }
 
+  public final Boolean getBoolean(String key, String... aliases) {
+    return get(key, null, Boolean.class, aliases);
+  }
+
   public final boolean getBoolean(String key, boolean defaultValue, String... aliases) {
     return get(key, defaultValue, Boolean.class, aliases);
   }

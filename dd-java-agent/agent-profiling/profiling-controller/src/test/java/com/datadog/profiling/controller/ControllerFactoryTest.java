@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.condition.JRE.JAVA_8;
 
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class ControllerFactoryTest {
 
-  @Mock private Config config;
+  @Mock private ConfigProvider configProvider;
 
   @Test
   @EnabledOnJre({JAVA_8})
@@ -24,7 +24,7 @@ public class ControllerFactoryTest {
         assertThrows(
             UnsupportedEnvironmentException.class,
             () -> {
-              ControllerFactory.createController(config);
+              ControllerFactory.createController(configProvider);
             });
     final String javaVendor = System.getProperty("java.vendor");
     final String javaRuntimeName = System.getProperty("java.runtime.name");
