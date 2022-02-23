@@ -97,7 +97,7 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     "com.vertica.jdbc.VerticaPreparedStatement",
     "com.vertica.jdbc.common.SPreparedStatement",
     // apache drill
-    "org/apache/drill/jdbc/DrillPreparedStatement",
+    "org.apache.drill.jdbc.DrillPreparedStatement",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",
