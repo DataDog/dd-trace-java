@@ -78,6 +78,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private static final AtomicIntegerFieldUpdater<PendingTrace> PENDING_REFERENCE_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "pendingReferenceCount");
 
+  private volatile int isEnqueued = 0;
+  private static final AtomicIntegerFieldUpdater<PendingTrace> IS_ENQUEUED =
+      AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "isEnqueued");
+
   /**
    * During a trace there are cases where the root span must be accessed (e.g. priority sampling and
    * trace-search tags). These use cases are an obstacle to span-streaming.
@@ -296,5 +300,11 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   public long getEndToEndStartTime() {
     return endToEndStartTime;
+  }
+
+  @Override
+  public boolean setEnqueued(boolean enqueued) {
+    int expected = enqueued ? 0 : 1;
+    return IS_ENQUEUED.compareAndSet(this, expected, 1 - expected);
   }
 }
