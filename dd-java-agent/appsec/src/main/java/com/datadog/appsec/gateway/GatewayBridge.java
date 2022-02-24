@@ -239,7 +239,9 @@ public class GatewayBridge {
             if (requestBodySubInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
             }
-            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, obj);
+            DataBundle bundle =
+                new SingletonDataBundle<>(
+                    KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
             return producerService.publishDataEvent(requestBodySubInfo, ctx, bundle, false);
           });
     }

@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Type;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -70,8 +69,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
   public static class HttpMessageConverterReadInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.Return final Object obj) {
-      if (obj == null
-          || !(obj instanceof Map || obj.getClass() == String.class || obj instanceof Iterable)) {
+      if (obj == null) {
         return;
       }
 

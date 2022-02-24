@@ -26,7 +26,7 @@ import org.glassfish.grizzly.utils.Charsets;
 public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyByteBodyInstrumentation() {
-    super("grizzly-byte-body");
+    super("grizzly");
   }
 
   @Override
