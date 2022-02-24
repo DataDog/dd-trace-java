@@ -223,7 +223,6 @@ public class PowerWAFModule implements AppSecModule {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
-      PowerwafContext powerwafContext = ctxAndAddr.ctx;
       try {
         StandardizedLogging.executingWAF(log);
         long start = 0L;
@@ -231,13 +230,7 @@ public class PowerWAFModule implements AppSecModule {
           start = System.currentTimeMillis();
         }
 
-        Additive additive = reqCtx.getAdditive();
-        if (additive == null) {
-          additive = powerwafContext.openAdditive();
-          reqCtx.setAdditive(additive);
-        }
-        actionWithData =
-            additive.run(new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS);
+        actionWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr);
 
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
@@ -262,6 +255,37 @@ public class PowerWAFModule implements AppSecModule {
         reqCtx.reportEvents(events, null);
       }
     }
+
+    private Powerwaf.ActionWithData doRunPowerwaf(
+        AppSecRequestContext reqCtx, DataBundle newData, CtxAndAddresses ctxAndAddr)
+        throws AbstractPowerwafException {
+      boolean isTransient =
+          newData.getAllAddresses().stream().anyMatch(addr -> !reqCtx.hasAddress(addr));
+      if (isTransient) {
+        DataBundle bundle = DataBundle.unionOf(newData, reqCtx);
+        return runPowerwafTransient(bundle, ctxAndAddr);
+      } else {
+        return runPowerwafAdditive(reqCtx, newData, ctxAndAddr);
+      }
+    }
+
+    private Powerwaf.ActionWithData runPowerwafAdditive(
+        AppSecRequestContext reqCtx, DataBundle newData, CtxAndAddresses ctxAndAddr)
+        throws AbstractPowerwafException {
+      Additive additive = reqCtx.getAdditive();
+      if (additive == null) {
+        additive = ctxAndAddr.ctx.openAdditive();
+        reqCtx.setAdditive(additive);
+      }
+      return additive.run(
+          new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS);
+    }
+  }
+
+  private Powerwaf.ActionWithData runPowerwafTransient(
+      DataBundle bundle, CtxAndAddresses ctxAndAddr) throws AbstractPowerwafException {
+    return ctxAndAddr.ctx.runRules(
+        new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS);
   }
 
   private Collection<AppSecEvent100> buildEvents(Powerwaf.ActionWithData actionWithData) {

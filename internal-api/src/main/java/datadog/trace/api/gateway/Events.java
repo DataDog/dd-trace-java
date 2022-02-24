@@ -166,6 +166,18 @@ public final class Events<D> {
     return (EventType<Function<RequestContext<D>, Flow<Void>>>) RESPONSE_HEADER_DONE;
   }
 
+  static final int GRPC_SERVER_REQUEST_MESSAGE_ID = 13;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRPC_SERVER_REQUEST_MESSAGE =
+      new ET<>("grpc.server.request.message", GRPC_SERVER_REQUEST_MESSAGE_ID);
+  /** All response headers have been provided */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>> grpcServerRequestMessage() {
+    return (EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>>)
+        GRPC_SERVER_REQUEST_MESSAGE;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

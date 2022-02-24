@@ -65,6 +65,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
+  BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -354,6 +355,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -629,5 +631,24 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow1.action == Flow.Action.Noop.INSTANCE
     flow2.result == null
     flow2.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'grpc server message recv transforms object and publishes'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+
+    when:
+    Flow<?> flow = grpcServerRequestMessageCB.apply(ctx, new Object() {
+        @SuppressWarnings('UnusedPrivateField')
+        private String foo = 'bar'
+      })
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true) >>
+    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
   }
 }

@@ -28,6 +28,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
   DataListener dataListener
   EventListener eventListener
 
+  def pwafAdditive
+
   private void setupWithStubConfigService() {
     def service = new StubAppSecConfigService()
     service.init(false)
@@ -50,6 +52,28 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    1 * ctx.getAdditive() >> null
+    1 * ctx.setAdditive(_) >> { pwafAdditive = it; null }
+    1 * ctx.getAdditive() >> pwafAdditive
+    1 * ctx.setAdditive(null)
+    flow.blocking == true
+  }
+
+  void 'can trigger a nonadditive waf run'() {
+    setupWithStubConfigService()
+    ChangeableFlow flow = new ChangeableFlow()
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+
+    then:
+    1 * ctx.size() >> 0
+    1 * ctx.allAddresses >> []
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> false
+    1 * ctx.setBlocked(_)
+    1 * ctx.reportEvents(*_)
+    0 * ctx._(*_)
     flow.blocking == true
   }
 
@@ -62,6 +86,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
@@ -125,6 +150,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()

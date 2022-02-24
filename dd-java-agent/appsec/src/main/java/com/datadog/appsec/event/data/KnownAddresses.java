@@ -86,6 +86,8 @@ public interface KnownAddresses {
   Address<CaseInsensitiveMap<List<String>>> HEADERS_NO_COOKIES =
       new Address<>("server.request.headers.no_cookies");
 
+  Address<Object> GRPC_SERVER_REQUEST_MESSAGE = new Address<>("grpc.server.request.message");
+
   static Address<?> forName(String name) {
     switch (name) {
       case "server.request.body":
@@ -124,6 +126,8 @@ public interface KnownAddresses {
         return REQUEST_QUERY;
       case "server.request.headers.no_cookies":
         return HEADERS_NO_COOKIES;
+      case "grpc.server.request.message":
+        return GRPC_SERVER_REQUEST_MESSAGE;
       default:
         return null;
     }
