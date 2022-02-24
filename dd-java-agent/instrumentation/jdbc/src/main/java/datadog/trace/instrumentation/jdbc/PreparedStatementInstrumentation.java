@@ -94,10 +94,9 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakePreparedStatementV1",
     // vertica
-    "com.vertica.jdbc.VerticaPreparedStatement",
     "com.vertica.jdbc.common.SPreparedStatement",
     // apache drill
-    "org.apache.drill.jdbc.DrillPreparedStatement",
+    "org.apache.drill.jdbc.impl.DrillPreparedStatementImpl",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",

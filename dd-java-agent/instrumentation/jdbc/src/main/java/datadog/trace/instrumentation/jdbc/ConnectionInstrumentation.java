@@ -59,13 +59,9 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakeConnectionV1",
     // vertica
-    "com.vertica.jdbc.VerticaConnection",
     "com.vertica.jdbc.common.SConnection",
-    "com.vertica.jdbc.common.SPooledConnection", // Not sure if should include: implements
-    // javax.sql.PooledConnection
-    "com.vertica.jdbc.kv.RoutableConnection",
     // apache drill
-    "org.apache.drill.jdbc.DrillConnection",
+    "org.apache.drill.jdbc.impl.DrillConnectionImpl",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsConnection",
     // SAP HANA in-memory DB
