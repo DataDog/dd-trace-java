@@ -58,6 +58,10 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.sqlite.jdbc4.JDBC4Connection",
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakeConnectionV1",
+    // vertica
+    "com.vertica.jdbc.common.SConnection",
+    // apache drill
+    "org.apache.drill.jdbc.impl.DrillConnectionImpl",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsConnection",
     // SAP HANA in-memory DB
