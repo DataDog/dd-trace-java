@@ -1,10 +1,10 @@
 package com.datadog.profiling.context;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.datadog.profiling.context.allocator.Allocators;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class LongSequenceTest {
   private LongSequence instance;
@@ -35,6 +35,5 @@ class LongSequenceTest {
   }
 
   @Test
-  void iterator() {
-  }
+  void iterator() {}
 }

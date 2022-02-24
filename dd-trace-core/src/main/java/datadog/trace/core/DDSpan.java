@@ -13,16 +13,19 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.profiling.ContextTracker;
-import datadog.trace.api.profiling.ContextTrackerFactory;
+import datadog.trace.api.profiling.ProfilingContextTracker;
+import datadog.trace.api.profiling.ProfilingContextTrackerFactory;
+import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.util.Clock;
+import datadog.trace.util.Base64Encoder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -38,7 +41,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
+public class DDSpan
+    implements AgentSpan, CoreSpan<DDSpan>, TransientProfilingContextHolder, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
@@ -52,7 +56,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
-    span.contextTracker.activateContext();
+    span.profilingContextTracker.activateContext();
     return span;
   }
 
@@ -105,7 +109,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     this(timestampMicro, context, true);
   }
 
-  private final ContextTracker contextTracker;
+  private final ProfilingContextTracker profilingContextTracker;
+
   private DDSpan(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
     this.context = context;
@@ -120,7 +125,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
-    this.contextTracker = ContextTrackerFactory.instance();
+    this.profilingContextTracker = ProfilingContextTrackerFactory.instance();
   }
 
   public boolean isFinished() {
@@ -131,7 +136,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
-      contextTracker.deactivateContext(false);
+      profilingContextTracker.deactivateContext(false);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -234,12 +239,21 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
   }
 
-  public void processContext() {
-    contextTracker.persist();
+  public void storeContextToTag() {
+    try {
+      byte[] contextContent = profilingContextTracker.persistAndRelease();
+      if (contextContent != null) {
+        byte[] encoded = new Base64Encoder(false).encode(contextContent);
+        String tag = new String(encoded, StandardCharsets.UTF_8);
+        setTag("_dd_tracing_context", tag);
+      }
+    } catch (Throwable t) {
+      log.error("", t);
+    }
   }
 
-  public void releaseContext() {
-    contextTracker.release();
+  public void onRemoved() {
+    profilingContextTracker.release();
   }
 
   @Override
@@ -526,7 +540,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void startThreadMigration() {
-    contextTracker.deactivateContext(true);
+    profilingContextTracker.deactivateContext(true);
     if (hasCheckpoints()) {
       context.getTracer().onStartThreadMigration(this);
     }
@@ -534,7 +548,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void finishThreadMigration() {
-    contextTracker.activateContext();
+    profilingContextTracker.activateContext();
     if (hasCheckpoints()) {
       context.getTracer().onFinishThreadMigration(this);
     }
@@ -542,7 +556,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void finishWork() {
-    contextTracker.deactivateContext(false);
+    profilingContextTracker.deactivateContext(false);
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }

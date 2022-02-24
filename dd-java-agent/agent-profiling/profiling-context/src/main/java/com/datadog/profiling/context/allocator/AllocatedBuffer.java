@@ -9,5 +9,9 @@ public interface AllocatedBuffer {
 
   boolean putLong(long value);
 
+  boolean putLong(int pos, long value);
+
+  long getLong(int pos);
+
   LongIterator iterator();
 }

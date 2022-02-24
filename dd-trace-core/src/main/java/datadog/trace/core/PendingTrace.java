@@ -5,13 +5,10 @@ import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.util.Clock;
-
 import java.lang.ref.PhantomReference;
-import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -106,18 +103,31 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private static final AtomicLongFieldUpdater<PendingTrace> END_TO_END_START_TIME =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "endToEndStartTime");
 
-  private static final class CleanupReference extends PhantomReference<PendingTrace> implements Comparable<CleanupReference> {
-    private final Deque<DDSpan> spans;
+  private static final class CleanupReference extends PhantomReference<PendingTrace>
+      implements Comparable<CleanupReference> {
+    private final Collection<DDSpan> spans;
 
     CleanupReference(PendingTrace referent, ReferenceQueue<? super PendingTrace> q) {
       super(referent, q);
       this.spans = referent.finishedSpans;
     }
 
-    void cleanup() {
-      log.info("Cleaning up {} spans", spans.size());
-      for (DDSpan span : spans) {
-        span.releaseContext();
+    @Override
+    public void clear() {
+      try {
+        for (DDSpan span : spans) {
+          try {
+            span.onRemoved();
+          } catch (Throwable ignored) {
+            // just make sure no spurious exception would prevent calling 'onRemoved()' for other
+            // spans
+          }
+        }
+        // remove the reference from the internal ref-holder
+        cleanupRefHolder.remove(this);
+      } finally {
+        // properly clean the phantom reference so they don't keep accumulating
+        super.clear();
       }
     }
 
@@ -127,7 +137,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     }
   }
 
-  private static final Collection<CleanupReference> cleanupRefHolder = new ConcurrentSkipListSet<>();
+  // phantom references need to be kept strongly
+  private static final Collection<CleanupReference> cleanupRefHolder =
+      new ConcurrentSkipListSet<>();
+  // phantom references will be added to this queue once the referred object is GCed
   private static final ReferenceQueue<PendingTrace> cleanupQueue = new ReferenceQueue<>();
 
   private PendingTrace(
@@ -191,7 +204,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   PublishState onPublish(final DDSpan span) {
-    log.info("OnPublish");
     try {
       finishedSpans.addFirst(span);
       // There is a benign race here where the span added above can get written out by a writer in
@@ -336,20 +348,15 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   public void cleanupReferences() {
-    log.info("Cleanup reference attempt: {}", cleanupRefHolder.size());
     CleanupReference ref = null;
     int cnt = 0;
-    while ((ref = (CleanupReference)cleanupQueue.poll()) != null) {
+    while ((ref = (CleanupReference) cleanupQueue.poll()) != null) {
       try {
-        ref.cleanup();
-        cleanupRefHolder.remove(ref);
+        ref.clear();
         cnt++;
       } catch (Throwable t) {
         log.warn("", t);
       }
-    }
-    if (cnt > 0) {
-      log.info("Cleaned up {} references to pending trace", cnt);
     }
   }
 }

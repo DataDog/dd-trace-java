@@ -2,13 +2,12 @@ package com.datadog.profiling.context.allocator.direct;
 
 import com.datadog.profiling.context.Allocator;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class DirectAllocator implements Allocator {
   private static final Logger log = LoggerFactory.getLogger(DirectAllocator.class);
@@ -39,7 +38,8 @@ public final class DirectAllocator implements Allocator {
 
     int targetNumChunks = (int) Math.ceil(capacity / (double) chunkSize);
     this.lockSectionSize = (int) Math.ceil((targetNumChunks / (double) (cpus * 8))) * 8;
-    this.numChunks = (int) (Math.ceil(targetNumChunks / (double) lockSectionSize) * lockSectionSize);
+    this.numChunks =
+        (int) (Math.ceil(targetNumChunks / (double) lockSectionSize) * lockSectionSize);
     chunkSize = (int) Math.ceil(((double) capacity / (numChunks * chunkSize)) * chunkSize);
     chunkSize = (int) Math.ceil(((chunkSize / 8d) * 8));
     int alignedCapacity = numChunks * chunkSize;
@@ -87,7 +87,8 @@ public final class DirectAllocator implements Allocator {
             for (int pos = 0; pos < bitmapSize; pos++) {
               buffer[pos] = memorymap.get(memorymapOffset + pos);
             }
-            AllocationResult rslt = allocateChunks(buffer, lockSection, chunkArray, chunks - allocated, offset);
+            AllocationResult rslt =
+                allocateChunks(buffer, lockSection, chunkArray, chunks - allocated, offset);
             offset += rslt.usedChunks;
             allocated += rslt.allocatedChunks;
             if (allocated == chunks) {
@@ -111,7 +112,8 @@ public final class DirectAllocator implements Allocator {
     return new DirectAllocatedBuffer(chunkSize * allocated, Arrays.copyOf(chunkArray, offset));
   }
 
-  private AllocationResult allocateChunks(byte[] bitmap, int lockSection, Chunk[] chunks, int toAllocate, int offset) {
+  private AllocationResult allocateChunks(
+      byte[] bitmap, int lockSection, Chunk[] chunks, int toAllocate, int offset) {
     int allocated = 0;
     int chunkCounter = 0;
     int overlay = 0x00;
@@ -163,7 +165,7 @@ public final class DirectAllocator implements Allocator {
   }
 
   void release(int ref, int len) {
-    long delta = chunkSize * len;
+    long delta = chunkSize * (long) len;
     log.info("Release: bytes={}, ref={}, len={}, delta={}", allocatedBytes.get(), ref, len, delta);
     int offset = 0;
     while (offset < len) {

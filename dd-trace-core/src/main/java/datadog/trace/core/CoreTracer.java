@@ -735,8 +735,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
     } finally {
-      for (DDSpan span: trace) {
-        span.releaseContext();
+      for (DDSpan span : trace) {
+        span.onRemoved();
       }
     }
   }

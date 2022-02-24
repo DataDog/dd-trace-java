@@ -3,7 +3,7 @@ package com.datadog.profiling.agent;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.context.JfrTimestampPatch;
-import com.datadog.profiling.context.ProfilingContextTrackerFactory;
+import com.datadog.profiling.context.ProfilingContextTrackerFactoryImpl;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
@@ -60,7 +60,7 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController(config);
         final ConfigProvider configProvider = ConfigProvider.getInstance();
-        ProfilingContextTrackerFactory.register();
+        ProfilingContextTrackerFactoryImpl.register();
 
         final ProfileUploader uploader = new ProfileUploader(config, configProvider);
 

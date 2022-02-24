@@ -2,7 +2,6 @@ package com.datadog.profiling.context.allocator.heap;
 
 import com.datadog.profiling.context.Allocator;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class HeapAllocator implements Allocator {
@@ -12,7 +11,7 @@ public final class HeapAllocator implements Allocator {
   public HeapAllocator(int capacity, int chunkSize) {
     this.chunkSize = chunkSize;
     int numChunks = (int) Math.ceil(capacity / (double) chunkSize);
-    this.remaining = new AtomicLong(numChunks * chunkSize);
+    this.remaining = new AtomicLong(numChunks * (long) chunkSize);
   }
 
   @Override

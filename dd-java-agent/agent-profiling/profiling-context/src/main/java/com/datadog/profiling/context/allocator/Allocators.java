@@ -18,5 +18,4 @@ public abstract class Allocators {
   public static Allocator heapAllocator(int capacity, int chunk) {
     return new HeapAllocator(capacity, chunk);
   }
-
 }

@@ -2,7 +2,6 @@ package com.datadog.profiling.context.allocator.direct;
 
 import com.datadog.profiling.context.LongIterator;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-
 import java.nio.ByteBuffer;
 
 public final class DirectAllocatedBuffer implements AllocatedBuffer {
@@ -42,6 +41,31 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
   }
 
   @Override
+  public boolean putLong(int pos, long value) {
+    if (pos + 8 <= capacity) {
+      int chunkCapacity = capacity / chunks.length;
+
+      int chunkPos = pos / chunkCapacity;
+      int chunkOffset = pos % chunkCapacity;
+      chunks[chunkPos].buffer.putLong(chunkOffset, value);
+      return true;
+    }
+    return false;
+  }
+
+  @Override
+  public long getLong(int pos) {
+    if (pos + 8 <= capacity) {
+      int chunkCapacity = capacity / chunks.length;
+
+      int chunkPos = pos / chunkCapacity;
+      int chunkOffset = pos % chunkCapacity;
+      return chunks[chunkPos].buffer.getLong(chunkOffset);
+    }
+    return Long.MIN_VALUE;
+  }
+
+  @Override
   public LongIterator iterator() {
     return new LongIterator() {
       int valueReadIndex = 0;
@@ -50,7 +74,9 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
 
       @Override
       public boolean hasNext() {
-        while (chunkWriteIndex >= 0 && valueReadIndex < valueWriteIndex && chunkReadIndex <= chunkWriteIndex) {
+        while (chunkWriteIndex >= 0
+            && valueReadIndex < valueWriteIndex
+            && chunkReadIndex <= chunkWriteIndex) {
           if (chunkReadIndex < 0) {
             chunkReadIndex = 0;
             currentBuffer = (ByteBuffer) chunks[chunkReadIndex].buffer.duplicate().flip();
@@ -75,7 +101,6 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
           valueReadIndex += 8;
           return value;
         } catch (Throwable t) {
-          System.out.println("===> " + valueReadIndex);
           throw t;
         }
       }

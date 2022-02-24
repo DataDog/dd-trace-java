@@ -1,10 +1,9 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class LongSequence {
   private static final Logger log = LoggerFactory.getLogger(LongSequence.class);
@@ -20,8 +19,9 @@ public final class LongSequence {
   private final Allocator allocator;
 
   private static int align(int size) {
-    return (int)(Math.ceil(size / 8d) * 8);
+    return (int) (Math.ceil(size / 8d) * 8);
   }
+
   private final AtomicBoolean released = new AtomicBoolean(false);
 
   public LongSequence(Allocator allocator) {
@@ -75,6 +75,40 @@ public final class LongSequence {
     return true;
   }
 
+  public boolean set(int index, long value) {
+    int[] decoded = decodeBufferIndex(index);
+    if (decoded != null) {
+      return buffers[decoded[0]].putLong(decoded[1], value);
+    }
+    return false;
+  }
+
+  public long get(int index) {
+    int[] decoded = decodeBufferIndex(index);
+    if (decoded != null) {
+      return buffers[decoded[0]].getLong(decoded[1]);
+    }
+    return Long.MIN_VALUE;
+  }
+
+  private int[] decodeBufferIndex(int index) {
+    index *= 8; // 8 bytes per 1 long
+    int ptr = 0;
+    int bufferPos = 0;
+    while (bufferPos < buffers.length
+        && buffers[bufferPos] != null
+        && (ptr += buffers[bufferPos].capacity()) <= index) {
+      bufferPos++;
+    }
+    if (bufferPos < buffers.length) {
+      int bufferOffset = buffers[bufferPos].capacity() - (ptr - index);
+      if (bufferOffset >= 0 && bufferOffset < buffers[bufferPos].capacity()) {
+        return new int[] {bufferPos, bufferOffset};
+      }
+    }
+    return null;
+  }
+
   public int size() {
     return size;
   }
@@ -99,6 +133,7 @@ public final class LongSequence {
       int bufferReadSlot = 0;
       int allIndex = 0;
       LongIterator currentIterator = null;
+
       @Override
       public boolean hasNext() {
         if (bufferReadSlot > bufferWriteSlot || allIndex >= size) {
@@ -111,9 +146,10 @@ public final class LongSequence {
           return true;
         }
         do {
-          if (++bufferReadSlot >= bufferWriteSlot) {
+          if (++bufferReadSlot > bufferWriteSlot) {
             return false;
-          };
+          }
+          ;
           currentIterator = buffers[bufferReadSlot].iterator();
         } while (!currentIterator.hasNext());
         return true;

@@ -610,7 +610,8 @@ public class Agent {
       Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-      final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
       profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
       /*
        * Install the tracer hooks only when not using 'early start'.

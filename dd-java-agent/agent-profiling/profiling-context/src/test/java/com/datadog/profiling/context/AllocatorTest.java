@@ -1,11 +1,11 @@
 package com.datadog.profiling.context;
 
-import com.datadog.profiling.context.allocator.Allocators;
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
+import com.datadog.profiling.context.allocator.Allocators;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class AllocatorTest {
   private Allocator instance;
@@ -30,6 +30,5 @@ class AllocatorTest {
   }
 
   @Test
-  void release() {
-  }
+  void release() {}
 }
