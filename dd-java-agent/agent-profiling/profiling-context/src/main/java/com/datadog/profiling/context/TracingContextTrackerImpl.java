@@ -28,8 +28,6 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = -EXT_BIT;
 
-  private static final AtomicInteger instanceCounter = new AtomicInteger(0);
-
   private static final MethodHandle TIMESTAMP_MH;
 
   static {
@@ -78,8 +76,6 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     this.spanRef = new WeakReference<>(span);
     this.allocator = allocator;
     this.eventAccess = eventAccess;
-
-    log.info("TracingContextTrackerImpl instances: {}", instanceCounter.incrementAndGet());
   }
 
   private LongSequence initThreadBuffer() {
@@ -371,7 +367,6 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
       intervalBuffer = null;
-      instanceCounter.decrementAndGet();
     }
   }
 

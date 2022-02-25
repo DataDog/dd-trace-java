@@ -145,8 +145,6 @@ public final class OpenJdkController implements Controller {
     }
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
-
-    log.info("Recording settings: {}", recordingSettings);
     // Register periodic events
     AvailableProcessorCoresEvent.register();
   }
