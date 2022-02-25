@@ -1,7 +1,6 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.Allocators;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.profiling.CustomEventAccess;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -29,13 +28,11 @@ public final class TracingContextTrackerFactoryImpl
     TracingContextTrackerFactory.registerImplementation(Singleton.INSTANCE);
   }
 
-  private final Allocator allocator = Allocators.heapAllocator(8 * 1024 * 1024, 32);
+  private final Allocator allocator = Allocators.heapAllocator(256 * 1024 * 1024, 32);
   private final CustomEventAccess eventAccess;
 
   private TracingContextTrackerFactoryImpl() {
     this.eventAccess = EVENT_ACCESS_REF != null ? EVENT_ACCESS_REF : CustomEventAccess.NULL;
-//    GlobalTracer.get().addTraceInterceptor(new ProfilingContextSettingInterceptor());
-    log.info("Event access = {}", eventAccess);
   }
 
   @Override

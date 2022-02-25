@@ -1,5 +1,6 @@
 package com.datadog.profiling.context;
 
+import datadog.trace.api.RatelimitedLogger;
 import datadog.trace.api.profiling.CustomEventAccess;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -13,16 +14,21 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class TracingContextTrackerImpl implements TracingContextTracker {
   private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerImpl.class);
+  private static final RatelimitedLogger warnlog = new RatelimitedLogger(LoggerFactory.getLogger(TracingContextTrackerImpl.class), 30_000_000_000L);
 
   private static final long TRANSITION_MASK = 0xC000000000000000L;
   private static final long TIMESTAMP_MASK = ~TRANSITION_MASK;
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = -EXT_BIT;
+
+  private static final AtomicInteger instanceCounter = new AtomicInteger(0);
 
   private static final MethodHandle TIMESTAMP_MH;
 
@@ -72,6 +78,8 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     this.spanRef = new WeakReference<>(span);
     this.allocator = allocator;
     this.eventAccess = eventAccess;
+
+    log.info("TracingContextTrackerImpl instances: {}", instanceCounter.incrementAndGet());
   }
 
   private LongSequence initThreadBuffer() {
@@ -155,7 +163,7 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       synchronized (rawIntervals) {
         int size = rawIntervals.size();
         if (size > maxSequenceBufferSize) {
-          log.warn("Interval sequence has changed for thread {}. New size is {}", threadId, size);
+          warnlog.warn("Interval sequence has changed for thread {}. New size is {}", threadId, size);
         }
         LongIterator iterator = pruneIntervals(entry.getValue());
         while (iterator.hasNext()) {
@@ -363,6 +371,7 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
       intervalBuffer = null;
+      instanceCounter.decrementAndGet();
     }
   }
 
@@ -380,7 +389,7 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
         added = sequence.add(value);
       }
       if (!added) {
-        log.warn("Profiling Context Buffer is full. Losing data.");
+        warnlog.warn("Profiling Context Buffer is full. Losing data.");
       }
     } catch (Throwable t) {
       log.error("", t);
