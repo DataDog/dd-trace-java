@@ -34,7 +34,7 @@ public final class TracingContextTrackerFactoryImpl
 
   private TracingContextTrackerFactoryImpl() {
     this.eventAccess = EVENT_ACCESS_REF != null ? EVENT_ACCESS_REF : CustomEventAccess.NULL;
-    GlobalTracer.get().addTraceInterceptor(new ProfilingContextSettingInterceptor());
+//    GlobalTracer.get().addTraceInterceptor(new ProfilingContextSettingInterceptor());
     log.info("Event access = {}", eventAccess);
   }
 
