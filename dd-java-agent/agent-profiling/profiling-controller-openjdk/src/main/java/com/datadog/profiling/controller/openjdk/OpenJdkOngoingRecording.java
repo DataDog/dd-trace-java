@@ -33,6 +33,9 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     recording.setSettings(settings);
     recording.setMaxSize(maxSize);
     recording.setMaxAge(maxAge);
+    //    // TODO: revert
+    //    recording.enable("datadog.TraceContext");
+    //    // ***
     this.auxiliaryProfiler = AuxiliaryProfiler.getInstance();
     if (auxiliaryProfiler.isEnabled()) {
       auxiliaryRecording = auxiliaryProfiler.start();

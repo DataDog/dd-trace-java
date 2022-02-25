@@ -1,31 +1,31 @@
 package datadog.trace.api.profiling;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilingContextTrackerFactory {
-  private static final Logger log = LoggerFactory.getLogger(ProfilingContextTrackerFactory.class);
+public final class TracingContextTrackerFactory {
+  private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerFactory.class);
 
   public interface Implementation {
     Implementation EMPTY =
         new Implementation() {
-          public ProfilingContextTracker instance() {
-            return ProfilingContextTracker.EMPTY;
+          public TracingContextTracker instance(AgentSpan span) {
+            return TracingContextTracker.EMPTY;
           }
         };
 
-    ProfilingContextTracker instance();
+    TracingContextTracker instance(AgentSpan span);
   }
 
-  private static final ProfilingContextTrackerFactory INSTANCE =
-      new ProfilingContextTrackerFactory();
+  private static final TracingContextTrackerFactory INSTANCE = new TracingContextTrackerFactory();
 
   private volatile Implementation implementation = Implementation.EMPTY;
-  private final AtomicReferenceFieldUpdater<ProfilingContextTrackerFactory, Implementation>
+  private final AtomicReferenceFieldUpdater<TracingContextTrackerFactory, Implementation>
       implFieldUpdater =
           AtomicReferenceFieldUpdater.newUpdater(
-              ProfilingContextTrackerFactory.class, Implementation.class, "implementation");
+              TracingContextTrackerFactory.class, Implementation.class, "implementation");
 
   public static boolean registerImplementation(Implementation factoryImplementation) {
     try {
@@ -37,7 +37,7 @@ public final class ProfilingContextTrackerFactory {
     return false;
   }
 
-  public static ProfilingContextTracker instance() {
-    return INSTANCE.implementation.instance();
+  public static TracingContextTracker instance(AgentSpan span) {
+    return INSTANCE.implementation.instance(span);
   }
 }

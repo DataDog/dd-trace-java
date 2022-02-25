@@ -244,3 +244,4 @@ datadog.Scope#threshold=10 ms
 datadog.ExceptionSample#enabled=true
 datadog.ExceptionCount#enabled=true
 datadog.ProfilerSetting#enabled=true
+datadog.TraceContext#enabled=true

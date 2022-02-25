@@ -13,8 +13,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.profiling.ProfilingContextTracker;
-import datadog.trace.api.profiling.ProfilingContextTrackerFactory;
+import datadog.trace.api.profiling.TracingContextTracker;
+import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -56,7 +56,7 @@ public class DDSpan
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
-    span.profilingContextTracker.activateContext();
+    span.tracingContextTracker.activateContext();
     return span;
   }
 
@@ -109,7 +109,7 @@ public class DDSpan
     this(timestampMicro, context, true);
   }
 
-  private final ProfilingContextTracker profilingContextTracker;
+  private final TracingContextTracker tracingContextTracker;
 
   private DDSpan(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
@@ -125,7 +125,7 @@ public class DDSpan
       externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
-    this.profilingContextTracker = ProfilingContextTrackerFactory.instance();
+    this.tracingContextTracker = TracingContextTrackerFactory.instance(getLocalRootSpan());
   }
 
   public boolean isFinished() {
@@ -136,7 +136,7 @@ public class DDSpan
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
-      profilingContextTracker.deactivateContext(false);
+      tracingContextTracker.deactivateContext(false);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -241,7 +241,7 @@ public class DDSpan
 
   public void storeContextToTag() {
     try {
-      byte[] contextContent = profilingContextTracker.persistAndRelease();
+      byte[] contextContent = tracingContextTracker.persistAndRelease();
       if (contextContent != null) {
         byte[] encoded = new Base64Encoder(false).encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
@@ -253,7 +253,7 @@ public class DDSpan
   }
 
   public void onRemoved() {
-    profilingContextTracker.release();
+    tracingContextTracker.release();
   }
 
   @Override
@@ -540,7 +540,7 @@ public class DDSpan
 
   @Override
   public void startThreadMigration() {
-    profilingContextTracker.deactivateContext(true);
+    tracingContextTracker.deactivateContext(true);
     if (hasCheckpoints()) {
       context.getTracer().onStartThreadMigration(this);
     }
@@ -548,7 +548,7 @@ public class DDSpan
 
   @Override
   public void finishThreadMigration() {
-    profilingContextTracker.activateContext();
+    tracingContextTracker.activateContext();
     if (hasCheckpoints()) {
       context.getTracer().onFinishThreadMigration(this);
     }
@@ -556,7 +556,7 @@ public class DDSpan
 
   @Override
   public void finishWork() {
-    profilingContextTracker.deactivateContext(false);
+    tracingContextTracker.deactivateContext(false);
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }

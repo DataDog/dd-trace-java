@@ -67,6 +67,20 @@ public final class IntervalParser {
   public List<Interval> parseIntervals(byte[] intervalData) {
     List<Interval> result = new ArrayList<>();
 
+    parseIntervals(
+        intervalData,
+        interval -> {
+          result.add(interval);
+          return true;
+        });
+    return result;
+  }
+
+  public interface IntervalConsumer {
+    boolean accept(Interval interval);
+  }
+
+  public void parseIntervals(byte[] intervalData, IntervalConsumer consumer) {
     ByteBuffer buffer = ByteBuffer.wrap(intervalData);
     int chunkDataOffset = buffer.getInt();
     long timestamp = getVarint(buffer);
@@ -87,14 +101,16 @@ public final class IntervalParser {
           long endTsDelta = iterator.next();
           long startTs = previousTimestamp + startTsDelta;
           long endTs = startTs + endTsDelta;
-          result.add(new Interval(threadId, startTs, endTs));
+          if (!consumer.accept(new Interval(threadId, startTs, endTs))) {
+            // consumer not interested in the rest of the data
+            return;
+          }
           previousTimestamp = endTs;
         } else {
           throw new IllegalStateException();
         }
       }
     }
-    return result;
   }
 
   private long getVarint(ByteBuffer buffer) {

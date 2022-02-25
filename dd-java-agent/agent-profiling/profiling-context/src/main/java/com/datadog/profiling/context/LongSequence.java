@@ -115,7 +115,6 @@ public final class LongSequence {
 
   public void release() {
     if (released.compareAndSet(false, true)) {
-      log.info("Releasing long sequence");
       for (int i = 0; i < buffers.length; i++) {
         AllocatedBuffer buffer = buffers[i];
         if (buffer != null) {

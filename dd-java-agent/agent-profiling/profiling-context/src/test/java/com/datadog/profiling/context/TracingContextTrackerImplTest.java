@@ -9,12 +9,12 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class ProfilingContextTrackerImplTest {
-  private ProfilingContextTrackerImpl instance;
+class TracingContextTrackerImplTest {
+  private TracingContextTrackerImpl instance;
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new ProfilingContextTrackerImpl(Allocators.heapAllocator(32, 16), 0L);
+    instance = new TracingContextTrackerImpl(Allocators.heapAllocator(32, 16), 0L);
   }
 
   @Test
@@ -30,7 +30,7 @@ class ProfilingContextTrackerImplTest {
 
   @Test
   void persist() {
-    instance = new ProfilingContextTrackerImpl(Allocators.heapAllocator(8192, 64), 0L);
+    instance = new TracingContextTrackerImpl(Allocators.heapAllocator(8192, 64), 0L);
     for (int i = 0; i < 40; i += 4) {
       instance.activateContext(1L, (i + 1) * 1_000_000L);
       instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);

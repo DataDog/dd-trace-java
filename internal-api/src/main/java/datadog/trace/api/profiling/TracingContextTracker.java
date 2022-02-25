@@ -1,8 +1,8 @@
 package datadog.trace.api.profiling;
 
-public interface ProfilingContextTracker {
-  ProfilingContextTracker EMPTY =
-      new ProfilingContextTracker() {
+public interface TracingContextTracker {
+  TracingContextTracker EMPTY =
+      new TracingContextTracker() {
         @Override
         public void activateContext() {}
 

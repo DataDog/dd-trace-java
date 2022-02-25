@@ -1,9 +1,12 @@
 package com.datadog.profiling.context;
 
-import datadog.trace.api.profiling.ProfilingContextTracker;
+import datadog.trace.api.profiling.CustomEventAccess;
+import datadog.trace.api.profiling.TracingContextTracker;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Map;
@@ -13,8 +16,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilingContextTrackerImpl implements ProfilingContextTracker {
-  private static final Logger log = LoggerFactory.getLogger(ProfilingContextTrackerImpl.class);
+public final class TracingContextTrackerImpl implements TracingContextTracker {
+  private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerImpl.class);
 
   private static final long TRANSITION_MASK = 0xC000000000000000L;
   private static final long TIMESTAMP_MASK = ~TRANSITION_MASK;
@@ -27,7 +30,7 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
     MethodHandle mh = null;
     try {
       Class<?> clz =
-          ProfilingContextTrackerImpl.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
+          TracingContextTrackerImpl.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
       mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
     } catch (Throwable t) {
       log.error("Failed to initialize JFR timestamp access");
@@ -49,16 +52,26 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
   private final long timestamp;
   private final Allocator allocator;
   private final AtomicBoolean released = new AtomicBoolean();
-  ByteBuffer intervalBuffer =
+  private final WeakReference<AgentSpan> spanRef;
+  private final CustomEventAccess eventAccess;
+  private ByteBuffer intervalBuffer =
       ByteBuffer.allocate(8 * 1024); // max 8k of interval data per context tracker (eg. a span)
 
-  ProfilingContextTrackerImpl(Allocator allocator, long timestamp) {
-    this.timestamp = timestamp;
-    this.allocator = allocator;
+  TracingContextTrackerImpl(Allocator allocator, long timestamp) {
+    this(allocator, null, timestamp, CustomEventAccess.NULL);
   }
 
-  public ProfilingContextTrackerImpl(Allocator allocator) {
-    this(allocator, timestamp());
+  public TracingContextTrackerImpl(
+      Allocator allocator, AgentSpan span, CustomEventAccess eventAccess) {
+    this(allocator, span, timestamp(), eventAccess);
+  }
+
+  private TracingContextTrackerImpl(
+      Allocator allocator, AgentSpan span, long timestamp, CustomEventAccess eventAccess) {
+    this.timestamp = timestamp;
+    this.spanRef = new WeakReference<>(span);
+    this.allocator = allocator;
+    this.eventAccess = eventAccess;
   }
 
   private LongSequence initThreadBuffer() {
@@ -103,16 +116,20 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
       return null;
     }
 
+    AgentSpan span = spanRef.get();
+    long localRootSpanId = span != null ? span.getLocalRootSpan().getSpanId().toLong() : 0L;
+
     int totalSequenceBufferSize = 0;
     int maxSequenceBufferSize = 0;
-    for (LongSequence sequence : threadSequences.values()) {
+    for (Map.Entry<Long, LongSequence> entry : threadSequences.entrySet()) {
+      LongSequence sequence = entry.getValue();
       maxSequenceBufferSize = Math.max(maxSequenceBufferSize, sequence.size());
       totalSequenceBufferSize += sequence.size();
     }
 
     ByteBuffer dataChunkBuffer = ByteBuffer.allocate(maxSequenceBufferSize * 8 + 4);
     ByteBuffer groupVarintMapBuffer =
-        ByteBuffer.allocate(Math.max((int) (Math.ceil(totalSequenceBufferSize / 8d) * 3), 4));
+        ByteBuffer.allocate(align((int) (Math.ceil(totalSequenceBufferSize / 8d) * 3), 4));
 
     int dataChunkPointerOffset = 0;
     int groupVarintBitmapPointerOffset = 0;
@@ -123,59 +140,71 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
 
     dataChunkBuffer.putInt(0); // pre-allocate a slot for pointer to group varint bitmap
 
-    int pos = 0;
     int maskPos = 0;
     int maskOffset = 0;
     for (Map.Entry<Long, LongSequence> entry : threadSequences.entrySet()) {
+      long threadId = entry.getKey();
       long previousValue = 0;
       int intervals = 0;
-      putVarint(intervalBuffer, entry.getKey()); // record the thread id
+      putVarint(intervalBuffer, threadId); // record the thread id
 
-      LongIterator iterator = pruneIntervals(entry.getValue());
-      while (iterator.hasNext()) {
-        long value = iterator.next();
-        if (value != 0) {
-          long maskedValue = (value & TIMESTAMP_MASK);
-          value = maskedValue - previousValue;
-          previousValue = maskedValue;
+      IntervalCollapser traceContextEmitter =
+          new IntervalCollapser(
+              -1, timestamp, (s, d) -> emitTraceIntervalEvent(localRootSpanId, threadId, s, d));
+      LongSequence rawIntervals = entry.getValue();
+      synchronized (rawIntervals) {
+        int size = rawIntervals.size();
+        if (size > maxSequenceBufferSize) {
+          log.warn("Interval sequence has changed for thread {}. New size is {}", threadId, size);
+        }
+        LongIterator iterator = pruneIntervals(entry.getValue());
+        while (iterator.hasNext()) {
+          long value = iterator.next();
+          if (value != 0) {
+            long maskedValue = (value & TIMESTAMP_MASK);
+            value = maskedValue - previousValue;
 
-          byte[] val = new byte[8];
-          val[7] = (byte) (value & 0xff);
-          val[6] = (byte) ((value >>> 8) & 0xff);
-          val[5] = (byte) ((value >>> 16) & 0xff);
-          val[4] = (byte) ((value >>> 24) & 0xff);
-          val[3] = (byte) ((value >>> 32) & 0xff);
-          val[2] = (byte) ((value >>> 40) & 0xff);
-          val[1] = (byte) ((value >>> 48) & 0xff);
-          val[0] = (byte) ((value >>> 56) & 0xff);
+            traceContextEmitter.processDelta(value);
+            previousValue = maskedValue;
 
-          int len = -1;
-          for (int i = 0; i < 8; i++) {
-            if (len == -1) {
-              if (val[i] != 0 || i == 7) {
-                len = 0;
+            byte[] val = new byte[8];
+            val[7] = (byte) (value & 0xff);
+            val[6] = (byte) ((value >>> 8) & 0xff);
+            val[5] = (byte) ((value >>> 16) & 0xff);
+            val[4] = (byte) ((value >>> 24) & 0xff);
+            val[3] = (byte) ((value >>> 32) & 0xff);
+            val[2] = (byte) ((value >>> 40) & 0xff);
+            val[1] = (byte) ((value >>> 48) & 0xff);
+            val[0] = (byte) ((value >>> 56) & 0xff);
+
+            int len = -1;
+            for (int i = 0; i < 8; i++) {
+              if (len == -1) {
+                if (val[i] != 0 || i == 7) {
+                  len = 0;
+                  dataChunkBuffer.put(val[i]);
+                }
+              } else {
                 dataChunkBuffer.put(val[i]);
+                len++;
               }
-            } else {
-              dataChunkBuffer.put(val[i]);
-              len++;
             }
-          }
 
-          groupVarintMapBuffer.position(maskPos);
-          groupVarintMapBuffer.mark();
-          int mask = groupVarintMapBuffer.getInt();
+            groupVarintMapBuffer.position(maskPos);
+            groupVarintMapBuffer.mark();
+            int mask = groupVarintMapBuffer.getInt();
 
-          // record the current length
-          mask = mask | ((len & 0x7) << (29 - maskOffset));
-          // and rewrite the mask
-          groupVarintMapBuffer.reset();
-          groupVarintMapBuffer.putInt(mask);
-          if ((maskOffset += 3) > 21) {
-            maskOffset = 0;
-            maskPos += 3;
+            // record the current length
+            mask = mask | ((len & 0x7) << (29 - maskOffset));
+            // and rewrite the mask
+            groupVarintMapBuffer.reset();
+            groupVarintMapBuffer.putInt(mask);
+            if ((maskOffset += 3) > 21) {
+              maskOffset = 0;
+              maskPos += 3;
+            }
+            intervals++;
           }
-          intervals++;
         }
       }
       putVarint(
@@ -194,6 +223,18 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
 
     byte[] data = intervalBuffer.array();
     return Arrays.copyOf(data, intervalBuffer.position());
+  }
+
+  private int align(int value, int alignment) {
+    return ((value / alignment) + 1) * alignment;
+  }
+
+  public byte[] getContextBlob() {
+    if (!released.get()) {
+      byte[] data = intervalBuffer.array();
+      return Arrays.copyOf(data, intervalBuffer.position());
+    }
+    return null;
   }
 
   private void putVarint(ByteBuffer buffer, long value) {
@@ -321,6 +362,7 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
     if (released.compareAndSet(false, true)) {
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
+      intervalBuffer = null;
     }
   }
 
@@ -332,12 +374,24 @@ public final class ProfilingContextTrackerImpl implements ProfilingContextTracke
 
   private void store(long value) {
     LongSequence sequence = localThreadBuffer.get();
-    boolean added = true;
-    synchronized (sequence) {
-      added = sequence.add(value);
+    try {
+      boolean added = false;
+      synchronized (sequence) {
+        added = sequence.add(value);
+      }
+      if (!added) {
+        log.warn("Profiling Context Buffer is full. Losing data.");
+      }
+    } catch (Throwable t) {
+      log.error("", t);
     }
-    if (!added) {
-      log.warn("Profiling Context Buffer is full. Losing data.");
+  }
+
+  private void emitTraceIntervalEvent(
+      long localRootSpanId, long threadId, long startTime, long duration) {
+    // localRootSpanId might have not been assigned yet; in that case just ignore
+    if (localRootSpanId != 0) {
+      eventAccess.emitTraceContextEvent(localRootSpanId, threadId, startTime, duration);
     }
   }
 }

@@ -24,6 +24,7 @@ import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.CustomEventAccess;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
@@ -44,6 +45,7 @@ public final class OpenJdkController implements Controller {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
 
   private final Map<String, String> recordingSettings;
+  private final CustomEventAccess eventSupport = new CustomEventAccessImpl();
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -146,6 +148,7 @@ public final class OpenJdkController implements Controller {
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
 
+    log.info("Recording settings: {}", recordingSettings);
     // Register periodic events
     AvailableProcessorCoresEvent.register();
   }
@@ -161,5 +164,10 @@ public final class OpenJdkController implements Controller {
   public OpenJdkOngoingRecording createRecording(final String recordingName) {
     return new OpenJdkOngoingRecording(
         recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
+  }
+
+  @Override
+  public CustomEventAccess getEventAccess() {
+    return eventSupport;
   }
 }
