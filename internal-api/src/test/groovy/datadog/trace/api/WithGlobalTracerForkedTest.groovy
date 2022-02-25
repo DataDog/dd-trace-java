@@ -35,6 +35,11 @@ class WithGlobalTracerForkedTest extends DDSpecification {
     @Override
     void addScopeListener(ScopeListener listener) {
     }
+
+    @Override
+    Tracer.UserDetails addUserDetails(String userId) {
+      Tracer.NoopUserDetails.INSTANCE
+    }
   }
 
   def "should call the callback at the right time"() {

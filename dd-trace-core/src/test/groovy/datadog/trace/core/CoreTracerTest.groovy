@@ -4,6 +4,8 @@ import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -375,6 +377,41 @@ class CoreTracerTest extends DDCoreSpecification {
     child.finish()
     root.finish()
     tracer.close()
+  }
+
+  def 'tracer reports user details on the top span'() {
+    setup:
+    List<DDSpan> spans
+    datadog.trace.common.writer.Writer writer = Mock()
+    CoreTracer tracer = tracerBuilder().writer(writer).build()
+
+    when:
+    AgentSpan root = tracer.buildSpan('operation').start()
+    AgentScope scopeRoot = tracer.activateSpan(root)
+    AgentSpan child = tracer.buildSpan('my_child').asChildOf(root).start()
+    AgentScope scopeChild = tracer.activateSpan(child)
+    tracer.addUserDetails('my-user-id')
+      .withName('John Smith')
+      .withEmail('foo@example.com')
+      .withRole('admin')
+      .withSessionId('the-session-id')
+      .withCustomData('custom', 'data')
+    scopeChild.close()
+    child.finish()
+    scopeRoot.close()
+    root.finish()
+
+    then:
+    1 * writer.write(_) >> { spans = it[0] }
+    spans[0].operationName == 'operation'
+    spans[0].tags.findAll { it.key.startsWith('usr.') } == [
+      'usr.id': 'my-user-id',
+      'usr.name': 'John Smith',
+      'usr.email': 'foo@example.com',
+      'usr.role': 'admin',
+      'usr.session_id': 'the-session-id',
+      'usr.custom': 'data'
+    ]
   }
 }
 
