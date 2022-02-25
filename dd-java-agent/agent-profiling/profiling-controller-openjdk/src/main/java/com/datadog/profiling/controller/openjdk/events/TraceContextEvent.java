@@ -15,7 +15,7 @@ import jdk.jfr.Timestamp;
 @Label("Trace Context")
 @Description("Trace context interval.")
 @Category("Datadog")
-@StackTrace(true)
+@StackTrace(false)
 @Registered
 @Enabled
 public class TraceContextEvent extends Event {
