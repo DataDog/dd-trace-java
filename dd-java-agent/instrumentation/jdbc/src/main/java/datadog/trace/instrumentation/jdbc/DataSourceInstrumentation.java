@@ -18,7 +18,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class DataSourceInstrumentation extends Instrumenter.Tracing {
+public final class DataSourceInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public DataSourceInstrumentation() {
     super("jdbc-datasource");
   }
@@ -36,7 +37,7 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.sql.DataSource"));
   }
 

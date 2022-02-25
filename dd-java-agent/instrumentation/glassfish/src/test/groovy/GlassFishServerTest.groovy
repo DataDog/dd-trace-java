@@ -109,6 +109,11 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
   }
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
   boolean changesAll404s() {
     true
   }

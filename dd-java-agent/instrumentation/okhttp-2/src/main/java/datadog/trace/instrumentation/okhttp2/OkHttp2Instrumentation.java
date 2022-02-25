@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.okhttp2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -8,18 +7,17 @@ import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.OkHttpClient;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OkHttp2Instrumentation extends Instrumenter.Tracing {
+public class OkHttp2Instrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public OkHttp2Instrumentation() {
     super("okhttp", "okhttp-2");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.squareup.okhttp.OkHttpClient");
+  public String instrumentedType() {
+    return "com.squareup.okhttp.OkHttpClient";
   }
 
   @Override

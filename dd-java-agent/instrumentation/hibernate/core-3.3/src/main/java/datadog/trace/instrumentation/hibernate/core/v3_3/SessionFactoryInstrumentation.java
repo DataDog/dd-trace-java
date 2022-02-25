@@ -41,8 +41,8 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return named("org.hibernate.impl.SessionFactoryImpl");
+  public String[] knownMatchingTypes() {
+    return new String[] {"org.hibernate.impl.SessionFactoryImpl"};
   }
 
   @Override

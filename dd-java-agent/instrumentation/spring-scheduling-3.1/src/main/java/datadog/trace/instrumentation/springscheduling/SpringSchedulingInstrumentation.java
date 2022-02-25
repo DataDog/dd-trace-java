@@ -1,25 +1,23 @@
 package datadog.trace.instrumentation.springscheduling;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SpringSchedulingInstrumentation extends Instrumenter.Tracing {
+public final class SpringSchedulingInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SpringSchedulingInstrumentation() {
     super("spring-scheduling");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.springframework.scheduling.config.Task");
+  public String instrumentedType() {
+    return "org.springframework.scheduling.config.Task";
   }
 
   @Override

@@ -109,8 +109,6 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
@@ -126,8 +124,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT;
@@ -394,8 +390,6 @@ public class Config {
   private final int traceRateLimit;
 
   private final boolean profilingEnabled;
-  private final boolean profilingAllocationEnabled;
-  private final boolean profilingHeapEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
@@ -798,11 +792,6 @@ public class Config {
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
-    profilingAllocationEnabled =
-        configProvider.getBoolean(
-            PROFILING_ALLOCATION_ENABLED, PROFILING_ALLOCATION_ENABLED_DEFAULT);
-    profilingHeapEnabled =
-        configProvider.getBoolean(PROFILING_HEAP_ENABLED, PROFILING_HEAP_ENABLED_DEFAULT);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     profilingLegacyTracingIntegrationEnabled =
@@ -1318,14 +1307,6 @@ public class Config {
     return profilingEnabled;
   }
 
-  public boolean isProfilingAllocationEnabled() {
-    return profilingAllocationEnabled;
-  }
-
-  public boolean isProfilingHeapEnabled() {
-    return profilingHeapEnabled;
-  }
-
   public boolean isProfilingAgentless() {
     return profilingAgentless;
   }
@@ -1824,7 +1805,7 @@ public class Config {
     return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
   }
 
-  public boolean isIntegrationShortCutMatchingEnabled(
+  public boolean isIntegrationShortcutMatchingEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(
         integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);
@@ -2290,10 +2271,6 @@ public class Config {
         + traceRateLimit
         + ", profilingEnabled="
         + profilingEnabled
-        + ", profilingAllocationEnabled="
-        + profilingAllocationEnabled
-        + ", profilingHeapEnabled="
-        + profilingHeapEnabled
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"

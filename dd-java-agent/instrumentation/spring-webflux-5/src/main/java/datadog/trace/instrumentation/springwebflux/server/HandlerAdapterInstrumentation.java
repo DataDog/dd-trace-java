@@ -16,7 +16,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrumentation {
+public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrumentation
+    implements Instrumenter.ForTypeHierarchy {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
@@ -25,7 +26,7 @@ public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrume
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return not(isAbstract())
         .and(implementsInterface(named("org.springframework.web.reactive.HandlerAdapter")));
   }

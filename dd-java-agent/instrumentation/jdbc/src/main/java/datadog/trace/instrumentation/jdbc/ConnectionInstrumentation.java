@@ -1,15 +1,12 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ConnectionInstrumentation extends AbstractConnectionInstrumentation {
+public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
+    implements Instrumenter.ForKnownTypes {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift
@@ -61,6 +58,10 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.sqlite.jdbc4.JDBC4Connection",
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakeConnectionV1",
+    // vertica
+    "com.vertica.jdbc.common.SConnection",
+    // apache drill
+    "org.apache.drill.jdbc.impl.DrillConnectionImpl",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsConnection",
     // SAP HANA in-memory DB
@@ -76,7 +77,7 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(CONCRETE_TYPES);
+  public String[] knownMatchingTypes() {
+    return CONCRETE_TYPES;
   }
 }

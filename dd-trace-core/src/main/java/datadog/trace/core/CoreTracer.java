@@ -47,6 +47,8 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
+import java.io.Closeable;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -732,6 +734,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         if (null != rootSpan) {
           onRootSpanFinished(rootSpan, published);
+
+          // request context is propagated to contexts in child spans
+          // Assume here that if present it will be so starting in the top span
+          RequestContext<Object> requestContext = rootSpan.getRequestContext();
+          if (requestContext != null && requestContext.getData() instanceof Closeable) {
+            try {
+              ((Closeable) requestContext.getData()).close();
+            } catch (IOException e) {
+              log.warn("Error closing request context data", e);
+            }
+          }
         }
       }
     } finally {

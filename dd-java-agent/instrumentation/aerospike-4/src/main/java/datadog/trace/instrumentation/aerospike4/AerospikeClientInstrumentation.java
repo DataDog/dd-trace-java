@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aerospike4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.DECORATE;
 import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
@@ -14,18 +13,17 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AerospikeClientInstrumentation extends Instrumenter.Tracing {
+public final class AerospikeClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public AerospikeClientInstrumentation() {
     super("aerospike");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.aerospike.client.AerospikeClient");
+  public String instrumentedType() {
+    return "com.aerospike.client.AerospikeClient";
   }
 
   @Override

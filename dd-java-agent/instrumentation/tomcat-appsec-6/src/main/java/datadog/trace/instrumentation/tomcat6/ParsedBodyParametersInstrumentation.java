@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.tomcat6;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.*;
@@ -24,26 +23,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(Instrumenter.class)
-public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec {
+public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.apache.tomcat.util.http.Parameters");
-  }
-
-  @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.tomcat.util.http.Parameters")
-        .and((ElementMatcher) declaresField(named("paramHashValues")));
+  public String instrumentedType() {
+    return "org.apache.tomcat.util.http.Parameters";
   }
 
   // paramHashValues was also of type Hashtable, but only for 4 days between

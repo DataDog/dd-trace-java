@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isVirtual;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -11,12 +10,11 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class RedisAPIInstrumentation extends Instrumenter.Tracing {
+public class RedisAPIInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
   public RedisAPIInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -36,8 +34,10 @@ public class RedisAPIInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf("io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl"
+    };
   }
 
   @Override

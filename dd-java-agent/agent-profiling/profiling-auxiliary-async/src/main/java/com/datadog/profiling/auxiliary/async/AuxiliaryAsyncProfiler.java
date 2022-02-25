@@ -32,7 +32,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
 
   public static final String TYPE = "async";
 
-  private final int memleakIntervalDefault;
+  private final long memleakIntervalDefault;
 
   @AutoService(AuxiliaryImplementation.Provider.class)
   public static final class ImplementerProvider implements AuxiliaryImplementation.Provider {
@@ -99,7 +99,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
       FlightRecorder.addPeriodicEvent(AsyncProfilerConfigEvent.class, this::emitConfiguration);
     }
 
-    int maxheap = (int) ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
+    long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     this.memleakIntervalDefault =
         maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
   }
@@ -112,6 +112,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
               getCpuInterval(),
               getAllocationInterval(),
               getMemleakInterval(),
+              getMemleakCapacity(),
               ProfilingMode.mask(profilingModes))
           .commit();
     } catch (Throwable t) {
@@ -315,8 +316,8 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
         ProfilingConfig.PROFILING_ASYNC_CPU_MODE, ProfilingConfig.PROFILING_ASYNC_CPU_MODE_DEFAULT);
   }
 
-  private int getMemleakInterval() {
-    return configProvider.getInteger(
+  private long getMemleakInterval() {
+    return configProvider.getLong(
         ProfilingConfig.PROFILING_ASYNC_MEMLEAK_INTERVAL, memleakIntervalDefault);
   }
 

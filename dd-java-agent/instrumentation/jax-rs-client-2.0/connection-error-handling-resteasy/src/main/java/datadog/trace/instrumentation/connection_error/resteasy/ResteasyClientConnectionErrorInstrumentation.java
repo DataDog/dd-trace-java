@@ -11,8 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter;
 import java.util.concurrent.Future;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
 
 /**
@@ -20,15 +18,16 @@ import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
  * handle these errors at the implementation level.
  */
 @AutoService(Instrumenter.class)
-public final class ResteasyClientConnectionErrorInstrumentation extends Instrumenter.Tracing {
+public final class ResteasyClientConnectionErrorInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ResteasyClientConnectionErrorInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.jboss.resteasy.client.jaxrs.internal.ClientInvocation");
+  public String instrumentedType() {
+    return "org.jboss.resteasy.client.jaxrs.internal.ClientInvocation";
   }
 
   @Override

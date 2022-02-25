@@ -58,8 +58,8 @@ public class ProfilingAgent {
       }
 
       try {
-        final Controller controller = ControllerFactory.createController(config);
         final ConfigProvider configProvider = ConfigProvider.getInstance();
+        final Controller controller = ControllerFactory.createController(configProvider);
         TracingContextTrackerFactoryImpl.register(controller.getEventAccess());
 
         final ProfileUploader uploader = new ProfileUploader(config, configProvider);

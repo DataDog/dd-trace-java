@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static com.amazon.sqs.javamessaging.SQSMessagingClientConstants.STRING;
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -14,11 +13,10 @@ import datadog.trace.api.Config;
 import java.util.Map;
 import javax.jms.JMSException;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
+public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public SqsJmsMessageInstrumentation() {
     super("aws-sdk");
   }
@@ -29,13 +27,8 @@ public class SqsJmsMessageInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("com.amazon.sqs.javamessaging.message.SQSMessage");
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.amazon.sqs.javamessaging.message.SQSMessage");
+  public String instrumentedType() {
+    return "com.amazon.sqs.javamessaging.message.SQSMessage";
   }
 
   @Override

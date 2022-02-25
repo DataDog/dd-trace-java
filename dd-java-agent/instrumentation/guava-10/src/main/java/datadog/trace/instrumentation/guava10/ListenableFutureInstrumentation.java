@@ -17,12 +17,12 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
+public class ListenableFutureInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ListenableFutureInstrumentation() {
     super("guava");
@@ -33,12 +33,15 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // prevents Runnable from being instrumented unless this
+    // instrumentation would take effect (unless something else
+    // instruments it).
     return CLASS_LOADER_MATCHER;
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.google.common.util.concurrent.AbstractFuture");
+  public String instrumentedType() {
+    return "com.google.common.util.concurrent.AbstractFuture";
   }
 
   @Override

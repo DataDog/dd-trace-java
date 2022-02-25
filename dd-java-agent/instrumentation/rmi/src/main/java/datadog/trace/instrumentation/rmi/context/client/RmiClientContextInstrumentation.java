@@ -42,19 +42,20 @@ import sun.rmi.transport.Connection;
  * exception and shutdown the connection which we do not want
  */
 @AutoService(Instrumenter.class)
-public class RmiClientContextInstrumentation extends Instrumenter.Tracing {
+public class RmiClientContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RmiClientContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("sun.rmi.transport.StreamRemoteCall"));
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     // caching if a connection can support enhanced format
     return singletonMap("sun.rmi.transport.Connection", "java.lang.Boolean");
   }

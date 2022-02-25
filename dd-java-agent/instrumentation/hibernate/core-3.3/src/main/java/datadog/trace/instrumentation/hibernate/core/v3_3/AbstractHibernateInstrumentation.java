@@ -4,16 +4,22 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.instrumentation.hibernate.HibernateMatchers;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractHibernateInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractHibernateInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public AbstractHibernateInstrumentation() {
-    super(true, "hibernate", "hibernate-core");
+    super("hibernate", "hibernate-core");
   }
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
     return HibernateMatchers.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(true);
   }
 
   @Override

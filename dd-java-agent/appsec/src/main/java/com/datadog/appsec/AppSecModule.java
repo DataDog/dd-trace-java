@@ -13,6 +13,8 @@ public interface AppSecModule {
 
   String getName();
 
+  String getInfo();
+
   Collection<EventSubscription> getEventSubscriptions();
 
   Collection<DataSubscription> getDataSubscriptions();

@@ -5,23 +5,22 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.testng.ITestListener;
 import org.testng.ITestNGListener;
 import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.CiVisibility {
+public class TestNGInstrumentation extends Instrumenter.CiVisibility
+    implements Instrumenter.ForSingleType {
 
   public TestNGInstrumentation() {
     super("testng");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.testng.TestNG");
+  public String instrumentedType() {
+    return "org.testng.TestNG";
   }
 
   @Override

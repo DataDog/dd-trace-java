@@ -64,7 +64,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int responseStatus;
   private boolean blocked;
 
+  private boolean reqDataPublished;
+  private boolean pathParamsPublished;
+  private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
+  private boolean respDataPublished;
 
   private Additive additive;
 
@@ -92,6 +96,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void setAdditive(Additive additive) {
+    Additive curAdditive = this.additive;
+    // the better check would be if the curAdditive has been closed,
+    // but this is behind a private field
+    if (curAdditive != null && additive != null) {
+      log.warn("Replacing WAF object. This is a bug");
+      curAdditive.close();
+    }
     this.additive = additive;
   }
 
@@ -251,6 +262,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.blocked = blocked;
   }
 
+  public boolean isReqDataPublished() {
+    return reqDataPublished;
+  }
+
+  public void setReqDataPublished(boolean reqDataPublished) {
+    this.reqDataPublished = reqDataPublished;
+  }
+
+  public boolean isPathParamsPublished() {
+    return pathParamsPublished;
+  }
+
+  public void setPathParamsPublished(boolean pathParamsPublished) {
+    this.pathParamsPublished = pathParamsPublished;
+  }
+
+  public boolean isRawReqBodyPublished() {
+    return rawReqBodyPublished;
+  }
+
+  public void setRawReqBodyPublished(boolean rawReqBodyPublished) {
+    this.rawReqBodyPublished = rawReqBodyPublished;
+  }
+
   public boolean isConvertedReqBodyPublished() {
     return convertedReqBodyPublished;
   }
@@ -259,9 +294,21 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.convertedReqBodyPublished = convertedReqBodyPublished;
   }
 
+  public boolean isRespDataPublished() {
+    return respDataPublished;
+  }
+
+  public void setRespDataPublished(boolean respDataPublished) {
+    this.respDataPublished = respDataPublished;
+  }
+
   @Override
   public void close() {
-    // currently no-op
+    if (additive != null) {
+      log.warn("WAF object had not been closed (probably missed request-end event)");
+      additive.close();
+      additive = null;
+    }
   }
 
   /* end interface for GatewayBridge */

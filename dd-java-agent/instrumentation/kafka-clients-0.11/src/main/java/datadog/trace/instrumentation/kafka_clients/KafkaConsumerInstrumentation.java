@@ -14,20 +14,19 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Iterator;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 @AutoService(Instrumenter.class)
-public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
+public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public KafkaConsumerInstrumentation() {
     super("kafka");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.kafka.clients.consumer.ConsumerRecords");
+  public String instrumentedType() {
+    return "org.apache.kafka.clients.consumer.ConsumerRecords";
   }
 
   @Override

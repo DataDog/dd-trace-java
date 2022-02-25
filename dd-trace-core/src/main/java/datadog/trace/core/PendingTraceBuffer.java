@@ -22,6 +22,15 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     void write();
 
     DDSpan getRootSpan();
+
+    /**
+     * Set or clear if the {@code Element} is enqueued. Needs to be atomic.
+     *
+     * @param enqueued true if the enqueued state should be set or false if it should be cleared
+     * @return true iff the enqueued value was changed from another value to the new value, false
+     *     otherwise
+     */
+    boolean setEnqueued(boolean enqueued);
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
@@ -38,9 +47,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     /** if the queue is full, pendingTrace trace will be written immediately. */
     @Override
     public void enqueue(Element pendingTrace) {
-      if (!queue.offer(pendingTrace)) {
-        // Queue is full, so we can't buffer this trace, write it out directly instead.
-        pendingTrace.write();
+      if (pendingTrace.setEnqueued(true)) {
+        if (!queue.offer(pendingTrace)) {
+          // Queue is full, so we can't buffer this trace, write it out directly instead.
+          pendingTrace.write();
+        }
       }
     }
 
@@ -118,6 +129,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       public DDSpan getRootSpan() {
         return null;
       }
+
+      @Override
+      public boolean setEnqueued(boolean enqueued) {
+        return true;
+      }
     }
 
     private final class Worker implements Runnable {
@@ -135,6 +151,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               flushCounter.incrementAndGet();
               continue;
             }
+
+            // The element is no longer in the queue
+            pendingTrace.setEnqueued(false);
 
             long oldestFinishedTime = pendingTrace.oldestFinishedTime();
 

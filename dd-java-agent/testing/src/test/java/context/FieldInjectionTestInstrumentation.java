@@ -15,13 +15,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing {
+public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public FieldInjectionTestInstrumentation() {
     super("fieldinjection-test");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith(getClass().getName() + "$");
   }
 
@@ -47,7 +48,7 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     final Map<String, String> store = new HashMap<>();
     String prefix = getClass().getName() + "$";
     store.put(prefix + "KeyClass", prefix + "Context");

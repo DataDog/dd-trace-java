@@ -13,7 +13,8 @@ excludedClassesCoverage += [
   // This is almost fully abstract class so nothing to test
   'com.datadog.profiling.controller.RecordingData',
   // A simple data holder class, nothing to test
-  'com.datadog.profiling.controller.ProfilerSettingsSupport'
+  'com.datadog.profiling.controller.ProfilerSettingsSupport',
+  'com.datadog.profiling.controller.ProfilingSupport'
 ]
 
 dependencies {

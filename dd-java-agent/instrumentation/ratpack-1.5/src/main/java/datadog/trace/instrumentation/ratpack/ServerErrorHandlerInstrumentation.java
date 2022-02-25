@@ -13,7 +13,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ServerErrorHandlerInstrumentation extends Instrumenter.Tracing {
+public class ServerErrorHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ServerErrorHandlerInstrumentation() {
     super("ratpack");
@@ -26,7 +27,7 @@ public class ServerErrorHandlerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return not(isAbstract()).and(implementsInterface(named("ratpack.error.ServerErrorHandler")));
   }
 

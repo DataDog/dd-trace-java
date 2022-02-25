@@ -9,20 +9,20 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing {
+public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
   public TerminalSubscriberInstrumentation() {
     super("reactor-core");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "reactor.core.publisher.MonoPeekTerminal$MonoTerminalPeekSubscriber",
-        "reactor.core.publisher.FluxPeek$PeekSubscriber");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "reactor.core.publisher.MonoPeekTerminal$MonoTerminalPeekSubscriber",
+      "reactor.core.publisher.FluxPeek$PeekSubscriber"
+    };
   }
 
   @Override

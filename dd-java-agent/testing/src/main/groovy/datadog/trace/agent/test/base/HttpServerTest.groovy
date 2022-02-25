@@ -1160,6 +1160,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             it.key,
             (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
           ]}
+      } else if (!(obj instanceof String)) {
+        obj = obj.properties
+          .findAll { it.key != 'class' }
+          .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
       }
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Flow.ResultFlow.empty()

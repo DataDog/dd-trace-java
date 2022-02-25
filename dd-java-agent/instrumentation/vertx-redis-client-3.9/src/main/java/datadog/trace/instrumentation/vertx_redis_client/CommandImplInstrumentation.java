@@ -9,11 +9,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CommandImplInstrumentation extends Instrumenter.Tracing {
+public class CommandImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public CommandImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -24,8 +23,8 @@ public class CommandImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.redis.client.impl.CommandImpl");
+  public String instrumentedType() {
+    return "io.vertx.redis.client.impl.CommandImpl";
   }
 
   @Override

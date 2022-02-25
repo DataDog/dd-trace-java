@@ -31,7 +31,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracing {
+public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageProducerInstrumentation() {
     super("jms", "jms-1", "jms-2");
@@ -44,7 +45,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.jms.MessageProducer"));
   }
 

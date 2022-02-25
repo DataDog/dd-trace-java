@@ -11,6 +11,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 import spock.lang.Timeout
+import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -130,7 +131,7 @@ class PendingTraceBufferTest extends DDSpecification {
     // Don't start the buffer thread
 
     when: "Fill the buffer"
-    while (buffer.queue.size() < (buffer.queue.capacity())) {
+    for (i in  1..buffer.queue.capacity()) {
       addContinuation(newSpanOf(factory.create(DDId.ONE))).finish()
     }
 
@@ -277,6 +278,11 @@ class PendingTraceBufferTest extends DDSpecification {
         DDSpan getRootSpan() {
           return null
         }
+
+        @Override
+        boolean setEnqueued(boolean enqueued) {
+          return true
+        }
       }
 
     when:
@@ -292,6 +298,51 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     counter.get() == 3
+  }
+
+  def "the same pending thrace is not enqueued multiple times"() {
+    setup:
+    // Don't start the buffer thread
+
+    when: "finish the root span"
+    def pendingTrace = factory.create(DDId.ONE)
+    def span = newSpanOf(pendingTrace)
+    span.finish()
+
+    then:
+    pendingTrace.rootSpanWritten
+    pendingTrace.isEnqueued == 0
+    buffer.queue.size() == 0
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    1 * tracer.write({ it.size() == 1 })
+    1 * tracer.getPartialFlushMinSpans() >> 10000
+    1 * tracer.mapServiceName(_)
+    1 * tracer.onStart(_)
+    1 * tracer.onFinish(_)
+    0 * _
+
+    when: "fail to fill the buffer"
+    for (i in  1..buffer.queue.capacity()) {
+      addContinuation(newSpanOf(span)).finish()
+    }
+
+    then:
+    pendingTrace.isEnqueued == 1
+    buffer.queue.size() == 1
+    buffer.queue.capacity() * bufferSpy.enqueue(_)
+    _ * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.mapServiceName(_)
+    _ * tracer.onStart(_)
+    _ * tracer.onFinish(_)
+    0 * _
+
+    when: "process the buffer"
+    buffer.start()
+
+    then:
+    new PollingConditions(timeout: 3, initialDelay: 0, delay: 0.5, factor: 1).eventually {
+      assert pendingTrace.isEnqueued == 0
+    }
   }
 
   def addContinuation(DDSpan span) {

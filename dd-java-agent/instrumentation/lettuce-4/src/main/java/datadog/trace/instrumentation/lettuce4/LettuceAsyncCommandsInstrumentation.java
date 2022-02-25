@@ -6,19 +6,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Tracing {
+public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public LettuceAsyncCommandsInstrumentation() {
     super("lettuce", "lettuce-4", "lettuce-4-async");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.lambdaworks.redis.AbstractRedisAsyncCommands");
+  public String instrumentedType() {
+    return "com.lambdaworks.redis.AbstractRedisAsyncCommands";
   }
 
   @Override

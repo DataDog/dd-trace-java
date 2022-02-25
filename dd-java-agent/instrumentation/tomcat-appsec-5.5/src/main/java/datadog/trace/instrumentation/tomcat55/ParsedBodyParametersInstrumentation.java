@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.tomcat55;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -22,12 +21,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Hashtable;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(Instrumenter.class)
-public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec {
+public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
@@ -40,9 +39,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.tomcat.util.http.Parameters")
-        .and((ElementMatcher) declaresField(named("paramHashStringArray")));
+  public String instrumentedType() {
+    return "org.apache.tomcat.util.http.Parameters";
   }
 
   // paramHashStringArray was only final for a few days. it doesn't seem to have made into a release

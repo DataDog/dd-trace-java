@@ -8,14 +8,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.trace.TracerProvider;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * This is experimental instrumentation and should only be enabled for evaluation/testing purposes.
  */
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Tracing {
+public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public OpenTelemetryInstrumentation() {
     super("opentelemetry-beta");
   }
@@ -26,8 +25,8 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.opentelemetry.OpenTelemetry");
+  public String instrumentedType() {
+    return "io.opentelemetry.OpenTelemetry";
   }
 
   @Override

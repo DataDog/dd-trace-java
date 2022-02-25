@@ -177,4 +177,10 @@ public final class Platform {
     final String os = System.getProperty("os.name").toLowerCase();
     return os.contains("mac");
   }
+
+  public static boolean isOracleJDK8() {
+    return isJavaVersion(8)
+        && System.getProperty("java.vendor").contains("Oracle")
+        && !System.getProperty("java.runtime.name").contains("OpenJDK");
+  }
 }

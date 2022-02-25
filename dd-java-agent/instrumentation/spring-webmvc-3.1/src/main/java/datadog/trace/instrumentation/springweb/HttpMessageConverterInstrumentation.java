@@ -19,13 +19,13 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Type;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec {
+public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForTypeHierarchy {
 
   public HttpMessageConverterInstrumentation() {
     super("spring-web");
@@ -39,7 +39,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.springframework.http.converter.HttpMessageConverter"));
   }
 
@@ -69,8 +69,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec {
   public static class HttpMessageConverterReadInstrumentation {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.Return final Object obj) {
-      if (obj == null
-          || !(obj instanceof Map || obj.getClass() == String.class || obj instanceof Iterable)) {
+      if (obj == null) {
         return;
       }
 

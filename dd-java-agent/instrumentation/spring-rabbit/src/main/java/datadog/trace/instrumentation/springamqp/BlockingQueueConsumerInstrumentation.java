@@ -11,20 +11,19 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.TreeMap;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(Instrumenter.class)
-public class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing {
+public class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public BlockingQueueConsumerInstrumentation() {
     super("spring-rabbit");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.amqp.rabbit.listener.BlockingQueueConsumer");
+  public String instrumentedType() {
+    return "org.springframework.amqp.rabbit.listener.BlockingQueueConsumer";
   }
 
   @Override

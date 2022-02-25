@@ -22,7 +22,8 @@ import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRe
  * for execution for Sync clients.
  */
 @AutoService(Instrumenter.class)
-public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrumentation {
+public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrumentation
+    implements Instrumenter.ForTypeHierarchy {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
@@ -32,7 +33,7 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("software.amazon.awssdk.")
         .and(
             extendsClass(

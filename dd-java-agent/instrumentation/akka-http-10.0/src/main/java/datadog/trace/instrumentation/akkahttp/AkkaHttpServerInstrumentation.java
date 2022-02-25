@@ -12,8 +12,6 @@ import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * This instrumentation wraps the user supplied request handler {@code Flow} for the akka-http
@@ -49,14 +47,15 @@ import net.bytebuddy.matcher.ElementMatcher;
  * {@code Mailbox}.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing {
+public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public AkkaHttpServerInstrumentation() {
     super("akka-http", "akka-http-server");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("akka.http.scaladsl.HttpExt");
+  public String instrumentedType() {
+    return "akka.http.scaladsl.HttpExt";
   }
 
   @Override

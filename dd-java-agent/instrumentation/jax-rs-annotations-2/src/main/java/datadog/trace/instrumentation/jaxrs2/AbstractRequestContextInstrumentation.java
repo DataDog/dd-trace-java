@@ -11,7 +11,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractRequestContextInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractRequestContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public AbstractRequestContextInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-filter");
   }
@@ -23,7 +24,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.ws.rs.container.ContainerRequestContext"));
   }
 

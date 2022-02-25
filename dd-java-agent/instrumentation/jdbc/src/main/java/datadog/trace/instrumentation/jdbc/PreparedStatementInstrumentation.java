@@ -1,16 +1,12 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class PreparedStatementInstrumentation
-    extends AbstractPreparedStatementInstrumentation {
+public final class PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
+    implements Instrumenter.ForKnownTypes {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift
@@ -97,6 +93,10 @@ public final class PreparedStatementInstrumentation
     "org.sqlite.PrepStmt",
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakePreparedStatementV1",
+    // vertica
+    "com.vertica.jdbc.common.SPreparedStatement",
+    // apache drill
+    "org.apache.drill.jdbc.impl.DrillPreparedStatementImpl",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",
@@ -114,7 +114,7 @@ public final class PreparedStatementInstrumentation
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(CONCRETE_TYPES);
+  public String[] knownMatchingTypes() {
+    return CONCRETE_TYPES;
   }
 }

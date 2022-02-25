@@ -9,19 +9,18 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class DisableTracingActorInitInstrumentation extends Instrumenter.Tracing {
+public final class DisableTracingActorInitInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public DisableTracingActorInitInstrumentation() {
     super("akka_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("akka.actor.ActorSystem$");
+  public String instrumentedType() {
+    return "akka.actor.ActorSystem$";
   }
 
   @Override

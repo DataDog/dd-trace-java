@@ -226,6 +226,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                 }
               }
             };
+      case GRPC_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {

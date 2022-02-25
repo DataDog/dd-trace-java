@@ -20,7 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * DefaultRequestContextInstrumentation</code>
  */
 @AutoService(Instrumenter.class)
-public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing {
+public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ContainerRequestFilterInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-filter");
@@ -33,7 +34,7 @@ public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("jakarta.ws.rs.container.ContainerRequestFilter"));
   }
 

@@ -12,14 +12,13 @@ import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.Document
 import spock.lang.Shared
-import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Timeout(10)
 class MongoAsyncClientTest extends MongoBaseTest {
 
   @Shared
@@ -99,7 +98,9 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
       // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
@@ -107,7 +108,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       latch1.await()
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -133,7 +134,9 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
       db.createCollection(collectionName, toCallback { latch1.countDown() })
@@ -144,7 +147,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       latch2.await()
       return coll
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -175,7 +178,9 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
       db.createCollection(collectionName, toCallback { latch1.countDown() })
@@ -186,7 +191,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       latch2.await()
       return coll
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:

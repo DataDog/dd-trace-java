@@ -18,18 +18,17 @@ import io.reactivex.Maybe;
 import io.reactivex.MaybeObserver;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class MaybeInstrumentation extends Instrumenter.Tracing {
+public final class MaybeInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public MaybeInstrumentation() {
     super("rxjava");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.reactivex.Maybe");
+  public String instrumentedType() {
+    return "io.reactivex.Maybe";
   }
 
   @Override

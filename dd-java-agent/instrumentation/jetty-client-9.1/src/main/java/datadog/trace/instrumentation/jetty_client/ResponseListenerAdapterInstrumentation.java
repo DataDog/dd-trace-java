@@ -9,22 +9,22 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 @AutoService(Instrumenter.class)
-public final class ResponseListenerAdapterInstrumentation extends Instrumenter.Tracing {
+public final class ResponseListenerAdapterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
   public ResponseListenerAdapterInstrumentation() {
     super("jetty-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "org.eclipse.jetty.client.api.Response$Listener$Adapter",
-        "org.eclipse.jetty.client.api.Response$Listener");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.eclipse.jetty.client.api.Response$Listener$Adapter",
+      "org.eclipse.jetty.client.api.Response$Listener"
+    };
   }
 
   @Override
