@@ -81,5 +81,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
 
+  public static final String ASYNC_TRANSFORMATION_ENABLED = "async.transformation.enabled";
+
   private TraceInstrumentationConfig() {}
 }

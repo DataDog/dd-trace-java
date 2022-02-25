@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.canSkipClassLoaderByName;
 
+import datadog.trace.api.Config;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
@@ -12,17 +13,22 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
  *
  * <p>This class is only used on Java 9+, for Java 7/8 see {@link DDClassFileTransformer}.
  */
-public final class DDJava9ClassFileTransformer
-    extends ResettableClassFileTransformer.WithDelegation {
+public final class DDJava9ClassFileTransformer extends ResettableClassFileTransformer.WithDelegation
+    implements DDAsyncTransformer.TransformTask {
 
   public static final TransformerDecorator DECORATOR =
       new TransformerDecorator() {
         @Override
-        public ResettableClassFileTransformer decorate(
-            final ResettableClassFileTransformer classFileTransformer) {
-          return new DDJava9ClassFileTransformer(classFileTransformer);
+        public ResettableClassFileTransformer decorate(ResettableClassFileTransformer delegate) {
+          return new DDJava9ClassFileTransformer(delegate);
         }
       };
+
+  private static final boolean ASYNC_TRANSFORMATION_ENABLED =
+      Config.get().isAsyncTransformationEnabled();
+
+  private final DDAsyncTransformer asyncTransformer =
+      ASYNC_TRANSFORMATION_ENABLED ? new DDAsyncTransformer(this) : null;
 
   public DDJava9ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
     super(classFileTransformer);
@@ -37,8 +43,22 @@ public final class DDJava9ClassFileTransformer
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
-    if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
+    if (null == internalClassName) {
       return null;
+    }
+
+    if (null != classLoader) {
+      if (canSkipClassLoaderByName(classLoader)) {
+        return null;
+      } else if (ASYNC_TRANSFORMATION_ENABLED) {
+        return asyncTransformer.awaitTransform(
+            null,
+            classLoader,
+            internalClassName,
+            classBeingRedefined,
+            protectionDomain,
+            classFileBuffer);
+      }
     }
 
     return classFileTransformer.transform(
@@ -55,8 +75,22 @@ public final class DDJava9ClassFileTransformer
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
-    if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
+    if (null == internalClassName) {
       return null;
+    }
+
+    if (null != classLoader) {
+      if (canSkipClassLoaderByName(classLoader)) {
+        return null;
+      } else if (ASYNC_TRANSFORMATION_ENABLED) {
+        return asyncTransformer.awaitTransform(
+            module,
+            classLoader,
+            internalClassName,
+            classBeingRedefined,
+            protectionDomain,
+            classFileBuffer);
+      }
     }
 
     return classFileTransformer.transform(
@@ -66,5 +100,29 @@ public final class DDJava9ClassFileTransformer
         classBeingRedefined,
         protectionDomain,
         classFileBuffer);
+  }
+
+  @Override
+  public byte[] doTransform(
+      final Object javaModule,
+      final ClassLoader classLoader,
+      final String internalClassName,
+      final Class<?> classBeingRedefined,
+      final ProtectionDomain protectionDomain,
+      final byte[] classFileBuffer)
+      throws IllegalClassFormatException {
+
+    if (null != javaModule) {
+      return classFileTransformer.transform(
+          (Module) javaModule,
+          classLoader,
+          internalClassName,
+          classBeingRedefined,
+          protectionDomain,
+          classFileBuffer);
+    }
+
+    return classFileTransformer.transform(
+        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
   }
 }

@@ -33,6 +33,7 @@ public final class ClassLoaderMatcher {
     switch (loader.getClass().getName()) {
       case "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader":
       case "sun.reflect.DelegatingClassLoader":
+      case "sun.reflect.misc.MethodUtil":
       case "jdk.internal.reflect.DelegatingClassLoader":
       case "clojure.lang.DynamicClassLoader":
       case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
