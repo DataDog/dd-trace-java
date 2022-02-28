@@ -97,9 +97,9 @@ public class DDSpan
     @Override
     public void clear() {
       try {
-        if (!finishedFlag.get()) {
-          log.info("Span {} was not finished but is being finalized", id.toLong());
-        }
+//        if (!finishedFlag.get()) {
+//          log.info("Span {} was not finished but is being finalized", id.toLong());
+//        }
         if (instance != null) {
           instance.release();
         }
