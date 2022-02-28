@@ -9,20 +9,17 @@ import datadog.trace.api.TraceSegment;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.function.Consumer;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.datastreams.PathwayContext;
-import datadog.trace.core.datastreams.PathwayContextHolder;
-import datadog.trace.core.datastreams.StatsPoint;
+import datadog.trace.core.datastreams.DefaultPathwayContext;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
-import datadog.trace.core.util.GatedConsumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +27,6 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>, TraceSegment, PathwayContextHolder {
+public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>, TraceSegment {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -115,8 +111,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private final int datadogTagsLimit;
   private final DatadogTags ddTags;
 
-  private static final AtomicReferenceFieldUpdater<DDSpanContext, PathwayContext> PATHWAY_CONTEXT_UPDATER =
-      AtomicReferenceFieldUpdater.newUpdater(DDSpanContext.class, PathwayContext.class, "pathwayContext");
   private volatile PathwayContext pathwayContext;
   private final Random contextSelector = new Random();
 
@@ -182,7 +176,11 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
     this.requestContextData = requestContextData;
 
-    this.pathwayContext = pathwayContext;
+    if (pathwayContext == null) {
+      this.pathwayContext = new DefaultPathwayContext();
+    } else {
+      this.pathwayContext = pathwayContext;
+    }
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
@@ -456,29 +454,20 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     return null == requestContextData ? null : this;
   }
 
+  @Override
   public PathwayContext getPathwayContext() {
     return pathwayContext;
   }
 
-  @Override
-  public PathwayContext getOrCreatePathwayContext(String type, String group, Consumer<StatsPoint> pointConsumer) {
-    // The StatsPoint should only be sent to the consumer if the newly created context is the one that's
-    // actually used
-
-    GatedConsumer<StatsPoint> gate = new GatedConsumer<StatsPoint>(pointConsumer);
-    boolean updated = PATHWAY_CONTEXT_UPDATER.compareAndSet(this, null, new PathwayContext(type, group, gate));
-    if (updated) {
-      gate.release();
-    }
-    return pathwayContext;
-  }
-
-  public void setPathwayContext(PathwayContext pathwayContext) {
-    this.pathwayContext = pathwayContext;
-  }
-
   public void mergePathwayContext(PathwayContext pathwayContext) {
-    if (this.pathwayContext != null) {
+    if (pathwayContext == null) {
+      return;
+    }
+
+    // This is purposely not thread safe
+    // The code randomly chooses between the two PathwayContexts.
+    // If there is a race, then that's okay
+    if (this.pathwayContext.isStarted()) {
       // Randomly select between keeping the current context (0) or replacing (1)
       if (contextSelector.nextInt(2) == 1) {
         this.pathwayContext = pathwayContext;

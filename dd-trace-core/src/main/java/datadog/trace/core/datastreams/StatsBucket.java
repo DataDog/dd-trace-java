@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams;
 
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;

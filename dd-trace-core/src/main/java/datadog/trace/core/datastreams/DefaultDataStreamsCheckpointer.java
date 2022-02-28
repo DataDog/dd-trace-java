@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -25,13 +26,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultDataStreamsCheckpointer
-    implements DataStreamsCheckpointer, AutoCloseable, Runnable, EventListener, Consumer<StatsPoint> {
-  private static final Logger log = LoggerFactory.getLogger(DataStreamsCheckpointer.class);
+    implements AutoCloseable, Runnable, EventListener, Consumer<StatsPoint> {
+  private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
   private static final long BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
   private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
-  private static final StatsPoint POISON_PILL = new StatsPoint( null, null, null, 0, 0, 0, 0, 0);
+  private static final StatsPoint POISON_PILL = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
@@ -45,8 +46,8 @@ public class DefaultDataStreamsCheckpointer
     Sink sink =
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
-//            "http://localhost:8081",
-//            "/pipeline_stats",
+            //            "http://localhost:8081",
+            //            "/pipeline_stats",
             "https://trace.agent." + config.getSite(),
             "/api/v0.1/pipeline_stats",
             SECONDS.toNanos(1),
@@ -65,16 +66,6 @@ public class DefaultDataStreamsCheckpointer
             BUCKET_DURATION_MILLIS,
             TimeUnit.MILLISECONDS);
     thread.start();
-  }
-
-  @Override
-  public void setDataStreamCheckpoint(String type, String group, String topic, PathwayContextHolder holder) {
-    log.debug("Adding checkpoint for: {} {} {}", type, group, topic);
-    PathwayContext pathwayContext = holder.getOrCreatePathwayContext(type, group, this);
-
-    log.debug("Current context: {}", pathwayContext);
-    pathwayContext.setCheckpoint(type, group, topic, this);
-    log.debug("After checkpoint context: {}", pathwayContext);
   }
 
   // With Java 8, this becomes unnecessary

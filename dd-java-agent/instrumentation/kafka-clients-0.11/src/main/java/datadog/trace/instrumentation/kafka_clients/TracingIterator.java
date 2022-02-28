@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -76,10 +77,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
 
-          Object pathwayContext = propagate().extractPathwayContext(val.headers(), GETTER);
-          if (pathwayContext != null) {
-            span.mergePathwayContext(pathwayContext);
-          }
+          PathwayContext pathwayContext = propagate().extractPathwayContext(val.headers(), GETTER);
+          span.mergePathwayContext(pathwayContext);
           AgentTracer.get().setDataStreamCheckpoint(span, "kafka", "", val.topic() );
         } else {
           span = startSpan(operationName, null);

@@ -24,8 +24,7 @@ public interface AgentPropagation {
 
   <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
 
-  // FIXME class hierarchy
-  <C> Object extractPathwayContext(C carrier, BinaryContextVisitor<C> getter);
+  <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter);
 
   interface KeyClassifier {
 

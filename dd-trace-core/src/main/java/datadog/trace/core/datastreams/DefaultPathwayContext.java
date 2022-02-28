@@ -5,59 +5,64 @@ import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class PathwayContext {
+public class DefaultPathwayContext implements PathwayContext {
   public static String PROPAGATION_KEY = "dd-pathway-ctx";
 
-  private final ReadWriteLock lock = new ReentrantReadWriteLock();
-  private final Lock readLock = lock.readLock();
-  private final Lock writeLock = lock.writeLock();
+  private final Lock lock = new ReentrantLock();
 
   // Nanotime is necessary because time differences should use a monotonically increasing clock
   // Milliseconds are kept because nanotime is not comparable across JVMs
-  private final long pathwayStartMillis;
-  private final long pathwayStart;
+  private long pathwayStartMillis;
+  private long pathwayStart;
   private long edgeStart;
   private long hash;
+  private boolean started;
 
-  public PathwayContext(String type, String group, Consumer<StatsPoint> pointConsumer) {
-    this(type, group, pointConsumer, System.currentTimeMillis(), System.nanoTime());
-  }
+  public DefaultPathwayContext() {}
 
-  public PathwayContext(
-      String type,
-      String group,
-      Consumer<StatsPoint> pointConsumer,
-      long pathwayStartMillis,
-      long pathwayStartNanoTime) {
-    this(pathwayStartMillis, pathwayStartNanoTime, pathwayStartNanoTime, 0);
-
-    setCheckpoint(type, group, "", pathwayStartNanoTime, pointConsumer);
-  }
-
-  private PathwayContext(
+  private DefaultPathwayContext(
       long pathwayStartMillis, long pathwayStartNanoTime, long edgeStartNanoTime, long hash) {
     this.pathwayStartMillis = pathwayStartMillis;
     this.pathwayStart = pathwayStartNanoTime;
     this.edgeStart = edgeStartNanoTime;
     this.hash = hash;
+    this.started = true;
   }
 
+  @Override
+  public boolean isStarted() {
+    return started;
+  }
+
+  @Override
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(type, group, topic, System.nanoTime(), pointConsumer);
-  }
 
-  public void setCheckpoint(
-      String type, String group, String topic, long nanoTime, Consumer<StatsPoint> pointConsumer) {
-    writeLock.lock();
+    long startMillis = System.currentTimeMillis();
+    long nanoTime = System.nanoTime();
+
+    lock.lock();
     try {
+      if (PathwayContext.INITIALIZATION_TOPIC.equals(topic)) {
+        if (started) {
+          return;
+        }
+
+        pathwayStartMillis = startMillis;
+        pathwayStart = nanoTime;
+        edgeStart = nanoTime;
+        hash = 0;
+        started = true;
+      }
+
       long nodeHash = generateNodeHash(Config.get().getServiceName(), topic);
       long newHash = generatePathwayHash(nodeHash, hash);
 
@@ -79,12 +84,13 @@ public class PathwayContext {
 
       pointConsumer.accept(point);
     } finally {
-      writeLock.unlock();
+      lock.unlock();
     }
   }
 
+  @Override
   public byte[] encode() throws IOException {
-    readLock.lock();
+    lock.lock();
     try {
       GrowingByteArrayOutput output = GrowingByteArrayOutput.withInitialCapacity(20);
 
@@ -97,22 +103,26 @@ public class PathwayContext {
       VarEncodingHelper.encodeSignedVarLong(output, edgeStartMillis);
       return output.trimmedCopy();
     } finally {
-      readLock.unlock();
+      lock.unlock();
     }
   }
 
   public String toString() {
-    readLock.lock();
+    lock.lock();
     try {
-      return "PathwayContext[ Hash "
-          + toUnsignedString(hash)
-          + ", Start: "
-          + pathwayStart
-          + ", Edge Start: "
-          + edgeStart
-          + " ]";
+      if (started) {
+        return "PathwayContext[ Hash "
+            + toUnsignedString(hash)
+            + ", Start: "
+            + pathwayStart
+            + ", Edge Start: "
+            + edgeStart
+            + " ]";
+      } else {
+        return "PathwayContext [Not Started]";
+      }
     } finally {
-      readLock.unlock();
+      lock.unlock();
     }
   }
 
@@ -126,7 +136,7 @@ public class PathwayContext {
     return Long.toString(quot) + rem;
   }
 
-  public static PathwayContext decode(byte[] data) throws IOException {
+  public static DefaultPathwayContext decode(byte[] data) throws IOException {
     ByteArrayInput input = ByteArrayInput.wrap(data);
 
     long hash = input.readLongLE();
@@ -143,7 +153,7 @@ public class PathwayContext {
     long edgeStartNano =
         pathwayStartNano + TimeUnit.MILLISECONDS.toMicros(edgeStartMillis - pathwayStartMillis);
 
-    return new PathwayContext(pathwayStartMillis, pathwayStartNano, edgeStartNano, hash);
+    return new DefaultPathwayContext(pathwayStartMillis, pathwayStartNano, edgeStartNano, hash);
   }
 
   private static long generateNodeHash(String serviceName, String edge) {
