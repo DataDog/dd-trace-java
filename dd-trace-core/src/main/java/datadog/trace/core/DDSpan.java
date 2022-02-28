@@ -25,9 +25,14 @@ import datadog.trace.core.util.Clock;
 import datadog.trace.util.Base64Encoder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -75,6 +80,49 @@ public class DDSpan
 
   private static final AtomicLongFieldUpdater<DDSpan> DURATION_NANO_UPDATER =
       AtomicLongFieldUpdater.newUpdater(DDSpan.class, "durationNano");
+
+  private static final class CleanupReference extends PhantomReference<DDSpan>
+      implements Comparable<CleanupReference> {
+    private TracingContextTracker instance;
+    private final AtomicBoolean finishedFlag;
+    private final DDId id;
+
+    CleanupReference(DDSpan referent, ReferenceQueue<? super DDSpan> q) {
+      super(referent, q);
+      this.instance = referent.tracingContextTracker;
+      this.finishedFlag = referent.finished;
+      this.id = referent.getSpanId();
+    }
+
+    @Override
+    public void clear() {
+      try {
+        if (!finishedFlag.get()) {
+          log.info("Span {} was not finished but is being finalized", id.toLong());
+        }
+        if (instance != null) {
+          instance.release();
+        }
+        instance = null;
+        // remove the reference from the internal ref-holder
+        cleanupRefHolder.remove(this);
+      } finally {
+        // properly clean the phantom reference so they don't keep accumulating
+        super.clear();
+      }
+    }
+
+    @Override
+    public int compareTo(CleanupReference o) {
+      return Integer.compare(System.identityHashCode(this), System.identityHashCode(o));
+    }
+  }
+
+  // phantom references need to be kept strongly
+  private static final Collection<CleanupReference> cleanupRefHolder =
+      new ConcurrentSkipListSet<>();
+  // phantom references will be added to this queue once the referred object is GCed
+  private static final ReferenceQueue<DDSpan> cleanupQueue = new ReferenceQueue<>();
 
   /**
    * The duration in nanoseconds computed using the startTimeMicro or startTimeNano.<hr> The span's
@@ -126,15 +174,18 @@ public class DDSpan
       context.getTrace().touch(); // Update lastReferenced
     }
     this.tracingContextTracker = TracingContextTrackerFactory.instance(getLocalRootSpan());
+    cleanupRefHolder.add(new CleanupReference(this, cleanupQueue));
   }
 
   public boolean isFinished() {
     return durationNano != 0;
   }
 
+  private final AtomicBoolean finished = new AtomicBoolean(false);
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
+      finished.set(true);
       context.getTrace().onFinish(this);
       tracingContextTracker.deactivateContext(false);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
@@ -142,6 +193,7 @@ public class DDSpan
     } else {
       log.debug("Already finished: {}", this);
     }
+    cleanupReferences();
   }
 
   @Override
@@ -792,5 +844,16 @@ public class DDSpan
   @Override
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
+  }
+
+  private void cleanupReferences() {
+    CleanupReference ref = null;
+    while ((ref = (CleanupReference) cleanupQueue.poll()) != null) {
+      try {
+        ref.clear();
+      } catch (Throwable t) {
+        log.warn("", t);
+      }
+    }
   }
 }

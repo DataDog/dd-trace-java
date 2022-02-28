@@ -29,9 +29,9 @@ public final class LongSequence {
     this.bufferWriteSlot = -1;
   }
 
-  public boolean add(long value) {
+  public int add(long value) {
     if (released.get()) {
-      return false;
+      return -1;
     }
 
     if (bufferWriteSlot == -1) {
@@ -61,18 +61,18 @@ public final class LongSequence {
       }
     }
     if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
-      return false;
+      return 0;
     }
     while (!buffers[bufferWriteSlot].putLong(value)) {
       bufferWriteSlot++;
       if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
-        return false;
+        return 0;
       }
     }
 
     size += 1;
     sizeInBytes += 8;
-    return true;
+    return sizeInBytes;
   }
 
   public boolean set(int index, long value) {

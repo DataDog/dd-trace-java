@@ -374,17 +374,19 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
   private boolean store(long threadId, long value) {
     LongSequence sequence =
         threadSequences.computeIfAbsent(threadId, k -> new LongSequence(allocator));
-    return sequence.add(value);
+    return sequence.add(value) > 0;
   }
 
   private void store(long value) {
     LongSequence sequence = localThreadBuffer.get();
     try {
-      boolean added = false;
+      int added = 0;
       synchronized (sequence) {
         added = sequence.add(value);
       }
-      if (!added) {
+      if (added == -1) {
+        warnlog.warn("Attempting to add transition to already released context");
+      } else if (added == 0) {
         warnlog.warn("Profiling Context Buffer is full. Losing data.");
       }
     } catch (Throwable t) {
