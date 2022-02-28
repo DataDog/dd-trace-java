@@ -1,12 +1,13 @@
 package datadog.trace.common.writer.ddagent
 
-
-import datadog.trace.api.DDId
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDId
+import datadog.trace.api.DDTags
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
@@ -20,18 +21,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
-import static org.msgpack.core.MessageFormat.FLOAT32
-import static org.msgpack.core.MessageFormat.FLOAT64
-import static org.msgpack.core.MessageFormat.INT16
-import static org.msgpack.core.MessageFormat.INT32
-import static org.msgpack.core.MessageFormat.INT64
-import static org.msgpack.core.MessageFormat.INT8
-import static org.msgpack.core.MessageFormat.NEGFIXINT
-import static org.msgpack.core.MessageFormat.POSFIXINT
-import static org.msgpack.core.MessageFormat.UINT16
-import static org.msgpack.core.MessageFormat.UINT32
-import static org.msgpack.core.MessageFormat.UINT64
-import static org.msgpack.core.MessageFormat.UINT8
+import static org.junit.Assert.assertFalse
+import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV05PayloadTest extends DDSpecification {
 
@@ -56,6 +47,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       Collections.emptyMap(),
       UUID.randomUUID().toString(),
       false,
+      PrioritySampling.UNSET,
       0,
       null))
     int traceSize = calculateSize(repeatedTrace)
@@ -246,10 +238,17 @@ class TraceMapperV05PayloadTest extends DDSpecification {
                   n = unpacker.unpackDouble()
                   break
                 default:
-                  Assert.fail("Unexpected type in metrics values: " + format)
+                  Assert.fail("Unexpected type in metrics values: " + format + " for key " + key)
               }
               if (DD_MEASURED.toString() == key) {
                 assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+              } else if (DDSpanContext.PRIORITY_SAMPLING_KEY == key) {
+                //check that priority sampling is only on first and last span
+                if (k == 0 || k == spanCount -1) {
+                  assertEquals(expectedSpan.samplingPriority(), n.intValue())
+                } else {
+                  assertFalse(expectedSpan.hasSamplingPriority())
+                }
               } else {
                 metrics.put(key, n)
               }
