@@ -239,17 +239,19 @@ public class DDSpan
     }
   }
 
-  public void storeContextToTag() {
+  public int storeContextToTag() {
     try {
       byte[] contextContent = tracingContextTracker.persistAndRelease();
       if (contextContent != null) {
         byte[] encoded = new Base64Encoder(false).encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
         setTag("_dd_tracing_context", tag);
+        return encoded.length;
       }
     } catch (Throwable t) {
       log.error("", t);
     }
+    return -1;
   }
 
   public void onRemoved() {

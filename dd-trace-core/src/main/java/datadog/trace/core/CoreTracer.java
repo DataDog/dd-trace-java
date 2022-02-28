@@ -725,7 +725,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         boolean published = forceKeep || sampler.sample(spanToSample);
         if (published) {
           for (DDSpan span : writtenTrace) {
-            span.storeContextToTag();
+            int stored = span.storeContextToTag();
+            if (stored > -1) {
+              statsDClient.histogram("tracing.context.size", stored);
+            }
           }
           writer.write(writtenTrace);
         } else {

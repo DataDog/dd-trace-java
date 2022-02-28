@@ -16,7 +16,8 @@ final class CustomEventAccessImpl implements CustomEventAccess {
   @Override
   public void emitTraceContextEvent(
       long localRootSpanId, long threadId, long startTime, long duration) {
-    TraceContextEvent event = new TraceContextEvent(localRootSpanId, threadId, startTime, duration);
-    event.commit();
+    //    TraceContextEvent event = new TraceContextEvent(localRootSpanId, threadId, startTime,
+    // duration);
+    //    event.commit();
   }
 }

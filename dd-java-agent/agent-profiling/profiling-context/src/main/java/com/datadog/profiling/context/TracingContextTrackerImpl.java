@@ -14,14 +14,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class TracingContextTrackerImpl implements TracingContextTracker {
   private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerImpl.class);
-  private static final RatelimitedLogger warnlog = new RatelimitedLogger(LoggerFactory.getLogger(TracingContextTrackerImpl.class), 30_000_000_000L);
+  private static final RatelimitedLogger warnlog =
+      new RatelimitedLogger(
+          LoggerFactory.getLogger(TracingContextTrackerImpl.class), 30_000_000_000L);
 
   private static final long TRANSITION_MASK = 0xC000000000000000L;
   private static final long TIMESTAMP_MASK = ~TRANSITION_MASK;
@@ -159,7 +159,8 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       synchronized (rawIntervals) {
         int size = rawIntervals.size();
         if (size > maxSequenceBufferSize) {
-          warnlog.warn("Interval sequence has changed for thread {}. New size is {}", threadId, size);
+          warnlog.warn(
+              "Interval sequence has changed for thread {}. New size is {}", threadId, size);
         }
         LongIterator iterator = pruneIntervals(entry.getValue());
         while (iterator.hasNext()) {
