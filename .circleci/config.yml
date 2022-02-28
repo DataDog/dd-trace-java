@@ -103,46 +103,23 @@ commands:
 jobs:
   build:
     <<: *defaults
-    resource_class: xlarge
+    resource_class: small
 
     steps:
       - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
 
       - run:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
-            ./gradlew clean compile shadowJar
+            echo clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
-
-      - run:
-          name: Collect Libs
-          when: always
-          command: .circleci/collect_libs.sh
-
-      - store_artifacts:
-          path: ./libs
-
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .gradle
-            - workspace
-
-      - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-          <<: *save_cache_paths
-
-      - display_memory_usage
 
   build_clean_cache:
     <<: *defaults
-    resource_class: xlarge
+    resource_class: small
 
     steps:
       - setup_code
@@ -152,19 +129,15 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
-            ./gradlew clean compile shadowJar
+            echo clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
-
-      - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
-          <<: *save_cache_paths
 
       - display_memory_usage
 
   base_tests: &base_tests
     <<: *defaults
-    resource_class: xlarge
+    resource_class: small
 
     docker:
       - image: *default_container
@@ -179,71 +152,43 @@ jobs:
     steps:
       - setup_code
 
-      - restore_cache:
-          <<: *cache_keys
-
       - run:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests -PskipSmokeTests
+            echo <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests -PskipSmokeTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --continue
 
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh base << parameters.testTask >> || true
-
   instrumentation_tests:
     <<: *base_tests
-    resource_class: xlarge
+    resource_class: small
 
     docker:
       - image: *default_container
-        # This is used by spymemcached instrumentation tests
-      - image: memcached
-        # This is used by rabbitmq instrumentation tests
-      - image: rabbitmq
-        # This is used by aerospike instrumentation tests
-      - image: aerospike:5.5.0.9
-        # This is used by mongodb instrumentation tests
-      - image: mongo
-        # This is used by jdbc and vert.x tests
-      - image: mysql
-        environment:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_USER: sa
-          MYSQL_PASSWORD: sa
-          MYSQL_DATABASE: jdbcUnitTest
-        # This is used by jdbc tests
-      - image: postgres
-        environment:
-          POSTGRES_USER: sa
-          POSTGRES_PASSWORD: sa
-          POSTGRES_DB: jdbcUnitTest
+    #    # This is used by spymemcached instrumentation tests
+    #  - image: memcached
+    #    # This is used by rabbitmq instrumentation tests
+    #  - image: rabbitmq
+    #    # This is used by aerospike instrumentation tests
+    #  - image: aerospike:5.5.0.9
+    #    # This is used by mongodb instrumentation tests
+    #  - image: mongo
+    #    # This is used by jdbc and vert.x tests
+    #  - image: mysql
+    #    environment:
+    #      MYSQL_ROOT_PASSWORD: password
+    #      MYSQL_USER: sa
+    #      MYSQL_PASSWORD: sa
+    #      MYSQL_DATABASE: jdbcUnitTest
+    #    # This is used by jdbc tests
+    #  - image: postgres
+    #    environment:
+    #      POSTGRES_USER: sa
+    #      POSTGRES_PASSWORD: sa
+    #      POSTGRES_DB: jdbcUnitTest
 
     parameters:
       testTask:
@@ -251,58 +196,33 @@ jobs:
       prefixTestTask:
         default: false
         type: boolean
+      testJvm:
+        type: string
+        default: ""
 
     steps:
       - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
 
       - run:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            echo <<# parameters.testJvm >>--PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >> :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=6
             --continue
 
-      - run:
-          name: Collect reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh instrumentation << parameters.testTask >> || true
-
   smoke_tests:
     <<: *base_tests
-    resource_class: medium+
+    resource_class: small
 
     docker:
       - image: *default_container
-        # This is used by rabbitmq smoke tests
-      - image: rabbitmq
-        # This is used by mongodb smoke tests
-      - image: mongo
+    #    # This is used by rabbitmq smoke tests
+    #  - image: rabbitmq
+    #    # This is used by mongodb smoke tests
+    #  - image: mongo
 
     parameters:
       testTask:
@@ -313,44 +233,16 @@ jobs:
 
     steps:
       - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
 
       - run:
           name: Run Tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew stageMainDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            echo stageMainDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=2
             --continue
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect test results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-      - display_memory_usage
-
-      - early_return_for_forked_pull_requests
-
-      - run:
-          name: Upload test results to Datadog
-          when: always
-          command: .circleci/upload_ciapp.sh smoke << parameters.testTask >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
@@ -372,32 +264,29 @@ jobs:
 
   agent_integration_tests:
     <<: *base_tests
-    resource_class: medium
+    resource_class: small
 
     docker:
       - image: *default_container
-      - image: datadog/agent:7.29.0
-        environment:
-          - DD_APM_ENABLED=true
-          - DD_BIND_HOST=0.0.0.0
-          - DD_API_KEY=invalid_key_but_this_is_fine
+      #- image: datadog/agent:7.29.0
+      #  environment:
+      #    - DD_APM_ENABLED=true
+      #    - DD_BIND_HOST=0.0.0.0
+      #    - DD_API_KEY=invalid_key_but_this_is_fine
 
   check:
     <<: *defaults
-    resource_class: large
+    resource_class: small
 
     steps:
       - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
 
       - run:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
-            ./gradlew build -PskipTests
+            echo build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
 
@@ -407,23 +296,13 @@ jobs:
             mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
-            ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
+            echo publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
             cd test-published-dependencies
-            ../gradlew check --max-workers=3
-
-      - run:
-          name: Collect Reports
-          when: always
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - display_memory_usage
+            echo check --max-workers=3
 
   muzzle:
     <<: *defaults
-    resource_class: medium
+    resource_class: small
     parallelism: 3
     steps:
       - setup_code
@@ -433,14 +312,11 @@ jobs:
       # downloading the artifacts each time.
       #
       # Let's at least restore the build cache to have something to start from.
-      - restore_cache:
-          <<: *cache_keys
-
       - run:
           name: Gather muzzle tasks
           command: >-
             SKIP_BUILDSCAN="true"
-            ./gradlew writeMuzzleTasksToFile
+            echo writeMuzzleTasksToFile
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
 
@@ -449,22 +325,9 @@ jobs:
           command: >-
             SKIP_BUILDSCAN="true"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx950M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
-            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
+            echo whatever
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - store_test_results:
-          path: workspace/build/muzzle-test-results
-
-      - display_memory_usage
 
 build_test_jobs: &build_test_jobs
   - build
@@ -496,6 +359,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_inst
       testTask: test
+      testJvm: bork
 
   - instrumentation_tests:
       requires:
