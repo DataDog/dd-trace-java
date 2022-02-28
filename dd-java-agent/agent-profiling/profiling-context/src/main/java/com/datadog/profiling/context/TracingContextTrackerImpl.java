@@ -371,6 +371,11 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     }
   }
 
+  @Override
+  public int getVersion() {
+    return 1;
+  }
+
   private boolean store(long threadId, long value) {
     LongSequence sequence =
         threadSequences.computeIfAbsent(threadId, k -> new LongSequence(allocator));

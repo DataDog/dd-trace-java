@@ -21,6 +21,11 @@ public interface TracingContextTracker {
 
         @Override
         public void release() {}
+
+        @Override
+        public int getVersion() {
+          return 0;
+        }
       };
 
   void activateContext();
@@ -32,4 +37,6 @@ public interface TracingContextTracker {
   byte[] persistAndRelease();
 
   void release();
+
+  int getVersion();
 }

@@ -85,21 +85,23 @@ public class DDSpan
       implements Comparable<CleanupReference> {
     private TracingContextTracker instance;
     private final AtomicBoolean finishedFlag;
-    private final DDId id;
+    private final CharSequence operation;
+    private final CharSequence type;
 
     CleanupReference(DDSpan referent, ReferenceQueue<? super DDSpan> q) {
       super(referent, q);
       this.instance = referent.tracingContextTracker;
       this.finishedFlag = referent.finished;
-      this.id = referent.getSpanId();
+      this.operation = referent.getOperationName();
+      this.type = referent.getType();
     }
 
     @Override
     public void clear() {
       try {
-//        if (!finishedFlag.get()) {
-//          log.info("Span {} was not finished but is being finalized", id.toLong());
-//        }
+        if (!finishedFlag.get()) {
+          log.info("Span [{}/{}] was not finished but is being finalized", type, operation);
+        }
         if (instance != null) {
           instance.release();
         }
@@ -268,6 +270,7 @@ public class DDSpan
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
+      finished.set(true);
       context.getTrace().onFinish(this);
       log.debug("Finished span (PHASED): {}", this);
       return true;
@@ -297,7 +300,7 @@ public class DDSpan
       if (contextContent != null) {
         byte[] encoded = new Base64Encoder(false).encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
-        setTag("_dd_tracing_context", tag);
+        setTag("_dd_tracing_context_" + tracingContextTracker.getVersion(), tag);
         return encoded.length;
       }
     } catch (Throwable t) {
