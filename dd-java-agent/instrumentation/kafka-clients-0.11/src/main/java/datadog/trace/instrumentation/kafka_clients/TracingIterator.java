@@ -80,7 +80,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (pathwayContext != null) {
             span.mergePathwayContext(pathwayContext);
           }
-          AgentTracer.get().setDataStreamCheckpoint(span, val.topic());
+          AgentTracer.get().setDataStreamCheckpoint(span, "kafka", "", val.topic() );
         } else {
           span = startSpan(operationName, null);
         }

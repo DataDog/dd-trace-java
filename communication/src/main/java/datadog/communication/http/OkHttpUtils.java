@@ -65,10 +65,10 @@ public final class OkHttpUtils {
       log.debug("Using NamedPipe as trace transport");
     }
 
-    if (!"https".equals(scheme)) {
-      // force clear text when using http to avoid failures for JVMs without TLS
-      builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
-    }
+//    if (!"https".equals(scheme)) {
+//      // force clear text when using http to avoid failures for JVMs without TLS
+//      builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
+//    }
 
     builder
         .connectTimeout(timeoutMillis, MILLISECONDS)

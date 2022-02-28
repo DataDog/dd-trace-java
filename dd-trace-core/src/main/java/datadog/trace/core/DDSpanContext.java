@@ -461,9 +461,12 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   @Override
-  public PathwayContext getOrCreatePathwayContext(Consumer<StatsPoint> pointConsumer) {
+  public PathwayContext getOrCreatePathwayContext(String type, String group, Consumer<StatsPoint> pointConsumer) {
+    // The StatsPoint should only be sent to the consumer if the newly created context is the one that's
+    // actually used
+
     GatedConsumer<StatsPoint> gate = new GatedConsumer<StatsPoint>(pointConsumer);
-    boolean updated = PATHWAY_CONTEXT_UPDATER.compareAndSet(this, null, new PathwayContext(gate));
+    boolean updated = PATHWAY_CONTEXT_UPDATER.compareAndSet(this, null, new PathwayContext(type, group, gate));
     if (updated) {
       gate.release();
     }

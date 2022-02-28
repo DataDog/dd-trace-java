@@ -668,7 +668,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {
+  public <C> void injectPathwayContext(AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
     log.debug("Injecting pathway context called");
     if (!(span.context() instanceof DDSpanContext)) {
       log.debug("Not injecting: pathway context is {}", span.context().getClass());
@@ -676,10 +676,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     final DDSpanContext ddSpanContext = (DDSpanContext) span.context();
-    PathwayContext pathwayContext = ddSpanContext.getOrCreatePathwayContext(dataStreamsCheckpointer);
-
+    PathwayContext pathwayContext = ddSpanContext.getOrCreatePathwayContext(type, group, dataStreamsCheckpointer);
+    log.debug("Pathyway context to inject {}", pathwayContext);
     try {
       byte[] encodedContext = pathwayContext.encode();
+      log.debug("Encoded context length {}", encodedContext.length);
       setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -720,7 +721,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         } catch (IOException e) {
           return false;
         }
-        extractedContext = null;
       }
       return true;
     }
@@ -732,17 +732,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
     getter.forEachKey(carrier, pathwayContextExtractor);
 
+    log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
+
     return pathwayContextExtractor.extractedContext;
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, String edgeName) {
+  public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
     AgentSpan.Context context = span.context();
 
     // FIXME this can probably be done better
     // The main issue is how to have PathwayContext on AgentSpan.Context without putting a lot of classes into internal-api
     if (context instanceof DDSpanContext) {
-      dataStreamsCheckpointer.setDataStreamCheckpoint(edgeName, (DDSpanContext) context);
+      dataStreamsCheckpointer.setDataStreamCheckpoint(type, group, topic, (DDSpanContext) context);
     }
   }
 

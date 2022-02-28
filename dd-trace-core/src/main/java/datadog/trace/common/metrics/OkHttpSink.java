@@ -136,6 +136,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void send(Request request) {
     long start = System.nanoTime();
+    log.debug("Sending request to {} .", request.url());
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
         handleFailure(response);
@@ -169,6 +170,8 @@ public final class OkHttpSink implements Sink, EventListener {
       onEvent(BAD_PAYLOAD, response.body().string());
     } else if (code >= 500) {
       onEvent(ERROR, response.body().string());
+    } else {
+      log.debug("Other code: {} {}", code, response.body() == null ? "" : response.body().string());
     }
   }
 

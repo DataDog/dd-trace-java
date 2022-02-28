@@ -30,8 +30,8 @@ public class DefaultDataStreamsCheckpointer
 
   private static final long BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
-  private static final StatsPoint REPORT = new StatsPoint(null, 0, 0, 0, 0, 0);
-  private static final StatsPoint POISON_PILL = new StatsPoint( null, 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
+  private static final StatsPoint POISON_PILL = new StatsPoint( null, null, null, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
@@ -45,12 +45,15 @@ public class DefaultDataStreamsCheckpointer
     Sink sink =
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
+//            "http://localhost:8081",
+//            "/pipeline_stats",
             "https://trace.agent." + config.getSite(),
             "/api/v0.1/pipeline_stats",
             SECONDS.toNanos(1),
             false,
             true,
             Collections.singletonMap("DD-API-KEY", config.getApiKey()));
+    sink.register(this);
 
     payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);
@@ -65,10 +68,13 @@ public class DefaultDataStreamsCheckpointer
   }
 
   @Override
-  public void setDataStreamCheckpoint(String edgeName, PathwayContextHolder holder) {
-    log.debug("Adding checkpoint for: {}", edgeName);
-    PathwayContext pathwayContext = holder.getOrCreatePathwayContext(this);
-    pathwayContext.setCheckpoint(edgeName, this);
+  public void setDataStreamCheckpoint(String type, String group, String topic, PathwayContextHolder holder) {
+    log.debug("Adding checkpoint for: {} {} {}", type, group, topic);
+    PathwayContext pathwayContext = holder.getOrCreatePathwayContext(type, group, this);
+
+    log.debug("Current context: {}", pathwayContext);
+    pathwayContext.setCheckpoint(type, group, topic, this);
+    log.debug("After checkpoint context: {}", pathwayContext);
   }
 
   // With Java 8, this becomes unnecessary

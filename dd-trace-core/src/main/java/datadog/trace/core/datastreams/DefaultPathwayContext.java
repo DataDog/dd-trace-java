@@ -4,11 +4,9 @@ import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.Consumer;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -28,17 +26,22 @@ public class PathwayContext {
   private long edgeStart;
   private long hash;
 
-  public PathwayContext(Consumer<StatsPoint> pointConsumer) {
-    this(pointConsumer, System.currentTimeMillis(), System.nanoTime());
-  }
-
-  public PathwayContext(Consumer<StatsPoint> pointConsumer, long pathwayStartMillis, long pathwayStartNanoTime) {
-    this(pathwayStartMillis, pathwayStartNanoTime, pathwayStartNanoTime, 0);
-
-    setCheckpoint( "", pathwayStartNanoTime, pointConsumer);
+  public PathwayContext(String type, String group, Consumer<StatsPoint> pointConsumer) {
+    this(type, group, pointConsumer, System.currentTimeMillis(), System.nanoTime());
   }
 
   public PathwayContext(
+      String type,
+      String group,
+      Consumer<StatsPoint> pointConsumer,
+      long pathwayStartMillis,
+      long pathwayStartNanoTime) {
+    this(pathwayStartMillis, pathwayStartNanoTime, pathwayStartNanoTime, 0);
+
+    setCheckpoint(type, group, "", pathwayStartNanoTime, pointConsumer);
+  }
+
+  private PathwayContext(
       long pathwayStartMillis, long pathwayStartNanoTime, long edgeStartNanoTime, long hash) {
     this.pathwayStartMillis = pathwayStartMillis;
     this.pathwayStart = pathwayStartNanoTime;
@@ -46,14 +49,16 @@ public class PathwayContext {
     this.hash = hash;
   }
 
-  public void setCheckpoint(String edge, Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(edge, System.nanoTime(), pointConsumer);
+  public void setCheckpoint(
+      String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
+    setCheckpoint(type, group, topic, System.nanoTime(), pointConsumer);
   }
 
-  public void setCheckpoint(String edge, long nanoTime, Consumer<StatsPoint> pointConsumer) {
+  public void setCheckpoint(
+      String type, String group, String topic, long nanoTime, Consumer<StatsPoint> pointConsumer) {
     writeLock.lock();
     try {
-      long nodeHash = generateNodeHash(Config.get().getServiceName(), edge);
+      long nodeHash = generateNodeHash(Config.get().getServiceName(), topic);
       long newHash = generatePathwayHash(nodeHash, hash);
 
       long pathwayLatency = nanoTime - pathwayStart;
@@ -61,7 +66,9 @@ public class PathwayContext {
 
       StatsPoint point =
           new StatsPoint(
-              edge,
+              type,
+              group,
+              topic,
               newHash,
               hash,
               System.currentTimeMillis(),
@@ -92,6 +99,31 @@ public class PathwayContext {
     } finally {
       readLock.unlock();
     }
+  }
+
+  public String toString() {
+    readLock.lock();
+    try {
+      return "PathwayContext[ Hash "
+          + toUnsignedString(hash)
+          + ", Start: "
+          + pathwayStart
+          + ", Edge Start: "
+          + edgeStart
+          + " ]";
+    } finally {
+      readLock.unlock();
+    }
+  }
+
+  // TODO Can be removed when Java7 support is removed
+  private static String toUnsignedString(long l) {
+    if (l >= 0) return Long.toString(l);
+
+    // shift left once and divide by 5 results in an unsigned divide by 10
+    long quot = (l >>> 1) / 5;
+    long rem = l - quot * 10;
+    return Long.toString(quot) + rem;
   }
 
   public static PathwayContext decode(byte[] data) throws IOException {
