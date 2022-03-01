@@ -30,7 +30,7 @@ class TracingContextTrackerImplTest {
 
   @Test
   void persist() {
-    instance = new TracingContextTrackerImpl(Allocators.heapAllocator(8192, 64), 0L);
+    instance = new TracingContextTrackerImpl(Allocators.directAllocator(8192, 64), 0L);
     for (int i = 0; i < 40; i += 4) {
       instance.activateContext(1L, (i + 1) * 1_000_000L);
       instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);

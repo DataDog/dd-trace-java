@@ -51,8 +51,6 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
   }
 
   private final ConcurrentMap<Long, LongSequence> threadSequences = new ConcurrentHashMap<>(64);
-  private final ThreadLocal<LongSequence> localThreadBuffer =
-      ThreadLocal.withInitial(this::initThreadBuffer);
   private final long timestamp;
   private final Allocator allocator;
   private final AtomicBoolean released = new AtomicBoolean();
@@ -76,11 +74,6 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     this.spanRef = new WeakReference<>(span);
     this.allocator = allocator;
     this.eventAccess = eventAccess;
-  }
-
-  private LongSequence initThreadBuffer() {
-    return threadSequences.computeIfAbsent(
-        Thread.currentThread().getId(), k -> new LongSequence(allocator));
   }
 
   @Override
@@ -376,27 +369,27 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     return 1;
   }
 
-  private boolean store(long threadId, long value) {
-    LongSequence sequence =
-        threadSequences.computeIfAbsent(threadId, k -> new LongSequence(allocator));
-    return sequence.add(value) > 0;
+  public boolean store(long value) {
+    return store(Thread.currentThread().getId(), value);
   }
 
-  private void store(long value) {
-    LongSequence sequence = localThreadBuffer.get();
+  private boolean store(long threadId, long value) {
+    int added = 0;
+    LongSequence sequence =
+        threadSequences.computeIfAbsent(threadId, k -> new LongSequence(allocator));
     try {
-      int added = 0;
       synchronized (sequence) {
         added = sequence.add(value);
       }
       if (added == -1) {
         warnlog.warn("Attempting to add transition to already released context");
       } else if (added == 0) {
-        warnlog.warn("Profiling Context Buffer is full. Losing data.");
+        warnlog.warn("Profiling Context Buffer is full - losing data");
       }
     } catch (Throwable t) {
       log.error("", t);
     }
+    return added > 0;
   }
 
   private void emitTraceIntervalEvent(

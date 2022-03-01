@@ -2,8 +2,13 @@ package com.datadog.profiling.context.allocator.direct;
 
 import com.datadog.profiling.context.Allocator;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
+import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.StatsDClient;
+import datadog.trace.api.Tracer;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
@@ -24,14 +29,19 @@ public final class DirectAllocator implements Allocator {
     }
   }
 
+  private final StatsDClient statsDClient;
+
   private final ByteBuffer pool;
   private final ByteBuffer memorymap;
   private final int chunkSize;
   private final int numChunks;
   private final ReentrantLock[] memoryMapLocks;
   private int lockSectionSize;
+  private final int bitmapSize;
 
+  private final long capacity;
   private final AtomicLong allocatedBytes = new AtomicLong(0);
+  private final AtomicInteger lockSectionOffset = new AtomicInteger(0);
 
   public DirectAllocator(int capacity, int chunkSize) {
     int cpus = Runtime.getRuntime().availableProcessors();
@@ -51,6 +61,19 @@ public final class DirectAllocator implements Allocator {
     for (int i = 0; i < memoryMapLocks.length; i++) {
       memoryMapLocks[i] = new ReentrantLock();
     }
+    this.capacity = alignedCapacity;
+    this.bitmapSize = lockSectionSize / 8;
+    StatsDClient statsd = StatsDClient.NO_OP;
+    try {
+      Tracer tracer = GlobalTracer.get();
+      Field fld = tracer.getClass().getDeclaredField("statsDClient");
+      fld.setAccessible(true);
+      statsd = (StatsDClient) fld.get(tracer);
+      log.info("Set up custom StatsD Client instance {}", statsd);
+    } catch (Throwable t) {
+      t.printStackTrace();
+    }
+    statsDClient = statsd;
   }
 
   @Override
@@ -67,33 +90,51 @@ public final class DirectAllocator implements Allocator {
   public AllocatedBuffer allocateChunks(int chunks) {
     chunks = Math.min(chunks, numChunks);
 
+    long delta = chunkSize * (long) chunks;
+    long size = allocatedBytes.addAndGet(delta);
+    if (size > capacity) {
+      log.warn("Capacity exhausted - buffer could not be allocated");
+      size = allocatedBytes.addAndGet(-delta);
+      statsDClient.gauge("tracing.context.reserved.memory", size);
+      return null;
+    } else {
+      statsDClient.gauge("tracing.context.reserved.memory", size);
+    }
     int lockSection = 0;
     int offset = 0;
     int allocated = 0;
     Chunk[] chunkArray = new Chunk[chunks];
-    int bitmapSize = lockSectionSize / 8;
     byte[] buffer = new byte[bitmapSize];
     ReentrantLock sectionLock;
     long ts = System.nanoTime();
 
-    while (allocated < chunks && (System.nanoTime() - ts) < 5_000_000L) {
-      for (lockSection = 0; lockSection < memoryMapLocks.length; lockSection++) {
+    while (allocated < chunks) {
+      int offsetValue = 0;
+      int newOffsetValue = 0;
+      do {
+        offsetValue = lockSectionOffset.get();
+        newOffsetValue =
+            (offsetValue + 104729)
+                % memoryMapLocks
+                    .length; // simple hashing using 10000th prime number and mod operation
+      } while (!lockSectionOffset.compareAndSet(offsetValue, newOffsetValue));
+
+      for (int idx = 0; idx < memoryMapLocks.length; idx++) {
+        lockSection = offsetValue % memoryMapLocks.length;
         sectionLock = null;
         try {
-          if (memoryMapLocks[lockSection].tryLock()) {
-            sectionLock = memoryMapLocks[lockSection];
+          memoryMapLocks[lockSection].lock();
+          sectionLock = memoryMapLocks[lockSection];
 
-            int memorymapOffset = lockSection * bitmapSize;
-            for (int pos = 0; pos < bitmapSize; pos++) {
-              buffer[pos] = memorymap.get(memorymapOffset + pos);
-            }
-            AllocationResult rslt =
-                allocateChunks(buffer, lockSection, chunkArray, chunks - allocated, offset);
-            offset += rslt.usedChunks;
-            allocated += rslt.allocatedChunks;
-            if (allocated == chunks) {
-              break;
-            }
+          int memorymapOffset = lockSection * bitmapSize;
+          memorymap.position(memorymapOffset);
+          memorymap.get(buffer);
+          AllocationResult rslt =
+              allocateChunks(buffer, lockSection, chunkArray, chunks - allocated, offset);
+          offset += rslt.usedChunks;
+          allocated += rslt.allocatedChunks;
+          if (allocated == chunks) {
+            break;
           }
         } finally {
           if (sectionLock != null) {
@@ -102,13 +143,7 @@ public final class DirectAllocator implements Allocator {
         }
       }
     }
-    log.info("Chunk allocation took {}ns", System.nanoTime() - ts);
-    if (allocated == 0) {
-      log.warn("Failed to allocate chunk");
-      return null;
-    }
-    long newVal = allocatedBytes.addAndGet(chunkSize * allocated);
-    log.info("Allocated bytes: {}", newVal);
+    statsDClient.histogram("tracing.context.allocator.latency", System.nanoTime() - ts);
     return new DirectAllocatedBuffer(chunkSize * allocated, Arrays.copyOf(chunkArray, offset));
   }
 
@@ -166,7 +201,6 @@ public final class DirectAllocator implements Allocator {
 
   void release(int ref, int len) {
     long delta = chunkSize * (long) len;
-    log.info("Release: bytes={}, ref={}, len={}, delta={}", allocatedBytes.get(), ref, len, delta);
     int offset = 0;
     while (offset < len) {
       int pos = (ref + offset) / 8;
@@ -188,6 +222,5 @@ public final class DirectAllocator implements Allocator {
       }
     }
     long newVal = allocatedBytes.addAndGet(-delta);
-    log.info("Allocated bytes [release]: {}", newVal);
   }
 }

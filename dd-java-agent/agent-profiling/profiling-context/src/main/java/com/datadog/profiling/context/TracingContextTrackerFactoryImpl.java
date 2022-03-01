@@ -28,7 +28,7 @@ public final class TracingContextTrackerFactoryImpl
     TracingContextTrackerFactory.registerImplementation(Singleton.INSTANCE);
   }
 
-  private final Allocator allocator = Allocators.heapAllocator(512 * 1024 * 1024, 32);
+  private final Allocator allocator = Allocators.directAllocator(16 * 1024 * 1024, 32);
   private final CustomEventAccess eventAccess;
 
   private TracingContextTrackerFactoryImpl() {

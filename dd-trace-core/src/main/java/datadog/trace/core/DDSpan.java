@@ -184,6 +184,7 @@ public class DDSpan
   }
 
   private final AtomicBoolean finished = new AtomicBoolean(false);
+
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
