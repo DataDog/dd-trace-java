@@ -33,9 +33,9 @@ final class DDAsyncTransformer implements Runnable {
   }
 
   // first 16-bits represent slots available for use
-  private static final int AVAILABLE_MASK = 0x0000FFFF;
+  private static final int AVAILABLE_MASK = 0x00000001;
   // last 16-bits represent slots ready for transforming
-  private static final int READY_MASK = 0xFFFF0000;
+  private static final int READY_MASK = 0x00010000;
 
   // maintain slot status (available/ready) in a single atomic variable
   private final AtomicInteger slotStates = new AtomicInteger(AVAILABLE_MASK);
@@ -172,7 +172,7 @@ final class DDAsyncTransformer implements Runnable {
   private int acceptRequest() {
     int ready;
     int currentStates = slotStates.get();
-    while ((ready = Integer.highestOneBit(currentStates & READY_MASK)) != 0) {
+    while ((ready = Integer.lowestOneBit(currentStates & READY_MASK)) != 0) {
       if (slotStates.compareAndSet(currentStates, currentStates & ~ready)) {
         return Integer.numberOfTrailingZeros(ready >>> 16);
       }
