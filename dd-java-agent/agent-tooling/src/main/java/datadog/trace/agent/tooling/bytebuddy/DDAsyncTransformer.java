@@ -172,7 +172,7 @@ final class DDAsyncTransformer implements Runnable {
   private int acceptRequest() {
     int ready;
     int currentStates = slotStates.get();
-    while ((ready = Integer.lowestOneBit(currentStates & READY_MASK)) != 0) {
+    while ((ready = Integer.highestOneBit(currentStates & READY_MASK)) != 0) {
       if (slotStates.compareAndSet(currentStates, currentStates & ~ready)) {
         return Integer.numberOfTrailingZeros(ready >>> 16);
       }
