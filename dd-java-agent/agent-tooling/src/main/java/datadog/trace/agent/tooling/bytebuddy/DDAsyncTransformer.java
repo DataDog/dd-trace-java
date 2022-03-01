@@ -27,7 +27,6 @@ final class DDAsyncTransformer implements Runnable {
         Object javaModule,
         ClassLoader classLoader,
         String internalClassName,
-        Class<?> classBeingRedefined,
         ProtectionDomain protectionDomain,
         byte[] classFileBuffer)
         throws IllegalClassFormatException;
@@ -63,7 +62,6 @@ final class DDAsyncTransformer implements Runnable {
       Object javaModule,
       ClassLoader classLoader,
       String internalClassName,
-      Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
       byte[] classFileBuffer)
       throws IllegalClassFormatException {
@@ -71,13 +69,14 @@ final class DDAsyncTransformer implements Runnable {
     if (Thread.currentThread() != transformThread) { // secondary transformations cannot be async
       int slot = acquireSlot();
       if (slot >= 0) {
+        log.info("--------  await {} for {} slot {}", internalClassName, classLoader, slot);
         TransformExchanger exchanger = localExchanger.get();
         exchanger.javaModule = javaModule;
         exchanger.classLoader = classLoader;
         exchanger.internalClassName = internalClassName;
-        exchanger.classBeingRedefined = classBeingRedefined;
         exchanger.protectionDomain = protectionDomain;
         exchanger.classFileBuffer = classFileBuffer;
+        exchanger.tccl = Thread.currentThread().getContextClassLoader();
         exchangers[slot] = exchanger;
         submitRequest(slot); // compare-and-swap makes these changes visible to transform thread
         LockSupport.unpark(transformThread);
@@ -95,8 +94,8 @@ final class DDAsyncTransformer implements Runnable {
           exchanger.javaModule = null;
           exchanger.classLoader = null;
           exchanger.internalClassName = null;
-          exchanger.classBeingRedefined = null;
           exchanger.protectionDomain = null;
+          exchanger.tccl = null;
           exchangers[slot] = null;
           recycleSlot(slot);
         } else {
@@ -107,12 +106,7 @@ final class DDAsyncTransformer implements Runnable {
 
     // synchronous transformation...
     return transformTask.doTransform(
-        javaModule,
-        classLoader,
-        internalClassName,
-        classBeingRedefined,
-        protectionDomain,
-        classFileBuffer);
+        javaModule, classLoader, internalClassName, protectionDomain, classFileBuffer);
   }
 
   @Override
@@ -121,27 +115,31 @@ final class DDAsyncTransformer implements Runnable {
       int slot = acceptRequest();
       if (slot >= 0) {
         TransformExchanger exchanger = exchangers[slot];
+        log.info(
+            "--------  transform {} for {} slot {}",
+            exchanger.internalClassName,
+            exchanger.classLoader,
+            slot);
         try {
+          transformThread.setContextClassLoader(exchanger.tccl);
           exchanger.classFileBuffer = // use same exchanger to return transformed bytes
               transformTask.doTransform(
                   exchanger.javaModule,
                   exchanger.classLoader,
                   exchanger.internalClassName,
-                  exchanger.classBeingRedefined,
                   exchanger.protectionDomain,
                   exchanger.classFileBuffer);
-          exchanger.release(); // semaphore call makes result visible to request thread
         } catch (Throwable e) {
-          log.debug(
-              "Async transformation failed for {}, will try synchronous",
-              exchanger.internalClassName,
-              e);
+          exchanger.classFileBuffer = null;
+          log.warn("Async transformation failed for {}", exchanger.internalClassName, e);
         } finally {
+          exchanger.release(); // semaphore call makes result visible to request thread
+          transformThread.setContextClassLoader(null);
           exchanger.javaModule = null;
           exchanger.classLoader = null;
           exchanger.internalClassName = null;
-          exchanger.classBeingRedefined = null;
           exchanger.protectionDomain = null;
+          exchanger.tccl = null;
           exchangers[slot] = null;
           recycleSlot(slot);
         }
@@ -211,8 +209,8 @@ final class DDAsyncTransformer implements Runnable {
     Object javaModule;
     ClassLoader classLoader;
     String internalClassName;
-    Class<?> classBeingRedefined;
     ProtectionDomain protectionDomain;
     byte[] classFileBuffer;
+    ClassLoader tccl;
   }
 }

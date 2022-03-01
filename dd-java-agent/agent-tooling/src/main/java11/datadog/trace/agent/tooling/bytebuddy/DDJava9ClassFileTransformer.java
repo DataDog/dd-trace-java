@@ -51,13 +51,10 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
       } else if (ASYNC_TRANSFORMATION_ENABLED) {
-        return asyncTransformer.awaitTransform(
-            null,
-            classLoader,
-            internalClassName,
-            classBeingRedefined,
-            protectionDomain,
-            classFileBuffer);
+        if (null == classBeingRedefined) {
+          return asyncTransformer.awaitTransform(
+              null, classLoader, internalClassName, protectionDomain, classFileBuffer);
+        }
       }
     }
 
@@ -83,13 +80,10 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
       } else if (ASYNC_TRANSFORMATION_ENABLED) {
-        return asyncTransformer.awaitTransform(
-            module,
-            classLoader,
-            internalClassName,
-            classBeingRedefined,
-            protectionDomain,
-            classFileBuffer);
+        if (null == classBeingRedefined) {
+          return asyncTransformer.awaitTransform(
+              module, classLoader, internalClassName, protectionDomain, classFileBuffer);
+        }
       }
     }
 
@@ -107,7 +101,6 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       final Object javaModule,
       final ClassLoader classLoader,
       final String internalClassName,
-      final Class<?> classBeingRedefined,
       final ProtectionDomain protectionDomain,
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
@@ -117,12 +110,12 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
           (Module) javaModule,
           classLoader,
           internalClassName,
-          classBeingRedefined,
+          null,
           protectionDomain,
           classFileBuffer);
     }
 
     return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+        classLoader, internalClassName, null, protectionDomain, classFileBuffer);
   }
 }
