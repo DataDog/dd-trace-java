@@ -51,13 +51,10 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
       } else if (ASYNC_TRANSFORMATION_ENABLED) {
-        return asyncTransformer.awaitTransform(
-            null,
-            classLoader,
-            internalClassName,
-            classBeingRedefined,
-            protectionDomain,
-            classFileBuffer);
+        if (null == classBeingRedefined) {
+          return asyncTransformer.awaitTransform(
+              null, classLoader, internalClassName, protectionDomain, classFileBuffer);
+        }
       }
     }
 
@@ -70,12 +67,11 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       final Object javaModule,
       final ClassLoader classLoader,
       final String internalClassName,
-      final Class<?> classBeingRedefined,
       final ProtectionDomain protectionDomain,
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
     return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+        classLoader, internalClassName, null, protectionDomain, classFileBuffer);
   }
 }
