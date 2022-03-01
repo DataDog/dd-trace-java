@@ -1,8 +1,5 @@
 apply from: "$rootDir/gradle/java_no_deps.gradle"
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
-
 ext {
   minimumInstructionCoverage = 0.7
   excludedClassesCoverage = ['datadog.trace.test.agent.decoder.v04.raw.*', 'datadog.trace.test.agent.decoder.v05.raw.*',]
