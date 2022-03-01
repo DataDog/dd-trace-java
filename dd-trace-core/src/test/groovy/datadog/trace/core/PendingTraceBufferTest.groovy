@@ -1,11 +1,12 @@
 package datadog.trace.core
 
 import datadog.communication.monitor.Monitoring
+import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
@@ -124,6 +125,32 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.onFinish(child)
     0 * _
+  }
+
+  def "priority sampling is always sent"() {
+    setup:
+    def parent = addContinuation(newSpanOf(factory.create(DDId.ONE), PrioritySampling.USER_KEEP))
+    def metadataChecker = new SamplingPriorityMetadataChecker()
+
+    when: "Fill the buffer - Only children - Priority taken from root"
+
+    for (int i = 0; i < 11; i++) {
+      newSpanOf(parent).finish()
+    }
+
+    then:
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.mapServiceName(_)
+    _ * tracer.onStart(_)
+    _ * tracer.onFinish(_)
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    1 * tracer.write(_) >> { List<List<DDSpan>> spans ->
+      spans.first().first().processTagsAndBaggage(metadataChecker)
+    }
+    0 *  _
+    metadataChecker.hasSamplingPriority
+
+
   }
 
   def "buffer full yields immediate write"() {
@@ -353,6 +380,10 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   static DDSpan newSpanOf(PendingTrace trace) {
+    return newSpanOf(trace, PrioritySampling.UNSET)
+  }
+
+  static DDSpan newSpanOf(PendingTrace trace, int samplingPriority) {
     def context = new DDSpanContext(
       trace.traceId,
       DDId.from(1),
@@ -361,7 +392,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      samplingPriority,
       SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),

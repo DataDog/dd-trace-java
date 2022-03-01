@@ -44,9 +44,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private static final class MetaWriter extends MetadataConsumer {
 
     private Writable writable;
+    private boolean writeSamplingPriority;
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;
+      return this;
+    }
+
+    MetaWriter withWriteSamplingPriority(final boolean writeSamplingPriority) {
+      this.writeSamplingPriority = writeSamplingPriority;
       return this;
     }
 
@@ -59,7 +65,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
               + (null == metadata.getOrigin() ? 0 : 1)
               + 1;
       int metricsSize =
-          (metadata.hasSamplingPriority() ? 1 : 0)
+          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
               + 1;
@@ -71,7 +77,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(METRICS);
       writable.startMap(metricsSize);
-      if (metadata.hasSamplingPriority()) {
+      if (writeSamplingPriority && metadata.hasSamplingPriority()) {
         writable.writeUTF8(SAMPLING_PRIORITY_KEY);
         writable.writeInt(metadata.samplingPriority());
       }
@@ -125,7 +131,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
   @Override
   public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (CoreSpan<?> span : trace) {
+    for (int i = 0; i < trace.size(); i++) {
+      final CoreSpan<?> span = trace.get(i);
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
@@ -158,7 +165,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 11, 12 */
-      span.processTagsAndBaggage(metaWriter.withWritable(writable));
+      span.processTagsAndBaggage(
+          metaWriter
+              .withWritable(writable)
+              .withWriteSamplingPriority(i == 0 || i == trace.size() - 1));
     }
   }
 
