@@ -49,6 +49,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     public void enqueue(Element pendingTrace) {
       if (pendingTrace.setEnqueued(true)) {
         if (!queue.offer(pendingTrace)) {
+          // Mark it as not in the queue
+          pendingTrace.setEnqueued(false);
           // Queue is full, so we can't buffer this trace, write it out directly instead.
           pendingTrace.write();
         }
