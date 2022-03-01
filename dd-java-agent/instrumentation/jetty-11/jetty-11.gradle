@@ -29,28 +29,14 @@ sourceSets {
 
 [compileMain_java11Java, compileTestJava].each {
   it.configure {
-    if (!System.env.JAVA_11_HOME) {
-      throw new GradleException('JAVA_11_HOME must be set to build Java 11 code')
-    }
-    javaCompiler = javaToolchains.compilerFor {
-      languageVersion = JavaLanguageVersion.of(11)
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    setJavaVersion(it, 11)
   }
 }
 
-[compileTestGroovy].each {
-  it.configure {
-    if (!System.env.JAVA_11_HOME) {
-      throw new GradleException('JAVA_11_HOME must be set to build Java 11 code')
-    }
-    javaLauncher = javaToolchains.launcherFor {
-      languageVersion = JavaLanguageVersion.of(11)
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
-    }
-  }
+compileTestGroovy {
+  javaLauncher = getJavaLauncherFor(11)
 }
 
 dependencies {

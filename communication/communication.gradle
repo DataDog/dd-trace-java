@@ -1,8 +1,5 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
-
 dependencies {
   implementation deps.slf4j
 
