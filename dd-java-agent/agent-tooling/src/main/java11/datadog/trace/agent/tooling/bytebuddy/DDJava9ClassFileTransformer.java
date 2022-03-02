@@ -5,8 +5,11 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.canSkipClassLoaderB
 import datadog.trace.api.Config;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Intercepts transformation requests before ByteBuddy so we can perform some initial filtering.
@@ -15,6 +18,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
  */
 public final class DDJava9ClassFileTransformer extends ResettableClassFileTransformer.WithDelegation
     implements DDAsyncTransformer.TransformTask {
+  private static final Logger log = LoggerFactory.getLogger(DDJava9ClassFileTransformer.class);
 
   public static final TransformerDecorator DECORATOR =
       new TransformerDecorator() {
@@ -105,17 +109,29 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
-    if (null != javaModule) {
-      return classFileTransformer.transform(
-          (Module) javaModule,
-          classLoader,
-          internalClassName,
-          null,
-          protectionDomain,
-          classFileBuffer);
+    try {
+      byte[] buf;
+      if (null != javaModule) {
+        buf =
+            classFileTransformer.transform(
+                (Module) javaModule,
+                classLoader,
+                internalClassName,
+                null,
+                protectionDomain,
+                classFileBuffer);
+      } else {
+        buf =
+            classFileTransformer.transform(
+                classLoader, internalClassName, null, protectionDomain, classFileBuffer);
+      }
+      if (buf != null && !Arrays.equals(classFileBuffer, buf)) {
+        log.info("***** TRANSFORM SUCCESS {}, {}, {}", internalClassName, javaModule, classLoader);
+      }
+      return buf;
+    } catch (IllegalClassFormatException | RuntimeException | Error e) {
+      log.info("***** TRANSFORM FAILURE {}, {}, {}", internalClassName, javaModule, classLoader, e);
+      throw e;
     }
-
-    return classFileTransformer.transform(
-        classLoader, internalClassName, null, protectionDomain, classFileBuffer);
   }
 }

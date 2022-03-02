@@ -5,8 +5,11 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.canSkipClassLoaderB
 import datadog.trace.api.Config;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Intercepts transformation requests before ByteBuddy so we can perform some initial filtering.
@@ -15,6 +18,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
  */
 public final class DDClassFileTransformer extends ResettableClassFileTransformer.WithDelegation
     implements DDAsyncTransformer.TransformTask {
+  private static final Logger log = LoggerFactory.getLogger(DDClassFileTransformer.class);
 
   public static final TransformerDecorator DECORATOR =
       new TransformerDecorator() {
@@ -71,7 +75,17 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, null, protectionDomain, classFileBuffer);
+    try {
+      byte[] buf =
+          classFileTransformer.transform(
+              classLoader, internalClassName, null, protectionDomain, classFileBuffer);
+      if (buf != null && !Arrays.equals(classFileBuffer, buf)) {
+        log.info("***** TRANSFORM SUCCESS {}, {}, {}", internalClassName, javaModule, classLoader);
+      }
+      return buf;
+    } catch (IllegalClassFormatException | RuntimeException | Error e) {
+      log.info("***** TRANSFORM FAILURE {}, {}, {}", internalClassName, javaModule, classLoader, e);
+      throw e;
+    }
   }
 }

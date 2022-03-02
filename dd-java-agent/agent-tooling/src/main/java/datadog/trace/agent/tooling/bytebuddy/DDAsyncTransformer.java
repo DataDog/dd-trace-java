@@ -69,7 +69,6 @@ final class DDAsyncTransformer implements Runnable {
     if (Thread.currentThread() != transformThread) { // secondary transformations cannot be async
       int slot = acquireSlot();
       if (slot >= 0) {
-        log.info("--------  await {} for {} slot {}", internalClassName, classLoader, slot);
         TransformExchanger exchanger = localExchanger.get();
         exchanger.javaModule = javaModule;
         exchanger.classLoader = classLoader;
@@ -115,11 +114,6 @@ final class DDAsyncTransformer implements Runnable {
       int slot = acceptRequest();
       if (slot >= 0) {
         TransformExchanger exchanger = exchangers[slot];
-        log.info(
-            "--------  transform {} for {} slot {}",
-            exchanger.internalClassName,
-            exchanger.classLoader,
-            slot);
         try {
           transformThread.setContextClassLoader(exchanger.tccl);
           exchanger.classFileBuffer = // use same exchanger to return transformed bytes
