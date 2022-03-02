@@ -977,7 +977,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public volatile CoreSpanBuilder withTag(final String tag, final Object value) {
+    public synchronized CoreSpanBuilder withTag(final String tag, final Object value) {
       if (tags == null) {
         tags = new LinkedHashMap<>(); // Insertion order is important
       }
