@@ -69,6 +69,7 @@ final class DDAsyncTransformer implements Runnable {
     if (Thread.currentThread() != transformThread) { // secondary transformations cannot be async
       int slot = acquireSlot();
       if (slot >= 0) {
+        log.info("***** ASYNC REQUEST {}, {}, {}", internalClassName, classLoader, slot);
         TransformExchanger exchanger = localExchanger.get();
         exchanger.javaModule = javaModule;
         exchanger.classLoader = classLoader;
@@ -90,6 +91,7 @@ final class DDAsyncTransformer implements Runnable {
           exchanger.classFileBuffer = null;
         }
         if (cancelRequest(slot)) { // did we cancel request before transform thread took it?
+          log.info("***** ASYNC CANCEL {}, {}, {}", internalClassName, classLoader, slot);
           exchanger.javaModule = null;
           exchanger.classLoader = null;
           exchanger.internalClassName = null;
@@ -98,11 +100,13 @@ final class DDAsyncTransformer implements Runnable {
           exchangers[slot] = null;
           recycleSlot(slot);
         } else {
+          log.info("***** ASYNC TIMEOUT {}, {}, {}", internalClassName, classLoader, slot);
           localExchanger.remove(); // canceled too late, can't re-use this exchanger
         }
       }
     }
 
+    log.info("***** SYNC REQUEST {}, {}", internalClassName, classLoader);
     // synchronous transformation...
     return transformTask.doTransform(
         javaModule, classLoader, internalClassName, protectionDomain, classFileBuffer);
@@ -114,6 +118,11 @@ final class DDAsyncTransformer implements Runnable {
       int slot = acceptRequest();
       if (slot >= 0) {
         TransformExchanger exchanger = exchangers[slot];
+        log.info(
+            "***** ASYNC ACCEPT {}, {}, {}",
+            exchanger.internalClassName,
+            exchanger.classLoader,
+            slot);
         try {
           transformThread.setContextClassLoader(exchanger.tccl);
           exchanger.classFileBuffer = // use same exchanger to return transformed bytes
@@ -123,6 +132,11 @@ final class DDAsyncTransformer implements Runnable {
                   exchanger.internalClassName,
                   exchanger.protectionDomain,
                   exchanger.classFileBuffer);
+          log.info(
+              "***** ASYNC DONE {}, {}, {}",
+              exchanger.internalClassName,
+              exchanger.classLoader,
+              slot);
         } catch (Throwable e) {
           exchanger.classFileBuffer = null;
           log.warn("Async transformation failed for {}", exchanger.internalClassName, e);
