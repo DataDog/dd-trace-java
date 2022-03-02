@@ -172,7 +172,8 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
 
     when:
-    addContinuation(newSpanOf(factory.create(DDId.ONE))).finish()
+    def pendingTrace = factory.create(DDId.ONE)
+    addContinuation(newSpanOf(pendingTrace)).finish()
 
     then:
     1 * bufferSpy.enqueue(_)
@@ -183,6 +184,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.onStart(_)
     1 * tracer.onFinish(_)
     0 * _
+    pendingTrace.isEnqueued == 0
   }
 
   def "continuation allows adding after root finished"() {
