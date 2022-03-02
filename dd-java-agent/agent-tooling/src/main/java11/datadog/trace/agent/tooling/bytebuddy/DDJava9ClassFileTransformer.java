@@ -51,6 +51,7 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       return null;
     }
 
+    log.info("***** TRANSFORM REQUEST {}, {}, {}", internalClassName, null, classLoader);
     if (null != classLoader) {
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
@@ -94,6 +95,7 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       return null;
     }
 
+    log.info("***** TRANSFORM REQUEST {}, {}, {}", internalClassName, module, classLoader);
     if (null != classLoader) {
       if (canSkipClassLoaderByName(classLoader)) {
         return null;

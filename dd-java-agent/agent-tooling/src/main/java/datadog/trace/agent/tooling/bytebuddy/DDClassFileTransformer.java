@@ -51,6 +51,7 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       return null;
     }
 
+    log.info("***** TRANSFORM REQUEST {}, {}, {}", internalClassName, null, classLoader);
     if (null != classLoader) {
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
