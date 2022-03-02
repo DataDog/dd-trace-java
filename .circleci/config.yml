@@ -217,7 +217,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh base << parameters.testTask >> || true
+          command: .circleci/upload_ciapp.sh base << parameters.testJvm >> || true
 
   instrumentation_tests:
     <<: *base_tests
@@ -287,7 +287,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh instrumentation << parameters.testTask >> || true
+          command: .circleci/upload_ciapp.sh instrumentation << parameters.testJvm >> || true
 
   smoke_tests:
     <<: *base_tests
@@ -340,7 +340,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh smoke << parameters.testTask >> || true
+          command: .circleci/upload_ciapp.sh smoke << parameters.testJvm >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
@@ -471,6 +471,7 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_base
       testTask: test jacocoTestReport jacocoTestCoverageVerification
+      testJvm: "8"
 
   - instrumentation_tests:
       requires:
@@ -483,12 +484,14 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_inst
+      testJvm: "8"
 
   - instrumentation_tests:
       requires:
         - build
       name: test_8_inst_latest
       testTask: latestDepTest
+      testJvm: "8"
 
   - smoke_tests:
       requires:
@@ -501,6 +504,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_smoke
+      testJvm: "8"
 
   - fan_in:
       requires:
