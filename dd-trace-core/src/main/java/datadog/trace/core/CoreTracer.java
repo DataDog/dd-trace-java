@@ -878,7 +878,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private final CoreTracer tracer;
 
     // Builder attributes
-    private Map<String, Object> tags;
+    private volatile Map<String, Object> tags;
     private long timestampMicro;
     private Object parent;
     private String serviceName;
@@ -977,15 +977,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public CoreSpanBuilder withTag(final String tag, final Object value) {
-      Map<String, Object> tagMap = tags;
-      if (tagMap == null) {
-        tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
+    public volatile CoreSpanBuilder withTag(final String tag, final Object value) {
+      if (tags == null) {
+        tags = new LinkedHashMap<>(); // Insertion order is important
       }
       if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-        tagMap.remove(tag);
+        tags.remove(tag);
       } else {
-        tagMap.put(tag, value);
+        tags.put(tag, value);
       }
       return this;
     }
