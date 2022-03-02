@@ -33,9 +33,9 @@ final class DDAsyncTransformer implements Runnable {
   }
 
   // first 16-bits represent slots available for use
-  private static final int AVAILABLE_MASK = 0x00000001;
+  private static final int AVAILABLE_MASK = 0x0000000F;
   // last 16-bits represent slots ready for transforming
-  private static final int READY_MASK = 0x00010000;
+  private static final int READY_MASK = 0x000F0000;
 
   // maintain slot status (available/ready) in a single atomic variable
   private final AtomicInteger slotStates = new AtomicInteger(AVAILABLE_MASK);
