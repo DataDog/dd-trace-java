@@ -205,6 +205,8 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEAD
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
 import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
@@ -320,7 +322,8 @@ public class Config {
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   private final List<String> excludedClasses;
-  private final Map<String, String> headerTags;
+  private final Map<String, String> requestHeaderTags;
+  private final Map<String, String> responseHeaderTags;
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
@@ -634,7 +637,24 @@ public class Config {
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
-    headerTags = configProvider.getMergedMap(HEADER_TAGS);
+
+    if (isEnabled(false, HEADER_TAGS, ".legacy.parsing.enabled")) {
+      requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
+      responseHeaderTags = Collections.emptyMap();
+      if (configProvider.isSet(REQUEST_HEADER_TAGS)) {
+        logIngoredSettingWarning(REQUEST_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
+      }
+      if (configProvider.isSet(RESPONSE_HEADER_TAGS)) {
+        logIngoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
+      }
+    } else {
+      requestHeaderTags =
+          configProvider.getMergedMapWithOptionalMappings(
+              "http.request.headers.", true, HEADER_TAGS, REQUEST_HEADER_TAGS);
+      responseHeaderTags =
+          configProvider.getMergedMapWithOptionalMappings(
+              "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
+    }
 
     httpServerPathResourceNameMapping =
         configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
@@ -1075,8 +1095,12 @@ public class Config {
     return excludedClasses;
   }
 
-  public Map<String, String> getHeaderTags() {
-    return headerTags;
+  public Map<String, String> getRequestHeaderTags() {
+    return requestHeaderTags;
+  }
+
+  public Map<String, String> getResponseHeaderTags() {
+    return responseHeaderTags;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -1855,6 +1879,20 @@ public class Config {
         Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
   }
 
+  public boolean isEnabled(
+      final boolean defaultEnabled, final String settingName, String settingSuffix) {
+    return isEnabled(Collections.singletonList(settingName), "", settingSuffix, defaultEnabled);
+  }
+
+  private void logIngoredSettingWarning(
+      String setting, String overridingSetting, String overridingSuffix) {
+    log.warn(
+        "Setting {} ignored since {}{} is enabled.",
+        propertyNameToSystemPropertyName(setting),
+        propertyNameToSystemPropertyName(overridingSetting),
+        overridingSuffix);
+  }
+
   public boolean isTraceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "", ".analytics.enabled", defaultEnabled);
@@ -1920,8 +1958,8 @@ public class Config {
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
       final String configKey = settingPrefix + name + settingSuffix;
-      final boolean configEnabled =
-          configProvider.getBoolean("trace." + configKey, defaultEnabled, configKey);
+      final String fullKey = configKey.startsWith("trace.") ? configKey : "trace." + configKey;
+      final boolean configEnabled = configProvider.getBoolean(fullKey, defaultEnabled, configKey);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
@@ -2158,8 +2196,10 @@ public class Config {
         + jmxTags
         + ", excludedClasses="
         + excludedClasses
-        + ", headerTags="
-        + headerTags
+        + ", requestHeaderTags="
+        + requestHeaderTags
+        + ", responseHeaderTags="
+        + responseHeaderTags
         + ", httpServerErrorStatuses="
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="
