@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDCircularityLock;
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
@@ -64,6 +65,7 @@ public class AgentTooling {
   private static final long DEFAULT_CACHE_CAPACITY = 32;
   private static final Provider weakCacheProvider = loadWeakCacheProvider();
 
+  private static final DDCircularityLock CIRCULARITY_LOCK = new DDCircularityLock();
   private static final DDRediscoveryStrategy REDISCOVERY_STRATEGY = new DDRediscoveryStrategy();
   private static final DDLocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
   private static final DDCachingPoolStrategy POOL_STRATEGY =
@@ -76,6 +78,10 @@ public class AgentTooling {
 
   public static <K, V> WeakCache<K, V> newWeakCache(final long maxSize) {
     return weakCacheProvider.newWeakCache(maxSize);
+  }
+
+  public static DDCircularityLock circularityLockStrategy() {
+    return CIRCULARITY_LOCK;
   }
 
   public static DDRediscoveryStrategy rediscoveryStrategy() {

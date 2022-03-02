@@ -62,8 +62,22 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       }
     }
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    try {
+      byte[] buf =
+          classFileTransformer.transform(
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+      if (buf != null && !Arrays.equals(classFileBuffer, buf)) {
+        log.info("***** TRANSFORM SUCCESS {}, {}, {}", internalClassName, null, classLoader);
+      }
+      return buf;
+    } catch (IllegalClassFormatException | RuntimeException | Error e) {
+      log.info("***** TRANSFORM FAILURE {}, {}, {}", internalClassName, null, classLoader, e);
+      throw e;
+    }
   }
 
   @Override
@@ -91,13 +105,23 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       }
     }
 
-    return classFileTransformer.transform(
-        module,
-        classLoader,
-        internalClassName,
-        classBeingRedefined,
-        protectionDomain,
-        classFileBuffer);
+    try {
+      byte[] buf =
+          classFileTransformer.transform(
+              module,
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+      if (buf != null && !Arrays.equals(classFileBuffer, buf)) {
+        log.info("***** TRANSFORM SUCCESS {}, {}, {}", internalClassName, module, classLoader);
+      }
+      return buf;
+    } catch (IllegalClassFormatException | RuntimeException | Error e) {
+      log.info("***** TRANSFORM FAILURE {}, {}, {}", internalClassName, module, classLoader, e);
+      throw e;
+    }
   }
 
   @Override

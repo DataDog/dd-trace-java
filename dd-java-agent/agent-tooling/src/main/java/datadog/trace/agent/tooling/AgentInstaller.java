@@ -92,6 +92,7 @@ public class AgentInstaller {
         new AgentBuilder.Default(byteBuddy)
             .disableClassFormatChanges()
             .assureReadEdgeTo(INSTRUMENTATION, FieldBackedContextAccessor.class)
+            .with(AgentTooling.circularityLockStrategy())
             .with(AgentTooling.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentTooling.rediscoveryStrategy())

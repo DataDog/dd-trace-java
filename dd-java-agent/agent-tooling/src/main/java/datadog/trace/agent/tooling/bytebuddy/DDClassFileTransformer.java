@@ -62,8 +62,22 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       }
     }
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    try {
+      byte[] buf =
+          classFileTransformer.transform(
+              classLoader,
+              internalClassName,
+              classBeingRedefined,
+              protectionDomain,
+              classFileBuffer);
+      if (buf != null && !Arrays.equals(classFileBuffer, buf)) {
+        log.info("***** TRANSFORM SUCCESS {}, {}, {}", internalClassName, null, classLoader);
+      }
+      return buf;
+    } catch (IllegalClassFormatException | RuntimeException | Error e) {
+      log.info("***** TRANSFORM FAILURE {}, {}, {}", internalClassName, null, classLoader, e);
+      throw e;
+    }
   }
 
   @Override
