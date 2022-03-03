@@ -4,6 +4,7 @@ import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.mapping.IndexMapping;
 import com.datadoghq.sketch.ddsketch.mapping.LogarithmicMapping;
 import com.datadoghq.sketch.ddsketch.store.UnboundedSizeDenseStore;
+import java.nio.ByteBuffer;
 
 public class StatsGroup {
   private static final IndexMapping SKETCH_MAPPING = new LogarithmicMapping(0.01);
@@ -56,11 +57,11 @@ public class StatsGroup {
     return parentHash;
   }
 
-  public DDSketch getPathwayLatency() {
-    return pathwayLatency;
+  public ByteBuffer getSerializedPathwayLatency() {
+    return pathwayLatency.serialize();
   }
 
-  public DDSketch getEdgeLatency() {
-    return edgeLatency;
+  public ByteBuffer getSerializedEdgeLatency() {
+    return edgeLatency.serialize();
   }
 }

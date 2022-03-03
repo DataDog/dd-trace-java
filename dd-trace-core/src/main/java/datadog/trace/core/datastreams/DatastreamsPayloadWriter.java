@@ -7,7 +7,7 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
-import datadog.trace.common.metrics.Sink;
+import datadog.communication.http.Sink;
 import java.util.Collection;
 
 public class DatastreamsPayloadWriter {
@@ -78,11 +78,11 @@ public class DatastreamsPayloadWriter {
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
-      packer.writeBinary(group.getPathwayLatency().serialize());
+      packer.writeBinary(group.getSerializedPathwayLatency());
 
       /* 2 */
       packer.writeUTF8(EDGE_LATENCY);
-      packer.writeBinary(group.getEdgeLatency().serialize());
+      packer.writeBinary(group.getSerializedEdgeLatency());
 
       /* 3 */
       packer.writeUTF8(SERVICE);
