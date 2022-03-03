@@ -7,7 +7,7 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
-import datadog.communication.http.Sink;
+import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 
 public class DatastreamsPayloadWriter {

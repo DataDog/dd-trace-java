@@ -46,15 +46,11 @@ public class DefaultDataStreamsCheckpointer
     Sink sink =
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
-            //            "http://localhost:8081",
-            //            "/pipeline_stats",
-            "https://trace.agent." + config.getSite(),
-            "/api/v0.1/pipeline_stats",
-            SECONDS.toNanos(1),
+            config.getAgentUrl(),
+            V01_DATASTREAMS_ENDPOINT,
             false,
-            true,
-            Collections.singletonMap("DD-API-KEY", config.getApiKey()));
-    sink.register(this);
+            false,
+            Collections.<String, String>emptyMap());
 
     payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);

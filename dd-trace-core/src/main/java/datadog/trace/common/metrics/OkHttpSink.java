@@ -33,8 +33,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private static final Logger log = LoggerFactory.getLogger(OkHttpSink.class);
 
-  private static final Map<String, String> DEFAULT_HEADERS =
-      Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
+  private static final long ASYNC_THRESHOLD_LATENCY = SECONDS.toNanos(1);
 
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
@@ -42,7 +41,6 @@ public final class OkHttpSink implements Sink, EventListener {
   private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(10);
   private final AtomicLong lastRequestTime = new AtomicLong();
   private final AtomicLong asyncRequestCounter = new AtomicLong();
-  private final long asyncThresholdLatency;
   private final boolean bufferingEnabled;
   private final boolean compressionEnabled;
   private final Map<String, String> headers;
@@ -50,22 +48,16 @@ public final class OkHttpSink implements Sink, EventListener {
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
 
-  public OkHttpSink(OkHttpClient client, String agentUrl, String path, boolean bufferingEnabled) {
-    this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled, false, DEFAULT_HEADERS);
-  }
-
   public OkHttpSink(
       OkHttpClient client,
       String agentUrl,
       String path,
-      long asyncThresholdLatency,
       boolean bufferingEnabled,
       boolean compressionEnabled,
       Map<String, String> headers) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
     this.listeners = new CopyOnWriteArrayList<>();
-    this.asyncThresholdLatency = asyncThresholdLatency;
     this.bufferingEnabled = bufferingEnabled;
     this.compressionEnabled = compressionEnabled;
     this.headers = new HashMap<>(headers);
@@ -81,7 +73,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // without copying the buffer, otherwise this needs to be async,
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
-    if (!bufferingEnabled || lastRequestTime.get() < asyncThresholdLatency) {
+    if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
       send(
           prepareRequest(metricsUrl, headers)
               // FIXME: This is a PUT for agent requests
