@@ -734,7 +734,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> DefaultPathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+  public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
     log.debug("Extracting pathway context");
     PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
     getter.forEachKey(carrier, pathwayContextExtractor);

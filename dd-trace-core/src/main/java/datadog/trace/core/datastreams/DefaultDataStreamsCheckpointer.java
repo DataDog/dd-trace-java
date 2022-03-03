@@ -1,10 +1,11 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
@@ -36,12 +37,15 @@ public class DefaultDataStreamsCheckpointer
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
-  private final Thread thread;
-  private final AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
   private final DatastreamsPayloadWriter payloadWriter;
+  private final DDAgentFeaturesDiscovery features;
+  private final Thread thread;
+  private volatile AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
 
   public DefaultDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+
+    this.features = sharedCommunicationObjects.featuresDiscovery;
 
     Sink sink =
         new OkHttpSink(
@@ -54,14 +58,22 @@ public class DefaultDataStreamsCheckpointer
 
     payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);
-    cancellation =
-        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(),
-            this,
-            BUCKET_DURATION_MILLIS,
-            BUCKET_DURATION_MILLIS,
-            TimeUnit.MILLISECONDS);
-    thread.start();
+
+    features.discover();
+    if (features.supportsDataStreams()) {
+      sink.register(this);
+      cancellation =
+          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+              new ReportTask(),
+              this,
+              BUCKET_DURATION_MILLIS,
+              BUCKET_DURATION_MILLIS,
+              TimeUnit.MILLISECONDS);
+      thread.start();
+      log.debug("started data streams checkpointer");
+    } else {
+      log.debug("Data streams not supported by agent or disabled");
+    }
   }
 
   // With Java 8, this becomes unnecessary
