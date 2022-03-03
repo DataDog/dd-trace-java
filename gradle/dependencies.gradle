@@ -29,7 +29,7 @@ final class CachedData {
     testcontainers: '1.15.0-rc2',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.6-DD-20220212"
+    asyncprofiler : "2.7-DD-20220303"
   ]
 
   static deps = [
