@@ -10,9 +10,11 @@ import datadog.communication.monitor.Recording;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -34,6 +36,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V5_ENDPOINT = "v0.5/traces";
 
   public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
+
+  public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
+
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final OkHttpClient client;
@@ -42,10 +47,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
   private final boolean metricsEnabled;
+  private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
+  private volatile String dataStreamsEndpoint;
   private volatile boolean supportsDropping;
+
   private volatile String state;
 
   public DDAgentFeaturesDiscovery(
@@ -94,10 +102,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     }
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
-          supportsDropping);
+          supportsDropping,
+          dataStreamsEndpoint);
     }
   }
 
@@ -127,39 +136,39 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
       discoverStatsDPort(map);
-      List<String> endpoints = ((List<String>) map.get("endpoints"));
-      ListIterator<String> traceAgentSupportedEndpoints = endpoints.listIterator(endpoints.size());
-      boolean traceEndpointFound = false;
-      boolean metricsEndpointFound = !metricsEnabled;
-      while ((!traceEndpointFound || !metricsEndpointFound)
-          && traceAgentSupportedEndpoints.hasPrevious()) {
-        String traceAgentSupportedEndpoint = traceAgentSupportedEndpoints.previous();
-        if (traceAgentSupportedEndpoint.startsWith("/")
-            && traceAgentSupportedEndpoint.length() > 1) {
-          traceAgentSupportedEndpoint = traceAgentSupportedEndpoint.substring(1);
-        }
-        if (!metricsEndpointFound) {
-          for (int i = metricsEndpoints.length - 1; i >= 0; --i) {
-            if (metricsEndpoints[i].equalsIgnoreCase(traceAgentSupportedEndpoint)) {
-              this.metricsEndpoint = traceAgentSupportedEndpoint;
-              metricsEndpointFound = true;
-              break;
-            }
-          }
-        }
-        if (!traceEndpointFound) {
-          for (int i = traceEndpoints.length - 1; i >= 0; --i) {
-            if (traceEndpoints[i].equalsIgnoreCase(traceAgentSupportedEndpoint)) {
-              this.traceEndpoint = traceAgentSupportedEndpoint;
-              traceEndpointFound = true;
-              break;
-            }
+      Set<String> endpoints = new HashSet<>((List<String>) map.get("endpoints"));
+
+      String foundMetricsEndpoint = null;
+      if (metricsEnabled) {
+        for (String endpoint: metricsEndpoints) {
+          if (endpoints.contains(endpoint) || endpoint.contains("/" + endpoint)) {
+            foundMetricsEndpoint = endpoint;
+            break;
           }
         }
       }
-      if (!metricsEndpointFound) {
-        metricsEndpoint = null;
+
+      // This is done outside of the loop to set metricsEndpoint to null if not found
+      metricsEndpoint = foundMetricsEndpoint;
+
+      for (String endpoint : traceEndpoints) {
+        if (endpoints.contains(endpoint) || endpoint.contains("/" + endpoint)) {
+          traceEndpoint = endpoint;
+          break;
+        }
       }
+
+      String foundDatastreamsEndpoint = null;
+      for (String endpoint : dataStreamsEndpoints) {
+        if (endpoints.contains(endpoint) || endpoint.contains("/" + endpoint)) {
+          foundDatastreamsEndpoint = endpoint;
+          break;
+        }
+      }
+
+      // This is done outside of the loop to set dataStreamsEndpoint to null if not found
+      dataStreamsEndpoint = foundDatastreamsEndpoint;
+
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
         this.supportsDropping =
@@ -199,6 +208,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String getTraceEndpoint() {
     return traceEndpoint;
+  }
+
+  public String getDataStreamsEndpoint() {
+    return dataStreamsEndpoint;
+  }
+
+  public boolean supportsDataStreams() {
+    return dataStreamsEndpoint != null;
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {

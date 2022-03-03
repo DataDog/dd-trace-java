@@ -16,6 +16,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.CountDownLatch
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
@@ -29,6 +30,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_RESPONSE = loadJsonFile("agent-info.json")
   static final String INFO_WITH_CLIENT_DROPPING_RESPONSE = loadJsonFile("agent-info-with-client-dropping.json")
   static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
+  static final String INFO_WITHOUT_DATA_STREAMS_RESPONSE = loadJsonFile("agent-info-without-data-streams.json")
 
   def "test parse /info response"() {
     setup:
@@ -44,6 +46,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
+    features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
+    features.supportsDataStreams()
   }
 
   def "test parse /info response with client dropping"() {
