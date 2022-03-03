@@ -51,8 +51,6 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       return null;
     }
 
-    log.info(
-        "***** TRANSFORM REQUEST {}, {}, {}", internalClassName, classBeingRedefined, classLoader);
     if (null != classLoader) {
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
@@ -64,6 +62,8 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       }
     }
 
+    log.info(
+        "***** TRANSFORM REQUEST {}, {}, {}", internalClassName, classBeingRedefined, classLoader);
     try {
       byte[] buf =
           classFileTransformer.transform(
@@ -105,8 +105,6 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       return null;
     }
 
-    log.info(
-        "***** TRANSFORM REQUEST {}, {}, {}", internalClassName, classBeingRedefined, classLoader);
     if (null != classLoader) {
       if (canSkipClassLoaderByName(classLoader)) {
         return null;
@@ -118,6 +116,8 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       }
     }
 
+    log.info(
+        "***** TRANSFORM REQUEST {}, {}, {}", internalClassName, classBeingRedefined, classLoader);
     try {
       byte[] buf =
           classFileTransformer.transform(
@@ -155,6 +155,7 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
       final byte[] classFileBuffer)
       throws IllegalClassFormatException {
 
+    log.info("***** DO TRANSFORM REQUEST {}, {}, {}", internalClassName, null, classLoader);
     try {
       byte[] buf;
       if (null != javaModule) {
@@ -172,11 +173,11 @@ public final class DDJava9ClassFileTransformer extends ResettableClassFileTransf
                 classLoader, internalClassName, null, protectionDomain, classFileBuffer);
       }
       if (buf != null && !Arrays.equals(classFileBuffer, buf)) {
-        log.info("***** TRANSFORM SUCCESS {}, {}, {}", internalClassName, null, classLoader);
+        log.info("***** DO TRANSFORM SUCCESS {}, {}, {}", internalClassName, null, classLoader);
       }
       return buf;
     } catch (IllegalClassFormatException | RuntimeException | Error e) {
-      log.info("***** TRANSFORM FAILURE {}, {}, {}", internalClassName, null, classLoader, e);
+      log.info("***** DO TRANSFORM FAILURE {}, {}, {}", internalClassName, null, classLoader, e);
       throw e;
     }
   }

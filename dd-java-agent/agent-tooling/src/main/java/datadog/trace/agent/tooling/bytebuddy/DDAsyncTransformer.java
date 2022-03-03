@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 final class DDAsyncTransformer implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(DDAsyncTransformer.class);
 
-  private static final long TRANSFORM_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(1);
+  private static final long TRANSFORM_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(60);
 
   interface TransformTask {
     byte[] doTransform(
@@ -82,11 +82,13 @@ final class DDAsyncTransformer implements Runnable {
         LockSupport.unpark(transformThread);
         try {
           if (exchanger.tryAcquire(TRANSFORM_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
+            log.info("***** ASYNC SUCCESS {}, {}, {}", internalClassName, classLoader, slot);
             return exchanger.classFileBuffer;
           }
-          // fall-through to synchronous transformation
+        } catch (InterruptedException e) {
+          log.info("***** ASYNC INTERRUPT {}, {}, {}", internalClassName, classLoader, slot);
         } catch (Throwable e) {
-          // fall-through to synchronous transformation
+          log.info("***** ASYNC ERROR {}, {}, {}", internalClassName, classLoader, slot, e);
         } finally {
           exchanger.classFileBuffer = null;
         }
@@ -103,11 +105,11 @@ final class DDAsyncTransformer implements Runnable {
           log.info("***** ASYNC TIMEOUT {}, {}, {}", internalClassName, classLoader, slot);
           localExchanger.remove(); // canceled too late, can't re-use this exchanger
         }
+        return null;
       }
     }
 
-    log.info("***** SYNC REQUEST {}, {}", internalClassName, classLoader);
-    // synchronous transformation...
+    // revert to synchronous transformation...
     return transformTask.doTransform(
         javaModule, classLoader, internalClassName, protectionDomain, classFileBuffer);
   }
@@ -139,7 +141,12 @@ final class DDAsyncTransformer implements Runnable {
               slot);
         } catch (Throwable e) {
           exchanger.classFileBuffer = null;
-          log.warn("Async transformation failed for {}", exchanger.internalClassName, e);
+          log.info(
+              "***** ASYNC FAILURE {}, {}, {}",
+              exchanger.internalClassName,
+              exchanger.classLoader,
+              slot,
+              e);
         } finally {
           exchanger.release(); // semaphore call makes result visible to request thread
           transformThread.setContextClassLoader(null);
