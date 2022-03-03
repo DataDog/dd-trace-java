@@ -6,6 +6,8 @@ public interface Histogram {
 
   void accept(long value);
 
+  void accept(double value);
+
   double valueAtQuantile(double quantile);
 
   double max();

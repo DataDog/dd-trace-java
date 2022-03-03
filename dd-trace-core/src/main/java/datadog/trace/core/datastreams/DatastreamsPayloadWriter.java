@@ -78,11 +78,11 @@ public class DatastreamsPayloadWriter {
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
-      packer.writeBinary(group.getSerializedPathwayLatency());
+      packer.writeBinary(group.getPathwayLatency().serialize());
 
       /* 2 */
       packer.writeUTF8(EDGE_LATENCY);
-      packer.writeBinary(group.getSerializedEdgeLatency());
+      packer.writeBinary(group.getEdgeLatency().serialize());
 
       /* 3 */
       packer.writeUTF8(SERVICE);

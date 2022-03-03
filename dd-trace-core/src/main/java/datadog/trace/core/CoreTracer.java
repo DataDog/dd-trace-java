@@ -14,6 +14,7 @@ import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.Platform;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
@@ -44,6 +45,7 @@ import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultPathwayContext;
+import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -480,7 +482,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         TimeUnit.SECONDS);
 
     // TODO enable/diable via config and version check
-    dataStreamsCheckpointer = new DefaultDataStreamsCheckpointer(config, sharedCommunicationObjects);
+    if (Platform.isJavaVersionAtLeast(8)) {
+      dataStreamsCheckpointer =
+          new DefaultDataStreamsCheckpointer(config, sharedCommunicationObjects);
+    } else {
+      dataStreamsCheckpointer = new StubDataStreamsCheckpointer();
+    }
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

@@ -1,22 +1,20 @@
 package datadog.trace.core.datastreams;
 
-import com.datadoghq.sketch.ddsketch.DDSketch;
-import com.datadoghq.sketch.ddsketch.mapping.IndexMapping;
-import com.datadoghq.sketch.ddsketch.mapping.LogarithmicMapping;
-import com.datadoghq.sketch.ddsketch.store.UnboundedSizeDenseStore;
-import java.nio.ByteBuffer;
+import datadog.trace.core.histogram.Histogram;
+import datadog.trace.core.histogram.HistogramFactory;
+import datadog.trace.core.histogram.Histograms;
 
 public class StatsGroup {
-  private static final IndexMapping SKETCH_MAPPING = new LogarithmicMapping(0.01);
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;
+  private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
   private final String type;
   private final String group;
   private final String topic;
   private final long hash;
   private final long parentHash;
-  private final DDSketch pathwayLatency;
-  private final DDSketch edgeLatency;
+  private final Histogram pathwayLatency;
+  private final Histogram edgeLatency;
 
   public StatsGroup(String type, String group, String topic, long hash, long parentHash) {
     this.type = type;
@@ -24,12 +22,8 @@ public class StatsGroup {
     this.topic = topic;
     this.hash = hash;
     this.parentHash = parentHash;
-    pathwayLatency =
-        DDSketch.of(
-            SKETCH_MAPPING, new UnboundedSizeDenseStore(), new UnboundedSizeDenseStore(), 0);
-    edgeLatency =
-        DDSketch.of(
-            SKETCH_MAPPING, new UnboundedSizeDenseStore(), new UnboundedSizeDenseStore(), 0);
+    pathwayLatency = HISTOGRAM_FACTORY.newHistogram();
+    edgeLatency = HISTOGRAM_FACTORY.newHistogram();
   }
 
   public void add(long pathwayLatencyNano, long edgeLatencyNano) {
@@ -57,11 +51,11 @@ public class StatsGroup {
     return parentHash;
   }
 
-  public ByteBuffer getSerializedPathwayLatency() {
-    return pathwayLatency.serialize();
+  public Histogram getPathwayLatency() {
+    return pathwayLatency;
   }
 
-  public ByteBuffer getSerializedEdgeLatency() {
-    return edgeLatency.serialize();
+  public Histogram getEdgeLatency() {
+    return edgeLatency;
   }
 }
