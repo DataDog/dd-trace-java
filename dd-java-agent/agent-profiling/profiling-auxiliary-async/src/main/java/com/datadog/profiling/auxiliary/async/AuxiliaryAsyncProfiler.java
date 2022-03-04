@@ -18,12 +18,14 @@ import java.nio.file.Paths;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 import one.profiler.AsyncProfiler;
+import one.profiler.ContextIntervals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,9 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     @Override
     @Nonnull
     public AuxiliaryImplementation provide(ConfigProvider configProvider) {
-      return new AuxiliaryAsyncProfiler(configProvider);
+      AuxiliaryAsyncProfiler instance = new AuxiliaryAsyncProfiler(configProvider);
+      IntervalBlobWriter.initialize(instance.asyncProfiler);
+      return instance;
     }
   }
 
@@ -125,7 +129,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     }
   }
 
-  private static AsyncProfiler inferFromOsAndArch() {
+  static AsyncProfiler inferFromOsAndArch() {
     Arch arch = Arch.current();
     OperatingSystem os = OperatingSystem.current();
     try {
@@ -166,6 +170,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
         os.name() + (os.name().equals("macos") ? "" : (musl ? "-musl-" : "-") + arch.name());
     File localLib =
         LibraryHelper.libraryFromClasspath("/native-libs/" + libDir + "/libasyncProfiler.so");
+    System.setProperty("dd.test.apLib", localLib.getAbsolutePath());
     return AsyncProfiler.getInstance(localLib.getAbsolutePath());
   }
 

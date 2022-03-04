@@ -43,7 +43,6 @@ public final class OpenJdkController implements Controller {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
 
   private final Map<String, String> recordingSettings;
-  private final CustomEventAccess eventSupport = new CustomEventAccessImpl();
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -207,6 +206,6 @@ public final class OpenJdkController implements Controller {
 
   @Override
   public CustomEventAccess getEventAccess() {
-    return eventSupport;
+    return CustomEventAccess.NULL;
   }
 }

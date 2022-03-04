@@ -1,16 +1,19 @@
 package com.datadog.profiling.context;
 
 import datadog.trace.api.RatelimitedLogger;
-import datadog.trace.api.profiling.CustomEventAccess;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.ref.WeakReference;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,7 +40,7 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
           TracingContextTrackerImpl.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
       mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
     } catch (Throwable t) {
-      log.error("Failed to initialize JFR timestamp access");
+      log.error("Failed to initialize JFR timestamp access", t);
     }
     TIMESTAMP_MH = mh;
   }
@@ -54,26 +57,26 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
   private final long timestamp;
   private final Allocator allocator;
   private final AtomicBoolean released = new AtomicBoolean();
-  private final WeakReference<AgentSpan> spanRef;
-  private final CustomEventAccess eventAccess;
+  private final AgentSpan span;
   private ByteBuffer intervalBuffer =
       ByteBuffer.allocate(8 * 1024); // max 8k of interval data per context tracker (eg. a span)
+  private final Set<IntervalBlobListener> blobListeners;
 
   TracingContextTrackerImpl(Allocator allocator, long timestamp) {
-    this(allocator, null, timestamp, CustomEventAccess.NULL);
+    this(allocator, null, timestamp, Collections.emptySet());
   }
 
   public TracingContextTrackerImpl(
-      Allocator allocator, AgentSpan span, CustomEventAccess eventAccess) {
-    this(allocator, span, timestamp(), eventAccess);
+      Allocator allocator, AgentSpan span, Set<IntervalBlobListener> blobListeners) {
+    this(allocator, span, timestamp(), blobListeners);
   }
 
   private TracingContextTrackerImpl(
-      Allocator allocator, AgentSpan span, long timestamp, CustomEventAccess eventAccess) {
+      Allocator allocator, AgentSpan span, long timestamp, Set<IntervalBlobListener> blobListeners) {
     this.timestamp = timestamp;
-    this.spanRef = new WeakReference<>(span);
+    this.span = span;
     this.allocator = allocator;
-    this.eventAccess = eventAccess;
+    this.blobListeners = blobListeners;
   }
 
   @Override
@@ -113,18 +116,16 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       return null;
     }
 
-    AgentSpan span = spanRef.get();
-    long localRootSpanId = span != null ? span.getLocalRootSpan().getSpanId().toLong() : 0L;
-
     int totalSequenceBufferSize = 0;
-    int maxSequenceBufferSize = 0;
-    for (Map.Entry<Long, LongSequence> entry : threadSequences.entrySet()) {
+    int maxSequenceSize = 0;
+    Set<Map.Entry<Long, LongSequence>> entrySet = new HashSet<>(threadSequences.entrySet());
+    for (Map.Entry<Long, LongSequence> entry : entrySet) {
       LongSequence sequence = entry.getValue();
-      maxSequenceBufferSize = Math.max(maxSequenceBufferSize, sequence.size());
+      maxSequenceSize = Math.max(maxSequenceSize, sequence.size());
       totalSequenceBufferSize += sequence.size();
     }
 
-    ByteBuffer dataChunkBuffer = ByteBuffer.allocate(maxSequenceBufferSize * 8 + 4);
+    ByteBuffer dataChunkBuffer = ByteBuffer.allocate(totalSequenceBufferSize * 8 + 4);
     ByteBuffer groupVarintMapBuffer =
         ByteBuffer.allocate(align((int) (Math.ceil(totalSequenceBufferSize / 8d) * 3), 4));
 
@@ -144,25 +145,16 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       long previousValue = 0;
       int intervals = 0;
       putVarint(intervalBuffer, threadId); // record the thread id
-
-      IntervalCollapser traceContextEmitter =
-          new IntervalCollapser(
-              -1, timestamp, (s, d) -> emitTraceIntervalEvent(localRootSpanId, threadId, s, d));
       LongSequence rawIntervals = entry.getValue();
       synchronized (rawIntervals) {
-        int size = rawIntervals.size();
-        if (size > maxSequenceBufferSize) {
-          warnlog.warn(
-              "Interval sequence has changed for thread {}. New size is {}", threadId, size);
-        }
         LongIterator iterator = pruneIntervals(entry.getValue());
-        while (iterator.hasNext()) {
+        int sequenceIndex = 0;
+        while (iterator.hasNext() && sequenceIndex++ < maxSequenceSize) {
           long value = iterator.next();
           if (value != 0) {
             long maskedValue = (value & TIMESTAMP_MASK);
             value = maskedValue - previousValue;
 
-            traceContextEmitter.processDelta(value);
             previousValue = maskedValue;
 
             byte[] val = new byte[8];
@@ -218,6 +210,23 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     intervalBuffer.put(
         (ByteBuffer)
             groupVarintMapBuffer.flip()); // copy the varint group bitmap to interval buffer
+
+    if (span != null) {
+      AgentSpan root = span.getLocalRootSpan();
+      for (IntervalBlobListener listener : blobListeners) {
+        try {
+          listener.onIntervalBlob(root, intervalBuffer.duplicate());
+        } catch (OutOfMemoryError e) {
+          throw e;
+        } catch (Throwable t) {
+          log.error("", t);
+        }
+      }
+    }
+
+    if (intervalBuffer.position() > 100) {
+      log.info("===> persisted span data from timestamp: {}", timestamp);
+    }
 
     byte[] data = intervalBuffer.array();
     return Arrays.copyOf(data, intervalBuffer.position());
@@ -387,16 +396,9 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
         warnlog.warn("Profiling Context Buffer is full - losing data");
       }
     } catch (Throwable t) {
+      t.printStackTrace();
       log.error("", t);
     }
     return added > 0;
-  }
-
-  private void emitTraceIntervalEvent(
-      long localRootSpanId, long threadId, long startTime, long duration) {
-    // localRootSpanId might have not been assigned yet; in that case just ignore
-    if (localRootSpanId != 0) {
-      eventAccess.emitTraceContextEvent(localRootSpanId, threadId, startTime, duration);
-    }
   }
 }

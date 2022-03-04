@@ -8,6 +8,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.ServiceLoader;
+import java.util.Set;
+
 public final class TracingContextTrackerFactoryImpl
     implements TracingContextTrackerFactory.Implementation {
   private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerFactoryImpl.class);
@@ -30,13 +34,17 @@ public final class TracingContextTrackerFactoryImpl
 
   private final Allocator allocator = Allocators.directAllocator(16 * 1024 * 1024, 32);
   private final CustomEventAccess eventAccess;
+  private final Set<TracingContextTracker.IntervalBlobListener> blobListeners = new HashSet<>();
 
   private TracingContextTrackerFactoryImpl() {
     this.eventAccess = EVENT_ACCESS_REF != null ? EVENT_ACCESS_REF : CustomEventAccess.NULL;
+    for (TracingContextTracker.IntervalBlobListener listener : ServiceLoader.load(TracingContextTracker.IntervalBlobListener.class)) {
+      blobListeners.add(listener);
+    }
   }
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
-    return new TracingContextTrackerImpl(allocator, span, eventAccess);
+    return new TracingContextTrackerImpl(allocator, span, blobListeners);
   }
 }

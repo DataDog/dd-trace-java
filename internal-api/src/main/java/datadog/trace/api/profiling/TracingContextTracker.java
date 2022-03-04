@@ -1,6 +1,14 @@
 package datadog.trace.api.profiling;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+
+import java.nio.ByteBuffer;
+
 public interface TracingContextTracker {
+  interface IntervalBlobListener {
+    void onIntervalBlob(AgentSpan span, ByteBuffer blob);
+  }
+
   TracingContextTracker EMPTY =
       new TracingContextTracker() {
         @Override

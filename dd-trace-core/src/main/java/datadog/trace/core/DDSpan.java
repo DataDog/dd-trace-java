@@ -301,6 +301,9 @@ public class DDSpan
       if (contextContent != null) {
         byte[] encoded = new Base64Encoder(false).encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
+        if (encoded.length > 300) {
+          log.info("===> encoded: {}", tag);
+        }
         setTag("_dd_tracing_context_" + tracingContextTracker.getVersion(), tag);
         return encoded.length;
       }

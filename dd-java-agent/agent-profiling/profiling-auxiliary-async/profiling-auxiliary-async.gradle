@@ -77,7 +77,6 @@ shadowJar {
     // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
     rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64") || it.path.startsWith("native-libs/linux-musl-x64")
     rslt |= (it.path.contains("ap-tools") && it.path.endsWith(".jar"))
-    println ">>> ${it.path}: ${rslt}"
     return rslt
   }
 }

@@ -127,8 +127,9 @@ public final class DirectAllocator implements Allocator {
           sectionLock = memoryMapLocks[lockSection];
 
           int memorymapOffset = lockSection * bitmapSize;
-          memorymap.position(memorymapOffset);
-          memorymap.get(buffer);
+          for (int i = 0; i < bitmapSize; i++) {
+            buffer[i] = memorymap.get(memorymapOffset + i);
+          }
           AllocationResult rslt =
               allocateChunks(buffer, lockSection, chunkArray, chunks - allocated, offset);
           offset += rslt.usedChunks;
