@@ -141,7 +141,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       String foundMetricsEndpoint = null;
       if (metricsEnabled) {
         for (String endpoint: metricsEndpoints) {
-          if (endpoints.contains(endpoint) || endpoint.contains("/" + endpoint)) {
+          if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
             foundMetricsEndpoint = endpoint;
             break;
           }
@@ -152,7 +152,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       metricsEndpoint = foundMetricsEndpoint;
 
       for (String endpoint : traceEndpoints) {
-        if (endpoints.contains(endpoint) || endpoint.contains("/" + endpoint)) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
           traceEndpoint = endpoint;
           break;
         }
@@ -160,7 +160,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       String foundDatastreamsEndpoint = null;
       for (String endpoint : dataStreamsEndpoints) {
-        if (endpoints.contains(endpoint) || endpoint.contains("/" + endpoint)) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
           foundDatastreamsEndpoint = endpoint;
           break;
         }
