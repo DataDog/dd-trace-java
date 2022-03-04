@@ -12,10 +12,13 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
   public static String PROPAGATION_KEY = "dd-pathway-ctx";
 
+  private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final Lock lock = new ReentrantLock();
 
   // Nanotime is necessary because time differences should use a monotonically increasing clock
@@ -61,6 +64,7 @@ public class DefaultPathwayContext implements PathwayContext {
         edgeStart = nanoTime;
         hash = 0;
         started = true;
+        log.debug("Started {}", this);
       }
 
       long nodeHash = generateNodeHash(Config.get().getServiceName(), topic);
@@ -83,6 +87,7 @@ public class DefaultPathwayContext implements PathwayContext {
       hash = newHash;
 
       pointConsumer.accept(point);
+      log.debug("Checkpoint set {}", this);
     } finally {
       lock.unlock();
     }
@@ -117,7 +122,9 @@ public class DefaultPathwayContext implements PathwayContext {
             + pathwayStart
             + ", Edge Start: "
             + edgeStart
-            + " ]";
+            + ", objectHashcode:"
+            + hashCode()
+            + "]";
       } else {
         return "PathwayContext [Not Started]";
       }
