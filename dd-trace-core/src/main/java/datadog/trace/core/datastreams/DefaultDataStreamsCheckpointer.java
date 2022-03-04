@@ -53,7 +53,7 @@ public class DefaultDataStreamsCheckpointer
             config.getAgentUrl(),
             V01_DATASTREAMS_ENDPOINT,
             false,
-            false,
+            true,
             Collections.<String, String>emptyMap());
 
     payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());
