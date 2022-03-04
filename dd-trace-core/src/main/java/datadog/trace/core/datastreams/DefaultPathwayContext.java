@@ -118,6 +118,8 @@ public class DefaultPathwayContext implements PathwayContext {
       if (started) {
         return "PathwayContext[ Hash "
             + toUnsignedString(hash)
+            + ", StartMillis: "
+            + pathwayStartMillis
             + ", Start: "
             + pathwayStart
             + ", Edge Start: "
