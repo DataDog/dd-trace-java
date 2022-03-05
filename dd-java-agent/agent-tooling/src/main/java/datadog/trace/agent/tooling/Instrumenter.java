@@ -225,6 +225,10 @@ public interface Instrumenter {
           && typeMatcher instanceof AgentBuilder.RawMatcher) {
         // optimization when using raw (named) type matcher with no classloader filtering
         rawMatcher = (AgentBuilder.RawMatcher) typeMatcher;
+      } else if (typeMatcher instanceof SingleTypeMatcher) {
+        rawMatcher = ((SingleTypeMatcher) typeMatcher).with(classLoaderMatcher);
+      } else if (typeMatcher instanceof KnownTypesMatcher) {
+        rawMatcher = ((KnownTypesMatcher) typeMatcher).with(classLoaderMatcher);
       } else {
         rawMatcher =
             new FailSafeRawMatcher(

@@ -29,4 +29,19 @@ public class SingleTypeMatcher extends ElementMatcher.Junction.ForNonNullValues<
       ProtectionDomain protectionDomain) {
     return doMatch(typeDescription);
   }
+
+  public AgentBuilder.RawMatcher with(
+      final ElementMatcher<? super ClassLoader> classLoaderMatcher) {
+    return new AgentBuilder.RawMatcher() {
+      @Override
+      public boolean matches(
+          TypeDescription typeDescription,
+          ClassLoader classLoader,
+          JavaModule module,
+          Class<?> classBeingRedefined,
+          ProtectionDomain protectionDomain) {
+        return doMatch(typeDescription) && classLoaderMatcher.matches(classLoader);
+      }
+    };
+  }
 }
