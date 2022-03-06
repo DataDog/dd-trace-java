@@ -147,6 +147,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.ASYNC_MATCHING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
@@ -465,6 +466,7 @@ public class Config {
 
   private final boolean internalExitOnFailure;
 
+  private final boolean asyncMatchingEnabled;
   private final boolean resolverUseLoadClassEnabled;
 
   private final String jdbcPreparedStatementClassName;
@@ -966,6 +968,7 @@ public class Config {
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
+    asyncMatchingEnabled = configProvider.getBoolean(ASYNC_MATCHING_ENABLED, true);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
@@ -1557,6 +1560,10 @@ public class Config {
 
   public boolean isInternalExitOnFailure() {
     return internalExitOnFailure;
+  }
+
+  public boolean isAsyncMatchingEnabled() {
+    return asyncMatchingEnabled;
   }
 
   public boolean isResolverUseLoadClassEnabled() {
@@ -2399,6 +2406,8 @@ public class Config {
         + idGenerationStrategy
         + ", internalExitOnFailure="
         + internalExitOnFailure
+        + ", asyncMatchingEnabled="
+        + asyncMatchingEnabled
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
         + ", jdbcPreparedStatementClassName='"
