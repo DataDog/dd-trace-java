@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.AsyncMatching;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
@@ -175,7 +176,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
   }
 
   @Override
-  public AgentBuilder instrument(AgentBuilder agentBuilder) {
+  public AgentBuilder instrument(AgentBuilder agentBuilder, AsyncMatching asyncMatching) {
     if (classMethodsToTrace.isEmpty()) {
       return agentBuilder;
     }
@@ -183,7 +184,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
     for (final Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
       final TracerClassInstrumentation tracerConfigClass =
           new TracerClassInstrumentation(entry.getKey(), entry.getValue());
-      agentBuilder = tracerConfigClass.instrument(agentBuilder);
+      agentBuilder = tracerConfigClass.instrument(agentBuilder, asyncMatching);
     }
     return agentBuilder;
   }

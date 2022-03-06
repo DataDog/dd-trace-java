@@ -12,7 +12,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     expect:
     target.enabled
@@ -21,7 +21,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "default enabled override"() {
     setup:
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     expect:
     target.enabled == enabled
@@ -52,7 +52,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
           return false
         }
       }
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     expect:
     target.enabled == enabled
@@ -68,7 +68,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     then:
     target.enabled == enabled
@@ -85,7 +85,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     setup:
     injectEnvConfig("DD_INTEGRATIONS_ENABLED", value)
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     expect:
     target.enabled == enabled
@@ -103,7 +103,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     injectSysConfig("integrations.enabled", "false")
     injectSysConfig("integration.${value}.enabled", "true")
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     expect:
     target.enabled == enabled
@@ -127,7 +127,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentBuilder.Default(), null)
 
     then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
