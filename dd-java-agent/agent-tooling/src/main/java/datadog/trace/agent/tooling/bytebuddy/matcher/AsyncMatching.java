@@ -1,9 +1,16 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.ASYNC_MATCHER;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
@@ -17,24 +24,41 @@ import net.bytebuddy.utility.JavaModule;
  *
  * <p>This assumes that the initial matcher is always called first for a given set of parameters.
  */
-public class AsyncMatching {
-  private final List<AgentBuilder.RawMatcher> matchers = new ArrayList<>();
+public class AsyncMatching implements Runnable {
+  private static final long MATCHING_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(2);
 
-  private final ThreadLocal<BitSet> localMatch =
-      new ThreadLocal<BitSet>() {
+  // first 16-bits represent slots available for use
+  private static final int AVAILABLE_MASK = 0x0000FFFF;
+  // last 16-bits represent slots ready for matching
+  private static final int READY_MASK = 0xFFFF0000;
+
+  // maintain slot status (available/ready) in a single atomic variable
+  private final AtomicInteger slotStates = new AtomicInteger(AVAILABLE_MASK);
+  private final MatchingTask[] exchangers = new MatchingTask[16];
+
+  private final List<AgentBuilder.RawMatcher> matchers = new ArrayList<>();
+  private final ThreadLocal<MatchingTask> localTask =
+      new ThreadLocal<MatchingTask>() {
         @Override
-        protected BitSet initialValue() {
-          return new BitSet();
+        protected MatchingTask initialValue() {
+          return new MatchingTask();
         }
       };
+
+  private final Thread matchingThread;
+
+  public AsyncMatching() {
+    matchingThread = newAgentThread(ASYNC_MATCHER, this);
+    matchingThread.start();
+  }
 
   public AgentBuilder.RawMatcher makeAsync(AgentBuilder.RawMatcher matcher) {
     int index = matchers.size();
     matchers.add(matcher);
-    return 0 == index ? new RootMatcher() : new NextMatcher(index);
+    return 0 == index ? new TriggerMatch() : new RetrieveResult(index);
   }
 
-  class RootMatcher implements AgentBuilder.RawMatcher {
+  private class TriggerMatch implements AgentBuilder.RawMatcher {
     @Override
     public boolean matches(
         TypeDescription typeDescription,
@@ -42,23 +66,53 @@ public class AsyncMatching {
         JavaModule module,
         Class<?> classBeingRedefined,
         ProtectionDomain protectionDomain) {
-      BitSet matched = localMatch.get();
-      matched.clear();
-      for (int i = 0, size = matchers.size(); i < size; i++) {
-        if (matchers
-            .get(i)
-            .matches(typeDescription, classLoader, module, classBeingRedefined, protectionDomain)) {
-          matched.set(i);
+
+      MatchingTask matchingTask = localTask.get();
+      matchingTask.typeDescription = typeDescription;
+      matchingTask.classLoader = classLoader;
+      matchingTask.module = module;
+      matchingTask.classBeingRedefined = classBeingRedefined;
+      matchingTask.protectionDomain = protectionDomain;
+
+      if (Thread.currentThread() != matchingThread) { // avoid making recursive async requests
+        int slot = acquireSlot();
+        if (slot >= 0) {
+          exchangers[slot] = matchingTask;
+          submitRequest(slot); // compare-and-swap makes our task visible to matching thread
+          LockSupport.unpark(matchingThread);
+          try {
+            if (matchingTask.tryAcquire(MATCHING_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
+              return matchingTask.matches.get(0);
+            }
+          } catch (Throwable e) {
+            // ignore...
+          }
+          if (cancelRequest(slot)) { // task was not accepted, matching thread may be stuck
+            exchangers[slot] = null;
+            recycleSlot(slot);
+            // fall-through and use synchronous matching
+          } else {
+            localTask.remove(); // our task may be stuck, create a new task for next request
+            return false; // assume no match rather than risk synchronous match getting stuck
+          }
         }
       }
-      return matched.get(0);
+
+      // revert to synchronous matching if we were unable to make an asynchronous request
+      matchingTask.run();
+      matchingTask.typeDescription = null;
+      matchingTask.classLoader = null;
+      matchingTask.module = null;
+      matchingTask.classBeingRedefined = null;
+      matchingTask.protectionDomain = null;
+      return matchingTask.matches.get(0);
     }
   }
 
-  class NextMatcher implements AgentBuilder.RawMatcher {
+  private class RetrieveResult implements AgentBuilder.RawMatcher {
     private final int index;
 
-    NextMatcher(int index) {
+    RetrieveResult(int index) {
       this.index = index;
     }
 
@@ -69,7 +123,111 @@ public class AsyncMatching {
         JavaModule module,
         Class<?> classBeingRedefined,
         ProtectionDomain protectionDomain) {
-      return localMatch.get().get(index);
+      return localTask.get().matches.get(index);
+    }
+  }
+
+  private class MatchingTask extends Semaphore implements Runnable {
+    final BitSet matches = new BitSet();
+
+    TypeDescription typeDescription;
+    ClassLoader classLoader;
+    JavaModule module;
+    Class<?> classBeingRedefined;
+    ProtectionDomain protectionDomain;
+
+    MatchingTask() {
+      super(0);
+    }
+
+    @Override
+    public void run() {
+      matches.clear();
+      for (int i = 0, size = matchers.size(); i < size; i++) {
+        if (matchers
+            .get(i)
+            .matches(typeDescription, classLoader, module, classBeingRedefined, protectionDomain)) {
+          matches.set(i);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void run() {
+    while (true) {
+      int slot = acceptRequest();
+      if (slot >= 0) {
+        MatchingTask matchingTask = exchangers[slot];
+        try {
+          matchingTask.run();
+        } catch (Throwable e) {
+          // ignore...
+        } finally {
+          matchingTask.typeDescription = null;
+          matchingTask.classLoader = null;
+          matchingTask.module = null;
+          matchingTask.classBeingRedefined = null;
+          matchingTask.protectionDomain = null;
+          matchingTask.release(); // semaphore call makes result visible to request thread
+          exchangers[slot] = null;
+          recycleSlot(slot);
+        }
+      } else {
+        LockSupport.park(); // suspend thread until next request comes in
+      }
+    }
+  }
+
+  private int acquireSlot() {
+    int available;
+    int currentStates = slotStates.get();
+    while ((available = Integer.lowestOneBit(currentStates & AVAILABLE_MASK)) != 0) {
+      if (slotStates.compareAndSet(currentStates, currentStates & ~available)) {
+        return Integer.numberOfTrailingZeros(available);
+      }
+      currentStates = slotStates.get();
+    }
+    return -1;
+  }
+
+  private void submitRequest(int slot) {
+    int ready = 1 << (slot + 16);
+    int currentStates = slotStates.get();
+    while (!slotStates.compareAndSet(currentStates, currentStates | ready)) {
+      currentStates = slotStates.get();
+    }
+  }
+
+  private int acceptRequest() {
+    int ready;
+    int currentStates = slotStates.get();
+    while ((ready = Integer.lowestOneBit(currentStates & READY_MASK)) != 0) {
+      if (slotStates.compareAndSet(currentStates, currentStates & ~ready)) {
+        return Integer.numberOfTrailingZeros(ready >>> 16);
+      }
+      currentStates = slotStates.get();
+    }
+    return -1;
+  }
+
+  private boolean cancelRequest(int slot) {
+    int ready = 1 << (slot + 16);
+    int currentStates = slotStates.get();
+    while ((currentStates & ready) != 0) {
+      if (slotStates.compareAndSet(currentStates, currentStates & ~ready)) {
+        return true;
+      }
+      currentStates = slotStates.get();
+    }
+    return false;
+  }
+
+  private void recycleSlot(int slot) {
+    int available = 1 << slot;
+    int currentStates = slotStates.get();
+    while (!slotStates.compareAndSet(currentStates, currentStates | available)) {
+      currentStates = slotStates.get();
     }
   }
 }
