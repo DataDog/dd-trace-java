@@ -9,6 +9,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
+/** Fast type matcher that matches types against a set of known names. */
 public class KnownTypesMatcher extends ElementMatcher.Junction.ForNonNullValues<TypeDescription>
     implements AgentBuilder.RawMatcher {
 
@@ -34,6 +35,7 @@ public class KnownTypesMatcher extends ElementMatcher.Junction.ForNonNullValues<
     return doMatch(typeDescription);
   }
 
+  /** Narrows this fast type matcher with the given classloader matcher. */
   public AgentBuilder.RawMatcher with(
       final ElementMatcher<? super ClassLoader> classLoaderMatcher) {
     return new AgentBuilder.RawMatcher() {
