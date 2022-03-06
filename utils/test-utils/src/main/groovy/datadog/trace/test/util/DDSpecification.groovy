@@ -174,6 +174,7 @@ abstract class DDSpecification extends Specification {
       .findAll {
         it.name.startsWith("dd-") &&
           it.name != "dd-task-scheduler" &&
+          it.name != "dd-async-matcher" &&
           it.name != "dd-cassandra-session-executor" // cassandra instrumentation thread pool
       }
   }
