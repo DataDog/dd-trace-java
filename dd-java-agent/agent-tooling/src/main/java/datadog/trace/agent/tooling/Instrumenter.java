@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.bytebuddy.matcher.AsyncMatching;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
@@ -96,9 +97,10 @@ public interface Instrumenter {
    * Add this instrumentation to an AgentBuilder.
    *
    * @param agentBuilder AgentBuilder to base instrumentation config off of.
+   * @param asyncMatching Optional utility that can make matchers asynchronous.
    * @return the original agentBuilder and this instrumentation
    */
-  AgentBuilder instrument(AgentBuilder agentBuilder);
+  AgentBuilder instrument(AgentBuilder agentBuilder, AsyncMatching asyncMatching);
 
   /**
    * Indicates the applicability of an {@linkplain Instrumenter} to the given system.<br>
@@ -118,6 +120,8 @@ public interface Instrumenter {
     // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
     public static final Junction<AnnotationSource> NOT_DECORATOR_MATCHER =
         not(isAnnotatedWith(named("javax.decorator.Decorator")));
+
+    private static final boolean ASYNC_MATCHING_ENABLED = Config.get().isAsyncMatchingEnabled();
 
     private final SortedSet<String> instrumentationNames;
     private final String instrumentationPrimaryName;
@@ -160,7 +164,8 @@ public interface Instrumenter {
     }
 
     @Override
-    public final AgentBuilder instrument(final AgentBuilder parentAgentBuilder) {
+    public final AgentBuilder instrument(
+        final AgentBuilder parentAgentBuilder, final AsyncMatching asyncMatching) {
       if (!isEnabled()) {
         log.debug("Instrumentation {} is disabled", this);
         return parentAgentBuilder;
@@ -169,7 +174,7 @@ public interface Instrumenter {
       lazyInit();
 
       AgentBuilder.Identified.Extendable agentBuilder =
-          filter(parentAgentBuilder).transform(defaultTransformers());
+          filter(parentAgentBuilder, asyncMatching).transform(defaultTransformers());
       agentBuilder = injectHelperClasses(agentBuilder);
       agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
       final AdviceTransformer customTransformer = transformer();
@@ -195,7 +200,8 @@ public interface Instrumenter {
       return agentBuilder;
     }
 
-    private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
+    private AgentBuilder.Identified.Narrowable filter(
+        AgentBuilder agentBuilder, AsyncMatching asyncMatching) {
       ElementMatcher<? super TypeDescription> typeMatcher;
       if (this instanceof ForSingleType) {
         typeMatcher = new SingleTypeMatcher(((ForSingleType) this).instrumentedType());
@@ -235,6 +241,10 @@ public interface Instrumenter {
                 typeMatcher,
                 classLoaderMatcher,
                 "Instrumentation matcher unexpected exception: " + getClass().getName());
+
+        if (ASYNC_MATCHING_ENABLED) {
+          rawMatcher = asyncMatching.makeAsync(rawMatcher);
+        }
       }
 
       return agentBuilder.type(rawMatcher).and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
