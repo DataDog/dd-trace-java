@@ -6,8 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.ref.WeakReference;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -244,55 +242,63 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     return null;
   }
 
-  private void putVarint(ByteBuffer buffer, long value) {
+  void putVarint(ByteBuffer buffer, long value) {
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) (value & 0xff));
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
     value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
     value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
+    value >>= 7;
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
+    if ((value & COMPRESSED_INT_MASK) == 0) {
+      buffer.put((byte) ((value & 0x7f)));
+      return;
+    }
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
     value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
     value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
     value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
     value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
+      buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    buffer.put((byte) (value | EXT_BIT));
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) value);
-      return;
-    }
-    buffer.put((byte) (value | EXT_BIT));
-    buffer.put((byte) (value >> 7));
+    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
+
+    buffer.put((byte) ((value >> 7) & 0x7f));
   }
 
   @Override

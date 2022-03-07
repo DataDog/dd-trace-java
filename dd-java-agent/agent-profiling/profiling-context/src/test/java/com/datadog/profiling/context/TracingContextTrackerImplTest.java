@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
 import datadog.trace.util.Base64Encoder;
+
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -65,5 +67,11 @@ class TracingContextTrackerImplTest {
         System.out.println("===> " + i.from + ":" + i.till + "  - " + (i.till - i.from));
       }
     }
+  }
+
+  @Test
+  void varintTest() {
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    instance.putVarint(buffer, 298502924656L);
   }
 }
