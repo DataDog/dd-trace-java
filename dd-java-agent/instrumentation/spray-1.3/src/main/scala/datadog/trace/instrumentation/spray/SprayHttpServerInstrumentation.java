@@ -5,18 +5,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing {
+public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public SprayHttpServerInstrumentation() {
     super("spray-http", "spray-http-server");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("spray.routing.HttpServiceBase$class");
+  public String instrumentedType() {
+    return "spray.routing.HttpServiceBase$class";
   }
 
   @Override

@@ -18,19 +18,18 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.Future;
 
 @AutoService(Instrumenter.class)
-public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tracing {
+public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public AkkaHttpSingleRequestInstrumentation() {
     super("akka-http", "akka-http-client");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("akka.http.scaladsl.HttpExt");
+  public String instrumentedType() {
+    return "akka.http.scaladsl.HttpExt";
   }
 
   @Override

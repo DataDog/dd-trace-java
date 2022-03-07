@@ -9,19 +9,18 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing {
+public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public BoundedLocalCacheInstrumentation() {
     super("caffeine");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.github.benmanes.caffeine.cache.BoundedLocalCache");
+  public String instrumentedType() {
+    return "com.github.benmanes.caffeine.cache.BoundedLocalCache";
   }
 
   @Override

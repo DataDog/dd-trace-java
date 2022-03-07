@@ -313,6 +313,30 @@ class DDSpanTest extends DDCoreSpecification {
     new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:], null) | false
   }
 
+  def 'publishing of root span closes the request context data'() {
+    setup:
+    def reqContextData = Mock(Closeable)
+    def context = new TagContext().withRequestContextData(reqContextData)
+    def root = tracer.buildSpan("root").asChildOf(context).start()
+    def child = tracer.buildSpan("child").asChildOf(root).start()
+
+    expect:
+    root.requestContext.data.is(reqContextData)
+    child.requestContext.data.is(reqContextData)
+
+    when:
+    child.finish()
+
+    then:
+    0 * reqContextData.close()
+
+    when:
+    root.finish()
+
+    then:
+    1 * reqContextData.close()
+  }
+
   def "infer top level from parent service name"() {
     when:
     DDSpanContext context =

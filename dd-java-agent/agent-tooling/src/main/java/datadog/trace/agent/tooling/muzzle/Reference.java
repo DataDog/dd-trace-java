@@ -73,6 +73,7 @@ public class Reference {
   public static final int EXPECTS_NON_STATIC = 16;
   public static final int EXPECTS_INTERFACE = 32;
   public static final int EXPECTS_NON_INTERFACE = 64;
+  public static final int EXPECTS_NON_FINAL = 128;
 
   public static boolean matches(int flags, int modifiers) {
     if ((flags & EXPECTS_PUBLIC) != 0 && (modifiers & Opcodes.ACC_PUBLIC) == 0) {
@@ -89,6 +90,8 @@ public class Reference {
     } else if ((flags & EXPECTS_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) == 0) {
       return false;
     } else if ((flags & EXPECTS_NON_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) != 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_FINAL) != 0 && (modifiers & Opcodes.ACC_FINAL) != 0) {
       return false;
     }
     return true;

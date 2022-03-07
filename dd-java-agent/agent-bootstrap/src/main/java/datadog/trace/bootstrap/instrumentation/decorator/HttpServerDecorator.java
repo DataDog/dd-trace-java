@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.BitSet;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,6 +190,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
         span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+      }
+
+      AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
+      if (getter != null) {
+        ResponseHeaderTagClassifier tagger =
+            ResponseHeaderTagClassifier.create(span, Config.get().getResponseHeaderTags());
+        if (tagger != null) {
+          getter.forEachKey(response, tagger);
+        }
       }
 
       callIGCallbackResponseAndHeaders(span, response, status);
@@ -364,6 +374,33 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (null != doneCallback) {
         doneCallback.apply(requestContext);
       }
+    }
+  }
+
+  private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
+    static final ResponseHeaderTagClassifier create(
+        AgentSpan span, Map<String, String> headerTags) {
+      if (span == null || headerTags == null || headerTags.isEmpty()) {
+        return null;
+      }
+      return new ResponseHeaderTagClassifier(span, headerTags);
+    }
+
+    private final AgentSpan span;
+    private final Map<String, String> headerTags;
+
+    public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
+      this.span = span;
+      this.headerTags = headerTags;
+    }
+
+    @Override
+    public boolean accept(String key, String value) {
+      String mappedKey = headerTags.get(key.toLowerCase());
+      if (mappedKey != null) {
+        span.setTag(mappedKey, value);
+      }
+      return true;
     }
   }
 }

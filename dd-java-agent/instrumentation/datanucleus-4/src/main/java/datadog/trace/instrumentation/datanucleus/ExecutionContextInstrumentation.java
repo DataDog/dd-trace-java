@@ -22,7 +22,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 @AutoService(Instrumenter.class)
-public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
+public class ExecutionContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
   public ExecutionContextInstrumentation() {
     super("datanucleus");
   }
@@ -36,13 +37,19 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.datanucleus.ExecutionContextImpl", "org.datanucleus.ExecutionContextThreadedImpl");
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.datanucleus.ExecutionContextImpl", "org.datanucleus.ExecutionContextThreadedImpl"
+    };
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.datanucleus.ExecutionContext"));
   }
 

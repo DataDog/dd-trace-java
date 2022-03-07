@@ -23,7 +23,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing {
+public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public CouchbaseNetworkInstrumentation() {
     super("couchbase");
   }
@@ -38,7 +39,7 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // Exact class because private fields are used
     return nameStartsWith("com.couchbase.client.")
         .<TypeDescription>and(

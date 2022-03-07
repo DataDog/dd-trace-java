@@ -32,7 +32,6 @@ import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -44,7 +43,8 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
-public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
+public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForTypeHierarchy {
   public ServletRequestBodyInstrumentation() {
     super("servlet-request-body");
   }
@@ -56,7 +56,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.servlet.ServletRequest"));
   }
 
@@ -99,9 +99,9 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       };
 
   @Override
-  public AgentBuilder.Transformer transformer() {
+  public AdviceTransformer transformer() {
     // transformer possible adding extra 3 methods to ServletInputStreamWrapper
-    return new AgentBuilder.Transformer() {
+    return new AdviceTransformer() {
       private final Map<ClassLoader, Boolean> injectedClassLoaders =
           Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>());
 

@@ -36,6 +36,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Shared
   EmbeddedWebApplicationContext context
 
+  Map<String, String> extraServerTags = [:]
+
   SpringApplication application() {
     return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
   }
@@ -103,6 +105,16 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
+    true
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:
@@ -117,7 +129,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"]
+    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"] +
+    extraServerTags
   }
 
   @Override
@@ -147,6 +160,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   def "test character encoding of #testPassword"() {
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
+    extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
 
     RequestBody formBody = new FormBody.Builder()
       .add("username", "test")

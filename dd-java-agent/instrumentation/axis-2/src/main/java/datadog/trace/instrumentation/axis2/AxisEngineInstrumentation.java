@@ -17,21 +17,20 @@ import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.engine.Handler.InvocationResponse;
 
 @AutoService(Instrumenter.class)
-public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
+public final class AxisEngineInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public AxisEngineInstrumentation() {
     super("axis2");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.axis2.engine.AxisEngine");
+  public String instrumentedType() {
+    return "org.apache.axis2.engine.AxisEngine";
   }
 
   @Override

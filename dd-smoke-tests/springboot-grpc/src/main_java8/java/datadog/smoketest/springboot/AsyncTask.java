@@ -13,7 +13,7 @@ public class AsyncTask {
   }
 
   @Async
-  public CompletableFuture<String> greet() {
-    return CompletableFuture.completedFuture(greeter.greet());
+  public CompletableFuture<String> greet(String message) {
+    return CompletableFuture.completedFuture(greeter.greet(message));
   }
 }

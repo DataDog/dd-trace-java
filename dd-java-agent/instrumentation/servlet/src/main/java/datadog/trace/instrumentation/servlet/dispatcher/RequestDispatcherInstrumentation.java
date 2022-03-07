@@ -37,7 +37,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing {
+public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public RequestDispatcherInstrumentation() {
     super("servlet", "servlet-dispatcher");
   }
@@ -52,7 +53,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.servlet.RequestDispatcher"));
   }
 

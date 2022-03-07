@@ -142,6 +142,12 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.requestBodyProcessed(), callback);
+    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.grpcServerRequestMessage(), callback);
+    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), callback);
     gateway.getCallback(events.responseStarted()).apply(null, null);
     gateway.registerCallback(events.responseHeader(), callback);
@@ -180,6 +186,12 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
     gateway.registerCallback(events.requestBodyDone(), throwback.asRequestBodyDone());
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.requestBodyProcessed(), throwback);
+    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.grpcServerRequestMessage(), throwback);
+    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), throwback);
     gateway.getCallback(events.responseStarted()).apply(null, null);

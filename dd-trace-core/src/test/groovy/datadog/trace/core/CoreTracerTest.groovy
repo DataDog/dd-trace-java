@@ -178,9 +178,9 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    mapString       | map
-    "a:1, a:2, a:3" | [a: "3"]
-    "a:b,c:d,e:"    | [a: "b", c: "d"]
+    mapString               | map
+    "a:one, a:two, a:three" | [a: "three"]
+    "a:b,c:d,e:"            | [a: "b", c: "d"]
   }
 
   def "verify overriding host"() {

@@ -37,24 +37,6 @@ public class DDElementMatchers {
     return new HasSuperMethodMatcher<>(matcher);
   }
 
-  /**
-   * Wraps another matcher to assure that an element is not matched in case that the matching causes
-   * an {@link Exception}. Logs exception if it happens.
-   *
-   * @param matcher The element matcher that potentially throws an exception.
-   * @param <T> The type of the matched object.
-   * @return A matcher that returns {@code false} in case that the given matcher throws an
-   *     exception.
-   */
-  @SuppressWarnings("unchecked")
-  public static <T> ElementMatcher<T> failSafe(
-      final ElementMatcher<? super T> matcher, final String description) {
-    if (matcher instanceof FailSafe) {
-      return (ElementMatcher<T>) matcher;
-    }
-    return new LoggingFailSafeMatcher<>(matcher, false, description);
-  }
-
   @SuppressForbidden
   static String safeTypeDefinitionName(final TypeDefinition td) {
     try {

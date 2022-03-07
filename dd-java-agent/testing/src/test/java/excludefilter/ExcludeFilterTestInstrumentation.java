@@ -2,7 +2,6 @@ package excludefilter;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -14,8 +13,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
@@ -26,15 +23,10 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return none();
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {}
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put(Runnable.class.getName(), Object.class.getName());
     contextStores.put(Executor.class.getName(), Object.class.getName());

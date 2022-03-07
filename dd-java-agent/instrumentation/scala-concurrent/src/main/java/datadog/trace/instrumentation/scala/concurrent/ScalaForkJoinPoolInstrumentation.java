@@ -16,20 +16,19 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.forkjoin.ForkJoinTask;
 
 @AutoService(Instrumenter.class)
-public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
+public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ScalaForkJoinPoolInstrumentation() {
     super("java_concurrent", "scala_concurrent");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("scala.concurrent.forkjoin.ForkJoinPool");
+  public String instrumentedType() {
+    return "scala.concurrent.forkjoin.ForkJoinPool";
   }
 
   @Override

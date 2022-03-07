@@ -20,11 +20,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class UrlInstrumentation extends Instrumenter.Tracing {
+public class UrlInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
 
   public static final String COMPONENT = "UrlConnection";
 
@@ -33,8 +31,8 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("java.net.URL");
+  public String instrumentedType() {
+    return "java.net.URL";
   }
 
   @Override

@@ -18,18 +18,17 @@ import io.reactivex.Completable;
 import io.reactivex.CompletableObserver;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class CompletableInstrumentation extends Instrumenter.Tracing {
+public final class CompletableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public CompletableInstrumentation() {
     super("rxjava");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.reactivex.Completable");
+  public String instrumentedType() {
+    return "io.reactivex.Completable";
   }
 
   @Override

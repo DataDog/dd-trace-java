@@ -51,7 +51,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
   @Override
   public void map(final List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (final CoreSpan<?> span : trace) {
+    for (int i = 0; i < trace.size(); i++) {
+      final CoreSpan<?> span = trace.get(i);
       writable.startArray(12);
       /* 1  */
       writeDictionaryEncoded(writable, span.getServiceName());
@@ -72,7 +73,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 9  */
       writable.writeInt(span.getError());
       /* 10, 11  */
-      span.processTagsAndBaggage(metaWriter.withWritable(writable));
+      span.processTagsAndBaggage(
+          metaWriter
+              .withWritable(writable)
+              .withWriteSamplingPriority(i == 0 || i == trace.size() - 1));
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
     }
@@ -173,9 +177,15 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final class MetaWriter extends MetadataConsumer {
 
     private Writable writable;
+    private boolean writeSamplingPriority;
 
     MetaWriter withWritable(final Writable writable) {
       this.writable = writable;
+      return this;
+    }
+
+    MetaWriter withWriteSamplingPriority(final boolean writeSamplingPriority) {
+      this.writeSamplingPriority = writeSamplingPriority;
       return this;
     }
 
@@ -188,7 +198,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
               + (null == metadata.getOrigin() ? 0 : 1)
               + 1;
       int metricsSize =
-          (metadata.hasSamplingPriority() ? 1 : 0)
+          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
               + 1;
@@ -223,7 +233,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
         }
       }
       writable.startMap(metricsSize);
-      if (metadata.hasSamplingPriority()) {
+      if (writeSamplingPriority && metadata.hasSamplingPriority()) {
         writeDictionaryEncoded(writable, SAMPLING_PRIORITY_KEY);
         writable.writeInt(metadata.samplingPriority());
       }

@@ -208,6 +208,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       if (name.contains("$JaxbAccessor")
           || name.contains("CGLIB$$")
           || name.contains("$__sisu")
+          || name.contains("$$EnhancerByGuice$$")
           || name.contains("$$EnhancerByProxool$$")
           || name.startsWith("org.springframework.core.$Proxy")) {
         return true;

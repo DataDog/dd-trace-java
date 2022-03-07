@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.scala.concurrent;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -13,8 +12,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.Future;
 import scala.concurrent.Future$;
 import scala.concurrent.impl.CallbackRunnable;
@@ -27,16 +24,17 @@ import scala.util.Try;
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
 @AutoService(Instrumenter.class)
-public class FutureObjectInstrumentation210 extends Instrumenter.Tracing {
+public class FutureObjectInstrumentation210 extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public FutureObjectInstrumentation210() {
     super("scala_future_object", "scala_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public String instrumentedType() {
     // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
-    return named("scala.concurrent.Future$");
+    return "scala.concurrent.Future$";
   }
 
   @Override

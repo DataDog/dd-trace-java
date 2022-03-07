@@ -86,6 +86,12 @@ includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
+  // Put the jar in a different directory so we don't overwrite the normal shadow jar and
+  // break caching, and also to not interfere with CI scripts that copy everything in the
+  // libs directory
+  it.destinationDirectory.set(file("${project.buildDir}/shared-lib"))
+  // Add a classifier so we don't confuse the jar file with the normal shadow jar
+  archiveClassifier = 'shared'
   it.dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
     exclude(project(':dd-java-agent:agent-logging'))

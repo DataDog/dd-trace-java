@@ -122,7 +122,18 @@ public final class Events<D> {
         REQUEST_BODY_DONE;
   }
 
-  static final int RESPONSE_STARTED_ID = 9;
+  static final int REQUEST_BODY_CONVERTED_ID = 9;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_BODY_CONVERTED =
+      new ET<>("request.body.done", REQUEST_BODY_CONVERTED_ID);
+  /** The request body has been converted by the framework */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>> requestBodyProcessed() {
+    return (EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>>) REQUEST_BODY_CONVERTED;
+  }
+
+  static final int RESPONSE_STARTED_ID = 10;
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_STARTED =
@@ -133,7 +144,7 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext<D>, Integer, Flow<Void>>>) RESPONSE_STARTED;
   }
 
-  static final int RESPONSE_HEADER_ID = 10;
+  static final int RESPONSE_HEADER_ID = 11;
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_HEADER =
@@ -144,7 +155,7 @@ public final class Events<D> {
     return (EventType<TriConsumer<RequestContext<D>, String, String>>) RESPONSE_HEADER;
   }
 
-  static final int RESPONSE_HEADER_DONE_ID = 11;
+  static final int RESPONSE_HEADER_DONE_ID = 12;
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_HEADER_DONE =
@@ -153,6 +164,18 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<Function<RequestContext<D>, Flow<Void>>> responseHeaderDone() {
     return (EventType<Function<RequestContext<D>, Flow<Void>>>) RESPONSE_HEADER_DONE;
+  }
+
+  static final int GRPC_SERVER_REQUEST_MESSAGE_ID = 13;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRPC_SERVER_REQUEST_MESSAGE =
+      new ET<>("grpc.server.request.message", GRPC_SERVER_REQUEST_MESSAGE_ID);
+  /** All response headers have been provided */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>> grpcServerRequestMessage() {
+    return (EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>>)
+        GRPC_SERVER_REQUEST_MESSAGE;
   }
 
   static final int MAX_EVENTS = nextId.get();

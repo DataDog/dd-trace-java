@@ -1,6 +1,7 @@
 package com.datadog.appsec.powerwaf
 
 import com.datadog.appsec.AppSecModule
+import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
 import com.datadog.appsec.event.EventListener
@@ -27,6 +28,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
   DataListener dataListener
   EventListener eventListener
 
+  def pwafAdditive
+
   private void setupWithStubConfigService() {
     def service = new StubAppSecConfigService()
     service.init(false)
@@ -49,6 +52,28 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    1 * ctx.getAdditive() >> null
+    1 * ctx.setAdditive(_) >> { pwafAdditive = it; null }
+    1 * ctx.getAdditive() >> pwafAdditive
+    1 * ctx.setAdditive(null)
+    flow.blocking == true
+  }
+
+  void 'can trigger a nonadditive waf run'() {
+    setupWithStubConfigService()
+    ChangeableFlow flow = new ChangeableFlow()
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+
+    then:
+    1 * ctx.size() >> 0
+    1 * ctx.allAddresses >> []
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> false
+    1 * ctx.setBlocked(_)
+    1 * ctx.reportEvents(*_)
+    0 * ctx._(*_)
     flow.blocking == true
   }
 
@@ -61,6 +86,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
@@ -124,9 +150,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
-    cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
@@ -134,7 +161,43 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
   }
 
-  void 'bad initial configuration is given results in no attacks detected'() {
+  void 'initial configuration has unknown addresses'() {
+    def cfgService = new StubAppSecConfigService(waf: AppSecConfig.valueOf([
+      version: '2.1',
+      rules: [
+        [
+          id: 'ua0-600-12x',
+          name: 'Arachni',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.does-not-exist',
+                    key_path: ['user-agent']]
+                ],
+                regex: '^Arachni\\/v'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+        ]
+      ]
+    ]))
+
+    when:
+    cfgService.init(false)
+    pwafModule.config(cfgService)
+
+    then:
+    pwafModule.dataSubscriptions.first().subscribedAddresses.empty
+  }
+
+  void 'bad initial configuration is given results in no subscriptions'() {
     def cfgService = new StubAppSecConfigService([waf: [:]])
 
     when:
@@ -143,13 +206,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     thrown AppSecModule.AppSecModuleActivationException
-
-    when:
-    dataListener = pwafModule.dataSubscriptions.first()
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
-
-    then:
-    0 * ctx._
+    pwafModule.dataSubscriptions.empty
   }
 
   void 'rule data not a config'() {
@@ -163,7 +220,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     then:
-    pwafModule.ctx.get() == null
+    pwafModule.ctxAndAddresses.get() == null
   }
 
   void 'bad ActionWithData - empty list'() {

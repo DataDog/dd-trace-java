@@ -9,20 +9,18 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
+public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public HystrixThreadPoolInstrumentation() {
     super("hystrix");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named(
-        "com.netflix.hystrix.strategy.concurrency.HystrixContextScheduler$ThreadPoolWorker");
+  public String instrumentedType() {
+    return "com.netflix.hystrix.strategy.concurrency.HystrixContextScheduler$ThreadPoolWorker";
   }
 
   @Override

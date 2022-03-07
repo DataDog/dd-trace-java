@@ -35,13 +35,13 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
   public RunnableFutureInstrumentation() {
     super("java_concurrent", "runnable-future");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.<TypeDescription>notExcludedByName(RUNNABLE_FUTURE)
         .and(
             extendsClass(
@@ -53,7 +53,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return singletonMap("java.util.concurrent.RunnableFuture", State.class.getName());
   }
 

@@ -21,11 +21,10 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
+public class DistributedObjectInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   private static final String PROXY_PACKAGE = "com.hazelcast.client.proxy";
 
@@ -49,24 +48,25 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(
-        PROXY_PACKAGE + ".ClientMapProxy",
-        PROXY_PACKAGE + ".ClientReplicatedMapProxy",
-        PROXY_PACKAGE + ".ClientQueueProxy",
-        PROXY_PACKAGE + ".ClientTopicProxy",
-        PROXY_PACKAGE + ".ClientReliableTopicProxy",
-        PROXY_PACKAGE + ".ClientSetProxy",
-        PROXY_PACKAGE + ".ClientListProxy",
-        PROXY_PACKAGE + ".ClientMultiMapProxy",
-        PROXY_PACKAGE + ".ClientLockProxy",
-        PROXY_PACKAGE + ".ClientRingbufferProxy",
-        PROXY_PACKAGE + ".ClientExecutorServiceProxy",
-        PROXY_PACKAGE + ".ClientFlakeIdGeneratorProxy",
-        PROXY_PACKAGE + ".ClientIdGeneratorProxy",
-        PROXY_PACKAGE + ".ClientPNCounterProxy",
-        PROXY_PACKAGE + ".ClientCardinalityEstimatorProxy",
-        PROXY_PACKAGE + ".ClientSemaphoreProxy");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      PROXY_PACKAGE + ".ClientMapProxy",
+      PROXY_PACKAGE + ".ClientReplicatedMapProxy",
+      PROXY_PACKAGE + ".ClientQueueProxy",
+      PROXY_PACKAGE + ".ClientTopicProxy",
+      PROXY_PACKAGE + ".ClientReliableTopicProxy",
+      PROXY_PACKAGE + ".ClientSetProxy",
+      PROXY_PACKAGE + ".ClientListProxy",
+      PROXY_PACKAGE + ".ClientMultiMapProxy",
+      PROXY_PACKAGE + ".ClientLockProxy",
+      PROXY_PACKAGE + ".ClientRingbufferProxy",
+      PROXY_PACKAGE + ".ClientExecutorServiceProxy",
+      PROXY_PACKAGE + ".ClientFlakeIdGeneratorProxy",
+      PROXY_PACKAGE + ".ClientIdGeneratorProxy",
+      PROXY_PACKAGE + ".ClientPNCounterProxy",
+      PROXY_PACKAGE + ".ClientCardinalityEstimatorProxy",
+      PROXY_PACKAGE + ".ClientSemaphoreProxy"
+    };
   }
 
   @Override

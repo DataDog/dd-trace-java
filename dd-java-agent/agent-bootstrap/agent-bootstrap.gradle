@@ -32,21 +32,21 @@ sourceSets {
     java.srcDirs "${project.projectDir}/src/main/java11"
   }
 }
-compileMain_java11Java.doFirst {
-  if (!System.env.JAVA_11_HOME) {
-    throw new GradleException('JAVA_11_HOME must be set to build profiling helpers')
-  }
-  options.fork = true
-  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+
+compileMain_java11Java.configure {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
+  setJavaVersion(it, 11)
 }
+
 dependencies {
   main_java11CompileOnly project(':internal-api:internal-api-8')
 }
+
 jar {
   from sourceSets.main_java11.output
 }
+
 idea {
   module {
     jdkName = '11'

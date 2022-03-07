@@ -9,11 +9,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class MySQLConnectionImplInstrumentation extends Instrumenter.Tracing {
+public class MySQLConnectionImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public MySQLConnectionImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -27,8 +26,8 @@ public class MySQLConnectionImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.mysqlclient.impl.MySQLConnectionImpl");
+  public String instrumentedType() {
+    return "io.vertx.mysqlclient.impl.MySQLConnectionImpl";
   }
 
   @Override

@@ -44,7 +44,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
+public class RabbitChannelInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RabbitChannelInstrumentation() {
     super("amqp", "rabbitmq");
@@ -57,7 +58,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("com.rabbitmq.client.Channel"));
   }
 

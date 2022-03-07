@@ -2,7 +2,14 @@ import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.Function
+import datadog.trace.api.function.BiFunction
+import datadog.trace.api.function.Supplier
+import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
@@ -16,6 +23,7 @@ import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
+import spock.lang.Shared
 
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -28,14 +36,43 @@ import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
+import static datadog.trace.api.gateway.Events.EVENTS
 
 class GrpcTest extends AgentTestRunner {
+
+  @Shared
+  def ig
+
+  def collectedAppSecHeaders = [:]
+  boolean appSecHeaderDone = false
+  def collectedAppSecReqMsgs = []
 
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")
     injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+  }
+
+  def setupSpec() {
+    ig = AgentTracer.get().instrumentationGateway()
+  }
+
+  def setup() {
+    ig.registerCallback(EVENTS.requestStarted(), { -> new Flow.ResultFlow(new Object()) } as Supplier<Flow>)
+    ig.registerCallback(EVENTS.requestHeader(), { reqCtx, name, value ->
+      collectedAppSecHeaders[name] = value
+    } as TriConsumer<RequestContext, String, String>)
+    ig.registerCallback(EVENTS.requestHeaderDone(),{
+      appSecHeaderDone = true
+    } as Function<RequestContext, Flow<Void>>)
+    ig.registerCallback(EVENTS.grpcServerRequestMessage(), { reqCtx, obj ->
+      collectedAppSecReqMsgs << obj
+    } as BiFunction<RequestContext, Object>)
+  }
+
+  def cleanup() {
+    ig.reset()
   }
 
   def "test request-response"() {
@@ -150,6 +187,12 @@ class GrpcTest extends AgentTestRunner {
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     0 * TEST_CHECKPOINTER._
+
+    and:
+    def traceId = TEST_WRITER[0].traceId.first()
+    traceId.toLong() as String == collectedAppSecHeaders['x-datadog-trace-id']
+    collectedAppSecReqMsgs.size() == 1
+    collectedAppSecReqMsgs.first().name == name
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)

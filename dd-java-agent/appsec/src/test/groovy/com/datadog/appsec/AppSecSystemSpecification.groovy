@@ -33,7 +33,7 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
-    'powerwaf' in AppSecSystem.startedModuleNames
+    'powerwaf' in AppSecSystem.startedModulesInfo
   }
 
   void 'throws if custom config does not exist'() {
@@ -115,7 +115,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'when not started returns empty list for started modules'() {
     expect:
-    AppSecSystem.startedModuleNames.empty
+    AppSecSystem.startedModulesInfo.empty
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

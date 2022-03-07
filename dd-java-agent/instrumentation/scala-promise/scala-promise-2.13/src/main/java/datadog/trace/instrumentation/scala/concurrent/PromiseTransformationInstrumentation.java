@@ -24,22 +24,20 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.Promise.Transformation;
 import scala.util.Try;
 
 @AutoService(Instrumenter.class)
 public final class PromiseTransformationInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public PromiseTransformationInstrumentation() {
     super("scala_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("scala.concurrent.impl.Promise$Transformation");
+  public String instrumentedType() {
+    return "scala.concurrent.impl.Promise$Transformation";
   }
 
   @Override

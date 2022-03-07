@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -8,20 +7,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class WebClientFilterInstrumentation extends Instrumenter.Tracing {
+public class WebClientFilterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public WebClientFilterInstrumentation() {
     super("spring-webflux", "spring-webflux-client");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.springframework.web.reactive.function.client.WebClient");
   }
 
   @Override
@@ -35,8 +27,8 @@ public class WebClientFilterInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.springframework.web.reactive.function.client.DefaultWebClientBuilder");
+  public String instrumentedType() {
+    return "org.springframework.web.reactive.function.client.DefaultWebClientBuilder";
   }
 
   @Override

@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -54,6 +56,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RA
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
@@ -82,10 +87,20 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.requestClientSocketAddress(), callbacks.requestClientSocketAddressCb)
     ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
+    ig.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
     ig.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
     ig.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
+    injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
+    // We don't inject a matching response header tag here since it would be always on and show up in all the tests
   }
 
   @Shared
@@ -236,6 +251,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyUrlencoded() {
+    false
+  }
+
+  boolean testBodyJson() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -250,6 +273,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
     CREATED_IS("created_input_stream", 201, "created"),
+    BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
+    BODY_JSON("body-json", 200, '{"a":"x"}'),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -462,6 +487,70 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     where:
     method = "GET"
     body = null
+  }
+
+  def "test success with request header #header tag mapping"() {
+    setup:
+    def request = request(SUCCESS, method, body)
+      .header(header, value)
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, SUCCESS, tags)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+
+    where:
+    method | body | header                           | value | tags
+    'GET'  | null | 'x-datadog-test-both-header'     | 'foo' | [ 'both_header_tag': 'foo' ]
+    'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+  }
+
+  def "test #endpoint with response header #header tag mapping"() {
+    setup:
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
+    def request = request(endpoint, method, body)
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == endpoint.status
+    response.body().string() == endpoint.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(endpoint)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, endpoint, tags)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, endpoint)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(endpoint)) {
+          responseSpan(it, endpoint)
+        }
+      }
+    }
+
+    where:
+    endpoint           | method | body | header             | mapping                      | tags
+    QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
   }
 
   def "test tag query string for #endpoint rawQuery=#rawQuery"() {
@@ -897,6 +986,48 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test instrumentation gateway urlencoded request body'() {
+    setup:
+    assumeTrue(testBodyUrlencoded())
+    def request = request(
+      BODY_URLENCODED, 'POST',
+      RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == '[a:[x]]'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
+  def 'test instrumentation gateway json request body'() {
+    setup:
+    assumeTrue(testBodyJson())
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == BODY_JSON.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.converted') == '[a:[x]]'
+    }
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -934,7 +1065,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // If you ever feel the need to make this method non final and override it with something that is almost the
   // same, but has a slightly different behavior, then please think again, and see if you can't make that part
   // of the integrations very special behavior into something configurable here instead.
-  final void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+  final void serverSpan(TraceAssert trace,
+    BigInteger traceID = null,
+    BigInteger parentID = null,
+    String method = "GET",
+    ServerEndpoint endpoint = SUCCESS,
+    Map<String, Serializable> extraTags = null) {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
@@ -987,6 +1123,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         //        }
         defaultTags(true)
         addTags(expectedExtraServerTags)
+        if (extraTags) {
+          it.addTags(extraTags)
+        }
       }
     }
   }
@@ -1096,6 +1235,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>)
+
+    final BiFunction<RequestContext<Context>, Object, Flow<Void>> requestBodyObjectCb =
+    ({ RequestContext<Context> rqCtxt, Object obj ->
+      if (obj instanceof Map) {
+        obj = obj.collectEntries {
+          [
+            it.key,
+            (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
+          ]}
+      } else if (!(obj instanceof String)) {
+        obj = obj.properties
+          .findAll { it.key != 'class' }
+          .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
+      }
+      rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Object, Flow<Void>>)
 
     final BiFunction<RequestContext<Context>, Integer, Flow<Void>> responseStartedCb =
     ({ RequestContext<Context> rqCtxt, Integer resultCode ->

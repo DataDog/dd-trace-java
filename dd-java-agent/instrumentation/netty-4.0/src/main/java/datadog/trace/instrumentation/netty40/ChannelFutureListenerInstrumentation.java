@@ -22,7 +22,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
+public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ChannelFutureListenerInstrumentation() {
     super(
@@ -37,7 +38,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("io.netty.channel.ChannelFutureListener"));
   }
 

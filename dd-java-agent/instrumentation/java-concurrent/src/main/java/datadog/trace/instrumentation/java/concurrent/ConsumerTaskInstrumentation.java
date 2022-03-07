@@ -16,18 +16,17 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ConsumerTaskInstrumentation extends Instrumenter.Tracing {
+public class ConsumerTaskInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public ConsumerTaskInstrumentation() {
     super(EXEC_NAME, "consumer-task");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("java.util.concurrent.SubmissionPublisher$ConsumerTask");
+  public String instrumentedType() {
+    return "java.util.concurrent.SubmissionPublisher$ConsumerTask";
   }
 
   @Override

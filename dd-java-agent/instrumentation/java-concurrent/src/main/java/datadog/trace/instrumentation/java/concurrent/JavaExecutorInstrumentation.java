@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumentation {
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
   }
 

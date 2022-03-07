@@ -24,7 +24,8 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LoggingEventInstrumentation extends Instrumenter.Tracing {
+public class LoggingEventInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public LoggingEventInstrumentation() {
     super("logback");
   }
@@ -41,7 +42,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("ch.qos.logback.classic.spi.ILoggingEvent"));
   }
 

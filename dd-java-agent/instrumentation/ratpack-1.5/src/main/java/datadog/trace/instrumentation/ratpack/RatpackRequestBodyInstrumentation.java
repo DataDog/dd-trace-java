@@ -5,18 +5,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec {
+public class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public RatpackRequestBodyInstrumentation() {
     super("ratpack-request-body");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("ratpack.server.internal.RequestBody");
+  public String instrumentedType() {
+    return "ratpack.server.internal.RequestBody";
   }
 
   @Override

@@ -20,7 +20,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JSPInstrumentation extends Instrumenter.Tracing {
+public final class JSPInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public JSPInstrumentation() {
     super("jsp", "jsp-render");
@@ -33,7 +34,7 @@ public final class JSPInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.servlet.jsp.HttpJspPage"));
   }
 

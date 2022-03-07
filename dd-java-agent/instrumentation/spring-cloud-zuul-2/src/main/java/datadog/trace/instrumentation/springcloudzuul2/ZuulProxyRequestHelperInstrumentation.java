@@ -11,17 +11,17 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing {
+public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public ZuulProxyRequestHelperInstrumentation() {
     super("spring-cloud-zuul");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.springframework.cloud.netflix.zuul.filters.ProxyRequestHelper");
+  public String instrumentedType() {
+    return "org.springframework.cloud.netflix.zuul.filters.ProxyRequestHelper";
   }
 
   @Override

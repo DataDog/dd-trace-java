@@ -16,14 +16,15 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(Instrumenter.class)
-public class JUnit4Instrumentation extends Instrumenter.CiVisibility {
+public class JUnit4Instrumentation extends Instrumenter.CiVisibility
+    implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4Instrumentation() {
     super("junit", "junit-4");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.junit.runner.Runner"));
   }
 

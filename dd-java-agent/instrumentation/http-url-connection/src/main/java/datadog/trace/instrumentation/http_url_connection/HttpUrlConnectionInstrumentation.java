@@ -19,25 +19,25 @@ import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
 import java.net.HttpURLConnection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
+public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-        // we deliberately exclude various subclasses that are simple delegators
-        "sun.net.www.protocol.http.HttpURLConnection", "java.net.HttpURLConnection");
+  public String[] knownMatchingTypes() {
+    // we deliberately exclude various subclasses that are simple delegators
+    return new String[] {
+      "sun.net.www.protocol.http.HttpURLConnection", "java.net.HttpURLConnection"
+    };
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return singletonMap("java.net.HttpURLConnection", HttpUrlState.class.getName());
   }
 

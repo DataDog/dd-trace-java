@@ -21,11 +21,10 @@ import io.grpc.Status;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ClientCallImplInstrumentation extends Instrumenter.Tracing {
+public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ClientCallImplInstrumentation() {
     super("grpc", "grpc-client");
@@ -37,8 +36,8 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.grpc.internal.ClientCallImpl");
+  public String instrumentedType() {
+    return "io.grpc.internal.ClientCallImpl";
   }
 
   @Override

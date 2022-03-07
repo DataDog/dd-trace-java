@@ -8,19 +8,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CassandraClientInstrumentation extends Instrumenter.Tracing {
+public class CassandraClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public CassandraClientInstrumentation() {
     super("cassandra");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.datastax.oss.driver.internal.core.session.DefaultSession");
+  public String instrumentedType() {
+    return "com.datastax.oss.driver.internal.core.session.DefaultSession";
   }
 
   @Override

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.datanucleus;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -12,19 +11,18 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JDOTransactionInstrumentation extends Instrumenter.Tracing {
+public class JDOTransactionInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public JDOTransactionInstrumentation() {
     super("datanucleus");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.datanucleus.api.jdo.JDOTransaction");
+  public String instrumentedType() {
+    return "org.datanucleus.api.jdo.JDOTransaction";
   }
 
   @Override

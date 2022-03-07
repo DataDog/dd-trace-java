@@ -10,8 +10,6 @@ import akka.stream.Materializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.Function1;
 import scala.concurrent.Future;
 
@@ -20,14 +18,15 @@ import scala.concurrent.Future;
  * {@code bindAndHandleAsync}.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing {
+public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes {
   public AkkaHttp2ServerInstrumentation() {
     super("akka-http2", "akka-http", "akka-http-server");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("akka.http.scaladsl.Http2Ext").or(named("akka.http.impl.engine.http2.Http2Ext"));
+  public String[] knownMatchingTypes() {
+    return new String[] {"akka.http.scaladsl.Http2Ext", "akka.http.impl.engine.http2.Http2Ext"};
   }
 
   @Override

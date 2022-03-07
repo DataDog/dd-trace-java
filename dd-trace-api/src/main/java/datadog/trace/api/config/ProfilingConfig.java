@@ -10,7 +10,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
-  public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = false;
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
   @Deprecated // Use dd.site instead
@@ -73,10 +72,11 @@ public final class ProfilingConfig {
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_CPU_STACKDEPTH = "profiling.async.cpu.stackdepth";
   public static final int PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT = 512;
+  public static final String PROFILING_ASYNC_CPU_SAFEMODE = "profiling.async.cpu.safemode";
+  public static final int PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
-  public static final int PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = 256 * 1024;
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
 

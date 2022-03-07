@@ -89,6 +89,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       // Exception classes get wrapped in ServletException

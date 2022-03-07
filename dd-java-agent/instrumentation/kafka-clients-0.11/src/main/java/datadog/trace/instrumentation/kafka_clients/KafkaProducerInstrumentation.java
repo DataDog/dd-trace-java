@@ -20,23 +20,22 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
-public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
+public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public KafkaProducerInstrumentation() {
     super("kafka");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.kafka.clients.producer.KafkaProducer");
+  public String instrumentedType() {
+    return "org.apache.kafka.clients.producer.KafkaProducer";
   }
 
   @Override

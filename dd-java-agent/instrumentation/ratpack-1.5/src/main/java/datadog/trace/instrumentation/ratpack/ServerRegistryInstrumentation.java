@@ -6,19 +6,18 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ServerRegistryInstrumentation extends Instrumenter.Tracing {
+public class ServerRegistryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ServerRegistryInstrumentation() {
     super("ratpack");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("ratpack.server.internal.ServerRegistry");
+  public String instrumentedType() {
+    return "ratpack.server.internal.ServerRegistry";
   }
 
   @Override
