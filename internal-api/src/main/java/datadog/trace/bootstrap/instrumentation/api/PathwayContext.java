@@ -5,6 +5,7 @@ import java.io.IOException;
 
 public interface PathwayContext {
   String INITIALIZATION_TOPIC = "";
+  String PROPAGATION_KEY = "dd-pathway-ctx";
 
   boolean isStarted();
 

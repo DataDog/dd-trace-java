@@ -9,6 +9,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
@@ -86,6 +87,11 @@ public class DefaultDataStreamsCheckpointer
   @Override
   public PathwayContext newPathwayContext() {
     return new DefaultPathwayContext();
+  }
+
+  @Override
+  public <C> PathwayContext extractPathwayContext(C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+    return DefaultPathwayContext.extract(carrier, getter);
   }
 
   @Override

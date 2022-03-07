@@ -5,6 +5,7 @@ import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
@@ -16,8 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
-  public static String PROPAGATION_KEY = "dd-pathway-ctx";
-
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final Lock lock = new ReentrantLock();
 
@@ -143,6 +142,33 @@ public class DefaultPathwayContext implements PathwayContext {
     long quot = (l >>> 1) / 5;
     long rem = l - quot * 10;
     return Long.toString(quot) + rem;
+  }
+
+  private static class PathwayContextExtractor implements AgentPropagation.BinaryKeyClassifier {
+    private DefaultPathwayContext extractedContext;
+
+    @Override
+    public boolean accept(String key, byte[] value) {
+      if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
+        try {
+          extractedContext = decode(value);
+          log.debug("Extracted pathway context");
+        } catch (IOException e) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  public static <C> DefaultPathwayContext extract(C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+    log.debug("Extracting pathway context");
+    PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
+    getter.forEachKey(carrier, pathwayContextExtractor);
+
+    log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
+
+    return pathwayContextExtractor.extractedContext;
   }
 
   public static DefaultPathwayContext decode(byte[] data) throws IOException {

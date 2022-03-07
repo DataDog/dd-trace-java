@@ -19,7 +19,6 @@ import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.function.Consumer;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -33,7 +32,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
@@ -45,7 +43,6 @@ import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
-import datadog.trace.core.datastreams.DefaultPathwayContext;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
@@ -688,7 +685,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       byte[] encodedContext = span.context().getPathwayContext().encode();
 
       if (encodedContext != null) {
-        setter.set(carrier, DefaultPathwayContext.PROPAGATION_KEY, encodedContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -717,32 +714,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return extractor.extract(carrier, getter);
   }
 
-  private static class PathwayContextExtractor implements BinaryKeyClassifier {
-    private DefaultPathwayContext extractedContext;
-
-    @Override
-    public boolean accept(String key, byte[] value) {
-      if (DefaultPathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
-        try {
-          extractedContext = DefaultPathwayContext.decode(value);
-          log.debug("Extracted pathway context");
-        } catch (IOException e) {
-          return false;
-        }
-      }
-      return true;
-    }
-  }
-
   @Override
   public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
-    log.debug("Extracting pathway context");
-    PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
-    getter.forEachKey(carrier, pathwayContextExtractor);
-
-    log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
-
-    return pathwayContextExtractor.extractedContext;
+    return dataStreamsCheckpointer.extractPathwayContext(carrier, getter);
   }
 
   @Override
