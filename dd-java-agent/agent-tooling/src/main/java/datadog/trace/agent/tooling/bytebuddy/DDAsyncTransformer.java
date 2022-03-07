@@ -97,6 +97,7 @@ final class DDAsyncTransformer implements Runnable {
           exchangers[slot] = null;
           recycleSlot(slot);
         } else {
+          log.debug("Async transformation appears stuck for {}", internalClassName);
           localExchanger.remove(); // exchanger may be stuck, create a new one for next request
           return null; // assume no transform rather than risk synchronous transform getting stuck
         }
