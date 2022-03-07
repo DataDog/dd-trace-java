@@ -73,6 +73,7 @@ public class AsyncMatching implements Runnable {
       matchingTask.module = module;
       matchingTask.classBeingRedefined = classBeingRedefined;
       matchingTask.protectionDomain = protectionDomain;
+      matchingTask.tccl = Thread.currentThread().getContextClassLoader();
 
       if (Thread.currentThread() != matchingThread) { // avoid making recursive async requests
         int slot = acquireSlot();
@@ -105,6 +106,7 @@ public class AsyncMatching implements Runnable {
       matchingTask.module = null;
       matchingTask.classBeingRedefined = null;
       matchingTask.protectionDomain = null;
+      matchingTask.tccl = null;
       return matchingTask.matches.get(0);
     }
   }
@@ -135,6 +137,7 @@ public class AsyncMatching implements Runnable {
     JavaModule module;
     Class<?> classBeingRedefined;
     ProtectionDomain protectionDomain;
+    ClassLoader tccl;
 
     MatchingTask() {
       super(0);
@@ -155,20 +158,24 @@ public class AsyncMatching implements Runnable {
 
   @Override
   public void run() {
+    Thread currentThread = Thread.currentThread();
     while (true) {
       int slot = acceptRequest();
       if (slot >= 0) {
         MatchingTask matchingTask = exchangers[slot];
+        currentThread.setContextClassLoader(matchingTask.tccl);
         try {
           matchingTask.run();
         } catch (Throwable e) {
           // ignore...
         } finally {
+          currentThread.setContextClassLoader(null);
           matchingTask.typeDescription = null;
           matchingTask.classLoader = null;
           matchingTask.module = null;
           matchingTask.classBeingRedefined = null;
           matchingTask.protectionDomain = null;
+          matchingTask.tccl = null;
           matchingTask.release(); // semaphore call makes result visible to request thread
           exchangers[slot] = null;
           recycleSlot(slot);
