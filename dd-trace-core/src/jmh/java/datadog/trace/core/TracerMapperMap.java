@@ -7,6 +7,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
+import datadog.trace.core.datastreams.StubPathwayContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -115,7 +116,7 @@ public class TracerMapperMap {
             0,
             trace,
             null,
-            null,
+            StubPathwayContext.INSTANCE,
             false,
             null,
             512));

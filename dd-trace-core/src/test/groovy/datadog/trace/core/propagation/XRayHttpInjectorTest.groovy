@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import datadog.trace.core.datastreams.StubPathwayContext
+
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -37,7 +39,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       null,
       512)
@@ -92,7 +94,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       null,
       512)
@@ -140,7 +142,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       null,
       512)

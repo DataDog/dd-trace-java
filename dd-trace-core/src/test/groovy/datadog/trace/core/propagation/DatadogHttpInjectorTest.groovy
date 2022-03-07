@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
@@ -36,7 +37,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       DatadogTags.empty(),
       512)
@@ -98,7 +99,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
@@ -148,6 +149,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+        StubPathwayContext.INSTANCE,
       false,
       datadogTags,
       encodedTags.size() - 1)

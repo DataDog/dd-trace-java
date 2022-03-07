@@ -9,6 +9,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -27,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultDataStreamsCheckpointer
-    implements AutoCloseable, Runnable, EventListener, Consumer<StatsPoint> {
+    implements DataStreamsCheckpointer, AutoCloseable, Runnable, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
   private static final long BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
@@ -80,6 +81,11 @@ public class DefaultDataStreamsCheckpointer
   @Override
   public void accept(StatsPoint statsPoint) {
     inbox.offer(statsPoint);
+  }
+
+  @Override
+  public PathwayContext newPathwayContext() {
+    return new DefaultPathwayContext();
   }
 
   @Override

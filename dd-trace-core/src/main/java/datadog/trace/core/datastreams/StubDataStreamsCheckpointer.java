@@ -1,9 +1,14 @@
 package datadog.trace.core.datastreams;
 
-import datadog.trace.api.function.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 
-public class StubDataStreamsCheckpointer implements Consumer<StatsPoint> {
+public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
   @Override
   public void accept(StatsPoint statsPoint) {}
+
+  @Override
+  public PathwayContext newPathwayContext() {
+    return StubPathwayContext.INSTANCE;
+  }
 }

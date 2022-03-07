@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.instrumentation.opentelemetry.TypeConverter
 
@@ -76,6 +77,7 @@ class TypeConverterTest extends AgentTestRunner {
       0,
       trace,
       null,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512) {

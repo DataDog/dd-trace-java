@@ -13,6 +13,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.communication.http.OkHttpUtils
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
@@ -284,7 +285,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       0,
       trace,
       null,
-      null,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512)

@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.core.datastreams.DefaultPathwayContext;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;

@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.datastreams.DefaultPathwayContext;
 import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
@@ -176,11 +175,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
     this.requestContextData = requestContextData;
 
-    if (pathwayContext == null) {
-      this.pathwayContext = new DefaultPathwayContext();
-    } else {
-      this.pathwayContext = pathwayContext;
-    }
+    assert pathwayContext != null;
+    this.pathwayContext = pathwayContext;
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately

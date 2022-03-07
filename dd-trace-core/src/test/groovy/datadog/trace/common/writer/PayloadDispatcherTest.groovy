@@ -12,6 +12,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
@@ -169,7 +170,7 @@ class PayloadDispatcherTest extends DDSpecification {
       0,
       trace,
       null,
-      null,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512)

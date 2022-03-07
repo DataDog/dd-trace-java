@@ -43,6 +43,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.DefaultPathwayContext;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
@@ -123,7 +124,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
   private final SamplingCheckpointer spanCheckpointer;
-  private final Consumer<StatsPoint> dataStreamsCheckpointer;
+  private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
   private int datadogTagsLimit;
@@ -1103,7 +1104,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         requestContextData = null == requestContext ? null : requestContext.getData();
         ddTags = null;
 
-        pathwayContext = ddsc.getPathwayContext().isStarted() ? ddsc.getPathwayContext() : null;
+        pathwayContext = ddsc.getPathwayContext().isStarted() ? ddsc.getPathwayContext() : dataStreamsCheckpointer.newPathwayContext();
       } else {
         long endToEndStartTime;
 
@@ -1148,7 +1149,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentTrace.beginEndToEnd(endToEndStartTime);
         }
 
-        pathwayContext = null;
+        pathwayContext = dataStreamsCheckpointer.newPathwayContext();
       }
 
       if (serviceName == null) {

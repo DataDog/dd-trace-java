@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -332,7 +333,7 @@ class DDSpanTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       null,
       512)
@@ -371,7 +372,7 @@ class DDSpanTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      null,
+        StubPathwayContext.INSTANCE,
       false,
       null,
       512)

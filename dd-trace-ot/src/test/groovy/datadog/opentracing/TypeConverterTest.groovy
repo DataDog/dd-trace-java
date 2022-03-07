@@ -10,6 +10,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 
@@ -89,6 +90,7 @@ class TypeConverterTest extends DDSpecification {
       0,
       trace,
       null,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512)

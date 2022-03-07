@@ -18,6 +18,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.communication.http.OkHttpUtils
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
@@ -440,7 +441,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
-      null,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512)
