@@ -968,7 +968,7 @@ public class Config {
 
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
-    asyncMatchingEnabled = configProvider.getBoolean(ASYNC_MATCHING_ENABLED, true);
+    asyncMatchingEnabled = configProvider.getBoolean(ASYNC_MATCHING_ENABLED, false);
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
