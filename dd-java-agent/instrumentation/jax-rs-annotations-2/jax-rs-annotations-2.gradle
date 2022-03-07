@@ -1,3 +1,8 @@
+ext {
+  nestedTestMinJavaVersionForTests=JavaVersion.VERSION_1_8
+  resteasy31TestMinJavaVersionForTests=JavaVersion.VERSION_1_8
+}
+
 muzzle {
   fail {
     group = "javax.ws.rs"
@@ -12,7 +17,6 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
@@ -41,10 +45,7 @@ dependencies {
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.1'
   testImplementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: '2.9.10'
 
-  // Nested Resource Test fails Java 9+ without a xml impl
-  if (JavaVersion.current().isJava9Compatible()) {
-    nestedTestImplementation group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: '2.3.5'
-  }
+  nestedTestImplementation group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: '2.3.5'
 
   latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
 
@@ -60,7 +61,6 @@ dependencies {
   latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '+'
 }
 
-// These are only run with Java 8 on CI
 tasks.named("test").configure {
   dependsOn "resteasy31Test"
   dependsOn "nestedTest"

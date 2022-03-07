@@ -560,7 +560,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
               threadName,
               unsafeTags,
               ddTagsAndBaggageItems,
-              SamplingDecision.priority(samplingDecision),
+              (samplingDecision != SamplingDecision.UNSET_UNKNOWN
+                  ? SamplingDecision.priority(samplingDecision)
+                  : getSamplingPriority()),
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),

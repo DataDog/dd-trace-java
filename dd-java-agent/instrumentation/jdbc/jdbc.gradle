@@ -78,10 +78,5 @@ tasks.named("test").configure {
 }
 
 tasks.named("latestDepJava11Test").configure {
-  doFirst {
-    if (!System.env.JAVA_11_HOME) {
-      throw new GradleException('JAVA_11_HOME must be set for latestDepJava11Test')
-    }
-    executable = file("${System.env.JAVA_11_HOME}/bin/java")
-  }
+  javaLauncher = getJavaLauncherFor(11)
 }

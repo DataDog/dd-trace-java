@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -52,11 +53,12 @@ final class ConfigConverter {
   @Nonnull
   @SuppressForbidden
   static List<String> parseList(final String str, final String separator) {
-    if (str == null || str.trim().isEmpty()) {
+    String trimmed = Strings.trim(str);
+    if (trimmed.isEmpty()) {
       return Collections.emptyList();
     }
 
-    final String[] tokens = str.split(separator, -1);
+    final String[] tokens = trimmed.split(separator, -1);
     // Remove whitespace from each item.
     for (int i = 0; i < tokens.length; i++) {
       tokens[i] = tokens[i].trim();
@@ -67,10 +69,7 @@ final class ConfigConverter {
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
-    if (str == null) {
-      return Collections.emptyMap();
-    }
-    String trimmed = str.trim();
+    String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
@@ -79,13 +78,40 @@ final class ConfigConverter {
     return map;
   }
 
+  /**
+   * This parses a mixed map that can have both key value pairs, and also keys only, that will get
+   * values on the form "defaultPrefix.key". For keys without a value, the corresponding value will
+   * be normalized by converting the key to lower case and replacing all non alphanumeric
+   * characters, except '_', '-', '/' with '_'.
+   *
+   * <p>The allowed format is "(key:value|key)([ ,](key:value|key))*", where you have to choose
+   * between ',' or ' ' as the separator.
+   *
+   * @param str String to parse
+   * @param settingName Name of the setting being parsed
+   * @param defaultPrefix Default prefix to add to key ony items
+   * @param lowercaseKeys Should the keys be converted to lowercase
+   * @return A map containing the parsed key value pairs
+   */
+  @Nonnull
+  static Map<String, String> parseMapWithOptionalMappings(
+      final String str,
+      final String settingName,
+      final String defaultPrefix,
+      boolean lowercaseKeys) {
+    String trimmed = Strings.trim(str);
+    if (trimmed.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> map = new HashMap<>();
+    loadMapWithOptionalMapping(map, trimmed, settingName, defaultPrefix, lowercaseKeys);
+    return map;
+  }
+
   @Nonnull
   static Map<String, String> parseOrderedMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
-    if (str == null) {
-      return Collections.emptyMap();
-    }
-    String trimmed = str.trim();
+    String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
@@ -139,6 +165,138 @@ final class ConfigConverter {
           settingName,
           str);
       map.clear();
+    }
+  }
+
+  private static void loadMapWithOptionalMapping(
+      Map<String, String> map,
+      String str,
+      String settingName,
+      String defaultPrefix,
+      boolean lowercaseKeys) {
+    boolean badFormat = false;
+    defaultPrefix = null == defaultPrefix ? "" : defaultPrefix;
+    if (!defaultPrefix.isEmpty() && !defaultPrefix.endsWith(".")) {
+      defaultPrefix = defaultPrefix + ".";
+    }
+    int start = 0;
+    int len = str.length();
+    char listChar = str.indexOf(',') == -1 ? ' ' : ',';
+    while (!badFormat && start < len) {
+      int end = len;
+      int listPos = str.indexOf(listChar, start);
+      int mapPos = str.indexOf(':', start);
+      int delimiter = listPos == -1 ? mapPos : mapPos == -1 ? listPos : Math.min(listPos, mapPos);
+      if (delimiter == -1) {
+        delimiter = end;
+      } else if (delimiter == mapPos) {
+        // we're in a mapping, so let's find the next part
+        int nextList = str.indexOf(listChar, delimiter + 1);
+        int nextMap = str.indexOf(':', delimiter + 1);
+        if (mapPos == start) {
+          // can't have an empty key
+          badFormat = true;
+        } else if (nextMap != -1 && (nextMap < nextList || nextList == -1)) {
+          // can't have multiple ':' in one segment
+          badFormat = true;
+        } else if (nextList != -1) {
+          end = nextList;
+        }
+      } else {
+        // delimiter is at listPos, so set end to delimiter
+        end = delimiter;
+      }
+
+      if (!badFormat && start != end) {
+        String key = trimmedHeader(str, start, delimiter, lowercaseKeys);
+        if (!key.isEmpty()) {
+          String value;
+          if (delimiter == mapPos) {
+            value = trimmedHeader(str, delimiter + 1, end, false);
+            // tags must start with a letter
+            if (!value.isEmpty() && !Character.isLetter(value.charAt(0))) {
+              value = "";
+              badFormat = true;
+            }
+          } else {
+            if (Character.isLetter(key.charAt(0))) {
+              value = defaultPrefix + normalizedHeaderTag(key);
+            } else {
+              // tags must start with a letter
+              value = "";
+              badFormat = true;
+            }
+          }
+          if (!value.isEmpty()) {
+            map.put(key, value);
+          }
+        }
+      }
+      start = end + 1;
+    }
+
+    if (badFormat) {
+      log.warn(
+          "Invalid config for {}: '{}'. Must match '(key:value|key)([ ,](key:value|key))*'.",
+          settingName,
+          str);
+      map.clear();
+    }
+  }
+
+  @Nonnull
+  private static String trimmedHeader(String str, int start, int end, boolean lowercase) {
+    if (start >= end) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder(end - start);
+    int firstNonWhiteSpace = -1;
+    int lastNonWhitespace = -1;
+    for (int i = start; i < end; i++) {
+      char c = lowercase ? Character.toLowerCase(str.charAt(i)) : str.charAt(i);
+      if (Character.isWhitespace(c)) {
+        builder.append(' ');
+      } else {
+        firstNonWhiteSpace = firstNonWhiteSpace == -1 ? i : firstNonWhiteSpace;
+        lastNonWhitespace = i;
+        builder.append(c);
+      }
+    }
+    if (firstNonWhiteSpace == -1) {
+      return "";
+    } else {
+      str = builder.substring(firstNonWhiteSpace - start, lastNonWhitespace - start + 1);
+      return str;
+    }
+  }
+
+  @Nonnull
+  private static String normalizedHeaderTag(String str) {
+    if (str.isEmpty()) {
+      return "";
+    }
+    StringBuilder builder = new StringBuilder(str.length());
+    int firstNonWhiteSpace = -1;
+    int lastNonWhitespace = -1;
+    for (int i = 0; i < str.length(); i++) {
+      char c = str.charAt(i);
+      if (Character.isWhitespace(c)) {
+        builder.append('_');
+      } else {
+        firstNonWhiteSpace = firstNonWhiteSpace == -1 ? i : firstNonWhiteSpace;
+        lastNonWhitespace = i;
+        if (Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '/') {
+          builder.append(Character.toLowerCase(c));
+        } else {
+          builder.append('_');
+        }
+      }
+    }
+    if (firstNonWhiteSpace == -1) {
+      return "";
+    } else {
+      str = builder.substring(firstNonWhiteSpace, lastNonWhitespace + 1);
+      return str;
     }
   }
 
