@@ -8,6 +8,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.TraceSegment
+import datadog.trace.api.Tracer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -23,6 +24,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
+  Tracer tracer = Mock()
 
   def cleanup() {
     AppSecSystem.stop()
@@ -30,7 +32,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'registers powerwaf module'() {
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
 
     then:
     'powerwaf' in AppSecSystem.startedModulesInfo
@@ -41,7 +43,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
 
     then:
     thrown AbortStartupException
@@ -58,7 +60,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.ipheader', 'foo-bar')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
     requestEndedCB.apply(requestContext, Mock(AgentSpan))
 
     then:
@@ -83,7 +85,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.trace.rate.limit', '5')
 
     when:
-    AppSecSystem.start(subService, sco)
+    AppSecSystem.start(subService, sco, tracer)
     7.times { requestEndedCB.apply(requestContext, Mock(AgentSpan)) }
 
     then:
@@ -107,7 +109,7 @@ class AppSecSystemSpecification extends DDSpecification {
     rebuildConfig()
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
 
     then:
     thrown AbortStartupException

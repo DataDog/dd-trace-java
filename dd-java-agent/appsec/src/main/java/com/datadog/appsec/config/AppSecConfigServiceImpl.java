@@ -9,6 +9,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.fleet.FleetService;
 import datadog.trace.api.Config;
+import datadog.trace.api.StatsDClient;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -38,11 +39,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
+  private final StatsDClient statsDClient;
+  private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private volatile FleetService.FleetSubscription fleetSubscription;
 
-  public AppSecConfigServiceImpl(Config tracerConfig, FleetService fleetService) {
+  public AppSecConfigServiceImpl(
+      Config tracerConfig, FleetService fleetService, StatsDClient statsDClient) {
     this.tracerConfig = tracerConfig;
     this.fleetService = fleetService;
+    this.statsDClient = statsDClient;
   }
 
   private void subscribeFleetService(FleetService fleetService) {
@@ -106,8 +111,22 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     return Optional.ofNullable(lastConfig.get(key));
   }
 
-  private static Map<String, AppSecConfig> deserializeConfig(BufferedSource src)
-      throws IOException {
+  @Override
+  public StatsDClient getStatsDClient() {
+    return this.statsDClient;
+  }
+
+  @Override
+  public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
+    this.traceSegmentPostProcessors.add(interceptor);
+  }
+
+  public List<TraceSegmentPostProcessor> getTraceSegmentPostProcessors() {
+    return traceSegmentPostProcessors;
+  }
+
+  // public for testing only
+  public static Map<String, AppSecConfig> deserializeConfig(BufferedSource src) throws IOException {
     Map<String, Object> rawConfig = ADAPTER.fromJson(src);
     if (rawConfig == null) {
       throw new IOException("Unable deserialize Json config");

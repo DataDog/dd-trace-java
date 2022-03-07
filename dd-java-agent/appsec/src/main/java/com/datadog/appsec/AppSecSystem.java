@@ -1,6 +1,5 @@
 package com.datadog.appsec;
 
-import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.gateway.GatewayBridge;
@@ -13,6 +12,7 @@ import datadog.communication.fleet.FleetServiceImpl;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
+import datadog.trace.api.Tracer;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
@@ -27,11 +27,12 @@ public class AppSecSystem {
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
   private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
-  private static AppSecConfigService APP_SEC_CONFIG_SERVICE;
+  private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
-  public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
+  public static void start(
+      SubscriptionService gw, SharedCommunicationObjects sco, Tracer globalTracer) {
     try {
-      doStart(gw, sco);
+      doStart(gw, sco, globalTracer);
     } catch (AbortStartupException ase) {
       throw ase;
     } catch (RuntimeException | Error e) {
@@ -40,7 +41,8 @@ public class AppSecSystem {
     }
   }
 
-  private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
+  private static void doStart(
+      SubscriptionService gw, SharedCommunicationObjects sco, Tracer globalTracer) {
     final Config config = Config.get();
     if (!config.isAppSecEnabled()) {
       log.debug("AppSec: disabled");
@@ -55,7 +57,7 @@ public class AppSecSystem {
     // do not start its thread, support not merged in agent yet
     //    fleetService.init();
     // may throw and abort starup
-    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService);
+    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService, sco.statsDClient);
     // no point initializing fleet service, as it will receive no notifications
     APP_SEC_CONFIG_SERVICE.init(false);
 
@@ -63,7 +65,12 @@ public class AppSecSystem {
     sco.createRemaining(config);
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
     GatewayBridge gatewayBridge =
-        new GatewayBridge(gw, eventDispatcher, rateLimiter, config.getAppSecIpAddrHeader());
+        new GatewayBridge(
+            gw,
+            eventDispatcher,
+            rateLimiter,
+            config.getAppSecIpAddrHeader(),
+            APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);
     gatewayBridge.init();

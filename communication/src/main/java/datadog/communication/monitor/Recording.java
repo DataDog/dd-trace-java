@@ -12,5 +12,12 @@ public abstract class Recording implements AutoCloseable {
 
   public abstract void stop();
 
+  /**
+   * Manually add a measurement. Never flushes!
+   *
+   * @param durationInNanos
+   */
+  public abstract void addMeasurement(long durationInNanos);
+
   public abstract void flush();
 }

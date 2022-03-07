@@ -23,7 +23,7 @@ dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '3.0.8'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '4.0.1'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor

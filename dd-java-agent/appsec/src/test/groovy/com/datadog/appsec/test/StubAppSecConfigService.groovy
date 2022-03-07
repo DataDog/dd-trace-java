@@ -3,6 +3,8 @@ package com.datadog.appsec.test
 import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecConfigServiceImpl
+import com.datadog.appsec.config.TraceSegmentPostProcessor
+import datadog.trace.api.StatsDClient
 import okio.Okio
 
 class StubAppSecConfigService implements AppSecConfigService {
@@ -10,6 +12,7 @@ class StubAppSecConfigService implements AppSecConfigService {
 
   Map<String, AppSecConfig> lastConfig
   final String location
+  final traceSegmentPostProcessors = []
 
   private final Map hardcodedConfig
 
@@ -28,8 +31,6 @@ class StubAppSecConfigService implements AppSecConfigService {
     } else {
       def loader = getClass().classLoader
       def stream = loader.getResourceAsStream(location)
-      //def adapter = new Moshi.Builder().build().adapter(Map)
-      //lastConfig = adapter.fromJson(stream.text)
       lastConfig = AppSecConfigServiceImpl.deserializeConfig(Okio.buffer(Okio.source(stream)))
     }
   }
@@ -39,6 +40,16 @@ class StubAppSecConfigService implements AppSecConfigService {
     listeners[key] = listener
 
     Optional.ofNullable(lastConfig[key])
+  }
+
+  @Override
+  StatsDClient getStatsDClient() {
+    StatsDClient.NO_OP
+  }
+
+  @Override
+  void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
+    traceSegmentPostProcessors << interceptor
   }
 
   @Override

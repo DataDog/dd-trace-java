@@ -17,6 +17,7 @@ public class LibSqreenInitialization {
       Powerwaf.initialize(simpleLoad);
     } catch (Exception e) {
       Logger logger = LoggerFactory.getLogger(LibSqreenInitialization.class);
+      logger.warn("Error initializing WAF library", e);
       StandardizedLogging.libddwafCannotBeLoaded(logger, getLibc());
       return false;
     }
