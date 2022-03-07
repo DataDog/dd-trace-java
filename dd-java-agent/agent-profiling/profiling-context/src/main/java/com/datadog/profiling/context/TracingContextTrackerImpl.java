@@ -222,10 +222,6 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       }
     }
 
-    if (intervalBuffer.position() > 100) {
-      log.info("===> persisted span data from timestamp: {}", timestamp);
-    }
-
     byte[] data = intervalBuffer.array();
     return Arrays.copyOf(data, intervalBuffer.position());
   }

@@ -20,11 +20,6 @@ public final class IntervalBlobWriter implements TracingContextTracker.IntervalB
   private static final AtomicReference<ContextIntervals> contextIntervalsRef = new AtomicReference<>();
   static void initialize(AsyncProfiler profiler) {
     contextIntervalsRef.compareAndSet(null, new ContextIntervals(profiler));
-    for (EventType et : FlightRecorder.getFlightRecorder().getEventTypes()) {
-      if (et.getName().contains("Context Interval")) {
-        log.info("===> {}#enabled={}", et.getName(), et.isEnabled());
-      }
-    }
   }
 
   @Override
