@@ -42,7 +42,6 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
-import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
@@ -54,6 +53,7 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -479,13 +479,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         1,
         TimeUnit.SECONDS);
 
-    // TODO enable/diable via config and version check
-    if (Platform.isJavaVersionAtLeast(8)) {
-      dataStreamsCheckpointer =
-          new DefaultDataStreamsCheckpointer(config, sharedCommunicationObjects);
-    } else {
-      dataStreamsCheckpointer = new StubDataStreamsCheckpointer();
-    }
+    dataStreamsCheckpointer = createDataStreamsCheckpointer(config, sharedCommunicationObjects);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -675,11 +669,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectPathwayContext(AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
+  public <C> void injectPathwayContext(
+      AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
     log.debug("Injecting pathway context called");
 
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(type, group, PathwayContext.INITIALIZATION_TOPIC, dataStreamsCheckpointer);
+    pathwayContext.setCheckpoint(
+        type, group, PathwayContext.INITIALIZATION_TOPIC, dataStreamsCheckpointer);
     log.debug("Pathway context to inject {}", pathwayContext);
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
@@ -894,6 +890,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return constantTags.toArray(new String[0]);
   }
 
+  private static DataStreamsCheckpointer createDataStreamsCheckpointer(
+      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+
+    if (config.isDataStreamsEnabled() && Platform.isJavaVersionAtLeast(8)) {
+      try {
+        // Use reflection to load the class because it should only be loaded on Java 8+
+
+        return (DataStreamsCheckpointer)
+            Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
+                .getConstructor(Config.class, SharedCommunicationObjects.class)
+                .newInstance(config, sharedCommunicationObjects);
+      } catch (InstantiationException
+          | InvocationTargetException
+          | NoSuchMethodException
+          | IllegalAccessException
+          | ClassNotFoundException e) {
+        log.error("Failed to insttantiate data streams checkpointer", e);
+        return new StubDataStreamsCheckpointer();
+      }
+    } else {
+      log.debug("Data streams monitoring not enabled.");
+      return new StubDataStreamsCheckpointer();
+    }
+  }
+
   Recording writeTimer() {
     return traceWriteTimer.start();
   }
@@ -1078,7 +1099,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         requestContextData = null == requestContext ? null : requestContext.getData();
         ddTags = null;
 
-        pathwayContext = ddsc.getPathwayContext().isStarted() ? ddsc.getPathwayContext() : dataStreamsCheckpointer.newPathwayContext();
+        pathwayContext =
+            ddsc.getPathwayContext().isStarted()
+                ? ddsc.getPathwayContext()
+                : dataStreamsCheckpointer.newPathwayContext();
       } else {
         long endToEndStartTime;
 

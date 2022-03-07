@@ -51,5 +51,7 @@ public final class GeneralConfig {
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
+  public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
+
   private GeneralConfig() {}
 }
