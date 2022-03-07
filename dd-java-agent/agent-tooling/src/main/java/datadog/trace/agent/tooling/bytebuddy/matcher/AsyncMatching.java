@@ -14,6 +14,8 @@ import java.util.concurrent.locks.LockSupport;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Re-writes a sequence of matchers, so they can be evaluated asynchronously.
@@ -25,6 +27,8 @@ import net.bytebuddy.utility.JavaModule;
  * <p>This assumes that the initial matcher is always called first for a given set of parameters.
  */
 public class AsyncMatching implements Runnable {
+  private static final Logger log = LoggerFactory.getLogger(AsyncMatching.class);
+
   private static final long MATCHING_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(2);
 
   // first 16-bits represent slots available for use
@@ -93,6 +97,7 @@ public class AsyncMatching implements Runnable {
             recycleSlot(slot);
             // fall-through and use synchronous matching
           } else {
+            log.debug("Async matching appears stuck for {}", typeDescription);
             localTask.remove(); // our task may be stuck, create a new task for next request
             return false; // assume no match rather than risk synchronous match getting stuck
           }
@@ -167,7 +172,7 @@ public class AsyncMatching implements Runnable {
         try {
           matchingTask.run();
         } catch (Throwable e) {
-          // ignore...
+          log.debug("Async matching failed for {}", matchingTask.typeDescription, e);
         } finally {
           currentThread.setContextClassLoader(null);
           matchingTask.typeDescription = null;
