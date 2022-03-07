@@ -26,8 +26,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This assumes that the initial matcher is always called first for a given set of parameters.
  */
-public class AsyncMatching implements Runnable {
-  private static final Logger log = LoggerFactory.getLogger(AsyncMatching.class);
+public class DDAsyncMatchers implements Runnable {
+  private static final Logger log = LoggerFactory.getLogger(DDAsyncMatchers.class);
+
+  private static final ThreadLocal<DDAsyncMatchers> INSTANCE = new ThreadLocal<DDAsyncMatchers>();
 
   private static final long MATCHING_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(2);
 
@@ -51,12 +53,33 @@ public class AsyncMatching implements Runnable {
 
   private final Thread matchingThread;
 
-  public AsyncMatching() {
+  private volatile boolean shutdown = false;
+
+  /** Arranges for the given matcher to run asynchronously on a separate thread. */
+  public static AgentBuilder.RawMatcher makeAsync(AgentBuilder.RawMatcher matcher) {
+    DDAsyncMatchers asyncMatchers = INSTANCE.get();
+    if (null == asyncMatchers) {
+      asyncMatchers = new DDAsyncMatchers();
+      INSTANCE.set(asyncMatchers);
+    }
+    return asyncMatchers.wrapAsAsync(matcher);
+  }
+
+  /** Resets any previous wrappers, so we can register a new batch of matchers. */
+  public static void reset() {
+    DDAsyncMatchers asyncMatchers = INSTANCE.get();
+    if (null != asyncMatchers) {
+      asyncMatchers.shutdown();
+      INSTANCE.remove();
+    }
+  }
+
+  private DDAsyncMatchers() {
     matchingThread = newAgentThread(ASYNC_MATCHER, this);
     matchingThread.start();
   }
 
-  public AgentBuilder.RawMatcher makeAsync(AgentBuilder.RawMatcher matcher) {
+  private AgentBuilder.RawMatcher wrapAsAsync(AgentBuilder.RawMatcher matcher) {
     int index = matchers.size();
     matchers.add(matcher);
     return 0 == index ? new TriggerMatch() : new RetrieveResult(index);
@@ -164,7 +187,7 @@ public class AsyncMatching implements Runnable {
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();
-    while (true) {
+    while (!shutdown) {
       int slot = acceptRequest();
       if (slot >= 0) {
         MatchingTask matchingTask = exchangers[slot];
@@ -189,6 +212,10 @@ public class AsyncMatching implements Runnable {
         LockSupport.park(); // suspend thread until next request comes in
       }
     }
+  }
+
+  private void shutdown() {
+    shutdown = true;
   }
 
   private int acquireSlot() {

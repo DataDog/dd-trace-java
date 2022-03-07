@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.AsyncMatching;
+import datadog.trace.agent.tooling.bytebuddy.matcher.DDAsyncMatchers;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -141,8 +141,9 @@ public class AgentInstaller {
       }
     }
 
-    AsyncMatching asyncMatching =
-        Config.get().isAsyncMatchingEnabled() ? new AsyncMatching() : null;
+    if (Config.get().isAsyncMatchingEnabled()) {
+      DDAsyncMatchers.reset();
+    }
 
     Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (final Instrumenter instrumenter : loader) {
@@ -157,7 +158,7 @@ public class AgentInstaller {
       }
 
       try {
-        agentBuilder = instrumenter.instrument(agentBuilder, asyncMatching);
+        agentBuilder = instrumenter.instrument(agentBuilder);
         numInstrumenters++;
       } catch (final Exception | LinkageError e) {
         log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);

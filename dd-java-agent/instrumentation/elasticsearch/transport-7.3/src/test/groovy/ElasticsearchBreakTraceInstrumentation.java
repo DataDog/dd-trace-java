@@ -2,7 +2,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.AsyncMatching;
 import datadog.trace.instrumentation.elasticsearch.ShadowExistingScopeAdvice;
 import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -17,8 +16,7 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 public class ElasticsearchBreakTraceInstrumentation implements Instrumenter {
 
   @Override
-  public AgentBuilder instrument(
-      final AgentBuilder agentBuilder, final AsyncMatching asyncMatching) {
+  public AgentBuilder instrument(final AgentBuilder agentBuilder) {
     return agentBuilder
         .type(named("org.elasticsearch.client.node.NodeClient"))
         .transform(
