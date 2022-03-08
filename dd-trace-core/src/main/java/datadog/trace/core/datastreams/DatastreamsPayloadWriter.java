@@ -91,9 +91,9 @@ public class DatastreamsPayloadWriter {
       /* 4 */
       packer.writeUTF8(EDGE_TAGS);
       packer.startArray(3);
-      packer.writeString("topic:" + group.getTopic(),null);
-      packer.writeString("group:" + group.getGroup(),null);
-      packer.writeString("type:" + group.getType(),null);
+      packer.writeString("topic:" + group.getTopic(), null);
+      packer.writeString("group:" + group.getGroup(), null);
+      packer.writeString("type:" + group.getType(), null);
 
       /* 5 */
       packer.writeUTF8(HASH);

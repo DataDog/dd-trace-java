@@ -46,7 +46,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       DatadogTags.empty(),
       512)
@@ -123,7 +123,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       DatadogTags.empty(),
       512)

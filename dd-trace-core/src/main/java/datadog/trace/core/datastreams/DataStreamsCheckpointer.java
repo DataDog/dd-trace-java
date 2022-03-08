@@ -8,5 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 public interface DataStreamsCheckpointer extends Consumer<StatsPoint> {
   PathwayContext newPathwayContext();
 
-  <C> PathwayContext extractPathwayContext(C carrier, AgentPropagation.BinaryContextVisitor<C> getter);
+  <C> PathwayContext extractPathwayContext(
+      C carrier, AgentPropagation.BinaryContextVisitor<C> getter);
 }

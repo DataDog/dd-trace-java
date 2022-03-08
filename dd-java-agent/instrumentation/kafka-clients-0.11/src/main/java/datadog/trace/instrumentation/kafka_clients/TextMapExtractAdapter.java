@@ -12,7 +12,9 @@ import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<Headers>, AgentPropagation.BinaryContextVisitor<Headers> {
+public class TextMapExtractAdapter
+    implements AgentPropagation.ContextVisitor<Headers>,
+        AgentPropagation.BinaryContextVisitor<Headers> {
 
   private static final Logger log = LoggerFactory.getLogger(TextMapExtractAdapter.class);
 

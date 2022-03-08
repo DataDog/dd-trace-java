@@ -161,7 +161,8 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  public static <C> DefaultPathwayContext extract(C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+  public static <C> DefaultPathwayContext extract(
+      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
     log.debug("Extracting pathway context");
     PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
     getter.forEachKey(carrier, pathwayContextExtractor);

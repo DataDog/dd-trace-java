@@ -37,7 +37,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       DatadogTags.empty(),
       512)
@@ -99,7 +99,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
@@ -149,7 +149,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       datadogTags,
       encodedTags.size() - 1)

@@ -38,7 +38,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512)
@@ -92,7 +92,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-        StubPathwayContext.INSTANCE,
+      StubPathwayContext.INSTANCE,
       false,
       null,
       512)

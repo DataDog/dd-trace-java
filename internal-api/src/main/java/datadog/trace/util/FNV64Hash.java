@@ -3,13 +3,16 @@ package datadog.trace.util;
 /**
  * Calculates the FNV 64 bit hash. Longs should be treated as though they were unsigned
  *
- * http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-1
+ * <p>http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-1
  */
 public class FNV64Hash {
   private static final long FNV_INIT = 0xcbf29ce484222325L;
   private static final long FNV_PRIME = 0x100000001b3L;
 
-  public enum Version { v1, v1A }
+  public enum Version {
+    v1,
+    v1A
+  }
 
   public static long generateHash(String data, Version version) {
     return generateHash(data.getBytes(), version);
@@ -25,7 +28,6 @@ public class FNV64Hash {
     } else {
       return generateFNV1AHash(data, start, length);
     }
-
   }
 
   private static long generateFNV1Hash(byte[] data, int start, int length) {

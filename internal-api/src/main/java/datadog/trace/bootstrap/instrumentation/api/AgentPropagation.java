@@ -12,7 +12,8 @@ public interface AgentPropagation {
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style);
 
-  <C> void injectPathwayContext(AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter);
+  <C> void injectPathwayContext(
+      AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);

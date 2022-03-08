@@ -7,6 +7,7 @@ import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -167,6 +168,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
     1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDId.ONE)
+    _ * mockedContext.getPathwayContext() >> StubPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
 

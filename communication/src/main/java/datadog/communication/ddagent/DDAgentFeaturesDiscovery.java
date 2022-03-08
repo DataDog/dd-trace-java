@@ -12,7 +12,6 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import okhttp3.HttpUrl;
@@ -140,7 +139,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       String foundMetricsEndpoint = null;
       if (metricsEnabled) {
-        for (String endpoint: metricsEndpoints) {
+        for (String endpoint : metricsEndpoints) {
           if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
             foundMetricsEndpoint = endpoint;
             break;

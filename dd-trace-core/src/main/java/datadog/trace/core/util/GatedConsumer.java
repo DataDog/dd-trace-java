@@ -23,5 +23,4 @@ public class GatedConsumer<T> implements Consumer<T> {
       hasValue = false;
     }
   }
-
 }
