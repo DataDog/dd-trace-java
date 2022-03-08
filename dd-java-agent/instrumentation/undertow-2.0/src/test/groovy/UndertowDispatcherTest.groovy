@@ -3,21 +3,11 @@ import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
-import io.undertow.util.HeaderMap
 import io.undertow.util.Headers
 import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
 class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   class UndertowServer implements HttpServer {
@@ -31,20 +21,21 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
         .setHandler(Handlers.path()
           .addExactPath(SUCCESS.getPath()) { exchange ->
             exchange.dispatch(
-              controller(SUCCESS) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(SUCCESS) {
                     exchange.getResponseSender().send(SUCCESS.body)
                     exchange.endExchange()
                   }
                 }
-              })
+              }
+            )
           }
           .addExactPath(FORWARDED.getPath()) { exchange ->
             exchange.dispatch(
-              controller(FORWARDED) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(FORWARDED) {
                     exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
                     exchange.endExchange()
                   }
@@ -53,9 +44,9 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
           }
           .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
             exchange.dispatch(
-              controller(QUERY_ENCODED_BOTH) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(QUERY_ENCODED_BOTH) {
                     exchange.getResponseHeaders().put(new HttpString(HttpServerTest.IG_RESPONSE_HEADER), HttpServerTest.IG_RESPONSE_HEADER_VALUE)
                     exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
                     exchange.endExchange()
@@ -65,9 +56,9 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
           }
           .addExactPath(QUERY_ENCODED_QUERY.getPath()) { exchange ->
             exchange.dispatch(
-              controller(QUERY_ENCODED_QUERY) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(QUERY_ENCODED_BOTH) {
                     exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
                     exchange.endExchange()
                   }
@@ -76,9 +67,9 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
           }
           .addExactPath(QUERY_PARAM.getPath()) { exchange ->
             exchange.dispatch(
-              controller(QUERY_PARAM) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(QUERY_PARAM) {
                     exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
                     exchange.endExchange()
                   }
@@ -87,9 +78,9 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
           }
           .addExactPath(REDIRECT.getPath()) { exchange ->
             exchange.dispatch(
-              controller(REDIRECT) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(REDIRECT) {
                     exchange.setStatusCode(StatusCodes.FOUND)
                     exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
                     exchange.endExchange()
@@ -99,9 +90,9 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
           }
           .addExactPath(ERROR.getPath()) { exchange ->
             exchange.dispatch(
-              controller(ERROR) {
-                new Runnable() {
-                  public void run() {
+              new Runnable() {
+                public void run() {
+                  controller(ERROR) {
                     exchange.setStatusCode(ERROR.status)
                     exchange.getResponseSender().send(ERROR.body)
                     exchange.endExchange()
@@ -164,9 +155,9 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
-      ["error.msg": "${endpoint.body}",
-        "error.type": { it == Exception.name || it == InputMismatchException.name },
-        "error.stack": String]
+      ["error.msg"  : "${endpoint.body}",
+       "error.type" : { it == Exception.name || it == InputMismatchException.name },
+       "error.stack": String]
     } else {
       Collections.emptyMap()
     }

@@ -74,8 +74,6 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing implement
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(exchange);
       final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
       DECORATE.afterStart(span);
-      // TODO CRG should this be delayed until we know if the servlet instrumentation is being invoked?
-      // This could be called in closeScope if the scope is not null and DD_SPAN_ATTRIBUTE is NULL
       DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
       final AgentScope scope = activateSpan(span);
@@ -84,9 +82,8 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing implement
       // For use by servlet instrumentation
       exchange.putAttachment(DD_UNDERTOW_SPAN, span);
       exchange.putAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH, false);
-      exchange.addExchangeCompleteListener(new ExchangeEndSpanListener(span));
 
-      // TODO CRG is this required.. only some servers seem to do it.. seems related to logs
+      // TODO is this required?
       // exchange.getRequestHeaders().add(
       //   new HttpString(CorrelationIdentifier.getTraceIdKey()), GlobalTracer.get().getTraceId());
       // exchange.getRequestHeaders().add(
@@ -102,8 +99,8 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing implement
         @Advice.Thrown final Throwable throwable) {
       if (null != scope) {
         if (null != throwable) {
-          // end exchange will be called after setting response code / exception
-          exchange.putAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH, true);
+          DECORATE.onError(scope.span(), throwable);
+          exchange.addExchangeCompleteListener(new ExchangeEndSpanListener(scope.span()));
         } else {
           boolean dispatched = exchange.getAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH);
           if (!dispatched) {

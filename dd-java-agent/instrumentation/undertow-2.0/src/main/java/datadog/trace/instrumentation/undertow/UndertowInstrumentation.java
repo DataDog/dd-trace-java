@@ -5,8 +5,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
@@ -17,6 +17,7 @@ import java.util.concurrent.Executor;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -66,7 +67,7 @@ public final class UndertowInstrumentation extends Instrumenter.Tracing implemen
         @Advice.Argument(0) final Executor executor,
         @Advice.This final HttpServerExchange current) {
       final AgentScope scope = activeScope();
-      final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
+      final Runnable newTask = UndertowRunnableWrapper.wrapIfNeeded(task, current, scope.span());
       // It is important to check potentially wrapped task if we can instrument task in this
       // executor. Some executors do not support wrapped tasks.
       if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
