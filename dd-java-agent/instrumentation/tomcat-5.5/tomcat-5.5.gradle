@@ -76,6 +76,9 @@ dependencies {
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
   testImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-5.5'))
+  testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
   // Tomcat 10.1.+ seems to require Java 11. Limit to fix build.
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.+'

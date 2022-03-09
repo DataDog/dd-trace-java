@@ -1,5 +1,7 @@
 import com.google.common.io.Files
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
@@ -17,8 +19,11 @@ import javax.servlet.ServletException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
@@ -145,6 +150,53 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
   @Override
   boolean testBodyUrlencoded() {
     true
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == ERROR || endpoint == EXCEPTION
+      || endpoint == CUSTOM_EXCEPTION
+  }
+
+  @Override
+  void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
+  switch (endpoint) {
+    case REDIRECT:
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendRedirect"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+      break;
+    case ERROR:
+    case NOT_FOUND:
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+      break;
+     case EXCEPTION:
+     case CUSTOM_EXCEPTION:
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+      break;
+      default:
+        throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
   }
 
   @Override
