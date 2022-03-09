@@ -58,4 +58,15 @@ public class StatsGroup {
   public Histogram getEdgeLatency() {
     return edgeLatency;
   }
+
+  @Override
+  public String toString() {
+    return "StatsGroup{" +
+        "type='" + type + '\'' +
+        ", group='" + group + '\'' +
+        ", topic='" + topic + '\'' +
+        ", hash=" + hash +
+        ", parentHash=" + parentHash +
+        '}';
+  }
 }

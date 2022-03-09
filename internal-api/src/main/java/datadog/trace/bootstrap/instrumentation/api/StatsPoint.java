@@ -60,4 +60,18 @@ public class StatsPoint {
   public long getEdgeLatencyNano() {
     return edgeLatencyNano;
   }
+
+  @Override
+  public String toString() {
+    return "StatsPoint{" +
+        "type='" + type + '\'' +
+        ", group='" + group + '\'' +
+        ", topic='" + topic + '\'' +
+        ", hash=" + hash +
+        ", parentHash=" + parentHash +
+        ", timestampMillis=" + timestampMillis +
+        ", pathwayLatencyNano=" + pathwayLatencyNano +
+        ", edgeLatencyNano=" + edgeLatencyNano +
+        '}';
+  }
 }

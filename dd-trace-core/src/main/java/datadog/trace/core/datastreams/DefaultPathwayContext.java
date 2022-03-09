@@ -46,8 +46,8 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void start(String type, String group, Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(type, group, INITIALIZATION_TOPIC, pointConsumer);
+  public void start(Consumer<StatsPoint> pointConsumer) {
+    setCheckpoint(null, null, INITIALIZATION_TOPIC, pointConsumer);
   }
 
   @Override
@@ -59,11 +59,20 @@ public class DefaultPathwayContext implements PathwayContext {
 
     lock.lock();
     try {
-      if (INITIALIZATION_TOPIC.equals(topic)) {
-        if (started) {
-          return;
-        }
+      if (INITIALIZATION_TOPIC.equals(topic) && started) {
+        return;
+      }
 
+      String finalTopic;
+      if (started) {
+        finalTopic = topic;
+      } else {
+        // Ignore the edge if there are no parents (ie context hasn't started yet)
+        // Initialize the context instead
+        finalTopic = INITIALIZATION_TOPIC;
+      }
+
+      if (INITIALIZATION_TOPIC.equals(finalTopic)) {
         pathwayStartMillis = startMillis;
         pathwayStart = nanoTime;
         edgeStart = nanoTime;
@@ -72,7 +81,7 @@ public class DefaultPathwayContext implements PathwayContext {
         log.debug("Started {}", this);
       }
 
-      long nodeHash = generateNodeHash(Config.get().getServiceName(), topic);
+      long nodeHash = generateNodeHash(Config.get().getServiceName(), finalTopic);
       long newHash = generatePathwayHash(nodeHash, hash);
 
       long pathwayLatency = nanoTime - pathwayStart;
@@ -82,7 +91,7 @@ public class DefaultPathwayContext implements PathwayContext {
           new StatsPoint(
               type,
               group,
-              topic,
+              finalTopic,
               newHash,
               hash,
               System.currentTimeMillis(),

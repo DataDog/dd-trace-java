@@ -9,8 +9,11 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DatastreamsPayloadWriter {
+  private static final Logger log = LoggerFactory.getLogger(DatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
   private static final byte[] START = "Start".getBytes(ISO_8859_1);
@@ -74,7 +77,10 @@ public class DatastreamsPayloadWriter {
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      packer.startMap(6);
+      log.debug("Writing group {}", group);
+      boolean firstNode = "".equals(group.getTopic());
+
+      packer.startMap(firstNode ? 5 : 6);
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
@@ -89,19 +95,21 @@ public class DatastreamsPayloadWriter {
       packer.writeString(Config.get().getServiceName(), null);
 
       /* 4 */
-      packer.writeUTF8(EDGE_TAGS);
-      packer.startArray(3);
-      packer.writeString("topic:" + group.getTopic(), null);
-      packer.writeString("group:" + group.getGroup(), null);
-      packer.writeString("type:" + group.getType(), null);
-
-      /* 5 */
       packer.writeUTF8(HASH);
       packer.writeUnsignedLong(group.getHash());
 
-      /* 6 */
+      /* 5 */
       packer.writeUTF8(PARENT_HASH);
       packer.writeUnsignedLong(group.getParentHash());
+
+      if (!firstNode) {
+        /* 6 */
+        packer.writeUTF8(EDGE_TAGS);
+        packer.startArray(3);
+        packer.writeString("topic:" + group.getTopic(), null);
+        packer.writeString("group:" + group.getGroup(), null);
+        packer.writeString("type:" + group.getType(), null);
+      }
     }
   }
 }

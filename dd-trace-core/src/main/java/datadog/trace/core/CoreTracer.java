@@ -675,7 +675,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     log.debug("Injecting pathway context called");
 
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.start(type, group, dataStreamsCheckpointer);
+    pathwayContext.start(dataStreamsCheckpointer);
     log.debug("Pathway context to inject {}", pathwayContext);
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
