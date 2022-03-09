@@ -102,6 +102,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
       trace.span {
         operationName "servlet.response"
         resourceName "HttpServletResponse.sendRedirect"
+        childOfPrevious()
         tags {
         "component" "java-web-servlet-response"
           defaultTags()
@@ -111,6 +112,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
       trace.span {
         operationName "servlet.response"
         resourceName "HttpServletResponse.sendError"
+        childOfPrevious()
         tags {
         "component" "java-web-servlet-response"
           defaultTags()
