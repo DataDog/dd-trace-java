@@ -11,6 +11,9 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -19,6 +22,8 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
 
 public abstract class BaseDecorator {
+
+  private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
 
   private static final QualifiedClassNameCache CLASS_NAMES =
       new QualifiedClassNameCache(
@@ -61,6 +66,9 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan afterStart(final AgentSpan span) {
+
+    log.info("afterStart: {}", this.getClass().getName(), new Exception());
+
     if (spanType() != null) {
       span.setSpanType(spanType());
     }

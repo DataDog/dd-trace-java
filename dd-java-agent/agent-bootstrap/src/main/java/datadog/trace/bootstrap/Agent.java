@@ -173,6 +173,9 @@ public class Agent {
         try {
           APPSEC_CLASSLOADER =
               createDelegateClassLoader("appsec", bootstrapURL, SHARED_CLASSLOADER);
+          if (APPSEC_CLASSLOADER == null) {
+            log.error("Delegated AppSec ClassLoader wasn't created");
+          }
         } catch (Exception e) {
           log.error("Error creating appsec classloader", e);
         }
@@ -420,6 +423,10 @@ public class Agent {
         final ClassLoader agentClassLoader =
             createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
+        if (agentClassLoader == null) {
+          log.error("Delegated agent ClassLoader wasn't created");
+        }
+
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
         final Method agentInstallerMethod =
@@ -533,6 +540,11 @@ public class Agent {
       try {
         final ClassLoader jmxFetchClassLoader =
             createDelegateClassLoader("metrics", bootstrapURL, SHARED_CLASSLOADER);
+
+        if (jmxFetchClassLoader == null) {
+          log.error("Delegated JMX Fetch ClassLoader wasn't created");
+        }
+
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -558,6 +570,7 @@ public class Agent {
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
+      log.warn("No AppSec Classloader");
       return;
     }
 
@@ -677,6 +690,11 @@ public class Agent {
       PROFILING_CLASSLOADER =
           createDelegateClassLoader("profiling", bootstrapURL, SHARED_CLASSLOADER);
     }
+
+    if (PROFILING_CLASSLOADER == null) {
+      log.error("Delegated Profiling ClassLoader wasn't created");
+    }
+
     return PROFILING_CLASSLOADER;
   }
 

@@ -33,8 +33,10 @@ public class AppSecSystem {
     try {
       doStart(gw, sco);
     } catch (AbortStartupException ase) {
+      log.warn("AppSecSystem.start aborted ", ase);
       throw ase;
     } catch (RuntimeException | Error e) {
+      log.warn("AppSecSystem.start failed ", e);
       StandardizedLogging.appSecStartupError(log, e);
       throw new AbortStartupException(e);
     }
