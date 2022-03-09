@@ -5,11 +5,11 @@ import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -357,7 +357,7 @@ class DDSpanTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)
@@ -396,7 +396,7 @@ class DDSpanTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

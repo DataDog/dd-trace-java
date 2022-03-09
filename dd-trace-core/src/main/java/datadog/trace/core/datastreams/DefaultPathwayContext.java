@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
+  private static final String INITIALIZATION_TOPIC = "";
   private final Lock lock = new ReentrantLock();
 
   // Nanotime is necessary because time differences should use a monotonically increasing clock
@@ -45,6 +46,11 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  public void start(String type, String group, Consumer<StatsPoint> pointConsumer) {
+    setCheckpoint(type, group, INITIALIZATION_TOPIC, pointConsumer);
+  }
+
+  @Override
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
 
@@ -53,7 +59,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
     lock.lock();
     try {
-      if (PathwayContext.INITIALIZATION_TOPIC.equals(topic)) {
+      if (INITIALIZATION_TOPIC.equals(topic)) {
         if (started) {
           return;
         }

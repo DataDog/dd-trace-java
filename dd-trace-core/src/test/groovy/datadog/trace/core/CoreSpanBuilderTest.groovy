@@ -6,18 +6,18 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.datastreams.StubPathwayContext
-import datadog.trace.core.propagation.ExtractedContext
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
+import static datadog.trace.api.DDTags.ORIGIN_KEY
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.THREAD_ID
 import static datadog.trace.api.DDTags.THREAD_NAME
-import static datadog.trace.api.DDTags.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class CoreSpanBuilderTest extends DDCoreSpecification {
@@ -168,7 +168,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
     1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDId.ONE)
-    _ * mockedContext.getPathwayContext() >> StubPathwayContext.INSTANCE
+    _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
 

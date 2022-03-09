@@ -836,6 +836,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void start(String type, String group, Consumer<StatsPoint> pointConsumer) {}
+
+    @Override
     public void setCheckpoint(
         String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {}
 

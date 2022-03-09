@@ -6,6 +6,7 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.sampling.SamplingMechanism
@@ -18,7 +19,6 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.communication.http.OkHttpUtils
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
@@ -441,7 +441,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

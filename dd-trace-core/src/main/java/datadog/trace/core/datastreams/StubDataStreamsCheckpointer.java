@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 
@@ -10,12 +11,12 @@ public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
 
   @Override
   public PathwayContext newPathwayContext() {
-    return StubPathwayContext.INSTANCE;
+    return AgentTracer.NoopPathwayContext.INSTANCE;
   }
 
   @Override
   public <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    return StubPathwayContext.INSTANCE;
+    return AgentTracer.NoopPathwayContext.INSTANCE;
   }
 }

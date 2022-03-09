@@ -6,9 +6,9 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
@@ -404,7 +404,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)
@@ -430,7 +430,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

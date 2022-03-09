@@ -12,7 +12,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.datastreams.StubPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.test.DDCoreSpecification
@@ -187,7 +187,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
       0,
       trace,
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

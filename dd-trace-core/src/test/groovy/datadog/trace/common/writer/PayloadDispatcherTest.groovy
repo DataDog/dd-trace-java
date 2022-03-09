@@ -4,6 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.Payload
@@ -12,7 +13,6 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
@@ -170,7 +170,7 @@ class PayloadDispatcherTest extends DDSpecification {
       0,
       trace,
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

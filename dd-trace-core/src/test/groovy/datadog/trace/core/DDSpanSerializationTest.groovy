@@ -1,15 +1,15 @@
 package datadog.trace.core
 
-import datadog.trace.api.DDId
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
-import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.ddagent.TraceMapperV0_4
-import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.core.datastreams.StubPathwayContext
+import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
+import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessageFormat
@@ -149,7 +149,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
@@ -221,7 +221,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
@@ -293,7 +293,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.hello"), // malformed tags
       512)
@@ -365,7 +365,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.hello"), // malformed tags
       512)
@@ -447,7 +447,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       1,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

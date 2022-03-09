@@ -4,11 +4,11 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
 import datadog.trace.instrumentation.opentracing32.TypeConverter
@@ -85,7 +85,7 @@ class TypeConverterTest extends AgentTestRunner {
       0,
       trace,
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512) {

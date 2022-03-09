@@ -4,6 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
@@ -13,7 +14,6 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.communication.http.OkHttpUtils
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
@@ -285,7 +285,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       0,
       trace,
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       null,
       512)

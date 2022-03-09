@@ -1,15 +1,16 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.datastreams.StubPathwayContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.DatadogHttpCodec.*
+
 
 class DatadogHttpInjectorTest extends DDCoreSpecification {
 
@@ -37,7 +38,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.empty(),
       512)
@@ -99,7 +100,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
       512)
@@ -149,7 +150,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      StubPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       datadogTags,
       encodedTags.size() - 1)
