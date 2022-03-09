@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -59,7 +60,7 @@ public class DDSpan
   static DDSpan create(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitCheckpoints) {
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
-    log.debug("Started span: {}", span);
+    log.info("Started span: {}", span);
     context.getTrace().registerSpan(span);
     span.tracingContextTracker.activateContext();
     return span;
@@ -175,7 +176,7 @@ public class DDSpan
       externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
-    this.tracingContextTracker = TracingContextTrackerFactory.instance(getLocalRootSpan());
+    this.tracingContextTracker = TracingContextTrackerFactory.instance(this);
     cleanupRefHolder.add(new CleanupReference(this, cleanupQueue));
   }
 

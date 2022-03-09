@@ -7,25 +7,21 @@ import datadog.trace.util.Base64Encoder;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class TracingContextTrackerImplTest {
+  private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private TracingContextTrackerImpl instance;
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new TracingContextTrackerImpl(Allocators.heapAllocator(32, 16), 0L);
-  }
-
-  @Test
-  void activateContext() {
-    for (int i = 1; i <= 4; i++) {
-      assertTrue(instance.activateContext(1L, i * 1000L));
-    }
-    assertFalse(instance.activateContext(1L, 10_000L));
+    instance = new TracingContextTrackerImpl(Allocators.heapAllocator(32, 16), null,  () -> 0, sequencePruner);
   }
 
   @Test
@@ -33,12 +29,22 @@ class TracingContextTrackerImplTest {
 
   @Test
   void persist() {
-    instance = new TracingContextTrackerImpl(Allocators.directAllocator(8192, 64), 0L);
+    TracingContextTrackerImpl.TimestampProvider tsProvider = new TracingContextTrackerImpl.TimestampProvider() {
+      long timestamp = 0;
+      @Override
+      public long timestamp() {
+        long curent = timestamp;
+        timestamp += 1_000_000;
+        return curent;
+      }
+    };
+
+    instance = new TracingContextTrackerImpl(Allocators.directAllocator(8192, 64), null, tsProvider, sequencePruner);
     for (int i = 0; i < 40; i += 4) {
-      instance.activateContext(1L, (i + 1) * 1_000_000L);
-      instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);
-      instance.activateContext(2L, (i + 3) * 1_000_000L);
-      instance.deactivateContext(2L, (i + 4) * 1_000_000L, true);
+      instance.activateContext(1L);
+      instance.deactivateContext(1L, false);
+      instance.activateContext(2L);
+      instance.deactivateContext(2L, true);
     }
 
     byte[] persisted = instance.persist();
@@ -53,6 +59,7 @@ class TracingContextTrackerImplTest {
   }
 
   @Test
+  @Disabled
   void testPersisted() {
     String[] encodedData = new String[]{
         "AAAAHvqGt8j+YAfDAQFGAlEB0wIB1AIB3AII7AIZAAAAuGY4J59CJdryAaj4Al9yASvwMSboAVICLzF6AW2IK5eeAZgUKBwsAXQwA97iARfuBDAeBhtsBk8uOgRSBgmkoKYJvgyaA1QEFAJUB2AGjfmeAUfs7ZAHpgHQm3YFtsMgAzDjoASkAfoE5Ac2AhQCIgGOG/QDegHIAcgHUAMkkMYCBg8UAcACJgIwDeoDBEwMBAQpBAE0xAbwAqICAAI6CzQCLASSA3ACHgJoBdYDfAa8AgoEFikkkkkkkkmiSSSWiSSSSSSSSSSSSSSSUSSSSSSSQAA",
@@ -67,11 +74,5 @@ class TracingContextTrackerImplTest {
         System.out.println("===> " + i.from + ":" + i.till + "  - " + (i.till - i.from));
       }
     }
-  }
-
-  @Test
-  void varintTest() {
-    ByteBuffer buffer = ByteBuffer.allocate(1024);
-    instance.putVarint(buffer, 298502924656L);
   }
 }

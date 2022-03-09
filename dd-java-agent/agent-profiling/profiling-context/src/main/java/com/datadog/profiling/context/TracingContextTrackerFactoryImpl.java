@@ -25,19 +25,15 @@ public final class TracingContextTrackerFactoryImpl
         new TracingContextTrackerFactoryImpl();
   }
 
-  private static volatile CustomEventAccess EVENT_ACCESS_REF = null;
-
   public static void register(CustomEventAccess events) {
-    EVENT_ACCESS_REF = events;
     TracingContextTrackerFactory.registerImplementation(Singleton.INSTANCE);
   }
 
   private final Allocator allocator = Allocators.directAllocator(16 * 1024 * 1024, 32);
-  private final CustomEventAccess eventAccess;
   private final Set<TracingContextTracker.IntervalBlobListener> blobListeners = new HashSet<>();
+  private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
 
   private TracingContextTrackerFactoryImpl() {
-    this.eventAccess = EVENT_ACCESS_REF != null ? EVENT_ACCESS_REF : CustomEventAccess.NULL;
     for (TracingContextTracker.IntervalBlobListener listener : ServiceLoader.load(TracingContextTracker.IntervalBlobListener.class)) {
       blobListeners.add(listener);
     }
@@ -45,6 +41,8 @@ public final class TracingContextTrackerFactoryImpl
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
-    return new TracingContextTrackerImpl(allocator, span, blobListeners);
+    TracingContextTrackerImpl instance = new TracingContextTrackerImpl(allocator, span, sequencePruner);
+    instance.setBlobListeners(blobListeners);
+    return instance;
   }
 }
