@@ -153,7 +153,8 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == ERROR || endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION
+    def responseSpans = [REDIRECT, NOT_FOUND, ERROR, EXCEPTION, CUSTOM_EXCEPTION]
+    return responseSpans.contains(endpoint)
   }
 
   @Override
