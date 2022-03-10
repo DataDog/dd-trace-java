@@ -45,6 +45,8 @@ public final class HeapAllocator implements Allocator {
 
   @Override
   public AllocatedBuffer allocate(int capacity) {
+    // align at chunkSize
+    capacity = (((capacity - 1) / chunkSize) + 1) * chunkSize;
     long newRemaining = remaining.addAndGet(-capacity);
     if (newRemaining >= 0) {
       statsDClient.gauge("tracing.context.reserved.memory", topMemory - newRemaining);

@@ -51,7 +51,7 @@ public final class DirectAllocator implements Allocator {
     this.numChunks =
         (int) (Math.ceil(targetNumChunks / (double) lockSectionSize) * lockSectionSize);
     chunkSize = (int) Math.ceil(((double) capacity / (numChunks * chunkSize)) * chunkSize);
-    chunkSize = (int) Math.ceil(((chunkSize / 8d) * 8));
+    chunkSize = (int) Math.ceil(chunkSize / 8d) * 8;
     int alignedCapacity = numChunks * chunkSize;
     this.chunkSize = chunkSize;
     this.pool = ByteBuffer.allocateDirect(alignedCapacity);
@@ -93,9 +93,14 @@ public final class DirectAllocator implements Allocator {
     long delta = chunkSize * (long) chunks;
     long size = allocatedBytes.addAndGet(delta);
     if (size > capacity) {
+      long overflow = size - capacity;
+      long newDelta = delta - overflow;
+      chunks = (int) (newDelta / chunkSize);
+      size = allocatedBytes.addAndGet(chunks * (long) chunkSize - delta);
+    }
+    if (size == 0) {
       log.warn("Capacity exhausted - buffer could not be allocated");
-      size = allocatedBytes.addAndGet(-delta);
-      statsDClient.gauge("tracing.context.reserved.memory", size);
+      statsDClient.gauge("tracing.context.reserved.memory", capacity);
       return null;
     } else {
       statsDClient.gauge("tracing.context.reserved.memory", size);
