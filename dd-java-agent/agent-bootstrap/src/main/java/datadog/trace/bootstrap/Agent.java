@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isJavaVersionBetween;
+import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -254,12 +254,6 @@ public class Agent {
       AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
     }
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
-  }
-
-  private static boolean isOracleJDK8() {
-    return isJavaVersionBetween(8, 9)
-        && System.getProperty("java.vendor").contains("Oracle")
-        && !System.getProperty("java.runtime.name").contains("OpenJDK");
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -558,6 +552,7 @@ public class Agent {
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
+      log.warn("AppSec ClassLoader has not been created");
       return;
     }
 

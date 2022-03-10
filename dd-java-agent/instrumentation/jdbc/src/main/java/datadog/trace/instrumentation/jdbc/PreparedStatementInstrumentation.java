@@ -93,6 +93,11 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     "org.sqlite.PrepStmt",
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakePreparedStatementV1",
+    // vertica
+    "com.vertica.jdbc.common.SPreparedStatement",
+    // this covers apache calcite/drill plus the drill-all uber-jar
+    "org.apache.calcite.avatica.AvaticaPreparedStatement",
+    "oadd.org.apache.calcite.avatica.AvaticaPreparedStatement",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",

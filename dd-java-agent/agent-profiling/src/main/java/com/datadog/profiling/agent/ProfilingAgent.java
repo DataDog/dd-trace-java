@@ -52,8 +52,8 @@ public class ProfilingAgent {
       }
 
       try {
-        final Controller controller = ControllerFactory.createController(config);
         final ConfigProvider configProvider = ConfigProvider.getInstance();
+        final Controller controller = ControllerFactory.createController(configProvider);
 
         final ProfileUploader uploader = new ProfileUploader(config, configProvider);
 

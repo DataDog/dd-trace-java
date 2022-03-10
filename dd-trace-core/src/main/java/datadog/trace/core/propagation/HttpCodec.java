@@ -84,9 +84,7 @@ public class HttpCodec {
     for (final PropagationStyle style : config.getPropagationStylesToExtract()) {
       switch (style) {
         case DATADOG:
-          extractors.add(
-              DatadogHttpCodec.newExtractor(
-                  taggedHeaders, config.isDatadogTagPropagationEnabled()));
+          extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders));
           break;
         case B3:
           extractors.add(B3HttpCodec.newExtractor(taggedHeaders));

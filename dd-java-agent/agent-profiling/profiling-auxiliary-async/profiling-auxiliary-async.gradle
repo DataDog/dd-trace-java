@@ -49,7 +49,6 @@ shadowJar {
     // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
     rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64") || it.path.startsWith("native-libs/linux-musl-x64")
     rslt |= (it.path.contains("ap-tools") && it.path.endsWith(".jar"))
-    println ">>> ${it.path}: ${rslt}"
     return rslt
   }
 }
@@ -62,17 +61,11 @@ configurations.all {
 
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
-    doFirst {
-      if (!System.env.JAVA_11_HOME) {
-        throw new GradleException('JAVA_11_HOME must be set to build profiling auxiliary')
-      }
-      // Disable '-processing' because some annotations are not claimed.
-      // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
-      // Disable '-path' because we do not have some of the paths seem to be missing.
-      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-      options.fork = true
-      options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
-    }
+    setJavaVersion(it, 11)
+    // Disable '-processing' because some annotations are not claimed.
+    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+    // Disable '-path' because we do not have some of the paths seem to be missing.
+    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
   }
 }
 

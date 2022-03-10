@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddagent
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
@@ -94,6 +95,7 @@ class TraceGenerator {
       tags,
       "type-" + random.nextInt(lowCardinality ? 1 : 100),
       random.nextBoolean(),
+      PrioritySampling.SAMPLER_KEEP,
       200,
       "some-origin")
   }
@@ -131,6 +133,7 @@ class TraceGenerator {
     private final boolean measured
     private final Metadata metadata
     private short httpStatusCode
+    private final int samplingPriority
 
     PojoSpan(
     String serviceName,
@@ -146,6 +149,7 @@ class TraceGenerator {
     Map<String, Object> tags,
     String type,
     boolean measured,
+    int samplingPriority,
     int statusCode,
     CharSequence origin) {
       this.serviceName = UTF8BytesString.create(serviceName)
@@ -159,8 +163,9 @@ class TraceGenerator {
       this.error = error
       this.type = type
       this.measured = measured
+      this.samplingPriority = samplingPriority
       this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel,
+        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, samplingPriority, measured, topLevel,
         statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin)
       this.httpStatusCode = (short) statusCode
     }
@@ -355,7 +360,7 @@ class TraceGenerator {
 
     @Override
     int samplingPriority() {
-      return UNSET
+      return samplingPriority
     }
 
     @Override
@@ -385,7 +390,7 @@ class TraceGenerator {
 
     @Override
     boolean hasSamplingPriority() {
-      return false
+      return samplingPriority != UNSET
     }
   }
 }

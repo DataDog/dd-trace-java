@@ -48,7 +48,7 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     final Map<String, String> store = new HashMap<>();
     String prefix = getClass().getName() + "$";
     store.put(prefix + "KeyClass", prefix + "Context");

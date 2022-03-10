@@ -85,8 +85,17 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
+  public final boolean isSet(String key) {
+    String value = getString(key);
+    return value != null && !value.isEmpty();
+  }
+
   public final Boolean getBoolean(String key) {
     return get(key, null, Boolean.class);
+  }
+
+  public final Boolean getBoolean(String key, String... aliases) {
+    return get(key, null, Boolean.class, aliases);
   }
 
   public final boolean getBoolean(String key, boolean defaultValue, String... aliases) {
@@ -158,7 +167,7 @@ public final class ConfigProvider {
 
   public final Map<String, String> getMergedMap(String key) {
     Map<String, String> merged = new HashMap<>();
-    // System properties take precendence over env
+    // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
@@ -171,7 +180,7 @@ public final class ConfigProvider {
 
   public final Map<String, String> getOrderedMap(String key) {
     LinkedHashMap<String, String> map = new LinkedHashMap<>();
-    // System properties take precendence over env
+    // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
@@ -180,6 +189,23 @@ public final class ConfigProvider {
       map.putAll(ConfigConverter.parseOrderedMap(value, key));
     }
     return map;
+  }
+
+  public final Map<String, String> getMergedMapWithOptionalMappings(
+      String defaultPrefix, boolean lowercaseKeys, String... keys) {
+    Map<String, String> merged = new HashMap<>();
+    // System properties take precedence over env
+    // prior art:
+    // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
+    // We reverse iterate to allow overrides
+    for (String key : keys) {
+      for (int i = sources.length - 1; 0 <= i; i--) {
+        String value = sources[i].get(key);
+        merged.putAll(
+            ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys));
+      }
+    }
+    return merged;
   }
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue) {

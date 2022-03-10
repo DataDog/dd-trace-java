@@ -39,7 +39,7 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 

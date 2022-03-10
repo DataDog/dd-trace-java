@@ -19,8 +19,6 @@ public class SamplingMechanism {
   public static final byte APPSEC = 5;
   /** User-defined target; reserved for future use */
   public static final byte REMOTE_USER_RATE = 6;
-  /** Remote Rate by Datadog (Emergency) */
-  public static final byte REMOTE_RATE_EMERGENCY = 7;
 
   public static boolean validateWithSamplingPriority(int mechanism, int priority) {
     switch (mechanism) {

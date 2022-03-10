@@ -1,16 +1,18 @@
 package datadog.trace.core
 
 import datadog.communication.monitor.Monitoring
+import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 import spock.lang.Timeout
+import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -125,12 +127,38 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
   }
 
+  def "priority sampling is always sent"() {
+    setup:
+    def parent = addContinuation(newSpanOf(factory.create(DDId.ONE), PrioritySampling.USER_KEEP))
+    def metadataChecker = new SamplingPriorityMetadataChecker()
+
+    when: "Fill the buffer - Only children - Priority taken from root"
+
+    for (int i = 0; i < 11; i++) {
+      newSpanOf(parent).finish()
+    }
+
+    then:
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.mapServiceName(_)
+    _ * tracer.onStart(_)
+    _ * tracer.onFinish(_)
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    1 * tracer.write(_) >> { List<List<DDSpan>> spans ->
+      spans.first().first().processTagsAndBaggage(metadataChecker)
+    }
+    0 *  _
+    metadataChecker.hasSamplingPriority
+
+
+  }
+
   def "buffer full yields immediate write"() {
     setup:
     // Don't start the buffer thread
 
     when: "Fill the buffer"
-    while (buffer.queue.size() < (buffer.queue.capacity())) {
+    for (i in  1..buffer.queue.capacity()) {
       addContinuation(newSpanOf(factory.create(DDId.ONE))).finish()
     }
 
@@ -144,7 +172,8 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
 
     when:
-    addContinuation(newSpanOf(factory.create(DDId.ONE))).finish()
+    def pendingTrace = factory.create(DDId.ONE)
+    addContinuation(newSpanOf(pendingTrace)).finish()
 
     then:
     1 * bufferSpy.enqueue(_)
@@ -155,6 +184,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.onStart(_)
     1 * tracer.onFinish(_)
     0 * _
+    pendingTrace.isEnqueued == 0
   }
 
   def "continuation allows adding after root finished"() {
@@ -277,6 +307,11 @@ class PendingTraceBufferTest extends DDSpecification {
         DDSpan getRootSpan() {
           return null
         }
+
+        @Override
+        boolean setEnqueued(boolean enqueued) {
+          return true
+        }
       }
 
     when:
@@ -294,6 +329,51 @@ class PendingTraceBufferTest extends DDSpecification {
     counter.get() == 3
   }
 
+  def "the same pending thrace is not enqueued multiple times"() {
+    setup:
+    // Don't start the buffer thread
+
+    when: "finish the root span"
+    def pendingTrace = factory.create(DDId.ONE)
+    def span = newSpanOf(pendingTrace)
+    span.finish()
+
+    then:
+    pendingTrace.rootSpanWritten
+    pendingTrace.isEnqueued == 0
+    buffer.queue.size() == 0
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    1 * tracer.write({ it.size() == 1 })
+    1 * tracer.getPartialFlushMinSpans() >> 10000
+    1 * tracer.mapServiceName(_)
+    1 * tracer.onStart(_)
+    1 * tracer.onFinish(_)
+    0 * _
+
+    when: "fail to fill the buffer"
+    for (i in  1..buffer.queue.capacity()) {
+      addContinuation(newSpanOf(span)).finish()
+    }
+
+    then:
+    pendingTrace.isEnqueued == 1
+    buffer.queue.size() == 1
+    buffer.queue.capacity() * bufferSpy.enqueue(_)
+    _ * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.mapServiceName(_)
+    _ * tracer.onStart(_)
+    _ * tracer.onFinish(_)
+    0 * _
+
+    when: "process the buffer"
+    buffer.start()
+
+    then:
+    new PollingConditions(timeout: 3, initialDelay: 0, delay: 0.5, factor: 1).eventually {
+      assert pendingTrace.isEnqueued == 0
+    }
+  }
+
   def addContinuation(DDSpan span) {
     def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
     continuations << scope.capture()
@@ -302,6 +382,10 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   static DDSpan newSpanOf(PendingTrace trace) {
+    return newSpanOf(trace, PrioritySampling.UNSET)
+  }
+
+  static DDSpan newSpanOf(PendingTrace trace, int samplingPriority) {
     def context = new DDSpanContext(
       trace.traceId,
       DDId.from(1),
@@ -310,7 +394,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      samplingPriority,
       SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
@@ -319,9 +403,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
-      false,
-      null,
-      512)
+      false)
     return DDSpan.create(0, context)
   }
 
@@ -344,9 +426,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
-      false,
-      null,
-      512)
+      false)
     return DDSpan.create(0, context)
   }
 }

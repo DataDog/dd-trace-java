@@ -37,7 +37,7 @@ public abstract class ProfilerSettingsSupport {
     allocationProfilingEnabled =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_ALLOCATION_ENABLED,
-            ProfilingConfig.PROFILING_ALLOCATION_ENABLED_DEFAULT);
+            ProfilingSupport.isObjectAllocationSampleAvailable());
     heapProfilingEnabled =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT);

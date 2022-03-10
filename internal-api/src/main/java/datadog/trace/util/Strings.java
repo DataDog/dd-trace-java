@@ -189,6 +189,11 @@ public final class Strings {
     return "dd." + setting;
   }
 
+  @Nonnull
+  public static String trim(final String string) {
+    return null == string ? "" : string.trim();
+  }
+
   private static String hex(char ch) {
     return Integer.toHexString(ch).toUpperCase(Locale.ENGLISH);
   }

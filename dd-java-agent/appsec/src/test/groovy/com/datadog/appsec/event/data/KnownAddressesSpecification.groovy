@@ -27,12 +27,13 @@ class KnownAddressesSpecification extends Specification {
       "server.request.body.combined_file_size",
       "server.request.query",
       "server.request.headers.no_cookies",
+      "grpc.server.request.message"
     ]
   }
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 18
-    KnownAddresses.HEADERS_NO_COOKIES.serial == Address.instanceCount() - 1
+    Address.instanceCount() == 19
+    KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE.serial == Address.instanceCount() - 1
   }
 }
