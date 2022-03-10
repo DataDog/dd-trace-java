@@ -456,6 +456,44 @@ jobs:
 
       - display_memory_usage
 
+  system-tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+
+      - setup_code
+
+      - restore_cache:
+          <<: *cache_keys
+
+      - run:
+          name: Clone System Tests repo
+          command: git clone https://github.com/DataDog/system-tests.git
+
+      - run:
+          name: Copy jar file to system test binaries folder
+          command: |
+            ls -la workspace/dd-java-agent/build/libs
+            cp workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Build
+          command: |
+            cd system-tests
+            ./build.sh java
+
+      - run:
+          name: Run
+          command: |
+            cd system-tests
+            DD_API_KEY=todo ./run.sh
+
+      - store_artifacts:
+          path: system-tests/logs
+          destination: system-tests.tar.gz
+
 build_test_jobs: &build_test_jobs
   - build
 
@@ -541,6 +579,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - system-tests:
+      requires:
+        - build
 
 workflows:
   build_test:
