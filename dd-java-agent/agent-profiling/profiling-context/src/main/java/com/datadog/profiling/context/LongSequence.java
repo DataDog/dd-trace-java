@@ -122,7 +122,7 @@ public final class LongSequence {
   }
 
   public boolean set(int index, long value) {
-    int[] decoded = decodeBufferIndex(index);
+    int[] decoded = decode(index);
     if (decoded != null) {
       return buffers[decoded[0]].putLong(decoded[1], value);
     }
@@ -130,29 +130,29 @@ public final class LongSequence {
   }
 
   public long get(int index) {
-    int[] decoded = decodeBufferIndex(index);
+    int[] decoded = decode(index);
     if (decoded != null) {
       return buffers[decoded[0]].getLong(decoded[1]);
     }
     return Long.MIN_VALUE;
   }
 
-  private int[] decodeBufferIndex(int index) {
+  private int[] decode(int index) {
     index *= 8; // 8 bytes per 1 long
 
-    // shortcut for only one slot in use
-    if (bufferInitSlot == 0) {
-      return index <= bufferBoundaryMap[0] ? new int[] {0, index} : null;
+    // shortcut for an index falling within the first slot
+    if (index <= bufferBoundaryMap[0]) {
+      return new int[] {0, index};
     }
 
     // shortcut to linear search for a small number of slots in use
     if (bufferInitSlot < 5) {
       int slot = 0;
-      while (slot <= bufferInitSlot && bufferBoundaryMap[bufferInitSlot] < index) {
+      while (slot <= bufferInitSlot && bufferBoundaryMap[slot] < index) {
         slot++;
       }
       if (slot <= bufferInitSlot) {
-        return new int[] {slot, index - bufferBoundaryMap[slot]};
+        return slot > 0 ? new int[] {slot, index - bufferBoundaryMap[slot - 1]} : new int[] {slot, index};
       }
       return null;
     }

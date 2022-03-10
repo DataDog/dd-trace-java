@@ -3,6 +3,8 @@ package com.datadog.profiling.context.allocator.direct;
 import com.datadog.profiling.context.LongIterator;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,14 +12,21 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
   private static final Logger log = LoggerFactory.getLogger(DirectAllocatedBuffer.class);
 
   private final Chunk[] chunks;
+  private final int[] chunkBoundaryMap;
   private final int capacity;
   private int chunkWriteIndex = 0;
   private int valueWriteIndex = 0;
-  private int valueWriteLimit = 0;
 
-  DirectAllocatedBuffer(int bufferSize, Chunk... chunks) {
+  DirectAllocatedBuffer(int bufferSize, int chunkSize, Chunk... chunks) {
     this.chunks = chunks;
+    this.chunkBoundaryMap = new int[chunks.length];
     this.capacity = bufferSize;
+
+    int boundary = 0;
+    for (int i = 0; i < chunks.length; i++) {
+      boundary += chunkSize * chunks[i].getWeight();
+      chunkBoundaryMap[i] = boundary - 1;
+    }
   }
 
   @Override
@@ -42,39 +51,30 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
     }
     chunks[chunkWriteIndex].buffer.putLong(value);
     valueWriteIndex += 8;
-    valueWriteLimit += 8;
     return true;
   }
 
   @Override
   public boolean putLong(int pos, long value) {
     if (pos + 8 <= capacity) {
-      int chunkPos = 0;
-      int chunkOffset = 0;
-      int runningPos = 0;
-      while (chunkPos < chunks.length) {
-        int bufferSize = chunks[chunkPos].buffer.limit();
-        if (runningPos + bufferSize > pos) {
-          chunkOffset = pos - runningPos;
-          break;
-        }
-        runningPos += bufferSize;
-        chunkPos++;
-      }
-      if (chunkPos < chunks.length) {
+      int[] coordinates = decode(pos);
+
+      int chunkSlot = coordinates[0];
+      int chunkOffset = coordinates[1];
+      if (chunkSlot < chunks.length) {
         try {
-          chunks[chunkPos].buffer.putLong(chunkOffset, value);
+          chunks[chunkSlot].buffer.putLong(chunkOffset, value);
           return true;
         } catch (IndexOutOfBoundsException e) {
           log.error(
-              "Buffer access error: position={}, capacity={}, chunks={}, chunkPos={}, chunkOffset={}, buffer.capacity={}, buffer.limit={}",
+              "Buffer access error: position={}, capacity={}, chunks={}, chunkSlot={}, chunkOffset={}, buffer.capacity={}, buffer.limit={}",
               pos,
               capacity,
               chunks.length,
-              chunkPos,
+              chunkSlot,
               chunkOffset,
-              chunks[chunkPos].buffer.capacity(),
-              chunks[chunkPos].buffer.limit());
+              chunks[chunkSlot].buffer.capacity(),
+              chunks[chunkSlot].buffer.limit());
         }
       }
     }
@@ -84,11 +84,12 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
   @Override
   public long getLong(int pos) {
     if (pos + 8 <= capacity) {
-      int chunkCapacity = capacity / chunks.length;
+      int[] coordinates = decode(pos);
 
-      int chunkPos = pos / chunkCapacity;
-      int chunkOffset = pos % chunkCapacity;
-      return chunks[chunkPos].buffer.getLong(chunkOffset);
+      int chunkSlot = coordinates[0];
+      int chunkOffset = coordinates[1];
+
+      return chunks[chunkSlot].buffer.getLong(chunkOffset);
     }
     return Long.MIN_VALUE;
   }
@@ -146,5 +147,38 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
         }
       }
     };
+  }
+
+  private int[] decode(int pos) {
+    // shortcut for an index falling within the first slot
+    if (pos <= chunkBoundaryMap[0]) {
+      return new int[] {0, pos};
+    }
+
+    // shortcut to linear search for a small number of slots in use
+    if (chunkBoundaryMap.length < 5) {
+      int slot = 0;
+      while (slot < chunkBoundaryMap.length && chunkBoundaryMap[slot] < pos) {
+        slot++;
+      }
+      if (slot < chunkBoundaryMap.length) {
+        return slot > 0 ? new int[] {slot, pos - chunkBoundaryMap[slot - 1]} : new int[] {slot, pos};
+      }
+      return null;
+    }
+
+    // use binary search
+    int slot = Arrays.binarySearch(chunkBoundaryMap, pos);
+    if (slot > 0) {
+      return new int[] {slot, pos - chunkBoundaryMap[slot - 1] - 1};
+    } else if (slot == 0) {
+      return new int[] {slot, pos};
+    } else {
+      slot = 1 - slot;
+      if (slot < chunkBoundaryMap.length) {
+        return new int[] {slot, pos - chunkBoundaryMap[slot - 1] - 1};
+      }
+      return null;
+    }
   }
 }

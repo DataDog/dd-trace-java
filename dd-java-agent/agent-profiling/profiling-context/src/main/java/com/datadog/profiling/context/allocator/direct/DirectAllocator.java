@@ -150,7 +150,7 @@ public final class DirectAllocator implements Allocator {
       }
     }
     statsDClient.histogram("tracing.context.allocator.latency", System.nanoTime() - ts);
-    return new DirectAllocatedBuffer(chunkSize * allocated, Arrays.copyOf(chunkArray, offset));
+    return new DirectAllocatedBuffer(chunkSize * allocated, chunkSize, Arrays.copyOf(chunkArray, offset));
   }
 
   private AllocationResult allocateChunks(

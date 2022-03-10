@@ -6,7 +6,7 @@ final class Chunk {
   private final DirectAllocator allocator;
   final ByteBuffer buffer;
   private final int ref;
-  private int len = 1;
+  private int weight = 1;
 
   Chunk(DirectAllocator allocator, ByteBuffer buffer, int ref) {
     this.allocator = allocator;
@@ -15,11 +15,15 @@ final class Chunk {
   }
 
   void extend() {
-    len++;
+    weight++;
     buffer.limit(buffer.limit() + allocator.getChunkSize());
   }
 
   void release() {
-    allocator.release(ref, len);
+    allocator.release(ref, weight);
+  }
+
+  int getWeight() {
+    return weight;
   }
 }
