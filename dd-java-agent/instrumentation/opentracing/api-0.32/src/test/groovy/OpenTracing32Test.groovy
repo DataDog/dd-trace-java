@@ -271,7 +271,6 @@ class OpenTracing32Test extends AgentTestRunner {
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
-    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
 
     when:
     context.delegate.setSamplingPriority(contextPriority, samplingMechanism)
@@ -282,7 +281,6 @@ class OpenTracing32Test extends AgentTestRunner {
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
-      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
     ]
 
     when:

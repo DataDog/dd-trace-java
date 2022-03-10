@@ -264,7 +264,6 @@ class OpenTelemetryTest extends AgentTestRunner {
     def span = tracer.spanBuilder("some name").startSpan()
     def context = TracingContextUtils.withSpan(span, Context.current())
     def textMap = [:]
-    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
 
     when:
     span.delegate.samplingPriority = contextPriority
@@ -275,7 +274,6 @@ class OpenTelemetryTest extends AgentTestRunner {
       "x-datadog-trace-id"         : "$span.delegate.traceId",
       "x-datadog-parent-id"        : "$span.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
-      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
     ]
 
     when:

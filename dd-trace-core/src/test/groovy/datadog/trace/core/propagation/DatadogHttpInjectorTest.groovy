@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
@@ -9,6 +10,7 @@ import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.DatadogHttpCodec.*
+import static org.junit.Assume.assumeTrue
 
 class DatadogHttpInjectorTest extends DDCoreSpecification {
 
@@ -50,7 +52,6 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(SPAN_ID_KEY, spanId.toString())
     if (samplingPriority != UNSET) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
-      1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=ZmFrZVNlcnZpY2U|$samplingPriority|$samplingMechanism")
     }
     if (origin) {
       1 * carrier.put(ORIGIN_KEY, origin)
@@ -115,7 +116,6 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
-    1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1")
     0 * _
 
     cleanup:
@@ -124,6 +124,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
 
   def "drop tags when limit exceeded"() {
     setup:
+    assumeTrue(Config.get().isDatadogTagPropagationEnabled())
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
     def datadogTags = DatadogTags.create("_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1")

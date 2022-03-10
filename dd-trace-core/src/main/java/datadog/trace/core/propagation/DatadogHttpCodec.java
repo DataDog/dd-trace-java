@@ -36,6 +36,8 @@ class DatadogHttpCodec {
   public static final HttpCodec.Injector INJECTOR = new Injector();
 
   private static class Injector implements HttpCodec.Injector {
+    private static final boolean DATADOG_TAG_PROPAGATION_ENABLED =
+        Config.get().isDatadogTagPropagationEnabled();
 
     @Override
     public <C> void inject(
@@ -59,20 +61,22 @@ class DatadogHttpCodec {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
 
-      DatadogTags datadogTags = context.getDatadogTags();
-      if (!datadogTags.isEmpty()) {
-        String encodedTags = datadogTags.encodeAsHeaderValue();
-        int limit = context.getDatadogTagsLimit();
-        if (encodedTags.length() > limit) {
-          log.warn(
-              "{} exceeded limit of {} characters and will be dropped. Consider increasing the {} limit",
-              TAGS_KEY,
-              limit,
-              TracerConfig.DATADOG_TAGS_LIMIT);
-          // let the backend know about exceeding the limit
-          setter.set(carrier, TAGS_KEY, "_dd.propagation_error:max_size");
-        } else {
-          setter.set(carrier, TAGS_KEY, encodedTags);
+      if (DATADOG_TAG_PROPAGATION_ENABLED) {
+        DatadogTags datadogTags = context.getDatadogTags();
+        if (!datadogTags.isEmpty()) {
+          String encodedTags = datadogTags.encodeAsHeaderValue();
+          int limit = context.getDatadogTagsLimit();
+          if (encodedTags.length() > limit) {
+            log.warn(
+                "{} exceeded limit of {} characters and will be dropped. Consider increasing the {} limit",
+                TAGS_KEY,
+                limit,
+                TracerConfig.DATADOG_TAGS_LIMIT);
+            // let the backend know about exceeding the limit
+            setter.set(carrier, TAGS_KEY, "_dd.propagation_error:max_size");
+          } else {
+            setter.set(carrier, TAGS_KEY, encodedTags);
+          }
         }
       }
     }

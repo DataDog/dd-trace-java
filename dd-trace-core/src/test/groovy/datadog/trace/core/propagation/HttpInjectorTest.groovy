@@ -61,7 +61,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
       if (samplingPriority != UNSET) {
         1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
-        1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=ZmFrZVNlcnZpY2U|$samplingPriority|$samplingMechanism")
       }
       if (origin) {
         1 * carrier.put(ORIGIN_KEY, origin)
@@ -137,7 +136,6 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
       if (samplingPriority != UNSET) {
         1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
-        1 * carrier.put(TAGS_KEY, "_dd.p.upstream_services=ZmFrZVNlcnZpY2U|$samplingPriority|$samplingMechanism")
       }
       if (origin) {
         1 * carrier.put(ORIGIN_KEY, origin)
