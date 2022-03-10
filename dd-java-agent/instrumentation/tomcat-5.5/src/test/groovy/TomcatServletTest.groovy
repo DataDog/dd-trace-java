@@ -1,7 +1,6 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.catalina.Context
 import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
@@ -170,7 +169,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           defaultTags()
         }
       }
-      break;
+      break
     case ERROR:
     case NOT_FOUND:
       trace.span {
@@ -182,7 +181,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           defaultTags()
         }
       }
-      break;
+      break
      case EXCEPTION:
      case CUSTOM_EXCEPTION:
       trace.span {
@@ -193,7 +192,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
           defaultTags()
         }
       }
-      break;
+      break
       default:
         throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
