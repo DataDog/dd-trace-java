@@ -60,13 +60,12 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing implement
     };
   }
 
-  // @Advice.Argument(value = 0, readOnly = false) HttpServerExchange exchange
   public static class HandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(value = 0) HttpServerExchange exchange,
         @Advice.This HttpHandler handler) {
-      // HttpHandler subclasses are chained to only the first should create a span
+      // HttpHandler subclasses are chained so only the first one should create a span
       if (null != exchange.getAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH)) {
         return null;
       }

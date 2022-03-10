@@ -59,15 +59,6 @@ class UndertowTest extends HttpServerTest<Undertow> {
               exchange.endExchange()
             }
           }
-          // Still not sure about how to get the route properly
-          // .addPrefixPath("/", Handlers.routing()
-          //   .get("/path/{id}/param", { exchange ->
-          //     controller(PATH_PARAM) {
-          //       PathTemplateMatch pathMatch = exchange.getAttachment(PathTemplateMatch.ATTACHMENT_KEY)
-          //       String id = pathMatch.getParameters().get("id")
-          //       exchange.getResponseSender().send(id)
-          //     }
-          //   }))
           .addExactPath(ERROR.getPath()) { exchange ->
             controller(ERROR) {
               exchange.setStatusCode(ERROR.status)

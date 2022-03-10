@@ -56,7 +56,8 @@ public final class UndertowInstrumentation extends Instrumenter.Tracing implemen
         packageName + ".UndertowDecorator",
         packageName + ".UndertowExtractAdapter",
         packageName + ".UndertowExtractAdapter$Request",
-        packageName + ".UndertowExtractAdapter$Response"
+        packageName + ".UndertowExtractAdapter$Response",
+        packageName + ".UndertowRunnableWrapper"
     };
   }
 
