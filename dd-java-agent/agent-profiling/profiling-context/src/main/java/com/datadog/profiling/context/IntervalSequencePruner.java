@@ -14,6 +14,7 @@ final class IntervalSequencePruner {
   private static final class PruningLongIterator implements LongIterator {
     private final LongIterator wrapped;
     private long cachedValue = 0L;
+
     PruningLongIterator(LongIterator wrapped) {
       this.wrapped = wrapped;
     }
@@ -51,7 +52,7 @@ final class IntervalSequencePruner {
     LongIterator iterator = sequence.iterator();
     while (iterator.hasNext()) {
       long value = iterator.next();
-      int transition = (int) ((value & TracingContextTrackerImpl.TRANSITION_MASK) >>> 62);
+      int transition = (int) ((value & ProfilerTracingContextTracker.TRANSITION_MASK) >>> 62);
       if (transition == TRANSITION_STARTED) {
         if (lastTransition == TRANSITION_STARTED) {
           // skip duplicated starts
@@ -108,7 +109,7 @@ final class IntervalSequencePruner {
     if (lastTransition == TRANSITION_STARTED) {
       // dangling start -> create a synthetic finished transition
       log.info("Dangling 'started' transition. Creating synthetic 'finished' transition.");
-      sequence.add(TracingContextTrackerImpl.maskDeactivation(timestamp, false));
+      sequence.add(ProfilerTracingContextTracker.maskDeactivation(timestamp, false));
     }
     return new PruningLongIterator(sequence.iterator());
   }

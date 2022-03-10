@@ -1,7 +1,6 @@
 package datadog.trace.api.profiling;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
 import java.nio.ByteBuffer;
 
 public interface TracingContextTracker {

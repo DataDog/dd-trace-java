@@ -291,8 +291,6 @@ public final class ProfileUploader {
   public void upload(
       final RecordingType type, final RecordingData data, @Nonnull Runnable onCompletion) {
     if (canEnqueueMoreRequests()) {
-      // TODO remove
-      log.info("Uploading profile");
       makeUploadRequest(
           type,
           data,

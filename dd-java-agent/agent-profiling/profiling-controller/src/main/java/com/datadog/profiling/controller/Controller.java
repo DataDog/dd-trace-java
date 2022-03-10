@@ -15,7 +15,6 @@
  */
 package com.datadog.profiling.controller;
 
-import datadog.trace.api.profiling.CustomEventAccess;
 import javax.annotation.Nonnull;
 
 /**
@@ -31,6 +30,4 @@ public interface Controller {
    */
   @Nonnull
   OngoingRecording createRecording(@Nonnull String recordingName);
-
-  CustomEventAccess getEventAccess();
 }

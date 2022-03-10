@@ -8,7 +8,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -18,8 +17,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class TracingContextTrackerImpl implements TracingContextTracker {
-  private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerImpl.class);
+public final class ProfilerTracingContextTracker implements TracingContextTracker {
+  private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
 
   @FunctionalInterface
   public interface TimestampProvider {
@@ -28,15 +27,16 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
 
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
-          LoggerFactory.getLogger(TracingContextTrackerImpl.class), 30_000_000_000L);
+          LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30_000_000_000L);
 
   private static final int TRANSITION_STARTED = 0;
   private static final int TRANSITION_MAYBE_FINISHED = 1;
   private static final int TRANSITION_NONE = -1;
   private static final int TRANSITION_FINISHED = 2;
 
-  private static final long TRANSITION_MAYBE_FINISHED_MASK = (long)(TRANSITION_MAYBE_FINISHED) << 62;
-  private static final long TRANSITION_FINISHED_MASK = (long)(TRANSITION_FINISHED) << 62;
+  private static final long TRANSITION_MAYBE_FINISHED_MASK =
+      (long) (TRANSITION_MAYBE_FINISHED) << 62;
+  private static final long TRANSITION_FINISHED_MASK = (long) (TRANSITION_FINISHED) << 62;
   static final long TRANSITION_MASK = TRANSITION_FINISHED_MASK | TRANSITION_MAYBE_FINISHED_MASK;
   static final long TIMESTAMP_MASK = ~TRANSITION_MASK;
 
@@ -46,7 +46,7 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
     MethodHandle mh = null;
     try {
       Class<?> clz =
-          TracingContextTrackerImpl.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
+          ProfilerTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
       mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
     } catch (Throwable t) {
       log.error("Failed to initialize JFR timestamp access", t);
@@ -75,13 +75,16 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
   private final TimestampProvider timestampProvider;
   private final IntervalSequencePruner sequencePruner;
 
-  TracingContextTrackerImpl(
+  ProfilerTracingContextTracker(
       Allocator allocator, AgentSpan span, IntervalSequencePruner sequencePruner) {
-    this(allocator, span, TracingContextTrackerImpl::timestamp, sequencePruner);
+    this(allocator, span, ProfilerTracingContextTracker::timestamp, sequencePruner);
   }
 
-  TracingContextTrackerImpl(
-      Allocator allocator, AgentSpan span, TimestampProvider timestampProvider, IntervalSequencePruner sequencePruner) {
+  ProfilerTracingContextTracker(
+      Allocator allocator,
+      AgentSpan span,
+      TimestampProvider timestampProvider,
+      IntervalSequencePruner sequencePruner) {
     this.timestamp = timestampProvider.timestamp();
     this.timestampProvider = timestampProvider;
     this.sequencePruner = sequencePruner;
@@ -110,7 +113,8 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
   }
 
   static long maskDeactivation(long value, boolean maybe) {
-    return (value & TIMESTAMP_MASK) | (maybe ? TRANSITION_MAYBE_FINISHED_MASK : TRANSITION_FINISHED_MASK);
+    return (value & TIMESTAMP_MASK)
+        | (maybe ? TRANSITION_MAYBE_FINISHED_MASK : TRANSITION_FINISHED_MASK);
   }
 
   @Override
@@ -205,7 +209,8 @@ public final class TracingContextTrackerImpl implements TracingContextTracker {
       totalSequenceBufferSize += sequence.size();
     }
 
-    IntervalEncoder encoder = new IntervalEncoder(timestamp, threadSequences.size(), totalSequenceBufferSize);
+    IntervalEncoder encoder =
+        new IntervalEncoder(timestamp, threadSequences.size(), totalSequenceBufferSize);
     for (Map.Entry<Long, LongSequence> entry : threadSequences.entrySet()) {
       long threadId = entry.getKey();
       IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);

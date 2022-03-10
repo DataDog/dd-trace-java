@@ -22,7 +22,6 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.api.profiling.CustomEventAccess;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
@@ -202,10 +201,5 @@ public final class OpenJdkController implements Controller {
 
   boolean isNativeMethodSampleEnabledInRecordingSettings(Map<String, String> recordingSettings) {
     return Boolean.parseBoolean(recordingSettings.get("jdk.NativeMethodSample#enabled"));
-  }
-
-  @Override
-  public CustomEventAccess getEventAccess() {
-    return CustomEventAccess.NULL;
   }
 }

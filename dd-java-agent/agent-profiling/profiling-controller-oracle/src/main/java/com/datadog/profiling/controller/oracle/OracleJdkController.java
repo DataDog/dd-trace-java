@@ -4,7 +4,6 @@ import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.api.profiling.CustomEventAccess;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.time.Duration;
@@ -56,10 +55,5 @@ public final class OracleJdkController implements Controller {
     } catch (final IOException e) {
       throw new RuntimeException("Unable to create a new recording with name " + recordingName, e);
     }
-  }
-
-  @Override
-  public CustomEventAccess getEventAccess() {
-    return CustomEventAccess.NULL;
   }
 }

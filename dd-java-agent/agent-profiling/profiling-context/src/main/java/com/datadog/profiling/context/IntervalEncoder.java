@@ -60,7 +60,7 @@ final class IntervalEncoder {
 
       int base = size - 1;
       for (int i = 0; i < size; i++) {
-        elements[base - i] = (byte)(value & 0xff);
+        elements[base - i] = (byte) (value & 0xff);
         value = value >>> 8;
       }
       dataChunkBuffer.put(elements, 0, size);
@@ -73,7 +73,8 @@ final class IntervalEncoder {
       int mask = groupVarintMapBuffer.getInt();
 
       // record the current length
-      // need to do 'size - 1' to be able to squeeze the length into 3 bits -> 0 means size of 1 etc.
+      // need to do 'size - 1' to be able to squeeze the length into 3 bits -> 0 means size of 1
+      // etc.
       mask = mask | (((size - 1) & 0x7) << (29 - maskOffset));
       // and rewrite the mask
       groupVarintMapBuffer.reset();
@@ -88,10 +89,10 @@ final class IntervalEncoder {
   IntervalEncoder(long timestamp, int threadCount, int maxSize) {
     this.threadCount = threadCount;
 
-    this.prologueBuffer = ByteBuffer.allocate(varintSize(timestamp) + varintSize(threadCount) + threadCount * 18);
+    this.prologueBuffer =
+        ByteBuffer.allocate(varintSize(timestamp) + varintSize(threadCount) + threadCount * 18);
     this.dataChunkBuffer = ByteBuffer.allocate(maxSize * 8 + 4);
-    this.groupVarintMapBuffer =
-        ByteBuffer.allocate(align((int) (Math.ceil(maxSize / 8d) * 3), 4));
+    this.groupVarintMapBuffer = ByteBuffer.allocate(align((int) (Math.ceil(maxSize / 8d) * 3), 4));
 
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset
     dataChunkBuffer.putInt(0); // pre-allocate space for the group varint map offset
@@ -101,7 +102,13 @@ final class IntervalEncoder {
 
   ThreadEncoder startThread(long threadId) {
     if (threadInFlight || threadIndex++ >= threadCount) {
-      throw new IllegalStateException("Illegal state: threadInFlight=" + threadInFlight + ", threadIndex=" + threadIndex + ", threadCount=" + threadCount);
+      throw new IllegalStateException(
+          "Illegal state: threadInFlight="
+              + threadInFlight
+              + ", threadIndex="
+              + threadIndex
+              + ", threadCount="
+              + threadCount);
     }
     threadInFlight = true;
     return new ThreadEncoder(threadId);
@@ -109,16 +116,24 @@ final class IntervalEncoder {
 
   ByteBuffer finish() {
     if (encoderFinished || threadInFlight) {
-      throw new IllegalStateException("Illegal state: encoderFinished=" + encoderFinished + ", threadInFlight=" + threadInFlight);
+      throw new IllegalStateException(
+          "Illegal state: encoderFinished="
+              + encoderFinished
+              + ", threadInFlight="
+              + threadInFlight);
     }
-    ByteBuffer buffer = ByteBuffer.allocate(prologueBuffer.position() + dataChunkBuffer.position() + groupVarintMapBuffer.position());
+    ByteBuffer buffer =
+        ByteBuffer.allocate(
+            prologueBuffer.position()
+                + dataChunkBuffer.position()
+                + groupVarintMapBuffer.position());
     prologueBuffer.putInt(0, prologueBuffer.position()); // store the data chunk offset
     dataChunkBuffer.putInt(0, dataChunkBuffer.position()); // store the group varint bitmap offset
     // and now store the parts of the blob
-    buffer.put((ByteBuffer)prologueBuffer.flip()); // prologue
-    buffer.put((ByteBuffer)dataChunkBuffer.flip()); // data chunk
-    buffer.put((ByteBuffer)groupVarintMapBuffer.flip()); // group varint bitmap
-    return (ByteBuffer)buffer.flip();
+    buffer.put((ByteBuffer) prologueBuffer.flip()); // prologue
+    buffer.put((ByteBuffer) dataChunkBuffer.flip()); // data chunk
+    buffer.put((ByteBuffer) groupVarintMapBuffer.flip()); // group varint bitmap
+    return (ByteBuffer) buffer.flip();
   }
 
   private static int align(int value, int alignment) {
