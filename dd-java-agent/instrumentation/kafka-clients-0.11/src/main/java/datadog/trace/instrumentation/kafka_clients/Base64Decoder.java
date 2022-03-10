@@ -1,4 +1,4 @@
-package datadog.trace.util;
+package datadog.trace.instrumentation.kafka_clients;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

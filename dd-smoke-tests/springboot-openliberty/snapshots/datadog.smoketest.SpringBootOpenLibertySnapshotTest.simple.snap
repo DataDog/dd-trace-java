@@ -21,7 +21,6 @@
            "span.kind" "server"
            "http.method" "GET"
            "http.route" "/connect/{user}"
-           "_dd.p.upstream_services" "c21va2UtdGVzdC1qYXZhLWFwcA|1|1|1"
            "servlet.path" "/connect/0"}
    "metrics" {"_dd.agent_psr" 1.0
               "_dd.measured" 1

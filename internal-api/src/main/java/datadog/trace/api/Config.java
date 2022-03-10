@@ -1907,14 +1907,6 @@ public class Config {
     return configProvider.getBoolean(TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED, false);
   }
 
-  public boolean isDatadogTagPropagationEnabled() {
-    return configProvider.getBoolean(TracerConfig.DATADOG_TAGS_ENABLED, false);
-  }
-
-  public int getDatadogTagsLimit() {
-    return configProvider.getInteger(TracerConfig.DATADOG_TAGS_LIMIT, 512);
-  }
-
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);

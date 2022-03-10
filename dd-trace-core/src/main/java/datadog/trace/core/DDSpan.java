@@ -549,15 +549,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * <p>Has no effect if the span priority has been propagated (injected or extracted).
    */
   @Override
-  public final DDSpan setSamplingPriority(final int samplingPriority, int samplingMechanism) {
-    context.setSamplingPriority(samplingPriority, samplingMechanism);
+  public final DDSpan setSamplingPriority(final int newPriority, int samplingMechanism) {
+    context.setSamplingPriority(newPriority, samplingMechanism);
     return this;
   }
 
   @Override
   public DDSpan setSamplingPriority(
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
-    if (context.setSamplingPriority(samplingPriority, samplingMechanism, sampleRate)) {
+    if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
       setMetric(rate, sampleRate);
     }
     return this;
