@@ -5,14 +5,12 @@ import org.slf4j.Logger;
 
 /** Logger specialized on logging IO-related activity */
 public class IOLogger {
-  private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
-
   private boolean logNextSuccess = false;
   private final Logger log;
   private final RatelimitedLogger ratelimitedLogger;
 
   public IOLogger(final Logger log) {
-    this(log, new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG));
+    this(log, new RatelimitedLogger(log, 5, TimeUnit.MINUTES));
   }
 
   // Visible for testing

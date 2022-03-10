@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 
@@ -12,19 +13,22 @@ import org.slf4j.Logger;
 public class RatelimitedLogger {
 
   private final Logger log;
-  private final long delay;
+  private final long delayNanos;
+  private final String noLogMessage;
   private final TimeSource timeSource;
 
   private final AtomicLong previousErrorLogNanos = new AtomicLong();
 
-  public RatelimitedLogger(final Logger log, final long delay) {
-    this(log, delay, SystemTimeSource.INSTANCE);
+  public RatelimitedLogger(final Logger log, final int delay, final TimeUnit timeUnit) {
+    this(log, delay, timeUnit, SystemTimeSource.INSTANCE);
   }
 
   // Visible for testing
-  RatelimitedLogger(final Logger log, final long delay, final TimeSource timeSource) {
+  RatelimitedLogger(
+      final Logger log, final int delay, final TimeUnit timeUnit, final TimeSource timeSource) {
     this.log = log;
-    this.delay = delay;
+    this.delayNanos = timeUnit.toNanos(delay);
+    this.noLogMessage = createNoLogMessage(" (Will not log errors for ", ")", delay, timeUnit);
     this.timeSource = timeSource;
   }
 
@@ -37,13 +41,28 @@ public class RatelimitedLogger {
     if (log.isWarnEnabled()) {
       final long previous = previousErrorLogNanos.get();
       final long now = timeSource.getNanoTime();
-      if (previous == 0 || now - previous >= delay) {
+      if (previous == 0 || now - previous >= delayNanos) {
         if (previousErrorLogNanos.compareAndSet(previous, now)) {
-          log.warn(format + " (Will not log errors for 5 minutes)", arguments);
+          log.warn(format + noLogMessage, arguments);
           return true;
         }
       }
     }
     return false;
+  }
+
+  private static String createNoLogMessage(
+      String prefix, String postfix, int delay, TimeUnit timeUnit) {
+    StringBuilder noLogStringBuilder = new StringBuilder(prefix);
+    noLogStringBuilder.append(delay);
+    noLogStringBuilder.append(' ');
+    String unit = timeUnit.name().toLowerCase();
+    unit =
+        delay == 1
+            ? unit.substring(0, unit.length() - 1)
+            : unit; // should we drop the plural s or not?
+    noLogStringBuilder.append(unit);
+    noLogStringBuilder.append(postfix);
+    return noLogStringBuilder.toString();
   }
 }
