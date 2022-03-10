@@ -163,10 +163,12 @@ public interface Instrumenter {
     @Override
     public final AgentBuilder instrument(final AgentBuilder parentAgentBuilder) {
       if (!isEnabled()) {
-        log.debug(
-            "Disabled - instrumentation.names=[{}] instrumentation.class={}",
-            Strings.join(",", instrumentationNames),
-            getClass().getName());
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Disabled - instrumentation.names=[{}] instrumentation.class={}",
+              Strings.join(",", instrumentationNames),
+              getClass().getName());
+        }
         return parentAgentBuilder;
       }
 
