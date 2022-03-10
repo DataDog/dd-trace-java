@@ -40,7 +40,6 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.monitor.MonitoringImpl;
-import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -119,7 +118,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final SamplingCheckpointer checkpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
-  private int datadogTagsLimit;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -436,7 +434,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.externalAgentLauncher = new ExternalAgentLauncher(config);
 
     this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
-    this.datadogTagsLimit = config.getDatadogTagsLimit();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -1010,7 +1007,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final DDSpanContext context;
       final Object requestContextData;
-      final DatadogTags ddTags;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -1045,7 +1041,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
-        ddTags = null;
       } else {
         long endToEndStartTime;
 
@@ -1058,7 +1053,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-          ddTags = extractedContext.getDdTags();
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
@@ -1067,7 +1061,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;
-          ddTags = null;
         }
 
         // Get header tags and set origin whether propagating or not.
@@ -1122,9 +1115,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               tagsSize,
               parentTrace,
               requestContextData,
-              disableSamplingMechanismValidation,
-              ddTags,
-              datadogTagsLimit);
+              disableSamplingMechanismValidation);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

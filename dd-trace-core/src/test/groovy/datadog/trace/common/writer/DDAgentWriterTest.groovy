@@ -168,8 +168,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
-
-    def context = new DDSpanContext(
+    return new DDSpan(0, new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
       DDId.ZERO,
@@ -186,9 +185,6 @@ class DDAgentWriterTest extends DDCoreSpecification {
       0,
       trace,
       null,
-      false,
-      null,
-      512)
-    return new DDSpan(0, context)
+      false))
   }
 }
