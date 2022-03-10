@@ -158,41 +158,41 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
   @Override
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
-  switch (endpoint) {
-    case REDIRECT:
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendRedirect"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
+    switch (endpoint) {
+      case REDIRECT:
+        trace.span {
+          operationName "servlet.response"
+          resourceName "HttpServletResponse.sendRedirect"
+          childOfPrevious()
+          tags {
+            "component" "java-web-servlet-response"
+            defaultTags()
+          }
         }
-      }
-      break
-    case ERROR:
-    case NOT_FOUND:
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
+        break
+      case ERROR:
+      case NOT_FOUND:
+        trace.span {
+          operationName "servlet.response"
+          resourceName "HttpServletResponse.sendError"
+          childOfPrevious()
+          tags {
+            "component" "java-web-servlet-response"
+            defaultTags()
+          }
         }
-      }
-      break
-     case EXCEPTION:
-     case CUSTOM_EXCEPTION:
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
+        break
+      case EXCEPTION:
+      case CUSTOM_EXCEPTION:
+        trace.span {
+          operationName "servlet.response"
+          resourceName "HttpServletResponse.sendError"
+          tags {
+            "component" "java-web-servlet-response"
+            defaultTags()
+          }
         }
-      }
-      break
+        break
       default:
         throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
