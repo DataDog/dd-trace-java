@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
 import io.undertow.server.handlers.PathHandler
@@ -23,25 +22,25 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class UndertowServletTest extends HttpServerTest<Undertow> {
   class UndertowServer implements HttpServer {
     def port = 0
-    Undertow undertowServer;
+    Undertow undertowServer
 
     UndertowServer() {
-      final PathHandler root = new PathHandler();
-      final ServletContainer container = ServletContainer.Factory.newInstance();
+      final PathHandler root = new PathHandler()
+      final ServletContainer container = ServletContainer.Factory.newInstance()
 
       DeploymentInfo builder = new DeploymentInfo()
-        .setClassLoader(UndertowServletTest.class.getClassLoader())
+        .setClassLoader(UndertowServletTest.getClassLoader())
         .setContextPath("/")
         .setDeploymentName("servletContext.war")
 
-      builder.addServlet(new ServletInfo("SuccessServlet", SuccessServlet.class).addMapping(SUCCESS.getPath()))
-        .addServlet(new ServletInfo("ForwardedServlet", ForwardedServlet.class).addMapping(FORWARDED.getPath()))
-        .addServlet(new ServletInfo("QueryEncodedBothServlet", QueryEncodedBothServlet.class).addMapping(QUERY_ENCODED_BOTH.getPath()))
-        .addServlet(new ServletInfo("QueryEncodedServlet", QueryEncodedServlet.class).addMapping(QUERY_ENCODED_QUERY.getPath()))
-        .addServlet(new ServletInfo("QueryParamServlet", QueryServlet.class).addMapping(QUERY_PARAM.getPath()))
-        .addServlet(new ServletInfo("RedirectServlet", RedirectServlet.class).addMapping(REDIRECT.getPath()))
-        .addServlet(new ServletInfo("ErrorServlet", ErrorServlet.class).addMapping(ERROR.getPath()))
-        .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet.class).addMapping(EXCEPTION.getPath()))
+      builder.addServlet(new ServletInfo("SuccessServlet", SuccessServlet).addMapping(SUCCESS.getPath()))
+        .addServlet(new ServletInfo("ForwardedServlet", ForwardedServlet).addMapping(FORWARDED.getPath()))
+        .addServlet(new ServletInfo("QueryEncodedBothServlet", QueryEncodedBothServlet).addMapping(QUERY_ENCODED_BOTH.getPath()))
+        .addServlet(new ServletInfo("QueryEncodedServlet", QueryEncodedServlet).addMapping(QUERY_ENCODED_QUERY.getPath()))
+        .addServlet(new ServletInfo("QueryParamServlet", QueryServlet).addMapping(QUERY_PARAM.getPath()))
+        .addServlet(new ServletInfo("RedirectServlet", RedirectServlet).addMapping(REDIRECT.getPath()))
+        .addServlet(new ServletInfo("ErrorServlet", ErrorServlet).addMapping(ERROR.getPath()))
+        .addServlet(new ServletInfo("ExceptionServlet", ExceptionServlet).addMapping(EXCEPTION.getPath()))
 
       DeploymentManager manager = container.addDeployment(builder)
       manager.deploy()
@@ -56,9 +55,9 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
     @Override
     void start() {
-      undertowServer.start();
-      InetSocketAddress addr = (InetSocketAddress) undertowServer.getListenerInfo().get(0).getAddress();
-      port = addr.getPort();
+      undertowServer.start()
+      InetSocketAddress addr = (InetSocketAddress) undertowServer.getListenerInfo().get(0).getAddress()
+      port = addr.getPort()
     }
 
     @Override
@@ -74,17 +73,17 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   UndertowServer server() {
-    return new UndertowServer();
+    return new UndertowServer()
   }
 
   @Override
   String component() {
-    return 'undertow-http-server';
+    return 'undertow-http-server'
   }
 
   @Override
   String expectedOperationName() {
-    return 'servlet.request';
+    return 'servlet.request'
   }
 
   @Override

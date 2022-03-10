@@ -3,19 +3,13 @@ import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
-import io.undertow.server.HttpHandler
-import io.undertow.server.HttpServerExchange
-import io.undertow.util.PathTemplateMatch
 import io.undertow.util.Headers
-import io.undertow.util.HeaderMap
 import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -25,7 +19,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class UndertowTest extends HttpServerTest<Undertow> {
   class UndertowServer implements HttpServer {
     def port = 0
-    Undertow undertowServer;
+    Undertow undertowServer
 
     UndertowServer() {
       undertowServer = Undertow.builder()
@@ -90,9 +84,9 @@ class UndertowTest extends HttpServerTest<Undertow> {
 
     @Override
     void start() {
-      undertowServer.start();
-      InetSocketAddress addr = (InetSocketAddress) undertowServer.getListenerInfo().get(0).getAddress();
-      port = addr.getPort();
+      undertowServer.start()
+      InetSocketAddress addr = (InetSocketAddress) undertowServer.getListenerInfo().get(0).getAddress()
+      port = addr.getPort()
     }
 
     @Override
@@ -108,17 +102,17 @@ class UndertowTest extends HttpServerTest<Undertow> {
 
   @Override
   UndertowServer server() {
-    return new UndertowServer();
+    return new UndertowServer()
   }
 
   @Override
   String component() {
-    return 'undertow-http-server';
+    return 'undertow-http-server'
   }
 
   @Override
   String expectedOperationName() {
-    return 'undertow-http.request';
+    return 'undertow-http.request'
   }
 
   @Override
