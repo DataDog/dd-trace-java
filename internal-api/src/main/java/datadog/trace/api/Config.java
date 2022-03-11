@@ -498,6 +498,11 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
 
+  /** Are long running spans supported */
+  private final boolean traceLongRunningEnabled;
+  /** The flush interval in millis of span still not finished. */
+  private final long traceLongRunningFlushInterval;
+
   private String env;
   private String version;
 
@@ -1019,6 +1024,12 @@ public class Config {
           Collections.unmodifiableList(
               new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(dogStatsDArgsString)));
     }
+
+    traceLongRunningEnabled =
+        configProvider.getBoolean(TracerConfig.LONG_RUNNING_TRACE_ENABLED, false);
+    traceLongRunningFlushInterval =
+        configProvider.getLong(TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL, 5 * 60)
+            * 1000; // defaults to 5 minutes
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -1633,6 +1644,14 @@ public class Config {
 
   public BitSet getGrpcClientErrorStatuses() {
     return grpcClientErrorStatuses;
+  }
+
+  public boolean isTraceLongRunningEnabled() {
+    return traceLongRunningEnabled;
+  }
+
+  public long getTraceLongRunningFlushInterval() {
+    return traceLongRunningFlushInterval;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */

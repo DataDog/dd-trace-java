@@ -85,4 +85,6 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T setFlag(CharSequence name, boolean value);
 
   int samplingPriority();
+
+  Long getPartialVersion();
 }

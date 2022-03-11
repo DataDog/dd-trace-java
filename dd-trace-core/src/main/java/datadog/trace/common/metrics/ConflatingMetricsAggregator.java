@@ -169,8 +169,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     boolean forceKeep = false;
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
+        boolean isPartial = span.getPartialVersion() != null;
         boolean isTopLevel = span.isTopLevel();
-        if (isTopLevel || span.isMeasured()) {
+        if (!isPartial && (isTopLevel || span.isMeasured())) {
           if (ignoredResources.contains(span.getResourceName().toString())) {
             // skip publishing all children
             return false;

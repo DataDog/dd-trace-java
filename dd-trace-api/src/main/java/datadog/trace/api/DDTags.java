@@ -37,4 +37,5 @@ public class DDTags {
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
   public static final String ORIGIN_KEY = "_dd.origin";
+  public static final String DD_PARTIAL_VERSION = "_dd.partial_version";
 }

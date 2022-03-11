@@ -3,11 +3,14 @@ package datadog.trace.core;
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDId;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -68,6 +71,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final boolean strictTraceWrites;
 
   private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
+  private final ConcurrentLinkedDeque<DDSpan> unfinishedSpans = new ConcurrentLinkedDeque<>();
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private volatile int completedSpanCount = 0;
@@ -114,6 +118,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.timeSource = timeSource;
     this.strictTraceWrites = strictTraceWrites;
+
+    if (tracer.getTraceKeepAlive() != null) {
+      tracer.getTraceKeepAlive().onPendingTraceBegins(this);
+    }
   }
 
   CoreTracer getTracer() {
@@ -153,6 +161,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   void registerSpan(final DDSpan span) {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
+    unfinishedSpans.add(span);
     if (span.hasCheckpoints()) {
       tracer.onStart(span);
     }
@@ -165,17 +174,63 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   PublishState onPublish(final DDSpan span) {
+    unfinishedSpans.remove(span);
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
-    return decrementRefAndMaybeWrite(span == getRootSpan());
+    return decrementRefAndMaybeWrite(span == getRootSpan(), span.getPartialVersion() != null);
   }
 
   @Override
   public DDSpan getRootSpan() {
     return rootSpan;
+  }
+
+  public void keepAliveUnfinished(final long triggerMillis, final long keepAliveInterval) {
+    final ArrayList<DDSpan> unfinished = new ArrayList<>(unfinishedSpans);
+    // final ArrayList<DDSpan> toWrite = new ArrayList<>();
+    final long timeThresholdNanos =
+        TimeUnit.MILLISECONDS.toNanos(triggerMillis - keepAliveInterval);
+
+    for (DDSpan original : unfinished) {
+      // skip if not sampled
+      if (original.getSamplingPriority() != null
+          && original.getSamplingPriority() <= PrioritySampling.SAMPLER_DROP) {
+        continue;
+      }
+      // skip if span is too young
+      if (original.getStartTime() > timeThresholdNanos) {
+        continue;
+      }
+      final DDSpanContext contextCopy =
+          new DDSpanContext(
+              original.getTraceId(),
+              original.getSpanId(),
+              original.getParentId(),
+              original.context().getParentServiceName(),
+              original.getServiceName(),
+              original.getOperationName(),
+              original.getResourceName(),
+              DDSpanContext.SamplingDecision.priority(original.context().getSamplingDecision()),
+              DDSpanContext.SamplingDecision.mechanism(original.context().getSamplingDecision()),
+              original.getOrigin(),
+              original.getBaggage(),
+              original.context().getErrorFlag(),
+              original.getSpanType(),
+              -1,
+              original.context().getTrace(),
+              original.context().getData(),
+              tracer.isDisableSamplingMechanismValidation());
+      final DDSpan span =
+          DDSpan.create(original.getStartTime() / 1000, contextCopy, original.hasCheckpoints());
+      final long partialVersion =
+          (long) ((triggerMillis - span.getStartTime() / 1e6) / keepAliveInterval);
+      span.setPartialVersion(partialVersion);
+      span.setMetric(DDTags.DD_PARTIAL_VERSION, partialVersion);
+      span.finish();
+    }
   }
 
   /** @return Long.MAX_VALUE if no spans finished. */
@@ -199,7 +254,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   @Override
   public void cancelContinuation(final AgentScope.Continuation continuation) {
-    decrementRefAndMaybeWrite(false);
+    decrementRefAndMaybeWrite(false, false);
   }
 
   enum PublishState {
@@ -210,10 +265,17 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     PENDING
   }
 
-  private PublishState decrementRefAndMaybeWrite(boolean isRootSpan) {
-    final int count = PENDING_REFERENCE_COUNT.decrementAndGet(this);
+  private PublishState decrementRefAndMaybeWrite(boolean isRootSpan, boolean isLongRunningSpan) {
+    final int count =
+        isLongRunningSpan
+            ? PENDING_REFERENCE_COUNT.get(this)
+            : PENDING_REFERENCE_COUNT.decrementAndGet(this);
     if (strictTraceWrites && count < 0) {
       throw new IllegalStateException("Pending reference count " + count + " is negative");
+    } else if (count == 0) {
+      if (tracer.getTraceKeepAlive() != null) {
+        tracer.getTraceKeepAlive().onPendingTraceEnds(this);
+      }
     }
     int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
 
@@ -225,9 +287,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
       return PublishState.ROOT_BUFFERED;
-    } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
+    } else if (isLongRunningSpan || (0 < partialFlushMinSpans && partialFlushMinSpans < size())) {
       // Trace is getting too big, write anything completed.
-      partialFlush();
+      partialFlush(isLongRunningSpan);
       return PublishState.PARTIAL_FLUSH;
     } else if (rootSpanWritten) {
       // Late arrival span ... delay write
@@ -238,8 +300,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /** Important to note: may be called multiple times. */
-  private void partialFlush() {
-    int size = write(true);
+  private void partialFlush(boolean hasLongRunning) {
+    int size = write(true, hasLongRunning);
     if (log.isDebugEnabled()) {
       log.debug("t_id={} -> wrote partial trace of size {}", traceId, size);
     }
@@ -248,11 +310,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   /** Important to note: may be called multiple times. */
   @Override
   public void write() {
-    write(false);
+    write(false, false);
   }
 
-  private int write(boolean isPartial) {
+  private int write(boolean isPartial, boolean hasLongRunning) {
     if (!finishedSpans.isEmpty()) {
+      int completed = 0;
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         final List<DDSpan> trace;
@@ -267,7 +330,8 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           // the completedSpanCount has not yet been incremented. This means that eventually the
           // count(s) will be incremented, and any new spans added during the period that the count
           // was negative will be written by someone even if we don't write them right now.
-          if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
+          if (size > 0
+              && (!isPartial || size > tracer.getPartialFlushMinSpans() || hasLongRunning)) {
             trace = new ArrayList<>(size);
             DDSpan span = finishedSpans.pollFirst();
             while (null != span) {

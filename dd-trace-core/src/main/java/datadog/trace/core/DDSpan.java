@@ -63,7 +63,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * combination of millisecond-precision clock and nanosecond-precision offset from start of the
    * trace. See {@link PendingTrace} for details.
    */
-  private final long startTimeNano;
+  private long startTimeNano;
+
+  /** Mark as incomplete (long running span). */
+  private Long partialVersion;
 
   private static final AtomicLongFieldUpdater<DDSpan> DURATION_NANO_UPDATER =
       AtomicLongFieldUpdater.newUpdater(DDSpan.class, "durationNano");
@@ -119,6 +122,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   public boolean isFinished() {
     return durationNano != 0;
+  }
+
+  public Long getPartialVersion() {
+    return partialVersion;
+  }
+
+  public void setPartialVersion(Long partialVersion) {
+    this.partialVersion = partialVersion;
   }
 
   private void finishAndAddToTrace(final long durationNano) {

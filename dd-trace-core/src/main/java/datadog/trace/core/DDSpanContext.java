@@ -531,6 +531,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
+      final boolean incomplete = unsafeTags.containsKey(DDTags.DD_PARTIAL_VERSION);
       consumer.accept(
           new Metadata(
               threadId,
@@ -541,8 +542,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
                   ? SamplingDecision.priority(samplingDecision)
                   : getSamplingPriority()),
               // TODO do we also need to pass samplingMechanism in there? @YG
-              measured,
-              topLevel,
+              measured && !incomplete,
+              topLevel && !incomplete,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               getOrigin())); // Get origin from rootSpan.context
     }
@@ -615,5 +616,13 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private DDSpanContext getTopContext() {
     DDSpan span = trace.getRootSpan();
     return null != span ? span.context() : this;
+  }
+
+  String getParentServiceName() {
+    return parentServiceName;
+  }
+
+  int getSamplingDecision() {
+    return samplingDecision;
   }
 }
