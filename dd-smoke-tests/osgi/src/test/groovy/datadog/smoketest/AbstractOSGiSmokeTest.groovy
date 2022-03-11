@@ -48,7 +48,7 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
         println it
         logHasErrors = true
       }
-      if (it.contains("Transformed datadog.smoketest.osgi.client.MessageClient")) {
+      if (it.contains("Transformed - instrumentation.target.class=datadog.smoketest.osgi.client.MessageClient")) {
         println it
         instrumentedMessageClient = true
       }

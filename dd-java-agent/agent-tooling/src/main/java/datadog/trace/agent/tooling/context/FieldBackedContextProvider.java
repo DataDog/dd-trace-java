@@ -111,9 +111,9 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
             if (!installedContextMatchers.add(entry)) {
               if (log.isDebugEnabled()) {
                 log.debug(
-                    "Skipping duplicate builder in {} for matcher {}: {} -> {}",
-                    instrumenterName,
+                    "Skipping duplicate builder for matcher {} - instrumentation.class={} instrumentation.target.context={}->{}",
                     classLoaderMatcher,
+                    instrumenterName,
                     keyClassName,
                     contextClassName);
               }

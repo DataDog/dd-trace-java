@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOAD
 import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 
 import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -122,7 +123,13 @@ public class HelperInjector implements Transformer {
 
       if (!injectedClassLoaders.containsKey(classLoader)) {
         try {
-          log.debug("Injecting classes onto classloader {} -> {}", classLoader, helperClassNames);
+          if (log.isDebugEnabled()) {
+            log.debug(
+                "Injecting helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.helper_classes=[{}]",
+                requestingName,
+                classLoader,
+                Strings.join(",", helperClassNames));
+          }
 
           final Map<String, byte[]> classnameToBytes = getHelperMap();
           final Map<String, Class<?>> classes;
@@ -142,10 +149,10 @@ public class HelperInjector implements Transformer {
         } catch (final Exception e) {
           if (log.isErrorEnabled()) {
             log.error(
-                "Error preparing helpers while processing {} for {}. Failed to inject helper classes into instance {}",
-                typeDescription,
+                "Failed to inject helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
                 requestingName,
                 classLoader,
+                typeDescription,
                 e);
           }
           throw new RuntimeException(e);
