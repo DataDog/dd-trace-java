@@ -1,0 +1,10 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+dependencies {
+  implementation deps.slf4j
+
+  testImplementation project(':utils:test-utils')
+}

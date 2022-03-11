@@ -6,6 +6,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.scopemanager.ContinuableScopeManager
@@ -28,7 +29,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def tracer = Mock(CoreTracer)
   def scopeManager = new ContinuableScopeManager(10, StatsDClient.NO_OP, true, true)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy, false)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false)
   List<TraceScope.Continuation> continuations = []
 
   def cleanup() {

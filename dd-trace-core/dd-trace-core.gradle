@@ -36,6 +36,7 @@ dependencies {
   implementation project(':utils:histograms')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  implementation project(':utils:time-utils')
   implementation project(':dd-cws-tls')
 
   implementation deps.slf4j

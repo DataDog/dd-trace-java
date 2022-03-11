@@ -18,7 +18,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -139,7 +138,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
     } else {
-      finish(Clock.currentMicroTime());
+      finish(context.getTrace().getTimeSource().getCurrentTimeMicros());
     }
   }
 
@@ -201,7 +200,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     if (!externalClock) {
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
     } else {
-      durationNano = MICROSECONDS.toNanos(Clock.currentMicroTime()) - startTimeNano;
+      durationNano = context.getTrace().getTimeSource().getCurrentTimeNanos() - startTimeNano;
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {

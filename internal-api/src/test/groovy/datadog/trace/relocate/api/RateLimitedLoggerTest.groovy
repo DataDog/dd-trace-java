@@ -53,7 +53,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MINUTES, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >> MINUTES.toNanos(1)
+    timeSource.getNanoTicks() >> MINUTES.toNanos(1)
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
@@ -74,7 +74,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, NANOSECONDS, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >> {
+    timeSource.getNanoTicks() >> {
       int invocation = counter.getAndIncrement()
       if (invocation == 0) {
         return Long.MIN_VALUE
@@ -100,7 +100,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 7, NANOSECONDS, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >>> [7, 7 * 2]
+    timeSource.getNanoTicks() >>> [7, 7 * 2]
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
@@ -132,7 +132,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MILLISECONDS, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >> MILLISECONDS.toNanos(1)
+    timeSource.getNanoTicks() >> MILLISECONDS.toNanos(1)
 
     when:
     rateLimitedLog.warn("test")

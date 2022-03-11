@@ -65,6 +65,7 @@ include ':utils:histograms'
 include ':utils:socket-utils'
 include ':utils:test-agent-utils:decoder'
 include ':utils:test-utils'
+include ':utils:time-utils'
 
 // smoke tests
 include ':dd-smoke-tests:cli'

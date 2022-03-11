@@ -12,18 +12,18 @@ class ControllableTimeSourceTest extends DDSpecification {
     timeSource.set(1000)
 
     then:
-    timeSource.getNanoTime() == 1000
+    timeSource.getNanoTicks() == 1000
 
     when:
     timeSource.advance(500)
 
     then:
-    timeSource.getNanoTime() == 1500
+    timeSource.getNanoTicks() == 1500
 
     when:
     timeSource.advance(-800)
 
     then:
-    timeSource.getNanoTime() == 700
+    timeSource.getNanoTicks() == 700
   }
 }

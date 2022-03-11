@@ -40,7 +40,7 @@ public class RatelimitedLogger {
     }
     if (log.isWarnEnabled()) {
       final long previous = previousErrorLogNanos.get();
-      final long now = timeSource.getNanoTime();
+      final long now = timeSource.getNanoTicks();
       if (previous == 0 || now - previous >= delayNanos) {
         if (previousErrorLogNanos.compareAndSet(previous, now)) {
           log.warn(format + noLogMessage, arguments);

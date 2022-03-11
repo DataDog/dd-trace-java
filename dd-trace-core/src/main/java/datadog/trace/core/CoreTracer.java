@@ -24,6 +24,8 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
@@ -119,6 +121,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final SamplingCheckpointer checkpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
+  private final TimeSource timeSource;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -218,6 +221,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private TagInterceptor tagInterceptor;
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
+    private TimeSource timeSource;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -310,6 +314,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder timeSource(TimeSource timeSource) {
+      this.timeSource = timeSource;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -357,7 +366,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           statsDClient,
           tagInterceptor,
           strictTraceWrites,
-          instrumentationGateway);
+          instrumentationGateway,
+          timeSource);
     }
   }
 
@@ -380,13 +390,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final StatsDClient statsDClient,
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
-      final InstrumentationGateway instrumentationGateway) {
+      final InstrumentationGateway instrumentationGateway,
+      final TimeSource timeSource) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
 
+    this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     this.checkpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
@@ -452,7 +464,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.pendingTraceBuffer =
         strictTraceWrites ? PendingTraceBuffer.discarding() : PendingTraceBuffer.delaying();
-    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, strictTraceWrites);
+    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, this.timeSource, strictTraceWrites);
     pendingTraceBuffer.start();
 
     this.writer.start();
