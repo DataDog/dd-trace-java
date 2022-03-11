@@ -45,6 +45,7 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.Closeable;
 import java.io.IOException;
@@ -680,6 +681,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return extractor.extract(carrier, getter);
   }
 
+  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, TimeUnit.MINUTES);
+
   /**
    * We use the sampler to know if the trace has to be reported/written. The sampler is called on
    * the first span (root span) of the trace. If the trace is marked as a sample, we report it.
@@ -693,14 +696,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     List<DDSpan> writtenTrace = trace;
     if (!interceptors.isEmpty()) {
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
-
-      try {
-        for (final TraceInterceptor interceptor : interceptors) {
+      for (final TraceInterceptor interceptor : interceptors) {
+        try {
+          // If one TraceInterceptor throws an exception, then continue with the next one
           interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+        } catch (Exception e) {
+          String interceptorName = interceptor.getClass().getName();
+          rlLog.warn("Exception in TraceInterceptor {}", interceptorName, e);
         }
-      } catch (Exception e) {
-        log.debug("Exception in TraceInterceptor", e);
-        return;
       }
       writtenTrace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {

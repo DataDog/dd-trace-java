@@ -1,4 +1,4 @@
-package datadog.trace.api
+package datadog.trace.relocate.api
 
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger

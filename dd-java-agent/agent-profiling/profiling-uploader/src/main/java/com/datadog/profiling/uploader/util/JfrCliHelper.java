@@ -3,7 +3,7 @@ package com.datadog.profiling.uploader.util;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
-import datadog.trace.api.IOLogger;
+import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
