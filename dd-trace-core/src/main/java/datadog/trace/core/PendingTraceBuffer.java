@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jctools.queues.MessagePassingQueue;
@@ -40,6 +41,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private final MpscBlockingConsumerArrayQueue<Element> queue;
     private final Thread worker;
+    private final TimeSource timeSource;
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
@@ -160,7 +162,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             long oldestFinishedTime = pendingTrace.oldestFinishedTime();
 
             long finishTimestampMillis = TimeUnit.NANOSECONDS.toMillis(oldestFinishedTime);
-            if (finishTimestampMillis <= System.currentTimeMillis() - FORCE_SEND_DELAY_MS) {
+            if (finishTimestampMillis <= timeSource.getCurrentTimeMillis() - FORCE_SEND_DELAY_MS) {
               // Root span is getting old. Send the trace to avoid being discarded by agent.
               pendingTrace.write();
               continue;
@@ -181,9 +183,10 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    public DelayingPendingTraceBuffer(int bufferSize) {
+    public DelayingPendingTraceBuffer(int bufferSize, TimeSource timeSource) {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
+      this.timeSource = timeSource;
     }
   }
 
@@ -206,8 +209,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
   }
 
-  public static PendingTraceBuffer delaying() {
-    return new DelayingPendingTraceBuffer(BUFFER_SIZE);
+  public static PendingTraceBuffer delaying(TimeSource timeSource) {
+    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource);
   }
 
   public static PendingTraceBuffer discarding() {
