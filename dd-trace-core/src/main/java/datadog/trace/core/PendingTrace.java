@@ -133,9 +133,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   /**
    * Current timestamp in nanoseconds.
    *
-   * <p>Note: This method uses trace start time as a reference and it gets time with nanosecond precision
-   * after that. This means time measured within same Trace in different Spans is relatively correct
-   * with nanosecond precision.
+   * <p>Note: This method uses trace start time as a reference and it gets time with nanosecond
+   * precision after that. This means time measured within same Trace in different Spans is
+   * relatively correct with nanosecond precision.
    *
    * @return timestamp in nanoseconds
    */

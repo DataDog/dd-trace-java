@@ -2,9 +2,7 @@ package datadog.trace.api.time;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Emulates nanosecond precision by combining ticks and timestamps
- */
+/** Emulates nanosecond precision by combining ticks and timestamps */
 class Java7TimeSource implements TimeSource {
   // currentTimeMillis() and nanoTime() drift
   // This class resets the drift at this interval

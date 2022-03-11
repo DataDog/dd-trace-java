@@ -464,7 +464,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.pendingTraceBuffer =
         strictTraceWrites ? PendingTraceBuffer.discarding() : PendingTraceBuffer.delaying();
-    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, this.timeSource, strictTraceWrites);
+    pendingTraceFactory =
+        new PendingTrace.Factory(this, pendingTraceBuffer, this.timeSource, strictTraceWrites);
     pendingTraceBuffer.start();
 
     this.writer.start();
