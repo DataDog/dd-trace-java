@@ -4,10 +4,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.HeaderValues;
-
 import java.util.Iterator;
 
-public abstract class UndertowExtractAdapter implements AgentPropagation.ContextVisitor<HttpServerExchange> {
+public abstract class UndertowExtractAdapter
+    implements AgentPropagation.ContextVisitor<HttpServerExchange> {
   abstract HeaderMap getHeaders(HttpServerExchange exchange);
 
   @Override
@@ -31,7 +31,6 @@ public abstract class UndertowExtractAdapter implements AgentPropagation.Context
     HeaderMap getHeaders(HttpServerExchange exchange) {
       return exchange.getRequestHeaders();
     }
-
   }
 
   public static class Response extends UndertowExtractAdapter {

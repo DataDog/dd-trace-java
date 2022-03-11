@@ -1,29 +1,27 @@
 package datadog.trace.instrumentation.undertow;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
+import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import io.undertow.server.HttpServerExchange;
-import net.bytebuddy.asm.Advice;
-
 import java.util.Map;
 import java.util.concurrent.Executor;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
-import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class UndertowInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
+public final class UndertowInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public UndertowInstrumentation() {
     super("undertow", "undertow-2.0");
@@ -42,7 +40,8 @@ public final class UndertowInstrumentation extends Instrumenter.Tracing implemen
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("dispatch"))
+        isMethod()
+            .and(named("dispatch"))
             .and(takesArgument(0, named("java.util.concurrent.Executor")))
             .and(takesArgument(1, named("java.lang.Runnable"))),
         getClass().getName() + "$AddListenerAdvice");
@@ -50,14 +49,14 @@ public final class UndertowInstrumentation extends Instrumenter.Tracing implemen
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".ExchangeEndSpanListener",
-        packageName + ".HttpServerExchangeURIDataAdapter",
-        packageName + ".UndertowDecorator",
-        packageName + ".UndertowExtractAdapter",
-        packageName + ".UndertowExtractAdapter$Request",
-        packageName + ".UndertowExtractAdapter$Response",
-        packageName + ".UndertowRunnableWrapper"
+    return new String[] {
+      packageName + ".ExchangeEndSpanListener",
+      packageName + ".HttpServerExchangeURIDataAdapter",
+      packageName + ".UndertowDecorator",
+      packageName + ".UndertowExtractAdapter",
+      packageName + ".UndertowExtractAdapter$Request",
+      packageName + ".UndertowExtractAdapter$Response",
+      packageName + ".UndertowRunnableWrapper"
     };
   }
 

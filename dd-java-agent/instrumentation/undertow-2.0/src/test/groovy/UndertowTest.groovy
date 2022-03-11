@@ -26,51 +26,51 @@ class UndertowTest extends HttpServerTest<Undertow> {
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
         .setHandler(Handlers.path()
-          .addExactPath(SUCCESS.getPath()) { exchange ->
-            controller(SUCCESS) {
-              exchange.getResponseSender().send(SUCCESS.body)
-            }
+        .addExactPath(SUCCESS.getPath()) { exchange ->
+          controller(SUCCESS) {
+            exchange.getResponseSender().send(SUCCESS.body)
           }
-          .addExactPath(FORWARDED.getPath()) { exchange ->
-            controller(FORWARDED) {
-              exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
-            }
+        }
+        .addExactPath(FORWARDED.getPath()) { exchange ->
+          controller(FORWARDED) {
+            exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
           }
-          .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
-            controller(QUERY_ENCODED_BOTH) {
-              exchange.getResponseHeaders().put(new HttpString(HttpServerTest.IG_RESPONSE_HEADER), HttpServerTest.IG_RESPONSE_HEADER_VALUE)
-              exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
-            }
+        }
+        .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
+          controller(QUERY_ENCODED_BOTH) {
+            exchange.getResponseHeaders().put(new HttpString(HttpServerTest.IG_RESPONSE_HEADER), HttpServerTest.IG_RESPONSE_HEADER_VALUE)
+            exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
           }
-          .addExactPath(QUERY_ENCODED_QUERY.getPath()) { exchange ->
-            controller(QUERY_ENCODED_QUERY) {
-              exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
-            }
+        }
+        .addExactPath(QUERY_ENCODED_QUERY.getPath()) { exchange ->
+          controller(QUERY_ENCODED_QUERY) {
+            exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
           }
-          .addExactPath(QUERY_PARAM.getPath()) { exchange ->
-            controller(QUERY_PARAM) {
-              exchange.getResponseSender().send(exchange.getQueryString())
-            }
+        }
+        .addExactPath(QUERY_PARAM.getPath()) { exchange ->
+          controller(QUERY_PARAM) {
+            exchange.getResponseSender().send(exchange.getQueryString())
           }
-          .addExactPath(REDIRECT.getPath()) { exchange ->
-            controller(REDIRECT) {
-              exchange.setStatusCode(StatusCodes.FOUND)
-              exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
-              exchange.endExchange()
-            }
+        }
+        .addExactPath(REDIRECT.getPath()) { exchange ->
+          controller(REDIRECT) {
+            exchange.setStatusCode(StatusCodes.FOUND)
+            exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
+            exchange.endExchange()
           }
-          .addExactPath(ERROR.getPath()) { exchange ->
-            controller(ERROR) {
-              exchange.setStatusCode(ERROR.status)
-              exchange.getResponseSender().send(ERROR.body)
-            }
+        }
+        .addExactPath(ERROR.getPath()) { exchange ->
+          controller(ERROR) {
+            exchange.setStatusCode(ERROR.status)
+            exchange.getResponseSender().send(ERROR.body)
           }
-          .addExactPath(EXCEPTION.getPath()) { exchange ->
-            controller(EXCEPTION) {
-              throw new Exception(EXCEPTION.body)
-            }
+        }
+        .addExactPath(EXCEPTION.getPath()) { exchange ->
+          controller(EXCEPTION) {
+            throw new Exception(EXCEPTION.body)
           }
-        ).build();
+        }
+        ).build()
     }
 
     @Override

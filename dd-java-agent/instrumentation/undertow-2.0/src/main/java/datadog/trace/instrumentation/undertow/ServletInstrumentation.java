@@ -1,22 +1,22 @@
 package datadog.trace.instrumentation.undertow;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.undertow.server.HttpServerExchange;
-import io.undertow.servlet.handlers.ServletRequestContext;
-import net.bytebuddy.asm.Advice;
-
-import javax.servlet.ServletRequest;
-
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_SPAN;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.servlet.handlers.ServletRequestContext;
+import javax.servlet.ServletRequest;
+import net.bytebuddy.asm.Advice;
+
 @AutoService(Instrumenter.class)
-public final class ServletInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
+public final class ServletInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ServletInstrumentation() {
     super("undertow", "undertow-2.0");
@@ -30,18 +30,17 @@ public final class ServletInstrumentation extends Instrumenter.Tracing implement
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod().and(named("dispatchRequest")),
-        getClass().getName() + "$DispatchAdvice");
+        isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".HttpServerExchangeURIDataAdapter",
-        packageName + ".UndertowDecorator",
-        packageName + ".UndertowExtractAdapter",
-        packageName + ".UndertowExtractAdapter$Request",
-        packageName + ".UndertowExtractAdapter$Response"
+    return new String[] {
+      packageName + ".HttpServerExchangeURIDataAdapter",
+      packageName + ".UndertowDecorator",
+      packageName + ".UndertowExtractAdapter",
+      packageName + ".UndertowExtractAdapter$Request",
+      packageName + ".UndertowExtractAdapter$Response"
     };
   }
 

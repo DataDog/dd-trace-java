@@ -103,7 +103,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
         resourceName "HttpServletResponse.sendRedirect"
         childOfPrevious()
         tags {
-        "component" "java-web-servlet-response"
+          "component" "java-web-servlet-response"
           defaultTags()
         }
       }
@@ -113,7 +113,7 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
         resourceName "HttpServletResponse.sendError"
         childOfPrevious()
         tags {
-        "component" "java-web-servlet-response"
+          "component" "java-web-servlet-response"
           defaultTags()
         }
       }

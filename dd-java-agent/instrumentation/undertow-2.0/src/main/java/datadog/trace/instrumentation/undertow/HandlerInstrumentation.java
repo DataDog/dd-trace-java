@@ -1,15 +1,5 @@
 package datadog.trace.instrumentation.undertow;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.undertow.server.HttpHandler;
-import io.undertow.server.HttpServerExchange;
-import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
-
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -21,8 +11,19 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
 @AutoService(Instrumenter.class)
-public final class HandlerInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForTypeHierarchy {
+public final class HandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public HandlerInstrumentation() {
     super("undertow", "undertow-2.0");
@@ -50,21 +51,20 @@ public final class HandlerInstrumentation extends Instrumenter.Tracing implement
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".ExchangeEndSpanListener",
-        packageName + ".HttpServerExchangeURIDataAdapter",
-        packageName + ".UndertowDecorator",
-        packageName + ".UndertowExtractAdapter",
-        packageName + ".UndertowExtractAdapter$Request",
-        packageName + ".UndertowExtractAdapter$Response"
+    return new String[] {
+      packageName + ".ExchangeEndSpanListener",
+      packageName + ".HttpServerExchangeURIDataAdapter",
+      packageName + ".UndertowDecorator",
+      packageName + ".UndertowExtractAdapter",
+      packageName + ".UndertowExtractAdapter$Request",
+      packageName + ".UndertowExtractAdapter$Response"
     };
   }
 
   public static class HandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(value = 0) HttpServerExchange exchange,
-        @Advice.This HttpHandler handler) {
+        @Advice.Argument(value = 0) HttpServerExchange exchange, @Advice.This HttpHandler handler) {
       // HttpHandler subclasses are chained so only the first one should create a span
       if (null != exchange.getAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH)) {
         return null;

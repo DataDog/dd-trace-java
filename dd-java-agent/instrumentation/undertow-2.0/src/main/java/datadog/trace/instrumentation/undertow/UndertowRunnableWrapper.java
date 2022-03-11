@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.undertow;
 
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import io.undertow.server.HttpServerExchange;
-
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 
 public class UndertowRunnableWrapper extends RunnableWrapper {
 
@@ -39,11 +39,12 @@ public class UndertowRunnableWrapper extends RunnableWrapper {
     }
   }
 
-  public static Runnable wrapIfNeeded(final Runnable task, HttpServerExchange exchange, AgentSpan span) {
-    if (!(task instanceof RunnableWrapper) && !ExcludeFilter.exclude(ExcludeFilter.ExcludeType.RUNNABLE, task)) {
+  public static Runnable wrapIfNeeded(
+      final Runnable task, HttpServerExchange exchange, AgentSpan span) {
+    if (!(task instanceof RunnableWrapper)
+        && !ExcludeFilter.exclude(ExcludeFilter.ExcludeType.RUNNABLE, task)) {
       return new UndertowRunnableWrapper(task, exchange, span);
     }
     return task;
   }
-
 }

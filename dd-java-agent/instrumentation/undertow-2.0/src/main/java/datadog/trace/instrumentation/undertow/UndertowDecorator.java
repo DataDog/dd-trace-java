@@ -8,14 +8,12 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
 
-
 public class UndertowDecorator
     extends HttpServerDecorator<
-    HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
+        HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
   public static final CharSequence UNDERTOW_REQUEST =
       UTF8BytesString.create("undertow-http.request");
-  public static final CharSequence SERVLET_REQUEST =
-      UTF8BytesString.create("servlet.request");
+  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence UNDERTOW_HTTP_SERVER =
       UTF8BytesString.create("undertow-http-server");
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
@@ -26,7 +24,7 @@ public class UndertowDecorator
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"undertow-http", "undertow-http-server"};
+    return new String[] {"undertow-http", "undertow-http-server"};
   }
 
   @Override
