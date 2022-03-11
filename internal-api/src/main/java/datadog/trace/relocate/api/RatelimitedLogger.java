@@ -17,7 +17,7 @@ public class RatelimitedLogger {
   private final String noLogMessage;
   private final TimeSource timeSource;
 
-  private final AtomicLong previousErrorLogNanos = new AtomicLong();
+  private final AtomicLong nextLogNanos;
 
   public RatelimitedLogger(final Logger log, final int delay, final TimeUnit timeUnit) {
     this(log, delay, timeUnit, SystemTimeSource.INSTANCE);
@@ -30,6 +30,7 @@ public class RatelimitedLogger {
     this.delayNanos = timeUnit.toNanos(delay);
     this.noLogMessage = createNoLogMessage(" (Will not log errors for ", ")", delay, timeUnit);
     this.timeSource = timeSource;
+    nextLogNanos = new AtomicLong(timeSource.getNanoTicks());
   }
 
   /** @return true if actually logged the message, false otherwise */
@@ -39,13 +40,11 @@ public class RatelimitedLogger {
       return true;
     }
     if (log.isWarnEnabled()) {
-      final long previous = previousErrorLogNanos.get();
+      final long next = nextLogNanos.get();
       final long now = timeSource.getNanoTicks();
-      if (previous == 0 || now - previous >= delayNanos) {
-        if (previousErrorLogNanos.compareAndSet(previous, now)) {
-          log.warn(format + noLogMessage, arguments);
-          return true;
-        }
+      if (now - next >= 0 && nextLogNanos.compareAndSet(next, now + delayNanos)) {
+        log.warn(format + noLogMessage, arguments);
+        return true;
       }
     }
     return false;
