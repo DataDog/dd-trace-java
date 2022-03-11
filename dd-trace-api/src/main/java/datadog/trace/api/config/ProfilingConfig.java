@@ -80,6 +80,11 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
 
+  public static final String PROFILING_TRACING_CONTEXT_ENABLED = "profiling.tracing_context.enabled";
+  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
+  public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC = "profiling.tracing_context.tracker.inactive.seconds";
+  public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
+
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
   public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;

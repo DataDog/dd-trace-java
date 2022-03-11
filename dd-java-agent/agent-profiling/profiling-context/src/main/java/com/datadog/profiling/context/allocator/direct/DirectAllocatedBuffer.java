@@ -34,6 +34,7 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
     for (Chunk chunk : chunks) {
       chunk.release();
     }
+    Arrays.fill(chunks, null);
   }
 
   @Override
@@ -67,14 +68,16 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
           return true;
         } catch (IndexOutOfBoundsException e) {
           log.error(
-              "Buffer access error: position={}, capacity={}, chunks={}, chunkSlot={}, chunkOffset={}, buffer.capacity={}, buffer.limit={}",
+              "Buffer access error: position={}, capacity={}, chunks={}, chunkSlot={}, chunkOffset={}, buffer.capacity={}, buffer.limit={}, size.map={}",
               pos,
               capacity,
               chunks.length,
               chunkSlot,
               chunkOffset,
               chunks[chunkSlot].buffer.capacity(),
-              chunks[chunkSlot].buffer.limit());
+              chunks[chunkSlot].buffer.limit(),
+              Arrays.toString(chunkBoundaryMap)
+              );
         }
       }
     }
@@ -152,17 +155,17 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
   private int[] decode(int pos) {
     // shortcut for an index falling within the first slot
     if (pos <= chunkBoundaryMap[0]) {
-      return new int[] {0, pos};
+      return new int[]{0, pos};
     }
 
     // shortcut to linear search for a small number of slots in use
     if (chunkBoundaryMap.length < 5) {
       int slot = 0;
-      while (slot < chunkBoundaryMap.length && chunkBoundaryMap[slot] < pos) {
+      while (slot <= chunkBoundaryMap.length && chunkBoundaryMap[slot] < pos) {
         slot++;
       }
-      if (slot < chunkBoundaryMap.length) {
-        return slot > 0 ? new int[] {slot, pos - chunkBoundaryMap[slot - 1]} : new int[] {slot, pos};
+      if (slot <= chunkBoundaryMap.length) {
+        return slot > 0 ? new int[] {slot, pos - chunkBoundaryMap[slot - 1] - 1} : new int[] {slot, pos};
       }
       return null;
     }
@@ -174,9 +177,9 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
     } else if (slot == 0) {
       return new int[] {slot, pos};
     } else {
-      slot = 1 - slot;
-      if (slot < chunkBoundaryMap.length) {
-        return new int[] {slot, pos - chunkBoundaryMap[slot - 1] - 1};
+      slot = -1 - slot;
+      if (slot <= chunkBoundaryMap.length) {
+        return slot > 0 ? new int[] {slot, pos - chunkBoundaryMap[slot - 1] - 1} : new int[] {slot, pos};
       }
       return null;
     }

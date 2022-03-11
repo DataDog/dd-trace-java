@@ -693,69 +693,63 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (trace.isEmpty()) {
       return;
     }
-    try {
-      List<DDSpan> writtenTrace = trace;
-      if (!interceptors.isEmpty()) {
-        Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
+    List<DDSpan> writtenTrace = trace;
+    if (!interceptors.isEmpty()) {
+      Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
 
-        try {
-          for (final TraceInterceptor interceptor : interceptors) {
-            interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
-          }
-        } catch (Exception e) {
-          log.debug("Exception in TraceInterceptor", e);
-          return;
+      try {
+        for (final TraceInterceptor interceptor : interceptors) {
+          interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
         }
-        writtenTrace = new ArrayList<>(interceptedTrace.size());
-        for (final MutableSpan span : interceptedTrace) {
-          if (span instanceof DDSpan) {
-            writtenTrace.add((DDSpan) span);
-          }
+      } catch (Exception e) {
+        log.debug("Exception in TraceInterceptor", e);
+        return;
+      }
+      writtenTrace = new ArrayList<>(interceptedTrace.size());
+      for (final MutableSpan span : interceptedTrace) {
+        if (span instanceof DDSpan) {
+          writtenTrace.add((DDSpan) span);
         }
       }
+    }
 
-      if (!writtenTrace.isEmpty()) {
-        boolean forceKeep = metricsAggregator.publish(writtenTrace);
+    if (!writtenTrace.isEmpty()) {
+      boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-        DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
-        setSamplingPriorityIfNecessary(rootSpan);
+      DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
+      setSamplingPriorityIfNecessary(rootSpan);
 
-        DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
-        spanToSample.forceKeep(forceKeep);
-        boolean published = forceKeep || sampler.sample(spanToSample);
-        if (published) {
-          for (DDSpan span : writtenTrace) {
-            int stored = span.storeContextToTag();
-            if (stored > -1) {
-              statsDClient.histogram("tracing.context.size", stored);
-            }
-          }
-          writer.write(writtenTrace);
-        } else {
-          // with span streaming this won't work - it needs to be changed
-          // to track an effective sampling rate instead, however, tests
-          // checking that a hard reference on a continuation prevents
-          // reporting fail without this, so will need to be fixed first.
-          writer.incrementDropCounts(writtenTrace.size());
-        }
-        if (null != rootSpan) {
-          onRootSpanFinished(rootSpan, published);
-
-          // request context is propagated to contexts in child spans
-          // Assume here that if present it will be so starting in the top span
-          RequestContext<Object> requestContext = rootSpan.getRequestContext();
-          if (requestContext != null && requestContext.getData() instanceof Closeable) {
-            try {
-              ((Closeable) requestContext.getData()).close();
-            } catch (IOException e) {
-              log.warn("Error closing request context data", e);
-            }
+      DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+      spanToSample.forceKeep(forceKeep);
+      boolean published = forceKeep || sampler.sample(spanToSample);
+      if (published) {
+        for (DDSpan span : writtenTrace) {
+          int stored = span.storeContextToTag();
+          if (stored > -1) {
+            statsDClient.histogram("tracing.context.size", stored);
           }
         }
+        writer.write(writtenTrace);
+      } else {
+        // with span streaming this won't work - it needs to be changed
+        // to track an effective sampling rate instead, however, tests
+        // checking that a hard reference on a continuation prevents
+        // reporting fail without this, so will need to be fixed first.
+        writer.incrementDropCounts(writtenTrace.size());
       }
-    } finally {
-      for (DDSpan span : trace) {
-        span.onRemoved();
+      if (null != rootSpan) {
+        onRootSpanFinished(rootSpan, published);
+
+        // request context is propagated to contexts in child spans
+        // Assume here that if present it will be so starting in the top span
+        RequestContext<Object> requestContext = rootSpan.getRequestContext();
+        if (requestContext != null && requestContext.getData() instanceof Closeable) {
+          try {
+            ((Closeable) requestContext.getData()).close();
+          } catch (IOException e) {
+            log.warn("Error closing request context data", e);
+          }
+        }
       }
     }
   }

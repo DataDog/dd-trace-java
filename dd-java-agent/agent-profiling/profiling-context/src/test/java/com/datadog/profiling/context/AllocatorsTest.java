@@ -1,9 +1,12 @@
-package com.datadog.profiling.context.allocator;
+package com.datadog.profiling.context;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.Allocator;
 import java.util.stream.Stream;
+
+import com.datadog.profiling.context.allocator.AllocatedBuffer;
+import com.datadog.profiling.context.allocator.Allocators;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

@@ -25,13 +25,9 @@ import datadog.trace.core.util.Clock;
 import datadog.trace.util.Base64Encoder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.ref.PhantomReference;
-import java.lang.ref.ReferenceQueue;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -61,7 +57,7 @@ public class DDSpan
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.info("Started span: {}", span);
     context.getTrace().registerSpan(span);
-    span.tracingContextTracker.activateContext();
+    span.tracingContextTracker = TracingContextTrackerFactory.instance(span);
     return span;
   }
 
@@ -80,51 +76,6 @@ public class DDSpan
 
   private static final AtomicLongFieldUpdater<DDSpan> DURATION_NANO_UPDATER =
       AtomicLongFieldUpdater.newUpdater(DDSpan.class, "durationNano");
-
-  private static final class CleanupReference extends PhantomReference<DDSpan>
-      implements Comparable<CleanupReference> {
-    private TracingContextTracker instance;
-    private final AtomicBoolean finishedFlag;
-    private final CharSequence operation;
-    private final CharSequence type;
-
-    CleanupReference(DDSpan referent, ReferenceQueue<? super DDSpan> q) {
-      super(referent, q);
-      this.instance = referent.tracingContextTracker;
-      this.finishedFlag = referent.finished;
-      this.operation = referent.getOperationName();
-      this.type = referent.getType();
-    }
-
-    @Override
-    public void clear() {
-      try {
-        if (!finishedFlag.get()) {
-          log.info("Span [{}/{}] was not finished but is being finalized", type, operation);
-        }
-        if (instance != null) {
-          instance.release();
-        }
-        instance = null;
-        // remove the reference from the internal ref-holder
-        cleanupRefHolder.remove(this);
-      } finally {
-        // properly clean the phantom reference so they don't keep accumulating
-        super.clear();
-      }
-    }
-
-    @Override
-    public int compareTo(CleanupReference o) {
-      return Integer.compare(System.identityHashCode(this), System.identityHashCode(o));
-    }
-  }
-
-  // phantom references need to be kept strongly
-  private static final Collection<CleanupReference> cleanupRefHolder =
-      new ConcurrentSkipListSet<>();
-  // phantom references will be added to this queue once the referred object is GCed
-  private static final ReferenceQueue<DDSpan> cleanupQueue = new ReferenceQueue<>();
 
   /**
    * The duration in nanoseconds computed using the startTimeMicro or startTimeNano.<hr> The span's
@@ -159,7 +110,7 @@ public class DDSpan
     this(timestampMicro, context, true);
   }
 
-  private final TracingContextTracker tracingContextTracker;
+  private volatile TracingContextTracker tracingContextTracker;
 
   private DDSpan(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
@@ -175,8 +126,6 @@ public class DDSpan
       externalClock = true;
       context.getTrace().touch(); // Update lastReferenced
     }
-    this.tracingContextTracker = TracingContextTrackerFactory.instance(this);
-    cleanupRefHolder.add(new CleanupReference(this, cleanupQueue));
   }
 
   public boolean isFinished() {
@@ -192,11 +141,10 @@ public class DDSpan
       context.getTrace().onFinish(this);
       tracingContextTracker.deactivateContext(false);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
-      log.debug("Finished span ({}): {}", publishState, this);
+      log.info("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
     }
-    cleanupReferences();
   }
 
   @Override
@@ -297,21 +245,20 @@ public class DDSpan
 
   public int storeContextToTag() {
     try {
-      byte[] contextContent = tracingContextTracker.persistAndRelease();
+      byte[] contextContent = tracingContextTracker.persist();
       if (contextContent != null) {
         byte[] encoded = new Base64Encoder(false).encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
+        log.info("Store context to tag: span={}, content={}, encoded_len={}", this, contextContent, encoded.length);
         setTag("_dd_tracing_context_" + tracingContextTracker.getVersion(), tag);
         return encoded.length;
       }
     } catch (Throwable t) {
       log.error("", t);
+    } finally {
+      tracingContextTracker.release();
     }
     return -1;
-  }
-
-  public void onRemoved() {
-    tracingContextTracker.release();
   }
 
   @Override
@@ -848,16 +795,5 @@ public class DDSpan
   @Override
   public Object getWrapper() {
     return WRAPPER_FIELD_UPDATER.get(this);
-  }
-
-  private void cleanupReferences() {
-    CleanupReference ref = null;
-    while ((ref = (CleanupReference) cleanupQueue.poll()) != null) {
-      try {
-        ref.clear();
-      } catch (Throwable t) {
-        log.warn("", t);
-      }
-    }
   }
 }

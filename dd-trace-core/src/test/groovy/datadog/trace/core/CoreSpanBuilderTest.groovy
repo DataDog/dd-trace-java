@@ -298,7 +298,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     root.context().getTrace().rootSpan == root
     root.context().getTrace().size() == nbSamples
     root.context().getTrace().finishedSpans.containsAll(spans)
-    spans[(int) (Math.random() * nbSamples)].context.trace.finishedSpans.containsAll(spans)
+    spans[(int) (Math.random() * nbSamples)].context.trace.trackedSpans.containsAll(spans)
   }
 
   def "ExtractedContext should populate new span details"() {

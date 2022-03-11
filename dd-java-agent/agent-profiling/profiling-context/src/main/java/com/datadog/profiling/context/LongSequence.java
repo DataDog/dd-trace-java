@@ -152,7 +152,7 @@ public final class LongSequence {
         slot++;
       }
       if (slot <= bufferInitSlot) {
-        return slot > 0 ? new int[] {slot, index - bufferBoundaryMap[slot - 1]} : new int[] {slot, index};
+        return slot > 0 ? new int[] {slot, index - bufferBoundaryMap[slot - 1] - 1} : new int[] {slot, index};
       }
       return null;
     }
@@ -164,9 +164,9 @@ public final class LongSequence {
     } else if (slot == 0) {
       return new int[] {slot, index};
     } else {
-      slot = 1 - slot;
+      slot = -1 - slot;
       if (slot <= bufferInitSlot) {
-        return new int[] {slot, index - bufferBoundaryMap[slot - 1] - 1};
+        return slot > 0 ? new int[] {slot, index - bufferBoundaryMap[slot - 1] - 1} : new int[] {slot, index};
       }
       return null;
     }

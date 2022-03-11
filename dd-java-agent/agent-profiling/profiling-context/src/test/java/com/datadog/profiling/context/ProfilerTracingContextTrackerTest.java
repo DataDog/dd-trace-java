@@ -19,7 +19,7 @@ class ProfilerTracingContextTrackerTest {
   void setup() throws Exception {
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.heapAllocator(32, 16), null, () -> 0, sequencePruner);
+            Allocators.heapAllocator(32, 16), null, () -> 100_000L, sequencePruner);
   }
 
   @Test
@@ -27,26 +27,14 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void persist() {
-    ProfilerTracingContextTracker.TimestampProvider tsProvider =
-        new ProfilerTracingContextTracker.TimestampProvider() {
-          long timestamp = 0;
-
-          @Override
-          public long timestamp() {
-            long curent = timestamp;
-            timestamp += 1_000_000;
-            return curent;
-          }
-        };
-
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.directAllocator(8192, 64), null, tsProvider, sequencePruner);
+            Allocators.directAllocator(8192, 64), null, () -> 100_000L, sequencePruner);
     for (int i = 0; i < 40; i += 4) {
-      instance.activateContext(1L);
-      instance.deactivateContext(1L, false);
-      instance.activateContext(2L);
-      instance.deactivateContext(2L, true);
+      instance.activateContext(1L, (i + 1) * 1_000_000L);
+      instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);
+      instance.activateContext(2L, (i + 3) * 1_000_000L);
+      instance.deactivateContext(2L, (i + 4) * 1_000_000L, true);
     }
 
     byte[] persisted = instance.persist();

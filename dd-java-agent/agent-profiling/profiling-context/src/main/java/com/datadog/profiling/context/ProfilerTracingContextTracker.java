@@ -2,10 +2,7 @@ package com.datadog.profiling.context;
 
 import datadog.trace.api.RatelimitedLogger;
 import datadog.trace.api.profiling.TracingContextTracker;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -13,12 +10,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilerTracingContextTracker implements TracingContextTracker {
+public final class ProfilerTracingContextTracker implements TracingContextTracker, TracingContextTracker.DelayedTracker {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
+
+  static final int TRANSITION_STARTED = 0;
+  static final int TRANSITION_MAYBE_FINISHED = 1;
+  static final int TRANSITION_NONE = -1;
+  static final int TRANSITION_FINISHED = 2;
 
   @FunctionalInterface
   public interface TimestampProvider {
@@ -29,45 +35,16 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       new RatelimitedLogger(
           LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30_000_000_000L);
 
-  private static final int TRANSITION_STARTED = 0;
-  private static final int TRANSITION_MAYBE_FINISHED = 1;
-  private static final int TRANSITION_NONE = -1;
-  private static final int TRANSITION_FINISHED = 2;
-
   private static final long TRANSITION_MAYBE_FINISHED_MASK =
       (long) (TRANSITION_MAYBE_FINISHED) << 62;
   private static final long TRANSITION_FINISHED_MASK = (long) (TRANSITION_FINISHED) << 62;
   static final long TRANSITION_MASK = TRANSITION_FINISHED_MASK | TRANSITION_MAYBE_FINISHED_MASK;
   static final long TIMESTAMP_MASK = ~TRANSITION_MASK;
 
-  private static final MethodHandle TIMESTAMP_MH;
-
-  static {
-    MethodHandle mh = null;
-    try {
-      Class<?> clz =
-          ProfilerTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
-      mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
-    } catch (Throwable t) {
-      log.error("Failed to initialize JFR timestamp access", t);
-    }
-    TIMESTAMP_MH = mh;
-  }
-
-  private static long timestamp() {
-    if (TIMESTAMP_MH == null) {
-      return System.nanoTime();
-    }
-
-    try {
-      return (long) TIMESTAMP_MH.invokeExact();
-    } catch (Throwable t) {
-      throw new RuntimeException(t);
-    }
-  }
+  private final long inactivityDelay;
 
   private final ConcurrentMap<Long, LongSequence> threadSequences = new ConcurrentHashMap<>(64);
-  private final long timestamp;
+  private final long startTimestamp;
   private final Allocator allocator;
   private final AtomicBoolean released = new AtomicBoolean();
   private final AgentSpan span;
@@ -75,22 +52,36 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   private final TimestampProvider timestampProvider;
   private final IntervalSequencePruner sequencePruner;
 
-  ProfilerTracingContextTracker(
-      Allocator allocator, AgentSpan span, IntervalSequencePruner sequencePruner) {
-    this(allocator, span, ProfilerTracingContextTracker::timestamp, sequencePruner);
-  }
+  private final long initialThreadId;
+  private final long initialTimestamp;
+  private final AtomicBoolean initialized = new AtomicBoolean(false);
+
+  private long lastTransitionTimestamp = -1;
 
   ProfilerTracingContextTracker(
       Allocator allocator,
       AgentSpan span,
       TimestampProvider timestampProvider,
       IntervalSequencePruner sequencePruner) {
-    this.timestamp = timestampProvider.timestamp();
+    this(allocator, span, timestampProvider, sequencePruner, -1L);
+  }
+
+  ProfilerTracingContextTracker(
+      Allocator allocator,
+      AgentSpan span,
+      TimestampProvider timestampProvider,
+      IntervalSequencePruner sequencePruner,
+      long inactivityDelay) {
+    this.startTimestamp = timestampProvider.timestamp();
     this.timestampProvider = timestampProvider;
     this.sequencePruner = sequencePruner;
     this.span = span;
     this.allocator = allocator;
     this.blobListeners = new HashSet<>();
+    this.initialTimestamp = this.startTimestamp + 1; // need at least one tick diff
+    this.initialThreadId = Thread.currentThread().getId();
+    this.lastTransitionTimestamp = System.nanoTime();
+    this.inactivityDelay = inactivityDelay;
   }
 
   void setBlobListeners(Set<IntervalBlobListener> blobListeners) {
@@ -102,10 +93,21 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     activateContext(Thread.currentThread().getId());
   }
 
-  void activateContext(long threadId) {
-    long ts = timestampProvider.timestamp() - timestamp;
-    long masked = maskActivation(ts);
+  private void activateContext(long threadId) {
+    activateContext(threadId, accessTimestamp());
+  }
+
+  void activateContext(long threadId, long timestamp) {
+    long tsDiff = timestamp - startTimestamp;
+    storeDelayedActivation();
+    long masked = maskActivation(tsDiff);
     store(threadId, masked);
+  }
+
+  private long accessTimestamp() {
+    long ts = timestampProvider.timestamp();
+    lastTransitionTimestamp = System.nanoTime();
+    return ts;
   }
 
   static long maskActivation(long value) {
@@ -122,15 +124,21 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     deactivateContext(Thread.currentThread().getId(), maybe);
   }
 
-  void deactivateContext(long threadId, boolean maybe) {
-    long ts = timestampProvider.timestamp() - timestamp;
-    long masked = maskDeactivation(ts, maybe);
+  private void deactivateContext(long threadId, boolean maybe) {
+    deactivateContext(threadId, accessTimestamp(), maybe);
+  }
+
+  void deactivateContext(long threadId, long timestamp, boolean maybe) {
+    long tsDiff = timestamp - startTimestamp;
+    storeDelayedActivation();
+    long masked = maskDeactivation(tsDiff, maybe);
     store(threadId, masked);
   }
 
   @Override
   public byte[] persist() {
     if (released.get()) {
+      log.warn("Trying to persist already released tracker");
       return null;
     }
 
@@ -153,15 +161,6 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     return Arrays.copyOf(data, buffer.limit());
   }
 
-  @Override
-  public byte[] persistAndRelease() {
-    try {
-      return persist();
-    } finally {
-      release();
-    }
-  }
-
   LongIterator pruneIntervals(LongSequence sequence) {
     return sequencePruner.pruneIntervals(sequence, timestampProvider.timestamp());
   }
@@ -169,6 +168,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   @Override
   public void release() {
     if (released.compareAndSet(false, true)) {
+      log.info("Releasing tracing context for span {}", span);
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
     }
@@ -179,7 +179,34 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     return 1;
   }
 
-  private boolean store(long threadId, long value) {
+  @Override
+  public DelayedTracker asDelayed() {
+    return this;
+  }
+
+  @Override
+  public void cleanup() {
+    release();
+  }
+
+  @Override
+  public long getDelay(TimeUnit unit) {
+    return unit.convert(lastTransitionTimestamp + inactivityDelay - System.nanoTime(), TimeUnit.NANOSECONDS);
+  }
+
+  @Override
+  public int compareTo(Delayed o) {
+    if (o instanceof ProfilerTracingContextTracker) {
+      ProfilerTracingContextTracker t = (ProfilerTracingContextTracker) o;
+      return Long.compare(this.lastTransitionTimestamp, t.lastTransitionTimestamp);
+    }
+    return 0;
+  }
+
+  private void store(long threadId, long value) {
+    if (released.get()) {
+      return;
+    }
     int added = 0;
     LongSequence sequence =
         threadSequences.computeIfAbsent(threadId, k -> new LongSequence(allocator));
@@ -196,7 +223,6 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       t.printStackTrace();
       log.error("", t);
     }
-    return added > 0;
   }
 
   private ByteBuffer encodeIntervals() {
@@ -210,7 +236,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     }
 
     IntervalEncoder encoder =
-        new IntervalEncoder(timestamp, threadSequences.size(), totalSequenceBufferSize);
+        new IntervalEncoder(startTimestamp, threadSequences.size(), totalSequenceBufferSize);
     for (Map.Entry<Long, LongSequence> entry : threadSequences.entrySet()) {
       long threadId = entry.getKey();
       IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
@@ -232,5 +258,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     }
     ByteBuffer buffer = encoder.finish();
     return buffer;
+  }
+
+  private void storeDelayedActivation() {
+    if (initialized.compareAndSet(false, true)) {
+        log.info("Storing delayed activation for span {}", span);
+        activateContext(initialThreadId, initialTimestamp);
+    }
   }
 }
