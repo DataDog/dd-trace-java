@@ -469,6 +469,18 @@ jobs:
           <<: *cache_keys
 
       - run:
+          name: Install good version of docker-compose
+          command: |
+            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+
+      - run:
+          name: versions
+          command: |
+            docker --version
+            docker-compose --version
+
+      - run:
           name: Clone System Tests repo
           command: git clone https://github.com/DataDog/system-tests.git
 
@@ -488,7 +500,7 @@ jobs:
           name: Run
           command: |
             cd system-tests
-            DD_API_KEY=todo ./run.sh
+            DD_API_KEY=$DATADOG_API_KEY ./run.sh
 
       - store_artifacts:
           path: system-tests/logs
