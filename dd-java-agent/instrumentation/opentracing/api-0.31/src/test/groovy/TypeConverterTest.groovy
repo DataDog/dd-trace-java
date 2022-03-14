@@ -84,9 +84,7 @@ class TypeConverterTest extends AgentTestRunner {
       0,
       trace,
       null,
-      false,
-      null,
-      512) {
+      false) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor
           // because it causes NPE when calls trace.getTracer from within setServiceName

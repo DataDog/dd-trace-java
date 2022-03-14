@@ -169,60 +169,58 @@ class DDSpanContextTest extends DDCoreSpecification {
   def "test sampling decision pack/unpack"() {
     expect:
     def decision = DDSpanContext.SamplingDecision.create(priority, mechanism)
-    DDSpanContext.SamplingDecision.priority(decision) == priority
-    DDSpanContext.SamplingDecision.mechanism(decision) == mechanism
+    DDSpanContext.SamplingDecision.priority(decision) == priority2
+    DDSpanContext.SamplingDecision.mechanism(decision) == mechanism2
 
     where:
-    mechanism        | priority
-    UNKNOWN          | UNSET
-    UNKNOWN          | SAMPLER_DROP
-    UNKNOWN          | SAMPLER_KEEP
-    UNKNOWN          | USER_DROP
-    UNKNOWN          | USER_KEEP
-    DEFAULT          | UNSET
-    DEFAULT          | SAMPLER_DROP
-    DEFAULT          | SAMPLER_KEEP
-    DEFAULT          | USER_DROP
-    DEFAULT          | USER_KEEP
+    mechanism        | priority     | mechanism2       | priority2
+    UNKNOWN          | UNSET        | UNKNOWN          | UNSET
+    UNKNOWN          | SAMPLER_DROP | UNKNOWN          | SAMPLER_DROP
+    UNKNOWN          | SAMPLER_KEEP | UNKNOWN          | SAMPLER_KEEP
+    UNKNOWN          | USER_DROP    | UNKNOWN          | USER_DROP
+    UNKNOWN          | USER_KEEP    | UNKNOWN          | USER_KEEP
+    DEFAULT          | UNSET        | DEFAULT          | UNSET
+    DEFAULT          | SAMPLER_DROP | DEFAULT          | SAMPLER_DROP
+    DEFAULT          | SAMPLER_KEEP | DEFAULT          | SAMPLER_KEEP
+    DEFAULT          | USER_DROP    | DEFAULT          | USER_DROP
+    DEFAULT          | USER_KEEP    | DEFAULT          | USER_KEEP
 
-    AGENT_RATE       | UNSET
-    AGENT_RATE       | SAMPLER_DROP
-    AGENT_RATE       | SAMPLER_KEEP
-    AGENT_RATE       | USER_DROP
-    AGENT_RATE       | USER_KEEP
+    AGENT_RATE       | UNSET        | AGENT_RATE       | UNSET
+    AGENT_RATE       | SAMPLER_DROP | AGENT_RATE       | SAMPLER_DROP
+    AGENT_RATE       | SAMPLER_KEEP | AGENT_RATE       | SAMPLER_KEEP
+    AGENT_RATE       | USER_DROP    | AGENT_RATE       | USER_DROP
+    AGENT_RATE       | USER_KEEP    | AGENT_RATE       | USER_KEEP
 
-    REMOTE_AUTO_RATE | UNSET
-    REMOTE_AUTO_RATE | SAMPLER_DROP
-    REMOTE_AUTO_RATE | SAMPLER_KEEP
-    REMOTE_AUTO_RATE | USER_DROP
-    REMOTE_AUTO_RATE | USER_KEEP
-    RULE             | UNSET
-    RULE             | SAMPLER_DROP
-    RULE             | SAMPLER_KEEP
-    RULE             | USER_DROP
-    RULE             | USER_KEEP
-    MANUAL           | UNSET
-    MANUAL           | SAMPLER_DROP
-    MANUAL           | SAMPLER_KEEP
-    MANUAL           | USER_DROP
-    MANUAL           | USER_KEEP
-    REMOTE_USER_RATE | UNSET
-    REMOTE_USER_RATE | SAMPLER_DROP
-    REMOTE_USER_RATE | SAMPLER_KEEP
-    REMOTE_USER_RATE | USER_DROP
-    REMOTE_USER_RATE | USER_KEEP
-    APPSEC           | UNSET
-    APPSEC           | SAMPLER_DROP
-    APPSEC           | SAMPLER_KEEP
-    APPSEC           | USER_DROP
-    APPSEC           | USER_KEEP
+    REMOTE_AUTO_RATE | UNSET        | REMOTE_AUTO_RATE | UNSET
+    REMOTE_AUTO_RATE | SAMPLER_DROP | REMOTE_AUTO_RATE | SAMPLER_DROP
+    REMOTE_AUTO_RATE | SAMPLER_KEEP | REMOTE_AUTO_RATE | SAMPLER_KEEP
+    REMOTE_AUTO_RATE | USER_DROP    | REMOTE_AUTO_RATE | USER_DROP
+    REMOTE_AUTO_RATE | USER_KEEP    | REMOTE_AUTO_RATE | USER_KEEP
+    RULE             | UNSET        | RULE             | UNSET
+    RULE             | SAMPLER_DROP | RULE             | SAMPLER_DROP
+    RULE             | SAMPLER_KEEP | RULE             | SAMPLER_KEEP
+    RULE             | USER_DROP    | RULE             | USER_DROP
+    RULE             | USER_KEEP    | RULE             | USER_KEEP
+    MANUAL           | UNSET        | MANUAL           | UNSET
+    MANUAL           | SAMPLER_DROP | MANUAL           | SAMPLER_DROP
+    MANUAL           | SAMPLER_KEEP | MANUAL           | SAMPLER_KEEP
+    MANUAL           | USER_DROP    | MANUAL           | USER_DROP
+    MANUAL           | USER_KEEP    | MANUAL           | USER_KEEP
+    REMOTE_USER_RATE | UNSET        |REMOTE_USER_RATE | UNSET
+    REMOTE_USER_RATE | SAMPLER_DROP |REMOTE_USER_RATE | SAMPLER_DROP
+    REMOTE_USER_RATE | SAMPLER_KEEP |REMOTE_USER_RATE | SAMPLER_KEEP
+    REMOTE_USER_RATE | USER_DROP    |REMOTE_USER_RATE | USER_DROP
+    REMOTE_USER_RATE | USER_KEEP    |REMOTE_USER_RATE | USER_KEEP
+    APPSEC           | UNSET        |APPSEC           | UNSET
+    APPSEC           | SAMPLER_DROP |APPSEC           | SAMPLER_DROP
+    APPSEC           | SAMPLER_KEEP |APPSEC           | SAMPLER_KEEP
+    APPSEC           | USER_DROP    |APPSEC           | USER_DROP
+    APPSEC           | USER_KEEP    |APPSEC           | USER_KEEP
   }
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted =
-      new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, DEFAULT, "789", 0, [:], [:], null)
-      .withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, DEFAULT, "789", 0, [:], [:]).withRequestContextData("dummy")
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
     def topC = (DDSpanContext) top.context()
     def topTS = top.getRequestContext().getTraceSegment()

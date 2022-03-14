@@ -103,7 +103,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     // so coerce them to proper String instances
     def expected = expectedTraces(processIndex).collect { String.valueOf(it) }.toSet()
     def remaining = assertTraceCounts(expected, traceCounts)
-    assert remaining.toList() == []
+    assert remaining.toList() == [] : "Encountered traces: " + traceCounts
     return remaining.isEmpty()
   }
 

@@ -61,7 +61,12 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
     if (skipType != null && ExcludeFilter.exclude(skipType, matchedType)) {
       excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
       if (log.isDebugEnabled()) {
-        log.debug("Skipping context-store field for {}: {} -> {}", matchedType, keyType, valueType);
+        log.debug(
+            "Skipping context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+            matchedType,
+            classLoader,
+            keyType,
+            valueType);
       }
       return false;
     }
@@ -95,15 +100,21 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
       if (shouldInject) {
         // Only log success the first time we add it to the class
         if (classBeingRedefined == null) {
-          log.debug("Added context-store field to {}: {} -> {}", matchedType, keyType, valueType);
+          log.debug(
+              "Added context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+              matchedType,
+              classLoader,
+              keyType,
+              valueType);
         }
       } else if (null != injectionTarget) {
         log.debug(
-            "Will not add context-store field to {}: {} -> {}, because it will be added to {}",
+            "Will not add context-store field, alternate target found {} - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+            injectionTarget,
             matchedType,
+            classLoader,
             keyType,
-            valueType,
-            injectionTarget);
+            valueType);
       } else {
         // must be a redefine of a class that we weren't able to field-inject on startup
         // - make sure we'd have field-injected (if we'd had the chance) before tracking
@@ -114,7 +125,11 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
 
           // Only log failed redefines where we would have injected this class
           log.debug(
-              "Failed to add context-store field to {}: {} -> {}", matchedType, keyType, valueType);
+              "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+              matchedType,
+              classLoader,
+              keyType,
+              valueType);
         }
       }
     }

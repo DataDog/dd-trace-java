@@ -279,16 +279,22 @@ public class Reference {
     public static class MissingMethod extends Mismatch {
       private final String className;
       private final String method;
+      private final String methodType;
 
-      public MissingMethod(final String[] sources, final String className, final String method) {
+      public MissingMethod(
+          final String[] sources,
+          final String className,
+          final String method,
+          final String methodType) {
         super(sources);
         this.className = className;
         this.method = method;
+        this.methodType = methodType;
       }
 
       @Override
       String getMismatchDetails() {
-        return "Missing method " + className + "#" + method;
+        return "Missing method " + className + "#" + method + methodType;
       }
     }
 

@@ -66,7 +66,7 @@ public class AgentInstaller {
         log.debug("Class instrumentation installed");
       }
     } else if (DEBUG) {
-      log.debug("Tracing is disabled, not installing instrumentations.");
+      log.debug("There are not any enabled subsystems, not installing instrumentations.");
     }
   }
 
@@ -135,7 +135,8 @@ public class AgentInstaller {
         ExcludeFilter.add(provider.excludedClasses());
         if (DEBUG) {
           log.debug(
-              "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
+              "Adding filtered classes - instrumentation.class={}",
+              instrumenter.getClass().getName());
         }
       }
     }
@@ -144,19 +145,20 @@ public class AgentInstaller {
     for (final Instrumenter instrumenter : loader) {
       if (!instrumenter.isApplicable(enabledSystems)) {
         if (DEBUG) {
-          log.debug("Instrumentation {} is not applicable", instrumenter.getClass().getName());
+          log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
         }
         continue;
       }
       if (DEBUG) {
-        log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+        log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
       }
 
       try {
         agentBuilder = instrumenter.instrument(agentBuilder);
         numInstrumenters++;
       } catch (final Exception | LinkageError e) {
-        log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
+        log.error(
+            "Failed to load - instrumentation.class={}", instrumenter.getClass().getName(), e);
       }
     }
     if (DEBUG) {
@@ -269,7 +271,7 @@ public class AgentInstaller {
         final Throwable throwable) {
       if (DEBUG) {
         log.debug(
-            "Failed to handle {} for transformation on classloader {}",
+            "Transformation failed - instrumentation.target.class={} instrumentation.target.classloader={}",
             typeName,
             classLoader,
             throwable);
@@ -284,7 +286,10 @@ public class AgentInstaller {
         final boolean loaded,
         final DynamicType dynamicType) {
       if (DEBUG) {
-        log.debug("Transformed {} -- {}", typeDescription.getName(), classLoader);
+        log.debug(
+            "Transformed - instrumentation.target.class={} instrumentation.target.classloader={}",
+            typeDescription.getName(),
+            classLoader);
       }
     }
 

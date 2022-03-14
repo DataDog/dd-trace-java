@@ -6,6 +6,7 @@ import static datadog.trace.util.Strings.getResourceName;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
+import java.util.Arrays;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -193,6 +194,11 @@ public final class ClassLoaderMatcher {
         PROBING_CLASSLOADER.end();
       }
     }
+
+    @Override
+    public String toString() {
+      return "ClassLoaderHasClassesNamedMatcher{named=" + Arrays.toString(resources) + "}";
+    }
   }
 
   private static class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
@@ -212,6 +218,11 @@ public final class ClassLoaderMatcher {
       } finally {
         PROBING_CLASSLOADER.end();
       }
+    }
+
+    @Override
+    public String toString() {
+      return "ClassLoaderHasClassNamedMatcher{named='" + resource + "\'}";
     }
   }
 }

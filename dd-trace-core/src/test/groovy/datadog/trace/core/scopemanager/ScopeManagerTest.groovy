@@ -35,8 +35,6 @@ enum EVENT {
 }
 
 class ScopeManagerTest extends DDCoreSpecification {
-  private static final long TIMEOUT_MS = 10_000
-
   @Override
   protected boolean useStrictTraceWrites() {
     // This tests the behavior of the relaxed pending trace implementation
@@ -690,7 +688,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.active() == null
     spanFinished(span)
     scopeManager.scopeStack().depth() == 0
-    writer == []
+    writer == [[span]]
 
     when: "completing another scope lifecycle"
     def span2 = tracer.buildSpan("test").start()
@@ -709,7 +707,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.active() == null
     spanFinished(span2)
     scopeManager.scopeStack().depth() == 0
-    writer == [[span2]]
+    writer == [[span], [span2]]
   }
 
   def "exception thrown in TraceInterceptor does not leave scope manager in bad state when reporting through PendingTraceBuffer"() {
@@ -733,11 +731,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == []
 
     when: "wait for root span to be reported from PendingTraceBuffer"
-    // can't use "waitForTraces" because the trace never gets reported
-    def deadline = System.currentTimeMillis() + TIMEOUT_MS
-    while (System.currentTimeMillis() < deadline && interceptor.lastTrace == null) {
-      Thread.sleep(200)
-    }
+    writer.waitForTraces(1)
 
     then:
     interceptor.lastTrace == [span]
@@ -746,7 +740,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.active() == null
     spanFinished(span)
     scopeManager.scopeStack().depth() == 0
-    writer == []
+    writer == [[span]]
 
     when: "completing another async scope lifecycle"
     def span2 = tracer.buildSpan("test").start()
@@ -763,15 +757,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     scope2.close()
     span2.finish()
 
-    // The second trace also goes through PendingTraceBuffer, but since we're not throwing an exception
-    // we can use the normal "waitForTraces"
-    writer.waitForTraces(1)
+    writer.waitForTraces(2)
 
     then: "second lifecycle gets reported as well"
     scopeManager.active() == null
     spanFinished(span2)
     scopeManager.scopeStack().depth() == 0
-    writer == [[span2]]
+    writer == [[span], [span2]]
 
     where:
     concurrent << [false, true]

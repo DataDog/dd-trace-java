@@ -183,7 +183,10 @@ public final class ReferenceMatcher implements IReferenceMatcher {
     for (Reference.Method missingMethod : indexedMethods.values()) {
       mismatches.add(
           new Reference.Mismatch.MissingMethod(
-              missingMethod.sources, missingMethod.name, missingMethod.methodType));
+              missingMethod.sources,
+              reference.className,
+              missingMethod.name,
+              missingMethod.methodType));
     }
 
     return mismatches.isEmpty();

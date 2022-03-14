@@ -1,4 +1,4 @@
-package datadog.trace.api
+package datadog.trace.relocate.api
 
 import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
@@ -6,19 +6,18 @@ import org.slf4j.Logger
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.MINUTES
+import static java.util.concurrent.TimeUnit.NANOSECONDS
 
 class RateLimitedLoggerTest extends DDSpecification {
-  final delay = 5
   final exception = new RuntimeException("bad thing")
-
-
 
   def "Debug level"() {
     setup:
     Logger log = Mock(Logger)
     TimeSource timeSource = Mock(TimeSource)
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, MINUTES, timeSource)
     log.isDebugEnabled() >> true
 
     when:
@@ -32,7 +31,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "default warning once"() {
     setup:
     Logger log = Mock(Logger)
-    def defaultRateLimitedLog = new RatelimitedLogger(log, MINUTES.toNanos(5))
+    def defaultRateLimitedLog = new RatelimitedLogger(log, 5, MINUTES)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
 
@@ -51,17 +50,17 @@ class RateLimitedLoggerTest extends DDSpecification {
     setup:
     Logger log = Mock(Logger)
     TimeSource timeSource = Mock(TimeSource)
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MINUTES, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >> delay
+    timeSource.getNanoTime() >> MINUTES.toNanos(1)
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
     def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    1 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
+    1 * log.warn("test {} {} (Will not log errors for 1 minute)", "message", exception)
     firstLog
     !secondLog
   }
@@ -72,7 +71,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     AtomicInteger counter = new AtomicInteger(0)
     Logger log = Mock(Logger)
     TimeSource timeSource = Mock(TimeSource)
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, NANOSECONDS, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
     timeSource.getNanoTime() >> {
@@ -80,7 +79,7 @@ class RateLimitedLoggerTest extends DDSpecification {
       if (invocation == 0) {
         return Long.MIN_VALUE
       }
-      return Long.MIN_VALUE + delay - 1
+      return Long.MIN_VALUE + 5 - 1
     }
 
     when:
@@ -89,7 +88,7 @@ class RateLimitedLoggerTest extends DDSpecification {
 
     then:
     counter.get() == 2
-    1 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
+    1 * log.warn("test {} {} (Will not log errors for 5 nanoseconds)", "message", exception)
     firstLog
     !secondLog
   }
@@ -98,17 +97,17 @@ class RateLimitedLoggerTest extends DDSpecification {
     setup:
     Logger log = Mock(Logger)
     TimeSource timeSource = Mock(TimeSource)
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 7, NANOSECONDS, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >>> [delay, delay * 2]
+    timeSource.getNanoTime() >>> [7, 7 * 2]
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
     def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
-    2 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
+    2 * log.warn("test {} {} (Will not log errors for 7 nanoseconds)", "message", exception)
     firstLog
     secondLog
   }
@@ -117,7 +116,8 @@ class RateLimitedLoggerTest extends DDSpecification {
     setup:
     Logger log = Mock(Logger)
     TimeSource timeSource = Mock(TimeSource)
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, MINUTES, timeSource)
+
     when:
     rateLimitedLog.warn("test {} {}", "message", exception)
 
@@ -129,15 +129,15 @@ class RateLimitedLoggerTest extends DDSpecification {
     setup:
     Logger log = Mock(Logger)
     TimeSource timeSource = Mock(TimeSource)
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MILLISECONDS, timeSource)
     log.isWarnEnabled() >> true
     log.isDebugEnabled() >> false
-    timeSource.getNanoTime() >> delay
+    timeSource.getNanoTime() >> MILLISECONDS.toNanos(1)
 
     when:
     rateLimitedLog.warn("test")
 
     then:
-    1 * log.warn("test (Will not log errors for 5 minutes)")
+    1 * log.warn("test (Will not log errors for 1 millisecond)")
   }
 }

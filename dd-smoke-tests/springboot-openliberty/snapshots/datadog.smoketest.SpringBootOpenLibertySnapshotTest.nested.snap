@@ -20,7 +20,6 @@
            "http.status_code" "200"
            "span.kind" "server"
            "http.method" "GET"
-           "_dd.p.upstream_services" "c21va2UtdGVzdC1qYXZhLWFwcA|1|1|1"
            "http.route" "/connect"
            "servlet.path" "/connect"}
    "metrics" {"_dd.agent_psr" 1.0
@@ -93,7 +92,6 @@
                        "span.kind" "server"
                        "http.method" "GET"
                        "http.route" "/connect/{user}"
-                       "_dd.p.upstream_services" "c21va2UtdGVzdC1qYXZhLWFwcA|1|-1"
                        "servlet.path" "/connect/92"}
                "metrics" {"_dd.measured" 1
                           "_sampling_priority_v1" 1

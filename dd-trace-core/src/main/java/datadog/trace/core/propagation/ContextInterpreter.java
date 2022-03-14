@@ -39,7 +39,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String forwardedIp;
   protected String forwardedPort;
   protected boolean valid;
-  protected DatadogTags ddTags;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -122,7 +121,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
-    ddTags = null;
     return this;
   }
 
@@ -145,8 +143,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   forwardedIp,
                   forwardedPort,
                   baggage,
-                  tags,
-                  ddTags);
+                  tags);
         } else {
           context =
               new ExtractedContext(
@@ -157,8 +154,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   origin,
                   endToEndStartTime,
                   baggage,
-                  tags,
-                  ddTags);
+                  tags);
         }
         return context;
       } else if (hasForwarded) {

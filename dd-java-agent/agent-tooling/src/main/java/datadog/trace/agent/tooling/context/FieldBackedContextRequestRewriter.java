@@ -114,7 +114,8 @@ final class FieldBackedContextRequestRewriter implements AsmVisitorWrapper {
                 && INSTRUMENTATION_CONTEXT_CLASS.equals(owner)
                 && GET_METHOD.equals(name)
                 && GET_METHOD_DESCRIPTOR.equals(descriptor)) {
-              log.debug("Found context-store access in {}", instrumenterClassName);
+              log.debug(
+                  "Found context-store access - instrumentation.class={}", instrumenterClassName);
               // We track the last two constants pushed onto the stack to make sure they match
               // the expected key and context types. Matching calls are rewritten to call the
               // dynamically injected context store implementation instead.
@@ -123,7 +124,7 @@ final class FieldBackedContextRequestRewriter implements AsmVisitorWrapper {
                 final String contextClassName = ((Type) constant2).getClassName();
                 if (log.isDebugEnabled()) {
                   log.debug(
-                      "Rewriting context-store map fetch for instrumenter {}: {} -> {}",
+                      "Rewriting context-store map fetch - instrumentation.class={} instrumentation.target.context={}->{}",
                       instrumenterClassName,
                       keyClassName,
                       contextClassName);

@@ -25,8 +25,7 @@ public final class ForwardedExtractedContext extends ExtractedContext {
       final String forwardedIp,
       final String forwardedPort,
       final Map<String, String> baggage,
-      final Map<String, String> tags,
-      final DatadogTags ddTags) {
+      final Map<String, String> tags) {
     super(
         traceId,
         spanId,
@@ -35,8 +34,7 @@ public final class ForwardedExtractedContext extends ExtractedContext {
         origin,
         endToEndStartTime,
         baggage,
-        tags,
-        ddTags);
+        tags);
     this.forwarded = forwarded;
     this.forwardedProto = forwardedProto;
     this.forwardedHost = forwardedHost;

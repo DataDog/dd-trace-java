@@ -552,6 +552,7 @@ public class Agent {
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
+      log.warn("AppSec ClassLoader has not been created");
       return;
     }
 

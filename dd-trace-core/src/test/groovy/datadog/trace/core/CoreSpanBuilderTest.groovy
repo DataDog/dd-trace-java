@@ -321,9 +321,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.getTag(THREAD_NAME) == thread.name
 
     where:
-    extractedContext                                                                                                                                                                                    | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, null, 0, [:], [:], null)                                                                     | _
-    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null) | _
+    extractedContext                                                                                                                                                                              | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, null, 0, [:], [:])                                                                     | _
+    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
   }
 
   def "TagContext should populate default span details"() {

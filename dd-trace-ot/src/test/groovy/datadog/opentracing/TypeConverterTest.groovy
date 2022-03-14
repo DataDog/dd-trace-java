@@ -89,8 +89,6 @@ class TypeConverterTest extends DDSpecification {
       0,
       trace,
       null,
-      false,
-      null,
-      512)
+      false)
   }
 }
