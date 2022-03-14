@@ -54,7 +54,7 @@ public class DDSpan
   static DDSpan create(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitCheckpoints) {
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
-    log.info("Started span: {}", span);
+    log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     span.tracingContextTracker = TracingContextTrackerFactory.instance(span);
     return span;
@@ -140,7 +140,7 @@ public class DDSpan
       context.getTrace().onFinish(this);
       tracingContextTracker.deactivateContext(false);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
-      log.info("Finished span ({}): {}", publishState, this);
+      log.debug("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
     }
@@ -238,7 +238,7 @@ public class DDSpan
     } else if (DURATION_NANO_UPDATER.compareAndSet(
         this, durationNano, durationNano & Long.MAX_VALUE)) {
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
-      log.info("Published span ({}): {}", publishState, this);
+      log.debug("Published span ({}): {}", publishState, this);
     }
   }
 
@@ -248,7 +248,7 @@ public class DDSpan
       if (contextContent != null) {
         byte[] encoded = Base64Encoder.INSTANCE.encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
-        log.info(
+        log.debug(
             "Store context to tag: span={}, content={}, encoded_len={}",
             this,
             contextContent,
