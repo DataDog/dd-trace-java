@@ -3,7 +3,6 @@ package com.datadog.profiling.context;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
-import datadog.trace.util.Base64Encoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -43,7 +42,7 @@ class ProfilerTracingContextTrackerTest {
     List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(persisted);
     assertEquals(11, intervals.size());
 
-    byte[] encoded = new Base64Encoder(false).encode(persisted);
+    byte[] encoded = Base64.getEncoder().encode(persisted);
     System.out.println("===> encoded: " + encoded.length);
     System.err.println("===> " + new String(encoded, StandardCharsets.UTF_8));
   }

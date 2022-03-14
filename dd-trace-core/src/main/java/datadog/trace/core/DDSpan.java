@@ -22,7 +22,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.util.Clock;
-import datadog.trace.util.Base64Encoder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -247,7 +246,7 @@ public class DDSpan
     try {
       byte[] contextContent = tracingContextTracker.persist();
       if (contextContent != null) {
-        byte[] encoded = new Base64Encoder(false).encode(contextContent);
+        byte[] encoded = Base64Encoder.INSTANCE.encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
         log.info(
             "Store context to tag: span={}, content={}, encoded_len={}",

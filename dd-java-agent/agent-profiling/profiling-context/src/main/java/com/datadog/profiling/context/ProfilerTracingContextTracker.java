@@ -1,8 +1,8 @@
 package com.datadog.profiling.context;
 
-import datadog.trace.api.RatelimitedLogger;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -32,7 +32,7 @@ public final class ProfilerTracingContextTracker
 
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
-          LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30_000_000_000L);
+          LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30, TimeUnit.SECONDS);
 
   private static final long TRANSITION_MAYBE_FINISHED_MASK =
       (long) (TRANSITION_MAYBE_FINISHED) << 62;
