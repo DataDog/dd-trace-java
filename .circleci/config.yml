@@ -500,7 +500,7 @@ jobs:
           name: Run
           command: |
             cd system-tests
-            DD_API_KEY=$DATADOG_API_KEY ./run.sh
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
       - store_artifacts:
           path: system-tests/logs
