@@ -39,6 +39,7 @@ dependencies {
 
   api project(':dd-java-agent:agent-tooling')
   api project(':utils:test-utils')
+  api project(':utils:time-utils')
 
   api deps.groovy
 
