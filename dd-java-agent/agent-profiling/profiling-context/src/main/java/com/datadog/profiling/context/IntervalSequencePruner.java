@@ -137,7 +137,7 @@ final class IntervalSequencePruner {
     }
     if (lastTransition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
       // dangling start -> create a synthetic finished transition
-      log.info("Dangling 'started' transition. Creating synthetic 'finished' transition.");
+      log.debug("Dangling 'started' transition. Creating synthetic 'finished' transition.");
       sequence.add(ProfilerTracingContextTracker.maskDeactivation(timestamp, false));
     }
     return new PruningLongIterator(sequence.iterator());

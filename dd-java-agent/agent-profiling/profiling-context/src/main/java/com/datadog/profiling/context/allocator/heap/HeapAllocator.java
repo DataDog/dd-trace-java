@@ -39,7 +39,7 @@ public final class HeapAllocator implements Allocator {
       Field fld = tracer.getClass().getDeclaredField("statsDClient");
       fld.setAccessible(true);
       StatsDClient statsd = (StatsDClient) fld.get(tracer);
-      log.info("Set up custom StatsD Client instance {}", statsd);
+      log.debug("Set up custom StatsD Client instance {}", statsd);
       return statsd;
     } catch (Throwable t) {
       if (log.isDebugEnabled()) {
@@ -77,7 +77,6 @@ public final class HeapAllocator implements Allocator {
       return new HeapAllocatedBuffer(this, size);
     } finally {
       long timeDelta = System.nanoTime() - ts;
-      log.info("Allocated bytes in {}ns ({}/{})", timeDelta, size, newRemaining);
       statsDClient.histogram("tracing.context.allocator.latency", timeDelta);
     }
   }

@@ -97,7 +97,7 @@ public final class DirectAllocator implements Allocator {
       Field fld = tracer.getClass().getDeclaredField("statsDClient");
       fld.setAccessible(true);
       statsd = (StatsDClient) fld.get(tracer);
-      log.info("Set up custom StatsD Client instance {}", statsd);
+      log.debug("Set up custom StatsD Client instance {}", statsd);
     } catch (Throwable t) {
       t.printStackTrace();
     }

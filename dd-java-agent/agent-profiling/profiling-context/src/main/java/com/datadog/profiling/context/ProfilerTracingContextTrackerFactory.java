@@ -120,7 +120,7 @@ public final class ProfilerTracingContextTrackerFactory
         log.debug("Failed to initialize JFR timestamp access. Falling back to system nanotime.");
       }
     }
-    log.info("Tracing Context Tracker Memory Type: {}", reservedMemoryType);
+    log.debug("Tracing Context Tracker Memory Type: {}", reservedMemoryType);
     allocator =
         reservedMemoryType.equalsIgnoreCase("direct")
             ? Allocators.directAllocator(reservedMemorySize, 32)
