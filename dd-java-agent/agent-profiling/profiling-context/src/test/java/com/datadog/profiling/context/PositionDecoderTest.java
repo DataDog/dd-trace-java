@@ -34,21 +34,21 @@ class PositionDecoderTest {
   void decodeValid() {
     int maxBoundary = 12;
     int[] map = new int[] {2, 4, 6, 8, 10, maxBoundary};
-    PositionDecoder.Position[] expected =
-        new PositionDecoder.Position[] {
-          new PositionDecoder.Position(0, 0),
-          new PositionDecoder.Position(0, 1),
-          new PositionDecoder.Position(0, 2),
-          new PositionDecoder.Position(1, 0),
-          new PositionDecoder.Position(1, 1),
-          new PositionDecoder.Position(2, 0),
-          new PositionDecoder.Position(2, 1),
-          new PositionDecoder.Position(3, 0),
-          new PositionDecoder.Position(3, 1),
-          new PositionDecoder.Position(4, 0),
-          new PositionDecoder.Position(4, 1),
-          new PositionDecoder.Position(5, 0),
-          new PositionDecoder.Position(5, 1)
+    PositionDecoder.Coordinates[] expected =
+        new PositionDecoder.Coordinates[] {
+          new PositionDecoder.Coordinates(0, 0),
+          new PositionDecoder.Coordinates(0, 1),
+          new PositionDecoder.Coordinates(0, 2),
+          new PositionDecoder.Coordinates(1, 0),
+          new PositionDecoder.Coordinates(1, 1),
+          new PositionDecoder.Coordinates(2, 0),
+          new PositionDecoder.Coordinates(2, 1),
+          new PositionDecoder.Coordinates(3, 0),
+          new PositionDecoder.Coordinates(3, 1),
+          new PositionDecoder.Coordinates(4, 0),
+          new PositionDecoder.Coordinates(4, 1),
+          new PositionDecoder.Coordinates(5, 0),
+          new PositionDecoder.Coordinates(5, 1)
         };
 
     for (int mapIndex = map.length - 1; mapIndex >= 0; mapIndex--) {
@@ -63,5 +63,7 @@ class PositionDecoderTest {
                 + (mapIndex + 1));
       }
     }
+
+    assertNull(instance.decode(map[map.length - 1] + 1, map));
   }
 }

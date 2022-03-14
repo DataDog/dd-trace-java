@@ -2,6 +2,7 @@ package com.datadog.profiling.context;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.context.allocator.Allocators;
 import java.util.ArrayList;
@@ -29,8 +30,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, stop), values);
   }
 
@@ -45,8 +48,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, maybeStop), values);
   }
 
@@ -64,8 +69,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, stop), values);
   }
 
@@ -85,8 +92,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, stop), values);
   }
 
@@ -105,8 +114,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, finishTs);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     // the deactivation at 'finishTs' is added by the pruning not to have a dangling start
     assertEquals(
         Arrays.asList(start, ProfilerTracingContextTracker.maskDeactivation(finishTs, false)),
@@ -127,9 +138,38 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, maybeStop), values);
+  }
+
+  @Test
+  void testPruneStartAfterMultiStop() {
+    LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
+    long start = ProfilerTracingContextTracker.maskActivation(100);
+    long stop1 = ProfilerTracingContextTracker.maskDeactivation(200, false);
+    long stop2 = ProfilerTracingContextTracker.maskDeactivation(300, false);
+    long stop3 = ProfilerTracingContextTracker.maskDeactivation(400, false);
+    long start1 = ProfilerTracingContextTracker.maskActivation(500);
+    long stop4 = ProfilerTracingContextTracker.maskDeactivation(600, false);
+
+    ls.add(start);
+    ls.add(stop1);
+    ls.add(stop2);
+    ls.add(stop3);
+    ls.add(start1);
+    ls.add(stop4);
+
+    LongIterator iterator = instance.pruneIntervals(ls, 0);
+    List<Long> values = new ArrayList<>();
+    while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
+      values.add(iterator.next());
+    }
+    assertFalse(iterator.hasNext());
+    assertEquals(Arrays.asList(start, stop3, start1, stop4), values);
   }
 
   @Test
@@ -150,8 +190,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, stop2), values);
   }
 
@@ -169,8 +211,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, stop), values);
   }
 
@@ -190,8 +234,10 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, 0);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+    assertFalse(iterator.hasNext());
     assertEquals(Arrays.asList(start, maybeStop3), values);
   }
 
@@ -228,8 +274,11 @@ public class IntervalSequencePrunerTest {
     LongIterator iterator = instance.pruneIntervals(ls, stopTs);
     List<Long> values = new ArrayList<>();
     while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
       values.add(iterator.next());
     }
+
+    assertFalse(iterator.hasNext());
     assertEquals(
         Arrays.asList(start, ProfilerTracingContextTracker.maskDeactivation(stopTs, false)),
         values);

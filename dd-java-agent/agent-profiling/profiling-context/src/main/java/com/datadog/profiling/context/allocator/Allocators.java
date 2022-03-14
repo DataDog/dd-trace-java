@@ -6,10 +6,11 @@ import com.datadog.profiling.context.allocator.heap.HeapAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** A factory class for {@linkplain Allocator} instances */
 public abstract class Allocators {
   private static final Logger log = LoggerFactory.getLogger(Allocators.class);
 
-  protected Allocators() {}
+  private Allocators() {}
 
   public static Allocator directAllocator(int capacity, int chunk) {
     return new DirectAllocator(capacity, chunk);

@@ -40,9 +40,21 @@ public final class ProfilerTracingContextTrackerFactory
                   ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC,
                   ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT),
               TimeUnit.SECONDS);
+      int reservedMemorySize =
+          configProvider.getInteger(
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE,
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE_DEFAULT);
+      String reservedMemoryType =
+          configProvider.getString(
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE,
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT);
+
       TracingContextTrackerFactory.registerImplementation(
           new ProfilerTracingContextTrackerFactory(
-              inactivityDelayNs, DEFAULT_INACTIVITY_CHECK_PERIOD_MS));
+              inactivityDelayNs,
+              DEFAULT_INACTIVITY_CHECK_PERIOD_MS,
+              reservedMemorySize,
+              reservedMemoryType));
     }
   }
 
@@ -69,13 +81,22 @@ public final class ProfilerTracingContextTrackerFactory
         TimeUnit.MILLISECONDS);
   }
 
-  private final Allocator allocator = Allocators.directAllocator(16 * 1024 * 1024, 32);
+  private final Allocator allocator;
   private final Set<TracingContextTracker.IntervalBlobListener> blobListeners = new HashSet<>();
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final ProfilerTracingContextTracker.TimestampProvider timestampProvider;
   private final long inactivityDelay;
 
-  ProfilerTracingContextTrackerFactory(long inactivityDelayNs, long inactivityCheckPeriodMs) {
+  ProfilerTracingContextTrackerFactory(
+      long inactivityDelayNs, long inactivityCheckPeriodMs, int reservedMemorySize) {
+    this(inactivityDelayNs, inactivityCheckPeriodMs, reservedMemorySize, "heap");
+  }
+
+  ProfilerTracingContextTrackerFactory(
+      long inactivityDelayNs,
+      long inactivityCheckPeriodMs,
+      int reservedMemorySize,
+      String reservedMemoryType) {
     ProfilerTracingContextTracker.TimestampProvider tsProvider = System::nanoTime;
     try {
       Class<?> clz =
@@ -99,6 +120,11 @@ public final class ProfilerTracingContextTrackerFactory
         log.debug("Failed to initialize JFR timestamp access. Falling back to system nanotime.");
       }
     }
+    log.info("Tracing Context Tracker Memory Type: {}", reservedMemoryType);
+    allocator =
+        reservedMemoryType.equalsIgnoreCase("direct")
+            ? Allocators.directAllocator(reservedMemorySize, 32)
+            : Allocators.heapAllocator(reservedMemorySize, 32);
     timestampProvider = tsProvider;
     this.inactivityDelay = inactivityDelayNs;
 

@@ -10,6 +10,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A straight-forward {@linkplain Allocator} implementation which satisfies the allocation requests
+ * by instantiating {@linkplain java.nio.HeapByteBuffer} instances.
+ */
 public final class HeapAllocator implements Allocator {
   private static final Logger log = LoggerFactory.getLogger(HeapAllocator.class);
 
@@ -25,17 +29,26 @@ public final class HeapAllocator implements Allocator {
     this.topMemory = numChunks * (long) chunkSize;
     this.remaining = new AtomicLong(topMemory);
 
-    StatsDClient statsd = StatsDClient.NO_OP;
+    StatsDClient statsd = getStatsdClient();
+    statsDClient = statsd;
+  }
+
+  private static StatsDClient getStatsdClient() {
     try {
       Tracer tracer = GlobalTracer.get();
       Field fld = tracer.getClass().getDeclaredField("statsDClient");
       fld.setAccessible(true);
-      statsd = (StatsDClient) fld.get(tracer);
+      StatsDClient statsd = (StatsDClient) fld.get(tracer);
       log.info("Set up custom StatsD Client instance {}", statsd);
+      return statsd;
     } catch (Throwable t) {
-      t.printStackTrace();
+      if (log.isDebugEnabled()) {
+        log.warn("Unable to obtain a StatsD client instance", t);
+      } else {
+        log.warn("Unable to obtain a StatsD client instance");
+      }
+      return StatsDClient.NO_OP;
     }
-    statsDClient = statsd;
   }
 
   @Override
@@ -44,19 +57,29 @@ public final class HeapAllocator implements Allocator {
   }
 
   @Override
-  public AllocatedBuffer allocate(int capacity) {
-    // align at chunkSize
-    capacity = (((capacity - 1) / chunkSize) + 1) * chunkSize;
-    long newRemaining = remaining.addAndGet(-capacity);
-    if (newRemaining >= 0) {
+  public AllocatedBuffer allocate(int size) {
+    long ts = System.nanoTime();
+    long newRemaining = 0;
+    try {
+      // align at chunkSize
+      size = (((size - 1) / chunkSize) + 1) * chunkSize;
+      newRemaining = remaining.addAndGet(-size);
+      while (newRemaining < 0) {
+        long restored = remaining.addAndGet(size); // restore the remaining size
+        size = (int) (newRemaining + size);
+        if (size <= 0) {
+          statsDClient.gauge("tracing.context.reserved.memory", topMemory - restored);
+          return null;
+        }
+        newRemaining = remaining.addAndGet(-size);
+      }
       statsDClient.gauge("tracing.context.reserved.memory", topMemory - newRemaining);
-      return new HeapAllocatedBuffer(this, capacity);
-    } else {
-      // no allocation happened; return the capacity back to the pool
-      remaining.addAndGet(capacity);
-      statsDClient.gauge("tracing.context.reserved.memory", topMemory - newRemaining - capacity);
+      return new HeapAllocatedBuffer(this, size);
+    } finally {
+      long timeDelta = System.nanoTime() - ts;
+      log.info("Allocated bytes in {}ns ({}/{})", timeDelta, size, newRemaining);
+      statsDClient.histogram("tracing.context.allocator.latency", timeDelta);
     }
-    return null;
   }
 
   @Override

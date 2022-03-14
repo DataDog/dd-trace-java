@@ -14,6 +14,20 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A naive implementation of a custom allocator using one big memory pool provided by a {@linkplain
+ * java.nio.DirectByteBuffer}. The allocator is splitting the provided buffer into chunks of the
+ * requested size and serves the allocation requests as the multiples of the chunk size.<br>
+ * The free/occupied chunks are mapped in a single bitmap.<br>
+ * This class is thread-safe.<br>
+ * In order to improve the parallelism the implementation is using a version of striped locking when
+ * there are several subsets of chunks, each guarded by a separate lock. The number of subsets is
+ * set to be ~ the number of available CPU cores since there will never be more competing threads
+ * than that number.<br>
+ * !!! IMPORTANT: This implementation tends to degrade in situation when the pool is almost
+ * exhausted. Therefore, this implementation is not suitable to be used in production as is and
+ * serves mostly as the starting point for a production ready version. !!!
+ */
 public final class DirectAllocator implements Allocator {
   private static final Logger log = LoggerFactory.getLogger(DirectAllocator.class);
 
@@ -29,6 +43,16 @@ public final class DirectAllocator implements Allocator {
     }
   }
 
+  private static final int[] MASK_ARRAY = new int[8];
+
+  static {
+    int mask = 0x80;
+    for (int i = 0; i < 8; i++) {
+      MASK_ARRAY[i] = mask;
+      mask = mask >>> 1;
+    }
+  }
+
   private final StatsDClient statsDClient;
 
   private final ByteBuffer pool;
@@ -36,6 +60,7 @@ public final class DirectAllocator implements Allocator {
   private final int chunkSize;
   private final int numChunks;
   private final ReentrantLock[] memoryMapLocks;
+  private final int memoryMapLockCount;
   private int lockSectionSize;
   private final int bitmapSize;
 
@@ -44,6 +69,8 @@ public final class DirectAllocator implements Allocator {
   private final AtomicInteger lockSectionOffset = new AtomicInteger(0);
 
   public DirectAllocator(int capacity, int chunkSize) {
+    log.warn(
+        "DirectAllocator is an experimental implementation. It should not be used in production.");
     int cpus = Runtime.getRuntime().availableProcessors();
 
     int targetNumChunks = (int) Math.ceil(capacity / (double) chunkSize);
@@ -57,12 +84,13 @@ public final class DirectAllocator implements Allocator {
     this.pool = ByteBuffer.allocateDirect(alignedCapacity);
     this.memorymap = ByteBuffer.allocateDirect((int) Math.ceil(numChunks / 8d));
 
-    this.memoryMapLocks = new ReentrantLock[numChunks / lockSectionSize];
-    for (int i = 0; i < memoryMapLocks.length; i++) {
+    this.memoryMapLockCount = (int) Math.ceil(numChunks / (double) lockSectionSize);
+    this.memoryMapLocks = new ReentrantLock[memoryMapLockCount];
+    for (int i = 0; i < memoryMapLockCount; i++) {
       memoryMapLocks[i] = new ReentrantLock();
     }
     this.capacity = alignedCapacity;
-    this.bitmapSize = lockSectionSize / 8;
+    this.bitmapSize = (int) Math.ceil(lockSectionSize / 8d);
     StatsDClient statsd = StatsDClient.NO_OP;
     try {
       Tracer tracer = GlobalTracer.get();
@@ -88,6 +116,7 @@ public final class DirectAllocator implements Allocator {
 
   @Override
   public AllocatedBuffer allocateChunks(int chunks) {
+    long ts = System.nanoTime();
     chunks = Math.min(chunks, numChunks);
 
     long delta = chunkSize * (long) chunks;
@@ -104,6 +133,7 @@ public final class DirectAllocator implements Allocator {
     if (exhausted) {
       log.warn("Capacity exhausted - buffer could not be allocated");
       statsDClient.gauge("tracing.context.reserved.memory", capacity);
+      statsDClient.histogram("tracing.context.allocator.latency", System.nanoTime() - ts);
       return null;
     } else {
       log.trace("Allocated {} chunks, new size={} ({})", chunks, size, this);
@@ -115,7 +145,6 @@ public final class DirectAllocator implements Allocator {
     Chunk[] chunkArray = new Chunk[chunks];
     byte[] buffer = new byte[bitmapSize];
     ReentrantLock sectionLock;
-    long ts = System.nanoTime();
 
     while (allocated < chunks) {
       int offsetValue = 0;
@@ -127,8 +156,8 @@ public final class DirectAllocator implements Allocator {
                 % memoryMapLocks
                     .length; // simple hashing using 10000th prime number and mod operation
       } while (!lockSectionOffset.compareAndSet(offsetValue, newOffsetValue));
-
-      for (int idx = 0; idx < memoryMapLocks.length; idx++) {
+      int idx;
+      for (idx = 0; idx < memoryMapLocks.length; idx++) {
         lockSection = offsetValue % memoryMapLocks.length;
         sectionLock = null;
         try {
@@ -225,7 +254,7 @@ public final class DirectAllocator implements Allocator {
         int bitPos = (ref + offset) % 8;
         int bitStop = Math.min(bitPos + len, 8);
         for (int i = bitPos; i < bitStop; i++) {
-          mask |= (0x80 >>> i);
+          mask |= MASK_ARRAY[i];
         }
         memorymap.put(pos, (byte) ((slot & ~mask) & 0xff));
         len -= (bitStop - bitPos);

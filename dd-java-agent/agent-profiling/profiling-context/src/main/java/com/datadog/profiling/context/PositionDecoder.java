@@ -5,12 +5,17 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/**
+ * A utility class to decode a position into [slot, index] coordinates in an array of indexable
+ * buffers. It supports each of the indexable buffers having a different size.
+ */
 public final class PositionDecoder {
-  public static final class Position {
+  /** Coordinates data holder */
+  public static final class Coordinates {
     public final int slot;
     public final int index;
 
-    public Position(int slot, int index) {
+    public Coordinates(int slot, int index) {
       this.slot = slot;
       this.index = index;
     }
@@ -19,8 +24,8 @@ public final class PositionDecoder {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      Position position = (Position) o;
-      return slot == position.slot && index == position.index;
+      Coordinates coordinates = (Coordinates) o;
+      return slot == coordinates.slot && index == coordinates.index;
     }
 
     @Override
@@ -37,53 +42,67 @@ public final class PositionDecoder {
     return Singleton.INSTANCE;
   }
 
-  public Position decode(int index, int[] sectionBoundaryMap) {
-    return decode(index, sectionBoundaryMap, sectionBoundaryMap.length);
+  /**
+   * Turn the position into a {@linkplain Coordinates} instance
+   *
+   * @param position the position
+   * @param bufferBoundaryMap an array of buffer boundaries - a boundary is defined as 'size - 1'
+   *     for each buffer element
+   * @return decoded {@linkplain Coordinates} or {@literal null}
+   */
+  @Nullable
+  public Coordinates decode(int position, int[] bufferBoundaryMap) {
+    return decode(position, bufferBoundaryMap, bufferBoundaryMap.length);
   }
 
+  /**
+   * Turn the position into a {@linkplain Coordinates} instance
+   *
+   * @param position the position
+   * @param bufferBoundaryMap an array of buffer boundaries - a boundary is defined as 'size - 1'
+   *     for each buffer element
+   * @param bufferBoundaryMapLimit limit the buffer boundaries to be used only to the first
+   *     {@literal bufferBoundaryMapLimit} ones
+   * @return decoded {@linkplain Coordinates} or {@literal null}
+   */
   @Nullable
-  public Position decode(
-      int index, @Nonnull int[] sectionBoundaryMap, int sectionBoundaryMapLimit) {
-    if (sectionBoundaryMap.length == 0) {
+  public Coordinates decode(
+      int position, @Nonnull int[] bufferBoundaryMap, int bufferBoundaryMapLimit) {
+    if (bufferBoundaryMap.length == 0) {
       return null;
     }
-    if (sectionBoundaryMapLimit < 0 || sectionBoundaryMapLimit > sectionBoundaryMap.length) {
+    if (bufferBoundaryMapLimit <= 0 || bufferBoundaryMapLimit > bufferBoundaryMap.length) {
       return null;
     }
 
-    // shortcut for an index falling within the first slot
-    if (index <= sectionBoundaryMap[0]) {
-      return new Position(0, index);
+    // shortcut for a position falling within the first slot
+    if (position <= bufferBoundaryMap[0]) {
+      return new Coordinates(0, position);
+    }
+    // shortcut for positions not covered by the boundary map
+    if (position > bufferBoundaryMap[bufferBoundaryMapLimit - 1]) {
+      return null;
     }
 
     // shortcut to linear search for a small number of slots in use
-    if (sectionBoundaryMapLimit < 5) {
+    if (bufferBoundaryMapLimit < 5) {
       int slot = 0;
-      while (slot <= sectionBoundaryMapLimit && sectionBoundaryMap[slot] < index) {
+      while (slot <= bufferBoundaryMapLimit && bufferBoundaryMap[slot] < position) {
         slot++;
       }
-      if (slot <= sectionBoundaryMapLimit) {
-        return slot > 0
-            ? new Position(slot, index - sectionBoundaryMap[slot - 1] - 1)
-            : new Position(slot, index);
+      if (slot <= bufferBoundaryMapLimit) {
+        return new Coordinates(slot, position - bufferBoundaryMap[slot - 1] - 1);
       }
       return null;
     }
 
     // use binary search
-    int slot = Arrays.binarySearch(sectionBoundaryMap, index);
+    int slot = Arrays.binarySearch(bufferBoundaryMap, position);
     if (slot > 0) {
-      return new Position(slot, index - sectionBoundaryMap[slot - 1] - 1);
-    } else if (slot == 0) {
-      return new Position(slot, index);
+      return new Coordinates(slot, position - bufferBoundaryMap[slot - 1] - 1);
     } else {
       slot = -1 - slot;
-      if (slot <= sectionBoundaryMapLimit) {
-        return slot > 0
-            ? new Position(slot, index - sectionBoundaryMap[slot - 1] - 1)
-            : new Position(slot, index);
-      }
-      return null;
+      return new Coordinates(slot, position - bufferBoundaryMap[slot - 1] - 1);
     }
   }
 }

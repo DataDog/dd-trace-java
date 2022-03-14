@@ -3,9 +3,6 @@ package com.datadog.profiling.context;
 import java.nio.ByteBuffer;
 
 final class IntervalEncoder {
-  private static final int EXT_BIT = 0x80;
-  private static final long COMPRESSED_INT_MASK = -EXT_BIT;
-
   private final ByteBuffer prologueBuffer;
   private final ByteBuffer dataChunkBuffer;
   private final ByteBuffer groupVarintMapBuffer;
@@ -17,6 +14,7 @@ final class IntervalEncoder {
 
   private boolean encoderFinished = false;
   private boolean threadInFlight = false;
+  private final LEB128Support leb128Support = new LEB128Support();
 
   final class ThreadEncoder {
     private final byte[] elements = new byte[8];
@@ -46,17 +44,15 @@ final class IntervalEncoder {
       if (threadFinished) {
         throw new IllegalStateException("Illegal state: threadFinished=" + threadFinished);
       }
-      putVarint(prologueBuffer, threadId);
-      putVarint(prologueBuffer, intervals);
+      leb128Support.putVarint(prologueBuffer, threadId);
+      leb128Support.putVarint(prologueBuffer, intervals);
       threadInFlight = false;
+      threadFinished = true;
       return IntervalEncoder.this;
     }
 
     private void putLongValue(long value) {
-      int size = longSize(value);
-      if (size == 0) {
-        return;
-      }
+      int size = leb128Support.longSize(value);
 
       int base = size - 1;
       for (int i = 0; i < size; i++) {
@@ -90,14 +86,18 @@ final class IntervalEncoder {
     this.threadCount = threadCount;
 
     this.prologueBuffer =
-        ByteBuffer.allocate(varintSize(timestamp) + varintSize(threadCount) + threadCount * 18);
+        ByteBuffer.allocate(
+            leb128Support.varintSize(timestamp)
+                + leb128Support.varintSize(threadCount)
+                + threadCount * 18);
     this.dataChunkBuffer = ByteBuffer.allocate(maxSize * 8 + 4);
-    this.groupVarintMapBuffer = ByteBuffer.allocate(align((int) (Math.ceil(maxSize / 8d) * 3), 4));
+    this.groupVarintMapBuffer =
+        ByteBuffer.allocate(leb128Support.align((int) (Math.ceil(maxSize / 8d) * 3), 4));
 
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset
     dataChunkBuffer.putInt(0); // pre-allocate space for the group varint map offset
-    putVarint(prologueBuffer, timestamp);
-    putVarint(prologueBuffer, threadCount);
+    leb128Support.putVarint(prologueBuffer, timestamp);
+    leb128Support.putVarint(prologueBuffer, threadCount);
   }
 
   ThreadEncoder startThread(long threadId) {
@@ -122,6 +122,7 @@ final class IntervalEncoder {
               + ", threadInFlight="
               + threadInFlight);
     }
+    encoderFinished = true;
     ByteBuffer buffer =
         ByteBuffer.allocate(
             prologueBuffer.position()
@@ -134,94 +135,5 @@ final class IntervalEncoder {
     buffer.put((ByteBuffer) dataChunkBuffer.flip()); // data chunk
     buffer.put((ByteBuffer) groupVarintMapBuffer.flip()); // group varint bitmap
     return (ByteBuffer) buffer.flip();
-  }
-
-  private static int align(int value, int alignment) {
-    return ((value / alignment) + 1) * alignment;
-  }
-
-  private static int varintSize(long value) {
-    if (value < 255) {
-      return 1;
-    }
-    int pos = 63;
-    long mask = 0xFE00000000000000L;
-    while (pos > 0 && (value & mask) == 0) {
-      pos -= 7;
-      mask = mask >>> 7;
-    }
-    return (pos / 7) + 1;
-  }
-
-  private static int longSize(long value) {
-    if (value < 256) {
-      return 1;
-    }
-    int pos = 63;
-    long mask = 0xFF00000000000000L;
-    while (pos > 0 && (value & mask) == 0) {
-      pos -= 8;
-      mask = mask >>> 8;
-    }
-    return (pos / 8) + 1;
-  }
-
-  static void putVarint(ByteBuffer buffer, long value) {
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    value >>= 7;
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    value >>= 7;
-    if ((value & COMPRESSED_INT_MASK) == 0) {
-      buffer.put((byte) ((value & 0x7f)));
-      return;
-    }
-    buffer.put((byte) ((value & 0x7f) | EXT_BIT));
-
-    buffer.put((byte) ((value >> 7) & 0x7f));
   }
 }

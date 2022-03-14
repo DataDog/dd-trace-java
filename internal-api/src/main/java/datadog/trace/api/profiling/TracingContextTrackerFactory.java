@@ -5,6 +5,12 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A factory class for {@linkplain TracingContextTracker} instances.<br>
+ * This class is actually just a shared scaffolding and the actual implementation needs to register
+ * itself by calling {@linkplain
+ * TracingContextTrackerFactory#registerImplementation(Implementation)}
+ */
 public final class TracingContextTrackerFactory {
   private static final Logger log = LoggerFactory.getLogger(TracingContextTrackerFactory.class);
 
@@ -37,6 +43,12 @@ public final class TracingContextTrackerFactory {
     return false;
   }
 
+  /**
+   * Create a new tracing context tracker associated with the given span
+   *
+   * @param span the span to associate the tracker with
+   * @return a new {@linkplain TracingContextTracker} instance
+   */
   public static TracingContextTracker instance(AgentSpan span) {
     return INSTANCE.implementation.instance(span);
   }

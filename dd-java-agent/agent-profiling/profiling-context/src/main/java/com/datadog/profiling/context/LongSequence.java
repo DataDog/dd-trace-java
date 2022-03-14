@@ -5,6 +5,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A growing sequence of long values.<br>
+ * Allows adding new values, rewriting values at a given position, retrieving values from a position
+ * and creating {@linkplain LongIterator} over the sequence.
+ */
 public final class LongSequence {
   private static final Logger log = LoggerFactory.getLogger(LongSequence.class);
 
@@ -73,10 +78,12 @@ public final class LongSequence {
 
   public int add(long value) {
     if (released.get()) {
+      // bail out if this instance was already released
       return -1;
     }
 
     if (bufferWriteSlot == -1) {
+      // first write; initialize the data structure
       capacityInChunks = 1;
       bufferWriteSlot = 0;
       bufferInitSlot = 0;
@@ -92,6 +99,7 @@ public final class LongSequence {
       }
     } else {
       if (threshold > -1 && sizeInBytes == threshold) {
+        // we hit the threshold - let's prepare the next-in-line buffer
         int newCapacity = 2 * capacityInChunks; // capacity stays aligned
         AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
         if (cBuffer != null) {
@@ -118,12 +126,12 @@ public final class LongSequence {
 
     size += 1;
     sizeInBytes += 8;
-    return sizeInBytes;
+    return 1;
   }
 
   public boolean set(int index, long value) {
-    PositionDecoder.Position decoded =
-        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot);
+    PositionDecoder.Coordinates decoded =
+        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
     if (decoded != null) {
       return buffers[decoded.slot].putLong(decoded.index, value);
     }
@@ -131,8 +139,8 @@ public final class LongSequence {
   }
 
   public long get(int index) {
-    PositionDecoder.Position decoded =
-        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot);
+    PositionDecoder.Coordinates decoded =
+        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
     if (decoded != null) {
       return buffers[decoded.slot].getLong(decoded.index);
     }

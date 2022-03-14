@@ -12,12 +12,15 @@ class ProfilerTracingContextTrackerFactoryTest {
     long inactivityMs = 100;
     ProfilerTracingContextTrackerFactory instance =
         new ProfilerTracingContextTrackerFactory(
-            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L);
-    TracingContextTracker tracker = instance.instance(null);
+            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
+    TracingContextTracker tracker1 = instance.instance(null);
+    TracingContextTracker tracker2 = instance.instance(null);
 
     Thread.sleep((long) (inactivityMs * 1.5d));
     assertFalse(
-        tracker.release(), "Tracker resources were not released within " + inactivityMs + "ms");
+        tracker1.release(), "Tracker resources were not released within " + inactivityMs + "ms");
+    assertFalse(
+        tracker2.release(), "Tracker resources were not released within " + inactivityMs + "ms");
   }
 
   @Test
@@ -25,12 +28,16 @@ class ProfilerTracingContextTrackerFactoryTest {
     long inactivityMs = 100;
     ProfilerTracingContextTrackerFactory instance =
         new ProfilerTracingContextTrackerFactory(
-            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L);
-    TracingContextTracker tracker = instance.instance(null);
+            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
+    TracingContextTracker tracker1 = instance.instance(null);
+    TracingContextTracker tracker2 = instance.instance(null);
 
     Thread.sleep((long) (inactivityMs * 0.5d));
     assertTrue(
-        tracker.release(),
+        tracker1.release(),
+        "Tracker resources were erroneously released before " + inactivityMs + "ms");
+    assertTrue(
+        tracker2.release(),
         "Tracker resources were erroneously released before " + inactivityMs + "ms");
   }
 
@@ -39,10 +46,12 @@ class ProfilerTracingContextTrackerFactoryTest {
     long inactivityMs = 0;
     ProfilerTracingContextTrackerFactory instance =
         new ProfilerTracingContextTrackerFactory(
-            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L);
-    TracingContextTracker tracker = instance.instance(null);
+            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
+    TracingContextTracker tracker1 = instance.instance(null);
+    TracingContextTracker tracker2 = instance.instance(null);
 
     Thread.sleep((long) (inactivityMs * 1.5d));
-    assertTrue(tracker.release(), "Tracker resources are erroneously released");
+    assertTrue(tracker1.release(), "Tracker resources are erroneously released");
+    assertTrue(tracker2.release(), "Tracker resources are erroneously released");
   }
 }

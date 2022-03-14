@@ -86,6 +86,14 @@ public final class ProfilingConfig {
   public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
       "profiling.tracing_context.tracker.inactive.seconds";
   public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE =
+      "profiling.tracing_context.memory.bytes";
+  public static final int PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE_DEFAULT =
+      32 * 1024 * 1024; // 32MB
+
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE =
+      "profiling.tracing_context.memory.type";
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT = "heap";
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";

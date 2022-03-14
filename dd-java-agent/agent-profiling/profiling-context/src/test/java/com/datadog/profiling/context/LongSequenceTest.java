@@ -11,20 +11,21 @@ class LongSequenceTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new LongSequence(Allocators.directAllocator(205000 * 8, 256));
+    instance = new LongSequence(Allocators.heapAllocator(512, 32));
   }
 
   @Test
   void testCapacity() {
-    int items = 200000;
+    int items = 64;
     for (int i = 0; i < items; i++) {
       try {
-        instance.add(i);
+        assertTrue(instance.add(i) > 0);
       } catch (Throwable t) {
         System.out.println("===> " + i);
         throw t;
       }
     }
+    assertFalse(instance.add(65) > 0);
     assertEquals(items, instance.size());
     LongIterator iterator = instance.iterator();
     long value = 0;
@@ -32,6 +33,12 @@ class LongSequenceTest {
       long retrieved = iterator.next();
       assertEquals(value++, retrieved);
     }
+  }
+
+  @Test
+  void testDoubleRelease() {
+    instance.release();
+    instance.release();
   }
 
   @Test
@@ -48,5 +55,42 @@ class LongSequenceTest {
   }
 
   @Test
-  void iterator() {}
+  void testGetInvalidIndex() {
+    assertEquals(Long.MIN_VALUE, instance.get(5));
+    assertEquals(Long.MIN_VALUE, instance.get(65));
+  }
+
+  @Test
+  void testSetInvalidIndex() {
+    assertFalse(instance.set(65, 0L));
+  }
+
+  @Test
+  void testIteratorInvalid() {
+    LongIterator iterator = instance.iterator();
+    assertThrows(IllegalStateException.class, iterator::next);
+  }
+
+  @Test
+  void testIteratorEmpty() {
+    LongIterator iterator = instance.iterator();
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testIterator() {
+    // fill in data
+    for (int i = 0; i < 64; i++) {
+      instance.add(i);
+    }
+
+    long expected = 0;
+    LongIterator iterator = instance.iterator();
+    while (iterator.hasNext()) {
+      assertTrue(iterator.hasNext());
+      assertEquals(expected++, iterator.next());
+    }
+    assertEquals(expected, instance.size());
+    assertFalse(iterator.hasNext());
+  }
 }

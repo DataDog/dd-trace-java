@@ -60,7 +60,7 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
   @Override
   public boolean putLong(int pos, long value) {
     if (pos + 8 <= capacity) {
-      PositionDecoder.Position coordinates = positionDecoder.decode(pos, chunkBoundaryMap);
+      PositionDecoder.Coordinates coordinates = positionDecoder.decode(pos, chunkBoundaryMap);
 
       if (coordinates.slot < chunks.length) {
         chunks[coordinates.slot].buffer.putLong(coordinates.index, value);
@@ -73,7 +73,7 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
   @Override
   public long getLong(int pos) {
     if (pos + 8 <= capacity) {
-      PositionDecoder.Position coordinates = positionDecoder.decode(pos, chunkBoundaryMap);
+      PositionDecoder.Coordinates coordinates = positionDecoder.decode(pos, chunkBoundaryMap);
 
       return chunks[coordinates.slot].buffer.getLong(coordinates.index);
     }
@@ -99,15 +99,17 @@ public final class DirectAllocatedBuffer implements AllocatedBuffer {
           chunkReadIndex = 0;
           currentBuffer = (ByteBuffer) chunks[chunkReadIndex].buffer.duplicate().flip();
         }
-        if (chunkWriteIndex >= 0) {
+        if (currentBuffer.limit() != 0) {
           if (chunkReadIndex <= chunkWriteIndex) {
             if (valueReadIndex >= currentBuffer.limit()) {
               chunkReadIndex++;
               valueReadIndex = 0;
               if (chunkReadIndex < chunks.length) {
                 currentBuffer = (ByteBuffer) chunks[chunkReadIndex].buffer.duplicate().flip();
-                computedHasNext = 1;
-                return true;
+                if (currentBuffer.limit() != 0) {
+                  computedHasNext = 1;
+                  return true;
+                }
               }
             } else {
               computedHasNext = 1;

@@ -12,7 +12,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class AllocatorsTest {
-  private static final int maxChunks = 8;
+  private static final int maxChunks = 16;
   private static final int chunkSize = 32;
 
   private static final Allocator directAllocator =
@@ -45,7 +45,7 @@ class AllocatorsTest {
 
   @Test
   void testDirectBufferIterator() {
-    buffer = directAllocator.allocate(256);
+    buffer = directAllocator.allocate(512);
 
     LongIterator iterator = buffer.iterator();
     assertFalse(iterator.hasNext());
@@ -58,6 +58,19 @@ class AllocatorsTest {
 
     iterator.next();
     assertFalse(iterator.hasNext());
+
+    // fill in data spanning multiple chunks
+    // there is already 1 value stored so we need to add only chunkSize other values
+    for (int i = 0; i < chunkSize; i++) {
+      buffer.putLong(i + 1);
+    }
+    iterator = buffer.iterator();
+    int cnt = 0;
+    while (iterator.hasNext()) {
+      assertNotNull(iterator.next());
+      cnt++;
+    }
+    assertEquals(chunkSize + 1, cnt);
   }
 
   @Test
