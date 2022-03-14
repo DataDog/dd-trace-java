@@ -249,7 +249,11 @@ public class DDSpan
       if (contextContent != null) {
         byte[] encoded = new Base64Encoder(false).encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
-        log.info("Store context to tag: span={}, content={}, encoded_len={}", this, contextContent, encoded.length);
+        log.info(
+            "Store context to tag: span={}, content={}, encoded_len={}",
+            this,
+            contextContent,
+            encoded.length);
         setTag("_dd_tracing_context_" + tracingContextTracker.getVersion(), tag);
         return encoded.length;
       }

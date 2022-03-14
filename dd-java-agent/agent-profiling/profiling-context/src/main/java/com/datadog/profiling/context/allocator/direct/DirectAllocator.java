@@ -92,18 +92,21 @@ public final class DirectAllocator implements Allocator {
 
     long delta = chunkSize * (long) chunks;
     long size = allocatedBytes.addAndGet(delta);
+    boolean exhausted = false;
     while (size > capacity) {
       long overflow = size - capacity;
       long newDelta = delta - overflow;
       chunks = (int) (newDelta / chunkSize);
       size = allocatedBytes.addAndGet(chunks * (long) chunkSize - delta);
+      delta = newDelta;
+      exhausted = delta == 0;
     }
-    log.info("Allocated {} chunks, new size={} ({})", chunks, size, this);
-    if (size >= capacity) {
+    if (exhausted) {
       log.warn("Capacity exhausted - buffer could not be allocated");
       statsDClient.gauge("tracing.context.reserved.memory", capacity);
       return null;
     } else {
+      log.trace("Allocated {} chunks, new size={} ({})", chunks, size, this);
       statsDClient.gauge("tracing.context.reserved.memory", size);
     }
     int lockSection = 0;
@@ -151,7 +154,8 @@ public final class DirectAllocator implements Allocator {
       }
     }
     statsDClient.histogram("tracing.context.allocator.latency", System.nanoTime() - ts);
-    return new DirectAllocatedBuffer(chunkSize * allocated, chunkSize, Arrays.copyOf(chunkArray, offset));
+    return new DirectAllocatedBuffer(
+        chunkSize * allocated, chunkSize, Arrays.copyOf(chunkArray, offset));
   }
 
   private AllocationResult allocateChunks(
@@ -230,7 +234,7 @@ public final class DirectAllocator implements Allocator {
       }
     }
     long size = allocatedBytes.addAndGet(-delta);
-    log.info("{} allocated chunks released - new size={} ({})", chunks, size, this);
+    log.trace("{} allocated chunks released - new size={} ({})", chunks, size, this);
     statsDClient.gauge("tracing.context.reserved.memory", size);
   }
 }

@@ -2,7 +2,7 @@ package com.datadog.profiling.context;
 
 import datadog.trace.api.RatelimitedLogger;
 import datadog.trace.api.profiling.TracingContextTracker;
-
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -13,12 +13,11 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilerTracingContextTracker implements TracingContextTracker, TracingContextTracker.DelayedTracker {
+public final class ProfilerTracingContextTracker
+    implements TracingContextTracker, TracingContextTracker.DelayedTracker {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
 
   static final int TRANSITION_STARTED = 0;
@@ -138,7 +137,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   @Override
   public byte[] persist() {
     if (released.get()) {
-      log.warn("Trying to persist already released tracker");
+      log.debug("Trying to persist already released tracker");
       return null;
     }
 
@@ -166,12 +165,14 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   @Override
-  public void release() {
+  public boolean release() {
     if (released.compareAndSet(false, true)) {
-      log.info("Releasing tracing context for span {}", span);
+      log.trace("Releasing tracing context for span {}", span);
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
+      return true;
     }
+    return false;
   }
 
   @Override
@@ -191,7 +192,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   @Override
   public long getDelay(TimeUnit unit) {
-    return unit.convert(lastTransitionTimestamp + inactivityDelay - System.nanoTime(), TimeUnit.NANOSECONDS);
+    return unit.convert(
+        lastTransitionTimestamp + inactivityDelay - System.nanoTime(), TimeUnit.NANOSECONDS);
   }
 
   @Override
@@ -215,9 +217,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         added = sequence.add(value);
       }
       if (added == -1) {
-        warnlog.warn("Attempting to add transition to already released context");
+        warnlog.warn(
+            "Attempting to add transition to already released context - losing tracing context data");
       } else if (added == 0) {
-        warnlog.warn("Profiling Context Buffer is full - losing data");
+        warnlog.warn("Profiling Context Buffer is full - losing tracing context data");
       }
     } catch (Throwable t) {
       t.printStackTrace();
@@ -262,8 +265,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private void storeDelayedActivation() {
     if (initialized.compareAndSet(false, true)) {
-        log.info("Storing delayed activation for span {}", span);
-        activateContext(initialThreadId, initialTimestamp);
+      log.trace("Storing delayed activation for span {}", span);
+      activateContext(initialThreadId, initialTimestamp);
     }
   }
 }

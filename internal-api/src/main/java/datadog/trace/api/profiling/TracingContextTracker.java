@@ -1,27 +1,27 @@
 package datadog.trace.api.profiling;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
 import java.nio.ByteBuffer;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
 public interface TracingContextTracker {
   interface DelayedTracker extends Delayed {
-    DelayedTracker EMPTY = new DelayedTracker() {
-      @Override
-      public void cleanup() {}
+    DelayedTracker EMPTY =
+        new DelayedTracker() {
+          @Override
+          public void cleanup() {}
 
-      @Override
-      public long getDelay(TimeUnit unit) {
-        return -1;
-      }
+          @Override
+          public long getDelay(TimeUnit unit) {
+            return -1;
+          }
 
-      @Override
-      public int compareTo(Delayed o) {
-        return -1;
-      }
-    };
+          @Override
+          public int compareTo(Delayed o) {
+            return -1;
+          }
+        };
 
     void cleanup();
   }
@@ -33,7 +33,9 @@ public interface TracingContextTracker {
   TracingContextTracker EMPTY =
       new TracingContextTracker() {
         @Override
-        public void release() {}
+        public boolean release() {
+          return false;
+        }
 
         @Override
         public void activateContext() {}
@@ -57,7 +59,7 @@ public interface TracingContextTracker {
         }
       };
 
-  void release();
+  boolean release();
 
   void activateContext();
 

@@ -55,7 +55,7 @@ final class HeapAllocatedBuffer implements AllocatedBuffer {
     return new LongIterator() {
       @Override
       public boolean hasNext() {
-        return iterable.position() < iterable.capacity();
+        return iterable.position() < iterable.limit();
       }
 
       @Override

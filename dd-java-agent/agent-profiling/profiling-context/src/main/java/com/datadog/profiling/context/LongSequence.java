@@ -1,7 +1,6 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +58,7 @@ public final class LongSequence {
   private int sizeInBytes = 0;
   private int threshold = 0;
   private final Allocator allocator;
+  private final PositionDecoder positionDecoder = PositionDecoder.getInstance();
 
   private static int align(int size) {
     return (int) (Math.ceil(size / 8d) * 8);
@@ -122,54 +122,21 @@ public final class LongSequence {
   }
 
   public boolean set(int index, long value) {
-    int[] decoded = decode(index);
+    PositionDecoder.Position decoded =
+        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot);
     if (decoded != null) {
-      return buffers[decoded[0]].putLong(decoded[1], value);
+      return buffers[decoded.slot].putLong(decoded.index, value);
     }
     return false;
   }
 
   public long get(int index) {
-    int[] decoded = decode(index);
+    PositionDecoder.Position decoded =
+        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot);
     if (decoded != null) {
-      return buffers[decoded[0]].getLong(decoded[1]);
+      return buffers[decoded.slot].getLong(decoded.index);
     }
     return Long.MIN_VALUE;
-  }
-
-  private int[] decode(int index) {
-    index *= 8; // 8 bytes per 1 long
-
-    // shortcut for an index falling within the first slot
-    if (index <= bufferBoundaryMap[0]) {
-      return new int[] {0, index};
-    }
-
-    // shortcut to linear search for a small number of slots in use
-    if (bufferInitSlot < 5) {
-      int slot = 0;
-      while (slot <= bufferInitSlot && bufferBoundaryMap[slot] < index) {
-        slot++;
-      }
-      if (slot <= bufferInitSlot) {
-        return slot > 0 ? new int[] {slot, index - bufferBoundaryMap[slot - 1] - 1} : new int[] {slot, index};
-      }
-      return null;
-    }
-
-    // use binary search
-    int slot = Arrays.binarySearch(bufferBoundaryMap, index);
-    if (slot > 0) {
-      return new int[] {slot, index - bufferBoundaryMap[slot - 1] - 1};
-    } else if (slot == 0) {
-      return new int[] {slot, index};
-    } else {
-      slot = -1 - slot;
-      if (slot <= bufferInitSlot) {
-        return slot > 0 ? new int[] {slot, index - bufferBoundaryMap[slot - 1] - 1} : new int[] {slot, index};
-      }
-      return null;
-    }
   }
 
   public int size() {

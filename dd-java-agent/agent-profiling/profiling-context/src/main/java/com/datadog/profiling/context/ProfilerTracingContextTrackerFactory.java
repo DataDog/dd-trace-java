@@ -6,15 +6,18 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
+import datadog.trace.util.AgentTaskScheduler;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,17 +26,47 @@ public final class ProfilerTracingContextTrackerFactory
   private static final Logger log =
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
 
-  /*
-  The singleton instance needs to be wrapped in the 'singleton' class to delay the creation of the
-  single instance only upon calling `register()`
-   */
-  private static final class Singleton {
-    private static final ProfilerTracingContextTrackerFactory INSTANCE =
-        new ProfilerTracingContextTrackerFactory();
+  private static final long DEFAULT_INACTIVITY_CHECK_PERIOD_MS = 5_000L; // 5 seconds
+
+  private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
+
+  public static void register(ConfigProvider configProvider) {
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED,
+        ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT)) {
+      long inactivityDelayNs =
+          TimeUnit.NANOSECONDS.convert(
+              configProvider.getInteger(
+                  ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC,
+                  ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT),
+              TimeUnit.SECONDS);
+      TracingContextTrackerFactory.registerImplementation(
+          new ProfilerTracingContextTrackerFactory(
+              inactivityDelayNs, DEFAULT_INACTIVITY_CHECK_PERIOD_MS));
+    }
   }
 
-  public static void register() {
-    TracingContextTrackerFactory.registerImplementation(Singleton.INSTANCE);
+  private void initializeInactiveTrackerCleanup(long inactivityCheckPeriodMs) {
+    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+        target -> {
+          Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(500);
+          int drained = 0;
+          do {
+            drained = target.drainTo(timeouts);
+            if (drained > 0) {
+              log.debug("Drained {} inactive trackers", drained);
+            }
+            Iterator<TracingContextTracker.DelayedTracker> iterator = timeouts.iterator();
+            while (iterator.hasNext()) {
+              iterator.next().cleanup();
+              iterator.remove();
+            }
+          } while (drained > 0);
+        },
+        delayQueue,
+        inactivityCheckPeriodMs,
+        inactivityCheckPeriodMs,
+        TimeUnit.MILLISECONDS);
   }
 
   private final Allocator allocator = Allocators.directAllocator(16 * 1024 * 1024, 32);
@@ -42,21 +75,23 @@ public final class ProfilerTracingContextTrackerFactory
   private final ProfilerTracingContextTracker.TimestampProvider timestampProvider;
   private final long inactivityDelay;
 
-  private ProfilerTracingContextTrackerFactory() {
+  ProfilerTracingContextTrackerFactory(long inactivityDelayNs, long inactivityCheckPeriodMs) {
     ProfilerTracingContextTracker.TimestampProvider tsProvider = System::nanoTime;
     try {
       Class<?> clz =
           ProfilerTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
-      MethodHandle mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
-      tsProvider = () -> {
-        try {
-          return (long)mh.invokeExact();
-        } catch (OutOfMemoryError e) {
-          throw e;
-        } catch (Throwable ignored) {
-          return -1L;
-        }
-      };
+      MethodHandle mh =
+          MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
+      tsProvider =
+          () -> {
+            try {
+              return (long) mh.invokeExact();
+            } catch (OutOfMemoryError e) {
+              throw e;
+            } catch (Throwable ignored) {
+              return -1L;
+            }
+          };
     } catch (Throwable t) {
       if (log.isDebugEnabled()) {
         log.warn("Failed to initialize JFR timestamp access. Falling back to system nanotime.", t);
@@ -65,21 +100,26 @@ public final class ProfilerTracingContextTrackerFactory
       }
     }
     timestampProvider = tsProvider;
-    int inactivitySecs = ConfigProvider.getInstance().getInteger(ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC, ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT);
-    this.inactivityDelay = TimeUnit.NANOSECONDS.convert(inactivitySecs, TimeUnit.SECONDS);
+    this.inactivityDelay = inactivityDelayNs;
 
-    log.info("Profiler Tracing Context Tracker Inactivity Timeout = {}s", inactivitySecs);
     for (TracingContextTracker.IntervalBlobListener listener :
         ServiceLoader.load(TracingContextTracker.IntervalBlobListener.class)) {
       blobListeners.add(listener);
+    }
+    if (inactivityDelay > 0) {
+      initializeInactiveTrackerCleanup(inactivityCheckPeriodMs);
     }
   }
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
     ProfilerTracingContextTracker instance =
-        new ProfilerTracingContextTracker(allocator, span, timestampProvider, sequencePruner, inactivityDelay);
+        new ProfilerTracingContextTracker(
+            allocator, span, timestampProvider, sequencePruner, inactivityDelay);
     instance.setBlobListeners(blobListeners);
+    if (inactivityDelay > 0) {
+      delayQueue.offer(instance.asDelayed());
+    }
     return instance;
   }
 }

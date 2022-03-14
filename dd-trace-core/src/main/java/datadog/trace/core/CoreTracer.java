@@ -725,7 +725,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (published) {
         for (DDSpan span : writtenTrace) {
           int stored = span.storeContextToTag();
+          log.info("Span Context size={}", stored);
           if (stored > -1) {
+            log.info(
+                "Sending statsd metric 'tracing.context.size'={} (client={})",
+                stored,
+                statsDClient);
             statsDClient.histogram("tracing.context.size", stored);
           }
         }

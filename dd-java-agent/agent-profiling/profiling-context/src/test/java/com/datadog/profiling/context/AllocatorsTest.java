@@ -2,22 +2,23 @@ package com.datadog.profiling.context;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.profiling.context.Allocator;
-import java.util.stream.Stream;
-
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
 import com.datadog.profiling.context.allocator.Allocators;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class AllocatorsTest {
+  private static final int maxChunks = 8;
   private static final int chunkSize = 32;
 
   private static final Allocator directAllocator =
-      Allocators.directAllocator(chunkSize * 8, chunkSize);;
-  private static final Allocator heapAllocator = Allocators.heapAllocator(chunkSize * 8, chunkSize);
+      Allocators.directAllocator(chunkSize * maxChunks, chunkSize);;
+  private static final Allocator heapAllocator =
+      Allocators.heapAllocator(chunkSize * maxChunks, chunkSize);
 
   private AllocatedBuffer buffer = null;
 
@@ -26,6 +27,54 @@ class AllocatorsTest {
     if (buffer != null) {
       buffer.release();
     }
+  }
+
+  @Test
+  void testOverallocationDirect() {
+    buffer = directAllocator.allocateChunks(maxChunks);
+    assertNotNull(buffer);
+    assertNull(directAllocator.allocate(10));
+  }
+
+  @Test
+  void testOverallocationHeap() {
+    buffer = heapAllocator.allocateChunks(maxChunks);
+    assertNotNull(buffer);
+    assertNull(heapAllocator.allocate(10));
+  }
+
+  @Test
+  void testDirectBufferIterator() {
+    buffer = directAllocator.allocate(256);
+
+    LongIterator iterator = buffer.iterator();
+    assertFalse(iterator.hasNext());
+    assertFalse(iterator.hasNext());
+
+    buffer.putLong(0L);
+    iterator = buffer.iterator();
+    assertTrue(iterator.hasNext());
+    assertTrue(iterator.hasNext());
+
+    iterator.next();
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testHeapBufferIterator() {
+    buffer = heapAllocator.allocate(256);
+
+    LongIterator iterator = buffer.iterator();
+    assertFalse(iterator.hasNext());
+    assertFalse(iterator.hasNext());
+
+    buffer.putLong(0L);
+    iterator = buffer.iterator();
+    assertTrue(iterator.hasNext());
+    assertTrue(iterator.hasNext());
+
+    iterator.next();
+    assertFalse(iterator.hasNext());
   }
 
   @ParameterizedTest

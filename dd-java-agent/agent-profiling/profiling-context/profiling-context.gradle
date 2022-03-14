@@ -15,6 +15,7 @@ dependencies {
   implementation sourceSets.main_java11.output
 
   testImplementation deps.junit5
+  testImplementation deps.mockito
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

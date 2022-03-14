@@ -61,7 +61,7 @@ public class ProfilingAgent {
         final ConfigProvider configProvider = ConfigProvider.getInstance();
         final Controller controller = ControllerFactory.createController(configProvider);
 
-        ProfilerTracingContextTrackerFactory.register();
+        ProfilerTracingContextTrackerFactory.register(configProvider);
 
         final ProfileUploader uploader = new ProfileUploader(config, configProvider);
 

@@ -15,7 +15,7 @@ class LongSequenceTest {
   }
 
   @Test
-  void test() {
+  void testCapacity() {
     int items = 200000;
     for (int i = 0; i < items; i++) {
       try {
@@ -31,6 +31,19 @@ class LongSequenceTest {
     while (iterator.hasNext()) {
       long retrieved = iterator.next();
       assertEquals(value++, retrieved);
+    }
+  }
+
+  @Test
+  void testPositionalSetGet() {
+    for (int i = 1; i <= 3; i++) {
+      instance.add(i);
+    }
+
+    for (int i = 1; i <= 3; i++) {
+      assertEquals(i, instance.get(i - 1));
+      instance.set(i - 1, 2 * i);
+      assertEquals(2 * i, instance.get(i - 1));
     }
   }
 
