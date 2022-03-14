@@ -20,22 +20,17 @@ public class UndertowRunnableWrapper extends RunnableWrapper {
 
   @Override
   public void run() {
-    boolean thrown = false;
     try {
       super.run();
+      DECORATE.onResponse(span, exchange);
+      DECORATE.beforeFinish(span);
+      span.finish();
     } catch (Throwable throwable) {
-      thrown = true;
       DECORATE.onError(span, throwable);
       DECORATE.onResponse(span, exchange);
       DECORATE.beforeFinish(span);
       span.finish();
       throw throwable;
-    } finally {
-      if (!thrown) {
-        DECORATE.onResponse(span, exchange);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
     }
   }
 
