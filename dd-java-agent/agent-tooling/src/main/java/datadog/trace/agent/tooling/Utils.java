@@ -5,8 +5,10 @@ import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
 
 public class Utils {
 
-  private static final BootstrapClassLoaderProxy unitTestBootstrapProxy =
-      new BootstrapClassLoaderProxy();
+  /** Initialization-on-demand, only used during unit tests. */
+  static class BootstrapClassLoaderHolder {
+    static final ClassLoader unitTestBootstrapProxy = new BootstrapClassLoaderProxy();
+  }
 
   /** Return the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
@@ -18,8 +20,7 @@ public class Utils {
     if (getAgentClassLoader() instanceof DatadogClassLoader) {
       return ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy();
     } else {
-      // in a unit test
-      return unitTestBootstrapProxy;
+      return BootstrapClassLoaderHolder.unitTestBootstrapProxy;
     }
   }
 
