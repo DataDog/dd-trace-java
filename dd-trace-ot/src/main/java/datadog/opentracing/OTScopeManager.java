@@ -8,7 +8,6 @@ import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
-import java.util.Objects;
 
 /** One of the two possible scope managers. See CustomScopeManagerWrapper */
 class OTScopeManager implements ScopeManager {
@@ -89,7 +88,7 @@ class OTScopeManager implements ScopeManager {
 
     @Override
     public int hashCode() {
-      return Objects.hash(delegate);
+      return delegate.hashCode();
     }
 
     @Override

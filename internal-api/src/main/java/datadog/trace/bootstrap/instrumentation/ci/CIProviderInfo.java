@@ -559,16 +559,17 @@ public abstract class CIProviderInfo {
 
     @Override
     public int hashCode() {
-      return Objects.hash(
-          ciProviderName,
-          ciPipelineId,
-          ciPipelineName,
-          ciStageName,
-          ciJobName,
-          ciPipelineNumber,
-          ciPipelineUrl,
-          ciJobUrl,
-          ciWorkspace);
+      int hash = 1;
+      hash = 31 * hash + (ciProviderName == null ? 0 : ciProviderName.hashCode());
+      hash = 31 * hash + (ciPipelineId == null ? 0 : ciPipelineId.hashCode());
+      hash = 31 * hash + (ciPipelineName == null ? 0 : ciPipelineName.hashCode());
+      hash = 31 * hash + (ciStageName == null ? 0 : ciStageName.hashCode());
+      hash = 31 * hash + (ciJobName == null ? 0 : ciJobName.hashCode());
+      hash = 31 * hash + (ciPipelineNumber == null ? 0 : ciPipelineNumber.hashCode());
+      hash = 31 * hash + (ciPipelineUrl == null ? 0 : ciPipelineUrl.hashCode());
+      hash = 31 * hash + (ciJobUrl == null ? 0 : ciJobUrl.hashCode());
+      hash = 31 * hash + (ciWorkspace == null ? 0 : ciWorkspace.hashCode());
+      return hash;
     }
 
     @Override

@@ -57,7 +57,14 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
 
     @Override
     public int hashCode() {
-      return Objects.hash(windowSize, samplesPerWindow, averageLookback, budgetLookback);
+      // Removed Objects.hash() since it will allocate an array for its parameters
+      // and it will box the 3 ints
+      int hash = 1;
+      hash = 31 * hash + windowSize.hashCode();
+      hash = 31 * hash + samplesPerWindow;
+      hash = 31 * hash + averageLookback;
+      hash = 31 * hash + budgetLookback;
+      return hash;
     }
   }
 
