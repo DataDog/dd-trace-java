@@ -5,7 +5,9 @@ import com.datadog.profiling.context.allocator.AllocatedBuffer;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.Tracer;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +18,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class HeapAllocator implements Allocator {
   private static final Logger log = LoggerFactory.getLogger(HeapAllocator.class);
+  private static final RatelimitedLogger warnlog = new RatelimitedLogger(log, 30, TimeUnit.SECONDS);
 
   private final int chunkSize;
   private final AtomicLong remaining;
@@ -67,10 +70,12 @@ public final class HeapAllocator implements Allocator {
       while (newRemaining < 0) {
         long restored = remaining.addAndGet(size); // restore the remaining size
         size = (int) (newRemaining + size);
-        if (size <= 0) {
-          statsDClient.gauge("tracing.context.reserved.memory", topMemory - restored);
+        if (size <= chunkSize) {
+          warnlog.warn("Capacity exhausted - buffer could not be allocated");
           return null;
         }
+        // align at chunkSize
+        size = (((size - 1) / chunkSize) + 1) * chunkSize;
         newRemaining = remaining.addAndGet(-size);
       }
       statsDClient.gauge("tracing.context.reserved.memory", topMemory - newRemaining);

@@ -5,9 +5,11 @@ import com.datadog.profiling.context.allocator.AllocatedBuffer;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.Tracer;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class DirectAllocator implements Allocator {
   private static final Logger log = LoggerFactory.getLogger(DirectAllocator.class);
+  private static final RatelimitedLogger warnlog = new RatelimitedLogger(log, 30, TimeUnit.SECONDS);
 
   private static final class AllocationResult {
     static final AllocationResult EMPTY = new AllocationResult(0, 0);
@@ -131,8 +134,7 @@ public final class DirectAllocator implements Allocator {
       exhausted = delta == 0;
     }
     if (exhausted) {
-      log.warn("Capacity exhausted - buffer could not be allocated");
-      statsDClient.gauge("tracing.context.reserved.memory", capacity);
+      warnlog.warn("Capacity exhausted - buffer could not be allocated");
       statsDClient.histogram("tracing.context.allocator.latency", System.nanoTime() - ts);
       return null;
     } else {

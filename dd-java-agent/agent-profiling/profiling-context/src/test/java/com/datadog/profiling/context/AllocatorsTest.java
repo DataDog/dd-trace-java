@@ -29,6 +29,43 @@ class AllocatorsTest {
     }
   }
 
+  @ParameterizedTest
+  @MethodSource("allocators")
+  void testAllocations(Allocator allocator) {
+    AllocatedBuffer buffer1 = null;
+    AllocatedBuffer buffer2 = null;
+    AllocatedBuffer buffer3 = null;
+    try {
+      buffer1 = allocator.allocateChunks(maxChunks - 2);
+      buffer2 = allocator.allocate(chunkSize);
+      buffer3 = allocator.allocate(chunkSize / 2);
+      buffer = allocator.allocate(chunkSize / 4);
+
+      assertNotNull(buffer1);
+      assertNotNull(buffer2);
+      assertNotNull(buffer3);
+      assertNull(buffer);
+
+      assertEquals(chunkSize * (maxChunks - 2), buffer1.capacity());
+      assertEquals(chunkSize, buffer2.capacity());
+      assertEquals(chunkSize, buffer3.capacity());
+    } finally {
+      if (buffer1 != null) {
+        buffer1.release();
+      }
+      if (buffer2 != null) {
+        buffer2.release();
+      }
+      if (buffer3 != null) {
+        buffer3.release();
+      }
+    }
+  }
+
+  private static Stream<Arguments> allocators() {
+    return Stream.of(Arguments.of(heapAllocator), Arguments.of(directAllocator));
+  }
+
   @Test
   void testOverallocationDirect() {
     buffer = directAllocator.allocateChunks(maxChunks);
