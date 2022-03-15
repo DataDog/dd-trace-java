@@ -108,13 +108,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     this.withCheckpoints = emitLocalCheckpoints;
 
     if (timestampMicro <= 0L) {
-      // capture internal time
+      // note: getting internal time from the trace implicitly 'touches' it
       startTimeNano = context.getTrace().getCurrentTimeNano();
       externalClock = false;
     } else {
       startTimeNano = MICROSECONDS.toNanos(timestampMicro);
       externalClock = true;
-      context.getTrace().touch(); // Update lastReferenced
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
   }
 
@@ -145,15 +145,22 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public final void finish(final long stopTimeMicros) {
-    context.getTrace().touch(); // Update timestamp
-    long adjustedStartTimeNano;
+    long durationNano;
     if (!externalClock) {
-      // remove tick precision part of our internal time to better match external clock
-      adjustedStartTimeNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(startTimeNano));
+      // first capture wall-clock offset from 'now' to external stop time
+      long externalOffsetMicros = stopTimeMicros - Clock.currentMicroTime();
+      // immediately afterwards calculate internal duration of span to 'now'
+      // note: getting internal time from the trace implicitly 'touches' it
+      durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
+      // drop nanosecond precision part of internal duration (expected behaviour)
+      durationNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(durationNano));
+      // add wall-clock offset to get total duration to external stop time
+      durationNano += MICROSECONDS.toNanos(externalOffsetMicros);
     } else {
-      adjustedStartTimeNano = startTimeNano;
+      durationNano = MICROSECONDS.toNanos(stopTimeMicros) - startTimeNano;
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
-    finishAndAddToTrace(MICROSECONDS.toNanos(stopTimeMicros) - adjustedStartTimeNano);
+    finishAndAddToTrace(durationNano);
   }
 
   private static final boolean legacyEndToEndEnabled =
@@ -199,9 +206,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   public final boolean phasedFinish() {
     long durationNano;
     if (!externalClock) {
+      // note: getting internal time from the trace implicitly 'touches' it
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
     } else {
       durationNano = MICROSECONDS.toNanos(Clock.currentMicroTime()) - startTimeNano;
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {

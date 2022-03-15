@@ -117,7 +117,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       def publishSpan = null
       trace(5, true) {
         publishSpan = span(0)
@@ -155,7 +155,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(3) {
+    assertTraces(3, SORT_TRACES_BY_ID) {
       def publishSpan = null
       trace(1) {
         rabbitSpan(it, "queue.declare")
@@ -215,7 +215,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     def resourceQueueName = messageCount % 2 == 0 ? "<generated>" : queueName
 
     expect:
-    assertTraces(4 + (messageCount * 2)) {
+    assertTraces(4 + (messageCount * 2), SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, "exchange.declare")
       }
@@ -292,7 +292,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     phaser.arriveAndAwaitAdvance()
 
     expect:
-    assertTraces(6) {
+    assertTraces(6, SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, "exchange.declare")
       }
@@ -338,7 +338,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
 
-    assertTraces(1) {
+    assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, command, false, null, throwable, errorMsg)
       }
@@ -371,7 +371,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     message == "foo"
 
     and:
-    assertTraces(3) {
+    assertTraces(3, SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, "queue.declare")
       }
@@ -426,7 +426,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     body == "Hello, world!"
 
     and:
-    assertTraces(expectedTraces) {
+    assertTraces(expectedTraces, SORT_TRACES_BY_ID) {
       def publishSpan = null
       trace(5) {
         publishSpan = span(1)
@@ -500,7 +500,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     body == "Hello, world!"
 
     and:
-    assertTraces(expectedTraces) {
+    assertTraces(expectedTraces, SORT_TRACES_BY_ID) {
       def publishSpan = null
       trace(5) {
         publishSpan = span(1)

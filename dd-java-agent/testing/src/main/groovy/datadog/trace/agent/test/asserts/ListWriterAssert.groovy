@@ -14,6 +14,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import static TraceAssert.assertTrace
 
 class ListWriterAssert {
+  public static final Comparator<List<DDSpan>> SORT_TRACES_BY_ID = new SortTracesById()
+  public static final Comparator<List<DDSpan>> SORT_TRACES_BY_START = new SortTracesByStart()
+
   private List<List<DDSpan>> traces
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
@@ -34,12 +37,20 @@ class ListWriterAssert {
     boolean ignoreAdditionalTraces,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
     @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    assertTraces(writer, expectedSize, ignoreAdditionalTraces, SORT_TRACES_BY_START, spec)
+  }
+
+  static void assertTraces(ListWriter writer, int expectedSize,
+    boolean ignoreAdditionalTraces,
+    Comparator<List<DDSpan>> traceSorter,
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
+    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     try {
       writer.waitForTraces(expectedSize)
       def array = writer.toArray()
       assert array.length == expectedSize
       def traces = (Arrays.asList(array) as List<List<DDSpan>>)
-      Collections.sort(traces, TraceSorter.SORTER)
+      Collections.sort(traces, traceSorter)
       def asserter = new ListWriterAssert(traces)
       def clone = (Closure) spec.clone()
       clone.delegate = asserter
@@ -116,9 +127,7 @@ class ListWriterAssert {
     assert assertedIndexes.size() == size
   }
 
-  private static class TraceSorter implements Comparator<List<DDSpan>> {
-    static final TraceSorter SORTER = new TraceSorter()
-
+  private static class SortTracesByStart implements Comparator<List<DDSpan>> {
     @Override
     int compare(List<DDSpan> o1, List<DDSpan> o2) {
       return Long.compare(traceStart(o1), traceStart(o2))
@@ -126,7 +135,19 @@ class ListWriterAssert {
 
     long traceStart(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      return trace.get(0).localRootSpan.context().trace.startNanoTicks
+      return trace.get(0).localRootSpan.startTime
+    }
+  }
+
+  private static class SortTracesById implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Long.compare(rootSpanId(o1), rootSpanId(o2))
+    }
+
+    long rootSpanId(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      return trace.get(0).localRootSpan.spanId.toLong()
     }
   }
 }
