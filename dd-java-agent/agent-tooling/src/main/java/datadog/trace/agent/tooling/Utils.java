@@ -2,6 +2,8 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
+import java.lang.instrument.Instrumentation;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Utils {
 
@@ -22,6 +24,17 @@ public class Utils {
     } else {
       return BootstrapClassLoaderHolder.unitTestBootstrapProxy;
     }
+  }
+
+  private static final AtomicReference<Instrumentation> instrumentationRef =
+      new AtomicReference<>();
+
+  public static void setInstrumentation(Instrumentation instrumentation) {
+    instrumentationRef.compareAndSet(null, instrumentation);
+  }
+
+  public static Instrumentation getInstrumentation() {
+    return instrumentationRef.get();
   }
 
   private Utils() {}

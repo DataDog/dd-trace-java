@@ -39,11 +39,6 @@ public class AgentInstaller {
 
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
-  private static volatile Instrumentation INSTRUMENTATION;
-
-  public static Instrumentation getInstrumentation() {
-    return INSTRUMENTATION;
-  }
 
   static {
     addByteBuddyRawSetting();
@@ -81,7 +76,7 @@ public class AgentInstaller {
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
       final AgentBuilder.Listener... listeners) {
-    INSTRUMENTATION = inst;
+    Utils.setInstrumentation(inst);
 
     FieldBackedContextProvider.resetContextMatchers();
 
@@ -92,7 +87,7 @@ public class AgentInstaller {
     AgentBuilder.Ignored ignoredAgentBuilder =
         new AgentBuilder.Default(byteBuddy)
             .disableClassFormatChanges()
-            .assureReadEdgeTo(INSTRUMENTATION, FieldBackedContextAccessor.class)
+            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
             .with(AgentTooling.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentTooling.rediscoveryStrategy())
