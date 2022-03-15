@@ -47,8 +47,9 @@ public class AgentInstaller {
 
   static {
     addByteBuddyRawSetting();
-    // WeakMap is used by other classes below, so we need to register the provider first.
-    AgentTooling.registerWeakMapProvider();
+    // register weak map/cache suppliers as early as possible
+    WeakMaps.registerAsSupplier();
+    WeakCaches.registerAsSupplier();
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {

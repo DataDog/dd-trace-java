@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.WeakMap;
 import java.io.File;
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;
@@ -20,17 +19,6 @@ import net.bytebuddy.dynamic.DynamicType;
  * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
  */
 public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
-  static {
-    // prevent WeakMap from logging warning while plugin is running
-    WeakMap.Provider.registerIfAbsent(
-        new WeakMap.Implementation() {
-          @Override
-          public <K, V> WeakMap<K, V> get() {
-            return null;
-          }
-        });
-  }
-
   private final File targetDir;
 
   public MuzzleGradlePlugin(File targetDir) {

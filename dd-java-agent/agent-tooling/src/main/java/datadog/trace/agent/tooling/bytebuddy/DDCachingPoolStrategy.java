@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import datadog.trace.agent.tooling.AgentTooling;
+import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
@@ -70,7 +70,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
    * </ul>
    */
   final WeakCache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
-      AgentTooling.newWeakCache(LOADER_CAPACITY);
+      WeakCaches.newWeakCache(LOADER_CAPACITY);
 
   /**
    * Single shared Type.Resolution cache -- uses a composite key -- conceptually of loader & name

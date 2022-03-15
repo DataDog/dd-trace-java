@@ -8,7 +8,7 @@ package datadog.trace.bootstrap;
 final class WeakMapContextStore implements ContextStore<Object, Object> {
   private static final int MAX_SIZE = 50_000;
 
-  private final WeakMap<Object, Object> map = WeakMap.Provider.newWeakMap();
+  private final WeakMap<Object, Object> map = WeakMap.Supplier.newWeakMap();
 
   @Override
   public Object get(final Object key) {
