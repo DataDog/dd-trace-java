@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  *
  * Delayed write is handled by PendingTraceBuffer. <br>
  */
-public final class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
+public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   private static final Logger log = LoggerFactory.getLogger(PendingTrace.class);
 
