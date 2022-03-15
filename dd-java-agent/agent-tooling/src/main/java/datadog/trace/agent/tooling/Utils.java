@@ -10,7 +10,7 @@ public class Utils {
 
   /** Return the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
-    return AgentInstaller.class.getClassLoader();
+    return Instrumenter.class.getClassLoader();
   }
 
   /** Return a classloader which can be used to look up bootstrap resources. */
