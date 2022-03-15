@@ -4,6 +4,7 @@ import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADE
 
 import datadog.trace.agent.tooling.AgentTooling;
 import datadog.trace.agent.tooling.Utils;
+import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
@@ -23,7 +24,7 @@ import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
 public final class ReferenceMatcher implements IReferenceMatcher {
-  private final WeakCache<ClassLoader, Boolean> mismatchCache = AgentTooling.newWeakCache();
+  private final WeakCache<ClassLoader, Boolean> mismatchCache = WeakCaches.newWeakCache();
   private final Reference[] references;
   private final Set<String> helperClassNames;
 

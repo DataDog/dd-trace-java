@@ -22,8 +22,8 @@ import net.bytebuddy.dynamic.DynamicType;
 public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   static {
     // prevent WeakMap from logging warning while plugin is running
-    WeakMap.Provider.registerIfAbsent(
-        new WeakMap.Implementation() {
+    WeakMap.Supplier.registerIfAbsent(
+        new WeakMap.Supplier() {
           @Override
           public <K, V> WeakMap<K, V> get() {
             return null;

@@ -1,10 +1,9 @@
 package datadog.trace.bootstrap;
 
 import datadog.trace.api.Function;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 
 public interface WeakMap<K, V> {
-
   int size();
 
   boolean containsKey(K target);
@@ -19,22 +18,17 @@ public interface WeakMap<K, V> {
 
   V remove(K key);
 
-  class Provider {
-    private static final AtomicReferenceFieldUpdater<Provider, Implementation> UPDATER =
-        AtomicReferenceFieldUpdater.newUpdater(Provider.class, Implementation.class, "provider");
-    private volatile Implementation provider = null;
-    private static final Provider INSTANCE = new Provider();
+  abstract class Supplier {
+    private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
 
-    public static void registerIfAbsent(final Implementation provider) {
-      UPDATER.compareAndSet(INSTANCE, null, provider);
-    }
+    protected abstract <K, V> WeakMap<K, V> get();
 
     public static <K, V> WeakMap<K, V> newWeakMap() {
-      return INSTANCE.provider.get();
+      return SUPPLIER.get().get();
     }
-  }
 
-  interface Implementation {
-    <K, V> WeakMap<K, V> get();
+    public static void registerIfAbsent(Supplier supplier) {
+      SUPPLIER.compareAndSet(null, supplier);
+    }
   }
 }
