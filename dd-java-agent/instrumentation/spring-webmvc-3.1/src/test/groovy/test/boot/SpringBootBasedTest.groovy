@@ -6,8 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
+import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
@@ -61,7 +61,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     URI address() {
-      return new URI("http://localhost:$port/$servletContext/")
+      return new URI("http://localhost:$port/$servletContext${context.environment.getProperty("server.servlet-path", "")}/")
     }
 
     @Override
@@ -77,11 +77,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    return TomcatDecorator.DECORATE.component()
   }
 
   String getServletContext() {
-    return "boot-context"
+    return "spring-context"
   }
 
   @Override
@@ -148,6 +148,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     if (endpoint == REDIRECT) {
       // Spring is generates a RenderView and ResponseSpan for REDIRECT
       return super.spanCount(endpoint) + 1
+    } else if (endpoint == NOT_FOUND) {
+      return super.spanCount(endpoint) + 2
     }
     return super.spanCount(endpoint)
   }
@@ -264,6 +266,30 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         childOfPrevious()
         tags {
           "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+      def extraTags = expectedExtraServerTags(NOT_FOUND)
+      trace.span {
+        operationName "servlet.forward"
+        resourceName "GET /error"
+        spanType DDSpanTypes.HTTP_SERVER
+        childOf(trace.span(0))
+        tags {
+          "component" "java-web-servlet-dispatcher"
+          "$Tags.HTTP_ROUTE" "/error"
+          addTags(extraTags)
+          defaultTags()
+        }
+      }
+      trace.span {
+        operationName "spring.handler"
+        resourceName "BasicErrorController.error"
+        spanType DDSpanTypes.HTTP_SERVER
+        childOfPrevious()
+        tags {
+          "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+          "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
           defaultTags()
         }
       }

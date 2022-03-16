@@ -39,9 +39,11 @@ dependencies {
     exclude(module: 'jetty-server') // incompatable servlet api
   }
 
-  // Include servlet instrumentation for verifying the tomcat requests
+  // Include instrumentation for verifying the tomcat requests
   testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
 
   // include also tomcat appsec instrumentation for intercepting urlencoded bodies
   testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
@@ -51,9 +53,9 @@ dependencies {
 
   testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
 
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.17.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.22.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.22.RELEASE'
   testImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
 
   // For spring security

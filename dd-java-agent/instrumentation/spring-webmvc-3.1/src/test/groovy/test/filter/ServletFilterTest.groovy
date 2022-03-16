@@ -5,8 +5,8 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
+import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
@@ -16,7 +16,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.util.Collections.singletonMap
 
 class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
@@ -62,18 +61,18 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
   }
 
   @Override
+  String expectedServiceName() {
+    return "root-servlet"
+  }
+
+  @Override
   String component() {
-    return Servlet3Decorator.DECORATE.component()
+    return TomcatDecorator.DECORATE.component()
   }
 
   @Override
   String expectedOperationName() {
     return "servlet.request"
-  }
-
-  @Override
-  boolean hasHandlerSpan() {
-    false
   }
 
   @Override
@@ -99,12 +98,23 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == ERROR
+    return [REDIRECT, ERROR, EXCEPTION].contains(endpoint)
   }
 
   @Override
   boolean hasExtraErrorInformation() {
     true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint.errored) {
+      ["error.msg"  : { it == null || it == "Filter execution threw an exception" },
+        "error.type" : { it == null || it == "javax.servlet.ServletException" },
+        "error.stack": { it == null || it instanceof String }]
+    } else {
+      Collections.emptyMap()
+    }
   }
 
   @Override
@@ -117,7 +127,20 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path]
+    ["servlet.path": endpoint.path, "servlet.context": "/"]
+  }
+
+  @Override
+  int spanCount(ServerEndpoint endpoint) {
+    if (endpoint == ERROR) {
+      // adds servlet.forward/GET /error and spring.handler/BasicErrorController.error
+      return super.spanCount(endpoint) + 2
+    } else if (endpoint == EXCEPTION) {
+      // adds servlet.forward/GET /error and spring.handler/BasicErrorController.error
+      // removes servlet.response/HttpServletResponse
+      return super.spanCount(endpoint) + 1
+    }
+    return super.spanCount(endpoint)
   }
 
   @Override
@@ -139,37 +162,47 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
       case ERROR:
         method = "sendError"
         break
+      case EXCEPTION:
+      // no method
+        break
       default:
         throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
-    trace.span {
-      operationName "servlet.response"
-      resourceName "HttpServletResponse.$method"
-      childOfPrevious()
-      tags {
-        "component" "java-web-servlet-response"
-        defaultTags()
+    if (endpoint != EXCEPTION) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.$method"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
       }
     }
-  }
-
-  @Override
-  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName "spring.handler"
-      resourceName "TestController.${endpoint.name().toLowerCase()}"
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint == EXCEPTION
-      childOfPrevious()
-      tags {
-        "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.HTTP_ROUTE" String
-        if (endpoint == EXCEPTION) {
-          errorTags(Exception, EXCEPTION.body)
+    if (endpoint == ERROR || endpoint == EXCEPTION) {
+      def extraTags = expectedExtraServerTags(endpoint)
+      trace.span {
+        operationName "servlet.forward"
+        resourceName "GET /error"
+        spanType DDSpanTypes.HTTP_SERVER
+        childOf(trace.span(0))
+        tags {
+          "component" "java-web-servlet-dispatcher"
+          "$Tags.HTTP_ROUTE" "/error"
+          addTags(extraTags)
+          defaultTags()
         }
-        defaultTags()
+      }
+      trace.span {
+        operationName "spring.handler"
+        resourceName "BasicErrorController.error"
+        spanType DDSpanTypes.HTTP_SERVER
+        childOfPrevious()
+        tags {
+          "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
+          "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+          defaultTags()
+        }
       }
     }
   }

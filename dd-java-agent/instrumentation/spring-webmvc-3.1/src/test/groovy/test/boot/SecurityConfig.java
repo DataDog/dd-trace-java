@@ -1,0 +1,50 @@
+package test.boot;
+
+import datadog.trace.agent.test.base.HttpServerTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+
+@Configuration
+@EnableWebSecurity
+class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+
+    http.authorizeRequests()
+        .antMatchers("/secure/**")
+        .authenticated()
+        .and()
+        .formLogin()
+        .loginPage(
+            getApplicationContext().getEnvironment().getProperty("server.servlet-path", "")
+                + "/login")
+        .and()
+        .authenticationProvider(getApplicationContext().getBean(SavingAuthenticationProvider.class))
+        .csrf()
+        .disable()
+        .headers()
+        .addHeaderWriter(
+            new StaticHeadersWriter(
+                HttpServerTest.getIG_RESPONSE_HEADER(),
+                HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
+  }
+
+  @Bean
+  SavingAuthenticationProvider savingAuthenticationProvider() {
+    return new SavingAuthenticationProvider();
+  }
+
+  @Bean
+  HttpFirewall allowSemicolon() {
+    StrictHttpFirewall firewall = new StrictHttpFirewall();
+    firewall.setAllowSemicolon(true);
+    return firewall;
+  }
+}
