@@ -22,7 +22,7 @@ public class AgentTooling {
     if (Platform.isJavaVersionAtLeast(9)) {
       try {
         return (TransformerDecorator)
-            AgentInstaller.class
+            Instrumenter.class
                 .getClassLoader()
                 .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava9ClassFileTransformer")
                 .getField("DECORATOR")
