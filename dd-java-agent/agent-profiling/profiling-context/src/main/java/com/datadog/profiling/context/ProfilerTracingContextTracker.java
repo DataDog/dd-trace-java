@@ -215,26 +215,30 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       return null;
     }
 
-    byte[] data;
+    byte[] data = null;
     if (persisted.compareAndSet(null, EMPTY_DATA)) {
-      ByteBuffer buffer = encodeIntervals();
+      try {
+        ByteBuffer buffer = encodeIntervals();
 
-      if (span != null) {
-        for (IntervalBlobListener listener : blobListeners) {
-          try {
-            ByteBuffer duplicated = buffer.duplicate();
-            listener.onIntervalBlob(span, duplicated);
-          } catch (OutOfMemoryError e) {
-            throw e;
-          } catch (Throwable t) {
-            log.error("", t);
+        if (span != null) {
+          for (IntervalBlobListener listener : blobListeners) {
+            try {
+              ByteBuffer duplicated = buffer.duplicate();
+              listener.onIntervalBlob(span, duplicated);
+            } catch (OutOfMemoryError e) {
+              throw e;
+            } catch (Throwable t) {
+              warnlog.warn("Error while dispatching context blob to {}", listener.getClass().getName(), t);
+            }
           }
         }
-      }
 
-      data = buffer.array();
-      data = Arrays.copyOf(data, buffer.limit());
-      persisted.set(data);
+        data = buffer.array();
+        data = Arrays.copyOf(data, buffer.limit());
+      } finally {
+        // make sure the other threads do not stay blocked even if there is an exception thrown
+        persisted.compareAndSet(EMPTY_DATA, data);
+      }
     } else {
       // busy wait for the data to become available
       while ((data = persisted.get()) == EMPTY_DATA) {

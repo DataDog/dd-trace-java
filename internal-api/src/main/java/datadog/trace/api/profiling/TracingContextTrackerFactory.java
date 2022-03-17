@@ -43,6 +43,11 @@ public final class TracingContextTrackerFactory {
     return false;
   }
 
+  public static boolean isTrackingAvailable() {
+    // return true if a non-dummy implementatin has been registered
+    return INSTANCE.implementation != Implementation.EMPTY;
+  }
+
   /**
    * Create a new tracing context tracker associated with the given span
    *
