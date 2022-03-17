@@ -1221,9 +1221,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     public void run() {
       final CoreTracer tracer = reference.get();
       if (tracer != null) {
-        if (tracer.traceKeepAlive != null) {
-          tracer.traceKeepAlive.stop();
-        }
         tracer.close();
       }
     }
