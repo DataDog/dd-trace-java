@@ -61,12 +61,20 @@ public class StatsGroup {
 
   @Override
   public String toString() {
-    return "StatsGroup{" +
-        "type='" + type + '\'' +
-        ", group='" + group + '\'' +
-        ", topic='" + topic + '\'' +
-        ", hash=" + hash +
-        ", parentHash=" + parentHash +
-        '}';
+    return "StatsGroup{"
+        + "type='"
+        + type
+        + '\''
+        + ", group='"
+        + group
+        + '\''
+        + ", topic='"
+        + topic
+        + '\''
+        + ", hash="
+        + hash
+        + ", parentHash="
+        + parentHash
+        + '}';
   }
 }

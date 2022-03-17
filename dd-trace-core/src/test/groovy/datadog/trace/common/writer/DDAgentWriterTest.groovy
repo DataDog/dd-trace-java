@@ -170,24 +170,24 @@ class DDAgentWriterTest extends DDCoreSpecification {
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
     return new DDSpan(0, new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
-      null,
-      "",
-      "",
-      "",
-      PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
-      "",
-      [:],
-      false,
-      "",
-      0,
-      trace,
-      null,
-      NoopPathwayContext.INSTANCE,
-      false)
+    DDId.from(1),
+    DDId.from(1),
+    DDId.ZERO,
+    null,
+    "",
+    "",
+    "",
+    PrioritySampling.UNSET,
+    SamplingMechanism.UNKNOWN,
+    "",
+    [:],
+    false,
+    "",
+    0,
+    trace,
+    null,
+    NoopPathwayContext.INSTANCE,
+    false)
     return new DDSpan(0, context)
   }
 }
