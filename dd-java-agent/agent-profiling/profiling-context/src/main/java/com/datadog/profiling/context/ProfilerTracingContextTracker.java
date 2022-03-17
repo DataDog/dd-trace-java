@@ -228,7 +228,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
             } catch (OutOfMemoryError e) {
               throw e;
             } catch (Throwable t) {
-              warnlog.warn("Error while dispatching context blob to {}", listener.getClass().getName(), t);
+              warnlog.warn(
+                  "Error while dispatching context blob to {}", listener.getClass().getName(), t);
             }
           }
         }

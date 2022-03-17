@@ -3,9 +3,8 @@ package com.datadog.profiling.context;
 import static org.junit.jupiter.api.Assertions.*;
 
 import datadog.trace.api.profiling.TracingContextTracker;
-import java.util.concurrent.TimeUnit;
-
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class ProfilerTracingContextTrackerFactoryTest {
@@ -13,8 +12,9 @@ class ProfilerTracingContextTrackerFactoryTest {
   void testTracingAvailable() {
     assertFalse(TracingContextTrackerFactory.isTrackingAvailable());
 
-    TracingContextTrackerFactory.registerImplementation(new ProfilerTracingContextTrackerFactory(
-        TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS), 10L, 512));
+    TracingContextTrackerFactory.registerImplementation(
+        new ProfilerTracingContextTrackerFactory(
+            TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS), 10L, 512));
     assertTrue(TracingContextTrackerFactory.isTrackingAvailable());
   }
 
