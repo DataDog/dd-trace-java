@@ -22,6 +22,7 @@ public class Utils {
     if (getAgentClassLoader() instanceof DatadogClassLoader) {
       return ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy();
     } else {
+      // only used during unit tests
       return BootstrapClassLoaderHolder.unitTestBootstrapProxy;
     }
   }
