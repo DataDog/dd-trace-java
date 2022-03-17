@@ -88,13 +88,13 @@ public class AgentInstaller {
         new AgentBuilder.Default(byteBuddy)
             .disableClassFormatChanges()
             .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
-            .with(AgentTooling.transformerDecorator())
+            .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentTooling.rediscoveryStrategy())
+            .with(AgentStrategies.rediscoveryStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
-            .with(AgentTooling.poolStrategy())
+            .with(AgentStrategies.poolStrategy())
             .with(new ClassLoadListener())
-            .with(AgentTooling.locationStrategy())
+            .with(AgentStrategies.locationStrategy())
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
@@ -110,7 +110,7 @@ public class AgentInstaller {
       agentBuilder =
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-              .with(AgentTooling.rediscoveryStrategy())
+              .with(AgentStrategies.rediscoveryStrategy())
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }
