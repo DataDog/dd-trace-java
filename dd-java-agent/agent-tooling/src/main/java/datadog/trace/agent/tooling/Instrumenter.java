@@ -115,7 +115,7 @@ public interface Instrumenter {
     private static final Logger log = LoggerFactory.getLogger(Default.class);
     private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
-    // Added here instead of AgentInstaller's ignores because it's relatively
+    // Added here instead of byte-buddy's ignores because it's relatively
     // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
     public static final Junction<AnnotationSource> NOT_DECORATOR_MATCHER =
         not(isAnnotatedWith(named("javax.decorator.Decorator")));

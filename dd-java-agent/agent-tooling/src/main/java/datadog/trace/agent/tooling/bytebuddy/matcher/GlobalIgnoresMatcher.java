@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 

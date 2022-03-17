@@ -14,7 +14,7 @@ public final class AgentCLI {
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
     for (Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader())) {
+        ServiceLoader.load(Instrumenter.class, Instrumenter.class.getClassLoader())) {
       if (instrumenter instanceof Instrumenter.Default) {
         names.add(((Instrumenter.Default) instrumenter).name());
       }
