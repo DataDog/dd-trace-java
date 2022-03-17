@@ -44,12 +44,16 @@ public class DatastreamsPayloadWriter {
   }
 
   public void writePayload(Collection<StatsBucket> data) {
-    writer.startMap(2);
+    writer.startMap(3);
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(envValue);
 
     /* 2 */
+    writer.writeUTF8(SERVICE);
+    writer.writeString(Config.get().getServiceName(), null);
+
+    /* 3 */
     writer.writeUTF8(STATS);
     writer.startArray(data.size());
     for (StatsBucket bucket : data) {
@@ -80,7 +84,7 @@ public class DatastreamsPayloadWriter {
       log.debug("Writing group {}", group);
       boolean firstNode = "".equals(group.getTopic());
 
-      packer.startMap(firstNode ? 5 : 6);
+      packer.startMap(firstNode ? 4 : 5);
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
@@ -91,19 +95,15 @@ public class DatastreamsPayloadWriter {
       packer.writeBinary(group.getEdgeLatency().serialize());
 
       /* 3 */
-      packer.writeUTF8(SERVICE);
-      packer.writeString(Config.get().getServiceName(), null);
-
-      /* 4 */
       packer.writeUTF8(HASH);
       packer.writeUnsignedLong(group.getHash());
 
-      /* 5 */
+      /* 4 */
       packer.writeUTF8(PARENT_HASH);
       packer.writeUnsignedLong(group.getParentHash());
 
       if (!firstNode) {
-        /* 6 */
+        /* 5 */
         packer.writeUTF8(EDGE_TAGS);
         packer.startArray(3);
         packer.writeString("topic:" + group.getTopic(), null);
