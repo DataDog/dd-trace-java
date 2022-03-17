@@ -72,10 +72,10 @@ final class IntervalSequencePruner {
    * </ul>
    *
    * @param sequence the raw data sequence
-   * @param timestamp the timestamp to be considered to be the time of pruning
+   * @param timestampDelta the timestamp delta to use for the synthetic end transition if necessary
    * @return a {@linkplain LongIterator} instance providing access to the pruned data
    */
-  LongIterator pruneIntervals(LongSequence sequence, long timestamp) {
+  LongIterator pruneIntervals(LongSequence sequence, long timestampDelta) {
     int lastTransition = ProfilerTracingContextTracker.TRANSITION_NONE;
     int finishIndexStart = -1;
     int sequenceOffset = 0;
@@ -137,8 +137,10 @@ final class IntervalSequencePruner {
     }
     if (lastTransition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
       // dangling start -> create a synthetic finished transition
-      log.debug("Dangling 'started' transition. Creating synthetic 'finished' transition.");
-      sequence.add(ProfilerTracingContextTracker.maskDeactivation(timestamp, false));
+      log.debug(
+          "Dangling 'started' transition. Creating synthetic 'finished' transition @{} delta",
+          timestampDelta);
+      sequence.add(ProfilerTracingContextTracker.maskDeactivation(timestampDelta, false));
     }
     return new PruningLongIterator(sequence.iterator());
   }

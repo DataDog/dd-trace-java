@@ -246,14 +246,11 @@ public class DDSpan
     try {
       byte[] contextContent = tracingContextTracker.persist();
       if (contextContent != null) {
+        String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
         byte[] encoded = Base64Encoder.INSTANCE.encode(contextContent);
         String tag = new String(encoded, StandardCharsets.UTF_8);
-        log.debug(
-            "Store context to tag: span={}, content={}, encoded_len={}",
-            this,
-            contextContent,
-            encoded.length);
-        setTag("_dd_tracing_context_" + tracingContextTracker.getVersion(), tag);
+        log.trace("Tracing context data for s_id:{}, tag:{}={}", getSpanId(), contextTagName, tag);
+        setTag(contextTagName, tag);
         return encoded.length;
       }
     } catch (Throwable t) {

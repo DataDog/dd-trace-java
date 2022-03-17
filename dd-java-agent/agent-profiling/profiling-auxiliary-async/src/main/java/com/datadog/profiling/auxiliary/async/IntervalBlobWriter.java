@@ -25,7 +25,8 @@ public final class IntervalBlobWriter implements TracingContextTracker.IntervalB
   public void onIntervalBlob(AgentSpan span, ByteBuffer blob) {
     ContextIntervals contextIntervals = contextIntervalsRef.get();
     if (contextIntervals != null) {
-      contextIntervals.writeContextIntervals(span.getResourceName().toString(), blob);
+      contextIntervals.writeContextIntervals(
+          span.getLocalRootSpan().getResourceName().toString(), blob);
     }
   }
 }

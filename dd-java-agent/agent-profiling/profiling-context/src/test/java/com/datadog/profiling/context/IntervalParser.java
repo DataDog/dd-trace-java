@@ -84,6 +84,7 @@ public final class IntervalParser {
     ByteBuffer buffer = ByteBuffer.wrap(intervalData);
     int chunkDataOffset = buffer.getInt();
     long timestamp = getVarint(buffer);
+    long frequencyMultiplier = getVarint(buffer);
     int numThreads = (int) getVarint(buffer);
 
     ByteBuffer dataChunk =

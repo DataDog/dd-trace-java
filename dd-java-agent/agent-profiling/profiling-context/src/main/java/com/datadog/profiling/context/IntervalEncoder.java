@@ -82,12 +82,19 @@ final class IntervalEncoder {
     }
   }
 
-  IntervalEncoder(long timestamp, int threadCount, int maxSize) {
+  /**
+   * @param timestamp the timestamp in ticks
+   * @param freqMultiplier number of ticks per 1000ns
+   * @param threadCount number of tracked threads
+   * @param maxSize max data size
+   */
+  IntervalEncoder(long timestamp, long freqMultiplier, int threadCount, int maxSize) {
     this.threadCount = threadCount;
 
     this.prologueBuffer =
         ByteBuffer.allocate(
             leb128Support.varintSize(timestamp)
+                + leb128Support.varintSize(freqMultiplier)
                 + leb128Support.varintSize(threadCount)
                 + threadCount * 18);
     this.dataChunkBuffer = ByteBuffer.allocate(maxSize * 8 + 4);
@@ -97,6 +104,7 @@ final class IntervalEncoder {
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset
     dataChunkBuffer.putInt(0); // pre-allocate space for the group varint map offset
     leb128Support.putVarint(prologueBuffer, timestamp);
+    leb128Support.putVarint(prologueBuffer, freqMultiplier);
     leb128Support.putVarint(prologueBuffer, threadCount);
   }
 

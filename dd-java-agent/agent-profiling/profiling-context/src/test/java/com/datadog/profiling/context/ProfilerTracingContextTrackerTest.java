@@ -12,18 +12,48 @@ import java.util.List;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ProfilerTracingContextTrackerTest {
+  private static final class TestTimeTickProvider
+      implements ProfilerTracingContextTracker.TimeTicksProvider {
+    private final long step;
+    private final long frequency;
+    private final AtomicLong ts = new AtomicLong(0);
+
+    public TestTimeTickProvider(long initial, long step, long frequency) {
+      this.ts.set(initial);
+      this.step = step;
+      this.frequency = frequency;
+    }
+
+    @Override
+    public long ticks() {
+      return ts.getAndAdd(step);
+    }
+
+    @Override
+    public long frequency() {
+      return frequency;
+    }
+
+    public void set(long ticks) {
+      ts.set(ticks);
+    }
+  }
+
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private ProfilerTracingContextTracker instance;
 
   @BeforeEach
   void setup() throws Exception {
+    ProfilerTracingContextTracker.TimeTicksProvider ticker =
+        new TestTimeTickProvider(100_000L, 1000L, 1_000_000_000L);
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.heapAllocator(32, 16), null, () -> 100_000L, sequencePruner);
+            Allocators.heapAllocator(32, 16), null, ticker, sequencePruner);
   }
 
   @Test
@@ -31,15 +61,18 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void persist() {
+    TestTimeTickProvider tickProvider = new TestTimeTickProvider(100_000L, 3, 1_000_000_000L);
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.directAllocator(8192, 64), null, () -> 100_000L, sequencePruner);
+            Allocators.directAllocator(8192, 64), null, tickProvider, sequencePruner);
     for (int i = 0; i < 40; i += 4) {
       instance.activateContext(1L, (i + 1) * 1_000_000L);
       instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);
       instance.activateContext(2L, (i + 3) * 1_000_000L);
       instance.deactivateContext(2L, (i + 4) * 1_000_000L, true);
     }
+    // set the timestamp after the last transition's timestamp
+    tickProvider.set((44 * 1_000_000L) + 1);
 
     byte[] persisted = instance.persist();
     assertNotNull(persisted);
@@ -152,5 +185,23 @@ class ProfilerTracingContextTrackerTest {
     delayed2.cleanup();
     assertNull(((ProfilerTracingContextTracker.DelayedTrackerImpl) delayed2).ref);
     assertNotEquals(delayed2, tracker2.asDelayed());
+  }
+
+  @Test
+  //  @Disabled
+  // a handy test to try deserializing data from spans
+  void testPersisted() {
+    String[] encodedData =
+        new String[] {
+          "AAAAIvb1iIiHwkvoBwiTAgGUAgGWAgFGDUcCVQFlAe4CGwAAANIs2DlgHjBMYJEXLl8F9uUrUcucNQGInnTTAwndBz7DCpqhagMQAeo+AXvDNIieDGCUFu4C3RN1CSwNvwUxW68NbxvvAasDdAGCCUgp69kBCK0BIJqNuS9/k15V1gHKg5YBxJlMOpIJQwPKAb2MrAMLHBsBslYoAjQBoAPEDtYC6AFkAUwb3QI6AXgBgAovAv4DQQF7GUID1miBAl4zJAlBDeICCAkWBgYRkw1LTvUfHgP6AaoBcQGSGLkBPwQvAlQCIwGwBUgBuwRwAS4IzUUUUUUiSmUSSSSSSUkUQ2SSSSSSSSSSSSSSSSSSSSSSSSSSQAA"
+        };
+    for (String encoded : encodedData) {
+      System.out.println("====");
+      byte[] decoded = Base64.getDecoder().decode(encoded);
+
+      for (IntervalParser.Interval i : new IntervalParser().parseIntervals(decoded)) {
+        System.out.println("===> " + i.from + ":" + i.till + "  - " + (i.till - i.from));
+      }
+    }
   }
 }

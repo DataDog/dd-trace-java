@@ -84,7 +84,7 @@ public final class ProfilerTracingContextTrackerFactory
   private final Allocator allocator;
   private final Set<TracingContextTracker.IntervalBlobListener> blobListeners = new HashSet<>();
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
-  private final ProfilerTracingContextTracker.TimestampProvider timestampProvider;
+  private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
   private final long inactivityDelay;
 
   ProfilerTracingContextTrackerFactory(
@@ -97,35 +97,12 @@ public final class ProfilerTracingContextTrackerFactory
       long inactivityCheckPeriodMs,
       int reservedMemorySize,
       String reservedMemoryType) {
-    ProfilerTracingContextTracker.TimestampProvider tsProvider = System::nanoTime;
-    try {
-      Class<?> clz =
-          ProfilerTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
-      MethodHandle mh =
-          MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
-      tsProvider =
-          () -> {
-            try {
-              return (long) mh.invokeExact();
-            } catch (OutOfMemoryError e) {
-              throw e;
-            } catch (Throwable ignored) {
-              return -1L;
-            }
-          };
-    } catch (Throwable t) {
-      if (log.isDebugEnabled()) {
-        log.warn("Failed to initialize JFR timestamp access. Falling back to system nanotime.", t);
-      } else {
-        log.debug("Failed to initialize JFR timestamp access. Falling back to system nanotime.");
-      }
-    }
+    timeTicksProvider = getTicksProvider();
     log.debug("Tracing Context Tracker Memory Type: {}", reservedMemoryType);
     allocator =
         reservedMemoryType.equalsIgnoreCase("direct")
             ? Allocators.directAllocator(reservedMemorySize, 32)
             : Allocators.heapAllocator(reservedMemorySize, 32);
-    timestampProvider = tsProvider;
     this.inactivityDelay = inactivityDelayNs;
 
     for (TracingContextTracker.IntervalBlobListener listener :
@@ -137,11 +114,57 @@ public final class ProfilerTracingContextTrackerFactory
     }
   }
 
+  private static ProfilerTracingContextTracker.TimeTicksProvider getTicksProvider() {
+    try {
+      Class<?> clz =
+          ProfilerTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
+      MethodHandle mh;
+      long frequency = 0L;
+      try {
+        mh =
+            MethodHandles.lookup()
+                .findStatic(clz, "getTicksFrequency", MethodType.methodType(long.class));
+        frequency = (long) mh.invokeExact();
+      } catch (NoSuchMethodException ignored) {
+        // the method is available since JDK11 only
+      }
+      mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
+      // sanity check to fail early if the method handle invocation does not work
+      mh.invokeExact();
+
+      MethodHandle fixedMh = mh;
+      long fixedFrequency = frequency;
+
+      return new ProfilerTracingContextTracker.TimeTicksProvider() {
+        @Override
+        public long ticks() {
+          try {
+            return (long) fixedMh.invokeExact();
+          } catch (Throwable ignored) {
+          }
+          return Long.MIN_VALUE;
+        }
+
+        @Override
+        public long frequency() {
+          return fixedFrequency;
+        }
+      };
+    } catch (Throwable t) {
+      if (log.isDebugEnabled()) {
+        log.warn("Failed to access JFR timestamps. Falling back to system nanotime.", t);
+      } else {
+        log.debug("Failed to access JFR timestamps. Falling back to system nanotime.");
+      }
+    }
+    return ProfilerTracingContextTracker.TimeTicksProvider.SYSTEM;
+  }
+
   @Override
   public TracingContextTracker instance(AgentSpan span) {
     ProfilerTracingContextTracker instance =
         new ProfilerTracingContextTracker(
-            allocator, span, timestampProvider, sequencePruner, inactivityDelay);
+            allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
     instance.setBlobListeners(blobListeners);
     if (inactivityDelay > 0) {
       delayQueue.offer(instance.asDelayed());
