@@ -16,8 +16,5 @@ public class NoOpRecording extends Recording {
   public void stop() {}
 
   @Override
-  public void addMeasurement(long durationInNanos) {}
-
-  @Override
   public void flush() {}
 }

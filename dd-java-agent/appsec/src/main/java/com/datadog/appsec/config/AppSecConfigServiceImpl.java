@@ -9,12 +9,16 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.fleet.FleetService;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import okio.BufferedSource;
@@ -39,15 +43,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
-  private final StatsDClient statsDClient;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private volatile FleetService.FleetSubscription fleetSubscription;
 
-  public AppSecConfigServiceImpl(
-      Config tracerConfig, FleetService fleetService, StatsDClient statsDClient) {
+  public AppSecConfigServiceImpl(Config tracerConfig, FleetService fleetService) {
     this.tracerConfig = tracerConfig;
     this.fleetService = fleetService;
-    this.statsDClient = statsDClient;
   }
 
   private void subscribeFleetService(FleetService fleetService) {
@@ -109,11 +110,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.subconfigListeners.put(key, listener);
     Map<String, AppSecConfig> lastConfig = this.lastConfig.get();
     return Optional.ofNullable(lastConfig.get(key));
-  }
-
-  @Override
-  public StatsDClient getStatsDClient() {
-    return this.statsDClient;
   }
 
   @Override

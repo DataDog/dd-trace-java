@@ -32,7 +32,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'registers powerwaf module'() {
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
+    AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     'powerwaf' in AppSecSystem.startedModulesInfo
@@ -43,7 +43,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
+    AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException
@@ -60,7 +60,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.ipheader', 'foo-bar')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
+    AppSecSystem.start(subService, sharedCommunicationObjects())
     requestEndedCB.apply(requestContext, Mock(AgentSpan))
 
     then:
@@ -85,7 +85,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.trace.rate.limit', '5')
 
     when:
-    AppSecSystem.start(subService, sco, tracer)
+    AppSecSystem.start(subService, sco)
     7.times { requestEndedCB.apply(requestContext, Mock(AgentSpan)) }
 
     then:
@@ -109,7 +109,7 @@ class AppSecSystemSpecification extends DDSpecification {
     rebuildConfig()
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects(), tracer)
+    AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException

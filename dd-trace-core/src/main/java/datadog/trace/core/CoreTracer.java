@@ -460,7 +460,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       sharedCommunicationObjects = new SharedCommunicationObjects();
     }
     sharedCommunicationObjects.monitoring = monitoring;
-    sharedCommunicationObjects.statsDClient = this.statsDClient;
     sharedCommunicationObjects.createRemaining(config);
 
     if (writer == null) {

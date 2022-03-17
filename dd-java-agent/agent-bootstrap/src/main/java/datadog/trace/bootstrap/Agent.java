@@ -13,7 +13,6 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
@@ -565,8 +564,8 @@ public class Agent {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass, Tracer.class);
-      appSecInstallerMethod.invoke(null, gw, sco, GlobalTracer.get());
+          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
+      appSecInstallerMethod.invoke(null, gw, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }

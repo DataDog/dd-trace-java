@@ -12,7 +12,6 @@ import datadog.communication.fleet.FleetServiceImpl;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.Tracer;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
@@ -29,10 +28,9 @@ public class AppSecSystem {
   private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
-  public static void start(
-      SubscriptionService gw, SharedCommunicationObjects sco, Tracer globalTracer) {
+  public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
-      doStart(gw, sco, globalTracer);
+      doStart(gw, sco);
     } catch (AbortStartupException ase) {
       throw ase;
     } catch (RuntimeException | Error e) {
@@ -41,8 +39,7 @@ public class AppSecSystem {
     }
   }
 
-  private static void doStart(
-      SubscriptionService gw, SharedCommunicationObjects sco, Tracer globalTracer) {
+  private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
     final Config config = Config.get();
     if (!config.isAppSecEnabled()) {
       log.debug("AppSec: disabled");
@@ -57,7 +54,7 @@ public class AppSecSystem {
     // do not start its thread, support not merged in agent yet
     //    fleetService.init();
     // may throw and abort starup
-    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService, sco.statsDClient);
+    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService);
     // no point initializing fleet service, as it will receive no notifications
     APP_SEC_CONFIG_SERVICE.init(false);
 

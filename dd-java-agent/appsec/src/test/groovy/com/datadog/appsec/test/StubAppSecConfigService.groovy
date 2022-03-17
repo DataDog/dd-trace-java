@@ -4,7 +4,6 @@ import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecConfigServiceImpl
 import com.datadog.appsec.config.TraceSegmentPostProcessor
-import datadog.trace.api.StatsDClient
 import okio.Okio
 
 class StubAppSecConfigService implements AppSecConfigService {
@@ -40,11 +39,6 @@ class StubAppSecConfigService implements AppSecConfigService {
     listeners[key] = listener
 
     Optional.ofNullable(lastConfig[key])
-  }
-
-  @Override
-  StatsDClient getStatsDClient() {
-    StatsDClient.NO_OP
   }
 
   @Override
