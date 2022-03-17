@@ -247,4 +247,4 @@ datadog.ExceptionSample#enabled=true
 datadog.ExceptionCount#enabled=true
 datadog.ProfilerSetting#enabled=true
 datadog.ContextInterval#enabled=true
-datadog.Checkpoint#enabled=false
+datadog.Checkpoint#enabled=true
