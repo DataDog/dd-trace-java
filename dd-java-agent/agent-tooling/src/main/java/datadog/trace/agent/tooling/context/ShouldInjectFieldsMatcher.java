@@ -12,15 +12,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
-
+class ShouldInjectFieldsMatcher {
   private static final Logger log = LoggerFactory.getLogger(ShouldInjectFieldsMatcher.class);
 
   // this map will contain as many entries as there are unique
@@ -34,22 +32,17 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
   private static final ConcurrentHashMap<String, BitSet> EXCLUDED_STORE_IDS_BY_TYPE =
       new ConcurrentHashMap<String, BitSet>();
 
-  public static AgentBuilder.RawMatcher of(String keyType, String valueType) {
-    return new ShouldInjectFieldsMatcher(keyType, valueType);
-  }
-
   private final String keyType;
   private final String valueType;
   private final ExcludeFilter.ExcludeType skipType;
 
-  private ShouldInjectFieldsMatcher(String keyType, String valueType) {
+  ShouldInjectFieldsMatcher(String keyType, String valueType) {
     this.keyType = keyType;
     this.valueType = valueType;
     this.skipType = ExcludeFilter.ExcludeType.fromFieldType(keyType);
   }
 
-  @Override
-  public boolean matches(
+  public final boolean matches(
       final TypeDescription typeDescription,
       final ClassLoader classLoader,
       final JavaModule module,

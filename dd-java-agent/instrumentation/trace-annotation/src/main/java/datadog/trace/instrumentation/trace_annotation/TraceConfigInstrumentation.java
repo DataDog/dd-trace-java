@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -176,23 +175,21 @@ public class TraceConfigInstrumentation implements Instrumenter {
   }
 
   @Override
-  public AgentBuilder instrument(AgentBuilder agentBuilder) {
-    if (classMethodsToTrace.isEmpty()) {
-      return agentBuilder;
-    }
-
-    for (final Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
-      final TracerClassInstrumentation tracerConfigClass =
-          new TracerClassInstrumentation(entry.getKey(), entry.getValue());
-      agentBuilder = tracerConfigClass.instrument(agentBuilder);
-    }
-    return agentBuilder;
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return enabledSystems.contains(TargetSystem.TRACING);
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    // don't care
-    return true;
+  public void instrument(TransformerBuilder transformerBuilder) {
+    if (classMethodsToTrace.isEmpty()) {
+      return;
+    }
+
+    for (final Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
+      final TracerClassInstrumentation tracerClassInstrumentation =
+          new TracerClassInstrumentation(entry.getKey(), entry.getValue());
+      transformerBuilder.applyInstrumentation(tracerClassInstrumentation);
+    }
   }
 
   // Not Using AutoService to hook up this instrumentation
