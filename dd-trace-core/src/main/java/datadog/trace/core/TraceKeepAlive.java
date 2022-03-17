@@ -2,9 +2,6 @@ package datadog.trace.core;
 
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.util.AgentTaskScheduler;
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -27,8 +24,7 @@ public class TraceKeepAlive implements AgentTaskScheduler.Task<Void> {
   private static final Logger LOGGER = LoggerFactory.getLogger(TraceKeepAlive.class);
 
   private final Object dummy = new Object();
-  private final ConcurrentMap<WeakReference<PendingTrace>, Object> pendingTraces =
-      new ConcurrentHashMap<>();
+  private final ConcurrentMap<PendingTrace, Object> pendingTraces = new ConcurrentHashMap<>();
   private final long keepAlivePeriod;
 
   private volatile AgentTaskScheduler.Scheduled<Void> scheduled;
@@ -36,17 +32,8 @@ public class TraceKeepAlive implements AgentTaskScheduler.Task<Void> {
   @Override
   public void run(Void ignored) {
     final long now = System.currentTimeMillis();
-    final List<WeakReference<PendingTrace>> garbaged = new ArrayList<>();
-    for (final WeakReference<PendingTrace> ref : pendingTraces.keySet()) {
-      final PendingTrace pt = ref.get();
-      if (pt != null) {
-        pt.keepAliveUnfinished(now, keepAlivePeriod);
-      } else {
-        garbaged.add(ref);
-      }
-    }
-    for (final WeakReference<PendingTrace> ref : garbaged) {
-      pendingTraces.remove(ref);
+    for (final PendingTrace pt : pendingTraces.keySet()) {
+      pt.keepAliveUnfinished(now, keepAlivePeriod);
     }
   }
 
@@ -74,10 +61,10 @@ public class TraceKeepAlive implements AgentTaskScheduler.Task<Void> {
   }
 
   public void onPendingTraceBegins(final PendingTrace pendingTrace) {
-    pendingTraces.put(new WeakReference<>(pendingTrace), dummy);
+    pendingTraces.put(pendingTrace, dummy);
   }
 
   public void onPendingTraceEnds(final PendingTrace pendingTrace) {
-    pendingTraces.remove(new WeakReference<>(pendingTrace));
+    pendingTraces.remove(pendingTrace);
   }
 }
