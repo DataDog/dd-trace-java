@@ -51,7 +51,8 @@ public class AgentStrategies {
         @Override
         public TypePool typePool(
             ClassFileLocator classFileLocator, ClassLoader classLoader, String name) {
-          return DDCachingPoolStrategy.INSTANCE.typePool(classFileLocator, classLoader, name);
+          // FIXME satisfy interface constraint that currently instrumented type is not cached
+          return DDCachingPoolStrategy.INSTANCE.typePool(classFileLocator, classLoader);
         }
       };
 
