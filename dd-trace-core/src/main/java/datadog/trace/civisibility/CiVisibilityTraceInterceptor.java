@@ -27,11 +27,12 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
     final DDSpan spanToCheck = null == localRootSpan ? firstSpan : localRootSpan;
 
     // If root span does not have type == "test", we drop the full trace.
-    if (!TEST_TYPE.contentEquals(spanToCheck.getType())) {
+    CharSequence type = spanToCheck.getType(); // Don't null pointer if there is no type
+    if (type == null || !TEST_TYPE.contentEquals(type)) {
       return Collections.emptyList();
     }
 
-    // If the trace belongs to a "test", we need to set the origin of the all spans of the trace to
+    // If the trace belongs to a "test", we need to set the origin of all the spans of the trace to
     // `ciapp-test`.
     for (MutableSpan span : trace) {
       ((DDSpan) span).context().setOrigin(CIAPP_TEST_ORIGIN);

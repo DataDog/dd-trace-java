@@ -92,8 +92,6 @@ class TypeConverterTest extends DDSpecification {
       trace,
       null,
       NoopPathwayContext.INSTANCE,
-      false,
-      null,
-      512)
+      false)
   }
 }

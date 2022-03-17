@@ -24,7 +24,7 @@ tasks.register('forkedTest', Test) {
 
 test {
   exclude("**/*ForkedTest*")
-  dependsOn "forkedTest"
+  finalizedBy "forkedTest"
 }
 
 def applyCodeCoverage = !(

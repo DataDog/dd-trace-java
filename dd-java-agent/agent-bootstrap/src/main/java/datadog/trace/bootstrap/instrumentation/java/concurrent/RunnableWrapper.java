@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.Exc
  *
  * <p>FIXME: We should remove this once https://github.com/raphw/byte-buddy/issues/558 is fixed
  */
-public final class RunnableWrapper implements Runnable {
+public class RunnableWrapper implements Runnable {
 
   private final Runnable runnable;
 

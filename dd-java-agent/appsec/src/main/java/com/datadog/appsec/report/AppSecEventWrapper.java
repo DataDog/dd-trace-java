@@ -27,12 +27,12 @@ public class AppSecEventWrapper {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     AppSecEventWrapper that = (AppSecEventWrapper) o;
-    return Objects.equals(triggers, that.triggers) && Objects.equals(json, that.json);
+    return Objects.equals(triggers, that.triggers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(triggers, json);
+    return triggers.hashCode();
   }
 
   @Override

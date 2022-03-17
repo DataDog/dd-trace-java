@@ -21,7 +21,7 @@ import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFor
 class FieldInjectionSmokeTest extends Specification {
 
   private static final Pattern CONTEXT_STORE_ALLOCATION =
-  Pattern.compile('.*Allocated ContextStore #(\\d+) to (\\S+) -> (\\S+)')
+  Pattern.compile('.*Allocated ContextStore #(\\d+) - instrumentation.target.context=(\\S+)->(\\S+)')
 
   String javaPath() {
     final String separator = System.getProperty("file.separator")

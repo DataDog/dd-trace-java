@@ -17,6 +17,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.HashMap;
@@ -205,7 +206,12 @@ public class TraceConfigInstrumentation implements Instrumenter {
     }
 
     public TracerClassInstrumentation(final String className, final Set<String> methodNames) {
-      super("trace", "trace-config");
+      super(
+          "trace",
+          "trace-config",
+          "trace-config_"
+              + className
+              + (!Config.get().isDebugEnabled() ? "" : "[" + Strings.join(",", methodNames) + "]"));
       this.className = className;
       this.methodNames = methodNames;
     }

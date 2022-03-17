@@ -2,8 +2,10 @@ package datadog.trace.agent.tooling.muzzle;
 
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
 
-import datadog.trace.agent.tooling.AgentTooling;
 import datadog.trace.agent.tooling.Utils;
+import datadog.trace.agent.tooling.WeakCaches;
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDClassFileLocator;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
@@ -23,7 +25,7 @@ import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
 public final class ReferenceMatcher implements IReferenceMatcher {
-  private final WeakCache<ClassLoader, Boolean> mismatchCache = AgentTooling.newWeakCache();
+  private final WeakCache<ClassLoader, Boolean> mismatchCache = WeakCaches.newWeakCache();
   private final Reference[] references;
   private final Set<String> helperClassNames;
 
@@ -111,8 +113,7 @@ public final class ReferenceMatcher implements IReferenceMatcher {
   private static boolean checkMatch(
       final Reference reference, final ClassLoader loader, final List<Mismatch> mismatches) {
     final TypePool typePool =
-        AgentTooling.poolStrategy()
-            .typePool(AgentTooling.locationStrategy().classFileLocator(loader), loader);
+        DDCachingPoolStrategy.INSTANCE.typePool(new DDClassFileLocator(loader), loader);
     try {
       final TypePool.Resolution resolution = typePool.describe(reference.className);
       if (!resolution.isResolved()) {
@@ -183,7 +184,10 @@ public final class ReferenceMatcher implements IReferenceMatcher {
     for (Reference.Method missingMethod : indexedMethods.values()) {
       mismatches.add(
           new Reference.Mismatch.MissingMethod(
-              missingMethod.sources, missingMethod.name, missingMethod.methodType));
+              missingMethod.sources,
+              reference.className,
+              missingMethod.name,
+              missingMethod.methodType));
     }
 
     return mismatches.isEmpty();

@@ -5,6 +5,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -44,12 +48,13 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
-import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.util.Clock;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.Closeable;
 import java.io.IOException;
@@ -67,7 +72,6 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +95,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
+
+  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
+  private final long startTimeNano;
+  /** Nanosecond ticks value at tracer start */
+  private final long startNanoTicks;
+  /** How often should traced threads check clock ticks against the wall clock */
+  private final long clockSyncPeriod;
+  /** Last time (in nanosecond ticks) the clock was checked for drift */
+  private volatile long lastSyncTicks;
+  /** Nanosecond offset to counter clock drift */
+  private volatile long counterDrift;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
@@ -125,7 +140,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
-  private int datadogTagsLimit;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -394,6 +408,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
 
+    this.startTimeNano = Clock.currentNanoTime();
+    this.startNanoTicks = Clock.currentNanoTicks();
+    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+    this.lastSyncTicks = startNanoTicks;
+
     this.spanCheckpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
@@ -419,11 +438,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.monitoring =
         config.isHealthMetricsEnabled()
-            ? new MonitoringImpl(this.statsDClient, 10, TimeUnit.SECONDS)
+            ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
-            ? new MonitoringImpl(this.statsDClient, 10, TimeUnit.SECONDS)
+            ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
@@ -442,7 +461,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.externalAgentLauncher = new ExternalAgentLauncher(config);
 
     this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
-    this.datadogTagsLimit = config.getDatadogTagsLimit();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -478,7 +496,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         },
         metricsAggregator,
         1,
-        TimeUnit.SECONDS);
+        SECONDS);
 
     dataStreamsCheckpointer = createDataStreamsCheckpointer(config, sharedCommunicationObjects);
 
@@ -544,6 +562,29 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } catch (final ServiceConfigurationError e) {
       log.warn("Problem loading TraceInterceptor for classLoader: " + classLoader, e);
     }
+  }
+
+  /**
+   * Timestamp in nanoseconds for the current {@code nanoTicks}.
+   *
+   * <p>Note: it is not possible to get 'real' nanosecond time. This method uses tracer start time
+   * (with millisecond precision) as a reference and applies relative time with nanosecond precision
+   * after that. This means time measured with same Tracer in different Spans is relatively correct
+   * with nanosecond precision.
+   *
+   * @param nanoTicks as returned by {@link Clock#currentNanoTicks()}
+   * @return timestamp in nanoseconds
+   */
+  long getTimeWithNanoTicks(long nanoTicks) {
+    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
+      long drift = computedNanoTime - Clock.currentNanoTime();
+      if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
+        counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
+      }
+      lastSyncTicks = nanoTicks;
+    }
+    return computedNanoTime + counterDrift;
   }
 
   @Override
@@ -720,6 +761,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
   }
 
+  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
+
   /**
    * We use the sampler to know if the trace has to be reported/written. The sampler is called on
    * the first span (root span) of the trace. If the trace is marked as a sample, we report it.
@@ -733,14 +776,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     List<DDSpan> writtenTrace = trace;
     if (!interceptors.isEmpty()) {
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
-
-      try {
-        for (final TraceInterceptor interceptor : interceptors) {
+      for (final TraceInterceptor interceptor : interceptors) {
+        try {
+          // If one TraceInterceptor throws an exception, then continue with the next one
           interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+        } catch (Exception e) {
+          String interceptorName = interceptor.getClass().getName();
+          rlLog.warn("Exception in TraceInterceptor {}", interceptorName, e);
         }
-      } catch (Exception e) {
-        log.debug("Exception in TraceInterceptor", e);
-        return;
       }
       writtenTrace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
@@ -1072,7 +1115,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final DDSpanContext context;
       final Object requestContextData;
-      final DatadogTags ddTags;
       final PathwayContext pathwayContext;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
@@ -1108,8 +1150,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
-        ddTags = null;
-
         pathwayContext =
             ddsc.getPathwayContext().isStarted()
                 ? ddsc.getPathwayContext()
@@ -1126,7 +1166,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-          ddTags = extractedContext.getDdTags();
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
@@ -1135,7 +1174,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;
-          ddTags = null;
         }
 
         // Get header tags and set origin whether propagating or not.
@@ -1193,9 +1231,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentTrace,
               requestContextData,
               pathwayContext,
-              disableSamplingMechanismValidation,
-              ddTags,
-              datadogTagsLimit);
+              disableSamplingMechanismValidation);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

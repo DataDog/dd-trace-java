@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
@@ -107,9 +106,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   private final boolean disableSamplingMechanismValidation;
 
-  private final int datadogTagsLimit;
-  private final DatadogTags ddTags;
-
   private volatile PathwayContext pathwayContext;
   private final Random contextSelector = new Random();
 
@@ -152,9 +148,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final PendingTrace trace,
       final Object requestContextData,
       final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
-      final DatadogTags ddTags,
-      final int datadogTagsLimit) {
+      final boolean disableSamplingMechanismValidation) {
 
     assert trace != null;
     this.trace = trace;
@@ -183,8 +177,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags = new HashMap<>(capacity);
 
-    this.ddTags = ddTags == null ? DatadogTags.empty() : ddTags;
-
     setServiceName(serviceName);
     this.operationName = operationName;
     this.resourceName = resourceName;
@@ -192,16 +184,17 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     this.spanType = spanType;
     this.origin = origin;
 
+    long samplingParams = SamplingDecision.create(samplingPriority, samplingMechanism);
+    if (samplingParams != SamplingDecision.UNSET_UNKNOWN) {
+      setSamplingPriority(samplingPriority, samplingMechanism);
+    }
+
     // Additional Metadata
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
-    this.datadogTagsLimit = datadogTagsLimit;
-    // setSamplingPriority is called the last because it could call DDSpanContext.toString when
-    // an invalid sampling priority/mechanism combination provided
-    setSamplingPriority(samplingPriority, samplingMechanism);
   }
 
   @Override
@@ -314,11 +307,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
-    return setSamplingPriority(newPriority, newMechanism, -1.0);
-  }
-
-  public boolean setSamplingPriority(
-      final int newPriority, final int newMechanism, final double rate) {
     if (newPriority == PrioritySampling.UNSET) {
       log.debug("{}: Refusing to set samplingPriority to UNSET", this);
       return false;
@@ -358,18 +346,17 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             "samplingPriority locked at priority: {} mechanism: {}. Refusing to set to priority: {} mechanism: {}",
             SamplingDecision.priority(samplingDecision),
             SamplingDecision.mechanism(samplingDecision),
-            newPriority,
-            newMechanism);
+            SamplingDecision.priority(newSamplingDecision),
+            SamplingDecision.mechanism(newSamplingDecision));
       }
       return false;
     }
-
-    ddTags.updateUpstreamServices(getServiceName(), newPriority, newMechanism, rate);
     return true;
   }
 
   /** @return the sampling priority of this span's trace, or null if no priority has been set */
   public int getSamplingPriority() {
+    // TODO find usages and see whether returning SamplingDecision is needed @YG
     final DDSpan rootSpan = trace.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().getSamplingPriority();
@@ -575,36 +562,22 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    Map<String, String> ddTagsMap = ddTags.parseAndMerge();
     synchronized (unsafeTags) {
-      Map<String, String> ddTagsAndBaggageItems;
-      if (ddTagsMap != null && !ddTagsMap.isEmpty()) {
-        // merge datadog tags and baggage items
-        ddTagsAndBaggageItems = ddTagsMap;
-        ddTagsAndBaggageItems.putAll(baggageItems);
-      } else {
-        // datadog tags malformed, ignore them and use baggage items only
-        ddTagsAndBaggageItems = baggageItems;
-      }
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               unsafeTags,
-              ddTagsAndBaggageItems,
+              baggageItems,
               (samplingDecision != SamplingDecision.UNSET_UNKNOWN
                   ? SamplingDecision.priority(samplingDecision)
                   : getSamplingPriority()),
+              // TODO do we also need to pass samplingMechanism in there? @YG
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
-              getOrigin() // Get origin from rootSpan.context
-              ));
+              getOrigin())); // Get origin from rootSpan.context
     }
-  }
-
-  public DatadogTags getDatadogTags() {
-    return ddTags;
   }
 
   @Override
@@ -624,7 +597,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             .append("/")
             .append(getResourceName())
             .append(" metrics=");
-
     if (errorFlag) {
       s.append(" *errored*");
     }
@@ -675,9 +647,5 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private DDSpanContext getTopContext() {
     DDSpan span = trace.getRootSpan();
     return null != span ? span.context() : this;
-  }
-
-  public int getDatadogTagsLimit() {
-    return datadogTagsLimit;
   }
 }

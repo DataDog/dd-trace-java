@@ -6,6 +6,7 @@ import static datadog.trace.util.Strings.getResourceName;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
+import java.util.Arrays;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +73,7 @@ public final class ClassLoaderMatcher {
       extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
     public static final SkipClassLoaderMatcher INSTANCE = new SkipClassLoaderMatcher();
     /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
-    private static final WeakCache<ClassLoader, Boolean> skipCache = AgentTooling.newWeakCache();
+    private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache();
 
     private SkipClassLoaderMatcher() {}
 
@@ -141,7 +142,7 @@ public final class ClassLoaderMatcher {
       if (cacheHolder == null) {
         synchronized (this) {
           if (cacheHolder == null) {
-            cacheHolder = AgentTooling.newWeakCache(25);
+            cacheHolder = WeakCaches.newWeakCache(25);
           }
         }
       }
@@ -193,6 +194,11 @@ public final class ClassLoaderMatcher {
         PROBING_CLASSLOADER.end();
       }
     }
+
+    @Override
+    public String toString() {
+      return "ClassLoaderHasClassesNamedMatcher{named=" + Arrays.toString(resources) + "}";
+    }
   }
 
   private static class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
@@ -212,6 +218,11 @@ public final class ClassLoaderMatcher {
       } finally {
         PROBING_CLASSLOADER.end();
       }
+    }
+
+    @Override
+    public String toString() {
+      return "ClassLoaderHasClassNamedMatcher{named='" + resource + "\'}";
     }
   }
 }

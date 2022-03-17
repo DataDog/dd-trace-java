@@ -286,9 +286,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       trace,
       null,
       NoopPathwayContext.INSTANCE,
-      false,
-      null,
-      512)
+      false)
   }
 
   def createMinimalTrace() {

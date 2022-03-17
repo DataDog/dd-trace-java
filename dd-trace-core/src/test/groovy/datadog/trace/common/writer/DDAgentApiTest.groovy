@@ -140,7 +140,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(1L, "service.name", "my-service")]]     | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["_dd.p.upstream_services": "bXktc2VydmljZQ|1|1|1", "thread.name": Thread.currentThread().getName()],
+      "meta"     : ["thread.name": Thread.currentThread().getName()],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
@@ -159,7 +159,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(100L, "resource.name", "my-resource")]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["_dd.p.upstream_services": "ZmFrZVNlcnZpY2U|1|1|1", "thread.name": Thread.currentThread().getName()],
+      "meta"     : ["thread.name": Thread.currentThread().getName()],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
@@ -442,9 +442,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
       NoopPathwayContext.INSTANCE,
-      false,
-      null,
-      512)
+      false)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

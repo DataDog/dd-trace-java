@@ -9,7 +9,6 @@ import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,7 +164,10 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
 
     @Override
     public int hashCode() {
-      return Objects.hash(env, service);
+      int hash = 1;
+      hash = 31 * hash + env.hashCode();
+      hash = 31 * hash + service.hashCode();
+      return hash;
     }
   }
 }

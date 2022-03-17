@@ -17,9 +17,9 @@ configurations {
 }
 
 /*
- * 4 shadow jars are created
+ * 6 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
- * - 2 jars based on projects (jmxfetch, agent tooling)
+ * - 4 jars based on projects (instrumentation, jmxfetch, profiling, appsec)
  * - 1 based on the shared dependencies
  * This general config is shared by all of them
  */
@@ -39,6 +39,8 @@ ext.generalShadowJarConfig = {
     relocate 'datadog.trace.common', 'datadog.trace.agent.common'
     relocate 'datadog.trace.core', 'datadog.trace.agent.core'
     relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
+    // shadow things in internal API that has slf4j in the API and is accessed from core
+    relocate 'datadog.trace.relocate', 'datadog.trace.agent.relocate'
   }
 }
 

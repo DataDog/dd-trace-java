@@ -2,6 +2,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
 import datadog.trace.core.propagation.ExtractedContext
@@ -16,8 +18,6 @@ import io.opentracing.util.GlobalTracer
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class OpenTracing32Test extends AgentTestRunner {
 
@@ -34,7 +34,7 @@ class OpenTracing32Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, DEFAULT, null, 0, [:], [:], null)
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()
@@ -271,7 +271,6 @@ class OpenTracing32Test extends AgentTestRunner {
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
-    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
 
     when:
     context.delegate.setSamplingPriority(contextPriority, samplingMechanism)
@@ -282,7 +281,6 @@ class OpenTracing32Test extends AgentTestRunner {
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
-      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
     ]
 
     when:
@@ -294,12 +292,12 @@ class OpenTracing32Test extends AgentTestRunner {
     extract.delegate.samplingPriority == propagatedPriority
 
     where:
-    contextPriority | samplingMechanism | propagatedPriority | propagatedMechanism | samplingRate
-    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP       | DEFAULT             | null
-    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP       | DEFAULT             | null
-    UNSET           | DEFAULT           | SAMPLER_KEEP       | AGENT_RATE          | 1
-    USER_KEEP       | MANUAL            | USER_KEEP          | MANUAL              | null
-    USER_DROP       | MANUAL            | USER_DROP          | MANUAL              | null
+    contextPriority | samplingMechanism | propagatedPriority
+    SAMPLER_DROP    | DEFAULT           | SAMPLER_DROP
+    SAMPLER_KEEP    | DEFAULT           | SAMPLER_KEEP
+    UNSET           | DEFAULT           | SAMPLER_KEEP
+    USER_KEEP       | MANUAL            | USER_KEEP
+    USER_DROP       | MANUAL            | USER_DROP
   }
 
   def "tolerate null span activation"() {
