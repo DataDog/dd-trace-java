@@ -41,7 +41,7 @@ public class DefaultDataStreamsCheckpointer
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final Thread thread;
-  private volatile AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
+  private final AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
 
   public DefaultDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
@@ -73,6 +73,7 @@ public class DefaultDataStreamsCheckpointer
       thread.start();
       log.debug("started data streams checkpointer");
     } else {
+      cancellation = null;
       log.debug("Data streams not supported by agent or disabled");
     }
   }
@@ -80,7 +81,9 @@ public class DefaultDataStreamsCheckpointer
   // With Java 8, this becomes unnecessary
   @Override
   public void accept(StatsPoint statsPoint) {
-    inbox.offer(statsPoint);
+    if (thread.isAlive()) {
+      inbox.offer(statsPoint);
+    }
   }
 
   @Override
@@ -105,6 +108,7 @@ public class DefaultDataStreamsCheckpointer
       thread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
     }
+    inbox.clear();
   }
 
   @Override
@@ -166,8 +170,28 @@ public class DefaultDataStreamsCheckpointer
 
   @Override
   public void onEvent(EventType eventType, String message) {
-    log.debug("Received event {} {}", eventType, message);
-    // TODO implement downgrade logic
+    switch (eventType) {
+      case DOWNGRADED:
+        log.debug("Agent downgrade was detected");
+        checkFeatures();
+        break;
+      case BAD_PAYLOAD:
+        log.debug("bad metrics payload sent to trace agent: {}", message);
+        break;
+      case ERROR:
+        log.debug("trace agent errored receiving metrics payload: {}", message);
+        break;
+      default:
+    }
+  }
+
+  private void checkFeatures() {
+    features.discover();
+    if (!features.supportsDataStreams()) {
+      log.debug("Disabling data streams reporting because it is not supported by the agent");
+      thread.interrupt();
+      close();
+    }
   }
 
   private static final class ReportTask
