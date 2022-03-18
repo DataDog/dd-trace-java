@@ -51,7 +51,6 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
-import datadog.trace.core.util.Clock;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.Closeable;
@@ -414,8 +413,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = timeSource.currentTimeNanos();
-    this.startNanoTicks = timeSource.currentNanoTicks();
+    this.startTimeNano = timeSource.getCurrentTimeNanos();
+    this.startNanoTicks = timeSource.getNanoTicks();
     this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     this.lastSyncTicks = startNanoTicks;
 
@@ -579,13 +578,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * after that. This means time measured with same Tracer in different Spans is relatively correct
    * with nanosecond precision.
    *
-   * @param nanoTicks as returned by {@link Clock#currentNanoTicks()}
+   * @param nanoTicks as returned by {@link TimeSource#getNanoTicks()}
    * @return timestamp in nanoseconds
    */
   long getTimeWithNanoTicks(long nanoTicks) {
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
     if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      long drift = computedNanoTime - Clock.currentNanoTime();
+      long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
       if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
         counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
       }

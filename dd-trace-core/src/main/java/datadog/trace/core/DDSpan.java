@@ -147,7 +147,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     long durationNano;
     if (!externalClock) {
       // first capture wall-clock offset from 'now' to external stop time
-      long externalOffsetMicros = stopTimeMicros - Clock.currentMicroTime();
+      long externalOffsetMicros =
+          stopTimeMicros - context.getTrace().getTimeSource().getCurrentTimeMicros();
       // immediately afterwards calculate internal duration of span to 'now'
       // note: getting internal time from the trace implicitly 'touches' it
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;

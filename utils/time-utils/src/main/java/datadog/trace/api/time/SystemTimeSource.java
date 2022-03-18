@@ -2,8 +2,6 @@ package datadog.trace.api.time;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.time.Instant;
-
 public class SystemTimeSource implements TimeSource {
   public static final TimeSource INSTANCE = new SystemTimeSource();
 

@@ -67,8 +67,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer",
-      "datadog.trace.core.util.Clock"
+      packageName + ".TracedDelegatingConsumer"
     };
   }
 
