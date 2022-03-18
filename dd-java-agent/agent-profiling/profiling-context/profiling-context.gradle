@@ -36,13 +36,9 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 compileMain_java11Java.doFirst {
-  if (!System.env.JAVA_11_HOME) {
-    throw new GradleException('JAVA_11_HOME must be set to build transformer helpers')
-  }
-  options.fork = true
-  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
-  sourceCompatibility = JavaVersion.VERSION_1_9
-  targetCompatibility = JavaVersion.VERSION_1_9
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 jar {
