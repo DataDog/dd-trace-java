@@ -51,7 +51,10 @@ public interface TracingContextTracker {
         public void activateContext() {}
 
         @Override
-        public void deactivateContext(boolean maybe) {}
+        public void deactivateContext() {}
+
+        @Override
+        public void maybeDeactivateContext() {}
 
         @Override
         public byte[] persist() {
@@ -79,13 +82,16 @@ public interface TracingContextTracker {
   /** Notify of the context activation */
   void activateContext();
 
+  /** Notify of the context deactivation */
+  void deactivateContext();
+
   /**
-   * Notify of the context deactivation
+   * Notify of the eventual context deactivation
    *
-   * @param maybe if {@literal true} the deactivation is conditional - if it is followed by an
-   *     activation the deactivation should be disregarded
+   * @param the deactivation is conditional - if it is followed by an activation the deactivation
+   *     should be disregarded
    */
-  void deactivateContext(boolean maybe);
+  void maybeDeactivateContext();
 
   /**
    * Convert the sparse 'on-line' representation into a compressed binary blob

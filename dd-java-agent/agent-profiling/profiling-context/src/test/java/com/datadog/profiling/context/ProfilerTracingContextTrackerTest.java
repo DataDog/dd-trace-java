@@ -99,8 +99,8 @@ class ProfilerTracingContextTrackerTest {
     tracker.setBlobListeners(Collections.singleton(listener));
 
     tracker.activateContext();
-    tracker.deactivateContext(true);
-    tracker.deactivateContext(false);
+    tracker.maybeDeactivateContext();
+    tracker.deactivateContext();
     byte[] data1 = tracker.persist();
     assertNotNull(data1);
     byte[] data2 = tracker.persist();

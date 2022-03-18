@@ -193,8 +193,13 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   @Override
-  public void deactivateContext(boolean maybe) {
-    deactivateContext(Thread.currentThread().getId(), maybe);
+  public void deactivateContext() {
+    deactivateContext(Thread.currentThread().getId(), false);
+  }
+
+  @Override
+  public void maybeDeactivateContext() {
+    deactivateContext(Thread.currentThread().getId(), true);
   }
 
   private void deactivateContext(long threadId, boolean maybe) {

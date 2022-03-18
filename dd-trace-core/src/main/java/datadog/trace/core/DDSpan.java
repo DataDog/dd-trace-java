@@ -138,7 +138,7 @@ public class DDSpan
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       finished.set(true);
       context.getTrace().onFinish(this);
-      tracingContextTracker.deactivateContext(false);
+      tracingContextTracker.deactivateContext();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -554,7 +554,7 @@ public class DDSpan
 
   @Override
   public void startThreadMigration() {
-    tracingContextTracker.deactivateContext(true);
+    tracingContextTracker.maybeDeactivateContext();
     if (hasCheckpoints()) {
       context.getTracer().onStartThreadMigration(this);
     }
@@ -570,7 +570,7 @@ public class DDSpan
 
   @Override
   public void finishWork() {
-    tracingContextTracker.deactivateContext(false);
+    tracingContextTracker.deactivateContext();
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }
