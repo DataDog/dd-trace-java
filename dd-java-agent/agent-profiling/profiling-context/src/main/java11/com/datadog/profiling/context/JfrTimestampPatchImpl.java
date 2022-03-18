@@ -13,8 +13,7 @@ final class JfrTimestampPatchImpl {
 
   static void execute(ClassLoader agentClassLoader) {
     try {
-      Class<?> installerClass =
-          agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+      Class<?> installerClass = agentClassLoader.loadClass("datadog.trace.agent.tooling.Utils");
       Instrumentation instrumentation =
           (Instrumentation) installerClass.getMethod("getInstrumentation").invoke(null);
       Set<Module> myModules = Collections.singleton(JfrTimestampPatchImpl.class.getModule());
@@ -27,7 +26,7 @@ final class JfrTimestampPatchImpl {
           Collections.emptySet(),
           Collections.emptyMap());
     } catch (Throwable t) {
-      log.error("Failed to patch the access to JFR timestamp", t);
+      log.debug("Failed to patch the access to JFR timestamp", t);
     }
   }
 }
