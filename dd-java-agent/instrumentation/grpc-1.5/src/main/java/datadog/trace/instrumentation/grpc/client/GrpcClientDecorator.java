@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
+import java.util.BitSet;
 import java.util.Set;
 
 public class GrpcClientDecorator extends ClientDecorator {
@@ -20,6 +21,7 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
+  private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getGrpcClientErrorStatuses();
 
   private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
       GenericClassValue.of(
@@ -83,8 +85,9 @@ public class GrpcClientDecorator extends ClientDecorator {
     span.setTag("status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
 
+    // TODO why is there a mismatch between client / server for calling the onError method?
     onError(span, status.getCause());
-    if (!status.isOk()) {
+    if (CLIENT_ERROR_STATUSES.get(status.getCode().value())) {
       span.setError(true);
     }
 

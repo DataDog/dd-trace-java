@@ -10,11 +10,13 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 import io.grpc.ServerCall;
 import io.grpc.Status;
+import java.util.BitSet;
 
 public class GrpcServerDecorator extends ServerDecorator {
 
   private static final boolean TRIM_RESOURCE_PACKAGE_NAME =
       Config.get().isGrpcServerTrimPackageResource();
+  private static final BitSet SERVER_ERROR_STATUSES = Config.get().getGrpcServerErrorStatuses();
 
   public static final CharSequence GRPC_SERVER = UTF8BytesString.create("grpc.server");
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-server");
@@ -77,11 +79,10 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   public AgentSpan onClose(final AgentSpan span, final Status status) {
-
     span.setTag("status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
 
-    if (!status.isOk() && (Status.Code.CANCELLED != status.getCode())) {
+    if (SERVER_ERROR_STATUSES.get(status.getCode().value())) {
       onError(span, status.getCause());
       span.setError(true);
     }

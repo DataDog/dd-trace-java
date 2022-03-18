@@ -179,7 +179,7 @@ public class HelperInjector implements Transformer {
       return ClassInjector.UsingInstrumentation.of(
               tempDir,
               ClassInjector.UsingInstrumentation.Target.BOOTSTRAP,
-              AgentInstaller.getInstrumentation())
+              Utils.getInstrumentation())
           .injectRaw(classnameToBytes);
     } finally {
       INJECTING_HELPERS.end();
@@ -208,7 +208,7 @@ public class HelperInjector implements Transformer {
           if (!target.canRead(helperModule)) {
             log.debug("Adding module read from {} to {}", target, helperModule);
             ClassInjector.UsingInstrumentation.redefineModule(
-                AgentInstaller.getInstrumentation(),
+                Utils.getInstrumentation(),
                 target,
                 Collections.singleton(helperModule),
                 Collections.<String, Set<JavaModule>>emptyMap(),

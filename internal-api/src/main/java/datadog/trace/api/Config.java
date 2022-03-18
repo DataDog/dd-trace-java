@@ -8,11 +8,14 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
@@ -149,8 +152,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
@@ -193,6 +198,7 @@ import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
 import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
@@ -347,6 +353,7 @@ public class Config {
   private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
+  private final int clockSyncPeriod;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -473,6 +480,8 @@ public class Config {
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
+  private final BitSet grpcServerErrorStatuses;
+  private final BitSet grpcClientErrorStatuses;
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
@@ -731,6 +740,8 @@ public class Config {
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
+    clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
+
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
     dogStatsDStartDelay =
@@ -945,6 +956,12 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
     grpcServerTrimPackageResource =
         configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
+    grpcServerErrorStatuses =
+        configProvider.getIntegerRange(
+            GRPC_SERVER_ERROR_STATUSES, DEFAULT_GRPC_SERVER_ERROR_STATUSES);
+    grpcClientErrorStatuses =
+        configProvider.getIntegerRange(
+            GRPC_CLIENT_ERROR_STATUSES, DEFAULT_GRPC_CLIENT_ERROR_STATUSES);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -1193,6 +1210,10 @@ public class Config {
 
   public Set<PropagationStyle> getPropagationStylesToInject() {
     return propagationStylesToInject;
+  }
+
+  public int getClockSyncPeriod() {
+    return clockSyncPeriod;
   }
 
   public String getDogStatsDNamedPipe() {
@@ -1581,6 +1602,14 @@ public class Config {
 
   public boolean isGrpcServerTrimPackageResource() {
     return grpcServerTrimPackageResource;
+  }
+
+  public BitSet getGrpcServerErrorStatuses() {
+    return grpcServerErrorStatuses;
+  }
+
+  public BitSet getGrpcClientErrorStatuses() {
+    return grpcClientErrorStatuses;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -2236,6 +2265,8 @@ public class Config {
         + propagationStylesToExtract
         + ", propagationStylesToInject="
         + propagationStylesToInject
+        + ", clockSyncPeriod="
+        + clockSyncPeriod
         + ", jmxFetchEnabled="
         + jmxFetchEnabled
         + ", dogStatsDStartDelay="
@@ -2403,6 +2434,10 @@ public class Config {
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
         + grpcIgnoredOutboundMethods
+        + ", grpcServerErrorStatuses="
+        + grpcServerErrorStatuses
+        + ", grpcClientErrorStatuses="
+        + grpcClientErrorStatuses
         + ", configProvider="
         + configProvider
         + ", appSecEnabled="

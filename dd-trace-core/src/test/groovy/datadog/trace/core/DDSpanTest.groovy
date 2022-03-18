@@ -217,7 +217,8 @@ class DDSpanTest extends DDCoreSpecification {
     Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.startTime) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
     span.durationNano >= TimeUnit.MILLISECONDS.toNanos(betweenDur)
     span.durationNano <= TimeUnit.MILLISECONDS.toNanos(total)
-    span.durationNano % mod == 0
+    // true span duration can be <1ms if clock was about to tick over, so allow for that
+    (span.durationNano % mod == 0) || (span.durationNano == 1)
   }
 
   def "stopping with a timestamp before start time yields a min duration of 1"() {

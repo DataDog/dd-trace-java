@@ -93,6 +93,7 @@ dependencies {
   implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
+  implementation project(':dd-java-agent:agent-builder')
 }
 
 tasks.named('shadowJar').configure {

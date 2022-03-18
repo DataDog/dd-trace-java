@@ -99,7 +99,11 @@ public interface AppSecConfig {
 
     @Override
     public int hashCode() {
-      return Objects.hash(version, events, rawConfig);
+      int hash = 1;
+      hash = 31 * hash + (version == null ? 0 : version.hashCode());
+      hash = 31 * hash + (events == null ? 0 : events.hashCode());
+      hash = 31 * hash + (rawConfig == null ? 0 : rawConfig.hashCode());
+      return hash;
     }
   }
 
@@ -136,7 +140,11 @@ public interface AppSecConfig {
 
     @Override
     public int hashCode() {
-      return Objects.hash(version, rules, rawConfig);
+      int hash = 1;
+      hash = 31 * hash + (version == null ? 0 : version.hashCode());
+      hash = 31 * hash + (rules == null ? 0 : rules.hashCode());
+      hash = 31 * hash + (rawConfig == null ? 0 : rawConfig.hashCode());
+      return hash;
     }
   }
 }

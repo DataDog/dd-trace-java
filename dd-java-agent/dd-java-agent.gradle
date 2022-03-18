@@ -17,9 +17,9 @@ configurations {
 }
 
 /*
- * 4 shadow jars are created
+ * 6 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
- * - 2 jars based on projects (jmxfetch, agent tooling)
+ * - 4 jars based on projects (instrumentation, jmxfetch, profiling, appsec)
  * - 1 based on the shared dependencies
  * This general config is shared by all of them
  */

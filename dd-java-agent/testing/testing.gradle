@@ -38,6 +38,7 @@ dependencies {
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp
 
   api project(':dd-java-agent:agent-tooling')
+  api project(':dd-java-agent:agent-builder')
   api project(':utils:test-utils')
 
   api deps.groovy

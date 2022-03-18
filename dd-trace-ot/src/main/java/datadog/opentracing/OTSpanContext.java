@@ -3,7 +3,6 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentracing.SpanContext;
 import java.util.Map;
-import java.util.Objects;
 
 class OTSpanContext implements SpanContext {
   private final AgentSpan.Context delegate;
@@ -45,6 +44,6 @@ class OTSpanContext implements SpanContext {
 
   @Override
   public int hashCode() {
-    return Objects.hash(delegate);
+    return delegate.hashCode();
   }
 }

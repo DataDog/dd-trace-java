@@ -73,7 +73,7 @@ public final class ClassLoaderMatcher {
       extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
     public static final SkipClassLoaderMatcher INSTANCE = new SkipClassLoaderMatcher();
     /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
-    private static final WeakCache<ClassLoader, Boolean> skipCache = AgentTooling.newWeakCache();
+    private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache();
 
     private SkipClassLoaderMatcher() {}
 
@@ -142,7 +142,7 @@ public final class ClassLoaderMatcher {
       if (cacheHolder == null) {
         synchronized (this) {
           if (cacheHolder == null) {
-            cacheHolder = AgentTooling.newWeakCache(25);
+            cacheHolder = WeakCaches.newWeakCache(25);
           }
         }
       }
