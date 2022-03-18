@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.core.util.Clock;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -12,26 +13,27 @@ import org.slf4j.LoggerFactory;
  * A monitor thread scheduled on a regular basis. It triggers keep-alive spans to be sent for
  * long-running traces.
  */
-public class TraceKeepAlive implements AgentTaskScheduler.Task<Void> {
-  public TraceKeepAlive(long keepAlivePeriod) {
-    if (keepAlivePeriod <= 0) {
-      throw new IllegalArgumentException(
-          TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL + " property should be strictly positive");
-    }
-    this.keepAlivePeriod = keepAlivePeriod;
-  }
-
+public class TraceKeepAlive implements AgentTaskScheduler.Task<Boolean> {
   private static final Logger LOGGER = LoggerFactory.getLogger(TraceKeepAlive.class);
+  public static final long MAX_SPAN_AGE_NANOS = TimeUnit.HOURS.toNanos(12);
 
   private final Object dummy = new Object();
   private final ConcurrentMap<PendingTrace, Object> pendingTraces = new ConcurrentHashMap<>();
   private final long keepAlivePeriod;
 
-  private volatile AgentTaskScheduler.Scheduled<Void> scheduled;
+  private volatile AgentTaskScheduler.Scheduled<Boolean> scheduled;
+
+  public TraceKeepAlive(final long keepAlivePeriodMillis) {
+    if (keepAlivePeriodMillis <= 0) {
+      throw new IllegalArgumentException(
+          TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL + " property should be strictly positive");
+    }
+    this.keepAlivePeriod = TimeUnit.MILLISECONDS.toNanos(keepAlivePeriodMillis);
+  }
 
   @Override
-  public void run(Void ignored) {
-    final long now = System.currentTimeMillis();
+  public void run(Boolean ignored) {
+    final long now = Clock.currentNanoTime();
     for (final PendingTrace pt : pendingTraces.keySet()) {
       pt.keepAliveUnfinished(now, keepAlivePeriod);
     }
@@ -42,11 +44,11 @@ public class TraceKeepAlive implements AgentTaskScheduler.Task<Void> {
       if (scheduled == null) {
         LOGGER.debug(
             "Starting long running keepalive monitor. It will flush pending thread each {} millis",
-            keepAlivePeriod);
+            keepAlivePeriod / 1e6);
+        scheduled =
+            AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+                this, true, 0L, keepAlivePeriod, TimeUnit.NANOSECONDS);
       }
-      scheduled =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              this, null, 0L, keepAlivePeriod, TimeUnit.MILLISECONDS);
     }
   }
 

@@ -90,5 +90,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
+  static final boolean DEFAULT_LONG_RUNNING_TRACE_ENABLED = false;
+  static final long DEFAULT_LONG_RUNNING_TRACE_FLUSH_INTERVAL = 300; // seconds -> 5 minutes
+
   private ConfigDefaults() {}
 }

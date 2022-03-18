@@ -62,9 +62,9 @@ public final class TracerConfig {
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
-  public static final String LONG_RUNNING_TRACE_ENABLED = "trace.longrunning.enabled";
+  public static final String LONG_RUNNING_TRACE_ENABLED = "longrunning.enabled";
 
-  public static final String LONG_RUNNING_TRACE_FLUSH_INTERVAL = "trace.longrunning.flush.interval";
+  public static final String LONG_RUNNING_TRACE_FLUSH_INTERVAL = "longrunning.flush.interval";
 
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 

@@ -500,7 +500,7 @@ public class Config {
 
   /** Are long running spans supported */
   private final boolean traceLongRunningEnabled;
-  /** The flush interval in millis of span still not finished. */
+  /** The flush interval in seconds of span still not finished. */
   private final long traceLongRunningFlushInterval;
 
   private String env;
@@ -1025,11 +1025,23 @@ public class Config {
               new ArrayList<>(parseStringIntoSetOfNonEmptyStrings(dogStatsDArgsString)));
     }
 
-    traceLongRunningEnabled =
-        configProvider.getBoolean(TracerConfig.LONG_RUNNING_TRACE_ENABLED, false);
-    traceLongRunningFlushInterval =
-        configProvider.getLong(TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL, 5 * 60)
-            * 1000; // defaults to 5 minutes
+    boolean longRunningEnabled =
+        configProvider.getBoolean(
+            TracerConfig.LONG_RUNNING_TRACE_ENABLED, ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_ENABLED);
+    this.traceLongRunningFlushInterval =
+        configProvider.getLong(
+            TracerConfig.LONG_RUNNING_TRACE_FLUSH_INTERVAL,
+            ConfigDefaults.DEFAULT_LONG_RUNNING_TRACE_FLUSH_INTERVAL);
+
+    if (longRunningEnabled
+        && (traceLongRunningFlushInterval < 20 || traceLongRunningFlushInterval > 450)) {
+      log.warn(
+          "Provided long running trace flush interval of {} seconds. It should be beween 20 seconds and 7.5 minutes. T"
+              + "he feature is disabled.",
+          traceLongRunningFlushInterval);
+      longRunningEnabled = false;
+    }
+    this.traceLongRunningEnabled = longRunningEnabled;
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;

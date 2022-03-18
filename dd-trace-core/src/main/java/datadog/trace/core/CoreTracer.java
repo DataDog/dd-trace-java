@@ -516,7 +516,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.instrumentationGateway = instrumentationGateway;
 
     if (config.isTraceLongRunningEnabled()) {
-      this.traceKeepAlive = new TraceKeepAlive(config.getTraceLongRunningFlushInterval());
+      this.traceKeepAlive = new TraceKeepAlive(config.getTraceLongRunningFlushInterval() * 1000);
       traceKeepAlive.start();
     } else {
       this.traceKeepAlive = null;

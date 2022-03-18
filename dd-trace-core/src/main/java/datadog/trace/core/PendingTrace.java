@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -188,11 +187,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return rootSpan;
   }
 
-  public void keepAliveUnfinished(final long triggerMillis, final long keepAliveInterval) {
+  public void keepAliveUnfinished(final long triggerNanos, final long keepAliveIntervalNanos) {
     final ArrayList<DDSpan> unfinished = new ArrayList<>(unfinishedSpans);
-    // final ArrayList<DDSpan> toWrite = new ArrayList<>();
-    final long timeThresholdNanos =
-        TimeUnit.MILLISECONDS.toNanos(triggerMillis - keepAliveInterval);
+    final long timeThresholdNanos = triggerNanos - keepAliveIntervalNanos;
 
     for (DDSpan original : unfinished) {
       // skip if not sampled
@@ -200,10 +197,14 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           && original.getSamplingPriority() <= PrioritySampling.SAMPLER_DROP) {
         continue;
       }
-      // skip if span is too young
       if (original.getStartTime() > timeThresholdNanos) {
+        // skip if span is too young
+        continue;
+      } else if (triggerNanos - original.getStartTime() > TraceKeepAlive.MAX_SPAN_AGE_NANOS) {
+        // span is too old. do not keepalive if older than 12 hours
         continue;
       }
+
       final DDSpanContext contextCopy =
           new DDSpanContext(
               original.getTraceId(),
@@ -225,8 +226,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
               tracer.isDisableSamplingMechanismValidation());
       final DDSpan span =
           DDSpan.create(original.getStartTime() / 1000, contextCopy, original.hasCheckpoints());
-      final long partialVersion =
-          (long) ((triggerMillis - span.getStartTime() / 1e6) / keepAliveInterval);
+      final long partialVersion = (triggerNanos - span.getStartTime()) / keepAliveIntervalNanos;
       span.setPartialVersion(partialVersion);
       span.setMetric(DDTags.DD_PARTIAL_VERSION, partialVersion);
       span.finish();
@@ -266,10 +266,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   private PublishState decrementRefAndMaybeWrite(boolean isRootSpan, boolean isLongRunningSpan) {
-    final int count =
-        isLongRunningSpan
-            ? PENDING_REFERENCE_COUNT.get(this)
-            : PENDING_REFERENCE_COUNT.decrementAndGet(this);
+    final int count = PENDING_REFERENCE_COUNT.decrementAndGet(this);
     if (strictTraceWrites && count < 0) {
       throw new IllegalStateException("Pending reference count " + count + " is negative");
     } else if (count == 0) {

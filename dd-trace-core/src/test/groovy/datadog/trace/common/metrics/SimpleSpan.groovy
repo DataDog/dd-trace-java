@@ -238,4 +238,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   int samplingPriority() {
     return 0
   }
+
+  @Override
+  Long getPartialVersion() {
+    return null
+  }
 }

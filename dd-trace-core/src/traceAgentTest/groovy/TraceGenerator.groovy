@@ -351,6 +351,11 @@ class TraceGenerator {
     }
 
     @Override
+    Long getPartialVersion() {
+      return null
+    }
+
+    @Override
     <U> U getTag(CharSequence name, U defaultValue) {
       U value = getTag(name)
       return null == value ? defaultValue : value
