@@ -413,8 +413,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = timeSource.getNanoTicks();
+    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
+    this.startNanoTicks = this.timeSource.getNanoTicks();
     this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     this.lastSyncTicks = startNanoTicks;
 

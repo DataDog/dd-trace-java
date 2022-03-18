@@ -1,11 +1,8 @@
 package datadog.trace.relocate.api
 
 import datadog.trace.api.time.ControllableTimeSource
-import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
-
-import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.MINUTES
