@@ -44,9 +44,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     @Override
     @Nonnull
     public AuxiliaryImplementation provide(ConfigProvider configProvider) {
-      AuxiliaryAsyncProfiler instance = new AuxiliaryAsyncProfiler(configProvider);
-      IntervalBlobWriter.initialize(instance.asyncProfiler);
-      return instance;
+      return new AuxiliaryAsyncProfiler(configProvider);
     }
   }
 
@@ -104,6 +102,8 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     this.memleakIntervalDefault =
         maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
+
+    IntervalBlobWriter.initialize(this.asyncProfiler);
   }
 
   private void emitConfiguration() {
