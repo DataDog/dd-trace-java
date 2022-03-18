@@ -143,6 +143,7 @@ public final class OpenJdkController implements Controller {
     }
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
+
     // Register periodic events
     AvailableProcessorCoresEvent.register();
   }
