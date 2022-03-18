@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class ProfilerTracingContextTrackerTest {
@@ -188,7 +189,7 @@ class ProfilerTracingContextTrackerTest {
   }
 
   @Test
-  //  @Disabled
+  @Disabled
   // a handy test to try deserializing data from spans
   void testPersisted() {
     String[] encodedData =
