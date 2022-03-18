@@ -154,7 +154,7 @@ class PayloadDispatcherTest extends DDSpecification {
     }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
-    return new DDSpan(0, new DDSpanContext(
+    def context = new DDSpanContext(
     DDId.from(1),
     DDId.from(1),
     DDId.ZERO,
