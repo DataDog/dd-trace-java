@@ -552,7 +552,6 @@ public class Agent {
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
-      log.warn("AppSec ClassLoader has not been created");
       return;
     }
 
@@ -772,10 +771,10 @@ public class Agent {
 
     if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
-      return !"false".equalsIgnoreCase(featureEnabled);
+      return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
       // false unless it's explicitly set to "true"
-      return "true".equalsIgnoreCase(featureEnabled);
+      return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
   }
 

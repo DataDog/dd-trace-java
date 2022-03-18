@@ -6,7 +6,7 @@ import datadog.trace.test.util.DDSpecification
 class WeakCacheTest extends DDSpecification {
   def supplier = new CounterSupplier()
 
-  def weakCache = AgentTooling.newWeakCache()
+  def weakCache = WeakCaches.newWeakCache()
 
   def "computeIfAbsent a value"() {
     when:
@@ -45,7 +45,7 @@ class WeakCacheTest extends DDSpecification {
 
   def "max size check"() {
     setup:
-    def weakCacheFor1elem = AgentTooling.newWeakCache(1)
+    def weakCacheFor1elem = WeakCaches.newWeakCache(1)
 
     when:
     def valBefore = weakCacheFor1elem.getIfPresent("key1")

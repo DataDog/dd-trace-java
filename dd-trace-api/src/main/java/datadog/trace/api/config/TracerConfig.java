@@ -63,5 +63,7 @@ public final class TracerConfig {
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
 
+  public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
+
   private TracerConfig() {}
 }

@@ -1,0 +1,34 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = "io.undertow"
+    module = "undertow-servlet"
+    versions = "[2.0.0.Final ,)"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
+
+  testImplementation group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
+
+  testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+
+  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet', version: '+'
+}

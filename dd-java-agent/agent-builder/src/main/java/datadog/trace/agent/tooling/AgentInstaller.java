@@ -39,16 +39,12 @@ public class AgentInstaller {
 
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
-  private static volatile Instrumentation INSTRUMENTATION;
-
-  public static Instrumentation getInstrumentation() {
-    return INSTRUMENTATION;
-  }
 
   static {
     addByteBuddyRawSetting();
-    // WeakMap is used by other classes below, so we need to register the provider first.
-    AgentTooling.registerWeakMapProvider();
+    // register weak map/cache suppliers as early as possible
+    WeakMaps.registerAsSupplier();
+    WeakCaches.registerAsSupplier();
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
@@ -80,7 +76,7 @@ public class AgentInstaller {
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
       final AgentBuilder.Listener... listeners) {
-    INSTRUMENTATION = inst;
+    Utils.setInstrumentation(inst);
 
     FieldBackedContextProvider.resetContextMatchers();
 
@@ -91,14 +87,14 @@ public class AgentInstaller {
     AgentBuilder.Ignored ignoredAgentBuilder =
         new AgentBuilder.Default(byteBuddy)
             .disableClassFormatChanges()
-            .assureReadEdgeTo(INSTRUMENTATION, FieldBackedContextAccessor.class)
-            .with(AgentTooling.transformerDecorator())
+            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
+            .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentTooling.rediscoveryStrategy())
+            .with(AgentStrategies.rediscoveryStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
-            .with(AgentTooling.poolStrategy())
+            .with(AgentStrategies.poolStrategy())
             .with(new ClassLoadListener())
-            .with(AgentTooling.locationStrategy())
+            .with(AgentStrategies.locationStrategy())
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
@@ -114,7 +110,7 @@ public class AgentInstaller {
       agentBuilder =
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-              .with(AgentTooling.rediscoveryStrategy())
+              .with(AgentStrategies.rediscoveryStrategy())
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }

@@ -270,6 +270,20 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec)
   }
 
+  protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_ID = ListWriterAssert.SORT_TRACES_BY_ID
+  protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_START = ListWriterAssert.SORT_TRACES_BY_START
+
+  void assertTraces(
+    final int size,
+    final Comparator<List<DDSpan>> traceSorter,
+    @ClosureParams(
+    value = SimpleType,
+    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+    final Closure spec) {
+    ListWriterAssert.assertTraces(TEST_WRITER, size, false, traceSorter, spec)
+  }
+
   void blockUntilChildSpansFinished(final int numberOfSpans) {
     final AgentSpan span = TEST_TRACER.activeSpan()
 

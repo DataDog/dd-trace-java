@@ -67,13 +67,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
 
-  // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
-  // relative time
-  /** Trace start time in nano seconds measured up to a millisecond accuracy */
-  private final long startTimeNano;
-  /** Nano second ticks value at trace start */
-  private final long startNanoTicks;
-
   private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
@@ -121,9 +114,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.timeSource = timeSource;
     this.strictTraceWrites = strictTraceWrites;
-
-    startTimeNano = timeSource.getCurrentTimeNanos();
-    startNanoTicks = timeSource.getNanoTicks();
   }
 
   CoreTracer getTracer() {
@@ -131,7 +121,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /**
-   * Current timestamp in nanoseconds.
+   * Current timestamp in nanoseconds; 'touches' the trace by updating {@link #lastReferenced}.
    *
    * <p>Note: This method uses trace start time as a reference and it gets time with nanosecond
    * precision after that. This means time measured within same Trace in different Spans is
@@ -142,7 +132,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   public long getCurrentTimeNano() {
     long nanoTicks = timeSource.getNanoTicks();
     lastReferenced = nanoTicks;
-    return startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    return tracer.getTimeWithNanoTicks(nanoTicks);
   }
 
   public TimeSource getTimeSource() {
