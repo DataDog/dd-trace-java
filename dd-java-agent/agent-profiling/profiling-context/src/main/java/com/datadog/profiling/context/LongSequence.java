@@ -1,7 +1,7 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,8 +9,13 @@ import org.slf4j.LoggerFactory;
  * A growing sequence of long values.<br>
  * Allows adding new values, rewriting values at a given position, retrieving values from a position
  * and creating {@linkplain LongIterator} over the sequence.
+ *
+ * <p>This class is not thread-safe in a generic way. The only concurrent access that is allowed is
+ * doing 'release' while a sequence is manipulated and vice versa. For all other combinations of
+ * method invocations the results are not defined. The caller should take care of proper
+ * synchronization, if necessary.
  */
-public final class LongSequence {
+final class LongSequence {
   private static final Logger log = LoggerFactory.getLogger(LongSequence.class);
 
   private class LongIteratorImpl implements LongIterator {
@@ -33,7 +38,6 @@ public final class LongSequence {
         if (++bufferReadSlot > bufferWriteSlot) {
           return false;
         }
-        ;
         currentIterator = buffers[bufferReadSlot].iterator();
       } while (!currentIterator.hasNext());
       return true;
@@ -69,7 +73,7 @@ public final class LongSequence {
     return (int) (Math.ceil(size / 8d) * 8);
   }
 
-  private final AtomicBoolean released = new AtomicBoolean(false);
+  private AtomicInteger refCount = new AtomicInteger(1);
 
   public LongSequence(Allocator allocator) {
     this.allocator = allocator;
@@ -77,56 +81,62 @@ public final class LongSequence {
   }
 
   public int add(long value) {
-    if (released.get()) {
+    if (refCount.updateAndGet(prev -> prev > 0 ? prev + 1 : 0) == 0) {
       // bail out if this instance was already released
       return -1;
     }
 
-    if (bufferWriteSlot == -1) {
-      // first write; initialize the data structure
-      capacityInChunks = 1;
-      bufferWriteSlot = 0;
-      bufferInitSlot = 0;
-      AllocatedBuffer cBuffer = allocator.allocateChunks(capacityInChunks);
-      buffers[bufferWriteSlot] = cBuffer;
-      if (cBuffer != null) {
-        capacity = cBuffer.capacity();
-        threshold = align((int) (this.capacity * 0.75f));
-        bufferBoundaryMap[bufferWriteSlot] = capacity - 1;
-      } else {
-        capacity = 0;
-        threshold = -1;
-      }
-    } else {
-      if (threshold > -1 && sizeInBytes == threshold) {
-        // we hit the threshold - let's prepare the next-in-line buffer
-        int newCapacity = 2 * capacityInChunks; // capacity stays aligned
-        AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
+    try {
+      if (bufferWriteSlot == -1) {
+        // first write; initialize the data structure
+        capacityInChunks = 1;
+        bufferWriteSlot = 0;
+        bufferInitSlot = 0;
+        AllocatedBuffer cBuffer = allocator.allocateChunks(capacityInChunks);
+        buffers[bufferWriteSlot] = cBuffer;
         if (cBuffer != null) {
-          bufferInitSlot = bufferWriteSlot + 1;
-          buffers[bufferInitSlot] = cBuffer;
-          capacityInChunks += newCapacity;
-          capacity += cBuffer.capacity(); // update the sequence capacity
-          threshold = align((int) (capacity * 0.75f)); // update the threshold
-          bufferBoundaryMap[bufferInitSlot] = capacity - 1;
+          capacity = cBuffer.capacity();
+          threshold = align((int) (this.capacity * 0.75f));
+          bufferBoundaryMap[bufferWriteSlot] = capacity - 1;
         } else {
+          capacity = 0;
           threshold = -1;
         }
+      } else {
+        if (threshold > -1 && sizeInBytes == threshold) {
+          // we hit the threshold - let's prepare the next-in-line buffer
+          int newCapacity = 2 * capacityInChunks; // capacity stays aligned
+          AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
+          if (cBuffer != null) {
+            bufferInitSlot = bufferWriteSlot + 1;
+            buffers[bufferInitSlot] = cBuffer;
+            capacityInChunks += newCapacity;
+            capacity += cBuffer.capacity(); // update the sequence capacity
+            threshold = align((int) (capacity * 0.75f)); // update the threshold
+            bufferBoundaryMap[bufferInitSlot] = capacity - 1;
+          } else {
+            threshold = -1;
+          }
+        }
       }
-    }
-    if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
-      return 0;
-    }
-    while (!buffers[bufferWriteSlot].putLong(value)) {
-      bufferWriteSlot++;
       if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
         return 0;
       }
-    }
+      while (!buffers[bufferWriteSlot].putLong(value)) {
+        bufferWriteSlot++;
+        if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
+          return 0;
+        }
+      }
 
-    size += 1;
-    sizeInBytes += 8;
-    return 1;
+      size += 1;
+      sizeInBytes += 8;
+      return 1;
+    } finally {
+      if (refCount.decrementAndGet() == 0) {
+        doRelease();
+      }
+    }
   }
 
   public boolean set(int index, long value) {
@@ -152,19 +162,22 @@ public final class LongSequence {
   }
 
   public void release() {
-    if (released.compareAndSet(false, true)) {
-      for (int i = 0; i < buffers.length; i++) {
-        AllocatedBuffer buffer = buffers[i];
-        if (buffer != null) {
-          buffer.release();
-        }
-      }
-      // this (LongSequence) instance will get stuck in the TLS reference
-      // clear out the buffer slots to allow the most of the retained data to be GCed
-      buffers = null;
-      bufferBoundaryMap = null;
-      bufferInitSlot = -1;
+    if (refCount.updateAndGet(prev -> prev > 0 ? prev - 1 : 0) == 0) {
+      doRelease();
     }
+  }
+
+  private void doRelease() {
+    for (int i = 0; i < buffers.length; i++) {
+      AllocatedBuffer buffer = buffers[i];
+      if (buffer != null) {
+        buffer.release();
+      }
+    }
+    // clear out the buffer slots to allow the most of the retained data to be GCed
+    buffers = null;
+    bufferBoundaryMap = null;
+    bufferInitSlot = -1;
   }
 
   public LongIterator iterator() {
