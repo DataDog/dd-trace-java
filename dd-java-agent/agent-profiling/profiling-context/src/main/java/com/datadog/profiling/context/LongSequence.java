@@ -73,7 +73,7 @@ final class LongSequence {
     return (int) (Math.ceil(size / 8d) * 8);
   }
 
-  private AtomicInteger refCount = new AtomicInteger(1);
+  private AtomicInteger state = new AtomicInteger(0);
 
   public LongSequence(Allocator allocator) {
     this.allocator = allocator;
@@ -81,7 +81,9 @@ final class LongSequence {
   }
 
   public int add(long value) {
-    if (refCount.updateAndGet(prev -> prev > 0 ? prev + 1 : 0) == 0) {
+    // check'n'update the state - if it is non-negative, increment the counter and proceed,
+    // otherwise bail out
+    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
       // bail out if this instance was already released
       return -1;
     }
@@ -133,36 +135,80 @@ final class LongSequence {
       sizeInBytes += 8;
       return 1;
     } finally {
-      if (refCount.decrementAndGet() == 0) {
+      // check'n'update the state - if it is negative before update, perform release, otherwise just
+      // decrement the counter
+      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
         doRelease();
       }
     }
   }
 
   public boolean set(int index, long value) {
-    PositionDecoder.Coordinates decoded =
-        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
-    if (decoded != null) {
-      return buffers[decoded.slot].putLong(decoded.index, value);
+    // check'n'update the state - if it is non-negative, increment the counter and proceed,
+    // otherwise bail out
+    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
+      // bail out if this instance was already released
+      return false;
     }
-    return false;
+    try {
+      PositionDecoder.Coordinates decoded =
+          positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
+      if (decoded != null) {
+        return buffers[decoded.slot].putLong(decoded.index, value);
+      }
+      return false;
+    } finally {
+      // check'n'update the state - if it is negative before update, perform release, otherwise just
+      // decrement the counter
+      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
+        doRelease();
+      }
+    }
   }
 
   public long get(int index) {
-    PositionDecoder.Coordinates decoded =
-        positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
-    if (decoded != null) {
-      return buffers[decoded.slot].getLong(decoded.index);
+    // check'n'update the state - if it is non-negative, increment the counter and proceed,
+    // otherwise bail out
+    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
+      // bail out if this instance was already released
+      return Long.MIN_VALUE;
     }
-    return Long.MIN_VALUE;
+    try {
+      PositionDecoder.Coordinates decoded =
+          positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
+      if (decoded != null) {
+        return buffers[decoded.slot].getLong(decoded.index);
+      }
+      return Long.MIN_VALUE;
+    } finally {
+      // check'n'update the state - if it is negative before update, perform release, otherwise just
+      // decrement the counter
+      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
+        doRelease();
+      }
+    }
   }
 
   public int size() {
-    return size;
+    // check'n'update the state - if it is non-negative, increment the counter and proceed,
+    // otherwise bail out
+    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
+      // bail out if this instance was already released
+      return 0;
+    }
+    try {
+      return size;
+    } finally {
+      // check'n'update the state - if it is negative before update, perform release, otherwise just
+      // decrement the counter
+      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
+        doRelease();
+      }
+    }
   }
 
   public void release() {
-    if (refCount.updateAndGet(prev -> prev > 0 ? prev - 1 : 0) == 0) {
+    if (state.getAndUpdate(prev -> prev > 0 ? -1 * prev : prev) == 0) {
       doRelease();
     }
   }
@@ -175,9 +221,12 @@ final class LongSequence {
       }
     }
     // clear out the buffer slots to allow the most of the retained data to be GCed
+    // do not clear up the buffers contents as they still may be in use by an iterator instance
     buffers = null;
     bufferBoundaryMap = null;
     bufferInitSlot = -1;
+    size = 0;
+    state.set(-1);
   }
 
   public LongIterator iterator() {
