@@ -38,7 +38,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
-  private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
+  public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
@@ -93,12 +93,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         // disable metrics unless the info endpoint is present, which prevents
         // sending metrics to 7.26.0, which has a bug in reporting metric origin
         this.metricsEndpoint = null;
-        // don't want to rewire the traces pipeline
-        if (null == traceEndpoint) {
-          this.traceEndpoint = probeTracesEndpoint();
-        }
+      }
+
+      // don't want to rewire the traces pipeline
+      if (null == traceEndpoint) {
+        this.traceEndpoint = probeTracesEndpoint(traceEndpoints);
+      } else {
+        // Still need to probe so that this.state is correctly assigned
+        probeTracesEndpoint(new String[] {traceEndpoint});
       }
     }
+
     if (log.isDebugEnabled()) {
       log.debug(
           "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}",
@@ -109,8 +114,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     }
   }
 
-  private String probeTracesEndpoint() {
-    for (String candidate : traceEndpoints) {
+  private String probeTracesEndpoint(String[] endpoints) {
+    for (String candidate : endpoints) {
       try (Response response =
           client
               .newCall(

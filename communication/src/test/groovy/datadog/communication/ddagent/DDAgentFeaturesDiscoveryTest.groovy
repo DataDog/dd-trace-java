@@ -32,6 +32,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
   static final String INFO_WITHOUT_DATA_STREAMS_RESPONSE = loadJsonFile("agent-info-without-data-streams.json")
 
+  def state = "a"
+
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
@@ -42,12 +44,14 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
     features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
+    features.state() == "a"
   }
 
   def "test parse /info response with client dropping"() {
@@ -60,10 +64,12 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
     features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     features.supportsDropping()
+    features.state() == "a"
   }
 
   def "test fallback when /info not found"() {
@@ -195,22 +201,28 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !(features as DroppingPolicy).active()
 
     when: "/info available and agent allows dropping"
+    state = "b"
     features.discover()
 
     then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     !features.supportsMetrics()
     !features.supportsDropping()
     !(features as DroppingPolicy).active()
+    features.state() == "b"
 
     when: "/info available and agent does not allow dropping"
+    state = "c"
     features.discover()
 
     then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     !features.supportsMetrics()
     !features.supportsDropping()
     !(features as DroppingPolicy).active()
+    features.state() == "c"
   }
 
   def "discovery of metrics endpoint after agent upgrade enables dropping and metrics"() {
@@ -230,13 +242,16 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !(features as DroppingPolicy).active()
 
     when: "/info and v0.6/stats become available to an already configured tracer"
+    state = "b"
     features.discover()
 
     then: "metrics endpoint not probed, metrics and dropping enabled"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     features.supportsDropping()
     features.supportsMetrics()
     (features as DroppingPolicy).active()
+    features.state() == "b"
   }
 
   def "disappearance of info endpoint after agent downgrade disables metrics and dropping"() {
@@ -247,19 +262,22 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     when: "/info available"
     features.discover()
 
-    then: "no probing, metrics and dropping supported"
+    then: "metrics and dropping supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall(_)
     features.supportsDropping()
     features.supportsMetrics()
     (features as DroppingPolicy).active()
+    features.state() == "a"
 
     when: "/info and v0.6/stats become unavailable to an already configured tracer"
     features.discover()
 
-    then: "no probing, metrics and dropping not supported"
+    then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
+    0 * client.newCall(_)
     !features.supportsDropping()
     !features.supportsMetrics()
     !(features as DroppingPolicy).active()
@@ -273,24 +291,29 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     when: "/info available"
     features.discover()
 
-    then: "no probing, metrics and dropping supported"
+    then: "metrics and dropping supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall(_)
     features.supportsDropping()
     features.supportsMetrics()
     (features as DroppingPolicy).active()
+    features.state() == "a"
 
     when: "/info and v0.6/stats become unavailable to an already configured tracer"
+    state = "b"
     features.discover()
 
-    then: "no probing, metrics and dropping not supported"
+    then: "metrics and dropping not supported"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITHOUT_METRICS_RESPONSE) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
     0 * client.newCall(_)
     // misconfigured agent allows dropping but not metrics
     features.supportsDropping()
     !features.supportsMetrics()
     // but we don't permit dropping anyway
     !(features as DroppingPolicy).active()
+    features.state() == "b"
   }
 
   def countingNotFound(Request request, CountDownLatch latch) {
@@ -334,6 +357,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
         .request(request)
         .protocol(Protocol.HTTP_1_1)
         .message("")
+        .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, state)
         .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
         .build()
     }
@@ -346,6 +370,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
         .request(request)
         .protocol(Protocol.HTTP_1_1)
         .message("")
+        .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, state)
         .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
         .build()
     }

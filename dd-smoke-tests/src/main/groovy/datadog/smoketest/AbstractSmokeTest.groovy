@@ -122,7 +122,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   int waitForTraceCount(int count) {
-    def conditions = new PollingConditions(timeout: 10, initialDelay: 0, delay: 0.5, factor: 1)
+    def conditions = new PollingConditions(timeout: 1000, initialDelay: 0, delay: 0.5, factor: 1)
     return waitForTraceCount(count, conditions)
   }
 

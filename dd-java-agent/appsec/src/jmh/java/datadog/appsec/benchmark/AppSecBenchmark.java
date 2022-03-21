@@ -1,15 +1,17 @@
 package datadog.appsec.benchmark;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static java.util.concurrent.TimeUnit.*;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
-import ch.qos.logback.classic.Logger;
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.TraceSegment;
-import datadog.trace.api.gateway.*;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.io.IOException;
@@ -24,8 +26,17 @@ import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okio.Timeout;
-import org.openjdk.jmh.annotations.*;
-import org.slf4j.LoggerFactory;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 4, time = 2, timeUnit = SECONDS)
@@ -35,14 +46,8 @@ import org.slf4j.LoggerFactory;
 @Fork(value = 3)
 public class AppSecBenchmark {
 
-  // To exclude log messages printing influence onto the benchmark
-  // we need suppress all log messages
   static {
-    org.slf4j.Logger root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-    if (root instanceof Logger) {
-      Logger logBackRoot = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-      logBackRoot.setLevel(ch.qos.logback.classic.Level.OFF);
-    }
+    BenchmarkUtil.disableLogging();
   }
 
   private InstrumentationGateway gw;
@@ -103,9 +108,9 @@ public class AppSecBenchmark {
     normalRequest();
   }
 
+  @Fork(jvmArgsAppend = "-Ddd.appsec.waf.metrics=false")
   @Benchmark
-  @Fork(jvmArgsAppend = "-DPOWERWAF_ENABLE_BYTE_BUFFERS=false")
-  public void normalRequestNoByteBuffers() throws Exception {
+  public void normalRequestNoWafMetrics() {
     normalRequest();
   }
 
