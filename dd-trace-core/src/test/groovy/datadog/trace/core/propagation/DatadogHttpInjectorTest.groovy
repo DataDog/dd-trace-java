@@ -6,6 +6,8 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.DatadogHttpCodec.*
 
