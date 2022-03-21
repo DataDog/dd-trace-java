@@ -103,7 +103,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     this.memleakIntervalDefault =
         maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
 
-    IntervalBlobWriter.initialize(this.asyncProfiler);
+    ContextIntervalEventsWriter.initialize(this.asyncProfiler);
   }
 
   private void emitConfiguration() {

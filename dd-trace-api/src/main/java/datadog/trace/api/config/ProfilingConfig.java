@@ -83,6 +83,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";
   public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
+  public static final String PROFILING_TRACING_CONTEXT_EVENTS_ENABLED =
+      "profiling.tracing_context.events.enabled";
+  public static final boolean PROFILING_TRACING_CONTEXT_EVENTS_ENABLED_DEFAULT = false;
   public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
       "profiling.tracing_context.tracker.inactive.seconds";
   public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
