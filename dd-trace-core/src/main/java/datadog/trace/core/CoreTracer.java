@@ -56,6 +56,7 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.util.Clock;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -944,6 +945,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return constantTags.toArray(new String[0]);
   }
 
+  @SuppressForbidden
   private static DataStreamsCheckpointer createDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
 
