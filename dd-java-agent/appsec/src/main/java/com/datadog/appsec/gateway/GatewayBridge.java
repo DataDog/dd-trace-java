@@ -2,6 +2,7 @@ package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
+import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.*;
@@ -52,6 +53,7 @@ public class GatewayBridge {
   private final EventProducerService producerService;
   private final String ipAddrHeader;
   private final RateLimiter rateLimiter;
+  private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
@@ -65,11 +67,13 @@ public class GatewayBridge {
       SubscriptionService subscriptionService,
       EventProducerService producerService,
       RateLimiter rateLimiter,
-      String appSecIpAddrHeader) {
+      String appSecIpAddrHeader,
+      List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.rateLimiter = rateLimiter;
     this.ipAddrHeader = appSecIpAddrHeader;
+    this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
   public void init() {
@@ -102,6 +106,11 @@ public class GatewayBridge {
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
+
+            for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
+              pp.processTraceSegment(traceSeg, ctx, collectedEvents);
+            }
+
             // If detected any events - mark span at appsec.event
             if (!collectedEvents.isEmpty() && (rateLimiter == null || !rateLimiter.isThrottled())) {
               // Keep event related span, because it could be ignored in case of
