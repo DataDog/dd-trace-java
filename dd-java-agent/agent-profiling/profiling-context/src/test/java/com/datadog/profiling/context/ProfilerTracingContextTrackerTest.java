@@ -108,9 +108,10 @@ class ProfilerTracingContextTrackerTest {
     assertArrayEquals(data1, data2);
 
     assertTrue(tracker.release());
-    assertNull(tracker.persist()); // no data after the tracker has been released
+    assertArrayEquals(data1, tracker.persist()); // previously persisted data survives release
     assertFalse(tracker.release()); // double release returns 'false'
-    assertNull(tracker.persist()); // no data after the tracker has been double-released
+    assertArrayEquals(
+        data1, tracker.persist()); // previously persisted data survives double-release
   }
 
   @Test

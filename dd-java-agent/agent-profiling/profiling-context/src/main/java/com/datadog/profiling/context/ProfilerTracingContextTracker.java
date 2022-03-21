@@ -215,14 +215,13 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   @Override
   public byte[] persist() {
-    if (released.get()) {
-      log.debug("Trying to persist already released tracker");
-      return null;
-    }
-
     byte[] data = null;
     if (persisted.compareAndSet(null, EMPTY_DATA)) {
       try {
+        if (released.get()) {
+          // tracker was released without persisting the data
+          return null;
+        }
         ByteBuffer buffer = encodeIntervals();
 
         if (span != null) {
@@ -266,8 +265,16 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   private boolean releaseThreadSequences() {
+    // the released flag needs to be set first such that it would prevent using the resourcese being
+    // released from 'persist()' method
     if (released.compareAndSet(false, true)) {
       log.trace("Releasing tracing context for span {}", span);
+      // now let's wait for any date being currently persisted
+      // 'persist()' method guarantees that the 'persisted' value will become != EMPTY_DATA
+      while (persisted.get() == EMPTY_DATA) {
+        Thread.yield();
+      }
+      // it is safe to cleanup the resources
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
       return true;
