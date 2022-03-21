@@ -21,6 +21,9 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final String INITIALIZATION_TOPIC = "";
   private final Lock lock = new ReentrantLock();
 
+  private final GrowingByteArrayOutput outputBuffer =
+      GrowingByteArrayOutput.withInitialCapacity(20);
+
   // Nanotime is necessary because time differences should use a monotonically increasing clock
   // Milliseconds are kept because nanotime is not comparable across JVMs
   private long pathwayStartMillis;
@@ -63,12 +66,19 @@ public class DefaultPathwayContext implements PathwayContext {
         return;
       }
 
+      String finalType;
+      String finalGroup;
       String finalTopic;
+
       if (started) {
+        finalType = type;
+        finalGroup = group;
         finalTopic = topic;
       } else {
         // Ignore the edge if there are no parents (ie context hasn't started yet)
         // Initialize the context instead
+        finalType = null;
+        finalGroup = null;
         finalTopic = INITIALIZATION_TOPIC;
       }
 
@@ -81,16 +91,15 @@ public class DefaultPathwayContext implements PathwayContext {
         log.debug("Started {}", this);
       }
 
-      long nodeHash = generateNodeHash(Config.get().getServiceName(), finalTopic);
-      long newHash = generatePathwayHash(nodeHash, hash);
+      long newHash = generatePathwayHash(finalTopic, hash);
 
       long pathwayLatency = nanoTime - pathwayStart;
       long edgeLatency = nanoTime - edgeStart;
 
       StatsPoint point =
           new StatsPoint(
-              type,
-              group,
+              finalType,
+              finalGroup,
               finalTopic,
               newHash,
               hash,
@@ -111,16 +120,19 @@ public class DefaultPathwayContext implements PathwayContext {
   public byte[] encode() throws IOException {
     lock.lock();
     try {
-      GrowingByteArrayOutput output = GrowingByteArrayOutput.withInitialCapacity(20);
+      if (!started) {
+        throw new IllegalStateException("Context must be started to encode");
+      }
 
-      output.writeLongLE(hash);
-      VarEncodingHelper.encodeSignedVarLong(output, pathwayStartMillis);
+      outputBuffer.clear();
+      outputBuffer.writeLongLE(hash);
+      VarEncodingHelper.encodeSignedVarLong(outputBuffer, pathwayStartMillis);
 
       long edgeStartMillis =
           pathwayStartMillis + TimeUnit.NANOSECONDS.toMillis(edgeStart - pathwayStart);
 
-      VarEncodingHelper.encodeSignedVarLong(output, edgeStartMillis);
-      return output.trimmedCopy();
+      VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
+      return outputBuffer.trimmedCopy();
     } finally {
       lock.unlock();
     }
@@ -151,7 +163,9 @@ public class DefaultPathwayContext implements PathwayContext {
 
   // TODO Can be removed when Java7 support is removed
   private static String toUnsignedString(long l) {
-    if (l >= 0) return Long.toString(l);
+    if (l >= 0) {
+      return Long.toString(l);
+    }
 
     // shift left once and divide by 5 results in an unsigned divide by 10
     long quot = (l >>> 1) / 5;
@@ -211,14 +225,18 @@ public class DefaultPathwayContext implements PathwayContext {
     return FNV64Hash.generateHash(serviceName + edge, FNV64Hash.Version.v1);
   }
 
-  private static long generatePathwayHash(long nodeHash, long parentHash) {
-    // TODO determine whether it makes more sense to reuse this array
-    // has concurrency implications
-    GrowingByteArrayOutput output = GrowingByteArrayOutput.withInitialCapacity(16);
+  private long generatePathwayHash(String edgeName, long parentHash) {
+    long nodeHash = generateNodeHash(Config.get().getServiceName(), edgeName);
 
-    output.writeLongLE(nodeHash);
-    output.writeLongLE(parentHash);
+    lock.lock();
+    try {
+      outputBuffer.clear();
+      outputBuffer.writeLongLE(nodeHash);
+      outputBuffer.writeLongLE(parentHash);
 
-    return FNV64Hash.generateHash(output.backingArray(), 0, 16, FNV64Hash.Version.v1);
+      return FNV64Hash.generateHash(outputBuffer.backingArray(), 0, 16, FNV64Hash.Version.v1);
+    } finally {
+      lock.unlock();
+    }
   }
 }
