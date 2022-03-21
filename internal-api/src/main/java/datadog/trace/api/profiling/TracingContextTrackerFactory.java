@@ -43,6 +43,10 @@ public final class TracingContextTrackerFactory {
     return false;
   }
 
+  static void removeImplementation(Implementation implementation) {
+    INSTANCE.implFieldUpdater.compareAndSet(INSTANCE, implementation, Implementation.EMPTY);
+  }
+
   public static boolean isTrackingAvailable() {
     // return true if a non-dummy implementatin has been registered
     return INSTANCE.implementation != Implementation.EMPTY;
