@@ -16,8 +16,6 @@
 package com.datadog.profiling.uploader;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
@@ -72,12 +70,6 @@ public final class ProfileUploader {
   static final int TERMINATION_TIMEOUT = 5;
 
   // V1.1 format
-  static final String FORMAT_PARAM = "format";
-  static final String TYPE_PARAM = "type";
-  static final String RUNTIME_PARAM = "runtime";
-
-  static final String V1_PROFILE_START_PARAM = "recording-start";
-  static final String V1_PROFILE_END_PARAM = "recording-end";
 
   // TODO: We should rename parameter to just `data`
   static final String DATA_PARAM = "chunk-data";
@@ -96,10 +88,6 @@ public final class ProfileUploader {
   static final String PROFILE_FORMAT = "jfr";
   static final String PROFILE_TYPE_PREFIX = "jfr-";
   static final String PROFILE_RUNTIME = "jvm";
-
-  private static final Headers V1_DATA_HEADERS =
-      Headers.of(
-          "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
 
   // V2.4 format
   static final String V4_PROFILE_START_PARAM = "start";
@@ -141,7 +129,6 @@ public final class ProfileUploader {
   private final int terminationTimeout;
   private final List<String> tags;
   private final CompressionType compressionType;
-  private final boolean useV2_4Format;
   private final String tagsV2_4;
 
   public ProfileUploader(final Config config, final ConfigProvider configProvider)
@@ -167,12 +154,6 @@ public final class ProfileUploader {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
-    useV2_4Format =
-        configProvider.getBoolean(
-            PROFILING_FORMAT_V2_4_ENABLED, PROFILING_FORMAT_V2_4_ENABLED_DEFAULT);
-    if (useV2_4Format) {
-      log.info("Profiling: use V2.4 format for HTTP request");
-    }
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
     this.ioLogger = ioLogger;
     this.containerId = containerId;
@@ -331,7 +312,7 @@ public final class ProfileUploader {
     return os.toString().getBytes();
   }
 
-  private MultipartBody makeUploadRequestV4(
+  private MultipartBody makeRequestBody(
       @Nonnull final RecordingData data, CompressingRequestBody body) {
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder().setType(MultipartBody.FORM);
@@ -343,26 +324,6 @@ public final class ProfileUploader {
     return bodyBuilder.build();
   }
 
-  private MultipartBody makeUploadRequestV1(
-      @Nonnull final RecordingType type,
-      @Nonnull final RecordingData data,
-      CompressingRequestBody body) {
-    final MultipartBody.Builder bodyBuilder =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(FORMAT_PARAM, PROFILE_FORMAT)
-            .addFormDataPart(TYPE_PARAM, PROFILE_TYPE_PREFIX + type.getName())
-            .addFormDataPart(RUNTIME_PARAM, PROFILE_RUNTIME)
-            // Note that toString is well defined for instants - ISO-8601
-            .addFormDataPart(V1_PROFILE_START_PARAM, data.getStart().toString())
-            .addFormDataPart(V1_PROFILE_END_PARAM, data.getEnd().toString());
-    for (final String tag : tags) {
-      bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
-    }
-    bodyBuilder.addPart(V1_DATA_HEADERS, body);
-    return bodyBuilder.build();
-  }
-
   private void makeUploadRequest(
       @Nonnull final RecordingType type,
       @Nonnull final RecordingData data,
@@ -370,29 +331,18 @@ public final class ProfileUploader {
 
     final CompressingRequestBody body =
         new CompressingRequestBody(compressionType, data::getStream);
+    RequestBody requestBody = makeRequestBody(data, body);
 
-    Request.Builder requestBuilder;
-    RequestBody requestBody;
-    if (useV2_4Format) {
-      requestBody = makeUploadRequestV4(data, body);
-    } else {
-      requestBody = makeUploadRequestV1(type, data, body);
-    }
-
-    requestBuilder =
+    Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
             // Set chunked transfer
             .addHeader("Transfer-Encoding", "chunked")
             // Note: this header is used to disable tracing of profiling requests
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
+            .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_PROFILING_LIBRARY)
+            .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
             .post(requestBody);
-
-    if (useV2_4Format) {
-      requestBuilder
-          .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_PROFILING_LIBRARY)
-          .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
-    }
 
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless profiling. No point in

@@ -104,8 +104,6 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
   public static final boolean PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT = false;
-  public static final String PROFILING_FORMAT_V2_4_ENABLED = "profiling.format.v4.enabled";
-  public static final boolean PROFILING_FORMAT_V2_4_ENABLED_DEFAULT = false;
 
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";

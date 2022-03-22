@@ -15,8 +15,8 @@
  */
 package com.datadog.profiling.uploader;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
+import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_END_PARAM;
+import static com.datadog.profiling.uploader.ProfileUploader.V4_PROFILE_START_PARAM;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -38,7 +38,6 @@ import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.datadog.profiling.uploader.util.PidHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -92,7 +91,7 @@ public class ProfileUploaderTest {
   private static final String API_KEY_VALUE = "testkey";
   private static final String URL_PATH = "/lalala";
   private static final String RECORDING_RESOURCE = "/test-recording.jfr";
-  private static final String RECODING_NAME_PREFIX = "test-recording-";
+  private static final String RECORDING_NAME_PREFIX = "test-recording-";
   private static final RecordingType RECORDING_TYPE = RecordingType.CONTINUOUS;
 
   private static final Map<String, String> TAGS;
@@ -152,9 +151,6 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
-    when(configProvider.getBoolean(
-            eq(PROFILING_FORMAT_V2_4_ENABLED), eq(PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)))
-        .thenReturn(false);
 
     uploader =
         new ProfileUploader(
@@ -179,9 +175,9 @@ public class ProfileUploaderTest {
   public void testV2_4Format() throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
-    when(configProvider.getBoolean(
-            eq(PROFILING_FORMAT_V2_4_ENABLED), eq(PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)))
-        .thenReturn(true);
+    //    when(configProvider.getBoolean(
+    //            eq(PROFILING_:FORMAT_V2_4_ENABLED), eq(PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)))
+    //        .thenReturn(true);
 
     // When
     uploader = new ProfileUploader(config, configProvider);
@@ -216,8 +212,11 @@ public class ProfileUploaderTest {
     assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, event.get("attachments").get(0).asText());
     assertEquals(ProfileUploader.V4_FAMILY, event.get("family").asText());
     assertEquals(ProfileUploader.V4_VERSION, event.get("version").asText());
-    assertEquals(Instant.ofEpochSecond(PROFILE_START).toString(), event.get("start").asText());
-    assertEquals(Instant.ofEpochSecond(PROFILE_END).toString(), event.get("end").asText());
+    assertEquals(
+        Instant.ofEpochSecond(PROFILE_START).toString(),
+        event.get(V4_PROFILE_START_PARAM).asText());
+    assertEquals(
+        Instant.ofEpochSecond(PROFILE_END).toString(), event.get(V4_PROFILE_END_PARAM).asText());
     assertEquals(
         EXPECTED_TAGS,
         ProfilingTestUtils.parseTags(
@@ -251,22 +250,6 @@ public class ProfileUploaderTest {
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
-    assertEquals(
-        ImmutableList.of(ProfileUploader.PROFILE_FORMAT),
-        parameters.get(ProfileUploader.FORMAT_PARAM));
-    assertEquals(
-        ImmutableList.of(ProfileUploader.PROFILE_TYPE_PREFIX + RECORDING_TYPE.getName()),
-        parameters.get(ProfileUploader.TYPE_PARAM));
-    assertEquals(
-        ImmutableList.of(ProfileUploader.PROFILE_RUNTIME),
-        parameters.get(ProfileUploader.RUNTIME_PARAM));
-
-    assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(PROFILE_START).toString()),
-        parameters.get(ProfileUploader.V1_PROFILE_START_PARAM));
-    assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(PROFILE_END).toString()),
-        parameters.get(ProfileUploader.V1_PROFILE_END_PARAM));
 
     assertEquals(
         EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
@@ -298,22 +281,6 @@ public class ProfileUploaderTest {
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
-    assertEquals(
-        ImmutableList.of(ProfileUploader.PROFILE_FORMAT),
-        parameters.get(ProfileUploader.FORMAT_PARAM));
-    assertEquals(
-        ImmutableList.of(ProfileUploader.PROFILE_TYPE_PREFIX + RECORDING_TYPE.getName()),
-        parameters.get(ProfileUploader.TYPE_PARAM));
-    assertEquals(
-        ImmutableList.of(ProfileUploader.PROFILE_RUNTIME),
-        parameters.get(ProfileUploader.RUNTIME_PARAM));
-
-    assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(PROFILE_START).toString()),
-        parameters.get(ProfileUploader.V1_PROFILE_START_PARAM));
-    assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(PROFILE_END).toString()),
-        parameters.get(ProfileUploader.V1_PROFILE_END_PARAM));
 
     assertEquals(
         EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
@@ -705,7 +672,7 @@ public class ProfileUploaderTest {
         .then(
             (Answer<InputStream>)
                 invocation -> spy(new RecordingInputStream(recordingStream(zip))));
-    when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
+    when(recordingData.getName()).thenReturn(RECORDING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));
     return recordingData;
