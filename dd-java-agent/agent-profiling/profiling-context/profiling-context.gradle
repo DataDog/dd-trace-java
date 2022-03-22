@@ -2,19 +2,14 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
 ext {
-  minimumBranchCoverage = 0.8
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     // simple DTO
     "com.datadog.profiling.context.PositionDecoder.*",
     "com.datadog.profiling.context.JfrTimestampPatch",
     // jacoco does not allow per-method excludes so, here we go
-    "com.datadog.profiling.context.ProfilerTracingContextTrackerFactory",
-    // this one has pretty good coverage but being a small class the one method touching reflection
-    // and failing in most test runners (just to fall back) means that the instruction coverage is busted
-    "com.datadog.profiling.context.allocator.heap.HeapAllocator",
-    // another one instance of fairly covered class - missing parts require concurrency testing
-    // but thanks to a small size of the class those few lines make jacoco very unhappy
-    "com.datadog.profiling.context.LongSequence",
+    "com.datadog.profiling.context.ProfilerTracingContextTrackerFactory.*",
   ]
 }
 
