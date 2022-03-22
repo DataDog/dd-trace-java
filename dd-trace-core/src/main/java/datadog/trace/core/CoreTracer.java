@@ -889,6 +889,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     writer.close();
     statsDClient.close();
     metricsAggregator.close();
+    dataStreamsCheckpointer.close();
     externalAgentLauncher.close();
   }
 

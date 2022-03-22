@@ -45,19 +45,26 @@ public class DefaultDataStreamsCheckpointer
 
   public DefaultDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
-
-    this.features = sharedCommunicationObjects.featuresDiscovery;
-
-    Sink sink =
+    this(
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
             config.getAgentUrl(),
             V01_DATASTREAMS_ENDPOINT,
             false,
             true,
-            Collections.<String, String>emptyMap());
+            Collections.<String, String>emptyMap()),
+        sharedCommunicationObjects.featuresDiscovery,
+        config.getEnv());
+  }
 
-    payloadWriter = new DatastreamsPayloadWriter(sink, config.getEnv());
+  DefaultDataStreamsCheckpointer(Sink sink, DDAgentFeaturesDiscovery features, String env) {
+    this(sink, features, new DatastreamsPayloadWriter(sink, env));
+  }
+
+  DefaultDataStreamsCheckpointer(Sink sink, DDAgentFeaturesDiscovery features, DatastreamsPayloadWriter payloadWriter) {
+    this.features = features;
+    this.payloadWriter = payloadWriter;
+
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);
 
     features.discover();
@@ -168,6 +175,10 @@ public class DefaultDataStreamsCheckpointer
     }
   }
 
+  void report() {
+    inbox.offer(REPORT);
+  }
+
   @Override
   public void onEvent(EventType eventType, String message) {
     switch (eventType) {
@@ -198,7 +209,7 @@ public class DefaultDataStreamsCheckpointer
       implements AgentTaskScheduler.Task<DefaultDataStreamsCheckpointer> {
     @Override
     public void run(DefaultDataStreamsCheckpointer target) {
-      target.inbox.offer(REPORT);
+      target.report();
     }
   }
 }

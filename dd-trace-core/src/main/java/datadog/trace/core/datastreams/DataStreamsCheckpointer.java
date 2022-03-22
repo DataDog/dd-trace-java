@@ -5,9 +5,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 
-public interface DataStreamsCheckpointer extends Consumer<StatsPoint> {
+public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoCloseable {
   PathwayContext newPathwayContext();
 
   <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter);
+
+  @Override
+  void close();
 }

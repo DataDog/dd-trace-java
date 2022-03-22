@@ -19,4 +19,7 @@ public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
     return AgentTracer.NoopPathwayContext.INSTANCE;
   }
+
+  @Override
+  public void close() {}
 }
