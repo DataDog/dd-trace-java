@@ -3,7 +3,6 @@ package com.datadog.appsec.config
 import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.fleet.FleetService
 import datadog.communication.fleet.FleetServiceImpl
-import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
@@ -12,7 +11,7 @@ import java.nio.file.Path
 class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   FleetServiceImpl fleetService = Mock()
-  Config config = Mock()
+  def config = Mock(Class.forName('datadog.trace.api.Config'))
   AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, fleetService)
 
   void cleanup() {

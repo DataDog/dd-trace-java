@@ -8,6 +8,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
 import datadog.trace.api.TraceSegment
+import datadog.trace.api.Tracer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -23,6 +24,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
+  Tracer tracer = Mock()
 
   def cleanup() {
     AppSecSystem.stop()

@@ -8,6 +8,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
+import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -70,7 +71,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
 
+  // should be guarded by this
   private Additive additive;
+  private PowerwafMetrics wafMetrics;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -93,6 +96,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Additive getAdditive() {
     return additive;
+  }
+
+  public void setWafMetrics(PowerwafMetrics wafMetrics) {
+    this.wafMetrics = wafMetrics;
+  }
+
+  public PowerwafMetrics getWafMetrics() {
+    return wafMetrics;
   }
 
   public void setAdditive(Additive additive) {
@@ -306,8 +317,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public void close() {
     if (additive != null) {
       log.warn("WAF object had not been closed (probably missed request-end event)");
-      additive.close();
-      additive = null;
+      try {
+        additive.close();
+      } finally {
+        additive = null;
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 package com.datadog.appsec.gateway
 
+import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.EventType
@@ -40,7 +41,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     @Override
     TraceSegment getTraceSegment() {
-      return traceSegment
+      GatewayBridgeSpecification.this.traceSegment
     }
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -50,7 +51,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   }()
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null)
+  TraceSegmentPostProcessor pp = Mock()
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -650,5 +652,16 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'calls trace segment post processor'() {
+    setup:
+    AgentSpan span = Mock()
+
+    when:
+    requestEndedCB.apply(ctx, span)
+
+    then:
+    1 * pp.processTraceSegment(traceSegment, ctx.data, [])
   }
 }

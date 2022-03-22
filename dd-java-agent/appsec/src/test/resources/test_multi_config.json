@@ -1,7 +1,13 @@
 {
   "waf": {
     "version": "2.1",
+    "metadata": {
+      "rules_version": "0.42.0"
+    },
     "rules": [
+      {
+        "id": "bad rule"
+      },
       {
         "id": "crs-913-110",
         "name": "Found request header associated with Acunetix security scanner",
