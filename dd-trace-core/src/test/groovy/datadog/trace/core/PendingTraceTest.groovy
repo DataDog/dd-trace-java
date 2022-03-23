@@ -93,6 +93,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     writer[2][0].partialVersion > writer[1][0].partialVersion
 
     when: "close pending long running spans"
+    scope.close()
     rootSpan.finish()
 
     then:

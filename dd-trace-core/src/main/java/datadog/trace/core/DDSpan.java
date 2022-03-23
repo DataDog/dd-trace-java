@@ -63,7 +63,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * combination of millisecond-precision clock and nanosecond-precision offset from start of the
    * trace. See {@link PendingTrace} for details.
    */
-  private long startTimeNano;
+  private final long startTimeNano;
 
   /** Mark as incomplete (long running span). */
   private Long partialVersion;
