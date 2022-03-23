@@ -85,10 +85,6 @@ public final class ProfileUploader {
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
-  static final String PROFILE_FORMAT = "jfr";
-  static final String PROFILE_TYPE_PREFIX = "jfr-";
-  static final String PROFILE_RUNTIME = "jvm";
-
   // V2.4 format
   static final String V4_PROFILE_START_PARAM = "start";
   static final String V4_PROFILE_END_PARAM = "end";
@@ -127,7 +123,6 @@ public final class ProfileUploader {
   private final String url;
   private final String containerId;
   private final int terminationTimeout;
-  private final List<String> tags;
   private final CompressionType compressionType;
   private final String tagsV2_4;
 
@@ -174,9 +169,8 @@ public final class ProfileUploader {
     if (PidHelper.PID != null) {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
     }
-    tags = tagsToList(tagsMap);
     // Comma separated tags string for V2.4 format
-    tagsV2_4 = String.join(",", tags);
+    tagsV2_4 = String.join(",", tagsToList(tagsMap));
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
@@ -205,7 +199,7 @@ public final class ProfileUploader {
             .dispatcher(new Dispatcher(okHttpExecutorService))
             .connectionPool(connectionPool);
 
-    String apmSocketPath = discoverApmSocket(config);
+    final String apmSocketPath = discoverApmSocket(config);
     if (apmSocketPath != null) {
       clientBuilder.socketFactory(new UnixDomainSocketFactory(new File(apmSocketPath)));
     } else if (config.getAgentNamedPipe() != null) {
@@ -270,7 +264,7 @@ public final class ProfileUploader {
    *     failing)
    */
   public void upload(
-      final RecordingType type, final RecordingData data, @Nonnull Runnable onCompletion) {
+      final RecordingType type, final RecordingData data, @Nonnull final Runnable onCompletion) {
     if (canEnqueueMoreRequests()) {
       makeUploadRequest(
           type,
@@ -300,7 +294,7 @@ public final class ProfileUploader {
   }
 
   private byte[] createEvent(@Nonnull final RecordingData data) {
-    StringBuilder os = new StringBuilder();
+    final StringBuilder os = new StringBuilder();
     os.append("{");
     os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
     os.append("\"tags_profiler\":\"" + tagsV2_4 + "\",");
@@ -313,12 +307,12 @@ public final class ProfileUploader {
   }
 
   private MultipartBody makeRequestBody(
-      @Nonnull final RecordingData data, CompressingRequestBody body) {
+      @Nonnull final RecordingData data, final CompressingRequestBody body) {
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder().setType(MultipartBody.FORM);
 
-    byte[] event = createEvent(data);
-    RequestBody eventBody = RequestBody.create(APPLICATION_JSON, event);
+    final byte[] event = createEvent(data);
+    final RequestBody eventBody = RequestBody.create(APPLICATION_JSON, event);
     bodyBuilder.addPart(EVENT_HEADER, eventBody);
     bodyBuilder.addPart(V4_DATA_HEADERS, body);
     return bodyBuilder.build();
@@ -327,13 +321,13 @@ public final class ProfileUploader {
   private void makeUploadRequest(
       @Nonnull final RecordingType type,
       @Nonnull final RecordingData data,
-      @Nonnull Runnable onCompletion) {
+      @Nonnull final Runnable onCompletion) {
 
     final CompressingRequestBody body =
         new CompressingRequestBody(compressionType, data::getStream);
-    RequestBody requestBody = makeRequestBody(data, body);
+    final RequestBody requestBody = makeRequestBody(data, body);
 
-    Request.Builder requestBuilder =
+    final Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
             // Set chunked transfer
@@ -358,7 +352,7 @@ public final class ProfileUploader {
         .enqueue(
             new Callback() {
               @Override
-              public void onFailure(Call call, IOException e) {
+              public void onFailure(final Call call, final IOException e) {
                 if (isEmptyReplyFromServer(e)) {
                   ioLogger.error(
                       "Failed to upload profile, received empty reply from "
@@ -372,7 +366,7 @@ public final class ProfileUploader {
               }
 
               @Override
-              public void onResponse(Call call, Response response) throws IOException {
+              public void onResponse(final Call call, final Response response) throws IOException {
                 if (response.isSuccessful()) {
                   ioLogger.success("Upload done");
                 } else {
@@ -398,7 +392,7 @@ public final class ProfileUploader {
                 onCompletion.run();
               }
 
-              private void logDebug(String msg) {
+              private void logDebug(final String msg) {
                 if (log.isDebugEnabled()) {
                   log.debug(
                       "{} {} [{}] (Size={}/{} bytes)",
