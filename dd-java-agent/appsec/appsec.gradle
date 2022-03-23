@@ -22,7 +22,6 @@ repositories {
 dependencies {
   api deps.slf4j
   implementation project(':internal-api')
-  implementation project(':utils:time-utils')
   implementation project(':communication')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '4.0.1'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
@@ -47,6 +46,7 @@ shadowJar {
     exclude(project(':dd-java-agent:agent-logging'))
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
+    exclude(project(':utils:time-utils'))
     exclude(project(':communication'))
     exclude(dependency('org.slf4j::'))
   }
