@@ -103,8 +103,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * discovery.discover()
-    1 * discovery.getTraceEndpoint() >> agentVersion
+    2 * discovery.getTraceEndpoint() >> agentVersion
     1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -136,8 +135,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * discovery.discover()
-    1 * discovery.getTraceEndpoint() >> agentVersion
+    2 * discovery.getTraceEndpoint() >> agentVersion
     1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -173,8 +171,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-    1 * discovery.getTraceEndpoint() >> agentVersion
-    1 * discovery.discover()
+    2 * discovery.getTraceEndpoint() >> agentVersion
     1 * healthMetrics.onSerialize(_)
     1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * healthMetrics.onPublish(_, _)
@@ -215,8 +212,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * discovery.getTraceEndpoint() >> agentVersion
-    1 * discovery.discover()
+    2 * discovery.getTraceEndpoint() >> agentVersion
     1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
     1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> DDAgentApi.Response.success(200)
     0 * _

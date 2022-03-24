@@ -1,5 +1,7 @@
 package datadog.communication.ddagent;
 
+import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -7,8 +9,10 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +34,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
+  // Currently all the endpoints that we probe expect a msgpack body of an array of arrays, v3/v4
+  // arbitrary size and v5 two elements, so let's give them a two element array of empty arrays
+  private static final byte[] PROBE_MESSAGE = {
+    (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
+  };
+
   public static final String V3_ENDPOINT = "v0.3/traces";
   public static final String V4_ENDPOINT = "v0.4/traces";
   public static final String V5_ENDPOINT = "v0.5/traces";
@@ -48,7 +58,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
   private volatile boolean supportsDropping;
-
   private volatile String state;
 
   public DDAgentFeaturesDiscovery(
@@ -67,7 +76,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
+  private void reset() {
+    traceEndpoint = null;
+    metricsEndpoint = null;
+    supportsDropping = false;
+    state = null;
+  }
+
   public void discover() {
+    reset();
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
@@ -84,18 +101,18 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint("info", error);
       }
       if (fallback) {
-        this.supportsDropping = false;
+        supportsDropping = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         // disable metrics unless the info endpoint is present, which prevents
         // sending metrics to 7.26.0, which has a bug in reporting metric origin
-        this.metricsEndpoint = null;
+        metricsEndpoint = null;
       }
 
       // don't want to rewire the traces pipeline
       if (null == traceEndpoint) {
-        this.traceEndpoint = probeTracesEndpoint(traceEndpoints);
-      } else {
-        // Still need to probe so that this.state is correctly assigned
+        traceEndpoint = probeTracesEndpoint(traceEndpoints);
+      } else if (state == null || state.isEmpty()) {
+        // Still need to probe so that state is correctly assigned
         probeTracesEndpoint(new String[] {traceEndpoint});
       }
     }
@@ -115,12 +132,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           client
               .newCall(
                   new Request.Builder()
-                      .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
+                      .put(
+                          OkHttpUtils.msgpackRequestBodyOf(
+                              Collections.singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .url(agentBaseUrl.resolve(candidate))
                       .build())
               .execute()) {
-        if (response.code() != 404) {
-          this.state = response.header(DATADOG_AGENT_STATE);
+        if (response.code() == 200) {
+          state = response.header(DATADOG_AGENT_STATE);
           return candidate;
         }
       } catch (IOException e) {
@@ -159,10 +178,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
-        this.supportsDropping =
+        supportsDropping =
             null != canDrop
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
                     || Boolean.TRUE.equals(canDrop));
+      }
+      try {
+        state = Strings.sha256(response);
+      } catch (NoSuchAlgorithmException ex) {
+        log.debug("Failed to hash trace agent /info response. Will probe {}", traceEndpoint, ex);
       }
       return true;
     } catch (Throwable error) {
