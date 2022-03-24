@@ -19,7 +19,7 @@ public class WeakCaches {
 
   private WeakCaches() {}
 
-  static void registerAsSupplier() {
+  public static void registerAsSupplier() {
     WeakCache.Supplier.registerIfAbsent(
         new WeakCache.Supplier() {
           @Override
