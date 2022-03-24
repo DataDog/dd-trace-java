@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.springscheduling;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.SCHEDULED_CALL;
 
@@ -37,9 +39,7 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
   }
 
   public static Runnable wrapIfNeeded(final Runnable task) {
-    // We wrap only lambdas' anonymous classes and if given object has not already been wrapped.
-    // Anonymous classes have '/' in class name which is not allowed in 'normal' classes.
-    if (task instanceof SpringSchedulingRunnableWrapper) {
+    if (task instanceof SpringSchedulingRunnableWrapper || exclude(RUNNABLE, task)) {
       return task;
     }
     return new SpringSchedulingRunnableWrapper(task);
