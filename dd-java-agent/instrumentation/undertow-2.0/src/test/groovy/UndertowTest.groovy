@@ -3,18 +3,16 @@ import datadog.trace.agent.test.base.HttpServerTest
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
+import io.undertow.server.HttpHandler
+import io.undertow.server.HttpServerExchange
+import io.undertow.server.handlers.form.FormData
+import io.undertow.server.handlers.form.FormDataParser
+import io.undertow.server.handlers.form.FormParserFactory
 import io.undertow.util.Headers
 import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
 class UndertowTest extends HttpServerTest<Undertow> {
   class UndertowServer implements HttpServer {
@@ -34,6 +32,44 @@ class UndertowTest extends HttpServerTest<Undertow> {
         .addExactPath(FORWARDED.getPath()) { exchange ->
           controller(FORWARDED) {
             exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
+          }
+        }
+        .addExactPath(CREATED_IS.path) { exc ->
+          def handler = { exchange ->
+            controller(CREATED_IS) {
+              exchange.responseSender.send(
+                "${CREATED_IS.body}: ${exchange.inputStream.getText('ISO-8859-1')}")
+            }
+          } as HttpHandler
+
+          exc.startBlocking()
+          if (exc.inIoThread) {
+            exc.dispatch(handler)
+          } else {
+            handler.handleRequest(exc)
+          }
+        }
+        .addExactPath(BODY_URLENCODED.path) { HttpServerExchange exc ->
+          def handler = { exchange ->
+            controller(BODY_URLENCODED) {
+              FormDataParser parser = FormParserFactory.builder().build().createParser(exchange)
+              FormData formData = parser.parseBlocking()
+              def params = [:]
+              for (String key : formData) {
+                if (key == 'ignore') {
+                  continue
+                }
+                params[key] = formData.get(key).collect { it.value }
+              }
+              exchange.responseSender.send(params as String)
+            }
+          } as HttpHandler
+
+          exc.startBlocking()
+          if (exc.inIoThread) {
+            exc.dispatch(handler)
+          } else {
+            handler.handleRequest(exc)
           }
         }
         .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
@@ -113,6 +149,16 @@ class UndertowTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean hasExtraErrorInformation() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
+    false // interception of the exchange InputStream not implemented
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
     true
   }
 
