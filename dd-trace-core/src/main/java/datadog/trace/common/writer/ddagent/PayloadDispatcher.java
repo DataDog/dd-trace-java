@@ -69,7 +69,9 @@ public class PayloadDispatcher implements ByteBufferConsumer {
 
   private void selectTraceMapper() {
     if (null == traceMapper) {
-      featuresDiscovery.discover();
+      if (featuresDiscovery.getTraceEndpoint() == null) {
+        featuresDiscovery.discover();
+      }
       String tracesUrl = featuresDiscovery.getTraceEndpoint();
       if (DDAgentFeaturesDiscovery.V5_ENDPOINT.equalsIgnoreCase(tracesUrl)) {
         this.traceMapper = new TraceMapperV0_5();
