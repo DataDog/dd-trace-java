@@ -74,6 +74,7 @@ public class MsgPackWriter implements WritableFormatter {
   @Override
   public void flush() {
     if (buffer.isDirty()) {
+      log.debug("Buffer flush called");
       buffer.flush();
     }
   }
@@ -88,7 +89,9 @@ public class MsgPackWriter implements WritableFormatter {
       // if the buffer has finite capacity, it will overflow
       // if we tried to serialise a message larger than the
       // max capacity, then reject the message
+      log.debug("Buffer overflowed");
       if (buffer.flush()) {
+        log.debug("Buffer flushed successfully from overflow");
         try {
           mapper.map(message, this);
           buffer.mark();

@@ -1,8 +1,11 @@
 package datadog.communication.serialization;
 
 import java.nio.ByteBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class FlushingBuffer implements StreamingBuffer {
+  private static final Logger log = LoggerFactory.getLogger(FlushingBuffer.class);
 
   private final ByteBuffer buffer;
   private final ByteBufferConsumer consumer;
@@ -34,11 +37,13 @@ public final class FlushingBuffer implements StreamingBuffer {
   @Override
   public boolean flush() {
     if (messageCount == 0) {
+      log.debug("Flush not called because message count is 0");
       return false;
     }
     buffer.limit(mark);
     buffer.flip();
     ByteBuffer toPublish = buffer.slice();
+    log.debug("Publishing messages to consumer");
     consumer.accept(messageCount, toPublish);
     reset();
     return true;

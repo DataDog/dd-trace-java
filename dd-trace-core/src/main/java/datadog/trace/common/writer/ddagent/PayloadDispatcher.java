@@ -34,6 +34,8 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private final FixedSizeStripedLongCounter droppedTraceCount =
       CountersFactory.createFixedSizeStripedCounter(8);
 
+  private int counter = 0;
+
   public PayloadDispatcher(
       DDAgentFeaturesDiscovery featuresDiscovery,
       DDAgentApi api,
@@ -47,7 +49,13 @@ public class PayloadDispatcher implements ByteBufferConsumer {
 
   void flush() {
     if (null != packer) {
+      counter++;
+      if (counter % 60 == 0) {
+        log.debug("Flush called");
+      }
       packer.flush();
+    } else {
+      log.debug("Flush not called because packer is null");
     }
   }
 
@@ -117,6 +125,8 @@ public class PayloadDispatcher implements ByteBufferConsumer {
         }
         healthMetrics.onFailedSend(messageCount, sizeInBytes, response);
       }
+    } else {
+      log.debug("Buffer not sent because message count is {}", messageCount);
     }
   }
 }
