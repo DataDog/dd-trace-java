@@ -59,7 +59,7 @@ public class UndertowDecorator
 
   @Override
   protected String peerHostIP(final HttpServerExchange exchange) {
-    return exchange.getDestinationAddress().getAddress().getHostAddress();
+    return exchange.getSourceAddress().getAddress().getHostAddress();
   }
 
   @Override

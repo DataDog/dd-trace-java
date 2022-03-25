@@ -1,33 +1,22 @@
 package locator;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.test.base.TestInstrumentation;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.Utils;
-import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
-import java.util.Set;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ClassInjectingTestInstrumentation implements Instrumenter {
+public class ClassInjectingTestInstrumentation extends TestInstrumentation {
   @Override
-  public AgentBuilder instrument(AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(named(getClass().getName() + "$ToBeInstrumented"))
-        .transform(
-            new AgentBuilder.Transformer.ForAdvice()
-                .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
-                .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                .advice(isConstructor(), getClass().getName() + "$ConstructorAdvice"));
+  public String instrumentedType() {
+    return getClass().getName() + "$ToBeInstrumented";
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    // don't care
-    return true;
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
   }
 
   public static class ConstructorAdvice {

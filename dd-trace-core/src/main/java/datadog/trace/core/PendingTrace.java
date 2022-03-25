@@ -2,9 +2,9 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDId;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.core.util.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -40,16 +40,22 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   static class Factory {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
+    private final TimeSource timeSource;
     private final boolean strictTraceWrites;
 
-    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer, boolean strictTraceWrites) {
+    Factory(
+        CoreTracer tracer,
+        PendingTraceBuffer pendingTraceBuffer,
+        TimeSource timeSource,
+        boolean strictTraceWrites) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
+      this.timeSource = timeSource;
       this.strictTraceWrites = strictTraceWrites;
     }
 
     PendingTrace create(@Nonnull DDId traceId) {
-      return new PendingTrace(tracer, traceId, pendingTraceBuffer, strictTraceWrites);
+      return new PendingTrace(tracer, traceId, pendingTraceBuffer, timeSource, strictTraceWrites);
     }
   }
 
@@ -58,6 +64,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final CoreTracer tracer;
   private final DDId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
+  private final TimeSource timeSource;
   private final boolean strictTraceWrites;
 
   private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
@@ -100,10 +107,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull CoreTracer tracer,
       @Nonnull DDId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
+      @Nonnull TimeSource timeSource,
       boolean strictTraceWrites) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
+    this.timeSource = timeSource;
     this.strictTraceWrites = strictTraceWrites;
   }
 
@@ -114,26 +123,29 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   /**
    * Current timestamp in nanoseconds; 'touches' the trace by updating {@link #lastReferenced}.
    *
-   * <p>Note: it is not possible to get 'real' nanosecond time. This method uses trace start time
-   * (which has millisecond precision) as a reference and it gets time with nanosecond precision
-   * after that. This means time measured within same Trace in different Spans is relatively correct
-   * with nanosecond precision.
+   * <p>Note: This method uses trace start time as a reference and it gets time with nanosecond
+   * precision after that. This means time measured within same Trace in different Spans is
+   * relatively correct with nanosecond precision.
    *
    * @return timestamp in nanoseconds
    */
   public long getCurrentTimeNano() {
-    long nanoTicks = Clock.currentNanoTicks();
+    long nanoTicks = timeSource.getNanoTicks();
     lastReferenced = nanoTicks;
     return tracer.getTimeWithNanoTicks(nanoTicks);
   }
 
+  public TimeSource getTimeSource() {
+    return timeSource;
+  }
+
   public void touch() {
-    lastReferenced = Clock.currentNanoTicks();
+    lastReferenced = timeSource.getNanoTicks();
   }
 
   @Override
   public boolean lastReferencedNanosAgo(long nanos) {
-    long currentNanoTicks = Clock.currentNanoTicks();
+    long currentNanoTicks = timeSource.getNanoTicks();
     long age = currentNanoTicks - lastReferenced;
     return nanos < age;
   }

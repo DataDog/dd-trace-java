@@ -23,7 +23,7 @@ public class WeakMaps {
 
   private WeakMaps() {}
 
-  static void registerAsSupplier() {
+  public static void registerAsSupplier() {
     WeakMap.Supplier.registerIfAbsent(
         new WeakMap.Supplier() {
           @Override
