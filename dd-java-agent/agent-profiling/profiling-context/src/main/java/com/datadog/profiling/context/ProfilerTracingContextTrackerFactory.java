@@ -121,20 +121,24 @@ public final class ProfilerTracingContextTrackerFactory
       MethodHandle mh;
       long frequency = 0L;
       try {
+        mh = MethodHandles.lookup().findStatic(clz, "getJVM", MethodType.methodType(clz));
+        Object jvm = mh.invoke();
         mh =
             MethodHandles.lookup()
-                .findStatic(clz, "getTicksFrequency", MethodType.methodType(long.class));
-        frequency = (long) mh.invokeExact();
+                .findVirtual(clz, "getTicksFrequency", MethodType.methodType(long.class));
+        mh = mh.bindTo(jvm);
+        frequency = (long) mh.invokeWithArguments();
       } catch (NoSuchMethodException ignored) {
         // the method is available since JDK11 only
       }
       mh = MethodHandles.lookup().findStatic(clz, "counterTime", MethodType.methodType(long.class));
       // sanity check to fail early if the method handle invocation does not work
-      mh.invokeExact();
+      long ticks = (long) mh.invokeExact();
 
       MethodHandle fixedMh = mh;
       long fixedFrequency = frequency;
 
+      log.info("Using JFR time ticks provider");
       return new ProfilerTracingContextTracker.TimeTicksProvider() {
         @Override
         public long ticks() {
@@ -154,7 +158,7 @@ public final class ProfilerTracingContextTrackerFactory
       if (log.isDebugEnabled()) {
         log.warn("Failed to access JFR timestamps. Falling back to system nanotime.", t);
       } else {
-        log.debug("Failed to access JFR timestamps. Falling back to system nanotime.");
+        log.warn("Failed to access JFR timestamps. Falling back to system nanotime.");
       }
     }
     return ProfilerTracingContextTracker.TimeTicksProvider.SYSTEM;
