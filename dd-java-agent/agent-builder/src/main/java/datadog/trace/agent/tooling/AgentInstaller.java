@@ -338,7 +338,7 @@ public class AgentInstaller {
     } else if ("javax.management.MBeanServerBuilder".equals(className)) {
       MBEAN_SERVER_BUILDER_CALLBACKS.add(callback);
     } else if (DEBUG) {
-      log.debug("Callback not registered for unexpecte class {}", className);
+      log.debug("Callback not registered for unexpected class {}", className);
     }
   }
 
