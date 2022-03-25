@@ -39,8 +39,6 @@ import com.datadog.profiling.uploader.util.PidHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -172,42 +170,39 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testV2_4Format() throws Exception {
+  public void testHappyPath() throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
-    //    when(configProvider.getBoolean(
-    //            eq(PROFILING_:FORMAT_V2_4_ENABLED), eq(PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)))
-    //        .thenReturn(true);
 
     // When
     uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
     // Then
-    assertEquals(url, request.getRequestUrl());
+    assertEquals(url, recordedRequest.getRequestUrl());
 
     final List<FileItem> multiPartItems =
-        FileUpload.parse(request.getBody().readByteArray(), request.getHeader("Content-Type"));
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
 
-    FileItem rawEvent = multiPartItems.get(0);
+    final FileItem rawEvent = multiPartItems.get(0);
     assertEquals(ProfileUploader.V4_EVENT_NAME, rawEvent.getFieldName());
     assertEquals(ProfileUploader.V4_EVENT_FILENAME, rawEvent.getName());
     assertEquals("application/json", rawEvent.getContentType());
 
-    FileItem rawJfr = multiPartItems.get(1);
+    final FileItem rawJfr = multiPartItems.get(1);
     assertEquals(ProfileUploader.V4_ATTACHMENT_NAME, rawJfr.getFieldName());
     assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, rawJfr.getName());
     assertEquals("application/octet-stream", rawJfr.getContentType());
 
     final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(true));
-    byte[] f = rawJfr.get();
-    assertArrayEquals(expectedBytes, f);
+    assertArrayEquals(expectedBytes, rawJfr.get());
 
     // Event checks
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode event = mapper.readTree(rawEvent.getString());
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(rawEvent.getString());
 
     assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, event.get("attachments").get(0).asText());
     assertEquals(ProfileUploader.V4_FAMILY, event.get("family").asText());
@@ -221,16 +216,6 @@ public class ProfileUploaderTest {
         EXPECTED_TAGS,
         ProfilingTestUtils.parseTags(
             Arrays.asList(event.get("tags_profiler").asText().split(","))));
-
-    // Headers
-    // TODO: move these checks into testHeaders() when V1_1 will be removed and V2_4 will be the
-    // default format
-    assertEquals(
-        request.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN),
-        ProfileUploader.JAVA_PROFILING_LIBRARY);
-    assertEquals(
-        request.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN_VERSION), VersionInfo.VERSION);
-    assertEquals(request.getHeader(ProfileUploader.DATADOG_META_LANG), ProfileUploader.JAVA_LANG);
   }
 
   @Test
@@ -248,24 +233,28 @@ public class ProfileUploaderTest {
 
     assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
 
-    final Multimap<String, Object> parameters =
-        ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
 
-    assertEquals(
-        EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
+    final FileItem rawEvent = multiPartItems.get(0);
+    assertEquals(ProfileUploader.V4_EVENT_NAME, rawEvent.getFieldName());
+    assertEquals(ProfileUploader.V4_EVENT_FILENAME, rawEvent.getName());
+    assertEquals("application/json", rawEvent.getContentType());
+
+    final FileItem rawJfr = multiPartItems.get(1);
+    assertEquals(ProfileUploader.V4_ATTACHMENT_NAME, rawJfr.getFieldName());
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, rawJfr.getName());
+    assertEquals("application/octet-stream", rawJfr.getContentType());
 
     // data which are originally zipped will not be recompressed
     final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(true));
-
-    byte[] uploadedBytes =
-        (byte[]) Iterables.getFirst(parameters.get(ProfileUploader.DATA_PARAM), new byte[] {});
-
-    assertArrayEquals(expectedBytes, uploadedBytes);
+    assertArrayEquals(expectedBytes, rawJfr.get());
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"on", "lz4", "gzip", "off", "invalid"})
-  public void testRequestParameters(final String compression) throws Exception {
+  public void testCompression(final String compression) throws Exception {
     when(config.getProfilingUploadCompression()).thenReturn(compression);
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
@@ -279,16 +268,23 @@ public class ProfileUploaderTest {
 
     assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
 
-    final Multimap<String, Object> parameters =
-        ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
 
-    assertEquals(
-        EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
+    final FileItem rawEvent = multiPartItems.get(0);
+    assertEquals(ProfileUploader.V4_EVENT_NAME, rawEvent.getFieldName());
+    assertEquals(ProfileUploader.V4_EVENT_FILENAME, rawEvent.getName());
+    assertEquals("application/json", rawEvent.getContentType());
+
+    final FileItem rawJfr = multiPartItems.get(1);
+    assertEquals(ProfileUploader.V4_ATTACHMENT_NAME, rawJfr.getFieldName());
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, rawJfr.getName());
+    assertEquals("application/octet-stream", rawJfr.getContentType());
 
     final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(false));
 
-    byte[] uploadedBytes =
-        (byte[]) Iterables.getFirst(parameters.get(ProfileUploader.DATA_PARAM), new byte[] {});
+    byte[] uploadedBytes = rawJfr.get();
     if (compression.equals("gzip")) {
       uploadedBytes = unGzip(uploadedBytes);
     } else if (compression.equals("on")
@@ -312,9 +308,9 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertEquals(request.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID), "container-id");
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    assertEquals(recordedRequest.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID), "container-id");
   }
 
   @Test
@@ -325,9 +321,9 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertNull(request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
   }
 
   @Test
@@ -339,9 +335,9 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertEquals(API_KEY_VALUE, request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
   }
 
   @Test
@@ -353,9 +349,9 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(404));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertNull(request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     // it would be nice if the test asserted the log line was written out, but it's not essential
   }
 
@@ -369,9 +365,9 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(404));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertEquals(API_KEY_VALUE, request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
   }
 
   @Test
@@ -553,8 +549,8 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, recording);
 
-    final RecordedRequest request = server.takeRequest(500, TimeUnit.MILLISECONDS);
-    assertNull(request);
+    final RecordedRequest recordedRequest = server.takeRequest(500, TimeUnit.MILLISECONDS);
+    assertNull(recordedRequest);
   }
 
   @Test
@@ -565,7 +561,13 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(
-        ProfileUploader.JAVA_LANG, recordedRequest.getHeader(ProfileUploader.DATADOG_META_LANG));
+        recordedRequest.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN),
+        ProfileUploader.JAVA_PROFILING_LIBRARY);
+    assertEquals(
+        recordedRequest.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN_VERSION),
+        VersionInfo.VERSION);
+    assertEquals(
+        recordedRequest.getHeader(ProfileUploader.DATADOG_META_LANG), ProfileUploader.JAVA_LANG);
   }
 
   @Test
@@ -615,7 +617,7 @@ public class ProfileUploaderTest {
     }
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    List<RecordingData> inflightRecordings = new ArrayList<>();
+    final List<RecordingData> inflightRecordings = new ArrayList<>();
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
       final RecordingData recording = mockRecordingData();
       inflightRecordings.add(recording);
@@ -643,7 +645,7 @@ public class ProfileUploaderTest {
 
     // the hung-up running requests and the enqueued requests can not have the recording data
     // released
-    for (RecordingData data : inflightRecordings) {
+    for (final RecordingData data : inflightRecordings) {
       verify(data, VerificationModeFactory.times(0)).release();
     }
     // however, the rejected recording should have the recording data released
@@ -666,7 +668,7 @@ public class ProfileUploaderTest {
     return mockRecordingData(false);
   }
 
-  private RecordingData mockRecordingData(boolean zip) throws IOException {
+  private RecordingData mockRecordingData(final boolean zip) throws IOException {
     final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
     when(recordingData.getStream())
         .then(
@@ -692,18 +694,18 @@ public class ProfileUploaderTest {
     return result.toByteArray();
   }
 
-  private void uploadAndWait(RecordingType recordingType, RecordingData data)
+  private void uploadAndWait(final RecordingType recordingType, final RecordingData data)
       throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+    final CountDownLatch latch = new CountDownLatch(1);
     uploader.upload(recordingType, data, latch::countDown);
     latch.await();
   }
 
-  private static InputStream recordingStream(boolean gzip) throws IOException {
+  private static InputStream recordingStream(final boolean gzip) throws IOException {
     InputStream dataStream = ProfileUploader.class.getResourceAsStream(RECORDING_RESOURCE);
     if (gzip) {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (GZIPOutputStream zos = new GZIPOutputStream(baos)) {
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      try (final GZIPOutputStream zos = new GZIPOutputStream(baos)) {
         IOUtils.copy(dataStream, zos);
       }
       dataStream = new ByteArrayInputStream(baos.toByteArray());

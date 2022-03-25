@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import datadog.trace.api.Pair;
 import datadog.trace.api.config.ProfilingConfig;
+import delight.fileupload.FileUpload;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +30,7 @@ import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import org.apache.commons.fileupload.FileItem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -148,6 +152,7 @@ class ProfilingIntegrationTest {
       final boolean legacyTracingIntegration,
       final boolean endpointCollectionEnabled)
       throws Exception {
+    final ObjectMapper mapper = new ObjectMapper();
     try {
       targetProcess =
           createDefaultProcessBuilder(
@@ -157,18 +162,31 @@ class ProfilingIntegrationTest {
       final RecordedRequest firstRequest = retrieveRequest();
 
       assertNotNull(firstRequest);
-      final Multimap<String, Object> firstRequestParameters =
-          ProfilingTestUtils.parseProfilingRequestParameters(firstRequest);
-
       assertEquals(profilingServer.getPort(), firstRequest.getRequestUrl().url().getPort());
-      assertEquals("jfr", getStringParameter("format", firstRequestParameters));
-      assertEquals("jfr-continuous", getStringParameter("type", firstRequestParameters));
-      assertEquals("jvm", getStringParameter("runtime", firstRequestParameters));
 
-      final Instant firstStartTime =
-          Instant.parse(getStringParameter("recording-start", firstRequestParameters));
-      final Instant firstEndTime =
-          Instant.parse(getStringParameter("recording-end", firstRequestParameters));
+      final List<FileItem> firstRequestMultiPartItems =
+          FileUpload.parse(
+              firstRequest.getBody().readByteArray(), firstRequest.getHeader("Content-Type"));
+
+      FileItem rawEvent = firstRequestMultiPartItems.get(0);
+      assertEquals("event", rawEvent.getFieldName());
+      assertEquals("event.json", rawEvent.getName());
+      assertEquals("application/json", rawEvent.getContentType());
+
+      FileItem rawJfr = firstRequestMultiPartItems.get(1);
+      assertEquals("main", rawJfr.getFieldName());
+      assertEquals("main.jfr", rawJfr.getName());
+      assertEquals("application/octet-stream", rawJfr.getContentType());
+
+      // Event checks
+      JsonNode event = mapper.readTree(rawEvent.getString());
+
+      assertEquals("main.jfr", event.get("attachments").get(0).asText());
+      assertEquals("main.jfr", event.get("attachments").get(0).asText());
+      assertEquals("java", event.get("family").asText());
+      assertEquals("4", event.get("version").asText());
+      final Instant firstStartTime = Instant.parse(event.get("start").asText());
+      final Instant firstEndTime = Instant.parse(event.get("end").asText());
       assertNotNull(firstStartTime);
       assertNotNull(firstEndTime);
 
@@ -177,19 +195,17 @@ class ProfilingIntegrationTest {
       assertTrue(duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
 
       final Map<String, String> requestTags =
-          ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"));
+          ProfilingTestUtils.parseTags(
+              Arrays.asList(event.get("tags_profiler").asText().split(",")));
       assertEquals("smoke-test-java-app", requestTags.get("service"));
       assertEquals("jvm", requestTags.get("language"));
       assertNotNull(requestTags.get("runtime-id"));
       assertEquals(InetAddress.getLocalHost().getHostName(), requestTags.get("host"));
 
-      byte[] byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
-      assertNotNull(byteData);
-
-      dumpJfrRecording(byteData);
+      dumpJfrRecording(rawJfr.get());
 
       assertFalse(logHasErrors(logFilePath));
-      IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
+      IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
       final Instant firstRangeStart = rangeStartAndEnd.getLeft();
@@ -205,23 +221,39 @@ class ProfilingIntegrationTest {
       final RecordedRequest nextRequest = retrieveRequest();
       assertNotNull(nextRequest);
 
-      final Multimap<String, Object> secondRequestParameters =
-          ProfilingTestUtils.parseProfilingRequestParameters(nextRequest);
-      final Instant secondStartTime =
-          Instant.parse(getStringParameter("recording-start", secondRequestParameters));
-      final Instant secondEndTime =
-          Instant.parse(getStringParameter("recording-end", secondRequestParameters));
+      final List<FileItem> secondRequestMultiPartItems =
+          FileUpload.parse(
+              nextRequest.getBody().readByteArray(), nextRequest.getHeader("Content-Type"));
+
+      rawEvent = secondRequestMultiPartItems.get(0);
+      assertEquals("event", rawEvent.getFieldName());
+      assertEquals("event.json", rawEvent.getName());
+      assertEquals("application/json", rawEvent.getContentType());
+
+      rawJfr = secondRequestMultiPartItems.get(1);
+      assertEquals("main", rawJfr.getFieldName());
+      assertEquals("main.jfr", rawJfr.getName());
+      assertEquals("application/octet-stream", rawJfr.getContentType());
+
+      // Event checks
+      event = mapper.readTree(rawEvent.getString());
+
+      assertEquals("main.jfr", event.get("attachments").get(0).asText());
+      assertEquals("main.jfr", event.get("attachments").get(0).asText());
+      assertEquals("java", event.get("family").asText());
+      assertEquals("4", event.get("version").asText());
+      final Instant secondStartTime = Instant.parse(event.get("start").asText());
+      final Instant secondEndTime = Instant.parse(event.get("end").asText());
       final long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
       final long upperLimit = TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS) * 2;
+
       assertTrue(
           period > 0 && period <= upperLimit,
           () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
 
-      byteData = getParameter("chunk-data", byte[].class, secondRequestParameters);
-      assertNotNull(byteData);
-      dumpJfrRecording(byteData);
+      dumpJfrRecording(rawJfr.get());
 
-      events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
+      events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
       rangeStartAndEnd = getRangeStartAndEnd(events);
       final Instant secondRangeStart = rangeStartAndEnd.getLeft();
@@ -259,12 +291,12 @@ class ProfilingIntegrationTest {
     }
   }
 
-  private void dumpJfrRecording(byte[] byteData) {
+  private void dumpJfrRecording(final byte[] byteData) {
     try {
-      Path dumpPath = Files.createTempFile("dd-dump-", ".jfr");
+      final Path dumpPath = Files.createTempFile("dd-dump-", ".jfr");
       Files.write(dumpPath, byteData);
       log.debug("Received profile stored at: {}", dumpPath.toAbsolutePath());
-    } catch (IOException ignored) {
+    } catch (final IOException ignored) {
     }
   }
 

@@ -59,6 +59,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,8 +75,6 @@ public final class ProfileUploader {
   // TODO: We should rename parameter to just `data`
   static final String DATA_PARAM = "chunk-data";
 
-  static final String TAGS_PARAM = "tags[]";
-
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
 
@@ -86,6 +85,7 @@ public final class ProfileUploader {
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
   // V2.4 format
+  static final String V4_PROFILE_TAGS_PARAM = "tags_profiler";
   static final String V4_PROFILE_START_PARAM = "start";
   static final String V4_PROFILE_END_PARAM = "end";
   static final String V4_VERSION = "4";
@@ -124,10 +124,9 @@ public final class ProfileUploader {
   private final String containerId;
   private final int terminationTimeout;
   private final CompressionType compressionType;
-  private final String tagsV2_4;
+  private final String tags;
 
-  public ProfileUploader(final Config config, final ConfigProvider configProvider)
-      throws IOException {
+  public ProfileUploader(final Config config, final ConfigProvider configProvider) {
     this(
         config,
         configProvider,
@@ -170,7 +169,7 @@ public final class ProfileUploader {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
     }
     // Comma separated tags string for V2.4 format
-    tagsV2_4 = String.join(",", tagsToList(tagsMap));
+    tags = String.join(",", tagsToList(tagsMap));
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
@@ -297,7 +296,7 @@ public final class ProfileUploader {
     final StringBuilder os = new StringBuilder();
     os.append("{");
     os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
-    os.append("\"tags_profiler\":\"" + tagsV2_4 + "\",");
+    os.append("\"" + V4_PROFILE_TAGS_PARAM + "\":\"" + tags + "\",");
     os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
     os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");
     os.append("\"family\":\"" + V4_FAMILY + "\",");
@@ -392,23 +391,14 @@ public final class ProfileUploader {
                 onCompletion.run();
               }
 
-              private void logDebug(final String msg) {
-                if (log.isDebugEnabled()) {
-                  log.debug(
-                      "{} {} [{}] (Size={}/{} bytes)",
-                      msg,
-                      data.getName(),
-                      type,
-                      body.getReadBytes(),
-                      body.getWrittenBytes());
-                }
-              }
-
               private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
                 if (response != null) {
                   try {
+                    final ResponseBody body = response.body();
                     return new IOLogger.Response(
-                        response.code(), response.message(), response.body().string().trim());
+                        response.code(),
+                        response.message(),
+                        body == null ? "<null>" : body.string().trim());
                   } catch (final NullPointerException | IOException ignored) {
                   }
                 }
