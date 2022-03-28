@@ -12,6 +12,8 @@ configurations {
   }
 }
 
+compileJava.dependsOn 'generateTries'
+
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'

@@ -1,15 +1,23 @@
 package datadog.trace.util;
 
-import static java.util.Arrays.binarySearch;
-
 import datadog.trace.api.ToIntFunction;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Space-efficient string-based trie. */
-public final class StringTrie implements ToIntFunction<String> {
+public class StringTrie implements ToIntFunction<String> {
 
   /** Marks a leaf in the trie, where the rest of the bits are the index to be returned. */
   private static final char LEAF_MARKER = 0x8000;
@@ -29,9 +37,6 @@ public final class StringTrie implements ToIntFunction<String> {
   /** The trie segments. */
   private final String[] trieSegments;
 
-  /** Strict tries only return results for exact matches, rather than the closest prefix match. */
-  private final boolean strict;
-
   @Override
   public int applyAsInt(String key) {
     int keyLength = key.length();
@@ -39,14 +44,14 @@ public final class StringTrie implements ToIntFunction<String> {
     char[] data = trieData;
     String[] segments = trieSegments;
     int dataIndex = 0;
-    int result = -1;
+    int result = 0;
 
     char branchCount = data[dataIndex++];
 
     while (keyIndex < keyLength) {
       // trie is ordered, so we can use binary search to pick the right branch
       int branchIndex =
-          binarySearch(data, dataIndex, dataIndex + branchCount, key.charAt(keyIndex++));
+          Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, key.charAt(keyIndex++));
 
       if (branchIndex < 0) {
         break; // no match from this point onwards
@@ -91,21 +96,17 @@ public final class StringTrie implements ToIntFunction<String> {
       }
     }
 
-    return keyIndex == keyLength || !strict ? result : -1;
+    return keyIndex == keyLength ? result : -result;
   }
 
-  StringTrie(char[] data, String[] segments, boolean strict) {
+  protected StringTrie(char[] data, String[] segments) {
     this.trieData = data;
     this.trieSegments = segments;
-    this.strict = strict;
   }
 
+  /** Builds a new trie for the given string-to-int mapping. */
   public static ToIntFunction<String> buildTrie(SortedMap<String, Integer> mapping) {
-    return new Builder(mapping).buildTrie(false);
-  }
-
-  public static ToIntFunction<String> buildStrictTrie(SortedMap<String, Integer> mapping) {
-    return new Builder(mapping).buildTrie(true);
+    return new Builder(mapping).buildTrie();
   }
 
   private static class Builder {
@@ -138,11 +139,11 @@ public final class StringTrie implements ToIntFunction<String> {
       }
     }
 
-    public ToIntFunction<String> buildTrie(boolean strict) {
+    ToIntFunction<String> buildTrie() {
       buildSubTrie(0, 0, keys.length);
       char[] data = new char[buf.length()];
       buf.getChars(0, data.length, data, 0);
-      return new StringTrie(data, segments.toArray(new String[0]), strict);
+      return new StringTrie(data, segments.toArray(new String[0]));
     }
 
     /** Recursively builds a trie for a slice of rows at a particular column. */
@@ -252,10 +253,94 @@ public final class StringTrie implements ToIntFunction<String> {
     private char recordSegment(String key, int column, int nextColumn) {
       if (nextColumn - column > 1) {
         // ignore the first character as we already matched that in the branch
-        segments.add(key.substring(column + 1, nextColumn));
-        return (char) segments.size();
+        String segment = key.substring(column + 1, nextColumn);
+        int segmentPosition = 1 + segments.indexOf(segment);
+        if (segmentPosition == 0) {
+          segments.add(segment);
+          segmentPosition = segments.size();
+        }
+        return (char) segmentPosition;
       }
       return 0; // segment doesn't contain anything after the branch character
+    }
+  }
+
+  /**
+   * Accepts trie files containing lines "{number} {text}" and generates their Java representation.
+   */
+  private static class Generator {
+    private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
+
+    public static void main(String[] args) throws IOException {
+      if (args.length < 3) {
+        throw new IllegalArgumentException("Expected: input-folder output-folder [file.trie ...]");
+      }
+      Path inputFolder = Paths.get(args[0]);
+      if (!inputFolder.toFile().isDirectory()) {
+        throw new IllegalArgumentException("Bad input folder: " + inputFolder);
+      }
+      Path outputFolder = Paths.get(args[1]);
+      if (!outputFolder.toFile().isDirectory()) {
+        throw new IllegalArgumentException("Bad output folder: " + outputFolder);
+      }
+      for (int i = 2; i < args.length; i++) {
+        Path triePath = Paths.get(args[i]);
+        Path pkgPath = inputFolder.relativize(triePath.getParent());
+        String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
+        String trieName = triePath.getFileName().toString().replace(".trie", "Trie");
+        String className = Character.toUpperCase(trieName.charAt(0)) + trieName.substring(1);
+        Path javaPath = outputFolder.resolve(pkgPath).resolve(className + ".java");
+        generateJavaFile(triePath, javaPath, pkgName, className);
+      }
+    }
+
+    private static void generateJavaFile(
+        Path triePath, Path javaPath, String pkgName, String className) throws IOException {
+      SortedMap<String, Integer> mapping = new TreeMap<>();
+      for (String l : Files.readAllLines(triePath, StandardCharsets.UTF_8)) {
+        Matcher m = MAPPING_LINE.matcher(l);
+        if (m.find()) {
+          mapping.put(m.group(2), Integer.valueOf(m.group(1)));
+        }
+      }
+      StringTrie trie = (StringTrie) buildTrie(mapping);
+      List<String> lines = new ArrayList<>();
+      lines.add("package " + pkgName + ';');
+      lines.add("");
+      lines.add("import datadog.trace.api.ToIntFunction;");
+      lines.add("import datadog.trace.util.StringTrie;");
+      lines.add("");
+      lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
+      lines.add("public class " + className + " extends StringTrie {");
+      lines.add("  private static final String TRIE_DATA =");
+      StringBuilder buf = new StringBuilder();
+      buf.append("      \"");
+      for (char c : trie.trieData) {
+        if (c <= 0x00FF) {
+          buf.append(String.format("\\%03o", (int) c));
+        } else {
+          buf.append(String.format("\\u%04x", (int) c));
+        }
+        if (buf.length() > 110) {
+          lines.add(buf.append('"').toString());
+          buf.setLength(0);
+          buf.append("          + \"");
+        }
+      }
+      lines.add(buf.append("\";").toString());
+      lines.add("  private static final String[] TRIE_SEGMENTS = {");
+      for (String s : trie.trieSegments) {
+        lines.add("    \"" + s + "\",");
+      }
+      lines.add("  };");
+      lines.add("");
+      lines.add("  public static final ToIntFunction<String> INSTANCE = new " + className + "();");
+      lines.add("");
+      lines.add("  private " + className + "() {");
+      lines.add("    super(TRIE_DATA.toCharArray(), TRIE_SEGMENTS);");
+      lines.add("  }");
+      lines.add("}");
+      Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
   }
 }

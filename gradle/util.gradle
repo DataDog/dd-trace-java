@@ -12,6 +12,18 @@ tasks.register("artifacts") {
   }
 }
 
+tasks.register('generateTries', JavaExec) {
+  group = ""
+  description = ""
+  def trieFiles = fileTree(dir: 'src/main/java', include: '**/*.trie')
+  def javaFiles = trieFiles.collect { new File(it.parent, it.name.capitalize().replace('.trie', 'Trie.java')) }
+  inputs.files(trieFiles)
+  outputs.files(javaFiles)
+  mainClass = 'datadog.trace.util.StringTrie$Generator'
+  classpath = sourceSets.main.compileClasspath
+  args = [trieFiles.dir, trieFiles.dir] + trieFiles
+}
+
 /** Find a random, reusable port. */
 ext.randomOpenPort = {
   ->
