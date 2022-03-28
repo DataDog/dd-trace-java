@@ -1,6 +1,6 @@
 package server
 
-import com.fasterxml.jackson.databind.JsonNode
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -22,6 +22,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -57,6 +58,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
                   .send('text/plain', "${CREATED.body}: ${typedData.text}")
               }
             }
+          }
+        }
+        get('path/:id/param') {
+          controller(PATH_PARAM) {
+            context.response.status(PATH_PARAM.status).send('text/plain', context.pathTokens['id'])
           }
         }
         prefix(BODY_URLENCODED.relativeRawPath()) {
@@ -150,6 +156,20 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint == PATH_PARAM) {
+      'GET /path/:id/param'
+    } else {
+      super.expectedResourceName(endpoint, method, address)
+    }
+  }
+
+  @Override
+  Map<String, ?> expectedIGPathParams() {
+    [id: '123']
+  }
+
+  @Override
   boolean hasHandlerSpan() {
     true
   }
@@ -166,6 +186,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   boolean testBodyJson() {
+    true
+  }
+
+  @Override
+  String testPathParam() {
     true
   }
 

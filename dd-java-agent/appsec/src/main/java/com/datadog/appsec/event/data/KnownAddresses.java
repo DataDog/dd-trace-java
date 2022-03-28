@@ -29,7 +29,7 @@ public interface KnownAddresses {
    * incoming url parameters as parsed by the framework (e.g /foo/:id gives a id param that is not
    * part of the query
    */
-  Address<Map<String, Object>> REQUEST_PATH_PARAMS = new Address<>("server.request.path_params");
+  Address<Map<String, ?>> REQUEST_PATH_PARAMS = new Address<>("server.request.path_params");
 
   /** Cookies as parsed by the server */
   Address<List<StringKVPair>> REQUEST_COOKIES = new Address<>("server.request.cookies");

@@ -3,15 +3,19 @@ package server
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import ratpack.exec.Promise
+import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.HandlerDecorator
 
 import java.nio.charset.StandardCharsets
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -64,6 +68,43 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(request.headers.get("x-forwarded-for"))
+              }
+            }
+          }
+        }
+        get('path/:id/param') {
+          Promise.sync {
+            PATH_PARAM
+          }.fork().then {endpoint ->
+            controller(endpoint) {
+              context.response.status(PATH_PARAM.status).send('text/plain', context.pathTokens['id'])
+            }
+          }
+        }
+        prefix(BODY_URLENCODED.relativeRawPath()) {
+          all {
+            Promise.sync {
+              BODY_URLENCODED
+            }.fork().then { endpoint ->
+              controller(BODY_URLENCODED) {
+                context.parse(Form).then { form ->
+                  def text = form.findAll { it.key != 'ignore' }
+                  .collectEntries { [it.key, it.value as List] } as String
+                  response.status(BODY_URLENCODED.status).send('text/plain', text)
+                }
+              }
+            }
+          }
+        }
+        prefix(BODY_JSON.relativeRawPath()) {
+          all {
+            Promise.sync {
+              BODY_JSON
+            }.fork().then {endpoint ->
+              controller(endpoint) {
+                context.parse(Map).then { map ->
+                  response.status(BODY_JSON.status).send('text/plain', "{\"a\":\"${map['a']}\"}")
+                }
               }
             }
           }
