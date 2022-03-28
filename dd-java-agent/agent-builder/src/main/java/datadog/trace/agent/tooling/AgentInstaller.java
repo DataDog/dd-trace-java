@@ -137,6 +137,8 @@ public class AgentInstaller {
       }
     }
 
+    AgentTransformerBuilder transformerBuilder = new AgentTransformerBuilder(agentBuilder);
+
     Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (final Instrumenter instrumenter : loader) {
       if (!instrumenter.isApplicable(enabledSystems)) {
@@ -150,7 +152,7 @@ public class AgentInstaller {
       }
 
       try {
-        agentBuilder = instrumenter.instrument(agentBuilder);
+        instrumenter.instrument(transformerBuilder);
         numInstrumenters++;
       } catch (final Exception | LinkageError e) {
         log.error(
@@ -161,7 +163,7 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", numInstrumenters);
     }
 
-    return agentBuilder.installOn(inst);
+    return transformerBuilder.installOn(inst);
   }
 
   private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
@@ -336,7 +338,7 @@ public class AgentInstaller {
     } else if ("javax.management.MBeanServerBuilder".equals(className)) {
       MBEAN_SERVER_BUILDER_CALLBACKS.add(callback);
     } else if (DEBUG) {
-      log.debug("Callback not registered for unexpecte class {}", className);
+      log.debug("Callback not registered for unexpected class {}", className);
     }
   }
 

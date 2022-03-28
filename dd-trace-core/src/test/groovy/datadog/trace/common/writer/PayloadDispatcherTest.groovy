@@ -66,7 +66,7 @@ class PayloadDispatcherTest extends DDSpecification {
     }
     dispatcher.flush()
     then:
-    1 * discovery.getTraceEndpoint() >> traceEndpoint
+    2 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * healthMetrics.onSerialize({ it > 0 })
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
 
@@ -93,8 +93,8 @@ class PayloadDispatcherTest extends DDSpecification {
     }
     dispatcher.flush()
     then:
+    2 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * healthMetrics.onSerialize({ it > 0 })
-    1 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.failed(400)
 
     where:

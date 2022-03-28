@@ -7,12 +7,15 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -34,7 +37,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V5_ENDPOINT = "v0.5/traces";
 
   public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
-  private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
+
+  public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
@@ -64,7 +68,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
+  private void reset() {
+    traceEndpoint = null;
+    metricsEndpoint = null;
+    supportsDropping = false;
+    state = null;
+  }
+
   public void discover() {
+    reset();
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
@@ -81,17 +93,22 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint("info", error);
       }
       if (fallback) {
-        this.supportsDropping = false;
+        supportsDropping = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         // disable metrics unless the info endpoint is present, which prevents
         // sending metrics to 7.26.0, which has a bug in reporting metric origin
-        this.metricsEndpoint = null;
-        // don't want to rewire the traces pipeline
-        if (null == traceEndpoint) {
-          this.traceEndpoint = probeTracesEndpoint();
-        }
+        metricsEndpoint = null;
+      }
+
+      // don't want to rewire the traces pipeline
+      if (null == traceEndpoint) {
+        traceEndpoint = probeTracesEndpoint(traceEndpoints);
+      } else if (state == null || state.isEmpty()) {
+        // Still need to probe so that state is correctly assigned
+        probeTracesEndpoint(new String[] {traceEndpoint});
       }
     }
+
     if (log.isDebugEnabled()) {
       log.debug(
           "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}",
@@ -101,8 +118,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     }
   }
 
-  private String probeTracesEndpoint() {
-    for (String candidate : traceEndpoints) {
+  private String probeTracesEndpoint(String[] endpoints) {
+    for (String candidate : endpoints) {
       try (Response response =
           client
               .newCall(
@@ -112,7 +129,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
                       .build())
               .execute()) {
         if (response.code() != 404) {
-          this.state = response.header(DATADOG_AGENT_STATE);
+          state = response.header(DATADOG_AGENT_STATE);
           return candidate;
         }
       } catch (IOException e) {
@@ -127,45 +144,39 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
       discoverStatsDPort(map);
-      List<String> endpoints = ((List<String>) map.get("endpoints"));
-      ListIterator<String> traceAgentSupportedEndpoints = endpoints.listIterator(endpoints.size());
-      boolean traceEndpointFound = false;
-      boolean metricsEndpointFound = !metricsEnabled;
-      while ((!traceEndpointFound || !metricsEndpointFound)
-          && traceAgentSupportedEndpoints.hasPrevious()) {
-        String traceAgentSupportedEndpoint = traceAgentSupportedEndpoints.previous();
-        if (traceAgentSupportedEndpoint.startsWith("/")
-            && traceAgentSupportedEndpoint.length() > 1) {
-          traceAgentSupportedEndpoint = traceAgentSupportedEndpoint.substring(1);
-        }
-        if (!metricsEndpointFound) {
-          for (int i = metricsEndpoints.length - 1; i >= 0; --i) {
-            if (metricsEndpoints[i].equalsIgnoreCase(traceAgentSupportedEndpoint)) {
-              this.metricsEndpoint = traceAgentSupportedEndpoint;
-              metricsEndpointFound = true;
-              break;
-            }
-          }
-        }
-        if (!traceEndpointFound) {
-          for (int i = traceEndpoints.length - 1; i >= 0; --i) {
-            if (traceEndpoints[i].equalsIgnoreCase(traceAgentSupportedEndpoint)) {
-              this.traceEndpoint = traceAgentSupportedEndpoint;
-              traceEndpointFound = true;
-              break;
-            }
+      Set<String> endpoints = new HashSet<>((List<String>) map.get("endpoints"));
+
+      String foundMetricsEndpoint = null;
+      if (metricsEnabled) {
+        for (String endpoint : metricsEndpoints) {
+          if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+            foundMetricsEndpoint = endpoint;
+            break;
           }
         }
       }
-      if (!metricsEndpointFound) {
-        metricsEndpoint = null;
+
+      // This assignment is done outside of the loop to set metricsEndpoint to null if not found
+      metricsEndpoint = foundMetricsEndpoint;
+
+      for (String endpoint : traceEndpoints) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+          traceEndpoint = endpoint;
+          break;
+        }
       }
+
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
-        this.supportsDropping =
+        supportsDropping =
             null != canDrop
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
                     || Boolean.TRUE.equals(canDrop));
+      }
+      try {
+        state = Strings.sha256(response);
+      } catch (NoSuchAlgorithmException ex) {
+        log.debug("Failed to hash trace agent /info response. Will probe {}", traceEndpoint, ex);
       }
       return true;
     } catch (Throwable error) {

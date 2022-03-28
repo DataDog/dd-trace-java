@@ -2,6 +2,7 @@ package com.datadog.appsec.powerwaf
 
 import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.config.AppSecConfig
+import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
 import com.datadog.appsec.event.EventListener
@@ -15,6 +16,7 @@ import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.report.raw.events.Parameter
 import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
+import datadog.trace.api.TraceSegment
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
 
@@ -24,14 +26,16 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   AppSecRequestContext ctx = Mock()
 
+  StubAppSecConfigService service
   PowerWAFModule pwafModule = new PowerWAFModule()
   DataListener dataListener
   EventListener eventListener
 
   def pwafAdditive
+  def metrics
 
   private void setupWithStubConfigService() {
-    def service = new StubAppSecConfigService()
+    service = new StubAppSecConfigService()
     service.init(false)
     pwafModule.config(service)
     dataListener = pwafModule.dataSubscriptions.first()
@@ -41,6 +45,31 @@ class PowerWAFModuleSpecification extends DDSpecification {
   void 'is named powerwaf'() {
     expect:
     pwafModule.name == 'powerwaf'
+  }
+
+  void 'report waf stats on first span'() {
+    setup:
+    TraceSegment segment = Mock()
+    TraceSegmentPostProcessor pp
+
+    when:
+    setupWithStubConfigService()
+    pp = service.traceSegmentPostProcessors.first()
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * segment.setTagTop('dd.appsec.event_rules.loaded', 114)
+    1 * segment.setTagTop('dd.appsec.event_rules.error_count', 1)
+    1 * segment.setTagTop('_dd.appsec.event_rules.version', '0.42.0')
+    1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
+    1 * segment.setTagTop('manual.keep', true)
+    0 * segment._(*_)
+
+    when:
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    0 * segment._(*_)
   }
 
   void 'triggers a rule through the user agent header'() {
@@ -54,10 +83,34 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     1 * ctx.getAdditive() >> null
-    1 * ctx.setAdditive(_) >> { pwafAdditive = it; null }
-    1 * ctx.getAdditive() >> pwafAdditive
+    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
+    1 * ctx.setWafMetrics(_)
+    1 * ctx.getAdditive() >> { pwafAdditive }
     1 * ctx.setAdditive(null)
+    1 * ctx.reportEvents(_, _)
+    0 * ctx._(*_)
     flow.blocking == true
+  }
+
+  void 'no metrics are set if waf metrics are off'() {
+    setup:
+    injectSysConfig('appsec.waf.metrics', 'false')
+    pwafModule = new PowerWAFModule() // replace the one created too soon
+    setupWithStubConfigService()
+    ChangeableFlow flow = new ChangeableFlow()
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    1 * ctx.getAdditive() >> null
+    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
+    1 * ctx.getAdditive() >> { pwafAdditive }
+    1 * ctx.setAdditive(null)
+    0 * ctx.setWafMetrics(_)
+    metrics == null
   }
 
   void 'can trigger a nonadditive waf run'() {
@@ -71,7 +124,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.size() >> 0
     1 * ctx.allAddresses >> []
     1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> false
-    1 * ctx.setBlocked(_)
+    1 * ctx.getAdditive() >> pwafAdditive
+    1 * ctx.setAdditive(_)
+    1 * ctx.setWafMetrics(_)
     1 * ctx.reportEvents(*_)
     0 * ctx._(*_)
     flow.blocking == true
@@ -229,7 +284,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(actionWithData)
+    ret = waf.buildEvents(actionWithData, [:])
 
     then:
     ret.isEmpty()
@@ -241,7 +296,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(actionWithData)
+    ret = waf.buildEvents(actionWithData, [:])
 
     then:
     ret.isEmpty()

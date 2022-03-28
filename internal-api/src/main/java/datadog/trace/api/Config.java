@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -67,6 +68,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -428,6 +430,7 @@ public class Config {
   private final int appSecReportMaxTimeout;
   private final String appSecIpAddrHeader;
   private final int appSecTraceRateLimit;
+  private final boolean appSecWafMetrics;
 
   private final boolean ciVisibilityEnabled;
 
@@ -917,6 +920,8 @@ public class Config {
 
     appSecTraceRateLimit =
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
+
+    appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1446,6 +1451,10 @@ public class Config {
 
   public int getAppSecTraceRateLimit() {
     return appSecTraceRateLimit;
+  }
+
+  public boolean isAppSecWafMetrics() {
+    return appSecWafMetrics;
   }
 
   public boolean isCiVisibilityEnabled() {
