@@ -182,7 +182,6 @@ class ProfilingIntegrationTest {
       JsonNode event = mapper.readTree(rawEvent.getString());
 
       assertEquals("main.jfr", event.get("attachments").get(0).asText());
-      assertEquals("main.jfr", event.get("attachments").get(0).asText());
       assertEquals("java", event.get("family").asText());
       assertEquals("4", event.get("version").asText());
       final Instant firstStartTime = Instant.parse(event.get("start").asText());
@@ -238,7 +237,6 @@ class ProfilingIntegrationTest {
       // Event checks
       event = mapper.readTree(rawEvent.getString());
 
-      assertEquals("main.jfr", event.get("attachments").get(0).asText());
       assertEquals("main.jfr", event.get("attachments").get(0).asText());
       assertEquals("java", event.get("family").asText());
       assertEquals("4", event.get("version").asText());

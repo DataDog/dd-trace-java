@@ -68,18 +68,7 @@ public final class ProfileUploader {
 
   private static final Logger log = LoggerFactory.getLogger(ProfileUploader.class);
   private static final MediaType APPLICATION_JSON = MediaType.get("application/json");
-  static final int TERMINATION_TIMEOUT = 5;
-
-  // V1.1 format
-
-  // TODO: We should rename parameter to just `data`
-  static final String DATA_PARAM = "chunk-data";
-
-  static final String HEADER_DD_API_KEY = "DD-API-KEY";
-  static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-
-  static final String JAVA_LANG = "java";
-  static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
+  private static final int TERMINATION_TIMEOUT_SEC = 5;
 
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
@@ -96,9 +85,14 @@ public final class ProfileUploader {
   static final String V4_ATTACHMENT_NAME = "main";
   static final String V4_ATTACHMENT_FILENAME = V4_ATTACHMENT_NAME + ".jfr";
 
+  // Header names and values
+  static final String HEADER_DD_API_KEY = "DD-API-KEY";
+  static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
+  static final String JAVA_LANG = "java";
+  static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
   static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
-  static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
   static final String JAVA_PROFILING_LIBRARY = "dd-trace-java";
+  static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
 
   private static final Headers EVENT_HEADER =
       Headers.of(
@@ -132,7 +126,7 @@ public final class ProfileUploader {
         configProvider,
         new IOLogger(log),
         ContainerInfo.get().getContainerId(),
-        TERMINATION_TIMEOUT);
+        TERMINATION_TIMEOUT_SEC);
   }
 
   /**
