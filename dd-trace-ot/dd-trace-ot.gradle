@@ -82,7 +82,8 @@ def bundledProjects = [
   ':internal-api',
   ':utils:container-utils',
   ':utils:histograms',
-  ':utils:socket-utils'
+  ':utils:socket-utils',
+  ':utils:time-utils'
 ]
 
 shadowJar {
