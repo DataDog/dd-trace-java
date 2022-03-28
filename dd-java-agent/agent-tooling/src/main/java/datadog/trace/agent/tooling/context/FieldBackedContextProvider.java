@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.Default;
+import datadog.trace.agent.tooling.bytebuddy.matcher.DDAsyncMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
@@ -43,6 +44,8 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
    */
   private static final HashMap<ElementMatcher<ClassLoader>, Set<Map.Entry<String, String>>>
       INSTALLED_CONTEXT_MATCHERS = new HashMap<>();
+
+  private static final boolean ASYNC_MATCHING_ENABLED = Config.get().isAsyncMatchingEnabled();
 
   private final String instrumenterName;
   private final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores;
@@ -124,9 +127,15 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
              * For each context store defined in a current instrumentation we create an agent builder
              * that injects necessary fields.
              */
+            AgentBuilder.RawMatcher keyMatcher =
+                new AgentBuilder.RawMatcher.ForElementMatchers(
+                    safeHasSuperType(named(keyClassName)), classLoaderMatcher);
+            if (ASYNC_MATCHING_ENABLED) {
+              keyMatcher = DDAsyncMatchers.makeAsync(keyMatcher);
+            }
             builder =
                 builder
-                    .type(safeHasSuperType(named(keyClassName)), classLoaderMatcher)
+                    .type(keyMatcher)
                     .and(ShouldInjectFieldsMatcher.of(keyClassName, contextClassName))
                     .and(Default.NOT_DECORATOR_MATCHER)
                     .transform(
