@@ -1,5 +1,6 @@
 package server
 
+import com.fasterxml.jackson.databind.JsonNode
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -9,11 +10,14 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
 import ratpack.error.ServerErrorHandler
+import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.Context
 import ratpack.handling.HandlerDecorator
 import ratpack.test.embed.EmbeddedApp
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -51,6 +55,26 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
               request.body.then { typedData ->
                 response.status(CREATED.status)
                   .send('text/plain', "${CREATED.body}: ${typedData.text}")
+              }
+            }
+          }
+        }
+        prefix(BODY_URLENCODED.relativeRawPath()) {
+          all {
+            controller(BODY_URLENCODED) {
+              context.parse(Form).then { form ->
+                def text = form.findAll { it.key != 'ignore'}
+                .collectEntries {[it.key, it.value as List]} as String
+                response.status(BODY_URLENCODED.status).send('text/plain', text)
+              }
+            }
+          }
+        }
+        prefix(BODY_JSON.relativeRawPath()) {
+          all {
+            controller(BODY_JSON) {
+              context.parse(Map).then { map ->
+                response.status(BODY_JSON.status).send('text/plain', "{\"a\":\"${map['a']}\"}")
               }
             }
           }
@@ -132,6 +156,16 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
     true
   }
 
