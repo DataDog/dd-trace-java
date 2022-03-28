@@ -1,5 +1,6 @@
 package datadog.trace.agent.test
 
+import datadog.trace.agent.tooling.AgentTransformerBuilder
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -12,7 +13,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     expect:
     target.enabled
@@ -21,7 +22,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "default enabled override"() {
     setup:
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     expect:
     target.enabled == enabled
@@ -52,7 +53,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
           return false
         }
       }
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     expect:
     target.enabled == enabled
@@ -68,7 +69,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     then:
     target.enabled == enabled
@@ -85,7 +86,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     setup:
     injectEnvConfig("DD_INTEGRATIONS_ENABLED", value)
     def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     expect:
     target.enabled == enabled
@@ -103,7 +104,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     injectSysConfig("integrations.enabled", "false")
     injectSysConfig("integration.${value}.enabled", "true")
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     expect:
     target.enabled == enabled
@@ -127,7 +128,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     when:
     def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentBuilder.Default())
+    target.instrument(new AgentTransformerBuilder(new AgentBuilder.Default()))
 
     then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
@@ -148,13 +149,11 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   class TestDefaultInstrumenter extends Instrumenter.Tracing implements Instrumenter.ForTypeHierarchy {
     boolean applyCalled = false
 
-    TestDefaultInstrumenter(
-    String instrumentationName) {
+    TestDefaultInstrumenter(String instrumentationName) {
       super(instrumentationName)
     }
 
-    TestDefaultInstrumenter(
-    String instrumentationName, String additionalName) {
+    TestDefaultInstrumenter(String instrumentationName, String additionalName) {
       super(instrumentationName, [additionalName])
     }
 

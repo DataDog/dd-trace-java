@@ -19,8 +19,8 @@ import static datadog.trace.api.IdGenerationStrategy.RANDOM
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
-import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
+import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
@@ -66,8 +66,6 @@ import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
@@ -76,6 +74,8 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
@@ -964,7 +964,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + HEADER_TAGS, mapString)
     System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
     System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
-    Map<String, String> rsMap = map.collectEntries { k, v -> [k, v.replace("http.request.headers", "http.response.headers")]}
+    Map<String, String> rsMap = map.collectEntries { k, v -> [k, v.replace("http.request.headers", "http.response.headers")] }
     rsMap.put("rsh1", "http.response.headers.rsh1")
     def props = new Properties()
     props.setProperty(HEADER_TAGS, mapString)
@@ -1428,7 +1428,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/v1/input"
+    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/api/v2/profile"
   }
 
   def "custom datadog site without agentless profiling"() {
@@ -1707,7 +1707,7 @@ class ConfigTest extends DDSpecification {
     assert config.isServiceNameSetByUser()
 
     where:
-    [serviceProperty, serviceName]<< [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
+    [serviceProperty, serviceName] << [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
   }
 
   def "detect if agent is configured using default values"() {
@@ -1924,7 +1924,7 @@ class ConfigTest extends DDSpecification {
     // spotless:on
   }
 
-  def "test get ignored resource names"(){
+  def "test get ignored resource names"() {
     setup:
     System.setProperty(PREFIX + TRACER_METRICS_IGNORED_RESOURCES, "GET /healthcheck,SELECT foo from bar")
 

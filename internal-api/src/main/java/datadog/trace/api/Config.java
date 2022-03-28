@@ -129,8 +129,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_FORMAT_V2_4_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT;
@@ -1862,11 +1860,7 @@ public class Config {
       return profilingUrl;
     } else if (profilingAgentless) {
       // when agentless profiling is turned on we send directly to our intake
-      if (configProvider.getBoolean(
-          PROFILING_FORMAT_V2_4_ENABLED, PROFILING_FORMAT_V2_4_ENABLED_DEFAULT)) {
-        return "https://intake.profile." + site + "/api/v2/profile";
-      }
-      return "https://intake.profile." + site + "/v1/input";
+      return "https://intake.profile." + site + "/api/v2/profile";
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";

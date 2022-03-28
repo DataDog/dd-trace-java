@@ -29,6 +29,7 @@ dependencies {
   testImplementation deps.junit5
   testImplementation deps.mockito
   testImplementation deps.jmc
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 }
 
 tasks.withType(Test).configureEach {

@@ -21,7 +21,7 @@ public class SimpleRateLimiter {
 
   protected SimpleRateLimiter(int rate, TimeSource timeSource) {
     this.timeSource = timeSource;
-    this.startNanos = timeSource.getNanoTime();
+    this.startNanos = timeSource.getNanoTicks();
     capacity = Math.max(1, rate);
     secondsAndCount = new AtomicLong(0);
   }
@@ -36,7 +36,7 @@ public class SimpleRateLimiter {
       if (readTime) {
         // There will be an issue when the application has been running for more than 2^31 seconds,
         // roughly 68 years, so that is an acceptable trade off
-        seconds = (int) TimeUnit.NANOSECONDS.toSeconds(timeSource.getNanoTime() - startNanos);
+        seconds = (int) TimeUnit.NANOSECONDS.toSeconds(timeSource.getNanoTicks() - startNanos);
         readTime = false;
       }
       final int storedSeconds = getStoredSeconds(storedSecondsAndCount);

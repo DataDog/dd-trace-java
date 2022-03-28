@@ -48,7 +48,7 @@ public class RateLimiter {
   }
 
   public final boolean isThrottled() {
-    long curSec = this.timeSource.getNanoTime();
+    long curSec = this.timeSource.getNanoTicks();
     long storedState;
     long newState;
 
@@ -95,7 +95,7 @@ public class RateLimiter {
           case 0xFFFFFF:
             {
               // we fell 1 second behind the current second (mod 0x1000000)
-              curSec = this.timeSource.getNanoTime();
+              curSec = this.timeSource.getNanoTicks();
               curSec24 = curSecond24bit(curSec);
               diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
               if (diff != 0xFFFFFF) {

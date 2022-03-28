@@ -140,7 +140,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    features.discover();
+    if (features.getMetricsEndpoint() == null) {
+      features.discover();
+    }
     if (features.supportsMetrics()) {
       sink.register(this);
       thread.start();

@@ -29,6 +29,8 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
@@ -53,7 +55,6 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
-import datadog.trace.core.util.Clock;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -141,6 +142,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
+  private final TimeSource timeSource;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -240,6 +242,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private TagInterceptor tagInterceptor;
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
+    private TimeSource timeSource;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -332,6 +335,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder timeSource(TimeSource timeSource) {
+      this.timeSource = timeSource;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -379,7 +387,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           statsDClient,
           tagInterceptor,
           strictTraceWrites,
-          instrumentationGateway);
+          instrumentationGateway,
+          timeSource);
     }
   }
 
@@ -402,15 +411,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final StatsDClient statsDClient,
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
-      final InstrumentationGateway instrumentationGateway) {
+      final InstrumentationGateway instrumentationGateway,
+      final TimeSource timeSource) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
 
-    this.startTimeNano = Clock.currentNanoTime();
-    this.startNanoTicks = Clock.currentNanoTicks();
+    this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
+    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
+    this.startNanoTicks = this.timeSource.getNanoTicks();
     this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     this.lastSyncTicks = startNanoTicks;
 
@@ -478,8 +489,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     this.pendingTraceBuffer =
-        strictTraceWrites ? PendingTraceBuffer.discarding() : PendingTraceBuffer.delaying();
-    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, strictTraceWrites);
+        strictTraceWrites
+            ? PendingTraceBuffer.discarding()
+            : PendingTraceBuffer.delaying(this.timeSource);
+    pendingTraceFactory =
+        new PendingTrace.Factory(this, pendingTraceBuffer, this.timeSource, strictTraceWrites);
     pendingTraceBuffer.start();
 
     this.writer.start();
@@ -573,13 +587,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * after that. This means time measured with same Tracer in different Spans is relatively correct
    * with nanosecond precision.
    *
-   * @param nanoTicks as returned by {@link Clock#currentNanoTicks()}
+   * @param nanoTicks as returned by {@link TimeSource#getNanoTicks()}
    * @return timestamp in nanoseconds
    */
   long getTimeWithNanoTicks(long nanoTicks) {
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
     if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      long drift = computedNanoTime - Clock.currentNanoTime();
+      long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
       if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
         counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
       }
