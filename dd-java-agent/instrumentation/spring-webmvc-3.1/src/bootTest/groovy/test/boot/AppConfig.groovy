@@ -14,20 +14,20 @@ import org.springframework.web.util.UrlPathHelper
 @SpringBootApplication(scanBasePackages = "doesnotexist")
 class AppConfig extends WebMvcConfigurerAdapter {
 
-  @Bean
-  EmbeddedServletContainerFactory servletContainerFactory() {
-    def factory = new TomcatEmbeddedServletContainerFactory()
-
-    factory.addConnectorCustomizers(
-      new TomcatConnectorCustomizer() {
-        @Override
-        void customize(final Connector connector) {
-          connector.setEnableLookups(true)
-        }
-      })
-
-    return factory
-  }
+//  @Bean
+//  EmbeddedServletContainerFactory servletContainerFactory() {
+//    def factory = new TomcatEmbeddedServletContainerFactory()
+//
+//    factory.addConnectorCustomizers(
+//      new TomcatConnectorCustomizer() {
+//        @Override
+//        void customize(final Connector connector) {
+//          connector.setEnableLookups(true)
+//        }
+//      })
+//
+//    return factory
+//  }
 
   @Override
   void configurePathMatch(PathMatchConfigurer configurer) {

@@ -17,19 +17,17 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOW
 
 class JettyServlet2Test extends HttpServerTest<Server> {
 
-  private static final String CONTEXT = "ctx"
+  private static final CONTEXT = "ctx"
 
-  static class JettyServer implements HttpServer {
+  class JettyServer implements HttpServer {
     def port = 0
     final server = new Server(0) // select random open port
-    def context = ""
 
-    JettyServer(String context) {
-      this.context = context
+    JettyServer() {
       server.connectors.each {
         it.setHost('localhost')
       }
-      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
+      ServletContextHandler servletContext = new ServletContextHandler(null, "/$CONTEXT")
       servletContext.errorHandler = new ErrorHandler() {
           protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
             Throwable th = (Throwable) request.getAttribute("javax.servlet.error.exception")
@@ -63,7 +61,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
 
     @Override
     URI address() {
-      return new URI("http://localhost:$port/${context != null && !context.isEmpty() ? context + '/' : ''}")
+      return new URI("http://localhost:$port/$CONTEXT/")
     }
 
     @Override
@@ -74,7 +72,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
 
   @Override
   HttpServer server() {
-    return new JettyServer(CONTEXT)
+    return new JettyServer()
   }
 
   @Override

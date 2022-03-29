@@ -28,6 +28,23 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  tomcatBootTest {
+    dirName = 'bootTest'
+  }
+
+  jettyBootTest {
+    extendsFrom tomcatBootTest
+    dirName = 'bootTest'
+  }
+
+  undertowBootTest {
+    extendsFrom tomcatBootTest
+    dirName = 'bootTest'
+  }
+}
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '3.1.0.RELEASE'
@@ -35,30 +52,60 @@ dependencies {
   //  compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '2.5.6'
   //  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.22.RELEASE'
   testImplementation(project(':dd-java-agent:testing')) {
     exclude(module: 'jetty-server') // incompatable servlet api
   }
+  // TODO Annotations used were added in 4.3....
+  testImplementation group: 'org.springframework', name: 'spring-webmvc', version: '4.3.0.RELEASE'
+  testImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
 
   // Include instrumentation for verifying the tomcat requests
   testImplementation project(':dd-java-agent:instrumentation:servlet')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
   testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
-
-  // include also tomcat appsec instrumentation for intercepting urlencoded bodies
   testImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
 
   testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
   testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
 
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.22.RELEASE'
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE'
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.22.RELEASE'
-  testImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
+  // Spring boot based testing
+  tomcatBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE'
+  tomcatBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.22.RELEASE'
+  tomcatBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.22.RELEASE'
+  tomcatBootTestImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
 
-  // For spring security
-  testImplementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
-  testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
+  tomcatBootTestImplementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
+  tomcatBootTestImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
+
+  // Jetty 11 requires java 11
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-7.0')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-7.6')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-9')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:servlet')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
+
+  // include also tomcat appsec instrumentation for intercepting urlencoded bodies
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+
+  jettyBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
+    exclude(module: 'spring-boot-starter-tomcat')
+  }
+  jettyBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-jetty', version: '1.5.22.RELEASE'
+
+  undertowBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
+    exclude(module: 'spring-boot-starter-tomcat')
+  }
+  undertowBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-undertow', version: '1.5.22.RELEASE'
+}
+
+tasks.named("test").configure {
+  finalizedBy "tomcatBootTest"
+  finalizedBy "jettyBootTest"
+  finalizedBy "undertowBootTest"
 }

@@ -6,12 +6,17 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.jetty9.JettyDecorator
+import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
+import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainer
+import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer
+import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
@@ -46,10 +51,13 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     def port = 0
     final app = application()
 
-    @Override
-    void start() {
+    SpringBootServer() {
       app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext"])
       context = app.run() as EmbeddedWebApplicationContext
+    }
+
+    @Override
+    void start() {
       port = context.embeddedServletContainer.port
       assert port > 0
     }
@@ -77,7 +85,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String component() {
-    return TomcatDecorator.DECORATE.component()
+    if (context.getEmbeddedServletContainer() instanceof TomcatEmbeddedServletContainer) {
+      return "tomcat-server"
+    } else if (context.getEmbeddedServletContainer() instanceof JettyEmbeddedServletContainer) {
+      return "jetty-server"
+    }
+    return "java-web-servlet"
   }
 
   String getServletContext() {
