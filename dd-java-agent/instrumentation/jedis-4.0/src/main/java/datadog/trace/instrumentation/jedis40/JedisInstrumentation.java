@@ -72,8 +72,6 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
-      System.out.println("HERE       +++++++++++++++++++");
-      System.out.println(scope.span());
       scope.close();
       scope.span().finish();
     }
