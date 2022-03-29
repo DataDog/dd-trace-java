@@ -3,6 +3,10 @@ plugins {
   id 'application'
 }
 
+java {
+  disableAutoTargetJvm()
+}
+
 dependencies {
   implementation "com.datadoghq:dd-java-agent:$version"
   implementation "com.datadoghq:dd-trace-api:$version"
