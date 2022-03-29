@@ -14,9 +14,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import redis.clients.jedis.CommandObject;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.commands.ProtocolCommand;
-import redis.clients.jedis.CommandArguments;
 
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Tracing
@@ -28,7 +28,7 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String instrumentedType() {
-    return "redis.clients.jedis.Protocol";
+    return "redis.clients.jedis.Connection";
   }
 
   @Override
@@ -37,26 +37,25 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
       packageName + ".JedisClientDecorator",
     };
   }
-//final RedisOutputStream os, CommandArguments args)
+
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(named("sendCommand"))
-            .and(takesArgument(1, named("redis.clients.jedis.CommandArguments"))),
+            .and(named("executeCommand"))
+            .and(takesArgument(0, named("redis.clients.jedis.CommandObject"))),
         JedisInstrumentation.class.getName() + "$JedisAdvice");
-    // FIXME: This instrumentation only incorporates sending the command, not processing the result.
   }
 
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(1) final CommandArguments commandArguments) {
+    public static AgentScope onEnter(@Advice.Argument(0) final CommandObject<?> commandObject) {
       final AgentSpan span = startSpan(REDIS_COMMAND);
       DECORATE.afterStart(span);
 
-      final ProtocolCommand command = commandArguments.getCommand();
+      final ProtocolCommand command = commandObject.getArguments().getCommand();
 
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
@@ -73,6 +72,8 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
+      System.out.println("HERE       +++++++++++++++++++");
+      System.out.println(scope.span());
       scope.close();
       scope.span().finish();
     }
