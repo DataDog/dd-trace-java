@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
+import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.isAdditionallyIgnored
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static net.bytebuddy.matcher.ElementMatchers.named
@@ -242,7 +242,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
 
-    assert TRANSFORMED_CLASSES_TYPES.findAll { additionalLibraryIgnoresMatcher().matches(it) }.isEmpty(): "Transformed classes match global libraries ignore matcher"
+    assert TRANSFORMED_CLASSES_TYPES.findAll { isAdditionallyIgnored(it.getActualName()) }.isEmpty(): "Transformed classes match global libraries ignore matcher"
   }
 
   boolean useStrictTraceWrites() {

@@ -1,10 +1,10 @@
 # 0 = global allows
-# 1 = global ignores
+# 1 = system-level ignores
 # 2 = additional ignores
 # 3 = ignore if endsWith Proxy
 # 4 = allow if endsWith HttpMessageConverter
 
-# -------- GLOBAL IGNORES --------
+# -------- SYSTEM-LEVEL IGNORES --------
 
 1 cinnamon.
 1 clojure.
