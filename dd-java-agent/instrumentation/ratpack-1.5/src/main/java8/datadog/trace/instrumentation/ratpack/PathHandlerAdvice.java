@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.ratpack;
 
-import net.bytebuddy.asm.Advice;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import net.bytebuddy.asm.Advice;
 import ratpack.handling.Handler;
 import ratpack.handling.internal.ChainHandler;
 import ratpack.path.PathBinder;

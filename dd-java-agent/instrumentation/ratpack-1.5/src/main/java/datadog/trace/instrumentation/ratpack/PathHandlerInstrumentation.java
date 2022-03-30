@@ -41,9 +41,15 @@ public class PathHandlerInstrumentation extends Instrumenter.AppSec
                   "Lcom/google/common/collect/ImmutableList;")
               .build());
 
+  // so it doesn't apply to ratpack < 1.5
+  private static final ReferenceMatcher FILE_IO =
+      new ReferenceMatcher(new Reference.Builder("ratpack.file.FileIo").build());
+
   private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
     return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, TOKEN_PATH_BINDER_TOKEN_NAMES);
+        new IReferenceMatcher.ConjunctionReferenceMatcher(
+            origMatcher, TOKEN_PATH_BINDER_TOKEN_NAMES),
+        FILE_IO);
   }
 
   @Override
