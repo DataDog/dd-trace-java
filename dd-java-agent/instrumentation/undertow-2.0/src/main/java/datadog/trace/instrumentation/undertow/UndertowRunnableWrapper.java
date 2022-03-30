@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_HTTPSERVEREXCHANGE_DISPATCH;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -32,9 +33,12 @@ public class UndertowRunnableWrapper implements Runnable {
       DECORATE.onError(span, throwable);
       throw throwable;
     } finally {
-      DECORATE.onResponse(span, exchange);
-      DECORATE.beforeFinish(span);
-      span.finish();
+      boolean dispatched = exchange.getAttachment(DD_HTTPSERVEREXCHANGE_DISPATCH);
+      if (!dispatched) {
+        DECORATE.onResponse(span, exchange);
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
     }
   }
 
