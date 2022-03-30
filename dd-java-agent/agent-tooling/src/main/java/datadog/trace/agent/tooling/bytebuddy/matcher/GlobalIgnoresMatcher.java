@@ -45,16 +45,12 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       case 0:
         return false; // global allow
       case 1:
-      case -1:
         return true; // system-level ignore
       case 2:
-      case -2:
         return !skipAdditionalIgnores;
       case 3:
-      case -3:
         return name.endsWith("Proxy");
       case 4:
-      case -4:
         return !name.endsWith("HttpMessageConverter");
       default:
         break;

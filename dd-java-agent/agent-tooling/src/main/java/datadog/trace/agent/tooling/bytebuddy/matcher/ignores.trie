@@ -19,7 +19,7 @@
 1 com.p6spy.
 1 com.singularity.
 1 com.sun.
-0 com.sun.jersey.api.client
+0 com.sun.jersey.api.client.
 0 com.sun.messaging.
 1 datadog.opentracing.
 1 datadog.slf4j.
@@ -42,6 +42,11 @@
 1 jdk.
 1 net.bytebuddy.
 1 org.apache.felix.framework.URLHandlers
+1 org.apache.felix.framework.URLHandlersActivator
+1 org.apache.felix.framework.URLHandlersBundleStreamHandler
+1 org.apache.felix.framework.URLHandlersBundleURLConnection
+1 org.apache.felix.framework.URLHandlersContentHandlerProxy
+1 org.apache.felix.framework.URLHandlersStreamHandlerProxy
 1 org.apache.groovy.
 1 org.aspectj.
 1 org.codehaus.groovy.
@@ -61,8 +66,8 @@
 0 sun.net.www.http.HttpClient
 0 sun.net.www.protocol.
 1 sun.net.www.protocol.jrt
-0 sun.rmi.server
-0 sun.rmi.transport
+0 sun.rmi.server.
+0 sun.rmi.transport.
 
 # -------- ADDITIONAL IGNORES --------
 
@@ -95,6 +100,7 @@
 2 ch.qos.logback.
 0 ch.qos.logback.classic.Logger
 0 ch.qos.logback.classic.spi.LoggingEvent
+0 ch.qos.logback.classic.spi.LoggingEventVO
 # We instrument this Runnable
 0 ch.qos.logback.core.AsyncAppenderBase$Worker
 2 com.beust.jcommander.
@@ -123,6 +129,7 @@
 # We instrument Runnable there
 0 com.google.inject.internal.AbstractBindingProcessor$
 0 com.google.inject.internal.BytecodeGen$
+0 com.google.inject.internal.cglib.core.internal.$LoadingCache
 0 com.google.inject.internal.cglib.core.internal.$LoadingCache$
 2 com.google.instrumentation.
 2 com.google.j2objc.
@@ -195,6 +202,7 @@
 # which leads to pointless context propagation and checkpoint emission, so we need
 # to instrument this class to disable async propagation to make the tests happy
 0 org.springframework.cglib.core.internal.LoadingCache
+0 org.springframework.cglib.core.internal.LoadingCache$
 2 org.springframework.context.
 # More runnables to deal with
 0 org.springframework.context.support.AbstractApplicationContext$

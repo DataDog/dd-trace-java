@@ -44,14 +44,15 @@ public class StringTrie implements ToIntFunction<String> {
     char[] data = trieData;
     String[] segments = trieSegments;
     int dataIndex = 0;
-    int result = 0;
+    int result = -1;
 
     char branchCount = data[dataIndex++];
 
     while (keyIndex < keyLength) {
+      char c = key.charAt(keyIndex++);
+
       // trie is ordered, so we can use binary search to pick the right branch
-      int branchIndex =
-          Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, key.charAt(keyIndex++));
+      int branchIndex = Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, c);
 
       if (branchIndex < 0) {
         break; // no match from this point onwards
@@ -60,7 +61,9 @@ public class StringTrie implements ToIntFunction<String> {
       int valueIndex = branchIndex + branchCount;
       char value = data[valueIndex];
       if ((value & LEAF_MARKER) != 0) {
-        result = value & ~LEAF_MARKER;
+        if (keyIndex == keyLength || c == '.' || c == '$') {
+          result = value & ~LEAF_MARKER;
+        }
         break;
       }
 
@@ -91,12 +94,14 @@ public class StringTrie implements ToIntFunction<String> {
       // handle special case when next branching point is just a leaf after a segment
       branchCount = data[dataIndex++];
       if ((branchCount & LEAF_MARKER) != 0) {
-        result = branchCount & ~LEAF_MARKER;
+        if (keyIndex == keyLength || (c = key.charAt(keyIndex - 1)) == '.' || c == '$') {
+          result = branchCount & ~LEAF_MARKER;
+        }
         break;
       }
     }
 
-    return keyIndex == keyLength ? result : -result;
+    return result;
   }
 
   protected StringTrie(char[] data, String[] segments) {

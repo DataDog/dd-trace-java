@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.canSkipClassLoaderByName;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.isGloballyIgnored;
 
+import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -72,13 +72,45 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
     List<Class<?>> retransforming = new ArrayList<>();
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
       ClassLoader classLoader = clazz.getClassLoader();
-      if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
-        continue;
-      }
-      if (!isGloballyIgnored(clazz.getName()) && visited.add(clazz)) {
+      if ((null == classLoader
+              ? shouldRetransformBootstrapClass(clazz.getName())
+              : !canSkipClassLoaderByName(classLoader))
+          && visited.add(clazz)) {
         retransforming.add(clazz);
       }
     }
     return retransforming;
+  }
+
+  /**
+   * This can be viewed as the inverse of {@link GlobalIgnoresMatcher} - it only lists bootstrap
+   * classes loaded during agent installation that we explicitly want to be re-transformed.
+   */
+  static boolean shouldRetransformBootstrapClass(final String name) {
+    switch (name) {
+      case "java.lang.Throwable":
+      case "java.net.HttpURLConnection":
+      case "java.net.URL":
+      case "sun.net.www.http.HttpClient":
+      case "datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper":
+        return true;
+    }
+    if (name.startsWith("java.util.concurrent.")
+        || name.startsWith("java.rmi.")
+        || name.startsWith("sun.rmi.server.")
+        || name.startsWith("sun.rmi.transport.")) {
+      return true;
+    }
+    if (name.startsWith("sun.net.www.protocol.")) {
+      // ignore internal Java Runtime protocol, helps avoid a second round of transformation
+      return !name.startsWith("sun.net.www.protocol.jrt");
+    }
+    if (name.startsWith("java.util.logging.")) {
+      // concurrent instrumentation modifies the structure of the Cleaner class incompatibly
+      // with java9+ modules. Excluding it as a workaround until a long-term fix for modules
+      // can be put in place.
+      return !name.equals("java.util.logging.LogManager$Cleaner");
+    }
+    return false;
   }
 }
