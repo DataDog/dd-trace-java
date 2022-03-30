@@ -290,12 +290,17 @@ public class StringTrie implements ToIntFunction<String> {
       }
       for (int i = 2; i < args.length; i++) {
         Path triePath = Paths.get(args[i]);
-        Path pkgPath = inputFolder.relativize(triePath.getParent());
-        String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
-        String trieName = triePath.getFileName().toString().replace(".trie", "Trie");
-        String className = Character.toUpperCase(trieName.charAt(0)) + trieName.substring(1);
-        Path javaPath = outputFolder.resolve(pkgPath).resolve(className + ".java");
-        generateJavaFile(triePath, javaPath, pkgName, className);
+        String trieName = triePath.getFileName().toString();
+        if (trieName.endsWith(".trie")) {
+          String className =
+              Character.toUpperCase(trieName.charAt(0))
+                  + trieName.substring(1, trieName.length() - 5)
+                  + "Trie";
+          Path pkgPath = inputFolder.relativize(triePath.getParent());
+          String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
+          Path javaPath = outputFolder.resolve(pkgPath).resolve(className + ".java");
+          generateJavaFile(triePath, javaPath, pkgName, className);
+        }
       }
     }
 
