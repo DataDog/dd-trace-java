@@ -413,12 +413,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = this.timeSource.getNanoTicks();
-    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    this.lastSyncTicks = startNanoTicks;
+    startTimeNano = this.timeSource.getCurrentTimeNanos();
+    startNanoTicks = this.timeSource.getNanoTicks();
+    clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
+    lastSyncTicks = startNanoTicks;
 
-    this.checkpointer = SamplingCheckpointer.create();
+    checkpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -441,15 +441,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = StatsDClient.NO_OP;
     }
 
-    this.monitoring =
+    monitoring =
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.performanceMonitoring =
+    performanceMonitoring =
         config.isPerfMetricsEnabled()
             ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
             : Monitoring.DISABLED;
-    this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
+    traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       ContinuableScopeManager csm =
           new ContinuableScopeManager(
@@ -463,9 +463,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.scopeManager = scopeManager;
     }
 
-    this.externalAgentLauncher = new ExternalAgentLauncher(config);
+    externalAgentLauncher = new ExternalAgentLauncher(config);
 
-    this.disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
+    disableSamplingMechanismValidation = config.isSamplingMechanismValidationDisabled();
 
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
@@ -481,7 +481,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    this.pendingTraceBuffer =
+    pendingTraceBuffer =
         strictTraceWrites
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
@@ -600,31 +600,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final CharSequence spanName, boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder = buildSpan(spanName);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
+    return startSpanImpl(spanName, null, true, 0L, emitCheckpoint);
   }
 
   @Override
   public AgentSpan startSpan(
       final CharSequence spanName, final long startTimeMicros, boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder = buildSpan(spanName).withStartTimestamp(startTimeMicros);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
+    return startSpanImpl(spanName, null, true, startTimeMicros, emitCheckpoint);
   }
 
   @Override
   public AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder = buildSpan(spanName).ignoreActiveSpan().asChildOf(parent);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
-    }
-    return builder.start();
+    return startSpanImpl(spanName, parent, false, 0L, emitCheckpoint);
   }
 
   @Override
@@ -633,15 +621,193 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final AgentSpan.Context parent,
       final long startTimeMicros,
       boolean emitCheckpoint) {
-    AgentTracer.SpanBuilder builder =
-        buildSpan(spanName)
-            .ignoreActiveSpan()
-            .asChildOf(parent)
-            .withStartTimestamp(startTimeMicros);
-    if (!emitCheckpoint) {
-      builder = builder.suppressCheckpoints();
+    return startSpanImpl(spanName, parent, false, startTimeMicros, emitCheckpoint);
+  }
+
+  private AgentSpan startSpanImpl(
+      final CharSequence operationName,
+      final AgentSpan.Context parent,
+      final boolean ignoreParent,
+      final long startTimeMicros,
+      final boolean emitCheckpoint) {
+    DDSpan span =
+        DDSpan.create(
+            startTimeMicros,
+            buildSpanContext(
+                this,
+                operationName,
+                parent,
+                ignoreParent,
+                null, // tags = null
+                null, // serviceName = null, is this correct?
+                null, // resourceName = null
+                false, // errorFlag = false
+                null), // spanType = null
+            emitCheckpoint);
+
+    onSpanStart(span);
+
+    return span;
+  }
+
+  private DDSpanContext buildSpanContext(
+      final CoreTracer tracer,
+      CharSequence operationName,
+      final Object parent,
+      final boolean ignoreScope,
+      final Map<String, Object> tags,
+      String serviceName,
+      final String resourceName,
+      final boolean errorFlag,
+      final CharSequence spanType) {
+    /* parent handling - starts here */
+
+    final DDId traceId;
+    final DDId spanId = idGenerationStrategy.generate();
+    final DDId parentSpanId;
+    final Map<String, String> baggage;
+    final PendingTrace parentTrace;
+    final int samplingPriority;
+    final int samplingMechanism;
+    final String origin;
+    final Map<String, String> coreTags;
+    final Map<String, ?> rootSpanTags;
+
+    final DDSpanContext context;
+    final Object requestContextData;
+
+    // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
+    // TagContext, DDSpanContext, AgentSpan.Context
+    Object parentContext = parent;
+    if (parentContext == null && !ignoreScope) {
+      // use the Scope as parent unless overridden or ignored.
+      final AgentSpan activeSpan = scopeManager.activeSpan();
+      if (activeSpan != null) {
+        parentContext = activeSpan.context();
+      }
     }
-    return builder.start();
+
+    String parentServiceName = null;
+
+    // Propagate internal trace.
+    // Note: if we are not in the context of distributed tracing and we are starting the first
+    // root span, parentContext will be null at this point.
+    if (parentContext instanceof DDSpanContext) {
+      final DDSpanContext ddsc = (DDSpanContext) parentContext;
+      traceId = ddsc.getTraceId();
+      parentSpanId = ddsc.getSpanId();
+      baggage = ddsc.getBaggageItems();
+      parentTrace = ddsc.getTrace();
+      samplingPriority = PrioritySampling.UNSET;
+      samplingMechanism = SamplingMechanism.UNKNOWN;
+      origin = null;
+      coreTags = null;
+      rootSpanTags = null;
+      parentServiceName = ddsc.getServiceName();
+      if (serviceName == null) {
+        serviceName = parentServiceName;
+      }
+      RequestContext<Object> requestContext = ddsc.getRequestContext();
+      requestContextData = null == requestContext ? null : requestContext.getData();
+    } else {
+      long endToEndStartTime;
+
+      if (parentContext instanceof ExtractedContext) {
+        // Propagate external trace
+        final ExtractedContext extractedContext = (ExtractedContext) parentContext;
+        traceId = extractedContext.getTraceId();
+        parentSpanId = extractedContext.getSpanId();
+        samplingPriority = extractedContext.getSamplingPriority();
+        samplingMechanism = extractedContext.getSamplingMechanism();
+        endToEndStartTime = extractedContext.getEndToEndStartTime();
+        baggage = extractedContext.getBaggage();
+      } else {
+        // Start a new trace
+        traceId = IdGenerationStrategy.RANDOM.generate();
+        parentSpanId = DDId.ZERO;
+        samplingPriority = PrioritySampling.UNSET;
+        samplingMechanism = SamplingMechanism.UNKNOWN;
+        endToEndStartTime = 0;
+        baggage = null;
+      }
+
+      // Get header tags and set origin whether propagating or not.
+      if (parentContext instanceof TagContext) {
+        TagContext tc = (TagContext) parentContext;
+        coreTags = tc.getTags();
+        origin = tc.getOrigin();
+        requestContextData = tc.getRequestContextData();
+      } else {
+        coreTags = null;
+        origin = null;
+        requestContextData = null;
+      }
+
+      rootSpanTags = localRootSpanTags;
+
+      parentTrace = createTrace(traceId);
+
+      if (endToEndStartTime > 0) {
+        parentTrace.beginEndToEnd(endToEndStartTime);
+      }
+    }
+
+    /* end parent handling */
+
+    /* core tracer handling */
+
+    if (serviceName == null) {
+      serviceName = tracer.serviceName;
+    }
+
+    /* end core tracer handling */
+
+    /* builder state */
+
+    operationName = operationName != null ? operationName : resourceName;
+
+    final int tagsSize =
+        (null == tags ? 0 : tags.size())
+            + defaultSpanTags.size()
+            + (null == coreTags ? 0 : coreTags.size())
+            + (null == rootSpanTags ? 0 : rootSpanTags.size());
+    // some attributes are inherited from the parent
+    context =
+        new DDSpanContext(
+            traceId,
+            spanId,
+            parentSpanId,
+            parentServiceName,
+            serviceName,
+            operationName,
+            resourceName,
+            samplingPriority,
+            samplingMechanism,
+            origin,
+            baggage,
+            errorFlag,
+            spanType,
+            tagsSize,
+            parentTrace,
+            requestContextData,
+            disableSamplingMechanismValidation);
+
+    // By setting the tags on the context we apply decorators to any tags that have been set via
+    // the builder. This is the order that the tags were added previously, but maybe the `tags`
+    // set in the builder should come last, so that they override other tags.
+    context.setAllTags(defaultSpanTags);
+    context.setAllTags(tags);
+    context.setAllTags(coreTags);
+    context.setAllTags(rootSpanTags);
+    return context;
+
+    /* end builder state */
+  }
+
+  void onSpanStart(final DDSpan span) {
+    if (span.isLocalRootSpan()) {
+      onRootSpanStarted(span);
+    }
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
@@ -805,7 +971,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
-  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -958,9 +1123,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     private DDSpan buildSpan() {
       DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
-      if (span.isLocalRootSpan()) {
-        tracer.onRootSpanStarted(span);
-      }
+      tracer.onSpanStart(span);
       return span;
     }
 
@@ -1016,7 +1179,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentTracer.SpanBuilder suppressCheckpoints() {
-      this.emitCheckpoints = false;
+      emitCheckpoints = false;
       return this;
     }
 
@@ -1054,137 +1217,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      final DDId traceId;
-      final DDId spanId = idGenerationStrategy.generate();
-      final DDId parentSpanId;
-      final Map<String, String> baggage;
-      final PendingTrace parentTrace;
-      final int samplingPriority;
-      final int samplingMechanism;
-      final String origin;
-      final Map<String, String> coreTags;
-      final Map<String, ?> rootSpanTags;
-
-      final DDSpanContext context;
-      final Object requestContextData;
-
-      // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
-      // TagContext, DDSpanContext, AgentSpan.Context
-      Object parentContext = parent;
-      if (parentContext == null && !ignoreScope) {
-        // use the Scope as parent unless overridden or ignored.
-        final AgentSpan activeSpan = scopeManager.activeSpan();
-        if (activeSpan != null) {
-          parentContext = activeSpan.context();
-        }
-      }
-
-      String parentServiceName = null;
-
-      // Propagate internal trace.
-      // Note: if we are not in the context of distributed tracing and we are starting the first
-      // root span, parentContext will be null at this point.
-      if (parentContext instanceof DDSpanContext) {
-        final DDSpanContext ddsc = (DDSpanContext) parentContext;
-        traceId = ddsc.getTraceId();
-        parentSpanId = ddsc.getSpanId();
-        baggage = ddsc.getBaggageItems();
-        parentTrace = ddsc.getTrace();
-        samplingPriority = PrioritySampling.UNSET;
-        samplingMechanism = SamplingMechanism.UNKNOWN;
-        origin = null;
-        coreTags = null;
-        rootSpanTags = null;
-        parentServiceName = ddsc.getServiceName();
-        if (serviceName == null) {
-          serviceName = parentServiceName;
-        }
-        RequestContext<Object> requestContext = ddsc.getRequestContext();
-        requestContextData = null == requestContext ? null : requestContext.getData();
-      } else {
-        long endToEndStartTime;
-
-        if (parentContext instanceof ExtractedContext) {
-          // Propagate external trace
-          final ExtractedContext extractedContext = (ExtractedContext) parentContext;
-          traceId = extractedContext.getTraceId();
-          parentSpanId = extractedContext.getSpanId();
-          samplingPriority = extractedContext.getSamplingPriority();
-          samplingMechanism = extractedContext.getSamplingMechanism();
-          endToEndStartTime = extractedContext.getEndToEndStartTime();
-          baggage = extractedContext.getBaggage();
-        } else {
-          // Start a new trace
-          traceId = IdGenerationStrategy.RANDOM.generate();
-          parentSpanId = DDId.ZERO;
-          samplingPriority = PrioritySampling.UNSET;
-          samplingMechanism = SamplingMechanism.UNKNOWN;
-          endToEndStartTime = 0;
-          baggage = null;
-        }
-
-        // Get header tags and set origin whether propagating or not.
-        if (parentContext instanceof TagContext) {
-          TagContext tc = (TagContext) parentContext;
-          coreTags = tc.getTags();
-          origin = tc.getOrigin();
-          requestContextData = tc.getRequestContextData();
-        } else {
-          coreTags = null;
-          origin = null;
-          requestContextData = null;
-        }
-
-        rootSpanTags = localRootSpanTags;
-
-        parentTrace = createTrace(traceId);
-
-        if (endToEndStartTime > 0) {
-          parentTrace.beginEndToEnd(endToEndStartTime);
-        }
-      }
-
-      if (serviceName == null) {
-        serviceName = CoreTracer.this.serviceName;
-      }
-
-      final CharSequence operationName =
-          this.operationName != null ? this.operationName : resourceName;
-
-      final int tagsSize =
-          (null == tags ? 0 : tags.size())
-              + defaultSpanTags.size()
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size());
-      // some attributes are inherited from the parent
-      context =
-          new DDSpanContext(
-              traceId,
-              spanId,
-              parentSpanId,
-              parentServiceName,
-              serviceName,
-              operationName,
-              resourceName,
-              samplingPriority,
-              samplingMechanism,
-              origin,
-              baggage,
-              errorFlag,
-              spanType,
-              tagsSize,
-              parentTrace,
-              requestContextData,
-              disableSamplingMechanismValidation);
-
-      // By setting the tags on the context we apply decorators to any tags that have been set via
-      // the builder. This is the order that the tags were added previously, but maybe the `tags`
-      // set in the builder should come last, so that they override other tags.
-      context.setAllTags(defaultSpanTags);
-      context.setAllTags(tags);
-      context.setAllTags(coreTags);
-      context.setAllTags(rootSpanTags);
-      return context;
+      return tracer.buildSpanContext(
+          tracer,
+          operationName,
+          parent,
+          ignoreScope,
+          tags,
+          serviceName,
+          resourceName,
+          errorFlag,
+          spanType);
     }
   }
 

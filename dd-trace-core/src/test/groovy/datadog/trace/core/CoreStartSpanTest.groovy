@@ -76,5 +76,4 @@ class CoreStartSpanTest extends DDCoreSpecification {
     spanFromStart.context().getParentId() == spanFromBuilder.context().getParentId()
     spanFromStart.context().getTraceId() == spanFromBuilder.context().getTraceId()
   }
-
 }
