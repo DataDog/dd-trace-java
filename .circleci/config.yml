@@ -494,7 +494,7 @@ jobs:
           name: Build
           command: |
             cd system-tests
-            git checkout 288566d6cdda17bdac3a7083fe44abc2863b778d
+            git checkout 19d2fbe922c62a442c797135d4929e973c68b763
             git status
             ./build.sh java
 
