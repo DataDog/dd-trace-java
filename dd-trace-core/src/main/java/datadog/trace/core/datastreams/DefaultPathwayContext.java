@@ -5,6 +5,7 @@ import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.Consumer;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
@@ -20,7 +21,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private static final String INITIALIZATION_TOPIC = "";
   private final Lock lock = new ReentrantLock();
-
+  private final TimeSource timeSource;
   private final GrowingByteArrayOutput outputBuffer =
       GrowingByteArrayOutput.withInitialCapacity(20);
 
@@ -32,10 +33,17 @@ public class DefaultPathwayContext implements PathwayContext {
   private long hash;
   private boolean started;
 
-  public DefaultPathwayContext() {}
+  public DefaultPathwayContext(TimeSource timeSource) {
+    this.timeSource = timeSource;
+  }
 
   private DefaultPathwayContext(
-      long pathwayStartMillis, long pathwayStartNanoTime, long edgeStartNanoTime, long hash) {
+      TimeSource timeSource,
+      long pathwayStartMillis,
+      long pathwayStartNanoTime,
+      long edgeStartNanoTime,
+      long hash) {
+    this.timeSource = timeSource;
     this.pathwayStartMillis = pathwayStartMillis;
     this.pathwayStart = pathwayStartNanoTime;
     this.edgeStart = edgeStartNanoTime;
@@ -57,8 +65,8 @@ public class DefaultPathwayContext implements PathwayContext {
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
 
-    long startMillis = System.currentTimeMillis();
-    long nanoTime = System.nanoTime();
+    long startMillis = timeSource.getCurrentTimeMillis();
+    long nanoTime = timeSource.getNanoTicks();
 
     lock.lock();
     try {
@@ -174,13 +182,18 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayContextExtractor implements AgentPropagation.BinaryKeyClassifier {
+    private final TimeSource timeSource;
     private DefaultPathwayContext extractedContext;
+
+    PathwayContextExtractor(TimeSource timeSource) {
+      this.timeSource = timeSource;
+    }
 
     @Override
     public boolean accept(String key, byte[] value) {
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(value);
+          extractedContext = decode(timeSource, value);
           log.debug("Extracted pathway context");
         } catch (IOException e) {
           return false;
@@ -191,9 +204,8 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   public static <C> DefaultPathwayContext extract(
-      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    log.debug("Extracting pathway context");
-    PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor();
+      C carrier, AgentPropagation.BinaryContextVisitor<C> getter, TimeSource timeSource) {
+    PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor(timeSource);
     getter.forEachKey(carrier, pathwayContextExtractor);
 
     log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
@@ -201,15 +213,16 @@ public class DefaultPathwayContext implements PathwayContext {
     return pathwayContextExtractor.extractedContext;
   }
 
-  public static DefaultPathwayContext decode(byte[] data) throws IOException {
+  public static DefaultPathwayContext decode(TimeSource timeSource, byte[] data)
+      throws IOException {
     ByteArrayInput input = ByteArrayInput.wrap(data);
 
     long hash = input.readLongLE();
 
     // Convert the millisecond start time to the current JVM's nanoclock
     long pathwayStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
-    long nowMillis = System.currentTimeMillis();
-    long nowNano = System.nanoTime();
+    long nowMillis = timeSource.getCurrentTimeMillis();
+    long nowNano = timeSource.getNanoTicks();
 
     long pathwayStartNano =
         nowNano - TimeUnit.MILLISECONDS.toMicros(nowMillis - pathwayStartMillis);
@@ -218,7 +231,8 @@ public class DefaultPathwayContext implements PathwayContext {
     long edgeStartNano =
         pathwayStartNano + TimeUnit.MILLISECONDS.toMicros(edgeStartMillis - pathwayStartMillis);
 
-    return new DefaultPathwayContext(pathwayStartMillis, pathwayStartNano, edgeStartNano, hash);
+    return new DefaultPathwayContext(
+        timeSource, pathwayStartMillis, pathwayStartNano, edgeStartNano, hash);
   }
 
   private static long generateNodeHash(String serviceName, String edge) {

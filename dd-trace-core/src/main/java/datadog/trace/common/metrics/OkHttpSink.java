@@ -72,11 +72,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
-      send(
-          prepareRequest(metricsUrl, headers)
-              // FIXME: This is a PUT for agent requests
-              .post(makeRequestBody(buffer))
-              .build());
+      send(prepareRequest(metricsUrl, headers).put(makeRequestBody(buffer)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
         // async mode has been started but request latency is normal,
@@ -105,10 +101,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private void sendAsync(int messageCount, ByteBuffer buffer) {
     asyncRequestCounter.getAndIncrement();
     if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, headers)
-            // FIXME: This is a PUT for agent requests
-            .post(makeRequestBody(buffer.duplicate()))
-            .build())) {
+        prepareRequest(metricsUrl, headers).put(makeRequestBody(buffer.duplicate())).build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
           messageCount,
@@ -126,7 +119,6 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void send(Request request) {
     long start = System.nanoTime();
-    log.debug("Sending request to {} .", request.url());
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
         handleFailure(response);
@@ -160,8 +152,6 @@ public final class OkHttpSink implements Sink, EventListener {
       onEvent(BAD_PAYLOAD, response.body().string());
     } else if (code >= 500) {
       onEvent(ERROR, response.body().string());
-    } else {
-      log.debug("Other code: {} {}", code, response.body() == null ? "" : response.body().string());
     }
   }
 

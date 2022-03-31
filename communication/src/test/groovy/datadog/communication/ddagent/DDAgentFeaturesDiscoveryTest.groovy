@@ -74,6 +74,25 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
   }
 
+
+  def "test parse /info response with data streams unavailable"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITHOUT_DATA_STREAMS_RESPONSE) }
+    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.supportsMetrics()
+    features.getTraceEndpoint() == "v0.5/traces"
+    features.getDataStreamsEndpoint() == null
+    !features.supportsDataStreams()
+    features.state() == INFO_WITHOUT_DATA_STREAMS_STATE
+  }
+
   def "test fallback when /info not found"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)

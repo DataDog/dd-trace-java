@@ -8,6 +8,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
@@ -40,11 +41,12 @@ public class DefaultDataStreamsCheckpointer
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
+  private final TimeSource timeSource;
   private final Thread thread;
   private final AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
 
   public DefaultDataStreamsCheckpointer(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
     this(
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
@@ -54,20 +56,29 @@ public class DefaultDataStreamsCheckpointer
             true,
             Collections.<String, String>emptyMap()),
         sharedCommunicationObjects.featuresDiscovery,
+        timeSource,
         config.getEnv());
   }
 
-  DefaultDataStreamsCheckpointer(Sink sink, DDAgentFeaturesDiscovery features, String env) {
-    this(sink, features, new DatastreamsPayloadWriter(sink, env));
+  DefaultDataStreamsCheckpointer(
+      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, String env) {
+    this(sink, features, timeSource, new DatastreamsPayloadWriter(sink, env));
   }
 
-  DefaultDataStreamsCheckpointer(Sink sink, DDAgentFeaturesDiscovery features, DatastreamsPayloadWriter payloadWriter) {
+  DefaultDataStreamsCheckpointer(
+      Sink sink,
+      DDAgentFeaturesDiscovery features,
+      TimeSource timeSource,
+      DatastreamsPayloadWriter payloadWriter) {
     this.features = features;
+    this.timeSource = timeSource;
     this.payloadWriter = payloadWriter;
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);
 
-    features.discover();
+    if (features.getDataStreamsEndpoint() == null) {
+      features.discover();
+    }
     if (features.supportsDataStreams()) {
       sink.register(this);
       cancellation =
@@ -95,13 +106,13 @@ public class DefaultDataStreamsCheckpointer
 
   @Override
   public PathwayContext newPathwayContext() {
-    return new DefaultPathwayContext();
+    return new DefaultPathwayContext(timeSource);
   }
 
   @Override
   public <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    return DefaultPathwayContext.extract(carrier, getter);
+    return DefaultPathwayContext.extract(carrier, getter, timeSource);
   }
 
   @Override
@@ -126,7 +137,7 @@ public class DefaultDataStreamsCheckpointer
         StatsPoint statsPoint = inbox.take();
 
         if (statsPoint == REPORT) {
-          flush(System.currentTimeMillis());
+          flush(timeSource.getCurrentTimeMillis());
         } else if (statsPoint == POISON_PILL) {
           flush(Long.MAX_VALUE);
           break;

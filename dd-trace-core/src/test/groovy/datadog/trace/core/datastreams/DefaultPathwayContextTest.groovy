@@ -1,9 +1,13 @@
 package datadog.trace.core.datastreams
 
 import datadog.trace.api.function.Consumer
+import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
+import spock.lang.Requires
 
+@Requires({ jvm.isJava8Compatible() })
 class DefaultPathwayContextTest extends DDCoreSpecification {
   def pointConsumer = new Consumer<StatsPoint>() {
     List<StatsPoint> points = []
@@ -25,7 +29,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "StatsPoint emitted when start called"() {
     given:
-    def context = new DefaultPathwayContext()
+    def context = new DefaultPathwayContext(SystemTimeSource.INSTANCE)
 
     when:
     context.start(pointConsumer)
@@ -38,7 +42,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "StatsPoint not emitted when start called more than once"() {
     given:
-    def context = new DefaultPathwayContext()
+    def context = new DefaultPathwayContext(SystemTimeSource.INSTANCE)
 
     when:
     context.start(pointConsumer)
@@ -58,7 +62,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "Checkpoint converted to start on unstarted context"() {
     given:
-    def context = new DefaultPathwayContext()
+    def context = new DefaultPathwayContext(SystemTimeSource.INSTANCE)
 
     when:
     context.setCheckpoint("kafka", "", "topic", pointConsumer)
@@ -71,7 +75,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "Checkpoint generated"() {
     given:
-    def context = new DefaultPathwayContext()
+    def context = new DefaultPathwayContext(SystemTimeSource.INSTANCE)
 
     when:
     context.start(pointConsumer)
@@ -94,7 +98,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "Multiple checkpoints generated"() {
     given:
-    def context = new DefaultPathwayContext()
+    def context = new DefaultPathwayContext(SystemTimeSource.INSTANCE)
 
     when:
     context.start(pointConsumer)
@@ -127,7 +131,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "Exception thrown when trying to encode unstarted context"() {
     given:
-    def context = new DefaultPathwayContext()
+    def context = new DefaultPathwayContext(SystemTimeSource.INSTANCE)
 
     when:
     context.encode()
@@ -138,12 +142,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "Encoding and decoding a context"() {
     given:
-    def context = new DefaultPathwayContext()
+    def timeSource = Mock(TimeSource)
+    def context = new DefaultPathwayContext(timeSource)
 
     when:
     context.start(pointConsumer)
     def encoded = context.encode()
-    def decodedContext = DefaultPathwayContext.decode(encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, encoded)
     decodedContext.setCheckpoint("kafka", "", "topic", pointConsumer)
 
     then:
@@ -155,13 +160,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
   def "Encoding and decoding with contexts and checkpoints"() {
     given:
-    def context = new DefaultPathwayContext()
+    def timeSource = Mock(TimeSource)
+    def context = new DefaultPathwayContext(timeSource)
 
     when:
     context.start(pointConsumer)
 
     def encoded = context.encode()
-    def decodedContext = DefaultPathwayContext.decode(encoded)
+    def decodedContext = DefaultPathwayContext.decode(timeSource, encoded)
     decodedContext.setCheckpoint("kafka", "", "topic", pointConsumer)
 
     then:
@@ -172,7 +178,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.encode()
-    def secondDecode = DefaultPathwayContext.decode(secondEncode)
+    def secondDecode = DefaultPathwayContext.decode(timeSource, secondEncode)
     secondDecode.setCheckpoint("kafka", "", "topicB", pointConsumer)
 
     then:
