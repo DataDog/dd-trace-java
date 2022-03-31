@@ -2,9 +2,9 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDId;
-import datadog.trace.api.time.TimeSource;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import java.util.ArrayList;
@@ -70,7 +70,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final boolean strictTraceWrites;
 
   private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
-  private final ConcurrentLinkedDeque<DDSpan> unfinishedSpans = new ConcurrentLinkedDeque<>();
+  private final ConcurrentLinkedDeque<DDSpan> unfinishedSpans;
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private volatile int completedSpanCount = 0;
@@ -119,7 +119,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.strictTraceWrites = strictTraceWrites;
 
     if (tracer.getTraceKeepAlive() != null) {
+      this.unfinishedSpans = new ConcurrentLinkedDeque<>();
       tracer.getTraceKeepAlive().onPendingTraceBegins(this);
+    } else {
+      this.unfinishedSpans = null;
     }
   }
 
@@ -160,7 +163,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   void registerSpan(final DDSpan span) {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
-    unfinishedSpans.add(span);
+    if (unfinishedSpans != null) {
+      unfinishedSpans.add(span);
+    }
     if (span.hasCheckpoints()) {
       tracer.onStart(span);
     }
@@ -173,7 +178,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   PublishState onPublish(final DDSpan span) {
-    unfinishedSpans.remove(span);
+    if (unfinishedSpans != null) {
+      unfinishedSpans.remove(span);
+    }
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
@@ -188,6 +195,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   public void keepAliveUnfinished(final long triggerNanos, final long keepAliveIntervalNanos) {
+    if (unfinishedSpans == null) {
+      return;
+    }
     final ArrayList<DDSpan> unfinished = new ArrayList<>(unfinishedSpans);
     final long timeThresholdNanos = triggerNanos - keepAliveIntervalNanos;
 
