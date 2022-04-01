@@ -54,6 +54,8 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentThreadFactory",
   "datadog.trace.util.AgentThreadFactory.1",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.StringTrie.Builder",
+  "datadog.trace.util.StringTrie.Generator",
 ]
 
 compileTestJava.dependsOn 'generateTestTries'
