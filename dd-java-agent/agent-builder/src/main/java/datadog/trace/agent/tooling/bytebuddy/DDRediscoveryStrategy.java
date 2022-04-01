@@ -3,7 +3,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.canSkipClassLoaderByName;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher;
-import datadog.trace.agent.tooling.bytebuddy.matcher.IgnoresTrie;
+import datadog.trace.agent.tooling.bytebuddy.matcher.IgnoredClassNameTrie;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -89,6 +89,6 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
    */
   static boolean shouldRetransformBootstrapClass(final String name) {
     // optimization: only retransform bootstrap classes we explicitly allow in global ignores
-    return IgnoresTrie.apply(name) == 0;
+    return IgnoredClassNameTrie.apply(name) == 0;
   }
 }

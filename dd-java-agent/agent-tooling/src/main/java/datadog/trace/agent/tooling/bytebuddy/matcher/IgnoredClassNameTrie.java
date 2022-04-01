@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.util.StringTrie;
+import datadog.trace.util.ClassNameTrie;
 
-// Generated from 'ignores.trie' - DO NOT EDIT!
-public final class IgnoresTrie {
+// Generated from 'ignored_class_name.trie' - DO NOT EDIT!
+public final class IgnoredClassNameTrie {
   public static int apply(String key) {
     return TRIE.apply(key);
   }
@@ -307,7 +307,7 @@ public final class IgnoresTrie {
     "ransport.", //
   };
 
-  private static final StringTrie TRIE = new StringTrie(TRIE_DATA, TRIE_SEGMENTS);
+  private static final ClassNameTrie TRIE = new ClassNameTrie(TRIE_DATA, TRIE_SEGMENTS);
 
-  private IgnoresTrie() {}
+  private IgnoredClassNameTrie() {}
 }

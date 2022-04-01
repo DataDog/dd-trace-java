@@ -16,7 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Space-efficient string-based trie. */
-public final class StringTrie {
+public final class ClassNameTrie {
 
   /** Marks a leaf in the trie, where the rest of the bits are the index to be returned. */
   private static final char LEAF_MARKER = 0x8000;
@@ -104,17 +104,17 @@ public final class StringTrie {
     return result;
   }
 
-  public StringTrie(String data, String[] segments) {
+  public ClassNameTrie(String data, String[] segments) {
     this(data.toCharArray(), segments);
   }
 
-  StringTrie(char[] data, String[] segments) {
+  ClassNameTrie(char[] data, String[] segments) {
     this.trieData = data;
     this.trieSegments = segments;
   }
 
   /** Builds a new trie for the given string-to-int mapping. */
-  public static StringTrie buildTrie(SortedMap<String, Integer> mapping) {
+  public static ClassNameTrie buildTrie(SortedMap<String, Integer> mapping) {
     return new Builder(mapping).buildTrie();
   }
 
@@ -148,11 +148,11 @@ public final class StringTrie {
       }
     }
 
-    StringTrie buildTrie() {
+    ClassNameTrie buildTrie() {
       buildSubTrie(0, 0, keys.length);
       char[] data = new char[buf.length()];
       buf.getChars(0, data.length, data, 0);
-      return new StringTrie(data, segments.toArray(new String[0]));
+      return new ClassNameTrie(data, segments.toArray(new String[0]));
     }
 
     /** Recursively builds a trie for a slice of rows at a particular column. */
@@ -294,18 +294,27 @@ public final class StringTrie {
       }
       for (int i = 2; i < args.length; i++) {
         Path triePath = Paths.get(args[i]);
-        String trieName = triePath.getFileName().toString();
-        if (trieName.endsWith(".trie")) {
-          String className =
-              Character.toUpperCase(trieName.charAt(0))
-                  + trieName.substring(1, trieName.length() - 5)
-                  + "Trie";
-          Path pkgPath = inputFolder.relativize(triePath.getParent());
-          String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
-          Path javaPath = outputFolder.resolve(pkgPath).resolve(className + ".java");
-          generateJavaFile(triePath, javaPath, pkgName, className);
+        String className = toClassName(triePath.getFileName().toString());
+        Path pkgPath = inputFolder.relativize(triePath.getParent());
+        String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
+        Path javaPath = outputFolder.resolve(pkgPath).resolve(className + ".java");
+        generateJavaFile(triePath, javaPath, pkgName, className);
+      }
+    }
+
+    private static String toClassName(String trieName) {
+      StringBuilder className = new StringBuilder();
+      boolean upperNext = true;
+      for (int i = 0; i < trieName.length(); i++) {
+        char c = trieName.charAt(i);
+        if (c == '_' | c == '.') {
+          upperNext = true;
+        } else {
+          className.append(upperNext ? Character.toUpperCase(c) : c);
+          upperNext = false;
         }
       }
+      return className.toString();
     }
 
     private static void generateJavaFile(
@@ -317,13 +326,13 @@ public final class StringTrie {
           mapping.put(m.group(2), Integer.valueOf(m.group(1)));
         }
       }
-      StringTrie trie = buildTrie(mapping);
+      ClassNameTrie trie = buildTrie(mapping);
       List<String> lines =
           new ArrayList<>(
               Arrays.asList(
                   "package " + pkgName + ';',
                   "",
-                  "import datadog.trace.util.StringTrie;",
+                  "import datadog.trace.util.ClassNameTrie;",
                   "",
                   "// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!",
                   "public final class " + className + " {",
@@ -356,7 +365,7 @@ public final class StringTrie {
           Arrays.asList(
               "  };",
               "",
-              "  private static final StringTrie TRIE = new StringTrie(TRIE_DATA, TRIE_SEGMENTS);",
+              "  private static final ClassNameTrie TRIE = new ClassNameTrie(TRIE_DATA, TRIE_SEGMENTS);",
               "",
               "  private " + className + "() {}",
               "}"));

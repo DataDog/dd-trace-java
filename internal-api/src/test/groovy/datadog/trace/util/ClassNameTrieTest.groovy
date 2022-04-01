@@ -3,7 +3,7 @@ package datadog.trace.util
 import datadog.trace.test.util.DDSpecification
 import tries.TestTrie
 
-class StringTrieTest extends DDSpecification {
+class ClassNameTrieTest extends DDSpecification {
 
   def 'test trie mapping'() {
     when:

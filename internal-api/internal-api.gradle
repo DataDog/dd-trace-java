@@ -58,7 +58,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.StringTrie.Generator",
 ]
 
-compileTestJava.dependsOn 'generateTestTries'
+compileTestJava.dependsOn 'generateTestClassNameTries'
 
 dependencies {
   // references TraceScope and Continuation from public api

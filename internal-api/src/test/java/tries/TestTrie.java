@@ -1,6 +1,6 @@
 package tries;
 
-import datadog.trace.util.StringTrie;
+import datadog.trace.util.ClassNameTrie;
 
 // Generated from 'test.trie' - DO NOT EDIT!
 public final class TestTrie {
@@ -28,7 +28,7 @@ public final class TestTrie {
     "oobar.Two$", //
   };
 
-  private static final StringTrie TRIE = new StringTrie(TRIE_DATA, TRIE_SEGMENTS);
+  private static final ClassNameTrie TRIE = new ClassNameTrie(TRIE_DATA, TRIE_SEGMENTS);
 
   private TestTrie() {}
 }

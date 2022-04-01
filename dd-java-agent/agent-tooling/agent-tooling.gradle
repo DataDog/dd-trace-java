@@ -13,7 +13,7 @@ configurations {
   }
 }
 
-compileJava.dependsOn 'generateTries'
+compileJava.dependsOn 'generateClassNameTries'
 
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {

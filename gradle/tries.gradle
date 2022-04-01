@@ -1,23 +1,23 @@
-tasks.register('generateTries', JavaExec) {
-  group = ""
-  description = ""
-  def trieFiles = fileTree(dir: 'src/main/java', include: '**/*.trie')
-  def javaFiles = trieFiles.collect { new File(it.parent, it.name.capitalize().replace('.trie', 'Trie.java')) }
-  inputs.files(trieFiles)
-  outputs.files(javaFiles)
-  mainClass = 'datadog.trace.util.StringTrie$Generator'
-  classpath = sourceSets.main.compileClasspath
-  args = [trieFiles.dir, trieFiles.dir] + trieFiles
+def configureClassNameTrieTask(exec, sourceSetName) {
+  def trieFiles = fileTree(dir: "src/${sourceSetName}/java", include: '**/*.trie')
+  def javaFiles = trieFiles.collect {
+    new File(it.parent, it.name.capitalize().replaceAll('_([a-z])') {
+      it[1].toUpperCase()
+    }.replace('.trie', 'Trie.java'))
+  }
+  exec.group = 'Build'
+  exec.description = "Generate $sourceSetName ClassNameTries from .trie files"
+  exec.inputs.files(trieFiles)
+  exec.outputs.files(javaFiles)
+  exec.mainClass = 'datadog.trace.util.ClassNameTrie$Generator'
+  exec.classpath = sourceSets."$sourceSetName".compileClasspath
+  exec.args = [trieFiles.dir, trieFiles.dir] + trieFiles
 }
 
-tasks.register('generateTestTries', JavaExec) {
-  group = ""
-  description = ""
-  def trieFiles = fileTree(dir: 'src/test/java', include: '**/*.trie')
-  def javaFiles = trieFiles.collect { new File(it.parent, it.name.capitalize().replace('.trie', 'Trie.java')) }
-  inputs.files(trieFiles)
-  outputs.files(javaFiles)
-  mainClass = 'datadog.trace.util.StringTrie$Generator'
-  classpath = sourceSets.test.compileClasspath
-  args = [trieFiles.dir, trieFiles.dir] + trieFiles
+tasks.register('generateClassNameTries', JavaExec) {
+  configureClassNameTrieTask(it, 'main')
+}
+
+tasks.register('generateTestClassNameTries', JavaExec) {
+  configureClassNameTrieTask(it, 'test')
 }
