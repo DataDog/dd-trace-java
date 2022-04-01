@@ -1,6 +1,5 @@
 package datadog.trace.util;
 
-import datadog.trace.api.ToIntFunction;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Space-efficient string-based trie. */
-public class StringTrie implements ToIntFunction<String> {
+public final class StringTrie {
 
   /** Marks a leaf in the trie, where the rest of the bits are the index to be returned. */
   private static final char LEAF_MARKER = 0x8000;
@@ -37,8 +36,7 @@ public class StringTrie implements ToIntFunction<String> {
   /** The trie segments. */
   private final String[] trieSegments;
 
-  @Override
-  public int applyAsInt(String key) {
+  public int apply(String key) {
     int keyLength = key.length();
     int keyIndex = 0;
     char[] data = trieData;
@@ -69,7 +67,9 @@ public class StringTrie implements ToIntFunction<String> {
 
       // 'buds' are just like leaves unless the key still has characters left
       if ((value & BUD_MARKER) != 0) {
-        result = value & ~BUD_MARKER;
+        if (keyIndex == keyLength || c == '.' || c == '$') {
+          result = value & ~BUD_MARKER;
+        }
         if (keyIndex == keyLength) {
           break;
         }
@@ -104,13 +104,17 @@ public class StringTrie implements ToIntFunction<String> {
     return result;
   }
 
-  protected StringTrie(char[] data, String[] segments) {
+  public StringTrie(String data, String[] segments) {
+    this(data.toCharArray(), segments);
+  }
+
+  StringTrie(char[] data, String[] segments) {
     this.trieData = data;
     this.trieSegments = segments;
   }
 
   /** Builds a new trie for the given string-to-int mapping. */
-  public static ToIntFunction<String> buildTrie(SortedMap<String, Integer> mapping) {
+  public static StringTrie buildTrie(SortedMap<String, Integer> mapping) {
     return new Builder(mapping).buildTrie();
   }
 
@@ -144,7 +148,7 @@ public class StringTrie implements ToIntFunction<String> {
       }
     }
 
-    ToIntFunction<String> buildTrie() {
+    StringTrie buildTrie() {
       buildSubTrie(0, 0, keys.length);
       char[] data = new char[buf.length()];
       buf.getChars(0, data.length, data, 0);
@@ -313,16 +317,21 @@ public class StringTrie implements ToIntFunction<String> {
           mapping.put(m.group(2), Integer.valueOf(m.group(1)));
         }
       }
-      StringTrie trie = (StringTrie) buildTrie(mapping);
-      List<String> lines = new ArrayList<>();
-      lines.add("package " + pkgName + ';');
-      lines.add("");
-      lines.add("import datadog.trace.api.ToIntFunction;");
-      lines.add("import datadog.trace.util.StringTrie;");
-      lines.add("");
-      lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
-      lines.add("public class " + className + " extends StringTrie {");
-      lines.add("  private static final String TRIE_DATA =");
+      StringTrie trie = buildTrie(mapping);
+      List<String> lines =
+          new ArrayList<>(
+              Arrays.asList(
+                  "package " + pkgName + ';',
+                  "",
+                  "import datadog.trace.util.StringTrie;",
+                  "",
+                  "// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!",
+                  "public final class " + className + " {",
+                  "  public static int apply(String key) {",
+                  "    return TRIE.apply(key);",
+                  "  }",
+                  "",
+                  "  private static final String TRIE_DATA ="));
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
       for (char c : trie.trieData) {
@@ -332,24 +341,25 @@ public class StringTrie implements ToIntFunction<String> {
           buf.append(String.format("\\u%04x", (int) c));
         }
         if (buf.length() > 110) {
-          lines.add(buf.append('"').toString());
+          lines.add(buf + "\"");
           buf.setLength(0);
           buf.append("          + \"");
         }
       }
-      lines.add(buf.append("\";").toString());
+      lines.add(buf + "\";");
+      lines.add("");
       lines.add("  private static final String[] TRIE_SEGMENTS = {");
       for (String s : trie.trieSegments) {
-        lines.add("    \"" + s + "\",");
+        lines.add("    \"" + s + "\", //");
       }
-      lines.add("  };");
-      lines.add("");
-      lines.add("  public static final ToIntFunction<String> INSTANCE = new " + className + "();");
-      lines.add("");
-      lines.add("  private " + className + "() {");
-      lines.add("    super(TRIE_DATA.toCharArray(), TRIE_SEGMENTS);");
-      lines.add("  }");
-      lines.add("}");
+      lines.addAll(
+          Arrays.asList(
+              "  };",
+              "",
+              "  private static final StringTrie TRIE = new StringTrie(TRIE_DATA, TRIE_SEGMENTS);",
+              "",
+              "  private " + className + "() {}",
+              "}"));
       Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
   }

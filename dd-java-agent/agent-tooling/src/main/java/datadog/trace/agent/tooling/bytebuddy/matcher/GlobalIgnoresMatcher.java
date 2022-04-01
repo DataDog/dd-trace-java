@@ -41,7 +41,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
   }
 
   private static boolean isIgnored(String name, boolean skipAdditionalIgnores) {
-    switch (IgnoresTrie.INSTANCE.applyAsInt(name)) {
+    switch (IgnoresTrie.apply(name)) {
       case 0:
         return false; // global allow
       case 1:
@@ -70,10 +70,6 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
     }
 
     return false;
-  }
-
-  public static boolean isGloballyIgnored(String name) {
-    return isIgnored(name, false);
   }
 
   public static boolean isAdditionallyIgnored(String name) {

@@ -1,0 +1,23 @@
+tasks.register('generateTries', JavaExec) {
+  group = ""
+  description = ""
+  def trieFiles = fileTree(dir: 'src/main/java', include: '**/*.trie')
+  def javaFiles = trieFiles.collect { new File(it.parent, it.name.capitalize().replace('.trie', 'Trie.java')) }
+  inputs.files(trieFiles)
+  outputs.files(javaFiles)
+  mainClass = 'datadog.trace.util.StringTrie$Generator'
+  classpath = sourceSets.main.compileClasspath
+  args = [trieFiles.dir, trieFiles.dir] + trieFiles
+}
+
+tasks.register('generateTestTries', JavaExec) {
+  group = ""
+  description = ""
+  def trieFiles = fileTree(dir: 'src/test/java', include: '**/*.trie')
+  def javaFiles = trieFiles.collect { new File(it.parent, it.name.capitalize().replace('.trie', 'Trie.java')) }
+  inputs.files(trieFiles)
+  outputs.files(javaFiles)
+  mainClass = 'datadog.trace.util.StringTrie$Generator'
+  classpath = sourceSets.test.compileClasspath
+  args = [trieFiles.dir, trieFiles.dir] + trieFiles
+}

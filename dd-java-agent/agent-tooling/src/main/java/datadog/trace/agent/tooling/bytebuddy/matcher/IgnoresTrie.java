@@ -1,10 +1,13 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.api.ToIntFunction;
 import datadog.trace.util.StringTrie;
 
 // Generated from 'ignores.trie' - DO NOT EDIT!
-public class IgnoresTrie extends StringTrie {
+public final class IgnoresTrie {
+  public static int apply(String key) {
+    return TRIE.apply(key);
+  }
+
   private static final String TRIE_DATA =
       "\011\141\143\144\151\152\153\156\157\163\001\000\134\142\000\162\147\165\000\173\u01a1\u01b7\u01bf\u01f8"
           + "\u01f9\u0201\u0460\003\141\150\163\002\011\026\041\122\001\056\u4002\004\101\103\114\123\002\006\007"
@@ -59,253 +62,252 @@ public class IgnoresTrie extends StringTrie {
           + "\101\107\130\345\346\347\001\002\u8000\u8000\u8000\u8000\u8000\u8002\u8002\002\143\165\353\102\001"
           + "\u8002\001\056\u4001\002\156\162\354\152\016\002\150\160\355\356\001\u8000\001\056\u4000\001\152\357"
           + "\u8001\002\163\164\360\361\001\u8000\u8000";
+
   private static final String[] TRIE_SEGMENTS = {
-    "kka.",
-    "ctor",
-    "ell",
-    "ystem",
-    "mpl$",
-    "oordinatedShutdown$",
-    "ightArrayRevolverScheduler$",
-    "cheduler$",
-    "ttp.",
-    "mpl",
-    "ngine.",
-    "lient.",
-    "oolMasterActor",
-    "ool.NewHostConnectionPool$",
-    "ttp2.Http2Ext",
-    "erver.HttpServerBluePrint$TimeoutAccessImpl$",
-    "til.StreamUtils$",
-    "caladsl",
-    "ttp",
-    "Ext",
-    "xt",
-    "tream",
-    "mpl.",
-    "an",
-    "n$SubInput",
-    "ut$SubstreamSubscription",
-    "using.ActorGraphInterpreter$",
-    "tage.",
-    "raphStageLogic$",
-    "imerGraphStageLogic$",
-    ".qos.logback",
-    "assic.",
-    "ogger",
-    "pi.LoggingEven",
-    "O",
-    "re.AsyncAppenderBase$Worker",
-    "nnamon.",
-    "ojure.",
-    "elastic.apm.",
-    ".",
-    "ppdynamics.",
-    "eust.jcommander.",
-    "rrotsearch.hppc",
-    "ashOrderMixing$",
-    "ahale.metrics",
-    "ervlets.",
-    "trastsecurity.",
-    "chbase.client.deps",
-    "om.lmax.disruptor.",
-    "o.netty.",
-    "rg.LatencyUtils.",
-    "ynatrace.",
-    "asterxml.",
-    "lassmate.",
-    "ackson",
-    "odule.afterburner.util.MyClassLoader",
-    "thub.mustachejava.",
-    "ogle.",
-    "pi",
-    "lient.http.HttpRequest",
-    "oud.",
-    "mmon",
-    "ase.internal.Finalizer",
-    "til.concurrent.",
-    "son.",
-    "n",
-    "ect",
-    "nternal.",
-    "bstractBindingProcessor$",
-    "ytecodeGen$",
-    "glib.core.internal.$LoadingCach",
-    "trumentation.",
-    "2objc.",
-    "o",
-    "ging.",
-    "grunning.",
-    "rotobuf.",
-    "pc.",
-    "irdparty.",
-    "pe.",
-    "ntellij.rt.debugger.",
-    "yway.jsonpath.",
-    "nspired.",
-    "oadtrace.",
-    "ightbend.lagom.",
-    "change.v2.c3p0.",
-    "ewrelic.",
-    "6spy.",
-    "ngularity.",
-    "ersey.api.client.",
-    "essaging.",
-    "atadog.",
-    "pentracing.",
-    "lf4j.",
-    "race",
-    "ootstrap.instrumentation.java.concurrent.RunnableWrapper",
-    "ore.",
-    "o.micro",
-    "eter.",
-    "aut.tracing.",
-    "va",
-    "ang.Throwable",
-    "et.",
-    "ttpURLConnection",
-    "RL",
-    "mi.",
-    "til.",
-    "oncurrent.",
-    "ogging",
-    "ogManager$Cleaner",
-    "l.",
-    "ml.",
-    "k.",
-    "otlin.",
-    "ytebuddy.",
-    "f.cglib.",
-    "rg.",
-    "ache.",
-    "cel.",
-    "elix.framework.URLHandler",
-    "ctivator",
-    "undle",
-    "treamHandler",
-    "RLConnection",
-    "ontentHandlerProxy",
-    "treamHandlerProxy",
-    "roovy.",
-    "tml.",
-    "g4j",
-    "ategory",
-    "DC",
-    "pi.LoggingEvent",
-    "cene.",
-    "egexp.",
-    "artarus.",
-    "lan.",
-    "rces.",
-    "ath.",
-    "pectj.",
-    "odehaus.groovy",
-    "untime.",
-    "clipse.osgi.",
-    "ramework.internal.protocol.",
-    "nternal.url.",
-    "2",
-    "river",
-    "atabaseCloser",
-    "nExitDatabaseCloser",
-    "dbc",
-    "tore.",
-    "ileLock",
-    "riterThread",
-    "ools.Server",
-    "athUtils$1",
-    "ask",
-    "on.simple.",
-    "pringframework",
-    "qp.",
-    "p",
-    "nterceptor.AsyncExecutionInterceptor",
-    "ans",
-    "actory.",
-    "roovy.GroovyBeanDefinitionReader$",
-    "upport.",
-    "bstract",
-    "utowireCapableBeanFactory",
-    "eanFactory",
-    "faultListableBeanFactory",
-    "sposableBeanAdapter",
-    "ot",
-    "utoconfigure.",
-    "ackgroundPreinitializer$",
-    "ondition.OnClassCondition$",
-    "ontext.embedded.",
-    "nnotationConfigEmbeddedWebApplicationContext",
-    "mbeddedWebApplicationContext",
-    "omcat.TomcatEmbedded",
-    "ervletContainer$",
-    "ebappClassLoader",
-    "eb.",
-    "mbedded.",
-    "etty.NettyWebServer$",
-    "omcat.Tomcat",
-    "mbeddedWebappClassLoader",
-    "ebServer$1",
-    "ervlet.context.",
-    "nnotationConfigServletWebServerApplicationContext",
-    "ervletWebServerApplicationContext",
-    "che.",
-    "lib",
-    "ore.internal.LoadingCach",
-    "text",
-    "bstractApplicationContext$",
-    "ontextTypeMatchClassLoader",
-    "e",
-    "Proxy",
-    "ecoratingClassLoader",
-    "verridingClassLoader",
-    "ask.",
-    "a",
-    "onvert.ClassGeneratingEntityInstantiator$",
-    "pa.repository.config.InspectionClassLoader",
-    "epository.core.support.RepositoryFactorySupport",
-    "b.",
-    "pression.",
-    "ormat.",
-    "onverter.",
-    "erver.reactive.",
-    "nstrument",
-    "lassloading.S",
-    "adowingClassLoader",
-    "mpleThrowawayClassLoader",
-    "a.",
-    "bc.",
-    "istener.",
-    "di.",
-    "ang.",
-    "jenesis.",
-    "m.",
-    "emoting.",
-    "ripting.",
-    "ereotype.",
-    "ransaction.",
-    "il",
-    "alidation.",
-    "eb",
-    "ontext.",
-    "equest.async.",
-    "bstractRefreshableWebApplicationContext",
-    "enericWebApplicationContext",
-    "mlWebApplicationContext",
-    "eactive.",
-    "ervlet.",
-    "aml.snakeyaml.",
-    "ala.collection.",
-    "et.www.",
-    "ttp.HttpClient",
-    "rotocol",
-    "rt",
-    "erver.",
-    "ransport.",
+    "kka.", //
+    "ctor", //
+    "ell", //
+    "ystem", //
+    "mpl$", //
+    "oordinatedShutdown$", //
+    "ightArrayRevolverScheduler$", //
+    "cheduler$", //
+    "ttp.", //
+    "mpl", //
+    "ngine.", //
+    "lient.", //
+    "oolMasterActor", //
+    "ool.NewHostConnectionPool$", //
+    "ttp2.Http2Ext", //
+    "erver.HttpServerBluePrint$TimeoutAccessImpl$", //
+    "til.StreamUtils$", //
+    "caladsl", //
+    "ttp", //
+    "Ext", //
+    "xt", //
+    "tream", //
+    "mpl.", //
+    "an", //
+    "n$SubInput", //
+    "ut$SubstreamSubscription", //
+    "using.ActorGraphInterpreter$", //
+    "tage.", //
+    "raphStageLogic$", //
+    "imerGraphStageLogic$", //
+    ".qos.logback", //
+    "assic.", //
+    "ogger", //
+    "pi.LoggingEven", //
+    "O", //
+    "re.AsyncAppenderBase$Worker", //
+    "nnamon.", //
+    "ojure.", //
+    "elastic.apm.", //
+    ".", //
+    "ppdynamics.", //
+    "eust.jcommander.", //
+    "rrotsearch.hppc", //
+    "ashOrderMixing$", //
+    "ahale.metrics", //
+    "ervlets.", //
+    "trastsecurity.", //
+    "chbase.client.deps", //
+    "om.lmax.disruptor.", //
+    "o.netty.", //
+    "rg.LatencyUtils.", //
+    "ynatrace.", //
+    "asterxml.", //
+    "lassmate.", //
+    "ackson", //
+    "odule.afterburner.util.MyClassLoader", //
+    "thub.mustachejava.", //
+    "ogle.", //
+    "pi", //
+    "lient.http.HttpRequest", //
+    "oud.", //
+    "mmon", //
+    "ase.internal.Finalizer", //
+    "til.concurrent.", //
+    "son.", //
+    "n", //
+    "ect", //
+    "nternal.", //
+    "bstractBindingProcessor$", //
+    "ytecodeGen$", //
+    "glib.core.internal.$LoadingCach", //
+    "trumentation.", //
+    "2objc.", //
+    "o", //
+    "ging.", //
+    "grunning.", //
+    "rotobuf.", //
+    "pc.", //
+    "irdparty.", //
+    "pe.", //
+    "ntellij.rt.debugger.", //
+    "yway.jsonpath.", //
+    "nspired.", //
+    "oadtrace.", //
+    "ightbend.lagom.", //
+    "change.v2.c3p0.", //
+    "ewrelic.", //
+    "6spy.", //
+    "ngularity.", //
+    "ersey.api.client.", //
+    "essaging.", //
+    "atadog.", //
+    "pentracing.", //
+    "lf4j.", //
+    "race", //
+    "ootstrap.instrumentation.java.concurrent.RunnableWrapper", //
+    "ore.", //
+    "o.micro", //
+    "eter.", //
+    "aut.tracing.", //
+    "va", //
+    "ang.Throwable", //
+    "et.", //
+    "ttpURLConnection", //
+    "RL", //
+    "mi.", //
+    "til.", //
+    "oncurrent.", //
+    "ogging", //
+    "ogManager$Cleaner", //
+    "l.", //
+    "ml.", //
+    "k.", //
+    "otlin.", //
+    "ytebuddy.", //
+    "f.cglib.", //
+    "rg.", //
+    "ache.", //
+    "cel.", //
+    "elix.framework.URLHandler", //
+    "ctivator", //
+    "undle", //
+    "treamHandler", //
+    "RLConnection", //
+    "ontentHandlerProxy", //
+    "treamHandlerProxy", //
+    "roovy.", //
+    "tml.", //
+    "g4j", //
+    "ategory", //
+    "DC", //
+    "pi.LoggingEvent", //
+    "cene.", //
+    "egexp.", //
+    "artarus.", //
+    "lan.", //
+    "rces.", //
+    "ath.", //
+    "pectj.", //
+    "odehaus.groovy", //
+    "untime.", //
+    "clipse.osgi.", //
+    "ramework.internal.protocol.", //
+    "nternal.url.", //
+    "2", //
+    "river", //
+    "atabaseCloser", //
+    "nExitDatabaseCloser", //
+    "dbc", //
+    "tore.", //
+    "ileLock", //
+    "riterThread", //
+    "ools.Server", //
+    "athUtils$1", //
+    "ask", //
+    "on.simple.", //
+    "pringframework", //
+    "qp.", //
+    "p", //
+    "nterceptor.AsyncExecutionInterceptor", //
+    "ans", //
+    "actory.", //
+    "roovy.GroovyBeanDefinitionReader$", //
+    "upport.", //
+    "bstract", //
+    "utowireCapableBeanFactory", //
+    "eanFactory", //
+    "faultListableBeanFactory", //
+    "sposableBeanAdapter", //
+    "ot", //
+    "utoconfigure.", //
+    "ackgroundPreinitializer$", //
+    "ondition.OnClassCondition$", //
+    "ontext.embedded.", //
+    "nnotationConfigEmbeddedWebApplicationContext", //
+    "mbeddedWebApplicationContext", //
+    "omcat.TomcatEmbedded", //
+    "ervletContainer$", //
+    "ebappClassLoader", //
+    "eb.", //
+    "mbedded.", //
+    "etty.NettyWebServer$", //
+    "omcat.Tomcat", //
+    "mbeddedWebappClassLoader", //
+    "ebServer$1", //
+    "ervlet.context.", //
+    "nnotationConfigServletWebServerApplicationContext", //
+    "ervletWebServerApplicationContext", //
+    "che.", //
+    "lib", //
+    "ore.internal.LoadingCach", //
+    "text", //
+    "bstractApplicationContext$", //
+    "ontextTypeMatchClassLoader", //
+    "e", //
+    "Proxy", //
+    "ecoratingClassLoader", //
+    "verridingClassLoader", //
+    "ask.", //
+    "a", //
+    "onvert.ClassGeneratingEntityInstantiator$", //
+    "pa.repository.config.InspectionClassLoader", //
+    "epository.core.support.RepositoryFactorySupport", //
+    "b.", //
+    "pression.", //
+    "ormat.", //
+    "onverter.", //
+    "erver.reactive.", //
+    "nstrument", //
+    "lassloading.S", //
+    "adowingClassLoader", //
+    "mpleThrowawayClassLoader", //
+    "a.", //
+    "bc.", //
+    "istener.", //
+    "di.", //
+    "ang.", //
+    "jenesis.", //
+    "m.", //
+    "emoting.", //
+    "ripting.", //
+    "ereotype.", //
+    "ransaction.", //
+    "il", //
+    "alidation.", //
+    "eb", //
+    "ontext.", //
+    "equest.async.", //
+    "bstractRefreshableWebApplicationContext", //
+    "enericWebApplicationContext", //
+    "mlWebApplicationContext", //
+    "eactive.", //
+    "ervlet.", //
+    "aml.snakeyaml.", //
+    "ala.collection.", //
+    "et.www.", //
+    "ttp.HttpClient", //
+    "rotocol", //
+    "rt", //
+    "erver.", //
+    "ransport.", //
   };
 
-  public static final ToIntFunction<String> INSTANCE = new IgnoresTrie();
+  private static final StringTrie TRIE = new StringTrie(TRIE_DATA, TRIE_SEGMENTS);
 
-  private IgnoresTrie() {
-    super(TRIE_DATA.toCharArray(), TRIE_SEGMENTS);
-  }
+  private IgnoresTrie() {}
 }
