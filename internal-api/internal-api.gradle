@@ -53,9 +53,9 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentTaskScheduler.ShutdownHook",
   "datadog.trace.util.AgentThreadFactory",
   "datadog.trace.util.AgentThreadFactory.1",
+  "datadog.trace.util.ClassNameTrie.Builder",
+  "datadog.trace.util.ClassNameTrie.Generator",
   "datadog.trace.util.CollectionUtils",
-  "datadog.trace.util.StringTrie.Builder",
-  "datadog.trace.util.StringTrie.Generator",
 ]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'

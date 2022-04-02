@@ -2,8 +2,8 @@ package tries;
 
 import datadog.trace.util.ClassNameTrie;
 
-// Generated from 'test.trie' - DO NOT EDIT!
-public final class TestTrie {
+// Generated from 'test_class_names.trie' - DO NOT EDIT!
+public final class TestClassNamesTrie {
   public static int apply(String key) {
     return TRIE.apply(key);
   }
@@ -30,5 +30,5 @@ public final class TestTrie {
 
   private static final ClassNameTrie TRIE = new ClassNameTrie(TRIE_DATA, TRIE_SEGMENTS);
 
-  private TestTrie() {}
+  private TestClassNamesTrie() {}
 }

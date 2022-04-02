@@ -50,29 +50,37 @@ public final class ClassNameTrie {
       char c = key.charAt(keyIndex++);
 
       // trie is ordered, so we can use binary search to pick the right branch
-      int branchIndex = Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, c);
+      int branchIndex =
+          Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, c == '/' ? '.' : c);
 
       if (branchIndex < 0) {
-        break; // no match from this point onwards
+        return result; // no match from this point onwards
       }
 
       int valueIndex = branchIndex + branchCount;
       char value = data[valueIndex];
       if ((value & (LEAF_MARKER | BUD_MARKER)) != 0) {
-        if (keyIndex == keyLength || c == '.' || c == '$') {
+        if (keyIndex == keyLength || c < '0') {
           result = value & ~(LEAF_MARKER | BUD_MARKER);
         }
         // 'buds' are just like leaves unless the key still has characters left
         if (keyIndex == keyLength || (value & LEAF_MARKER) != 0) {
-          break;
+          return result;
         }
       } else if (value > 0) {
         // check rest of segment matches before moving key to next decision point
         String segment = segments[value - 1];
-        if (!key.regionMatches(keyIndex, segment, 0, segment.length())) {
-          break;
+        int segmentLength = segment.length();
+        if (keyLength - keyIndex < segmentLength) {
+          return result;
         }
-        keyIndex += segment.length();
+        int segmentIndex = 0;
+        while (segmentIndex < segmentLength) {
+          c = key.charAt(keyIndex++);
+          if ((c == '/' ? '.' : c) != segment.charAt(segmentIndex++)) {
+            return result;
+          }
+        }
       }
 
       // move the data to the appropriate branch...
@@ -87,10 +95,10 @@ public final class ClassNameTrie {
       // handle special case when next branching point is just a leaf after a segment
       branchCount = data[dataIndex++];
       if ((branchCount & LEAF_MARKER) != 0) {
-        if (keyIndex == keyLength || (c = key.charAt(keyIndex - 1)) == '.' || c == '$') {
+        if (keyIndex == keyLength || c < '0') {
           result = branchCount & ~LEAF_MARKER;
         }
-        break;
+        return result;
       }
     }
 
@@ -106,19 +114,14 @@ public final class ClassNameTrie {
     this.trieSegments = segments;
   }
 
-  /** Builds a new trie for the given string-to-int mapping. */
-  public static ClassNameTrie buildTrie(SortedMap<String, Integer> mapping) {
-    return new Builder(mapping).buildTrie();
-  }
-
-  private static class Builder {
+  public static class Builder {
     private final StringBuilder buf = new StringBuilder();
     private final List<String> segments = new ArrayList<>();
 
     private final String[] keys;
     private final char[] values;
 
-    Builder(SortedMap<String, Integer> mapping) {
+    public Builder(SortedMap<String, Integer> mapping) {
       int numEntries = mapping.size();
       if (numEntries > MAX_ROWS_PER_TRIE) {
         throw new IllegalArgumentException(
@@ -270,27 +273,27 @@ public final class ClassNameTrie {
   /**
    * Accepts trie files containing lines "{number} {text}" and generates their Java representation.
    */
-  private static class Generator {
+  public static class Generator {
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
 
     public static void main(String[] args) throws IOException {
-      if (args.length < 3) {
-        throw new IllegalArgumentException("Expected: input-folder output-folder [file.trie ...]");
+      if (args.length < 2) {
+        throw new IllegalArgumentException("Expected: trie-dir java-dir [file.trie ...]");
       }
-      Path inputFolder = Paths.get(args[0]);
-      if (!inputFolder.toFile().isDirectory()) {
-        throw new IllegalArgumentException("Bad input folder: " + inputFolder);
+      Path trieDir = Paths.get(args[0]);
+      if (!Files.isDirectory(trieDir)) {
+        throw new IllegalArgumentException("Bad trie directory: " + trieDir);
       }
-      Path outputFolder = Paths.get(args[1]);
-      if (!outputFolder.toFile().isDirectory()) {
-        throw new IllegalArgumentException("Bad output folder: " + outputFolder);
+      Path javaDir = Paths.get(args[1]);
+      if (!Files.isDirectory(javaDir)) {
+        throw new IllegalArgumentException("Bad java directory: " + javaDir);
       }
       for (int i = 2; i < args.length; i++) {
         Path triePath = Paths.get(args[i]);
         String className = toClassName(triePath.getFileName().toString());
-        Path pkgPath = inputFolder.relativize(triePath.getParent());
+        Path pkgPath = trieDir.relativize(triePath.getParent());
         String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
-        Path javaPath = outputFolder.resolve(pkgPath).resolve(className + ".java");
+        Path javaPath = javaDir.resolve(pkgPath).resolve(className + ".java");
         generateJavaFile(triePath, javaPath, pkgName, className);
       }
     }
@@ -319,21 +322,25 @@ public final class ClassNameTrie {
           mapping.put(m.group(2), Integer.valueOf(m.group(1)));
         }
       }
-      ClassNameTrie trie = buildTrie(mapping);
-      List<String> lines =
-          new ArrayList<>(
-              Arrays.asList(
-                  "package " + pkgName + ';',
-                  "",
-                  "import datadog.trace.util.ClassNameTrie;",
-                  "",
-                  "// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!",
-                  "public final class " + className + " {",
-                  "  public static int apply(String key) {",
-                  "    return TRIE.apply(key);",
-                  "  }",
-                  "",
-                  "  private static final String TRIE_DATA ="));
+      List<String> lines = new ArrayList<>();
+      lines.add("package " + pkgName + ';');
+      lines.add("");
+      lines.add("import datadog.trace.util.ClassNameTrie;");
+      lines.add("");
+      lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
+      lines.add("public final class " + className + " {");
+      lines.add("  public static int apply(String key) {");
+      lines.add("    return TRIE.apply(key);");
+      lines.add("  }");
+      lines.add("");
+      generateJavaTrie(lines, "TRIE", new Builder(mapping).buildTrie());
+      lines.add("  private " + className + "() {}");
+      lines.add("}");
+      Files.write(javaPath, lines, StandardCharsets.UTF_8);
+    }
+
+    public static void generateJavaTrie(List<String> lines, String name, ClassNameTrie trie) {
+      lines.add("  private static final String " + name + "_DATA =");
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
       for (char c : trie.trieData) {
@@ -350,19 +357,21 @@ public final class ClassNameTrie {
       }
       lines.add(buf + "\";");
       lines.add("");
-      lines.add("  private static final String[] TRIE_SEGMENTS = {");
+      lines.add("  private static final String[] " + name + "_SEGMENTS = {");
       for (String s : trie.trieSegments) {
         lines.add("    \"" + s + "\", //");
       }
-      lines.addAll(
-          Arrays.asList(
-              "  };",
-              "",
-              "  private static final ClassNameTrie TRIE = new ClassNameTrie(TRIE_DATA, TRIE_SEGMENTS);",
-              "",
-              "  private " + className + "() {}",
-              "}"));
-      Files.write(javaPath, lines, StandardCharsets.UTF_8);
+      lines.add("  };");
+      lines.add("");
+      lines.add(
+          "  private static final ClassNameTrie "
+              + name
+              + " = new ClassNameTrie("
+              + name
+              + "_DATA, "
+              + name
+              + "_SEGMENTS);");
+      lines.add("");
     }
   }
 }
