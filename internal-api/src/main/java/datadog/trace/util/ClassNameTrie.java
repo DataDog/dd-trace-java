@@ -58,19 +58,12 @@ public final class ClassNameTrie {
 
       int valueIndex = branchIndex + branchCount;
       char value = data[valueIndex];
-      if ((value & LEAF_MARKER) != 0) {
+      if ((value & (LEAF_MARKER | BUD_MARKER)) != 0) {
         if (keyIndex == keyLength || c == '.' || c == '$') {
-          result = value & ~LEAF_MARKER;
+          result = value & ~(LEAF_MARKER | BUD_MARKER);
         }
-        break;
-      }
-
-      // 'buds' are just like leaves unless the key still has characters left
-      if ((value & BUD_MARKER) != 0) {
-        if (keyIndex == keyLength || c == '.' || c == '$') {
-          result = value & ~BUD_MARKER;
-        }
-        if (keyIndex == keyLength) {
+        // 'buds' are just like leaves unless the key still has characters left
+        if (keyIndex == keyLength || (value & LEAF_MARKER) != 0) {
           break;
         }
       } else if (value > 0) {
