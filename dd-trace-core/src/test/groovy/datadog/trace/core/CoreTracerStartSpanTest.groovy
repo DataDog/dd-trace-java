@@ -4,7 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 
-class CoreStartSpanTest extends DDCoreSpecification {
+class CoreTracerStartSpanTest extends DDCoreSpecification {
   def writer = new ListWriter()
   def tracer = tracerBuilder().writer(writer).build()
 
