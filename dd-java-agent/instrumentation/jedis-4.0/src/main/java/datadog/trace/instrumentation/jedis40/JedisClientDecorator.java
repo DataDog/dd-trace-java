@@ -49,6 +49,14 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   @Override
   protected String dbHostname(ProtocolCommand protocolCommand) {
+    // As the instrumentation is on the Connection object to retrieve the current host
+    // should be a matter of calling the getHostAndPort on the instrumented Connection object.
+    // Binding a variable to the `this` of the instrumented method by using `@Advice.This`
+    // annotation to the onEnter method in JedisInstrumentation should allow this
+    // To support this some changes may to how the Decorator is instantiated. Unsure if the host and
+    // port
+    // can change per thread/invocation.
+
     return null;
   }
 }
