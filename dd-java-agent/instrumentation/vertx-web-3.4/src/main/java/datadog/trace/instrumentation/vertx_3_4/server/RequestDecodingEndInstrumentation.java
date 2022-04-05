@@ -40,10 +40,9 @@ public class RequestDecodingEndInstrumentation extends Instrumenter.AppSec
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("handleEnd")
-            .and(
-                takesArguments(0)
-                    .or(takesArguments(1).and(takesArgument(0, named("io.vertx.core.MultiMap"))))),
+        named("endDecode")
+            .and(takesArguments(0))
+            .or(named("handleEnd").and(takesArgument(0, named("io.vertx.core.MultiMap")))),
         packageName + ".RequestDecodingEndAdvice");
   }
 }
