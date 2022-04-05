@@ -116,9 +116,10 @@ public class DDAsyncMatchers implements Runnable {
             // ignore...
           }
           if (cancelRequest(slot)) { // task was not accepted, matching thread may be stuck
+            log.debug("Async matching request rejected for {}", typeDescription);
             exchangers[slot] = null;
             recycleSlot(slot);
-            // fall-through and use synchronous matching
+            return false; // assume no match rather than risk synchronous match getting stuck
           } else {
             log.debug("Async matching appears stuck for {}", typeDescription);
             localTask.remove(); // our task may be stuck, create a new task for next request
