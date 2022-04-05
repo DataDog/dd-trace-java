@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.Utils;
+import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -17,6 +18,9 @@ import net.bytebuddy.utility.StreamDrainer;
  */
 public final class DDClassFileLocator extends WeakReference<ClassLoader>
     implements ClassFileLocator {
+
+  private static final boolean NO_CLASSLOADER_EXCLUDES =
+      Config.get().getExcludedClassLoaders().isEmpty();
 
   public DDClassFileLocator(final ClassLoader classLoader) {
     super(classLoader);
@@ -35,7 +39,10 @@ public final class DDClassFileLocator extends WeakReference<ClassLoader>
       LOCATING_CLASS.begin();
       try {
         do {
-          resolution = loadClassResource(cl, resourceName);
+          if (NO_CLASSLOADER_EXCLUDES
+              || !Config.get().getExcludedClassLoaders().contains(cl.getClass().getName())) {
+            resolution = loadClassResource(cl, resourceName);
+          }
           cl = cl.getParent();
         } while (null == resolution && null != cl);
       } finally {
