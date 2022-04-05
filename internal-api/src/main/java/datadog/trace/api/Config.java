@@ -193,6 +193,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -391,6 +392,8 @@ public class Config {
 
   private final boolean traceExecutorsAll;
   private final List<String> traceExecutors;
+
+  private final Set<String> traceThreadPoolExecutorsExclude;
 
   private final boolean traceAnalyticsEnabled;
 
@@ -812,8 +815,10 @@ public class Config {
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
-
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
+
+    traceThreadPoolExecutorsExclude =
+        tryMakeImmutableSet(configProvider.getList(TRACE_THREAD_POOL_EXECUTORS_EXCLUDE));
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -1329,6 +1334,10 @@ public class Config {
 
   public List<String> getTraceExecutors() {
     return traceExecutors;
+  }
+
+  public Set<String> getTraceThreadPoolExecutorsExclude() {
+    return traceThreadPoolExecutorsExclude;
   }
 
   public boolean isTraceAnalyticsEnabled() {
