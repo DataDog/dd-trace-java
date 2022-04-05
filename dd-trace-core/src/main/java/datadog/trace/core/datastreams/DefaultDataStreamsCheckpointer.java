@@ -32,7 +32,7 @@ public class DefaultDataStreamsCheckpointer
     implements DataStreamsCheckpointer, AutoCloseable, Runnable, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
-  private static final long BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
+  static final long DEFAULT_BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
 
   private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
@@ -42,6 +42,7 @@ public class DefaultDataStreamsCheckpointer
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
+  private final long bucketDurationMillis;
   private final Thread thread;
   private final AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
 
@@ -62,17 +63,24 @@ public class DefaultDataStreamsCheckpointer
 
   DefaultDataStreamsCheckpointer(
       Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, String env) {
-    this(sink, features, timeSource, new DatastreamsPayloadWriter(sink, env));
+    this(
+        sink,
+        features,
+        timeSource,
+        new DatastreamsPayloadWriter(sink, env),
+        DEFAULT_BUCKET_DURATION_MILLIS);
   }
 
   DefaultDataStreamsCheckpointer(
       Sink sink,
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
-      DatastreamsPayloadWriter payloadWriter) {
+      DatastreamsPayloadWriter payloadWriter,
+      long bucketDurationMillis) {
     this.features = features;
     this.timeSource = timeSource;
     this.payloadWriter = payloadWriter;
+    this.bucketDurationMillis = bucketDurationMillis;
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, this);
 
@@ -85,14 +93,13 @@ public class DefaultDataStreamsCheckpointer
           AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
               new ReportTask(),
               this,
-              BUCKET_DURATION_MILLIS,
-              BUCKET_DURATION_MILLIS,
+              bucketDurationMillis,
+              bucketDurationMillis,
               TimeUnit.MILLISECONDS);
       thread.start();
-      log.debug("started data streams checkpointer");
     } else {
       cancellation = null;
-      log.debug("Data streams not supported by agent or disabled");
+      log.debug("Data streams is disabled or not supported by agent");
     }
   }
 
@@ -142,16 +149,14 @@ public class DefaultDataStreamsCheckpointer
           flush(Long.MAX_VALUE);
           break;
         } else {
-          Long bucket =
-              statsPoint.getTimestampMillis()
-                  - (statsPoint.getTimestampMillis() % BUCKET_DURATION_MILLIS);
+          Long bucket = currentBucket(statsPoint.getTimestampMillis());
 
           // FIXME computeIfAbsent() is not available because Java 7
           // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
           // DDSketch
           StatsBucket statsBucket = timeToBucket.get(bucket);
           if (statsBucket == null) {
-            statsBucket = new StatsBucket(bucket, BUCKET_DURATION_MILLIS);
+            statsBucket = new StatsBucket(bucket, bucketDurationMillis);
             timeToBucket.put(bucket, statsBucket);
           }
 
@@ -165,8 +170,12 @@ public class DefaultDataStreamsCheckpointer
     }
   }
 
+  private long currentBucket(long timestampMillis) {
+    return timestampMillis - (timestampMillis % bucketDurationMillis);
+  }
+
   private void flush(long timestampMillis) {
-    long cutoff = timestampMillis - BUCKET_DURATION_MILLIS;
+    long currentBucket = currentBucket(timestampMillis);
 
     List<StatsBucket> includedBuckets = new ArrayList<>();
     Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
@@ -174,9 +183,12 @@ public class DefaultDataStreamsCheckpointer
     while (mapIterator.hasNext()) {
       Map.Entry<Long, StatsBucket> entry = mapIterator.next();
 
-      if (entry.getKey() < cutoff) {
+      if (entry.getKey() < currentBucket) {
         mapIterator.remove();
         includedBuckets.add(entry.getValue());
+      } else {
+        log.debug(
+            "Not including {} because {} and {}", entry.getKey(), currentBucket, timestampMillis);
       }
     }
 

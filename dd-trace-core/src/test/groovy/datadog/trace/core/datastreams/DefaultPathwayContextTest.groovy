@@ -7,7 +7,9 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Requires
 
-@Requires({ jvm.isJava8Compatible() })
+@Requires({
+  jvm.isJava8Compatible()
+})
 class DefaultPathwayContextTest extends DDCoreSpecification {
   def pointConsumer = new Consumer<StatsPoint>() {
     List<StatsPoint> points = []

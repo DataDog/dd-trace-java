@@ -6,7 +6,9 @@ import spock.lang.IgnoreIf
 
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED
 
-@IgnoreIf({ jvm.isJava8Compatible() })
+@IgnoreIf({
+  jvm.isJava8Compatible()
+})
 class Java7DataStreamsTest extends DDCoreSpecification {
   def "tracer builds with data streams disabled"() {
     setup:

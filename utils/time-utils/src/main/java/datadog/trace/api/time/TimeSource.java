@@ -6,7 +6,7 @@ package datadog.trace.api.time;
  */
 public interface TimeSource {
   /**
-   * Returns monatonically increasing ticks from some arbitrary start point. Should only be used to
+   * Returns monotonically increasing ticks from some arbitrary start point. Should only be used to
    * measure durations. Negative numbers and zero are both valid return values
    */
   long getNanoTicks();

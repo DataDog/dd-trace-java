@@ -81,7 +81,6 @@ public class DatastreamsPayloadWriter {
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      log.debug("Writing group {}", group);
       boolean firstNode = "".equals(group.getTopic());
 
       packer.startMap(firstNode ? 4 : 5);

@@ -194,7 +194,6 @@ public class DefaultPathwayContext implements PathwayContext {
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, value);
-          log.debug("Extracted pathway context");
         } catch (IOException e) {
           return false;
         }
@@ -208,7 +207,11 @@ public class DefaultPathwayContext implements PathwayContext {
     PathwayContextExtractor pathwayContextExtractor = new PathwayContextExtractor(timeSource);
     getter.forEachKey(carrier, pathwayContextExtractor);
 
-    log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
+    if (pathwayContextExtractor.extractedContext == null) {
+      log.debug("No context extracted");
+    } else {
+      log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
+    }
 
     return pathwayContextExtractor.extractedContext;
   }
