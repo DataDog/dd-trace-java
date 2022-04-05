@@ -21,9 +21,9 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +107,6 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private final boolean disableSamplingMechanismValidation;
 
   private volatile PathwayContext pathwayContext;
-  private final Random contextSelector = new Random();
 
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
@@ -452,7 +451,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     // If there is a race, then that's okay
     if (this.pathwayContext.isStarted()) {
       // Randomly select between keeping the current context (0) or replacing (1)
-      if (contextSelector.nextInt(2) == 1) {
+      if (ThreadLocalRandom.current().nextInt(2) == 1) {
         this.pathwayContext = pathwayContext;
       }
     } else {
