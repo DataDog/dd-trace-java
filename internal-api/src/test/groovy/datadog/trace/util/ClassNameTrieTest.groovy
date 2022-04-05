@@ -5,7 +5,7 @@ import tries.TestClassNamesTrie
 
 class ClassNameTrieTest extends DDSpecification {
 
-  def 'test class #key name mapping'() {
+  def 'test class name "#key" mapping'() {
     when:
     int value = TestClassNamesTrie.apply(key)
     then:
@@ -40,7 +40,7 @@ class ClassNameTrieTest extends DDSpecification {
     // spotless:on
   }
 
-  def 'test internal #key name mapping'() {
+  def 'test internal name "#key" mapping'() {
     when:
     int value = TestClassNamesTrie.apply(key)
     then:

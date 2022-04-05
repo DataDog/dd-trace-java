@@ -1,3 +1,13 @@
+# Generates 'IgnoredClassNameTrie.java'
+
+# This file lists classes that are globally ignored for matching/transformation
+# Use 0 to allow transformation of packages or classes beneath ignored packages
+# Wildcard lines end with '.' or '$' and match any sub-packages/nested-classes
+
+# system-level ignores are classes that are unsafe or pointless to transform
+
+# additional ignores are an optimization to reduce the cost of expensive matchers
+
 # 0 = global allows
 # 1 = system-level ignores
 # 2 = additional ignores

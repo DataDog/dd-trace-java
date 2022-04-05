@@ -15,7 +15,76 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Space-efficient string-based trie. */
+/**
+ * Immutable space-efficient trie that captures a mapping of package/class names to numbers.
+ *
+ * <p>Each node of the trie is represented as a series of {@code char}s using this layout:
+ *
+ * <pre>
+ * +--------------------------------------+
+ * | number of branches                   |
+ * +--------------------------------------+--------------------------------------+----
+ * | char for branch 0                    | char for branch 1                    | ...
+ * +--------------------------------------+--------------------------------------+----
+ * | segment-length/leaf/bud for branch 0 | segment-length/leaf/bud for branch 1 | ...
+ * +--------------------------------------+--------------------------------------+----
+ * | offset to jump to branch 1           | offset to jump to branch 2           | ...
+ * +--------------------------------------+--------------------------------------+----
+ * </pre>
+ *
+ * Each node is followed by its child nodes according to branch order, separated by the characters
+ * expected for that segment of the trie. Segments that represent the end of a name with no further
+ * branches are followed by a leaf character instead of a child node.
+ *
+ * <p>Leaves mark a definite end of the match, while buds mark a potential end that could continue
+ * to a different result if there are more characters to match. A match is a success when either the
+ * entire key is matched or the match ends in a punctuation character like '.', '/', or '$'.
+ *
+ * <p>The jump for branch 0 is assumed to be 0 and is always omitted, that is any continuation of
+ * the trie for branch 0 immediately follows the current node. Long jumps that don't fit into a char
+ * are replaced by an index into a long jump table.
+ *
+ * <p>For example this mapping:
+ *
+ * <pre>
+ * 2 akka.stream.
+ * 0 akka.stream.impl.FanIn$SubInput
+ * 0 akka.stream.impl.FanOut$SubstreamSubscription
+ * 0 akka.stream.impl.fusing.ActorGraphInterpreter$
+ * 0 akka.stream.stage.GraphStageLogic$
+ * 0 akka.stream.stage.TimerGraphStageLogic$
+ * 2 ch.qos.logback.
+ * 0 ch.qos.logback.classic.Logger
+ * 0 ch.qos.logback.classic.spi.LoggingEvent
+ * 0 ch.qos.logback.classic.spi.LoggingEventVO
+ * 0 ch.qos.logback.core.AsyncAppenderBase$Worker
+ * </pre>
+ *
+ * is generated into a string trie with this structure: (formatted for readability)
+ *
+ * <pre>
+ * | 2 | a | c | length (10) | length (13) | jump (150)
+ * kka.stream | 1 | . | bud (2)
+ *            | 2 | i | s | length (4) | length (5) | jump (83)
+ *            mpl. | 2 | F | f | length (2) | length (28) | jump (44)
+ *                 an | 2 | I | O | length (10) | length (24) | jump (11)
+ *                    n$SubInput | leaf (0)
+ *                    ut$SubstreamSubscription | leaf (0)
+ *                 using.ActorGraphInterpreter$ | leaf (0)
+ *            tage. | 2 | G | T | length (15) | length (20) | jump (16)
+ *                  raphStageLogic$ | leaf (0)
+ *                  imerGraphStageLogic$ | leaf (0)
+ * h.qos.logback | 1 | . | bud (2)
+ *               | 1 | c | length (0)
+ *               | 2 | l | o | length (6) | length (27) | jump (40)
+ *               assic. | 2 | L | s | length (5) | length (14) | jump (6)
+ *                      ogger | leaf (0)
+ *                      pi.LoggingEven | 1 | t | bud (0)
+ *                                     | 1 | V | length (1)
+ *                                     O | leaf (0)
+ *               re.AsyncAppenderBase$Worker | leaf(0)
+ * </pre>
+ */
 public final class ClassNameTrie {
 
   /** Marks a leaf in the trie, where the rest of the bits are the index to be returned. */
@@ -24,109 +93,138 @@ public final class ClassNameTrie {
   /** Marks a 'bud' in the tree; the same as a leaf except the trie continues beneath it. */
   private static final char BUD_MARKER = 0x4000;
 
-  /** Maximum number of rows that can be indexed by a single trie. */
-  private static final int MAX_ROWS_PER_TRIE = 0x4000;
-
   /** Maximum value that can be held in a single node of the trie. */
-  private static final int MAX_NODE_VALUE = 0x3FFF;
+  private static final char MAX_NODE_VALUE = 0x3FFF;
+
+  /** Marks a long jump that was replaced by an index into the long jump table. */
+  private static final char LONG_JUMP_MARKER = 0x8000;
+
+  private static final int[] NO_LONG_JUMPS = {};
 
   /** The compressed trie. */
   private final char[] trieData;
 
-  /** The trie segments. */
-  private final String[] trieSegments;
+  /** Long jump offsets. */
+  private final int[] longJumps;
 
   public int apply(String key) {
+    char[] data = trieData;
     int keyLength = key.length();
     int keyIndex = 0;
-    char[] data = trieData;
-    String[] segments = trieSegments;
     int dataIndex = 0;
     int result = -1;
 
-    char branchCount = data[dataIndex++];
-
     while (keyIndex < keyLength) {
       char c = key.charAt(keyIndex++);
+      char branchCount = data[dataIndex++];
 
       // trie is ordered, so we can use binary search to pick the right branch
       int branchIndex =
           Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, c == '/' ? '.' : c);
 
       if (branchIndex < 0) {
-        return result; // no match from this point onwards
+        return result; // key doesn't match against any future branches
       }
 
       int valueIndex = branchIndex + branchCount;
       char value = data[valueIndex];
+      int segmentLength = 0;
+
       if ((value & (LEAF_MARKER | BUD_MARKER)) != 0) {
+        // update result if we've matched the key, or we're at a package boundary [./$]
         if (keyIndex == keyLength || c < '0') {
           result = value & ~(LEAF_MARKER | BUD_MARKER);
         }
-        // 'buds' are just like leaves unless the key still has characters left
+        // stop if this is a leaf, or if there's no more to match (i.e. a bud)
         if (keyIndex == keyLength || (value & LEAF_MARKER) != 0) {
           return result;
         }
-      } else if (value > 0) {
-        // check rest of segment matches before moving key to next decision point
-        String segment = segments[value - 1];
-        int segmentLength = segment.length();
-        if (keyLength - keyIndex < segmentLength) {
-          return result;
-        }
-        int segmentIndex = 0;
-        while (segmentIndex < segmentLength) {
-          c = key.charAt(keyIndex++);
-          if ((c == '/' ? '.' : c) != segment.charAt(segmentIndex++)) {
-            return result;
-          }
-        }
+      } else {
+        segmentLength = value; // value is the length of the segment before the next node
       }
 
-      // move the data to the appropriate branch...
+      // move on to the segment/node for the picked branch...
       if (branchIndex > dataIndex) {
         int jumpIndex = valueIndex + branchCount - 1;
-        dataIndex += data[jumpIndex];
+        int nextJump = data[jumpIndex];
+        if ((nextJump & LONG_JUMP_MARKER) != 0) {
+          nextJump = longJumps[nextJump & ~LONG_JUMP_MARKER];
+        }
+        dataIndex += nextJump;
       }
 
       // ...always include moving past the current node
       dataIndex += (branchCount * 3) - 1;
 
-      // handle special case when next branching point is just a leaf after a segment
-      branchCount = data[dataIndex++];
-      if ((branchCount & LEAF_MARKER) != 0) {
-        if (keyIndex == keyLength || c < '0') {
-          result = branchCount & ~LEAF_MARKER;
+      // attempt to match any inline segment that precedes the next node
+      if (segmentLength > 0) {
+        if (keyLength - keyIndex < segmentLength) {
+          return result; // not enough characters left in the key
         }
-        return result;
+        int segmentEnd = dataIndex + segmentLength;
+        while (dataIndex < segmentEnd) {
+          c = key.charAt(keyIndex++);
+          if ((c == '/' ? '.' : c) != data[dataIndex++]) {
+            return result; // segment doesn't match
+          }
+        }
+        // peek ahead - it will either be a node or a leaf
+        value = data[dataIndex];
+        if ((value & LEAF_MARKER) != 0) {
+          // update result if we've matched the key, or we're at a package boundary [./$]
+          if (keyIndex == keyLength || c < '0') {
+            result = value & ~LEAF_MARKER;
+          }
+          return result; // no more characters left to match in the trie
+        }
       }
     }
 
-    return result;
+    return result; // no more characters left to match in the key
   }
 
-  public ClassNameTrie(String data, String[] segments) {
-    this(data.toCharArray(), segments);
+  public static ClassNameTrie create(String trieData) {
+    return create(trieData, NO_LONG_JUMPS);
   }
 
-  ClassNameTrie(char[] data, String[] segments) {
-    this.trieData = data;
-    this.trieSegments = segments;
+  public static ClassNameTrie create(String[] trieData) {
+    return create(trieData, NO_LONG_JUMPS);
   }
 
+  public static ClassNameTrie create(String trieData, int[] longJumps) {
+    return new ClassNameTrie(trieData.toCharArray(), longJumps);
+  }
+
+  public static ClassNameTrie create(String[] trieData, int[] longJumps) {
+    int dataLength = 0;
+    for (String chunk : trieData) {
+      dataLength += chunk.length();
+    }
+    char[] data = new char[dataLength];
+    int dataIndex = 0;
+    for (String chunk : trieData) {
+      int chunkLength = chunk.length();
+      System.arraycopy(chunk.toCharArray(), 0, data, dataIndex, chunkLength);
+      dataIndex += chunkLength;
+    }
+    return new ClassNameTrie(data, longJumps);
+  }
+
+  private ClassNameTrie(char[] trieData, int[] longJumps) {
+    this.trieData = trieData;
+    this.longJumps = longJumps;
+  }
+
+  /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
     private final StringBuilder buf = new StringBuilder();
-    private final List<String> segments = new ArrayList<>();
+    private int[] longJumps = {};
 
     private final String[] keys;
     private final char[] values;
 
     public Builder(SortedMap<String, Integer> mapping) {
       int numEntries = mapping.size();
-      if (numEntries > MAX_ROWS_PER_TRIE) {
-        throw new IllegalArgumentException(
-            "Too many entries: " + numEntries + " > " + MAX_ROWS_PER_TRIE);
-      }
       this.keys = new String[numEntries];
       this.values = new char[numEntries];
       int i = 0;
@@ -134,10 +232,10 @@ public final class ClassNameTrie {
         this.keys[i] = entry.getKey();
         int value = entry.getValue();
         if (value < 0) {
-          throw new IllegalArgumentException("Value is too small: " + value + " < 0");
+          throw new IllegalArgumentException("Value is too small: " + value);
         }
         if (value > MAX_NODE_VALUE) {
-          throw new IllegalArgumentException("Value is too big: " + value + " > " + MAX_NODE_VALUE);
+          throw new IllegalArgumentException("Value is too big: " + value);
         }
         this.values[i] = (char) value;
         i++;
@@ -148,7 +246,7 @@ public final class ClassNameTrie {
       buildSubTrie(0, 0, keys.length);
       char[] data = new char[buf.length()];
       buf.getChars(0, data.length, data, 0);
-      return new ClassNameTrie(data, segments.toArray(new String[0]));
+      return new ClassNameTrie(data, longJumps);
     }
 
     /** Recursively builds a trie for a slice of rows at a particular column. */
@@ -187,17 +285,28 @@ public final class ClassNameTrie {
         int subTrieStart = buf.length() + 1;
 
         if (nextColumn < columnLimit) {
-          // same row, record this key segment and process rest of the row as sub trie
-          buf.insert(valueIndex, recordSegment(key, column, nextColumn));
+          // same row, record the segment before processing rest of the row as sub trie
+          if (nextColumn - column > 1) {
+            String segment = key.substring(column + 1, nextColumn);
+            buf.insert(valueIndex, (char) segment.length());
+            buf.append(segment);
+          } else {
+            buf.insert(valueIndex, (char) 0);
+          }
           buildSubTrie(nextColumn, prevRow, nextRow);
         } else {
           // build next row as sub trie, this tells us if current value is a leaf or bud
           buildSubTrie(nextColumn, prevRow + 1, nextRow);
-          if (subTrieStart == buf.length()) {
-            // no more branches, so record segment leading up to the leaf...
-            buf.insert(valueIndex, recordSegment(key, column, nextColumn));
-            // ...and replace zero branch count with value marked as a leaf
-            buf.setCharAt(subTrieStart, (char) (values[prevRow] | LEAF_MARKER));
+          if (subTrieStart > buf.length()) {
+            // no more branches so record last segment followed by a leaf
+            if (nextColumn - column > 1) {
+              String segment = key.substring(column + 1, nextColumn);
+              buf.insert(valueIndex, (char) segment.length());
+              buf.append(segment);
+              buf.append((char) (values[prevRow] | LEAF_MARKER));
+            } else {
+              buf.insert(valueIndex, (char) (values[prevRow] | LEAF_MARKER));
+            }
           } else {
             // we added more branches, so record value and mark it as a bud
             buf.insert(valueIndex, (char) (values[prevRow] | BUD_MARKER));
@@ -208,14 +317,24 @@ public final class ClassNameTrie {
           // child sub-tries have been added, so can now calculate jump to next branch
           int jumpIndex = valueIndex + 1 + branchCount;
           nextJump += buf.length() - subTrieStart;
-          buf.insert(jumpIndex, (char) nextJump);
+          if (nextJump >= LONG_JUMP_MARKER) {
+            // jump too big for a single char, record its long jump index instead
+            int longJumpIndex = longJumps.length;
+            longJumps = Arrays.copyOf(longJumps, longJumpIndex + 1);
+            longJumps[longJumpIndex] = nextJump;
+            buf.insert(jumpIndex, (char) (LONG_JUMP_MARKER | longJumpIndex));
+          } else {
+            buf.insert(jumpIndex, (char) nextJump);
+          }
         }
 
         prevRow = nextRow;
         branchCount++;
       }
 
-      buf.insert(trieStart, (char) branchCount);
+      if (branchCount > 0) {
+        buf.insert(trieStart, (char) branchCount);
+      }
     }
 
     /**
@@ -251,28 +370,9 @@ public final class ClassNameTrie {
       }
       return columnLimit;
     }
-
-    /**
-     * Adds the current segment to the segment table, returning its position (starting from one).
-     */
-    private char recordSegment(String key, int column, int nextColumn) {
-      if (nextColumn - column > 1) {
-        // ignore the first character as we already matched that in the branch
-        String segment = key.substring(column + 1, nextColumn);
-        int segmentPosition = 1 + segments.indexOf(segment);
-        if (segmentPosition == 0) {
-          segments.add(segment);
-          segmentPosition = segments.size();
-        }
-        return (char) segmentPosition;
-      }
-      return 0; // segment doesn't contain anything after the branch character
-    }
   }
 
-  /**
-   * Accepts trie files containing lines "{number} {text}" and generates their Java representation.
-   */
+  /** Generates Java source for a trie described as a series of "{number} {class-name}" lines. */
   public static class Generator {
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
 
@@ -280,16 +380,16 @@ public final class ClassNameTrie {
       if (args.length < 2) {
         throw new IllegalArgumentException("Expected: trie-dir java-dir [file.trie ...]");
       }
-      Path trieDir = Paths.get(args[0]);
+      Path trieDir = Paths.get(args[0]).toAbsolutePath().normalize();
       if (!Files.isDirectory(trieDir)) {
         throw new IllegalArgumentException("Bad trie directory: " + trieDir);
       }
-      Path javaDir = Paths.get(args[1]);
+      Path javaDir = Paths.get(args[1]).toAbsolutePath().normalize();
       if (!Files.isDirectory(javaDir)) {
         throw new IllegalArgumentException("Bad java directory: " + javaDir);
       }
       for (int i = 2; i < args.length; i++) {
-        Path triePath = Paths.get(args[i]);
+        Path triePath = trieDir.resolve(args[i]).normalize();
         String className = toClassName(triePath.getFileName().toString());
         Path pkgPath = trieDir.relativize(triePath.getParent());
         String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
@@ -298,6 +398,7 @@ public final class ClassNameTrie {
       }
     }
 
+    /** Converts snake-case trie names to camel-case Java class names. */
     private static String toClassName(String trieName) {
       StringBuilder className = new StringBuilder();
       boolean upperNext = true;
@@ -313,6 +414,7 @@ public final class ClassNameTrie {
       return className.toString();
     }
 
+    /** Reads a trie file and writes out the equivalent Java file. */
     private static void generateJavaFile(
         Path triePath, Path javaPath, String pkgName, String className) throws IOException {
       SortedMap<String, Integer> mapping = new TreeMap<>();
@@ -323,7 +425,9 @@ public final class ClassNameTrie {
         }
       }
       List<String> lines = new ArrayList<>();
-      lines.add("package " + pkgName + ';');
+      if (!pkgName.isEmpty()) {
+        lines.add("package " + pkgName + ';');
+      }
       lines.add("");
       lines.add("import datadog.trace.util.ClassNameTrie;");
       lines.add("");
@@ -333,44 +437,86 @@ public final class ClassNameTrie {
       lines.add("    return TRIE.apply(key);");
       lines.add("  }");
       lines.add("");
-      generateJavaTrie(lines, "TRIE", new Builder(mapping).buildTrie());
+      generateJavaTrie(lines, "", new Builder(mapping).buildTrie());
       lines.add("  private " + className + "() {}");
       lines.add("}");
       Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
 
-    public static void generateJavaTrie(List<String> lines, String name, ClassNameTrie trie) {
-      lines.add("  private static final String " + name + "_DATA =");
+    /** Writes the Java form of the trie as a series of lines. */
+    public static void generateJavaTrie(List<String> lines, String prefix, ClassNameTrie trie) {
+      boolean hasLongJumps = trie.longJumps.length > 0;
+      int firstLineNumber = lines.size();
+      int chunk = 1;
+      lines.add("  private static final String " + prefix + "TRIE_DATA_" + chunk + " =");
+      int chunkSize = 0;
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
       for (char c : trie.trieData) {
+        if (++chunkSize > 10_000) {
+          chunk++;
+          chunkSize = 0;
+          lines.add(buf + "\";");
+          lines.add("  private static final String " + prefix + "TRIE_DATA_" + chunk + " =");
+          buf.setLength(0);
+          buf.append("      \"");
+        } else if (buf.length() > 120) {
+          lines.add(buf + "\"");
+          buf.setLength(0);
+          buf.append("          + \"");
+        }
         if (c <= 0x00FF) {
           buf.append(String.format("\\%03o", (int) c));
         } else {
           buf.append(String.format("\\u%04x", (int) c));
         }
-        if (buf.length() > 110) {
-          lines.add(buf + "\"");
-          buf.setLength(0);
-          buf.append("          + \"");
-        }
       }
       lines.add(buf + "\";");
       lines.add("");
-      lines.add("  private static final String[] " + name + "_SEGMENTS = {");
-      for (String s : trie.trieSegments) {
-        lines.add("    \"" + s + "\", //");
+      if (chunk > 1) {
+        lines.add("  private static final String[] " + prefix + "TRIE_DATA = {");
+        for (int n = 1; n < chunk; n++) {
+          lines.add("    TRIE_DATA_" + n + ',');
+        }
+        lines.add("  };");
+        lines.add("");
+      } else {
+        // only one chunk, simplify the first chunk name to match the constructor call
+        lines.set(firstLineNumber, "  private static final String " + prefix + "TRIE_DATA =");
       }
-      lines.add("  };");
-      lines.add("");
-      lines.add(
-          "  private static final ClassNameTrie "
-              + name
-              + " = new ClassNameTrie("
-              + name
-              + "_DATA, "
-              + name
-              + "_SEGMENTS);");
+      if (hasLongJumps) {
+        lines.add("  private static final int[] " + prefix + "LONG_JUMPS = {");
+        buf.setLength(0);
+        buf.append("   ");
+        for (int j : trie.longJumps) {
+          if (buf.length() > 90) {
+            lines.add(buf.toString());
+            buf.setLength(0);
+            buf.append("   ");
+          }
+          buf.append(' ').append(String.format("0x%06X", j)).append(',');
+        }
+        lines.add(buf.toString());
+        lines.add("  };");
+        lines.add("");
+      }
+      if (hasLongJumps) {
+        lines.add(
+            "  private static final ClassNameTrie "
+                + prefix
+                + "TRIE = ClassNameTrie.create("
+                + prefix
+                + "TRIE_DATA, "
+                + prefix
+                + "LONG_JUMPS);");
+      } else {
+        lines.add(
+            "  private static final ClassNameTrie "
+                + prefix
+                + "TRIE = ClassNameTrie.create("
+                + prefix
+                + "TRIE_DATA);");
+      }
       lines.add("");
     }
   }

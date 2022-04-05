@@ -1,3 +1,5 @@
+
+// generates Java source code from .trie resource files
 def configureClassNameTrieTask(exec, sourceSetName) {
   def trieFiles = fileTree(dir: "src/${sourceSetName}/resources", include: '**/*.trie')
   def trieDir = trieFiles.dir.toPath()
