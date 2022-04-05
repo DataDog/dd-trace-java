@@ -17,6 +17,7 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
+  public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
 
   public static final String TRACE_THREAD_POOL_EXECUTORS_EXCLUDE =

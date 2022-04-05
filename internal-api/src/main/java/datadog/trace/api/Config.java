@@ -189,6 +189,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
@@ -329,6 +330,7 @@ public class Config {
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   private final List<String> excludedClasses;
+  private final Set<String> excludedClassLoaders;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final BitSet httpServerErrorStatuses;
@@ -650,6 +652,7 @@ public class Config {
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
+    excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
 
     if (isEnabled(false, HEADER_TAGS, ".legacy.parsing.enabled")) {
       requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
@@ -1118,6 +1121,10 @@ public class Config {
 
   public List<String> getExcludedClasses() {
     return excludedClasses;
+  }
+
+  public Set<String> getExcludedClassLoaders() {
+    return excludedClassLoaders;
   }
 
   public Map<String, String> getRequestHeaderTags() {
@@ -2229,6 +2236,8 @@ public class Config {
         + jmxTags
         + ", excludedClasses="
         + excludedClasses
+        + ", excludedClassLoaders="
+        + excludedClassLoaders
         + ", requestHeaderTags="
         + requestHeaderTags
         + ", responseHeaderTags="
