@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "org.hibernate"
     module = "hibernate-core"
-    versions = "[4.0.0.Final,)"
+    versions = "[4.0.0.Final,6.0.0)"
     assertInverse = true
   }
 }
