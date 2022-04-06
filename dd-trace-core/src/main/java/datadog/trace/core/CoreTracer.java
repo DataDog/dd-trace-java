@@ -621,7 +621,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final AgentSpan.Context parent,
       final long startTimeMicros,
       boolean emitCheckpoint) {
-    return startSpanImpl(spanName, parent,  startTimeMicros, emitCheckpoint);
+    return startSpanImpl(spanName, parent, startTimeMicros, emitCheckpoint);
   }
 
   private AgentSpan startSpanImpl(
@@ -636,9 +636,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 this,
                 operationName,
                 parent,
-                false, //ignoreScope = null
+                false, // ignoreScope = null
                 null, // tags = null
-                null, // serviceName = null, is this correct?
+                null, // serviceName = null
                 null, // resourceName = null
                 false, // errorFlag = false
                 null), // spanType = null
