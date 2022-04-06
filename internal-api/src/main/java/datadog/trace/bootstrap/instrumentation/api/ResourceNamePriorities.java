@@ -7,4 +7,5 @@ public class ResourceNamePriorities {
   public static final byte HTTP_FRAMEWORK_ROUTE = 3;
   public static final byte HTTP_SERVER_CONFIG_PATTERN_MATCH = 4;
   public static final byte TAG_INTERCEPTOR = 5;
+  public static final byte MANUAL_INSTRUMENTATION = 5;
 }

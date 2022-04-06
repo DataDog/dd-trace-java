@@ -1,15 +1,26 @@
 import datadog.trace.api.Trace;
 
 public class PeriodicTask implements Runnable {
-  private int runCount;
+  private volatile int runCount;
+  private boolean finished = false;
 
   public int getRunCount() {
     return runCount;
   }
 
+  public void ensureFinished() {
+    synchronized (this) {
+      this.finished = true;
+    }
+  }
+
   @Override
   public void run() {
-    periodicRun();
+    synchronized (this) {
+      if (!finished) {
+        periodicRun();
+      }
+    }
   }
 
   @Trace(operationName = "periodicRun")
