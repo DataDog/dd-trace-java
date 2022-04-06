@@ -9,6 +9,7 @@ import datadog.trace.common.metrics.OkHttpSink
 import datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
+import spock.lang.Ignore
 import spock.lang.Requires
 import spock.util.concurrent.PollingConditions
 
@@ -22,6 +23,7 @@ import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFA
 @Requires({
   "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
 })
+@Ignore("The agent in CI doesn't have a valid API key. Unlike metrics and traces, data streams fails in this case")
 class DataStreamsIntegrationTest extends DDSpecification {
 
   def "Sending stats bucket to agent should notify with OK event"() {

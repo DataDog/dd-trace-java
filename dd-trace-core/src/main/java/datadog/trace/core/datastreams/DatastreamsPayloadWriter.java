@@ -9,11 +9,8 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class DatastreamsPayloadWriter {
-  private static final Logger log = LoggerFactory.getLogger(DatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
   private static final byte[] START = "Start".getBytes(ISO_8859_1);

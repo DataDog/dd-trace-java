@@ -51,7 +51,7 @@ public class DefaultDataStreamsCheckpointer
     this(
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
-            config.getAgentUrl(),
+            sharedCommunicationObjects.agentUrl.toString(),
             V01_DATASTREAMS_ENDPOINT,
             false,
             true,
