@@ -1642,7 +1642,7 @@ public class Config {
 
   public WellKnownTags getWellKnownTags() {
     return new WellKnownTags(
-        getRuntimeId(), reportHostName ? getHostName() : "", getEnv(), serviceName, getVersion());
+        getRuntimeId(), reportHostName ? getHostName() : "", getEnv(), serviceName, getVersion(), LANGUAGE_TAG_VALUE);
   }
 
   public Set<String> getMetricsIgnoredResources() {

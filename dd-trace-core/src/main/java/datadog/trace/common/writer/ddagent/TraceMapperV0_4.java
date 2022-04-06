@@ -18,19 +18,6 @@ import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
 
-  public static final byte[] SERVICE = "service".getBytes(ISO_8859_1);
-  public static final byte[] NAME = "name".getBytes(ISO_8859_1);
-  public static final byte[] RESOURCE = "resource".getBytes(ISO_8859_1);
-  public static final byte[] TRACE_ID = "trace_id".getBytes(ISO_8859_1);
-  public static final byte[] SPAN_ID = "span_id".getBytes(ISO_8859_1);
-  public static final byte[] PARENT_ID = "parent_id".getBytes(ISO_8859_1);
-  public static final byte[] START = "start".getBytes(ISO_8859_1);
-  public static final byte[] DURATION = "duration".getBytes(ISO_8859_1);
-  public static final byte[] TYPE = "type".getBytes(ISO_8859_1);
-  public static final byte[] ERROR = "error".getBytes(ISO_8859_1);
-  public static final byte[] METRICS = "metrics".getBytes(ISO_8859_1);
-  public static final byte[] META = "meta".getBytes(ISO_8859_1);
-
   private final int size;
 
   public TraceMapperV0_4(int size) {

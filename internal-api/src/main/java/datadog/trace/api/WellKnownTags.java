@@ -9,18 +9,21 @@ public class WellKnownTags {
   private final UTF8BytesString env;
   private final UTF8BytesString service;
   private final UTF8BytesString version;
+  private final UTF8BytesString language;
 
   public WellKnownTags(
       CharSequence runtimeId,
       CharSequence hostname,
       CharSequence env,
       CharSequence service,
-      CharSequence version) {
+      CharSequence version,
+      CharSequence language) {
     this.runtimeId = UTF8BytesString.create(runtimeId);
     this.hostname = UTF8BytesString.create(hostname);
     this.env = UTF8BytesString.create(env);
     this.service = UTF8BytesString.create(service);
     this.version = UTF8BytesString.create(version);
+    this.language = UTF8BytesString.create(language);
   }
 
   public UTF8BytesString getRuntimeId() {
@@ -41,5 +44,9 @@ public class WellKnownTags {
 
   public UTF8BytesString getVersion() {
     return version;
+  }
+
+  public UTF8BytesString getLanguage()  {
+    return language;
   }
 }
