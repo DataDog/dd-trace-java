@@ -12,15 +12,20 @@ import io.netty.channel.SimpleChannelInboundHandler
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.codec.http.DefaultFullHttpResponse
+import io.netty.handler.codec.http.FullHttpRequest
 import io.netty.handler.codec.http.FullHttpResponse
 import io.netty.handler.codec.http.HttpHeaderNames
+import io.netty.handler.codec.http.HttpObjectAggregator
 import io.netty.handler.codec.http.HttpRequest
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.HttpServerCodec
+import io.netty.handler.codec.http.multipart.Attribute
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.util.CharsetUtil
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -53,7 +58,7 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
             ChannelPipeline pipeline = ch.pipeline()
             pipeline.addFirst("logger", LOGGING_HANDLER)
 
-            def handlers = [new HttpServerCodec()]
+            def handlers = [new HttpServerCodec(), new HttpObjectAggregator(1024)]
             handlers.each { pipeline.addLast(it) }
             pipeline.addLast([
               channelRead0       : { ChannelHandlerContext ctx, msg ->
@@ -79,6 +84,24 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                       case QUERY_PARAM:
                         content = Unpooled.copiedBuffer(endpoint.bodyForQuery(uri.query), CharsetUtil.UTF_8)
                         response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
+                        break
+                      case BODY_URLENCODED:
+                        if (msg instanceof FullHttpRequest) {
+                          HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(request)
+                          Map m
+                          try {
+                            decoder.offer(msg)
+
+                            m = decoder.bodyHttpDatas.collectEntries { d ->
+                              [d.name, [((Attribute)d).value]]
+                            }
+                          } finally {
+                            decoder.destroy()
+                          }
+
+                          content = Unpooled.copiedBuffer(m as String, CharsetUtil.UTF_8)
+                          response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
+                        }
                         break
                       case REDIRECT:
                         response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
@@ -141,5 +164,10 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
   @Override
   String expectedOperationName() {
     "netty.request"
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
   }
 }

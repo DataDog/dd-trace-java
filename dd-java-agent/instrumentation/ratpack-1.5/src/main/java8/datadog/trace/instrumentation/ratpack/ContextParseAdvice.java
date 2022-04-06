@@ -22,10 +22,8 @@ public class ContextParseAdvice {
       return;
     }
     if (obj instanceof Form) {
-      if (((Form) obj).isEmpty()) {
-        return;
-      }
-      obj = ((Form) obj).getAll();
+      // handled by netty
+      return;
     }
 
     AgentSpan agentSpan = activeSpan();
