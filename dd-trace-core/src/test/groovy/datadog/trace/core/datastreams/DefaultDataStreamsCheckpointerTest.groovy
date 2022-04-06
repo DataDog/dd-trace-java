@@ -90,7 +90,6 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def bucketDuration = 200
 
     when:
-    def test = DEFAULT_BUCKET_DURATION_MILLIS
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, bucketDuration)
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(bucketDuration))
@@ -132,7 +131,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 3, 4, timeSource.currentTimeMillis, 0, 0))
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS - 100l))
     checkpointer.report()
     // intentional double report. Without the double report, there's a time when the queue is empty and the report hasn't been processed
@@ -159,6 +158,58 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     cleanup:
     payloadWriter.close()
     checkpointer.close()
+  }
+
+  def "All groups written in close"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter(sink)
+
+    when:
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
+    timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeMillis, 0, 0))
+    timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS - 100l))
+    checkpointer.close()
+
+    then:
+    conditions.eventually {
+      assert checkpointer.inbox.isEmpty()
+      assert payloadWriter.buckets.size() == 2
+    }
+
+    with(payloadWriter.buckets.get(0))  {
+      groups.size() == 1
+
+      with (groups.iterator().next())  {
+        type == "testType"
+        group == "testGroup"
+        topic == "testTopic"
+        hash == 1
+        parentHash == 2
+      }
+    }
+
+    with(payloadWriter.buckets.get(1))  {
+      groups.size() == 1
+
+      with (groups.iterator().next())  {
+        type == "testType"
+        group == "testGroup"
+        topic == "testTopic2"
+        hash == 3
+        parentHash == 4
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
   }
 
   def "Groups from multiple buckets are reported"() {

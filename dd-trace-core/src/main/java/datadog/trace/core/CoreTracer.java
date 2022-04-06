@@ -728,15 +728,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public <C> void injectPathwayContext(
       AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
-    log.debug("Injecting pathway context called");
-
     PathwayContext pathwayContext = span.context().getPathwayContext();
     pathwayContext.start(dataStreamsCheckpointer);
-    log.debug("Pathway context to inject {}", pathwayContext);
+
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
 
       if (encodedContext != null) {
+        log.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
       }
     } catch (IOException e) {

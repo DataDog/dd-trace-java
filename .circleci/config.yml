@@ -366,7 +366,7 @@ jobs:
 
     docker:
       - image: *default_container
-      - image: datadog/agent:7.29.0
+      - image: datadog/agent:7.34.0
         environment:
           - DD_APM_ENABLED=true
           - DD_BIND_HOST=0.0.0.0
