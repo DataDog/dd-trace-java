@@ -29,7 +29,7 @@ class FootprintTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
-      new WellKnownTags("runtimeid","hostname", "env", "service", "version"),
+      new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
       features,
       sink,

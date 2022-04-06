@@ -6,6 +6,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.common.writer.common.Payload
 import datadog.trace.common.writer.common.TraceGenerator
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpanContext
