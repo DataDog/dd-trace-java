@@ -513,7 +513,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         1,
         SECONDS);
 
-    dataStreamsCheckpointer = createDataStreamsCheckpointer(config, sharedCommunicationObjects);
+    dataStreamsCheckpointer = createDataStreamsCheckpointer(config, sharedCommunicationObjects, this.timeSource);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -961,7 +961,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @SuppressForbidden
   private static DataStreamsCheckpointer createDataStreamsCheckpointer(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects) {
+      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
 
     if (config.isDataStreamsEnabled() && Platform.isJavaVersionAtLeast(8)) {
       try {
@@ -969,14 +969,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         return (DataStreamsCheckpointer)
             Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
-                .getConstructor(Config.class, SharedCommunicationObjects.class)
-                .newInstance(config, sharedCommunicationObjects);
+                .getConstructor(Config.class, SharedCommunicationObjects.class, TimeSource.class)
+                .newInstance(config, sharedCommunicationObjects, timeSource);
       } catch (InstantiationException
           | InvocationTargetException
           | NoSuchMethodException
           | IllegalAccessException
           | ClassNotFoundException e) {
-        log.error("Failed to insttantiate data streams checkpointer", e);
+        log.error("Failed to instantiate data streams checkpointer", e);
         return new StubDataStreamsCheckpointer();
       }
     } else {

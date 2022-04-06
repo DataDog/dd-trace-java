@@ -186,9 +186,6 @@ public class DefaultDataStreamsCheckpointer
       if (entry.getKey() < currentBucket) {
         mapIterator.remove();
         includedBuckets.add(entry.getValue());
-      } else {
-        log.debug(
-            "Not including {} because {} and {}", entry.getKey(), currentBucket, timestampMillis);
       }
     }
 
