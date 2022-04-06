@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.AbstractExecutorService
@@ -27,7 +28,7 @@ import java.util.concurrent.TimeoutException
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
-class ExecutorInstrumentationTest extends AgentTestRunner {
+abstract class ExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
@@ -64,8 +65,10 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
+    injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
+  @Unroll
   def "#poolImpl '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
@@ -224,12 +227,16 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     // spotless:on
   }
 
+  @Unroll
   def "#poolImpl '#name' doesn't propagate"() {
     setup:
     def pool = poolImpl
     def m = method
     def task = new PeriodicTask()
 
+    when:
+    // make sure that the task is removed from the queue on cancel
+    pool.setRemoveOnCancelPolicy(true)
     new Runnable() {
         @Override
         @Trace(operationName = "parent")
@@ -238,11 +245,17 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
           def future = m(pool, task)
           sleep(500)
           future.cancel(true)
+          while (!future.isDone()) {
+            sleep(500)
+          }
         }
       }.run()
+    // there is a potential race where the task is still executing or about to execute
+    task.ensureFinished()
+    def runCount = task.runCount
 
-    expect:
-    assertTraces(task.runCount + 1) {
+    then:
+    assertTraces(runCount + 1) {
       sortSpansByStart()
       trace(1) {
         span {
@@ -254,7 +267,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
           }
         }
       }
-      for (int i = 0; i < task.runCount; i++) {
+      for (int i = 0; i < runCount; i++) {
         trace(1) {
           span {
             operationName "periodicRun"
@@ -281,6 +294,54 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     // spotless:on
   }
 
+  def "excluded ToBeIgnoredExecutor doesn't propagate"() {
+    setup:
+    def pool = new ToBeIgnoredExecutor()
+    new Runnable() {
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          pool.execute(new JavaAsyncChild())
+          // this child won't
+          pool.execute(new JavaAsyncChild(false, false))
+        }
+      }.run()
+    TEST_WRITER.waitForTraces(2)
+
+    expect:
+    assertTraces(2) {
+      sortSpansByStart()
+      trace(1) {
+        span {
+          operationName "parent"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          operationName "asyncChild"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    if (pool?.hasProperty("shutdown")) {
+      pool?.shutdown()
+    }
+  }
+
+  @Unroll
   def "#poolImpl '#name' wraps"() {
     setup:
     def pool = poolImpl
@@ -317,6 +378,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable" | scheduleRunnable | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
   }
 
+  @Unroll
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll
@@ -358,6 +420,11 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     expect:
     // FIXME: we should improve this test to make sure continuations are actually closed
     TEST_WRITER.size() == 1
+
+    cleanup:
+    if (pool?.hasProperty("shutdown")) {
+      pool?.shutdown()
+    }
 
     where:
     name                  | method             | poolImpl
@@ -425,7 +492,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
 
     def workerThread = new Thread(worker, "ExecutorTestThread")
 
-    private CustomThreadPoolExecutor() {
+    protected CustomThreadPoolExecutor() {
       workerThread.start()
     }
 
@@ -503,5 +570,23 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     void execute(Runnable command) {
       workQueue.put(command)
     }
+  }
+
+  static class ToBeIgnoredExecutor extends ThreadPoolExecutor {
+    ToBeIgnoredExecutor() {
+      super(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(10))
+    }
+  }
+}
+
+class ExecutorInstrumentationForkedTest extends ExecutorInstrumentationTest {
+  def setupSpec() {
+    System.setProperty("dd.trace.thread-pool-executors.legacy.tracing.enabled", "false")
+  }
+}
+
+class ExecutorInstrumentationLegacyForkedTest extends ExecutorInstrumentationTest {
+  def setupSpec() {
+    System.setProperty("dd.trace.thread-pool-executors.legacy.tracing.enabled", "true")
   }
 }
