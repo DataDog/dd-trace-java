@@ -5,6 +5,7 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.common.writer.common.Payload
 import datadog.trace.common.writer.common.TraceGenerator
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification

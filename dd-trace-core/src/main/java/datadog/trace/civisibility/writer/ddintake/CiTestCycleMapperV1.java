@@ -5,8 +5,8 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import datadog.communication.serialization.Writable;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.writer.common.Payload;
 import datadog.trace.common.writer.common.RemoteMapper;
-import datadog.trace.common.writer.ddagent.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
@@ -198,7 +198,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     }
 
     @Override
-    protected void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(WritableByteChannel channel) throws IOException {
       ByteBuffer header = msgpackArrayHeader(traceCount());
       while (header.hasRemaining()) {
         channel.write(header);
@@ -209,7 +209,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     }
 
     @Override
-    protected RequestBody toRequest() {
+    public RequestBody toRequest() {
       return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
     }
   }

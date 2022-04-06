@@ -4,12 +4,17 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.common.writer.common.TraceGenerator
+
 import datadog.trace.test.util.DDSpecification
+import org.junit.Assert
+import org.msgpack.core.MessagePack
+import org.msgpack.core.MessageUnpacker
 
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.common.writer.common.TraceGenerator.generateRandomTraces
+import static org.junit.Assert.assertEquals
 
 class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
@@ -72,9 +77,36 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
       ++position
     }
 
+    void verifyTracesConsumed() {
+      assertEquals(expectedTraces.size(), position)
+    }
+
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
+      if (expectedTraces.isEmpty() && messageCount == 0) {
+        return
+      }
 
+      try {
+        Payload payload = mapper.newPayload().withBody(messageCount, buffer)
+        payload.writeTo(this)
+        captured.flip()
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
+        int traceCount = unpacker.unpackArrayHeader()
+        System.out.print("-----" + traceCount)
+        for (int i = 0; i < traceCount; ++i) {
+          List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)
+          int spanCount = unpacker.unpackArrayHeader()
+          System.out.print(i + "-----" + spanCount)
+
+        }
+      }catch (IOException e) {
+        Assert.fail(e.getMessage())
+      } finally {
+        mapper.reset()
+        captured.position(0)
+        captured.limit(captured.capacity())
+      }
     }
 
     @Override
@@ -84,12 +116,18 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
     @Override
     boolean isOpen() {
-      return false
+      return true
     }
 
     @Override
-    void close() throws IOException {
+    void close() throws IOException {}
+  }
 
+  private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
+    if (null == expected) {
+      assertEquals("", actual)
+    } else {
+      assertEquals(expected.toString(), actual.toString())
     }
   }
 

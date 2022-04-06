@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.trace.common.writer.common;
 
 import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY32;
@@ -36,23 +36,23 @@ public abstract class Payload {
     return this;
   }
 
-  protected int traceCount() {
+  public int traceCount() {
     return traceCount;
   }
 
-  long droppedTraces() {
+  public long droppedTraces() {
     return droppedTraces;
   }
 
-  long droppedSpans() {
+  public long droppedSpans() {
     return droppedSpans;
   }
 
   public abstract int sizeInBytes();
 
-  protected abstract void writeTo(WritableByteChannel channel) throws IOException;
+  public abstract void writeTo(WritableByteChannel channel) throws IOException;
 
-  protected abstract RequestBody toRequest();
+  public abstract RequestBody toRequest();
 
   protected int msgpackArrayHeaderSize(int count) {
     if (count < 0x10) {

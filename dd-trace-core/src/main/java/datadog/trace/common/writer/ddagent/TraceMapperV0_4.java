@@ -5,6 +5,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.common.writer.common.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
@@ -185,7 +186,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    protected void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(WritableByteChannel channel) throws IOException {
       ByteBuffer header = msgpackArrayHeader(traceCount());
       while (header.hasRemaining()) {
         channel.write(header);
@@ -196,7 +197,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    protected RequestBody toRequest() {
+    public RequestBody toRequest() {
       return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
     }
   }

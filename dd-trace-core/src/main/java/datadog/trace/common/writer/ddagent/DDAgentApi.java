@@ -9,6 +9,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.common.writer.common.Payload;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.relocate.api.IOLogger;
 import java.io.IOException;
