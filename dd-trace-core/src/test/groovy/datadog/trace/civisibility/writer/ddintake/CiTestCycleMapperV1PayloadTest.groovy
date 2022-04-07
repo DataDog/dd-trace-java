@@ -5,8 +5,8 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.common.writer.common.Payload
-import datadog.trace.common.writer.common.TraceGenerator
+import datadog.trace.common.writer.Payload
+import datadog.trace.common.writer.TraceGenerator
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
@@ -18,7 +18,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
-import static datadog.trace.common.writer.common.TraceGenerator.generateRandomTraces
+import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
 import static org.msgpack.core.MessageFormat.FLOAT32

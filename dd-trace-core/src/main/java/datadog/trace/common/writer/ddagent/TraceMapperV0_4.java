@@ -5,7 +5,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.common.writer.common.Payload;
+import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;

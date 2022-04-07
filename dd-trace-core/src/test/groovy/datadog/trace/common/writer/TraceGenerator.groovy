@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.common
+package datadog.trace.common.writer
 
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags

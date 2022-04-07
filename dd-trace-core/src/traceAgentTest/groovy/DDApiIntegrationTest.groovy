@@ -5,7 +5,7 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.common.Payload
+import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 

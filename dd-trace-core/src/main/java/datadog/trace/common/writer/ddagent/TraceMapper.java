@@ -2,7 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.common.writer.common.RemoteMapper;
+import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.core.DDSpanContext;
 
 public interface TraceMapper extends RemoteMapper {

@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.common;
+package datadog.trace.common.writer;
 
 import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY32;
