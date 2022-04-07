@@ -87,7 +87,15 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                         break
                       case BODY_URLENCODED:
                         if (msg instanceof FullHttpRequest) {
-                          HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(request)
+                          // newer versions of netty automatically offer() the request
+                          // Do not expose the request as HttpContent to avoid this behavior,
+                          // which makes our subsequent call to offer() fail
+                          HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(
+                            new HttpRequest() {
+                              @Delegate
+                              HttpRequest delegate = request
+                            })
+
                           Map m
                           try {
                             decoder.offer(msg)
