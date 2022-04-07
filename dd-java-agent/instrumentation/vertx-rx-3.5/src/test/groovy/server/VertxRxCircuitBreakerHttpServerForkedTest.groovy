@@ -3,11 +3,14 @@ package server
 import datadog.trace.agent.test.base.HttpServerTest
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
-import io.vertx.reactivex.ext.web.RoutingContext
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
 import io.vertx.reactivex.core.AbstractVerticle
+import io.vertx.reactivex.core.MultiMap
 import io.vertx.reactivex.ext.web.Router
+import io.vertx.reactivex.ext.web.RoutingContext
+import io.vertx.reactivex.ext.web.handler.BodyHandler
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -29,6 +32,11 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
   // TODO not handled without rx instrumentation
   @Override
   boolean testExceptionTag() {
+    false
+  }
+
+  @Override
+  boolean testBodyJson() {
     false
   }
 
@@ -56,6 +64,24 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
           HttpServerTest.ServerEndpoint endpoint = it.result()
           controller(ctx, endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(endpoint.body)
+          }
+        })
+      }
+      router.route(BODY_URLENCODED.path).handler(BodyHandler.create())
+      router.route(BODY_URLENCODED.path).handler { ctx ->
+        breaker.executeCommand({ future ->
+          future.complete(BODY_URLENCODED)
+        }, {
+          if (it.failed()) {
+            throw it.cause()
+          }
+          HttpServerTest.ServerEndpoint endpoint = it.result()
+          controller(ctx, endpoint) {
+            MultiMap attributes = ctx.request().formAttributes()
+            Map m = attributes.names()
+              .findAll {it != 'ignore '}
+              .collectEntries {[it, attributes.getAll(it)] }
+            ctx.response().setStatusCode(endpoint.status).end(m as String)
           }
         })
       }
