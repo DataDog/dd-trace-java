@@ -150,15 +150,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     this.sequencePruner = sequencePruner;
     this.span = span;
     this.allocator = allocator;
-    this.blobListeners = new HashSet<>();
     this.initialThreadId = Thread.currentThread().getId();
     this.lastTransitionTimestamp = System.nanoTime();
     this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
-  }
-
-  void setBlobListeners(Set<IntervalBlobListener> blobListeners) {
-    this.blobListeners.addAll(blobListeners);
   }
 
   @Override
@@ -223,21 +218,6 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
           return null;
         }
         ByteBuffer buffer = encodeIntervals();
-
-        if (span != null) {
-          for (IntervalBlobListener listener : blobListeners) {
-            try {
-              ByteBuffer duplicated = buffer.duplicate();
-              listener.onIntervalBlob(span, duplicated);
-            } catch (OutOfMemoryError e) {
-              throw e;
-            } catch (Throwable t) {
-              warnlog.warn(
-                  "Error while dispatching context blob to {}", listener.getClass().getName(), t);
-            }
-          }
-        }
-
         data = buffer.array();
         data = Arrays.copyOf(data, buffer.limit());
       } finally {

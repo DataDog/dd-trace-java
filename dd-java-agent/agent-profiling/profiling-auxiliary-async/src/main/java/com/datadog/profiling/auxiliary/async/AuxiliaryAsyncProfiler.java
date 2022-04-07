@@ -102,8 +102,6 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     this.memleakIntervalDefault =
         maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
-
-    ContextIntervalEventsWriter.initialize(this.asyncProfiler);
   }
 
   private void emitConfiguration() {

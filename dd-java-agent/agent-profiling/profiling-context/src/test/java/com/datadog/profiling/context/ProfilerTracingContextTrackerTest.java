@@ -7,7 +7,6 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
@@ -94,9 +93,6 @@ class ProfilerTracingContextTrackerTest {
     ProfilerTracingContextTracker tracker =
         (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
     AtomicInteger blobCounter = new AtomicInteger();
-    TracingContextTracker.IntervalBlobListener listener =
-        (span, blob) -> blobCounter.incrementAndGet();
-    tracker.setBlobListeners(Collections.singleton(listener));
 
     tracker.activateContext();
     tracker.maybeDeactivateContext();

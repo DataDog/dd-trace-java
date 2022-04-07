@@ -1,7 +1,5 @@
 package datadog.trace.api.profiling;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.nio.ByteBuffer;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
@@ -26,17 +24,6 @@ public interface TracingContextTracker {
         };
 
     void cleanup();
-  }
-
-  /** Allows connecting external listeners for a binary tracing context blob */
-  interface IntervalBlobListener {
-    /**
-     * Process the binary tracing context blob for the given span
-     *
-     * @param span the associated span
-     * @param blob the binary tracing context data
-     */
-    void onIntervalBlob(AgentSpan span, ByteBuffer blob);
   }
 
   /** A no-op implementation */

@@ -12,10 +12,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.ServiceLoader;
-import java.util.Set;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -82,7 +79,6 @@ public final class ProfilerTracingContextTrackerFactory
   }
 
   private final Allocator allocator;
-  private final Set<TracingContextTracker.IntervalBlobListener> blobListeners = new HashSet<>();
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
   private final long inactivityDelay;
@@ -105,10 +101,6 @@ public final class ProfilerTracingContextTrackerFactory
             : Allocators.heapAllocator(reservedMemorySize, 32);
     this.inactivityDelay = inactivityDelayNs;
 
-    for (TracingContextTracker.IntervalBlobListener listener :
-        ServiceLoader.load(TracingContextTracker.IntervalBlobListener.class)) {
-      blobListeners.add(listener);
-    }
     if (inactivityDelay > 0) {
       initializeInactiveTrackerCleanup(inactivityCheckPeriodMs);
     }
@@ -169,7 +161,6 @@ public final class ProfilerTracingContextTrackerFactory
     ProfilerTracingContextTracker instance =
         new ProfilerTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
-    instance.setBlobListeners(blobListeners);
     if (inactivityDelay > 0) {
       delayQueue.offer(instance.asDelayed());
     }
