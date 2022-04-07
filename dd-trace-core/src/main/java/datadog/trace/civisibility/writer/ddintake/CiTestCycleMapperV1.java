@@ -74,7 +74,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.startMap(3);
       /* 1 */
       writable.writeUTF8(TYPE);
-      if(TEST_TYPE.equals(span.getType())) {
+      if (TEST_TYPE.equals(span.getType())) {
         writable.writeUTF8(TEST_TYPE);
       } else {
         writable.writeUTF8(SPAN_TYPE);

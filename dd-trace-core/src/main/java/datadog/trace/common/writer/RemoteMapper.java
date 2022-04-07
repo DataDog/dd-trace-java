@@ -6,7 +6,6 @@ import datadog.communication.serialization.Mapper;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import java.nio.charset.StandardCharsets;
 import java.util.List;

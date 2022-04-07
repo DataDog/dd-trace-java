@@ -46,7 +46,7 @@ public class WellKnownTags {
     return version;
   }
 
-  public UTF8BytesString getLanguage()  {
+  public UTF8BytesString getLanguage() {
     return language;
   }
 }

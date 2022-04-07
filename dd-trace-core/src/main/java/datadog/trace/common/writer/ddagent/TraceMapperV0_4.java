@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
