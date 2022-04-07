@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -16,11 +18,21 @@ public class UndertowDecorator
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence UNDERTOW_HTTP_SERVER =
       UTF8BytesString.create("undertow-http-server");
-  public static final UndertowDecorator DECORATE = new UndertowDecorator();
+
+  @SuppressWarnings("rawtypes")
+  private static final ContextStore<String, AttachmentKey> attachmentStore =
+      InstanceStore.of(AttachmentKey.class);
+
+  @SuppressWarnings("unchecked")
   public static final AttachmentKey<Boolean> DD_HTTPSERVEREXCHANGE_DISPATCH =
-      AttachmentKey.create(Boolean.class);
+      attachmentStore.putIfAbsent(
+          "DD_HTTPSERVEREXCHANGE_DISPATCH", AttachmentKey.create(Boolean.class));
+
+  @SuppressWarnings("unchecked")
   public static final AttachmentKey<AgentSpan> DD_UNDERTOW_SPAN =
-      AttachmentKey.create(AgentSpan.class);
+      attachmentStore.putIfAbsent("DD_UNDERTOW_SPAN", AttachmentKey.create(AgentSpan.class));
+
+  public static final UndertowDecorator DECORATE = new UndertowDecorator();
 
   @Override
   protected String[] instrumentationNames() {
