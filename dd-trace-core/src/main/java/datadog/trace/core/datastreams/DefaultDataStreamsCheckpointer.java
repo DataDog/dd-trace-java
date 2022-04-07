@@ -61,17 +61,17 @@ public class DefaultDataStreamsCheckpointer
         config.getEnv());
   }
 
-  DefaultDataStreamsCheckpointer(
+  public DefaultDataStreamsCheckpointer(
       Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, String env) {
     this(
         sink,
         features,
         timeSource,
-        new DatastreamsPayloadWriter(sink, env),
+        new MsgPackDatastreamsPayloadWriter(sink, env),
         DEFAULT_BUCKET_DURATION_MILLIS);
   }
 
-  DefaultDataStreamsCheckpointer(
+  public DefaultDataStreamsCheckpointer(
       Sink sink,
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,

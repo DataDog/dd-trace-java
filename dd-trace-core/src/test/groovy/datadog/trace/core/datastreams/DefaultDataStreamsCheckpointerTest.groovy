@@ -344,7 +344,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
 
 }
 
-class CapturingPayloadWriter extends DatastreamsPayloadWriter {
+class CapturingPayloadWriter implements DatastreamsPayloadWriter {
   boolean accepting = true
   List<StatsBucket> buckets = new ArrayList<>()
 

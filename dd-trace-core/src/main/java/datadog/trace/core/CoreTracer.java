@@ -243,6 +243,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
     private TimeSource timeSource;
+    private DataStreamsCheckpointer dataStreamsCheckpointer;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -340,6 +341,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder dataStreamsCheckpointer(
+        DataStreamsCheckpointer dataStreamsCheckpointer) {
+      this.dataStreamsCheckpointer = dataStreamsCheckpointer;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -388,7 +395,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           tagInterceptor,
           strictTraceWrites,
           instrumentationGateway,
-          timeSource);
+          timeSource,
+          dataStreamsCheckpointer);
     }
   }
 
@@ -412,7 +420,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
-      final TimeSource timeSource) {
+      final TimeSource timeSource,
+      final DataStreamsCheckpointer dataStreamsCheckpointer) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -513,7 +522,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         1,
         SECONDS);
 
-    dataStreamsCheckpointer = createDataStreamsCheckpointer(config, sharedCommunicationObjects, this.timeSource);
+    if (dataStreamsCheckpointer == null) {
+      this.dataStreamsCheckpointer =
+          createDataStreamsCheckpointer(config, sharedCommunicationObjects, this.timeSource);
+    } else {
+      this.dataStreamsCheckpointer = dataStreamsCheckpointer;
+    }
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

@@ -6,16 +6,11 @@ import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
-import datadog.trace.common.metrics.OkHttpSink
-import datadog.trace.common.metrics.Sink
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
-import okio.Buffer
 import okio.BufferedSource
-import okio.ByteString
 import okio.GzipSource
 import okio.Okio
-import okio.Options
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import spock.lang.AutoCleanup
@@ -23,11 +18,9 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_MILLIS
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS

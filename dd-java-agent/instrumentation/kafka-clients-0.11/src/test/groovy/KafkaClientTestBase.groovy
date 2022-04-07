@@ -1,8 +1,10 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -43,6 +45,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   abstract String expectedServiceName()
@@ -99,7 +102,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2)
     }
-
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     // check that the message was received
@@ -129,6 +132,20 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     headers.iterator().hasNext()
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        type == null
+        topic == ""
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        type == "kafka"
+        topic == SHARED_TOPIC
+      }
+    }
 
     cleanup:
     producer.close()
@@ -181,6 +198,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       })
       blockUntilChildSpansFinished(2)
     }
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     // check that the message was received
@@ -210,6 +228,20 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     headers.iterator().hasNext()
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        type == null
+        topic == ""
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        type == "kafka"
+        topic == SHARED_TOPIC
+      }
+    }
 
     cleanup:
     producerFactory.stop()
@@ -596,6 +628,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2 * greetings.size())
     }
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     def receivedSet = greetings.toSet()
@@ -644,6 +677,20 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         trace(1) {
           consumerSpan(it, trace(0)[2], 0..1)
         }
+      }
+    }
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        type == null
+        topic == ""
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        type == "kafka"
+        topic == SHARED_TOPIC
       }
     }
 
