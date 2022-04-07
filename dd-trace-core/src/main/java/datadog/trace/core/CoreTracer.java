@@ -600,19 +600,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final CharSequence spanName, boolean emitCheckpoint) {
-    return startSpanImpl(spanName, null, 0L, emitCheckpoint);
+    return startSpanImpl(spanName, null, false, 0L, emitCheckpoint);
   }
 
   @Override
   public AgentSpan startSpan(
       final CharSequence spanName, final long startTimeMicros, boolean emitCheckpoint) {
-    return startSpanImpl(spanName, null, startTimeMicros, emitCheckpoint);
+    return startSpanImpl(spanName, null, false, startTimeMicros, emitCheckpoint);
   }
 
   @Override
   public AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, boolean emitCheckpoint) {
-    return startSpanImpl(spanName, parent, 0L, emitCheckpoint);
+    return startSpanImpl(spanName, parent, true, 0L, emitCheckpoint);
   }
 
   @Override
@@ -621,12 +621,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final AgentSpan.Context parent,
       final long startTimeMicros,
       boolean emitCheckpoint) {
-    return startSpanImpl(spanName, parent, startTimeMicros, emitCheckpoint);
+    return startSpanImpl(spanName, parent, true, startTimeMicros, emitCheckpoint);
   }
 
   private AgentSpan startSpanImpl(
       final CharSequence operationName,
       final AgentSpan.Context parent,
+      final boolean ignoreParent,
       final long startTimeMicros,
       final boolean emitCheckpoint) {
     DDSpan span =
@@ -636,7 +637,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 this,
                 operationName,
                 parent,
-                false, // ignoreScope = null
+                ignoreParent,
                 null, // tags = null
                 null, // serviceName = null
                 null, // resourceName = null
