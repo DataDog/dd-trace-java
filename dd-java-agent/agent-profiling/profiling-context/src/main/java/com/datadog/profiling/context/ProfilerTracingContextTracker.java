@@ -114,12 +114,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   private final long inactivityDelay;
 
   private final ConcurrentMap<Long, LongSequence> threadSequences = new ConcurrentHashMap<>(64);
-  private final long startTimestamp;
+  private final long startTimestampTicks;
+  private final long startTimestampMillis;
   private final long delayedActivationTimestamp;
   private final Allocator allocator;
   private final AtomicBoolean released = new AtomicBoolean();
   private final AgentSpan span;
-  private final Set<IntervalBlobListener> blobListeners;
   private final TimeTicksProvider timeTicksProvider;
   private final IntervalSequencePruner sequencePruner;
 
@@ -145,7 +145,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       long inactivityDelay) {
-    this.startTimestamp = timeTicksProvider.ticks();
+    this.startTimestampTicks = timeTicksProvider.ticks();
+    this.startTimestampMillis = System.currentTimeMillis();
     this.timeTicksProvider = timeTicksProvider;
     this.sequencePruner = sequencePruner;
     this.span = span;
@@ -167,7 +168,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   void activateContext(long threadId, long timestamp) {
     storeDelayedActivation();
-    long tsDiff = timestamp - startTimestamp;
+    long tsDiff = timestamp - startTimestampTicks;
     long masked = maskActivation(tsDiff);
     store(threadId, masked);
   }
@@ -203,7 +204,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   void deactivateContext(long threadId, long timestamp, boolean maybe) {
     storeDelayedActivation();
-    long tsDiff = timestamp - startTimestamp;
+    long tsDiff = timestamp - startTimestampTicks;
     long masked = maskDeactivation(tsDiff, maybe);
     store(threadId, masked);
   }
@@ -234,7 +235,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   LongIterator pruneIntervals(LongSequence sequence) {
-    return sequencePruner.pruneIntervals(sequence, timeTicksProvider.ticks() - startTimestamp);
+    return sequencePruner.pruneIntervals(sequence, timeTicksProvider.ticks() - startTimestampTicks);
   }
 
   @Override
@@ -310,7 +311,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     IntervalEncoder encoder =
         new IntervalEncoder(
-            startTimestamp,
+            startTimestampTicks,
+            startTimestampMillis,
             timeTicksProvider.frequency() / 1_000_000L,
             threadSequences.size(),
             totalSequenceBufferSize);

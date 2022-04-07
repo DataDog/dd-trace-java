@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class ProfilerTracingContextTrackerTest {
@@ -191,7 +190,7 @@ class ProfilerTracingContextTrackerTest {
   void testPersisted() {
     String[] encodedData =
         new String[] {
-          "AAAAIvb1iIiHwkvoBwiTAgGUAgGWAgFGDUcCVQFlAe4CGwAAANIs2DlgHjBMYJEXLl8F9uUrUcucNQGInnTTAwndBz7DCpqhagMQAeo+AXvDNIieDGCUFu4C3RN1CSwNvwUxW68NbxvvAasDdAGCCUgp69kBCK0BIJqNuS9/k15V1gHKg5YBxJlMOpIJQwPKAb2MrAMLHBsBslYoAjQBoAPEDtYC6AFkAUwb3QI6AXgBgAovAv4DQQF7GUID1miBAl4zJAlBDeICCAkWBgYRkw1LTvUfHgP6AaoBcQGSGLkBPwQvAlQCIwGwBUgBuwRwAS4IzUUUUUUiSmUSSSSSSUkUQ2SSSSSSSSSSSSSSSSSSSSSSSSSSQAA"
+          "AAAAI6SK7u6LAcG57+//L7gXB4IDGEYITQFPAVEBUwHgAQEAAACvCi3WjrSyLhomSh0EAQl0Lpo45iXmARamNA4qQB9qOIQw/iiKJQ5shA7WC/4dMh2mO2wXaBfGKVAXWDwQFF4eSismAQeqAjJMMl4kIg3wGSxaUBRERkjb8CSsJC48VCJqFuAMolksb/TEAVe8JXuksSoCrFqEErM8BmcapgmfBDbYWgAf/ix8C4IM7AkKFbyEhigRaODq3X69tgLxcRxQLgMaybJTKgLqZGg+ZJKJKJJJJJJJJJJKRJJJJJJJSRaaJJJJSRZZKAAAAA"
         };
     for (String encoded : encodedData) {
       System.out.println("====");

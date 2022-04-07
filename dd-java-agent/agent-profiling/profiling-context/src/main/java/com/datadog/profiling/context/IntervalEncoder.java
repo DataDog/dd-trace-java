@@ -55,7 +55,13 @@ import java.nio.ByteBuffer;
  *     <tr bgcolor="#eeeeee">
  *       <td style="padding-left: 5px; padding-right: 5px;">Start Ticks</td>
  *       <td style="padding-left: 5px; padding-right: 5px;">The system dependent tick counter base to resolve the interval deltas against</td>
- *       <td style="padding-left: 5px; padding-right: 5px;">1-5 bytes</td>
+ *       <td style="padding-left: 5px; padding-right: 5px;">1-9 bytes</td>
+ *       <td style="padding-left: 5px; padding-right: 5px;"><a href="https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128">LEB128 Varint</a></td>
+ *     </tr>
+ *     <tr bgcolor="#eeeeee">
+ *       <td style="padding-left: 5px; padding-right: 5px;">Start Epoch Millis</td>
+ *       <td style="padding-left: 5px; padding-right: 5px;">The system epoch millis to peg the start ticks againstt</td>
+ *       <td style="padding-left: 5px; padding-right: 5px;">1-9 bytes</td>
  *       <td style="padding-left: 5px; padding-right: 5px;"><a href="https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128">LEB128 Varint</a></td>
  *     </tr>
  *     <tr bgcolor="#dddddd">
@@ -266,17 +272,23 @@ final class IntervalEncoder {
   }
 
   /**
-   * @param timestamp the timestamp in ticks
+   * @param timestampTicks the timestamp in ticks
+   * @param timestampMillis the timestamp in epoch millis
    * @param freqMultiplier number of ticks per 1000ns
    * @param threadCount number of tracked threads
    * @param maxSize max data size
    */
-  IntervalEncoder(long timestamp, long freqMultiplier, int threadCount, int maxSize) {
+  IntervalEncoder(
+      long timestampTicks,
+      long timestampMillis,
+      long freqMultiplier,
+      int threadCount,
+      int maxSize) {
     this.threadCount = threadCount;
 
     this.prologueBuffer =
         ByteBuffer.allocate(
-            leb128Support.varintSize(timestamp)
+            leb128Support.varintSize(timestampTicks)
                 + leb128Support.varintSize(freqMultiplier)
                 + leb128Support.varintSize(threadCount)
                 + threadCount * 18);
@@ -286,7 +298,8 @@ final class IntervalEncoder {
 
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset
     dataChunkBuffer.putInt(0); // pre-allocate space for the group varint map offset
-    leb128Support.putVarint(prologueBuffer, timestamp);
+    leb128Support.putVarint(prologueBuffer, timestampTicks);
+    leb128Support.putVarint(prologueBuffer, timestampMillis);
     leb128Support.putVarint(prologueBuffer, freqMultiplier);
     leb128Support.putVarint(prologueBuffer, threadCount);
   }

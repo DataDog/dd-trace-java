@@ -11,7 +11,7 @@ class IntervalEncoderTest {
 
   @BeforeEach
   void setup() {
-    instance = new IntervalEncoder(1L, 1000, 2, 32);
+    instance = new IntervalEncoder(1L, System.currentTimeMillis(), 1000, 2, 32);
   }
 
   @Test
@@ -43,7 +43,7 @@ class IntervalEncoderTest {
     instance.startThread(1);
     assertThrows(IllegalStateException.class, () -> instance.startThread(2));
 
-    IntervalEncoder instance1 = new IntervalEncoder(1, 1000, 1, 100);
+    IntervalEncoder instance1 = new IntervalEncoder(1, System.currentTimeMillis(), 1000, 1, 100);
     instance1.startThread(1);
     assertThrows(IllegalStateException.class, () -> instance1.startThread(2));
   }
