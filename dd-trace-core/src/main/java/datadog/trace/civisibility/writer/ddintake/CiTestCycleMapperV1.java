@@ -21,13 +21,13 @@ import okhttp3.RequestBody;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
 
-  public static final byte[] VERSION = "version".getBytes(StandardCharsets.ISO_8859_1);
-  public static final byte[] METADATA = "metadata".getBytes(StandardCharsets.ISO_8859_1);
-  public static final byte[] METADATA_ASTERISK = "*".getBytes(StandardCharsets.ISO_8859_1);
-  public static final byte[] EVENTS = "events".getBytes(StandardCharsets.ISO_8859_1);
-  public static final byte[] ENV = "env".getBytes(StandardCharsets.ISO_8859_1);
-  public static final byte[] TYPE = "type".getBytes(StandardCharsets.ISO_8859_1);
-  public static final byte[] CONTENT = "content".getBytes(StandardCharsets.ISO_8859_1);
+  public static final byte[] VERSION = "version".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] METADATA_ASTERISK = "*".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] EVENTS = "events".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] ENV = "env".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] TYPE = "type".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] CONTENT = "content".getBytes(StandardCharsets.UTF_8);
 
   public static final UTF8BytesString TEST_TYPE = UTF8BytesString.create("test");
   public static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
