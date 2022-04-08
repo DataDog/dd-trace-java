@@ -311,7 +311,6 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     IntervalEncoder encoder =
         new IntervalEncoder(
-            startTimestampTicks,
             startTimestampMillis,
             timeTicksProvider.frequency() / 1_000_000L,
             threadSequences.size(),

@@ -6,6 +6,7 @@ import com.datadog.profiling.context.allocator.Allocators;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.Delayed;
@@ -198,7 +199,13 @@ class ProfilerTracingContextTrackerTest {
       byte[] decoded = Base64.getDecoder().decode(encoded);
 
       for (IntervalParser.Interval i : new IntervalParser().parseIntervals(decoded)) {
-        System.out.println("===> " + i.from + ":" + i.till + "  - " + (i.till - i.from));
+        System.out.println(
+            "===> "
+                + Instant.ofEpochMilli(i.from / 1000000)
+                + " - "
+                + Instant.ofEpochMilli(i.till / 1000000)
+                + "  :: "
+                + (i.till - i.from));
       }
     }
   }

@@ -3,6 +3,7 @@ package com.datadog.profiling.context;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public final class IntervalParser {
   public static final class Interval {
@@ -83,7 +84,6 @@ public final class IntervalParser {
   public void parseIntervals(byte[] intervalData, IntervalConsumer consumer) {
     ByteBuffer buffer = ByteBuffer.wrap(intervalData);
     int chunkDataOffset = buffer.getInt();
-    long timestamp = getVarint(buffer);
     long timestampMillis = getVarint(buffer);
     long frequencyMultiplier = getVarint(buffer);
     int numThreads = (int) getVarint(buffer);
@@ -94,7 +94,7 @@ public final class IntervalParser {
 
     GroupVarintIterator iterator = new GroupVarintIterator(dataChunk);
     for (int thread = 0; thread < numThreads; thread++) {
-      long previousTimestamp = timestamp;
+      long previousTimestamp = 0;
       long threadId = getVarint(buffer);
       int intervals = (int) getVarint(buffer);
       for (int interval = 0; interval < intervals; interval++) {
@@ -103,7 +103,11 @@ public final class IntervalParser {
           long endTsDelta = iterator.next();
           long startTs = previousTimestamp + startTsDelta;
           long endTs = startTs + endTsDelta;
-          if (!consumer.accept(new Interval(threadId, startTs, endTs))) {
+          if (!consumer.accept(
+              new Interval(
+                  threadId,
+                  toEpochNanos(timestampMillis, startTs, frequencyMultiplier),
+                  toEpochNanos(timestampMillis, endTs, frequencyMultiplier)))) {
             // consumer not interested in the rest of the data
             return;
           }
@@ -115,11 +119,16 @@ public final class IntervalParser {
     }
   }
 
+  private static long toEpochNanos(long startMs, long ts, long frequencyMultiplier) {
+    return TimeUnit.NANOSECONDS.convert(startMs, TimeUnit.MILLISECONDS)
+        + ((ts * 1000) / frequencyMultiplier);
+  }
+
   private long getVarint(ByteBuffer buffer) {
     long ret = 0;
     for (int i = 0; i < 8; i++) {
       byte b = buffer.get();
-      ret += (b & 0x7FL) << (7 * i);
+      ret += (long) ((b & 0x7FL)) << (7 * i);
       if (b >= 0) {
         return ret;
       }

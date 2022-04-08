@@ -3,15 +3,19 @@ package com.datadog.profiling.context;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class IntervalEncoderTest {
+  private Instant now;
   private IntervalEncoder instance;
 
   @BeforeEach
   void setup() {
-    instance = new IntervalEncoder(1L, System.currentTimeMillis(), 1000, 2, 32);
+    now = Instant.now();
+    instance = new IntervalEncoder(now.toEpochMilli(), 1000, 2, 32);
   }
 
   @Test
@@ -43,7 +47,7 @@ class IntervalEncoderTest {
     instance.startThread(1);
     assertThrows(IllegalStateException.class, () -> instance.startThread(2));
 
-    IntervalEncoder instance1 = new IntervalEncoder(1, System.currentTimeMillis(), 1000, 1, 100);
+    IntervalEncoder instance1 = new IntervalEncoder(System.currentTimeMillis(), 1000, 1, 100);
     instance1.startThread(1);
     assertThrows(IllegalStateException.class, () -> instance1.startThread(2));
   }
@@ -51,17 +55,21 @@ class IntervalEncoderTest {
   @Test
   void testEncodeSequence() {
     IntervalEncoder.ThreadEncoder encoder = instance.startThread(1);
-    encoder.recordInterval(100, 200);
+    encoder.recordInterval(200, 300);
     encoder.recordInterval(500, 600);
     ByteBuffer data = encoder.finish().finish();
     assertNotNull(data);
     assertTrue(data.limit() > 0);
+
+    List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(data.array());
+    IntervalParser.Interval i1 = intervals.get(0);
+    assertEquals(now.toEpochMilli() * 1_000_000L + 200, i1.from);
   }
 
   @Test
   void testIntervalAfterFinish() {
     IntervalEncoder.ThreadEncoder encoder = instance.startThread(1);
-    encoder.recordInterval(100, 200);
+    encoder.recordInterval(200, 300);
     encoder.finish();
     assertThrows(IllegalStateException.class, () -> encoder.recordInterval(500, 600));
   }
@@ -69,7 +77,7 @@ class IntervalEncoderTest {
   @Test
   void testThreadDoubleFinish() {
     IntervalEncoder.ThreadEncoder encoder = instance.startThread(1);
-    encoder.recordInterval(100, 200);
+    encoder.recordInterval(200, 300);
     encoder.finish();
     assertThrows(IllegalStateException.class, encoder::finish);
   }

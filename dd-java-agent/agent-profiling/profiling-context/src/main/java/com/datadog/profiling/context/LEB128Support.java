@@ -56,9 +56,9 @@ final class LEB128Support {
       buffer.put((byte) ((value & 0x7f)));
       return;
     }
-    value >>= 7;
     buffer.put((byte) ((value & 0x7f) | EXT_BIT));
 
+    value >>= 7;
     if ((value & COMPRESSED_INT_MASK) == 0) {
       buffer.put((byte) ((value & 0x7f)));
       return;
