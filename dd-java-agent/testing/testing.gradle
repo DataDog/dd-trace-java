@@ -23,6 +23,7 @@ excludedClassesCoverage += [
   'context.ExcludeFilterTestInstrumentation**',
   'datadog.trace.agent.test.AgentTestRunner**',
   'datadog.trace.agent.test.checkpoints.**',
+  'datadog.trace.agent.test.datastreams.**',
 ]
 
 dependencies {
