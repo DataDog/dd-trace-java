@@ -21,6 +21,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -252,9 +253,14 @@ public class DDSpan
       if (contextContent != null) {
         String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
         byte[] encoded = Base64Encoder.INSTANCE.encode(contextContent);
-        String tag = new String(encoded, StandardCharsets.UTF_8);
-        log.trace("Tracing context data for s_id:{}, tag:{}={}", getSpanId(), contextTagName, tag);
-        setTag(contextTagName, tag);
+        if (log.isTraceEnabled()) {
+          log.trace(
+              "Tracing context data for s_id:{}, tag:{}={}",
+              getSpanId(),
+              contextTagName,
+              new String(encoded, StandardCharsets.UTF_8));
+        }
+        context.setTag(contextTagName, UTF8BytesString.create(encoded));
         return encoded.length;
       }
     } catch (Throwable t) {
