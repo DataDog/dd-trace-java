@@ -19,6 +19,7 @@ class ClassNameTrieTest extends DDSpecification {
     'company.foo.Four'     | 4
     'com.foobar.Five'      | 5
     'company.foobar.Six'   | 6
+    'company.foobar.Sixty' | 60
     'com.f'                | 7
     'com.foo.a'            | 8
     'com.foobar.b'         | 9
@@ -54,6 +55,7 @@ class ClassNameTrieTest extends DDSpecification {
     'company/foo/Four'     | 4
     'com/foobar/Five'      | 5
     'company/foobar/Six'   | 6
+    'company/foobar/Sixty' | 60
     'com/f'                | 7
     'com/foo/a'            | 8
     'com/foobar/b'         | 9
@@ -73,5 +75,32 @@ class ClassNameTrieTest extends DDSpecification {
     'com/foo/Threes'       | 8
     'com/foobar/Fives'     | 9
     // spotless:on
+  }
+
+  def 'test large trie generation'() {
+    setup:
+    def mapping = (0..16383).collectEntries({
+      [UUID.randomUUID().toString().replace('-', '.'), it]
+    }) as TreeMap<String, Integer>
+    when:
+    def trie = new ClassNameTrie.Builder(mapping).buildTrie()
+    then:
+    mapping.each({
+      assert trie.apply(it.key) == it.value
+    })
+  }
+
+  def 'test manual trie creation'() {
+    setup:
+    def data = ['\001\141\u4001', '\001\142\u4002', '\001\143\u8003',]
+    when:
+    def trie = ClassNameTrie.create(data as String[])
+    then:
+    trie.apply('a') == 1
+    trie.apply('ab') == 2
+    trie.apply('abc') == 3
+    trie.apply('') == -1
+    trie.apply('b') == -1
+    trie.apply('c') == -1
   }
 }
