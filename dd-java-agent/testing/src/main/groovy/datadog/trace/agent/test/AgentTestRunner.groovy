@@ -7,6 +7,7 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
+import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
@@ -153,9 +154,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     configurePreAgent()
 
     TEST_DATA_STREAMS_WRITER = new RecordingDatastreamsPayloadWriter()
-    DDAgentFeaturesDiscovery features = Stub(DDAgentFeaturesDiscovery) {
-      supportsDataStreams() >> true
-    }
+    DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
+
     Sink sink = new Sink() {
         void accept(int messageCount, ByteBuffer buffer) {}
         void register(EventListener listener) {}
