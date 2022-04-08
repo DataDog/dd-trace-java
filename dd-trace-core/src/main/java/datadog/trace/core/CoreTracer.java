@@ -528,6 +528,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.dataStreamsCheckpointer = dataStreamsCheckpointer;
     }
+    this.dataStreamsCheckpointer.start();
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;

@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultDataStreamsCheckpointer
-    implements DataStreamsCheckpointer, AutoCloseable, Runnable, EventListener {
+    implements DataStreamsCheckpointer, AutoCloseable, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
   static final long DEFAULT_BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
@@ -41,10 +41,11 @@ public class DefaultDataStreamsCheckpointer
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
+  private final Sink sink;
   private final TimeSource timeSource;
   private final long bucketDurationMillis;
   private final Thread thread;
-  private final AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
+  private AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
 
   public DefaultDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
@@ -78,12 +79,16 @@ public class DefaultDataStreamsCheckpointer
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationMillis) {
     this.features = features;
+    this.sink = sink;
     this.timeSource = timeSource;
     this.payloadWriter = payloadWriter;
     this.bucketDurationMillis = bucketDurationMillis;
 
-    thread = newAgentThread(DATA_STREAMS_MONITORING, this);
+    thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
+  }
 
+  @Override
+  public void start() {
     if (features.getDataStreamsEndpoint() == null) {
       features.discover();
     }
@@ -136,36 +141,38 @@ public class DefaultDataStreamsCheckpointer
     inbox.clear();
   }
 
-  @Override
-  public void run() {
-    Thread currentThread = Thread.currentThread();
-    while (!currentThread.isInterrupted()) {
-      try {
-        StatsPoint statsPoint = inbox.take();
+  private class InboxProcessor implements Runnable {
+    @Override
+    public void run() {
+      Thread currentThread = Thread.currentThread();
+      while (!currentThread.isInterrupted()) {
+        try {
+          StatsPoint statsPoint = inbox.take();
 
-        if (statsPoint == REPORT) {
-          flush(timeSource.getCurrentTimeMillis());
-        } else if (statsPoint == POISON_PILL) {
-          flush(Long.MAX_VALUE);
-          break;
-        } else {
-          Long bucket = currentBucket(statsPoint.getTimestampMillis());
+          if (statsPoint == REPORT) {
+            flush(timeSource.getCurrentTimeMillis());
+          } else if (statsPoint == POISON_PILL) {
+            flush(Long.MAX_VALUE);
+            break;
+          } else {
+            Long bucket = currentBucket(statsPoint.getTimestampMillis());
 
-          // FIXME computeIfAbsent() is not available because Java 7
-          // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
-          // DDSketch
-          StatsBucket statsBucket = timeToBucket.get(bucket);
-          if (statsBucket == null) {
-            statsBucket = new StatsBucket(bucket, bucketDurationMillis);
-            timeToBucket.put(bucket, statsBucket);
+            // FIXME computeIfAbsent() is not available because Java 7
+            // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
+            // DDSketch
+            StatsBucket statsBucket = timeToBucket.get(bucket);
+            if (statsBucket == null) {
+              statsBucket = new StatsBucket(bucket, bucketDurationMillis);
+              timeToBucket.put(bucket, statsBucket);
+            }
+
+            statsBucket.addPoint(statsPoint);
           }
-
-          statsBucket.addPoint(statsPoint);
+        } catch (InterruptedException e) {
+          currentThread.interrupt();
+        } catch (Exception e) {
+          log.debug("Error monitoring data streams", e);
         }
-      } catch (InterruptedException e) {
-        currentThread.interrupt();
-      } catch (Exception e) {
-        log.debug("Error monitoring data streams", e);
       }
     }
   }

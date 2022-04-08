@@ -7,6 +7,9 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 
 public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
   @Override
+  public void start() {}
+
+  @Override
   public void accept(StatsPoint statsPoint) {}
 
   @Override

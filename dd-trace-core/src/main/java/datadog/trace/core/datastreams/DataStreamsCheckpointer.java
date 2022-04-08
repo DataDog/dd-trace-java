@@ -6,6 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 
 public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoCloseable {
+  void start();
+
   PathwayContext newPathwayContext();
 
   <C> PathwayContext extractPathwayContext(

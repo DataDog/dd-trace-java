@@ -48,6 +48,7 @@ class DataStreamsIntegrationTest extends DDSpecification {
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
     checkpointer.report()

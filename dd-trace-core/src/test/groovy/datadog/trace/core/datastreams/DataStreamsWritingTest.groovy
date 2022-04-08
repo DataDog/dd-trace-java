@@ -75,6 +75,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(fakeConfig, sharedCommObjects, timeSource)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "", 9, 0, timeSource.currentTimeMillis, 0, 0))
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS - 100l))

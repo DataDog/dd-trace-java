@@ -28,6 +28,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("test", "test", "test", 0, 0, timeSource.currentTimeMillis, 0, 0))
 
     then:
@@ -46,10 +47,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter(sink)
+    def payloadWriter = new CapturingPayloadWriter()
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
     checkpointer.report()
@@ -86,11 +88,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter(sink)
+    def payloadWriter = new CapturingPayloadWriter()
     def bucketDuration = 200
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, bucketDuration)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(bucketDuration))
 
@@ -125,10 +128,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter(sink)
+    def payloadWriter = new CapturingPayloadWriter()
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeMillis, 0, 0))
@@ -168,10 +172,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter(sink)
+    def payloadWriter = new CapturingPayloadWriter()
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeMillis, 0, 0))
@@ -220,10 +225,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter(sink)
+    def payloadWriter = new CapturingPayloadWriter()
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeMillis, 0, 0))
@@ -275,10 +281,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     }
     def timeSource = new ControllableTimeSource()
     def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter(sink)
+    def payloadWriter = new CapturingPayloadWriter()
 
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_MILLIS)
+    checkpointer.start()
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
     timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS - 100l))
     checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, SECONDS.toNanos(10), SECONDS.toNanos(10)))
@@ -347,10 +354,6 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
 class CapturingPayloadWriter implements DatastreamsPayloadWriter {
   boolean accepting = true
   List<StatsBucket> buckets = new ArrayList<>()
-
-  CapturingPayloadWriter(Sink sink) {
-    super(sink, "testenv")
-  }
 
   void writePayload(Collection<StatsBucket> payload) {
     if (accepting) {
