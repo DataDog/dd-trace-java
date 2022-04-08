@@ -31,6 +31,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DataStreamsCheckpointer
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
 import datadog.trace.test.util.DDSpecification
+import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -146,6 +147,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
   }
 
+  @SuppressForbidden
   def setupSpec() {
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend

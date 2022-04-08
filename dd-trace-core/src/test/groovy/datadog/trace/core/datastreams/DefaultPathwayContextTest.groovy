@@ -3,6 +3,8 @@ package datadog.trace.core.datastreams
 import datadog.trace.api.function.Consumer
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.api.time.TimeSource
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Requires
@@ -188,5 +190,47 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points.size() == 3
     pointConsumer.points[2].parentHash == pointConsumer.points[1].hash
     pointConsumer.points[2].hash != 0
+  }
+
+  def "Encoding and decoding with injects and extracts"() {
+    given:
+    def timeSource = Mock(TimeSource)
+    def context = new DefaultPathwayContext(timeSource)
+    def contextVisitor = new MapContextVisitor()
+
+    when:
+    context.start(pointConsumer)
+
+    def encoded = context.encode()
+    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded, "someotherkey": new byte[0]]
+    def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource)
+    decodedContext.setCheckpoint("kafka", "", "topic", pointConsumer)
+
+    then:
+    decodedContext.isStarted()
+    pointConsumer.points.size() == 2
+    pointConsumer.points[1].parentHash == pointConsumer.points[0].hash
+    pointConsumer.points[1].hash != 0
+
+    when:
+    def secondEncode = decodedContext.encode()
+    carrier = [(PathwayContext.PROPAGATION_KEY): secondEncode]
+    def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource)
+    secondDecode.setCheckpoint("kafka", "", "topicB", pointConsumer)
+
+    then:
+    secondDecode.isStarted()
+    pointConsumer.points.size() == 3
+    pointConsumer.points[2].parentHash == pointConsumer.points[1].hash
+    pointConsumer.points[2].hash != 0
+  }
+
+  class MapContextVisitor implements AgentPropagation.BinaryContextVisitor<Map<String, byte[]>> {
+    @Override
+    void forEachKey(Map<String, byte[]> carrier, AgentPropagation.BinaryKeyClassifier classifier) {
+      for (Map.Entry<String, byte[]> entry: carrier.entrySet()) {
+        classifier.accept(entry.key, entry.value)
+      }
+    }
   }
 }
