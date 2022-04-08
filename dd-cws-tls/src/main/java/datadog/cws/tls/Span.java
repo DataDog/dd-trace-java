@@ -8,6 +8,7 @@ final class Span {
   private final DDId spanId;
 
   Span(DDId traceId, DDId spanId) {
+    System.out.println("HERE IN Span ctor");
     this.traceId = traceId;
     this.spanId = spanId;
   }

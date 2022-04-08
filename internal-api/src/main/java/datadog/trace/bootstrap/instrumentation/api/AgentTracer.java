@@ -38,12 +38,14 @@ public class AgentTracer {
 
   // Explicit parent
   public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
+    System.out.println("in explicit parenting");
     return startSpan(spanName, parent, true);
   }
 
   public static AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, boolean withCheckpoints) {
-    return get().startSpan(spanName, parent, withCheckpoints);
+        System.out.println("in explicit parenting - 2");
+        return get().startSpan(spanName, parent, withCheckpoints);
   }
 
   // Explicit parent

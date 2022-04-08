@@ -257,6 +257,10 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void write(final List<DDSpan> trace) {
+    for(DDSpan span : trace) {
+      System.out.println("[maxday-poc-java-no-code] - maxdaywritespan - traceID["+span.getTraceId()+"] spanID["+span.getSpanId()+"] parentID["+span.getParentId()+"] service["+span.getServiceName()+"] resourceName["+span.getResourceName()+"]");
+    }
+
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (!closed) {
       if (trace.isEmpty()) {
@@ -273,7 +277,9 @@ public class DDAgentWriter implements Writer {
     } else {
       handleDroppedTrace("Trace written after shutdown.", trace);
     }
+    System.out.println("DECIDE TO FLUSH");
     if (alwaysFlush) {
+      System.out.println("FLUSH!");
       flush();
     }
   }
