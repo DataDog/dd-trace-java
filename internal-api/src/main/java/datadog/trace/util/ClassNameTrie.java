@@ -135,7 +135,7 @@ public final class ClassNameTrie {
         if (keyIndex == keyLength || c < '0') {
           result = value & ~(LEAF_MARKER | BUD_MARKER);
         }
-        // stop if this is a leaf, or if there's no more to match (i.e. a bud)
+        // stop if there's no more characters left in the key, or we've reached a leaf
         if (keyIndex == keyLength || (value & LEAF_MARKER) != 0) {
           return result;
         }
