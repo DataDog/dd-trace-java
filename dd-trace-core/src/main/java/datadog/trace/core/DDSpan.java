@@ -26,7 +26,6 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -130,12 +129,9 @@ public class DDSpan
     return durationNano != 0;
   }
 
-  private final AtomicBoolean finished = new AtomicBoolean(false);
-
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
-      finished.set(true);
       context.getTrace().onFinish(this);
       tracingContextTracker.deactivateContext();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
@@ -227,7 +223,6 @@ public class DDSpan
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
-      finished.set(true);
       context.getTrace().onFinish(this);
       log.debug("Finished span (PHASED): {}", this);
       return true;
