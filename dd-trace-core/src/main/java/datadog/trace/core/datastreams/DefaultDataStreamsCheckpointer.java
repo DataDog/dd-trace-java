@@ -33,6 +33,7 @@ public class DefaultDataStreamsCheckpointer
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
   static final long DEFAULT_BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
+  static final long FEATURE_CHECK_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
   private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
@@ -41,11 +42,12 @@ public class DefaultDataStreamsCheckpointer
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
-  private final Sink sink;
   private final TimeSource timeSource;
   private final long bucketDurationMillis;
   private final Thread thread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
+  private volatile long nextFeatureCheck;
+  private volatile boolean supportsDataStreams = false;
 
   public DefaultDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
@@ -79,12 +81,12 @@ public class DefaultDataStreamsCheckpointer
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationMillis) {
     this.features = features;
-    this.sink = sink;
     this.timeSource = timeSource;
     this.payloadWriter = payloadWriter;
     this.bucketDurationMillis = bucketDurationMillis;
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
+    sink.register(this);
   }
 
   @Override
@@ -92,20 +94,24 @@ public class DefaultDataStreamsCheckpointer
     if (features.getDataStreamsEndpoint() == null) {
       features.discover();
     }
+
     if (features.supportsDataStreams()) {
-      sink.register(this);
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new ReportTask(),
-              this,
-              bucketDurationMillis,
-              bucketDurationMillis,
-              TimeUnit.MILLISECONDS);
-      thread.start();
+      supportsDataStreams = true;
     } else {
-      cancellation = null;
+      supportsDataStreams = false;
       log.debug("Data streams is disabled or not supported by agent");
     }
+
+    nextFeatureCheck = timeSource.getCurrentTimeMillis() + FEATURE_CHECK_INTERVAL_MILLIS;
+
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            bucketDurationMillis,
+            bucketDurationMillis,
+            TimeUnit.MILLISECONDS);
+    thread.start();
   }
 
   // With Java 8, this becomes unnecessary
@@ -150,11 +156,17 @@ public class DefaultDataStreamsCheckpointer
           StatsPoint statsPoint = inbox.take();
 
           if (statsPoint == REPORT) {
-            flush(timeSource.getCurrentTimeMillis());
+            if (supportsDataStreams) {
+              flush(timeSource.getCurrentTimeMillis());
+            } else if (timeSource.getCurrentTimeMillis() >= nextFeatureCheck) {
+              checkFeatures();
+            }
           } else if (statsPoint == POISON_PILL) {
-            flush(Long.MAX_VALUE);
+            if (supportsDataStreams) {
+              flush(Long.MAX_VALUE);
+            }
             break;
-          } else {
+          } else if (supportsDataStreams) {
             Long bucket = currentBucket(statsPoint.getTimestampMillis());
 
             // FIXME computeIfAbsent() is not available because Java 7
@@ -224,12 +236,16 @@ public class DefaultDataStreamsCheckpointer
   }
 
   private void checkFeatures() {
+    boolean oldValue = supportsDataStreams;
+
     features.discover();
-    if (!features.supportsDataStreams()) {
-      log.debug("Disabling data streams reporting because it is not supported by the agent");
-      thread.interrupt();
-      close();
+    supportsDataStreams = features.supportsDataStreams();
+    if (oldValue && !supportsDataStreams) {
+      log.info("Disabling data streams reporting because it is not supported by the agent");
+    } else if (!oldValue && supportsDataStreams) {
+      log.info("Agent upgrade detected. Enabling data streams because it is now supported");
     }
+    nextFeatureCheck = timeSource.getCurrentTimeMillis() + FEATURE_CHECK_INTERVAL_MILLIS;
   }
 
   private static final class ReportTask
