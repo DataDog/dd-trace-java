@@ -137,7 +137,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(AGENT_PORT_LEGACY, "456")
     prop.setProperty(PRIORITY_SAMPLING, "false")
     prop.setProperty(TRACE_RESOLVER_ENABLED, "false")
-    prop.setProperty(SERVICE_MAPPING, "a:1")
+    prop.setProperty(SERVICE_MAPPING, "a:1:2")
     prop.setProperty(GLOBAL_TAGS, "b:2")
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
@@ -202,7 +202,7 @@ class ConfigTest extends DDSpecification {
     config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
-    config.serviceMapping == [a: "1"]
+    config.serviceMapping == [a: "1:2"]
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
@@ -934,20 +934,18 @@ class ConfigTest extends DDSpecification {
     "key 1!:va|ue_1,"                                             | ["key 1!": "va|ue_1"]
     "key 1!:va|ue_1 "                                             | ["key 1!": "va|ue_1"]
     " key1 :value1 ,\t key2:  value2"                             | [key1: "value1", key2: "value2"]
-    // allowing this feels inconsistent
-    "a:b,c,d"                                                     | [a: "b,c,d"]
-    // see above
+    "a:b,c,d"                                                     | [:]
     "a:b,c,d,k:v"                                                 | [:]
     "key1 :value1  \t key2:  value2"                              | [key1: "value1", key2: "value2"]
     "dyno:web.1 dynotype:web buildpackversion:dev appname:******" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "******"]
+    "is:val:id"                                                   | [is: "val:id"]
+    "a:b,is:val:id,x:y"                                           | [a: "b", is: "val:id", x: "y"]
+    "a:b:c:d"                                                     | [a: "b:c:d"]
     // Invalid strings:
     ""                                                            | [:]
     "1"                                                           | [:]
     "a"                                                           | [:]
     "a,1"                                                         | [:]
-    "in:val:id"                                                   | [:]
-    "a:b,in:val:id,x:y"                                           | [:]
-    "a:b:c:d"                                                     | [:]
     "!a"                                                          | [:]
     "    "                                                        | [:]
     ",,,,"                                                        | [:]
@@ -1004,14 +1002,14 @@ class ConfigTest extends DDSpecification {
     "a b c:d "                                                    | [a: "http.request.headers.a", b: "http.request.headers.b", c: "d"]
     "dyno:web.1 dynotype:web buildpackversion:dev appname:n*****" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "n*****"]
     "A.1,B.1"                                                     | ["a.1": "http.request.headers.a_1", "b.1": "http.request.headers.b_1"]
+    "is:val:id"                                                   | [is: "val:id"]
+    "a:b,is:val:id,x:y"                                           | [a: "b", is: "val:id", x: "y"]
+    "a:b:c:d"                                                     | [a: "b:c:d"]
     // Invalid strings:
     ""                                                            | [:]
     "1"                                                           | [:]
     "a:1"                                                         | [:]
     "a,1"                                                         | [:]
-    "in:val:id"                                                   | [:]
-    "a:b,in:val:id,x:y"                                           | [:]
-    "a:b:c:d"                                                     | [:]
     "!a"                                                          | [:]
     "    "                                                        | [:]
     ",,,,"                                                        | [:]
@@ -1374,7 +1372,7 @@ class ConfigTest extends DDSpecification {
 
   def "verify dd.tags merges with global tags in env variables"() {
     setup:
-    environmentVariables.set(DD_TAGS_ENV, "a:1")
+    environmentVariables.set(DD_TAGS_ENV, "a:1:2")
     environmentVariables.set(DD_GLOBAL_TAGS_ENV, "b:2")
     environmentVariables.set(DD_SPAN_TAGS_ENV, "c:3")
     environmentVariables.set(DD_JMX_TAGS_ENV, "d:4")
@@ -1385,11 +1383,11 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == [a: "1", b: "2", c: "3"]
-    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [a: "1:2", b: "2", c: "3"]
+    config.mergedJmxTags == [a: "1:2", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1:2", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "toString works when passwords are empty"() {
