@@ -33,7 +33,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Mock(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
@@ -62,7 +62,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Mock(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),

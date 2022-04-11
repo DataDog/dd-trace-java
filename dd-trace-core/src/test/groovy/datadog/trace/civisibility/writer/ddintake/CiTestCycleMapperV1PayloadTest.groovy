@@ -1,9 +1,9 @@
-package datadog.trace.common.writer.ddagent
+package datadog.trace.civisibility.writer.ddintake
 
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.DDTags
+import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
@@ -21,31 +21,43 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
-import static org.msgpack.core.MessageFormat.*
+import static org.junit.Assert.assertNotNull
+import static org.junit.Assert.assertTrue
+import static org.msgpack.core.MessageFormat.FLOAT32
+import static org.msgpack.core.MessageFormat.FLOAT64
+import static org.msgpack.core.MessageFormat.INT16
+import static org.msgpack.core.MessageFormat.INT32
+import static org.msgpack.core.MessageFormat.INT64
+import static org.msgpack.core.MessageFormat.INT8
+import static org.msgpack.core.MessageFormat.NEGFIXINT
+import static org.msgpack.core.MessageFormat.POSFIXINT
+import static org.msgpack.core.MessageFormat.UINT16
+import static org.msgpack.core.MessageFormat.UINT32
+import static org.msgpack.core.MessageFormat.UINT64
+import static org.msgpack.core.MessageFormat.UINT8
 
-class TraceMapperV04PayloadTest extends DDSpecification {
+class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
   def "test traces written correctly"() {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
-    TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
-    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags)
+    PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
     when:
     boolean tracesFitInBuffer = true
     for (List<TraceGenerator.PojoSpan> trace : traces) {
-      if (!packer.format(trace, traceMapper)) {
+      if (!packer.format(trace, mapper)) {
         verifier.skipLargeTrace()
         tracesFitInBuffer = false
       }
     }
     packer.flush()
-
     then:
     if (tracesFitInBuffer) {
       verifier.verifyTracesConsumed()
     }
-
     where:
     bufferSize | traceCount | lowCardinality
     20 << 10   | 0          | true
@@ -68,21 +80,28 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     100 << 10  | 1000       | false
   }
 
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
-    private final TraceMapperV0_4 mapper
+    private final CiTestCycleMapperV1 mapper
+    private final WellKnownTags wellKnownTags
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper) {
+    private PayloadVerifier(WellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV1 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
+      this.wellKnownTags = wellKnownTags
     }
 
     void skipLargeTrace() {
       ++position
+    }
+
+    void verifyTracesConsumed() {
+      assertEquals(expectedTraces.size(), position)
     }
 
     @Override
@@ -90,20 +109,47 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       if (expectedTraces.isEmpty() && messageCount == 0) {
         return
       }
+
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
         captured.flip()
+        assertTrue(payload.sizeInBytes() > 0)
+        assertNotNull(payload.toRequest())
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
         int traceCount = unpacker.unpackArrayHeader()
         for (int i = 0; i < traceCount; ++i) {
+          assertEquals(3, unpacker.unpackMapHeader())
+          assertEquals("version", unpacker.unpackString())
+          assertEquals(1, unpacker.unpackInt())
+          assertEquals("metadata", unpacker.unpackString())
+          assertEquals(1, unpacker.unpackMapHeader())
+          assertEquals("*", unpacker.unpackString())
+          assertEquals(3, unpacker.unpackMapHeader())
+          assertEquals("env", unpacker.unpackString())
+          assertEquals(wellKnownTags.env as String, unpacker.unpackString())
+          assertEquals("runtime-id", unpacker.unpackString())
+          assertEquals(wellKnownTags.runtimeId as String, unpacker.unpackString())
+          assertEquals("language", unpacker.unpackString())
+          assertEquals(wellKnownTags.language as String, unpacker.unpackString())
+          assertEquals("events", unpacker.unpackString())
+
           List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)
-          int spanCount = unpacker.unpackArrayHeader()
-          assertEquals(expectedTrace.size(), spanCount)
-          for (int k = 0; k < spanCount; ++k) {
+          int eventCount = unpacker.unpackArrayHeader()
+          assertEquals(expectedTrace.size(), eventCount)
+          for (int k = 0; k < eventCount; ++k) {
             TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
-            int elementCount = unpacker.unpackMapHeader()
-            assertEquals(12, elementCount)
+            assertEquals(3, unpacker.unpackMapHeader())
+            assertEquals("type", unpacker.unpackString())
+            if("test" == expectedSpan.getType()) {
+              assertEquals("test", unpacker.unpackString())
+            } else {
+              assertEquals("span", unpacker.unpackString())
+            }
+            assertEquals("version", unpacker.unpackString())
+            assertEquals(1, unpacker.unpackInt())
+            assertEquals("content", unpacker.unpackString())
+            assertEquals(11, unpacker.unpackMapHeader())
             assertEquals("service", unpacker.unpackString())
             String serviceName = unpacker.unpackString()
             assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName)
@@ -128,9 +174,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
             assertEquals("duration", unpacker.unpackString())
             long duration = unpacker.unpackLong()
             assertEquals(expectedSpan.getDurationNano(), duration)
-            assertEquals("type", unpacker.unpackString())
-            String type = unpacker.unpackString()
-            assertEquals(expectedSpan.getType(), type)
             assertEquals("error", unpacker.unpackString())
             int error = unpacker.unpackInt()
             assertEquals(expectedSpan.getError(), error)
@@ -169,7 +212,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
               } else if (DDSpanContext.PRIORITY_SAMPLING_KEY == key) {
                 //check that priority sampling is only on first and last span
-                if (k == 0 || k == spanCount -1) {
+                if (k == 0 || k == eventCount -1) {
                   assertEquals(expectedSpan.samplingPriority(), n.intValue())
                 } else {
                   assertFalse(expectedSpan.hasSamplingPriority())
@@ -194,8 +237,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
             for (Map.Entry<String, String> entry : meta.entrySet()) {
               if (Tags.HTTP_STATUS.equals(entry.getKey())) {
                 assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
-              } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
-                assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {
@@ -207,7 +248,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
             }
           }
         }
-      } catch (IOException e) {
+      }catch (IOException e) {
         Assert.fail(e.getMessage())
       } finally {
         mapper.reset()
@@ -217,7 +258,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     }
 
     @Override
-    int write(ByteBuffer src) {
+    int write(ByteBuffer src) throws IOException {
       if (captured.remaining() < src.remaining()) {
         ByteBuffer newBuffer = ByteBuffer.allocate(captured.capacity() + src.capacity())
         captured.flip()
@@ -229,18 +270,13 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       return src.position()
     }
 
-    void verifyTracesConsumed() {
-      assertEquals(expectedTraces.size(), position)
-    }
-
     @Override
     boolean isOpen() {
       return true
     }
 
     @Override
-    void close() {
-    }
+    void close() throws IOException {}
   }
 
   private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
@@ -250,4 +286,5 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       assertEquals(expected.toString(), actual.toString())
     }
   }
+
 }

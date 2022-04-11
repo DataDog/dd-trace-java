@@ -6,7 +6,6 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
