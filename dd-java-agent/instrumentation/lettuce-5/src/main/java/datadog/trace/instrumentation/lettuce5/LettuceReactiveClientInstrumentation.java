@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,8 +14,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * The Lettuce reactive client is based on <a href=http://reactives-treams.org">Reactive
@@ -95,9 +94,7 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing
         packageName + ".rx.RedisSubscriptionDispatchCommandAdvice");
     transformation.applyAdvice(
         isMethod()
-            .and(
-                ElementMatchers.<MethodDescription>isDeclaredBy(
-                    named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(namedOneOf("complete", "cancel")),
         packageName + ".rx.RedisSubscriptionCommandCompleteAdvice");
 
@@ -105,16 +102,12 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing
     // https://github.com/lettuce-io/lettuce-core/issues/1576 in 5.3.6
     transformation.applyAdvice(
         isMethod()
-            .and(
-                ElementMatchers.<MethodDescription>isDeclaredBy(
-                    named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(namedOneOf("doOnComplete")),
         packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice");
     transformation.applyAdvice(
         isMethod()
-            .and(
-                ElementMatchers.<MethodDescription>isDeclaredBy(
-                    named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(named("onError")),
         packageName + ".rx.RedisSubscriptionCommandErrorAdvice");
     transformation.applyAdvice(

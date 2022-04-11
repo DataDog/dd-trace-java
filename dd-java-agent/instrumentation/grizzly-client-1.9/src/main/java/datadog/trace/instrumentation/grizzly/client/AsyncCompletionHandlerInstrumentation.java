@@ -23,7 +23,6 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tracing
@@ -62,9 +61,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         namedOneOf("onBodyPartReceived", "onHeadersReceived")
-            .and(
-                ElementMatchers.takesArgument(
-                    0, named("com.ning.http.client.HttpResponseBodyPart"))),
+            .and(takesArgument(0, named("com.ning.http.client.HttpResponseBodyPart"))),
         getClass().getName() + "$OnActivity");
     transformation.applyAdvice(
         named("onCompleted")

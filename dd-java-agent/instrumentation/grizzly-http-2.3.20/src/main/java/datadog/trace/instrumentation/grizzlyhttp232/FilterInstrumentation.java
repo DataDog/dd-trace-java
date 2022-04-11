@@ -11,7 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class FilterInstrumentation extends Instrumenter.Tracing
@@ -30,14 +29,8 @@ public final class FilterInstrumentation extends Instrumenter.Tracing
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
         // HttpCodecFilter is instrumented in the server instrumentation
-        .and(
-            not(
-                ElementMatchers.<TypeDescription>named(
-                    "org.glassfish.grizzly.http.HttpCodecFilter")))
-        .and(
-            not(
-                ElementMatchers.<TypeDescription>named(
-                    "org.glassfish.grizzly.http.HttpServerFilter")));
+        .and(not(named("org.glassfish.grizzly.http.HttpCodecFilter")))
+        .and(not(named("org.glassfish.grizzly.http.HttpServerFilter")));
   }
 
   @Override
