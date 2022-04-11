@@ -3,7 +3,7 @@ version: 2.1
 defaults: &defaults
   working_directory: ~/dd-trace-java
   docker:
-    - image: &default_container datadog/dd-trace-java-docker-build:latest
+    - image: &default_container datadog/dd-trace-java-docker-build:adrian.lopezalvo_datadog-ci-experimental-junitxml-logs
 
 # The caching setup of the build dependencies is somewhat involved because of how CircleCI works.
 # 1) Caches are immutable, so you can not reuse a cache key (the save will simply be ignored)
