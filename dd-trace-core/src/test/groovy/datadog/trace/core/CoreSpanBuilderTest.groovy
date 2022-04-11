@@ -367,7 +367,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     where:
     tagString     | tags
     ""            | [:]
-    "in:val:id"   | [:]
+    "is:val:id"   | [is: "val:id"]
     "a:x"         | [a: "x"]
     "a:a,a:b,a:c" | [a: "c"]
     "a:1,b-c:d"   | [a: "1", "b-c": "d"]
