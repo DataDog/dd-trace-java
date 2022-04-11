@@ -36,7 +36,7 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return safeHasSuperType(
+    return safeHasSuperType( // search both interfaces (FilterChain) and superclasses (HttpServlet)
         namedOneOf("javax.servlet.FilterChain", "javax.servlet.http.HttpServlet"));
   }
 
