@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
@@ -26,7 +26,7 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return safeHasSuperType(named("javax.servlet.http.HttpServletResponse"));
+    return implementsInterface(named("javax.servlet.http.HttpServletResponse"));
   }
 
   @Override
