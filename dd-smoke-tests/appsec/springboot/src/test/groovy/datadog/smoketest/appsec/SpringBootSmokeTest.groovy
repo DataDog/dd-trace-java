@@ -93,14 +93,14 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     String url = "http://localhost:${httpPort}/request-body"
     def request = new Request.Builder()
       .url(url)
-      .post(RequestBody.create(MediaType.get('application/json'), '{"v":".htaccess"}'  ))
+      .post(RequestBody.create(MediaType.get('application/json'), '{"v":"/.htaccess"}'  ))
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
     waitForTraceCount 1
 
     then:
-    responseBodyStr == '.htaccess'
+    responseBodyStr == '/.htaccess'
     response.code() == 200
     forEachRootSpanTrigger {
       assert it['rule']['tags']['type'] == 'lfi'
