@@ -17,12 +17,13 @@ import com.datadog.appsec.report.raw.events.Parameter
 import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.TraceSegment
+import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
+import io.sqreen.powerwaf.PowerwafMetrics
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
@@ -36,7 +37,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   EventListener eventListener
 
   def pwafAdditive
-  def metrics
+  PowerwafMetrics metrics
 
   private void setupWithStubConfigService() {
     service = new StubAppSecConfigService()
@@ -64,7 +65,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * segment.setTagTop('dd.appsec.event_rules.loaded', 114)
     1 * segment.setTagTop('dd.appsec.event_rules.error_count', 1)
-    1 * segment.setTagTop('_dd.appsec.event_rules.version', '0.42.0')
     1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
     1 * segment.setTagTop('manual.keep', true)
     0 * segment._(*_)
@@ -115,6 +115,34 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.setAdditive(null)
     0 * ctx.setWafMetrics(_)
     metrics == null
+  }
+
+  void 'reports waf metrics'() {
+    setup:
+    TraceSegment segment = Mock()
+    TraceSegmentPostProcessor pp
+    Flow flow = new ChangeableFlow()
+
+    when:
+    setupWithStubConfigService()
+    pp = service.traceSegmentPostProcessors[1]
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * ctx.getAdditive() >> null
+    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
+    1 * ctx.setWafMetrics(_) >> { metrics = it[0]; null }
+    1 * ctx.getWafMetrics() >> { metrics.with { totalDdwafRunTimeNs = 1000; totalRunTimeNs = 2000; it} }
+    1 * ctx.getAdditive() >> { pwafAdditive }
+    1 * ctx.setAdditive(null)
+
+    1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
+    1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
+    1 * segment.setTagTop('_dd.appsec.event_rules.version', '0.42.0')
+
+    0 * segment._(*_)
   }
 
   void 'can trigger a nonadditive waf run'() {

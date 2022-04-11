@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class PowerWAFInitializationResultReporter implements TraceSegmentPostProcessor {
-  private static final String RULE_FILE_VERSION = "_dd.appsec.event_rules.version";
   private static final String RULE_ERRORS = "_dd.appsec.event_rules.errors";
   private static final String RULES_LOADED = "dd.appsec.event_rules.loaded";
   private static final String RULE_ERROR_COUNT = "dd.appsec.event_rules.error_count";
@@ -41,9 +40,6 @@ public class PowerWAFInitializationResultReporter implements TraceSegmentPostPro
       return;
     }
 
-    if (report.fileVersion != null) {
-      segment.setTagTop(RULE_FILE_VERSION, report.fileVersion);
-    }
     segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.errors));
     segment.setTagTop(RULES_LOADED, report.numRulesOK);
     segment.setTagTop(RULE_ERROR_COUNT, report.numRulesError);

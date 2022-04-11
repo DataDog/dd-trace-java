@@ -116,6 +116,7 @@ public class PowerWAFModule implements AppSecModule {
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
+  private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
 
   @Override
   public void config(AppSecConfigService appSecConfigService)
@@ -133,7 +134,7 @@ public class PowerWAFModule implements AppSecModule {
 
     appSecConfigService.addTraceSegmentPostProcessor(initReporter);
     if (wafMetricsEnabled) {
-      appSecConfigService.addTraceSegmentPostProcessor(new PowerWAFStatsReporter());
+      appSecConfigService.addTraceSegmentPostProcessor(statsReporter);
     }
   }
 
@@ -165,6 +166,9 @@ public class PowerWAFModule implements AppSecModule {
       config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
 
       newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap);
+      if (initReport != null) {
+        this.statsReporter.rulesVersion = initReport.fileVersion;
+      }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
