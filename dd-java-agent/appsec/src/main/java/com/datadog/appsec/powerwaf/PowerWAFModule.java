@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
+import io.sqreen.powerwaf.PowerwafConfig;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
 import io.sqreen.powerwaf.RuleSetInfo;
@@ -154,7 +155,9 @@ public class PowerWAFModule implements AppSecModule {
     PowerwafContext newPwafCtx = null;
     try {
       String uniqueId = UUID.randomUUID().toString();
-      newPwafCtx = Powerwaf.createContext(uniqueId, config.getRawConfig());
+      PowerwafConfig pwConfig = createPowerwafConfig();
+      newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, config.getRawConfig());
+
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
@@ -184,6 +187,20 @@ public class PowerWAFModule implements AppSecModule {
     if (prevContextAndAddresses != null) {
       prevContextAndAddresses.ctx.delReference();
     }
+  }
+
+  private PowerwafConfig createPowerwafConfig() {
+    PowerwafConfig pwConfig = new PowerwafConfig();
+    Config config = Config.get();
+    String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
+    if (keyRegexp != null) {
+      pwConfig.obfuscatorKeyRegex = keyRegexp;
+    }
+    String valueRegexp = config.getAppSecObfuscationParameterValueRegexp();
+    if (valueRegexp != null) {
+      pwConfig.obfuscatorValueRegex = valueRegexp;
+    }
+    return pwConfig;
   }
 
   @Override

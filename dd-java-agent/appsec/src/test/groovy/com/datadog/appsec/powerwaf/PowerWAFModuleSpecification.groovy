@@ -20,6 +20,10 @@ import datadog.trace.api.TraceSegment
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
 
+import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
+import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
+
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
@@ -159,6 +163,79 @@ class PowerWAFModuleSpecification extends DDSpecification {
       .withKeyPath(['user-agent'])
       .withValue('Arachni/v0')
       .withHighlight(['Arachni/v'])
+      .build()
+    ]
+  }
+
+  void 'redaction with default settings'() {
+    setupWithStubConfigService()
+    AppSecEvent100 event
+
+    when:
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent', 'password'])
+      .withValue('<Redacted>')
+      .withHighlight(['<Redacted>'])
+      .build()
+    ]
+  }
+
+  void 'disabling of key regex'() {
+    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, '')
+    setupWithStubConfigService()
+    AppSecEvent100 event
+
+    when:
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent', 'password'])
+      .withValue('Arachni/v0')
+      .withHighlight(['Arachni/v'])
+      .build()
+    ]
+  }
+
+  void 'redaction of values'() {
+    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, 'Arachni')
+
+    setupWithStubConfigService()
+    AppSecEvent100 event
+
+    when:
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent'])
+      .withValue('<Redacted>')
+      .withHighlight(['<Redacted>'])
       .build()
     ]
   }

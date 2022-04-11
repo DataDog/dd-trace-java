@@ -64,6 +64,8 @@ import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
@@ -434,6 +436,8 @@ public class Config {
   private final String appSecIpAddrHeader;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
+  private final String appSecObfuscationParameterKeyRegexp;
+  private final String appSecObfuscationParameterValueRegexp;
 
   private final boolean ciVisibilityEnabled;
 
@@ -928,6 +932,11 @@ public class Config {
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
 
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
+
+    appSecObfuscationParameterKeyRegexp =
+        configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
+    appSecObfuscationParameterValueRegexp =
+        configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1469,6 +1478,14 @@ public class Config {
 
   public boolean isAppSecWafMetrics() {
     return appSecWafMetrics;
+  }
+
+  public String getAppSecObfuscationParameterKeyRegexp() {
+    return appSecObfuscationParameterKeyRegexp;
+  }
+
+  public String getAppSecObfuscationParameterValueRegexp() {
+    return appSecObfuscationParameterValueRegexp;
   }
 
   public boolean isCiVisibilityEnabled() {
