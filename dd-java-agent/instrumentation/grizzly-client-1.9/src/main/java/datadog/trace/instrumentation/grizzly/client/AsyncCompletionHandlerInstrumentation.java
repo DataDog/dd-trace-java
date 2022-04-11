@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.grizzly.client;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -49,7 +49,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperClass(named("com.ning.http.client.AsyncCompletionHandler"));
+    return extendsClass(named("com.ning.http.client.AsyncCompletionHandler"));
   }
 
   @Override
