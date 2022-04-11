@@ -18,6 +18,7 @@ dependencies {
 
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   implementation project(path: ':dd-java-agent:agent-profiling:profiling-auxiliary-async', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-context')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')

@@ -26,6 +26,7 @@ import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.time.SystemTimeSource;
@@ -780,6 +781,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       spanToSample.forceKeep(forceKeep);
       boolean published = forceKeep || sampler.sample(spanToSample);
       if (published) {
+        if (TracingContextTrackerFactory.isTrackingAvailable()) {
+          for (DDSpan span : writtenTrace) {
+            int stored = span.storeContextToTag();
+            if (stored > -1) {
+              log.trace(
+                  "Sending statsd metric 'tracing.context.size'={} (client={})",
+                  stored,
+                  statsDClient);
+              statsDClient.histogram("tracing.context.size", stored);
+            }
+          }
+        }
         writer.write(writtenTrace);
       } else {
         // with span streaming this won't work - it needs to be changed
