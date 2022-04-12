@@ -2,6 +2,7 @@ package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
+import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
@@ -66,7 +67,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean blocked;
 
   private boolean reqDataPublished;
-  private boolean pathParamsPublished;
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
@@ -282,11 +282,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean isPathParamsPublished() {
-    return pathParamsPublished;
-  }
-
-  public void setPathParamsPublished(boolean pathParamsPublished) {
-    this.pathParamsPublished = pathParamsPublished;
+    return persistentData.containsKey(KnownAddresses.REQUEST_PATH_PARAMS);
   }
 
   public boolean isRawReqBodyPublished() {

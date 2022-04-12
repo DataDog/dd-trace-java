@@ -185,9 +185,9 @@ public class GatewayBridge {
           (ctx_, data) -> {
             AppSecRequestContext ctx = ctx_.getData();
             if (ctx.isPathParamsPublished()) {
+              log.debug("Second or subsequent publication of request params");
               return NoopFlow.INSTANCE;
             }
-            ctx.setPathParamsPublished(true);
 
             if (pathParamsSubInfo == null) {
               pathParamsSubInfo =
