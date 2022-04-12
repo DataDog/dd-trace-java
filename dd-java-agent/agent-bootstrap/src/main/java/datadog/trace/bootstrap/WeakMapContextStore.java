@@ -5,29 +5,45 @@ package datadog.trace.bootstrap;
  *
  * <p>This class should be created lazily because it uses weak maps with background cleanup.
  */
-final class WeakMapContextStore implements ContextStore<Object, Object> {
-  private static final int MAX_SIZE = 50_000;
+final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
+  private static final int DEFAULT_MAX_SIZE = 50_000;
 
+  private final int maxSize;
   private final WeakMap<Object, Object> map = WeakMap.Supplier.newWeakMap();
 
-  @Override
-  public Object get(final Object key) {
-    return map.get(key);
+  public WeakMapContextStore(int maxSize) {
+    this.maxSize = maxSize;
+  }
+
+  public WeakMapContextStore() {
+    this(DEFAULT_MAX_SIZE);
   }
 
   @Override
-  public void put(final Object key, final Object context) {
-    if (map.size() < MAX_SIZE) {
+  @SuppressWarnings("unchecked")
+  public V get(final K key) {
+    return (V) map.get(key);
+  }
+
+  @Override
+  public void put(final K key, final V context) {
+    if (map.size() < maxSize) {
       map.put(key, context);
     }
   }
 
   @Override
-  public Object putIfAbsent(final Object key, final Object context) {
-    Object existingContext = map.get(key);
+  public V putIfAbsent(final K key, final V context) {
+    V existingContext = get(key);
     if (null == existingContext) {
+      // This whole part with using synchronized is only because
+      // we want to avoid prematurely calling the factory if
+      // someone else is doing a putIfAbsent at the same time.
+      // There is still the possibility that there is a concurrent
+      // call to put that will win, but that is indistinguishable
+      // from the put happening right after the putIfAbsent.
       synchronized (map) {
-        existingContext = map.get(key);
+        existingContext = get(key);
         if (null == existingContext) {
           existingContext = context;
           put(key, existingContext);
@@ -38,11 +54,17 @@ final class WeakMapContextStore implements ContextStore<Object, Object> {
   }
 
   @Override
-  public Object putIfAbsent(final Object key, final Factory<Object> contextFactory) {
-    Object existingContext = map.get(key);
+  public V putIfAbsent(final K key, final Factory<V> contextFactory) {
+    V existingContext = get(key);
     if (null == existingContext) {
+      // This whole part with using synchronized is only because
+      // we want to avoid prematurely calling the factory if
+      // someone else is doing a putIfAbsent at the same time.
+      // There is still the possibility that there is a concurrent
+      // call to put that will win, but that is indistinguishable
+      // from the put happening right after the putIfAbsent.
       synchronized (map) {
-        existingContext = map.get(key);
+        existingContext = get(key);
         if (null == existingContext) {
           existingContext = contextFactory.create();
           put(key, existingContext);
@@ -53,7 +75,13 @@ final class WeakMapContextStore implements ContextStore<Object, Object> {
   }
 
   @Override
-  public Object remove(final Object key) {
-    return map.remove(key);
+  @SuppressWarnings("unchecked")
+  public V remove(final K key) {
+    return (V) map.remove(key);
+  }
+
+  // Package reachable for testing
+  int size() {
+    return map.size();
   }
 }

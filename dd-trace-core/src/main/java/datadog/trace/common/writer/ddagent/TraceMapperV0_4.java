@@ -1,10 +1,10 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
@@ -17,19 +17,6 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-
-  public static final byte[] SERVICE = "service".getBytes(ISO_8859_1);
-  public static final byte[] NAME = "name".getBytes(ISO_8859_1);
-  public static final byte[] RESOURCE = "resource".getBytes(ISO_8859_1);
-  public static final byte[] TRACE_ID = "trace_id".getBytes(ISO_8859_1);
-  public static final byte[] SPAN_ID = "span_id".getBytes(ISO_8859_1);
-  public static final byte[] PARENT_ID = "parent_id".getBytes(ISO_8859_1);
-  public static final byte[] START = "start".getBytes(ISO_8859_1);
-  public static final byte[] DURATION = "duration".getBytes(ISO_8859_1);
-  public static final byte[] TYPE = "type".getBytes(ISO_8859_1);
-  public static final byte[] ERROR = "error".getBytes(ISO_8859_1);
-  public static final byte[] METRICS = "metrics".getBytes(ISO_8859_1);
-  public static final byte[] META = "meta".getBytes(ISO_8859_1);
 
   private final int size;
 
@@ -198,7 +185,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    protected void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(WritableByteChannel channel) throws IOException {
       ByteBuffer header = msgpackArrayHeader(traceCount());
       while (header.hasRemaining()) {
         channel.write(header);
@@ -209,7 +196,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    protected RequestBody toRequest() {
+    public RequestBody toRequest() {
       return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
     }
   }

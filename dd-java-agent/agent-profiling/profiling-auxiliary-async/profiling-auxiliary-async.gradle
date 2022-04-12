@@ -19,7 +19,9 @@ excludedClassesCoverage += [
   'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording',
   'com.datadog.profiling.auxiliary.async.AsyncProfilerRecordingData',
   // the config event is a simple data holder
-  'com.datadog.profiling.auxiliary.async.AsyncProfilerConfigEvent'
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerConfigEvent',
+  // simple forwarder class to the native implementation
+  "com.datadog.profiling.auxiliary.async.ContextIntervalEventsWriter",
 ]
 
 dependencies {

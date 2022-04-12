@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static datadog.trace.util.Strings.getResourceName;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
@@ -21,6 +22,9 @@ public final class ClassLoaderMatcher {
   private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
       "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader";
 
+  private static final boolean HAS_CLASSLOADER_EXCLUDES =
+      !Config.get().getExcludedClassLoaders().isEmpty();
+
   /** A private constructor that must not be invoked. */
   private ClassLoaderMatcher() {
     throw new UnsupportedOperationException();
@@ -31,7 +35,8 @@ public final class ClassLoaderMatcher {
   }
 
   public static boolean canSkipClassLoaderByName(final ClassLoader loader) {
-    switch (loader.getClass().getName()) {
+    String classLoaderName = loader.getClass().getName();
+    switch (classLoaderName) {
       case "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader":
       case "sun.reflect.DelegatingClassLoader":
       case "jdk.internal.reflect.DelegatingClassLoader":
@@ -41,6 +46,9 @@ public final class ClassLoaderMatcher {
       case DATADOG_CLASSLOADER_NAME:
       case DATADOG_DELEGATE_CLASSLOADER_NAME:
         return true;
+    }
+    if (HAS_CLASSLOADER_EXCLUDES) {
+      return Config.get().getExcludedClassLoaders().contains(classLoaderName);
     }
     return false;
   }

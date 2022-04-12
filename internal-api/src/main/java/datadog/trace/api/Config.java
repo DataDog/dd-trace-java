@@ -189,10 +189,12 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.AGENT_NAMED_PIPE;
 import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
@@ -328,6 +330,7 @@ public class Config {
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   private final List<String> excludedClasses;
+  private final Set<String> excludedClassLoaders;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final BitSet httpServerErrorStatuses;
@@ -391,6 +394,8 @@ public class Config {
 
   private final boolean traceExecutorsAll;
   private final List<String> traceExecutors;
+
+  private final Set<String> traceThreadPoolExecutorsExclude;
 
   private final boolean traceAnalyticsEnabled;
 
@@ -647,6 +652,7 @@ public class Config {
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
+    excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
 
     if (isEnabled(false, HEADER_TAGS, ".legacy.parsing.enabled")) {
       requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
@@ -812,8 +818,10 @@ public class Config {
     traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
-
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
+
+    traceThreadPoolExecutorsExclude =
+        tryMakeImmutableSet(configProvider.getList(TRACE_THREAD_POOL_EXECUTORS_EXCLUDE));
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -1115,6 +1123,10 @@ public class Config {
     return excludedClasses;
   }
 
+  public Set<String> getExcludedClassLoaders() {
+    return excludedClassLoaders;
+  }
+
   public Map<String, String> getRequestHeaderTags() {
     return requestHeaderTags;
   }
@@ -1329,6 +1341,10 @@ public class Config {
 
   public List<String> getTraceExecutors() {
     return traceExecutors;
+  }
+
+  public Set<String> getTraceThreadPoolExecutorsExclude() {
+    return traceThreadPoolExecutorsExclude;
   }
 
   public boolean isTraceAnalyticsEnabled() {
@@ -1642,7 +1658,12 @@ public class Config {
 
   public WellKnownTags getWellKnownTags() {
     return new WellKnownTags(
-        getRuntimeId(), reportHostName ? getHostName() : "", getEnv(), serviceName, getVersion());
+        getRuntimeId(),
+        reportHostName ? getHostName() : "",
+        getEnv(),
+        serviceName,
+        getVersion(),
+        LANGUAGE_TAG_VALUE);
   }
 
   public Set<String> getMetricsIgnoredResources() {
@@ -2220,6 +2241,8 @@ public class Config {
         + jmxTags
         + ", excludedClasses="
         + excludedClasses
+        + ", excludedClassLoaders="
+        + excludedClassLoaders
         + ", requestHeaderTags="
         + requestHeaderTags
         + ", responseHeaderTags="

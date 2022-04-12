@@ -121,30 +121,40 @@ final class ConfigConverter {
   }
 
   private static void loadMap(Map<String, String> map, String str, String settingName) {
+    // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
     boolean badFormat = false;
     int start = 0;
     int splitter = str.indexOf(':', start);
     while (splitter != -1 && !badFormat) {
       int nextSplitter = str.indexOf(':', splitter + 1);
+      int nextComma = str.indexOf(',', splitter + 1);
+      nextComma = nextComma == -1 ? str.length() : nextComma;
+      int nextSpace = str.indexOf(' ', splitter + 1);
+      nextSpace = nextSpace == -1 ? str.length() : nextSpace;
+      // if we have a delimiter after this splitter, then try to move the splitter forward to
+      // allow for tags with ':' in them
+      while (nextSplitter != -1 && nextSplitter < nextComma && nextSplitter < nextSpace) {
+        nextSplitter = str.indexOf(':', nextSplitter + 1);
+      }
       int end;
       if (nextSplitter == -1) {
-        end = str.length();
-        int trailingDelimiter = str.indexOf(',', splitter + 1);
-        if (trailingDelimiter == str.length() - 1) {
-          end = trailingDelimiter;
-        }
-      } else {
-        int delimiter = str.indexOf(',', splitter + 1);
-        if (delimiter == -1) {
-          delimiter = str.indexOf(' ', splitter + 1);
-          if (delimiter == -1) {
-            badFormat = true;
-          }
-        }
-        if (delimiter > nextSplitter) {
+        // this is either the end of the string or the next position where the value should be
+        // trimmed
+        end = nextComma;
+        if (nextComma < str.length() - 1) {
+          // there are non-space characters after the ','
           badFormat = true;
         }
-        end = delimiter;
+      } else {
+        if (nextComma < str.length()) {
+          end = nextComma;
+        } else if (nextSpace < str.length()) {
+          end = nextSpace;
+        } else {
+          // this should not happen
+          end = str.length();
+          badFormat = true;
+        }
       }
       if (!badFormat) {
         String key = str.substring(start, splitter).trim();
@@ -192,12 +202,8 @@ final class ConfigConverter {
       } else if (delimiter == mapPos) {
         // we're in a mapping, so let's find the next part
         int nextList = str.indexOf(listChar, delimiter + 1);
-        int nextMap = str.indexOf(':', delimiter + 1);
         if (mapPos == start) {
           // can't have an empty key
-          badFormat = true;
-        } else if (nextMap != -1 && (nextMap < nextList || nextList == -1)) {
-          // can't have multiple ':' in one segment
           badFormat = true;
         } else if (nextList != -1) {
           end = nextList;

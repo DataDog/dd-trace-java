@@ -79,9 +79,8 @@ public final class Events<D> {
       new ET<>("server.request.method.uri.raw", REQUEST_PATH_PARAMS_ID);
   /** The parameters the framework got from the request uri (but not the query string) */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext<D>, Map<String, Object>, Flow<Void>>>
-      requestPathParams() {
-    return (EventType<BiFunction<RequestContext<D>, Map<String, Object>, Flow<Void>>>)
+  public EventType<BiFunction<RequestContext<D>, Map<String, ?>, Flow<Void>>> requestPathParams() {
+    return (EventType<BiFunction<RequestContext<D>, Map<String, ?>, Flow<Void>>>)
         REQUEST_PATH_PARAMS;
   }
 

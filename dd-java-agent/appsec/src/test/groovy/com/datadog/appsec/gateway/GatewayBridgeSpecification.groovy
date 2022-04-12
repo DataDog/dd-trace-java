@@ -6,6 +6,7 @@ import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
+import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
@@ -34,13 +35,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   AppSecRequestContext arCtx = new AppSecRequestContext()
   TraceSegment traceSegment = Mock()
   RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
-    @Override
-    AppSecRequestContext getData() {
-      return arCtx
-    }
+    final AppSecRequestContext data = arCtx
 
     @Override
-    TraceSegment getTraceSegment() {
+    final TraceSegment getTraceSegment() {
       GatewayBridgeSpecification.this.traceSegment
     }
   }
@@ -325,18 +323,17 @@ class GatewayBridgeSpecification extends DDSpecification {
     assert bundle.get(KnownAddresses.REQUEST_PATH_PARAMS) == [a: 'b']
   }
 
-  void 'path params does not published twice'() {
-    AppSecRequestContext reqCtx = Mock()
+  void 'path params is not published twice'() {
     Flow flow
 
     when:
-    ctx.data.setPathParamsPublished(true)
-    flow = pathParamsCB.apply(ctx, [a: 'b'])
+    arCtx.addAll(new SingletonDataBundle(KnownAddresses.REQUEST_PATH_PARAMS, [a: 'b']))
+    flow = pathParamsCB.apply(ctx, [c: 'd'])
 
     then:
     flow == NoopFlow.INSTANCE
     0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS)
-    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, reqCtx, _ as DataBundle, false)
+    0 * eventDispatcher.publishDataEvent(*_)
   }
 
   void callInitAndCaptureCBs() {

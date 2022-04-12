@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormalizer
+import datadog.trace.core.DDSpan
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -162,6 +163,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def encoded = Config.get().isHttpServerRawQueryString() && supportsRaw()
     def query = encoded ? endpoint.rawQuery : endpoint.query
     null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
+  }
+
+  Map<String, ?> expectedIGPathParams() {
+    null
   }
 
   boolean hasHandlerSpan() {
@@ -663,6 +668,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     where:
     method = "GET"
     body = null
+  }
+
+  def "test path param publishes to IG"() {
+    setup:
+    assumeTrue(testPathParam() != null && expectedIGPathParams() != null)
+    def request = request(PATH_PARAM, 'GET', null)
+      .header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.body().string() == PATH_PARAM.body
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
   }
 
   def "test success with multiple header attached parent"() {
@@ -1277,13 +1299,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as Function<RequestContext<Context>, Flow<Void>>)
 
-    final BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>> requestParamsCb =
-    { RequestContext<Context> rqCtxt, Map<String, Object> map ->
+    final BiFunction<RequestContext<Context>, Map<String, ?>, Flow<Void>> requestParamsCb =
+    { RequestContext<Context> rqCtxt, Map<String, ?> map ->
       if (map && !map.empty) {
         def context = rqCtxt.data
         context.tags.put(IG_PATH_PARAMS_TAG, map)
       }
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>>
+    } as BiFunction<RequestContext<Context>, Map<String, ?>, Flow<Void>>
   }
 }
