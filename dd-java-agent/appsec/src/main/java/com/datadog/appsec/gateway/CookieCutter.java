@@ -18,30 +18,31 @@
 
 package com.datadog.appsec.gateway;
 
-import com.datadog.appsec.event.data.StringKVPair;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /* From Jetty's CookieCutter */
 public class CookieCutter {
   private CookieCutter() {}
 
   // should not throw
-  public static List<StringKVPair> parseCookieHeader(String f) {
+  public static Map<String, List<String>> parseCookieHeader(String f) {
     if (f == null) {
-      return Collections.emptyList();
+      return Collections.emptyMap();
     }
     f = f.trim();
     if (f.length() == 0) {
-      return Collections.emptyList();
+      return Collections.emptyMap();
     }
-    List<StringKVPair> pairs = new ArrayList<>(4);
+    Map<String, List<String>> pairs = new HashMap<>(4);
     parseHeaderValue(pairs, f);
     return pairs;
   }
 
-  private static void parseHeaderValue(List<StringKVPair> cookies, String hdr) {
+  private static void parseHeaderValue(Map<String, List<String>> cookies, String hdr) {
     // Parse the header
     String name = null;
     String value = null;
@@ -172,8 +173,19 @@ public class CookieCutter {
         value = unquoteOnly(value);
 
         if (!name.startsWith("$")) {
-          StringKVPair cookie = new StringKVPair(name, value);
-          cookies.add(cookie);
+          Object o = cookies.get(name);
+          if (o == null) {
+            cookies.put(name, Collections.singletonList(value));
+          } else {
+            if (((List<?>) o).size() == 1) {
+              List l = new ArrayList<>(2);
+              l.add(((List<?>) o).get(0));
+              l.add(value);
+              cookies.put(name, l);
+            } else {
+              ((List<String>) o).add(value);
+            }
+          }
         }
 
         name = null;

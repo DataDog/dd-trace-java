@@ -336,10 +336,8 @@ public class GatewayBridge {
     public void accept(RequestContext<AppSecRequestContext> ctx_, String name, String value) {
       AppSecRequestContext ctx = ctx_.getData();
       if (name.equalsIgnoreCase("cookie")) {
-        List<StringKVPair> cookies = CookieCutter.parseCookieHeader(value);
-        for (StringKVPair cookie : cookies) {
-          ctx.addCookie(cookie);
-        }
+        Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
+        ctx.addCookies(cookies);
       } else {
         ctx.addRequestHeader(name, value);
       }
@@ -430,7 +428,7 @@ public class GatewayBridge {
     MapDataBundle bundle =
         new MapDataBundle.Builder(CAPACITY_6_10)
             .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
-            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCookies())
             .add(KnownAddresses.REQUEST_SCHEME, scheme)
             .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
             .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)

@@ -1,5 +1,6 @@
 package com.datadog.appsec.event.data;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +33,8 @@ public interface KnownAddresses {
   Address<Map<String, ?>> REQUEST_PATH_PARAMS = new Address<>("server.request.path_params");
 
   /** Cookies as parsed by the server */
-  Address<List<StringKVPair>> REQUEST_COOKIES = new Address<>("server.request.cookies");
+  Address<Map<String, ? extends Collection<String>>> REQUEST_COOKIES =
+      new Address<>("server.request.cookies");
 
   /** Same as server transport related field. */
   Address<String> REQUEST_TRANSPORT = new Address<>("server.request.transport");
