@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.NOT_DECORATOR_MATCHER;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.notProxyOrDecorator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -131,7 +131,7 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
                 builder
                     .type(safeHasSuperType(named(keyClassName)), classLoaderMatcher)
                     .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
-                    .and(NOT_DECORATOR_MATCHER)
+                    .and(notProxyOrDecorator())
                     .transform(
                         wrapVisitor(
                             new FieldBackedContextInjector(keyClassName, contextClassName)));

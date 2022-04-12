@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.ANY_CLASS_LOADER;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.NOT_DECORATOR_MATCHER;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.notProxyOrDecorator;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -58,7 +58,7 @@ public class AgentTransformerBuilder
     adviceBuilder =
         agentBuilder
             .type(matcher)
-            .and(NOT_DECORATOR_MATCHER)
+            .and(notProxyOrDecorator())
             .and(
                 new AgentBuilder.RawMatcher() {
                   @Override
@@ -166,7 +166,7 @@ public class AgentTransformerBuilder
 
     ignoreMatcher = isSynthetic();
     adviceBuilder =
-        agentBuilder.type(matcher).and(NOT_DECORATOR_MATCHER).transform(defaultTransformers());
+        agentBuilder.type(matcher).and(notProxyOrDecorator()).transform(defaultTransformers());
 
     instrumenter.adviceTransformations(this);
 

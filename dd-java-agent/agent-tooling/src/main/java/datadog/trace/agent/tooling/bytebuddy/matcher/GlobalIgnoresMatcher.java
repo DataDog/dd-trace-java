@@ -178,6 +178,9 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
             if (springClassLoaderIgnores.matches(target)) {
               return true;
             }
+            if (name.startsWith("org.springframework.core.$Proxy")) {
+              return true;
+            }
           }
         }
         break;
@@ -200,21 +203,6 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
         }
         break;
       default:
-    }
-
-    final int firstDollar = name.indexOf('$');
-    if (firstDollar > -1) {
-      if (name.contains("$JaxbAccessor")
-          || name.contains("CGLIB$$")
-          || name.contains("$__sisu")
-          || name.contains("$$EnhancerByGuice$$")
-          || name.contains("$$EnhancerByProxool$$")
-          || name.startsWith("org.springframework.core.$Proxy")) {
-        return true;
-      }
-    }
-    if (name.contains("javassist") || name.contains(".asm.")) {
-      return true;
     }
 
     return !skipAdditionalLibraryMatcher && additionalLibraryIgnoreMatcher.matches(target);
