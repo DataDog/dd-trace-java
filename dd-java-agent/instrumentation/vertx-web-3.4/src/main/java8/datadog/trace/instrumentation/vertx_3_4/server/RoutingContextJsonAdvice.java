@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.ratpack;
+package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -9,28 +9,24 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import io.vertx.core.json.JsonObject;
 import net.bytebuddy.asm.Advice;
-import ratpack.form.Form;
 
-public class ContextParseAdvice {
-
-  // for now ignore that the parser can be configured to mix in the query string
+class RoutingContextJsonAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(@Advice.Return Object obj_) {
-    Object obj = obj_;
-    if (obj == null) {
+    if (obj_ == null) {
       return;
     }
-    if (obj instanceof Form) {
-      // handled by netty
-      return;
+    Object obj = obj_;
+    if (obj instanceof JsonObject) {
+      obj = ((JsonObject) obj).getMap();
     }
 
     AgentSpan agentSpan = activeSpan();
     if (agentSpan == null) {
       return;
     }
-
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
     BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestBodyProcessed());
@@ -38,6 +34,7 @@ public class ContextParseAdvice {
     if (requestContext == null || callback == null) {
       return;
     }
+
     callback.apply(requestContext, obj);
   }
 }

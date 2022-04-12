@@ -1,5 +1,8 @@
 package server;
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED;
@@ -19,8 +22,11 @@ import datadog.trace.agent.test.base.HttpServerTest;
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 
 public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
@@ -52,6 +58,64 @@ public class VertxTestServer extends AbstractVerticle {
                         ctx.response()
                             .setStatusCode(FORWARDED.getStatus())
                             .end(ctx.request().getHeader("x-forwarded-for"))));
+    router
+        .route(CREATED.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    ctx,
+                    CREATED,
+                    () ->
+                        ctx.request()
+                            .bodyHandler(
+                                body ->
+                                    ctx.response()
+                                        .setStatusCode(CREATED.getStatus())
+                                        .end(CREATED.getBody() + ": " + body.toString()))));
+    router.route(BODY_URLENCODED.getPath()).handler(BodyHandler.create());
+    router
+        .route(BODY_URLENCODED.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    ctx,
+                    BODY_URLENCODED,
+                    () -> {
+                      String res = "[";
+                      MultiMap entries = ctx.request().formAttributes();
+                      for (String name : entries.names()) {
+                        if (name.equals("ignore")) {
+                          continue;
+                        }
+                        if (res.length() > 1) {
+                          res += ", ";
+                        }
+                        res += name;
+                        res += ":[";
+                        int i = 0;
+                        for (String s : entries.getAll(name)) {
+                          if (i++ > 0) {
+                            res += ", ";
+                          }
+                          res += s;
+                        }
+                        res += ']';
+                      }
+                      res += ']';
+                      ctx.response().setStatusCode(BODY_URLENCODED.getStatus()).end(res);
+                    }));
+    router.route(BODY_JSON.getPath()).handler(BodyHandler.create());
+    router
+        .route(BODY_JSON.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    ctx,
+                    BODY_JSON,
+                    () -> {
+                      JsonObject json = ctx.getBodyAsJson();
+                      ctx.response().setStatusCode(BODY_JSON.getStatus()).end(json.toString());
+                    }));
     router
         .route(QUERY_ENCODED_BOTH.getRawPath())
         .handler(
