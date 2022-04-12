@@ -22,7 +22,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -68,8 +67,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing
     public static AgentScope nameSpan(
         @Advice.Argument(0) final Request request,
         @Advice.FieldValue("path") final String path,
-        @Advice.FieldValue("clazz") final Class clazz,
-        @Advice.Origin final Method method) {
+        @Advice.FieldValue("clazz") final Class clazz) {
 
       // Update the parent "netty.request"
       final AgentSpan parent = activeSpan();
