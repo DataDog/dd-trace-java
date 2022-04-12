@@ -9,34 +9,21 @@ import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Thrown;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import datadog.trace.core.DDSpanContext;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+//todo used?
 import static datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerDecorator.DECORATE;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext;
-//import datadog.trace.bootstrap.instrumentation.api.ExtractedContext;
 
 import net.bytebuddy.asm.Advice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.opentracing.util.GlobalTracer;
-import io.opentracing.SpanContext;
-import io.opentracing.propagation.Format.Builtin;
-import io.opentracing.propagation.TextMapAdapter;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -45,14 +32,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Arrays;
-import java.util.Map;
-
-import datadog.trace.api.DDId;
-
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 
 @AutoService(Instrumenter.class)
@@ -93,8 +72,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
         packageName + ".LambdaHandlerDecorator",
-        packageName + ".LambdaSpanContext",
-        "datadog.trace.core.propagation.ExtractedContext"
+        packageName + ".LambdaSpanContext"
     };
   }
 
@@ -112,10 +90,8 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
     @OnMethodEnter
     static AgentScope enter(@This final Object that, @AllArguments Object[] args, @Origin("#m") final String methodName) {
-      System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
+      
       System.out.println("[maxday-poc-java-no-code] - Enter the function");
-
-
 
        System.out.println("Starting invocation");
        try {
@@ -146,16 +122,9 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
          System.out.println(result);
          reader.close();
          System.out.println("[maxday-poc-java-no-code] - /start-invocation called");
-         Map<String, List<String>> map = con.getHeaderFields();
+         
 
-         for (Map.Entry<String, List<String>> entry : map.entrySet()) {
-           System.out.println("Key = " + entry.getKey() + ", Value = ");
-           for (String s : entry.getValue()) {
-             System.out.println(s);
-           }
-         }
-
-         DummyLambdaContext lambdaSpanContext = new DummyLambdaContext(map.get("X-Datadog-Trace-Id").get(0), map.get("X-Datadog-Span-Id").get(0));
+         DummyLambdaContext lambdaSpanContext = new DummyLambdaContext(con.getHeaderFields().get("X-Datadog-Trace-Id").get(0), con.getHeaderFields().get("X-Datadog-Span-Id").get(0));
 
          final CharSequence LAMBDA_HANDLER = UTF8BytesString.create("aws.lambda");
 
@@ -198,12 +167,12 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
          con.setDoOutput(true);
          HttpURLConnection http = (HttpURLConnection) con;
          http.setRequestMethod("POST");
+         http.setRequestProperty("x-datadog-tracing-enabled", "false");
 
          byte[] out ="{}".getBytes(StandardCharsets.UTF_8);
          int length = out.length;
          http.setFixedLengthStreamingMode(length);
          http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-         http.setRequestProperty("x-datadog-tracing-enabled", "false");
          if (null != throwable) {
            http.setRequestProperty("x-datadog-invocation-error", "true");
          }
@@ -253,7 +222,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         con.setDoOutput(true);
         HttpURLConnection http = (HttpURLConnection) con;
         http.setRequestMethod("POST");
-        //http.setRequestProperty("x-datadog-tracing-enabled", "false");
+        http.setRequestProperty("x-datadog-tracing-enabled", "false");
         byte[] out ="{}".getBytes(StandardCharsets.UTF_8);
         int length = out.length;
         http.setFixedLengthStreamingMode(length);

@@ -1083,7 +1083,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     private DDSpanContext buildSpanContext() {
       // XXX maxday STACK
-      // System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
+      System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
       System.out.println("HERE IN buildSpanContext");
       final DDId traceId;
       DDId spanId = idGenerationStrategy.generate();
