@@ -63,6 +63,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pp.processTraceSegment(segment, ctx, [])
 
     then:
+    1 * segment.setTagTop('_dd.appsec.waf.version', _ as String)
     1 * segment.setTagTop('dd.appsec.event_rules.loaded', 114)
     1 * segment.setTagTop('dd.appsec.event_rules.error_count', 1)
     1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
