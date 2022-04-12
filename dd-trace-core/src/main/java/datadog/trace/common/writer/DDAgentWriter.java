@@ -19,6 +19,7 @@ import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -54,6 +55,7 @@ public class DDAgentWriter implements Writer {
   private final PayloadDispatcher dispatcher;
   private final DDAgentFeaturesDiscovery discovery;
   private final boolean alwaysFlush;
+  private final boolean skipRoot;
 
   private volatile boolean closed;
 
@@ -72,6 +74,7 @@ public class DDAgentWriter implements Writer {
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     boolean alwaysFlush = false;
+    boolean skipRoot = false;
 
     private DDAgentApi agentApi;
     private Prioritization prioritization;
@@ -152,6 +155,11 @@ public class DDAgentWriter implements Writer {
       return this;
     }
 
+    public DDAgentWriterBuilder skipRoot(boolean skipRoot) {
+      this.skipRoot = skipRoot;
+      return this;
+    }
+
     public DDAgentWriter build() {
       return new DDAgentWriter(
           agentApi,
@@ -168,7 +176,8 @@ public class DDAgentWriter implements Writer {
           traceAgentV05Enabled,
           metricsReportingEnabled,
           featureDiscovery,
-          alwaysFlush);
+          alwaysFlush,
+          skipRoot);
     }
   }
 
@@ -187,7 +196,8 @@ public class DDAgentWriter implements Writer {
       final boolean traceAgentV05Enabled,
       boolean metricsReportingEnabled,
       DDAgentFeaturesDiscovery featureDiscovery,
-      final boolean alwaysFlush) {
+      final boolean alwaysFlush,
+      final boolean skipRoot) {
     HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
     OkHttpClient client =
         null == featureDiscovery || null == agentApi
@@ -207,6 +217,7 @@ public class DDAgentWriter implements Writer {
     this.healthMetrics = healthMetrics;
     this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
     this.alwaysFlush = alwaysFlush;
+    this.skipRoot = skipRoot;
     this.traceProcessingWorker =
         new TraceProcessingWorker(
             traceBufferSize,
@@ -230,6 +241,7 @@ public class DDAgentWriter implements Writer {
     this.traceProcessingWorker = worker;
     this.dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring);
     this.alwaysFlush = false;
+    this.skipRoot = false;
   }
 
   private DDAgentWriter(
@@ -244,6 +256,7 @@ public class DDAgentWriter implements Writer {
     this.traceProcessingWorker = worker;
     this.dispatcher = dispatcher;
     this.alwaysFlush = false;
+    this.skipRoot = false;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -257,12 +270,11 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void write(final List<DDSpan> trace) {
-    for(DDSpan span : trace) {
-      System.out.println("[maxday-poc-java-no-code] - maxdaywritespan - traceID["+span.getTraceId()+"] spanID["+span.getSpanId()+"] parentID["+span.getParentId()+"] service["+span.getServiceName()+"] resourceName["+span.getResourceName()+"]");
-    }
-
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (!closed) {
+      if (skipRoot && !trace.isEmpty()) {
+        trace.remove(0);
+      }
       if (trace.isEmpty()) {
         handleDroppedTrace("Trace was empty", trace);
       } else {
@@ -277,9 +289,7 @@ public class DDAgentWriter implements Writer {
     } else {
       handleDroppedTrace("Trace written after shutdown.", trace);
     }
-    System.out.println("DECIDE TO FLUSH");
     if (alwaysFlush) {
-      System.out.println("FLUSH!");
       flush();
     }
   }

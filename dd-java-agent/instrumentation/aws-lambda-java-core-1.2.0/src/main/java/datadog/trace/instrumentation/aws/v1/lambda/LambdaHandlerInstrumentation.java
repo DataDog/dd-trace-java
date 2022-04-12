@@ -9,6 +9,7 @@ import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Thrown;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import datadog.trace.core.DDSpanContext;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerDecorator.DECORATE;
@@ -26,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext;
+//import datadog.trace.bootstrap.instrumentation.api.ExtractedContext;
 
 import net.bytebuddy.asm.Advice;
 
@@ -46,10 +48,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
 
 import datadog.trace.api.DDId;
 
+import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 
 @AutoService(Instrumenter.class)
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
@@ -108,110 +112,77 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
     @OnMethodEnter
     static AgentScope enter(@This final Object that, @AllArguments Object[] args, @Origin("#m") final String methodName) {
+      System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
       System.out.println("[maxday-poc-java-no-code] - Enter the function");
-      try {
-        URL urlToOpen = new URL("http://127.0.0.1:8124/lambda/start-invocation");
-        URLConnection con = urlToOpen.openConnection();
-        con.setDoOutput(true);
-        HttpURLConnection http = (HttpURLConnection) con;
-        http.setRequestMethod("POST");
 
-        ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writeValueAsString(args[0]);
 
-        byte[] out = json.getBytes(StandardCharsets.UTF_8);
-        int length = out.length;
-        http.setFixedLengthStreamingMode(length);
-        http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        http.connect();
-        try (OutputStream os = http.getOutputStream()) {
-          os.write(out);
-        }
-        BufferedReader reader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-        StringBuilder stringBuilder = new StringBuilder();
-        String line = null;
-        while ((line = reader.readLine()) != null)
-        {
-          stringBuilder.append(line + "\n");
-        }
-        String result = stringBuilder.toString();
-        System.out.println(result);
-        reader.close();
-        System.out.println("[maxday-poc-java-no-code] - /start-invocation called");
-      } catch (Exception e){
-        System.out.println("ooopsy = " + e);
-      }
-      System.out.println("now checking the trace-context");
-      try {
-        URL urlToOpen = new URL("http://127.0.0.1:8124/trace-context");
-        URLConnection con = urlToOpen.openConnection();
-        con.setDoOutput(true);
-        HttpURLConnection http = (HttpURLConnection) con;
-        http.setRequestMethod("POST");
-        String json = "{}";
-        byte[] out = json.getBytes(StandardCharsets.UTF_8);
-        int length = out.length;
-        http.setFixedLengthStreamingMode(length);
-        http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        http.connect();
-        try (OutputStream os = http.getOutputStream()) {
-          os.write(out);
-        }
-        BufferedReader reader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-        StringBuilder stringBuilder = new StringBuilder();
-        String line = null;
-        while ((line = reader.readLine()) != null)
-        {
-          stringBuilder.append(line + "\n");
-        }
-        String result = stringBuilder.toString();
-        System.out.println(result);
-        reader.close();
-        System.out.println("[maxday-poc-java-no-code] - /trace-context called");
-        Map<String, List<String>> map = con.getHeaderFields();
 
-        for (Map.Entry<String, List<String>> entry : map.entrySet()) {
-          System.out.println("Key = " + entry.getKey() + ", Value = ");
-          for (String s : entry.getValue()) {
-            System.out.println(s);
-          }
-        }
+       System.out.println("Starting invocation");
+       try {
+         URL urlToOpen = new URL("http://127.0.0.1:8124/lambda/start-invocation");
+         URLConnection con = urlToOpen.openConnection();
+         con.setDoOutput(true);
+         HttpURLConnection http = (HttpURLConnection) con;
+         http.setRequestMethod("POST");
+         http.setRequestProperty("x-datadog-tracing-enabled", "false");
+         ObjectMapper mapper = new ObjectMapper();
+         String json = mapper.writeValueAsString(args[0]);
+         byte[] out = json.getBytes(StandardCharsets.UTF_8);
+         int length = out.length;
+         http.setFixedLengthStreamingMode(length);
+         http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+         http.connect();
+         try (OutputStream os = http.getOutputStream()) {
+           os.write(out);
+         }
+         BufferedReader reader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+         StringBuilder stringBuilder = new StringBuilder();
+         String line = null;
+         while ((line = reader.readLine()) != null)
+         {
+           stringBuilder.append(line + "\n");
+         }
+         String result = stringBuilder.toString();
+         System.out.println(result);
+         reader.close();
+         System.out.println("[maxday-poc-java-no-code] - /start-invocation called");
+         Map<String, List<String>> map = con.getHeaderFields();
 
-        System.out.println("[maxday-poc-java-no-code] - Creating a new LambdaSpanContext with traceID = " + map.get("X-Datadog-Trace-Id").get(0) + " and spanID = " + map.get("X-Datadog-Span-Id").get(0));
-        //final AgentSpan.Context context = new LambdaSpanContext(map.get("X-Datadog-Trace-Id").get(0), map.get("X-Datadog-Span-Id").get(0));
+         for (Map.Entry<String, List<String>> entry : map.entrySet()) {
+           System.out.println("Key = " + entry.getKey() + ", Value = ");
+           for (String s : entry.getValue()) {
+             System.out.println(s);
+           }
+         }
 
-        final ExtractedContext context = new ExtractedContext(
-            DDId.from(map.get("X-Datadog-Trace-Id").get(0)),
-            DDId.from(map.get("X-Datadog-Span-Id").get(0)),
-            2,
-            0,
-            "superOrigin",
-            0,
-            null,
-            null
-        );
+         DummyLambdaContext lambdaSpanContext = new DummyLambdaContext(map.get("X-Datadog-Trace-Id").get(0), map.get("X-Datadog-Span-Id").get(0));
 
-        final CharSequence LAMBDA_HANDLER = UTF8BytesString.create("aws.lambda");
+         final CharSequence LAMBDA_HANDLER = UTF8BytesString.create("aws.lambda");
 
-        System.out.println(context.getSpanId());
+         System.out.println("TRACE ID set in lambdaSpanContext =" + lambdaSpanContext.getTraceId());
+         System.out.println("SPAN ID set in lambdaSpanContext =" + lambdaSpanContext.getSpanId());
 
-        AgentSpan span = startSpan(LAMBDA_HANDLER, context);
+         //AgentSpan span = startSpan(LAMBDA_HANDLER, lambdaSpanContext);
+         AgentSpan span = startSpan(LAMBDA_HANDLER, lambdaSpanContext);
 
-        System.out.println("TRACE ID set in context =" + span.getTraceId());
-        System.out.println("SPAN ID set in context =" + span.getSpanId());
-        DECORATE.afterStart(span);
-        DECORATE.onServiceExecution(span, that, methodName);
+         System.out.println("TRACE ID set in context =" + span.getTraceId());
+         System.out.println("SPAN ID set in context =" + span.getSpanId());
+         DECORATE.afterStart(span);
+         DECORATE.onServiceExecution(span, that, methodName);
 
-        final AgentScope scope = activateSpan(span);
-        // Enable async propagation, so the newly spawned task will be associated back with this
-        // original trace.
-        scope.setAsyncPropagation(true);
-        System.out.println("[maxday-poc-java-no-code] end of onStart, returning the scope");
-        return scope;
 
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
+
+
+         final AgentScope scope = activateSpan(span);
+         // Enable async propagation, so the newly spawned task will be associated back with this
+         // original trace.
+         scope.setAsyncPropagation(true);
+         System.out.println("[maxday-poc-java-no-code] end of onStart, returning the scope");
+         return scope;
+
+       } catch (Exception e) {
+         e.printStackTrace();
+       }
 
 
 
@@ -221,13 +192,68 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void exit(@Origin String method, @Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       System.out.println("[maxday-poc-java-no-code] - Exit the function" + method);
+       try {
+         URL urlToOpen = new URL("http://127.0.0.1:8124/lambda/end-invocation");
+         URLConnection con = urlToOpen.openConnection();
+         con.setDoOutput(true);
+         HttpURLConnection http = (HttpURLConnection) con;
+         http.setRequestMethod("POST");
+
+         byte[] out ="{}".getBytes(StandardCharsets.UTF_8);
+         int length = out.length;
+         http.setFixedLengthStreamingMode(length);
+         http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+         http.setRequestProperty("x-datadog-tracing-enabled", "false");
+         if (null != throwable) {
+           http.setRequestProperty("x-datadog-invocation-error", "true");
+         }
+         http.connect();
+         try (OutputStream os = http.getOutputStream()) {
+           os.write(out);
+         }
+         BufferedReader reader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+         StringBuilder stringBuilder = new StringBuilder();
+         String line = null;
+         while ((line = reader.readLine()) != null)
+         {
+           stringBuilder.append(line + "\n");
+         }
+         String result = stringBuilder.toString();
+         System.out.println(result);
+         reader.close();
+         System.out.println("[maxday-poc-java-no-code] - call to /end-invocation success");
+       } catch (Exception e){
+         System.out.println("ooopsy = " + e);
+       }
+
+       if (scope == null) {
+         System.out.println("[maxday-poc-java-no-code] - scope is nil");
+         return;
+       }
+       // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
+       try {
+         final AgentSpan span = scope.span();
+
+         if (throwable != null) {
+           System.out.println("error detected");
+           DECORATE.onError(span, throwable);
+         }
+         //DECORATE.beforeFinish(span);
+         span.finish();
+         System.out.println("[maxday-poc-java-no-code] - span is finished");
+       } finally {
+         System.out.println("oupsy in close");
+         scope.close();
+         System.out.println("[maxday-poc-java-no-code] - span is closed");
+       }
+
       try {
-        URL urlToOpen = new URL("http://127.0.0.1:8124/lambda/end-invocation");
+        URL urlToOpen = new URL("http://127.0.0.1:8124/lambda/flush");
         URLConnection con = urlToOpen.openConnection();
         con.setDoOutput(true);
         HttpURLConnection http = (HttpURLConnection) con;
         http.setRequestMethod("POST");
-
+        //http.setRequestProperty("x-datadog-tracing-enabled", "false");
         byte[] out ="{}".getBytes(StandardCharsets.UTF_8);
         int length = out.length;
         http.setFixedLengthStreamingMode(length);
@@ -239,64 +265,10 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         try (OutputStream os = http.getOutputStream()) {
           os.write(out);
         }
-        BufferedReader reader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-        StringBuilder stringBuilder = new StringBuilder();
-        String line = null;
-        while ((line = reader.readLine()) != null)
-        {
-          stringBuilder.append(line + "\n");
-        }
-        String result = stringBuilder.toString();
-        System.out.println(result);
-        reader.close();
-        System.out.println("[maxday-poc-java-no-code] - call to /end-invocation success");
+        System.out.println("[maxday-poc-java-no-code] - call to /flush success");
       } catch (Exception e){
         System.out.println("ooopsy = " + e);
       }
-
-      if (scope == null) {
-        System.out.println("[maxday-poc-java-no-code] - scope is nil");
-        return;
-      }
-      // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
-      try {
-        final AgentSpan span = scope.span();
-
-        if (throwable != null) {
-          System.out.println("error detected");
-          DECORATE.onError(span, throwable);
-        }
-        DECORATE.beforeFinish(span);
-        span.finish();
-        System.out.println("[maxday-poc-java-no-code] - span is finished");
-      } finally {
-        System.out.println("oupsy in close");
-        scope.close();
-        System.out.println("[maxday-poc-java-no-code] - span is closed");
-      }
-
-//      try {
-//        URL urlToOpen = new URL("http://127.0.0.1:8124/lambda/flush");
-//        URLConnection con = urlToOpen.openConnection();
-//        con.setDoOutput(true);
-//        HttpURLConnection http = (HttpURLConnection) con;
-//        http.setRequestMethod("POST");
-//
-//        byte[] out ="{}".getBytes(StandardCharsets.UTF_8);
-//        int length = out.length;
-//        http.setFixedLengthStreamingMode(length);
-//        http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-//        if (null != throwable) {
-//          http.setRequestProperty("x-datadog-invocation-error", "true");
-//        }
-//        http.connect();
-//        try (OutputStream os = http.getOutputStream()) {
-//          os.write(out);
-//        }
-//        System.out.println("[maxday-poc-java-no-code] - call to /flush success");
-//      } catch (Exception e){
-//        System.out.println("ooopsy = " + e);
-//      }
     }
   }
 }

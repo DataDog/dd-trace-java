@@ -37,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
@@ -72,6 +73,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
 /**
  * Main entrypoint into the tracer implementation. In addition to implementing
@@ -619,6 +621,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return builder.start();
   }
 
+
+
   @Override
   public AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, boolean emitCheckpoint) {
@@ -959,6 +963,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    private DDSpan buildSpanWith(final String traceID, final String spanID) {
+      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
+      if (span.isLocalRootSpan()) {
+        tracer.onRootSpanStarted(span);
+      }
+      return span;
+    }
+
     private DDSpan buildSpan() {
       DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
       if (span.isLocalRootSpan()) {
@@ -1057,9 +1069,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
+      // XXX maxday STACK
+      // System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
       System.out.println("HERE IN buildSpanContext");
       final DDId traceId;
-      final DDId spanId = idGenerationStrategy.generate();
+      DDId spanId = idGenerationStrategy.generate();
       final DDId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
@@ -1122,24 +1136,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-        } else if (null != parentContext && parentContext.getClass().getCanonicalName().equals("datadog.trace.agent.core.propagation.ExtractedContext")) {
-          DDId traceToUse = IdGenerationStrategy.RANDOM.generate();
-          DDId spanToUse = DDId.ZERO;
-          try {
-            System.out.println("try to inherit");
-            Method getTraceIdMethod = parentContext.getClass().getMethod("getTraceId");
-            Method getSpanIdMethod = parentContext.getClass().getMethod("getSpanId");
-            traceToUse = (DDId) getTraceIdMethod.invoke(parentContext);
-            spanToUse = (DDId) getSpanIdMethod.invoke(parentContext);
-            System.out.println("Trace to USE = " + traceToUse);
-            System.out.println("Span to USE = " + spanToUse);
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-          traceId = traceToUse;
+        } else if (parentContext instanceof DummyLambdaContext) {
+          final DummyLambdaContext dlc = (DummyLambdaContext) parentContext;
+          traceId = dlc.getTraceId();
+          spanId = dlc.getSpanId();
           parentSpanId = DDId.ZERO;
-          samplingPriority = PrioritySampling.USER_KEEP;
-          samplingMechanism = SamplingMechanism.DEFAULT;
+          samplingPriority = PrioritySampling.UNSET;
+          samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;
         } else {

@@ -58,6 +58,8 @@ public class WriterFactory {
     }
 
     boolean alwaysFlush = false;
+    boolean skipRoot = false;
+
     if (config.isAgentConfiguredUsingDefault()
         && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
       if (!ServerlessInfo.get().hasExtension()) {
@@ -68,6 +70,7 @@ public class WriterFactory {
         log.info(
             "Detected serverless environment. Serverless extension has been detected, using DDAgentWriter");
         alwaysFlush = true;
+        skipRoot = true;
       }
     }
 
@@ -94,6 +97,7 @@ public class WriterFactory {
             .healthMetrics(new HealthMetrics(statsDClient))
             .monitoring(commObjects.monitoring)
             .alwaysFlush(alwaysFlush)
+            .skipRoot(skipRoot)
             .build();
 
     if (sampler instanceof DDAgentResponseListener) {
