@@ -29,7 +29,7 @@ class SpringBootWithGRPCAppSecTest extends AbstractAppSecServerSmokeTest {
     setup:
     String url = "http://localhost:${httpPort}/${ROUTE}"
     def request = new Request.Builder()
-      .url("${url}?message=${'.htaccess'.bytes.encodeBase64()}")
+      .url("${url}?message=${'/.htaccess'.bytes.encodeBase64()}")
       .get().build()
 
     when:
