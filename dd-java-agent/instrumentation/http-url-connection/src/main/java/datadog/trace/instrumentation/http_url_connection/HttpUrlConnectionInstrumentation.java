@@ -70,7 +70,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
       try {
         Map<String,List<String>> map = thiz.getRequestProperties();
         shouldTrace = (
-          null == map 
+          null == map
           || null == map.get(HTTP_TRACE_ENABLED_KEY)
           || null == map.get(HTTP_TRACE_ENABLED_KEY).get(0)
           || "false" != map.get(HTTP_TRACE_ENABLED_KEY).get(0)
