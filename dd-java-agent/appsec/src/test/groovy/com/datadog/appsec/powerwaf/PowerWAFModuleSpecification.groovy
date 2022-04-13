@@ -82,11 +82,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     1 * ctx.getAdditive() >> null
     1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
     1 * ctx.setWafMetrics(_)
@@ -105,11 +104,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     1 * ctx.getAdditive() >> null
     1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
     1 * ctx.getAdditive() >> { pwafAdditive }
@@ -127,7 +125,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     setupWithStubConfigService()
     pp = service.traceSegmentPostProcessors[1]
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
     pp.processTraceSegment(segment, ctx, [])
 
@@ -151,12 +149,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
 
     then:
-    1 * ctx.size() >> 0
-    1 * ctx.allAddresses >> []
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> false
     1 * ctx.getAdditive() >> pwafAdditive
     1 * ctx.setAdditive(_)
     1 * ctx.setWafMetrics(_)
@@ -170,11 +165,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent100 event
 
     when:
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
@@ -203,11 +197,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -228,11 +221,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -252,11 +244,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent100 event
 
     when:
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -276,7 +267,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       new CaseInsensitiveMap<List<String>>(['user-agent': 'Harmless']))
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db)
+    dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
     flow.blocking == false
@@ -288,7 +279,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES, [get: { null }] as List)
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db)
+    dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
     assert !flow.blocking
@@ -311,11 +302,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:

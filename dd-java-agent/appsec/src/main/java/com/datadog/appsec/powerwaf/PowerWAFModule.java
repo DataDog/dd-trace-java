@@ -279,7 +279,7 @@ public class PowerWAFModule implements AppSecModule {
 
     @Override
     public void onDataAvailable(
-        ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData) {
+        ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData, boolean isTransient) {
       Powerwaf.ActionWithData actionWithData;
       CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
       if (ctxAndAddr == null) {
@@ -293,7 +293,7 @@ public class PowerWAFModule implements AppSecModule {
           start = System.currentTimeMillis();
         }
 
-        actionWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr);
+        actionWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
 
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
@@ -322,7 +322,10 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     private Powerwaf.ActionWithData doRunPowerwaf(
-        AppSecRequestContext reqCtx, DataBundle newData, CtxAndAddresses ctxAndAddr)
+        AppSecRequestContext reqCtx,
+        DataBundle newData,
+        CtxAndAddresses ctxAndAddr,
+        boolean isTransient)
         throws AbstractPowerwafException {
       Additive additive;
       PowerwafMetrics metrics = null;
@@ -341,8 +344,6 @@ public class PowerWAFModule implements AppSecModule {
         }
       }
 
-      boolean isTransient =
-          newData.getAllAddresses().stream().anyMatch(addr -> !reqCtx.hasAddress(addr));
       if (isTransient) {
         DataBundle bundle = DataBundle.unionOf(newData, reqCtx);
         return runPowerwafTransient(metrics, bundle, ctxAndAddr);
