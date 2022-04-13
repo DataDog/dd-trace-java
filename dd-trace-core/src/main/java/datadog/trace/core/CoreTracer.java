@@ -73,9 +73,6 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
-
 /**
  * Main entrypoint into the tracer implementation. In addition to implementing
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
@@ -627,7 +624,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, boolean emitCheckpoint) {
-        System.out.println("in start span CoreTracer");
     AgentTracer.SpanBuilder builder = buildSpan(spanName).ignoreActiveSpan().asChildOf(parent);
     if (!emitCheckpoint) {
       builder = builder.suppressCheckpoints();
@@ -976,14 +972,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    private DDSpan buildSpanWith(final String traceID, final String spanID) {
-      DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
-      if (span.isLocalRootSpan()) {
-        tracer.onRootSpanStarted(span);
-      }
-      return span;
-    }
-
     private DDSpan buildSpan() {
       DDSpan span = DDSpan.create(timestampMicro, buildSpanContext(), emitCheckpoints);
       if (span.isLocalRootSpan()) {
@@ -1082,9 +1070,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      System.out.println("---> in buildSpanContext");
-      final DDId traceId;
-      DDId spanId = idGenerationStrategy.generate();
+      final DDId traceId;;
       final DDId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
@@ -1097,13 +1083,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DDSpanContext context;
       final Object requestContextData;
 
+      DDId spanId = idGenerationStrategy.generate()
+
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
       Object parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
-        
+
         if (activeSpan != null) {
           parentContext = activeSpan.context();
         }
@@ -1114,10 +1102,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.
-      System.out.println("Parent Context is " + parentContext);
-      if (null != parentContext) {
-        System.out.println(parentContext.getClass().getCanonicalName());
-      }
       if (parentContext instanceof DDSpanContext) {
         final DDSpanContext ddsc = (DDSpanContext) parentContext;
         traceId = ddsc.getTraceId();
@@ -1158,8 +1142,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggage = null;
         } else {
           // Start a new trace
-          System.out.println("[Starting a new trace]");
-          System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
           traceId = IdGenerationStrategy.RANDOM.generate();
           parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;

@@ -34,4 +34,3 @@ public class DummyLambdaContext implements AgentSpan.Context {
   }
 
 }
-  

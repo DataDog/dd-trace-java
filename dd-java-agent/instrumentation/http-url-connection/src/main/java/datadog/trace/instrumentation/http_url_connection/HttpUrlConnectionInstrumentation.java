@@ -16,13 +16,9 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
-import datadog.trace.bootstrap.instrumentation.httpurlconnection.LambdaHandler;
 import java.net.HttpURLConnection;
 import java.util.Map;
-import java.util.List;
 import net.bytebuddy.asm.Advice;
-
-import java.util.Arrays;
 
 @AutoService(Instrumenter.class)
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing

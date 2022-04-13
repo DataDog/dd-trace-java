@@ -518,14 +518,12 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
     @Override
     public DDSpanBuilder asChildOf(final SpanContext parent) {
-      System.out.println("A - in asChildOf");
       delegate.asChildOf(converter.toContext(parent));
       return this;
     }
 
     @Override
     public DDSpanBuilder asChildOf(final Span parent) {
-      System.out.println("B - in asChildOf");
       if (parent != null) {
         delegate.asChildOf(converter.toAgentSpan(parent).context());
       }

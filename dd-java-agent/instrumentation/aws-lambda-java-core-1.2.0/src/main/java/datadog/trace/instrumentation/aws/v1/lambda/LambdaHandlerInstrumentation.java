@@ -40,29 +40,34 @@ import org.slf4j.LoggerFactory;
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
+  private static final String HANDLER_ENV_NAME = "_HANDLER";
+  private static final String HANDLER_SEPARATOR = "::";
+  private static final String DEFAULT_METHOD_NAME = "handleRequest";
   private static final Logger log = LoggerFactory.getLogger(LambdaHandlerInstrumentation.class);
-  private static final CharSequence AWS_LAMBDA = UTF8BytesString.create("aws.lambda")
+
   private String instrumentedType;
   private String methodName;
 
   public LambdaHandlerInstrumentation() {
     super("aws-lambda");
-    final String handler = System.getenv("_HANDLER");
+    final String handler = System.getenv(HANDLER_ENV_NAME);
     if (null != handler) {
-      final String[] tokens = handler.split("::");
+      final String[] tokens = handler.split(HANDLER_SEPARATOR);
       if (tokens.length == 1) {
         this.instrumentedType = handler;
-        this.methodName = "handleRequest";
+        this.methodName = DEFAULT_METHOD_NAME;
       } else if (tokens.length == 2) {
         this.instrumentedType = tokens[0];
         this.methodName = tokens[1];
+      } else {
+        log.error("wrong format for the handler, auto-instrumentation won't be applied");
       }
     }
   }
 
   @Override
   protected boolean defaultEnabled() {
-    final String handler = System.getenv("_HANDLER");
+    final String handler = System.getenv(HANDLER_ENV_NAME);
     return null != handler;
   }
 
@@ -91,19 +96,17 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   public static class ExtensionCommunicationAdvice {
     @OnMethodEnter
     static AgentScope enter(@This final Object that, @AllArguments Object[] args, @Origin("#m") final String methodName) {
-      log.debug("Entering the lamba handler");
       DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(args[0]);
       if (null == lambdaSpanContext) {
         return null;
       }
-      AgentSpan span = startSpan(AWS_LAMBDA, lambdaSpanContext);
+      AgentSpan span = startSpan(UTF8BytesString.create("aws.lambda"), lambdaSpanContext);
       final AgentScope scope = activateSpan(span);
       return scope;
     }
 
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void exit(@Origin String method, @Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      log.debug("Exiting the lamba handler");
       LambdaHandler.notifyEndInvocation(null != throwable);
       if (scope == null) {
         return;

@@ -13,8 +13,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 testSets {
   latestDepTest {
     dirName = 'test'
@@ -22,17 +20,4 @@ testSets {
 }
 
 dependencies {
-
-  api 'com.fasterxml.jackson.core:jackson-core:2.11.0'
-  api 'com.fasterxml.jackson.core:jackson-databind:2.11.0'
-  api 'com.fasterxml.jackson.core:jackson-annotations:2.11.0'
-
-  compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.0'
-
-  // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
-  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
-  testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-1.11.0')
-  testImplementation project(':dd-java-agent:instrumentation:jms')
-
-  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '+'
 }
