@@ -28,14 +28,17 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
+  private final String group;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
-      final KafkaDecorator decorator) {
+      final KafkaDecorator decorator,
+      String group) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
+    this.group = group;
   }
 
   @Override
@@ -79,7 +82,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           PathwayContext pathwayContext = propagate().extractPathwayContext(val.headers(), GETTER);
           span.mergePathwayContext(pathwayContext);
-          AgentTracer.get().setDataStreamCheckpoint(span, "kafka", "", val.topic());
+          AgentTracer.get().setDataStreamCheckpoint(span, "kafka", group, val.topic());
         } else {
           span = startSpan(operationName, null);
         }
@@ -87,7 +90,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val);
+        decorator.onConsume(span, val, group);
         activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();
