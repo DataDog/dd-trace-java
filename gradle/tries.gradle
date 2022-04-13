@@ -3,7 +3,10 @@
 def configureClassNameTrieTask(exec, sourceSetName) {
   def trieFiles = fileTree(dir: "src/${sourceSetName}/resources", include: '**/*.trie')
   def trieDir = trieFiles.dir.toPath()
-  def javaDir = trieDir.resolveSibling('java')
+
+  def javaDir = buildDir.toPath().resolve("generated/sources/tries/java/${sourceSetName}")
+  sourceSets."$sourceSetName".java.srcDirs += [javaDir]
+
   // declare expected output path(s) so we can support incremental builds
   def javaFiles = trieFiles.collect {
     file(javaDir.resolve(trieDir.relativize(it.toPath())).resolveSibling(
@@ -11,6 +14,7 @@ def configureClassNameTrieTask(exec, sourceSetName) {
         it[1].toUpperCase() }
       .replace('.trie', 'Trie.java') as String))
   }
+
   exec.group = 'Build'
   exec.description = "Generate $sourceSetName ClassNameTries from .trie files"
   exec.inputs.files(trieFiles)
