@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PowerWAFInitializationResultReporter implements TraceSegmentPostProcessor {
   private static final String WAF_VERSION = "_dd.appsec.waf.version";
   private static final String RULE_ERRORS = "_dd.appsec.event_rules.errors";
-  private static final String RULES_LOADED = "dd.appsec.event_rules.loaded";
-  private static final String RULE_ERROR_COUNT = "dd.appsec.event_rules.error_count";
+  private static final String RULES_LOADED = "_dd.appsec.event_rules.loaded";
+  private static final String RULE_ERROR_COUNT = "_dd.appsec.event_rules.error_count";
 
   private static final JsonAdapter<Map<String, String[]>> RULES_ERRORS_ADAPTER =
       new Moshi.Builder()
