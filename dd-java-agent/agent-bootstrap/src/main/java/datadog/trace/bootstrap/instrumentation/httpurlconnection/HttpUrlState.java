@@ -25,9 +25,6 @@ public class HttpUrlState {
   private volatile boolean finished = false;
 
   public AgentSpan start(final HttpURLConnection connection) {
-    if(HttpUrlFilter.preventTracing(connection)) {
-      return null;
-    }
     span = startSpan(OPERATION_NAME);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

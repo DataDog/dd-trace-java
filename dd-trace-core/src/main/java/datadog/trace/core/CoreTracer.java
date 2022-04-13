@@ -1082,9 +1082,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      // XXX maxday STACK
-      System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
-      System.out.println("HERE IN buildSpanContext");
+      System.out.println("---> in buildSpanContext");
       final DDId traceId;
       DDId spanId = idGenerationStrategy.generate();
       final DDId parentSpanId;
@@ -1160,7 +1158,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggage = null;
         } else {
           // Start a new trace
-          System.out.println("HERE Start a new trace");
+          System.out.println("[Starting a new trace]");
+          System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
           traceId = IdGenerationStrategy.RANDOM.generate();
           parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;

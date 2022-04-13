@@ -1,4 +1,5 @@
 package datadog.trace.instrumentation.aws.v1.lambda;
+
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;

@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
-import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlFilter;
+import datadog.trace.bootstrap.instrumentation.httpurlconnection.LambdaHandler;
 import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.List;
@@ -61,11 +61,6 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
     public static HttpUrlState methodEnter(
         @Advice.This final HttpURLConnection thiz,
         @Advice.FieldValue("connected") final boolean connected) {
-
-      if(HttpUrlFilter.preventTracing(thiz)) {
-        return null;
-      }
-      
       final ContextStore<HttpURLConnection, HttpUrlState> contextStore =
           InstrumentationContext.get(HttpURLConnection.class, HttpUrlState.class);
       final HttpUrlState state = contextStore.putIfAbsent(thiz, HttpUrlState.FACTORY);
