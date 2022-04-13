@@ -3,6 +3,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/tries.gradle"
 
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
@@ -54,8 +55,12 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentTaskScheduler.ShutdownHook",
   "datadog.trace.util.AgentThreadFactory",
   "datadog.trace.util.AgentThreadFactory.1",
+  "datadog.trace.util.ClassNameTrie.Builder",
+  "datadog.trace.util.ClassNameTrie.Generator",
   "datadog.trace.util.CollectionUtils",
 ]
+
+compileTestJava.dependsOn 'generateTestClassNameTries'
 
 dependencies {
   // references TraceScope and Continuation from public api
