@@ -60,7 +60,7 @@ public class LambdaHandler {
           final String traceID = response.headers().get(DATADOG_TRACE_ID);
           final String spanID = response.headers().get(DATADOG_TRACE_ID);
           if (null != traceID && null != spanID) {
-            log.info("notifyStartInvocation success, found traceID = {} and spanID = {}", traceID, spanID);
+            log.debug("notifyStartInvocation success, found traceID = {} and spanID = {}", traceID, spanID);
             return new DummyLambdaContext(traceID, spanID);
           } else {
             log.error("could not find traceID/spanID in notifyStartInvocation, not injecting the context");
@@ -88,7 +88,7 @@ public class LambdaHandler {
         .execute()
       ) {
         if (response.isSuccessful()) {
-          log.info("notifyEndInvocation success");
+          log.debug("notifyEndInvocation success");
         }
       } catch (Exception e) {
         log.error("could not reach the extension, not injecting the context", e);
