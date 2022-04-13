@@ -29,7 +29,9 @@ public class LambdaHandler {
 
     private static final Logger log = LoggerFactory.getLogger(LambdaHandler.class);
 
+    // Note: this header is used to disable tracing for calls to the extension
     private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
+    
     private static final String DATADOG_TRACE_ID = "x-datadog-trace-id";
     private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
     
