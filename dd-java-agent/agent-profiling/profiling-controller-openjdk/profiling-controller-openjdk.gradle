@@ -45,6 +45,10 @@ targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
 idea {
   module {
     jdkName = '11'

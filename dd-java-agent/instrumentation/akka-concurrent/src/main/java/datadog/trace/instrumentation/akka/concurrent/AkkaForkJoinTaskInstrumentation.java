@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import akka.dispatch.forkjoin.ForkJoinTask;
@@ -28,7 +29,6 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Instrument {@link ForkJoinTask}.
@@ -52,7 +52,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
-        .and(ElementMatchers.<TypeDescription>declaresMethod(namedOneOf("exec", "fork", "cancel")))
+        .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
         .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));
   }
 

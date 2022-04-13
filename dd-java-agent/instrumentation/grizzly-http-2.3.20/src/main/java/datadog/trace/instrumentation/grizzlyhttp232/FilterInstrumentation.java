@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,7 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class FilterInstrumentation extends Instrumenter.Tracing
@@ -28,16 +27,10 @@ public final class FilterInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
+    return extendsClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
         // HttpCodecFilter is instrumented in the server instrumentation
-        .and(
-            not(
-                ElementMatchers.<TypeDescription>named(
-                    "org.glassfish.grizzly.http.HttpCodecFilter")))
-        .and(
-            not(
-                ElementMatchers.<TypeDescription>named(
-                    "org.glassfish.grizzly.http.HttpServerFilter")));
+        .and(not(named("org.glassfish.grizzly.http.HttpCodecFilter")))
+        .and(not(named("org.glassfish.grizzly.http.HttpServerFilter")));
   }
 
   @Override

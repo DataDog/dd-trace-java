@@ -31,7 +31,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * The old way of doing this is to wrap the Runnable when it is added to the queue, which is scary
@@ -76,8 +75,7 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return ElementMatchers.<TypeDescription>not(
-            named("java.util.concurrent.ScheduledThreadPoolExecutor"))
+    return not(named("java.util.concurrent.ScheduledThreadPoolExecutor"))
         .and(extendsClass(named(TPE)));
   }
 
