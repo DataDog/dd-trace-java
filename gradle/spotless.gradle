@@ -9,6 +9,7 @@ spotless {
   if (project.plugins.hasPlugin('java')) {
     java {
       toggleOffOn()
+      targetExclude 'build/generated*/**/*.java'
       googleJavaFormat()
     }
   }
