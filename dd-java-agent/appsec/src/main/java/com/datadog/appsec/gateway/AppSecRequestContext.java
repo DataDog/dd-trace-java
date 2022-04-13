@@ -237,7 +237,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   Map<String, ? extends Collection<String>> getCookies() {
-    return collectedCookies;
+    return collectedCookies != null ? collectedCookies : Collections.emptyMap();
   }
 
   String getPeerAddress() {
