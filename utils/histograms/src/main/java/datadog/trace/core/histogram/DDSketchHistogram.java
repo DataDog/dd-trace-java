@@ -5,7 +5,7 @@ import com.datadoghq.sketch.ddsketch.mapping.BitwiseLinearlyInterpolatedMapping;
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore;
 import java.nio.ByteBuffer;
 
-public final class DDSketchHistogram implements Histogram, HistogramFactory {
+public final class DDSketchHistogram implements Histogram {
 
   private final DDSketch sketch;
 
@@ -22,6 +22,11 @@ public final class DDSketchHistogram implements Histogram, HistogramFactory {
 
   @Override
   public void accept(long value) {
+    sketch.accept(value);
+  }
+
+  @Override
+  public void accept(double value) {
     sketch.accept(value);
   }
 
@@ -49,10 +54,5 @@ public final class DDSketchHistogram implements Histogram, HistogramFactory {
   @Override
   public ByteBuffer serialize() {
     return sketch.serialize();
-  }
-
-  @Override
-  public Histogram newHistogram() {
-    return new DDSketchHistogram();
   }
 }

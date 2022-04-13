@@ -30,6 +30,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
+  "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",

@@ -56,6 +56,8 @@ public interface Writable {
 
   void writeLong(long value);
 
+  void writeUnsignedLong(long value);
+
   void writeSignedLong(long value);
 
   void writeFloat(float value);

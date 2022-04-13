@@ -6,6 +6,7 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.sampling.SamplingMechanism
@@ -439,6 +440,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
+      NoopPathwayContext.INSTANCE,
       false)
 
     def span = DDSpan.create(timestamp, context)

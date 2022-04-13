@@ -90,5 +90,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
+  static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+
   private ConfigDefaults() {}
 }
