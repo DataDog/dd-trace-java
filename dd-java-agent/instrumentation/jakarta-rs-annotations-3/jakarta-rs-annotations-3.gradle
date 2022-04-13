@@ -27,6 +27,6 @@ dependencies {
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.0.0'
 
-  latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.+'
+  latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.+'
   latestDepTestImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.+'
 }
