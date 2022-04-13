@@ -1083,7 +1083,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DDSpanContext context;
       final Object requestContextData;
 
-      DDId spanId = idGenerationStrategy.generate()
+      DDId spanId = idGenerationStrategy.generate();
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
