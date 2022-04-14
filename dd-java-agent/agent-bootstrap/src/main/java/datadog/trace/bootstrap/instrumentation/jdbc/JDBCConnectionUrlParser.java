@@ -174,17 +174,13 @@ public enum JDBCConnectionUrlParser {
       }
       final int protoLoc = jdbcUrl.indexOf("://");
       final int typeEndLoc = dbInfo.getType().length();
-      if (protoLoc > typeEndLoc) {
-        if (jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
-          String trimmedUrl = jdbcUrl.replaceFirst("aws:", "");
-          return GENERIC_URL_LIKE.doParse(trimmedUrl, builder);
-        }
+      if (protoLoc > typeEndLoc && !jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
         return MARIA_SUBPROTO
             .doParse(jdbcUrl.substring(protoLoc + 3), builder)
             .subtype(jdbcUrl.substring(typeEndLoc + 1, protoLoc));
       }
       if (protoLoc > 0) {
-        return GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
+        return GENERIC_URL_LIKE.doParse(dbInfo.getType() + jdbcUrl.substring(protoLoc), builder);
       }
 
       final int hostEndLoc;
