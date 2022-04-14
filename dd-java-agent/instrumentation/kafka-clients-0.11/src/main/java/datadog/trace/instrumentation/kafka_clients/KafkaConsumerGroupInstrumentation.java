@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 
@@ -75,6 +76,12 @@ public final class KafkaConsumerGroupInstrumentation extends Instrumenter.Tracin
       if (consumerGroup != null && !consumerGroup.isEmpty()) {
         InstrumentationContext.get(KafkaConsumer.class, String.class).put(consumer, consumerGroup);
       }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
+      // KafkaConsumerInstrumentation only applies for kafka versions with headers
+      // Make an explicit call so KafkaConsumerGroupInstrumentation does the same
+      record.headers();
     }
   }
 
