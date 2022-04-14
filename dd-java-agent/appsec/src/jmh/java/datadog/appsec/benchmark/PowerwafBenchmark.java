@@ -6,7 +6,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.data.KnownAddresses;
-import com.datadog.appsec.event.data.StringKVPair;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafContext;
@@ -15,6 +14,7 @@ import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,12 +102,12 @@ public class PowerwafBenchmark {
     query.put("foo", fooValues);
     wafData.put(KnownAddresses.REQUEST_QUERY.getKey(), headers);
 
-    List<StringKVPair> cookies = new ArrayList<>();
-    cookies.add(
-        new StringKVPair(
-            "color_mode",
+    Map<String, List<String>> cookies = new HashMap<>();
+    cookies.put(
+        "color_mode",
+        Collections.singletonList(
             "=%7B%22color_mode%22%3A%22light%22%2C%22light_theme%22%3A%7B%22name%22%3A%22light%22%2C%22color_mode%22%3A%22light%22%7D%2C%22dark_theme%22%3A%7B%22name%22%3A%22dark%22%2C%22color_mode%22%3A%22dark%22%7D%7D"));
-    cookies.add(new StringKVPair("tz", "Europe/Lisbon"));
+    cookies.put("tz", Collections.singletonList("Europe/Lisbon"));
     wafData.put(KnownAddresses.REQUEST_COOKIES.getKey(), cookies);
   }
 

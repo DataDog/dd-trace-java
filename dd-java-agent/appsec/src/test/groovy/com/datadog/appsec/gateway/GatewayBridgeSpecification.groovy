@@ -7,7 +7,6 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.SingletonDataBundle
-import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import datadog.trace.api.Function
@@ -186,10 +185,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     assert collectedHeaders['another-header'] == ['another value']
     assert !collectedHeaders.containsKey('cookie')
 
-    def cookies = ctx.data.collectedCookies
-    assert cookies.contains(new StringKVPair('foo', 'bar'))
-    assert cookies.contains(new StringKVPair('foo2', 'bar2'))
-    assert cookies.contains(new StringKVPair('foo3', 'bar3'))
+    def cookies = ctx.data.cookies
+    assert cookies['foo'] == ['bar']
+    assert cookies['foo2'] == ['bar2']
+    assert cookies['foo3'] == ['bar3']
   }
 
   void 'headers provided after headers ended are ignored'() {

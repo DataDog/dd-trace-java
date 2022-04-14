@@ -1,10 +1,8 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.config.AppSecConfig
-import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
-import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
@@ -63,7 +61,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     thrown(IllegalStateException)
 
     when:
-    ctx.addCookie(new StringKVPair('a', 'b'))
+    ctx.addCookies(a: ['b'])
 
     then:
     thrown(IllegalStateException)
@@ -81,12 +79,12 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'saves cookies and other headers'() {
     when:
-    ctx.addCookie(new StringKVPair('a', 'c'))
+    ctx.addCookies([a: ['c']])
     ctx.addRequestHeader('user-agent', 'foo')
 
     then:
     ctx.requestHeaders['user-agent'] == ['foo']
-    ctx.collectedCookies == [['a', 'c']]
+    ctx.cookies == [a: ['c']]
   }
 
   void 'can save the URI'() {

@@ -8,16 +8,17 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceSegment;
+import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.RuleSetInfo;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class PowerWAFInitializationResultReporter implements TraceSegmentPostProcessor {
-  private static final String RULE_FILE_VERSION = "_dd.appsec.event_rules.version";
+  private static final String WAF_VERSION = "_dd.appsec.waf.version";
   private static final String RULE_ERRORS = "_dd.appsec.event_rules.errors";
-  private static final String RULES_LOADED = "dd.appsec.event_rules.loaded";
-  private static final String RULE_ERROR_COUNT = "dd.appsec.event_rules.error_count";
+  private static final String RULES_LOADED = "_dd.appsec.event_rules.loaded";
+  private static final String RULE_ERROR_COUNT = "_dd.appsec.event_rules.error_count";
 
   private static final JsonAdapter<Map<String, String[]>> RULES_ERRORS_ADAPTER =
       new Moshi.Builder()
@@ -41,12 +42,10 @@ public class PowerWAFInitializationResultReporter implements TraceSegmentPostPro
       return;
     }
 
-    if (report.fileVersion != null) {
-      segment.setTagTop(RULE_FILE_VERSION, report.fileVersion);
-    }
     segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.errors));
     segment.setTagTop(RULES_LOADED, report.numRulesOK);
     segment.setTagTop(RULE_ERROR_COUNT, report.numRulesError);
+    segment.setTagTop(WAF_VERSION, Powerwaf.LIB_VERSION);
 
     segment.setTagTop(DDTags.MANUAL_KEEP, true);
   }
