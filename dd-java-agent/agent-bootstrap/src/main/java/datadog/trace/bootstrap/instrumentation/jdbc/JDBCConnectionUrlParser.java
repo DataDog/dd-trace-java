@@ -177,7 +177,7 @@ public enum JDBCConnectionUrlParser {
       }
       final int protoLoc = jdbcUrl.indexOf("://");
       final int typeEndLoc = dbInfo.getType().length();
-      if (protoLoc > typeEndLoc && !jdbcUrl.startsWith("mysql:aws://")) {
+      if (protoLoc > typeEndLoc && !jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
         return MARIA_SUBPROTO
             .doParse(jdbcUrl.substring(protoLoc + 3), builder)
             .subtype(jdbcUrl.substring(typeEndLoc + 1, protoLoc));
