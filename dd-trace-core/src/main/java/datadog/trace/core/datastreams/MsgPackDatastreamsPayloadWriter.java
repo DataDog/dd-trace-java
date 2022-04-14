@@ -102,10 +102,16 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (!firstNode) {
         /* 5 */
         packer.writeUTF8(EDGE_TAGS);
-        packer.startArray(3);
-        packer.writeString("topic:" + group.getTopic(), null);
-        packer.writeString("group:" + group.getGroup(), null);
-        packer.writeString("type:" + group.getType(), null);
+        if (group.getGroup() == null) {
+          packer.startArray(2);
+          packer.writeString("topic:" + group.getTopic(), null);
+          packer.writeString("type:" + group.getType(), null);
+        } else {
+          packer.startArray(3);
+          packer.writeString("topic:" + group.getTopic(), null);
+          packer.writeString("group:" + group.getGroup(), null);
+          packer.writeString("type:" + group.getType(), null);
+        }
       }
     }
   }

@@ -144,6 +144,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       verifyAll(second) {
         type == "kafka"
         topic == SHARED_TOPIC
+        group == "sender"
       }
     }
 
@@ -240,6 +241,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       verifyAll(second) {
         type == "kafka"
         topic == SHARED_TOPIC
+        group == "sender"
       }
     }
 
@@ -846,6 +848,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
+        "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {

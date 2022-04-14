@@ -10,6 +10,7 @@ public class InstrumentationTags {
 
   public static final String PARTITION = "partition";
   public static final String OFFSET = "offset";
+  public static final String CONSUMER_GROUP = "kafka.group";
   public static final String PROCESSOR_NAME = "processor.name";
   public static final String RECORD_QUEUE_TIME_MS = "record.queue_time_ms";
   public static final String RECORD_END_TO_END_DURATION_MS = "record.e2e_duration_ms";
