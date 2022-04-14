@@ -31,6 +31,7 @@ public enum JDBCConnectionUrlParser {
       try {
         // Attempt generic parsing
         final URI uri = new URI(jdbcUrl);
+
         populateStandardProperties(builder, splitQuery(uri.getQuery(), '&'));
 
         final String user = uri.getUserInfo();
