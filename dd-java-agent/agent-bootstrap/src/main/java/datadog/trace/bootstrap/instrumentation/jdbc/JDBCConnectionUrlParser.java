@@ -27,10 +27,7 @@ import java.util.regex.Pattern;
 public enum JDBCConnectionUrlParser {
   GENERIC_URL_LIKE() {
     @Override
-    DBInfo.Builder doParse(String jdbcUrl, final DBInfo.Builder builder) {
-      if (jdbcUrl.startsWith("mysql:aws://")) {
-        jdbcUrl = "mysql://" + jdbcUrl.substring(12);
-      }
+    DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       try {
         // Attempt generic parsing
         final URI uri = new URI(jdbcUrl);
@@ -177,7 +174,11 @@ public enum JDBCConnectionUrlParser {
       }
       final int protoLoc = jdbcUrl.indexOf("://");
       final int typeEndLoc = dbInfo.getType().length();
-      if (protoLoc > typeEndLoc && !jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
+      if (protoLoc > typeEndLoc) {
+        if (jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
+          String trimmedUrl = jdbcUrl.replaceFirst("aws:", "");
+          return GENERIC_URL_LIKE.doParse(trimmedUrl, builder);
+        }
         return MARIA_SUBPROTO
             .doParse(jdbcUrl.substring(protoLoc + 3), builder)
             .subtype(jdbcUrl.substring(typeEndLoc + 1, protoLoc));
