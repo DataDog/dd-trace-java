@@ -3,7 +3,7 @@
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.trace.common.writer.ddagent.PayloadDispatcher
+import datadog.trace.common.writer.PayloadDispatcher
 import datadog.trace.core.CoreSpan
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics

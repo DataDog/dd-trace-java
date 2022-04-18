@@ -7,7 +7,6 @@ import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -37,7 +36,7 @@ class PayloadDispatcherTest extends DDSpecification {
     DDAgentApi api = Mock(DDAgentApi)
     api.sendSerializedTraces(_) >> {
       flushed.set(true)
-      return DDAgentApi.Response.success(200)
+      return RemoteApi.Response.success(200)
     }
     PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
@@ -68,7 +67,7 @@ class PayloadDispatcherTest extends DDSpecification {
     then:
     2 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * healthMetrics.onSerialize({ it > 0 })
-    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> RemoteApi.Response.success(200)
 
     where:
     traceEndpoint | traceCount
@@ -95,7 +94,7 @@ class PayloadDispatcherTest extends DDSpecification {
     then:
     2 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * healthMetrics.onSerialize({ it > 0 })
-    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.failed(400)
+    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> RemoteApi.Response.failed(400)
 
     where:
     traceEndpoint | traceCount

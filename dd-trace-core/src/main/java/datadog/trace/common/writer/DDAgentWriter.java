@@ -4,7 +4,6 @@ import static datadog.communication.http.OkHttpUtils.buildHttpClient;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
-import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -12,18 +11,11 @@ import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
-import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.common.writer.ddagent.PayloadDispatcher;
 import datadog.trace.common.writer.ddagent.Prioritization;
-import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This writer buffers traces and sends them to the provided DDApi instance. Buffering is done with
@@ -39,9 +31,7 @@ import org.slf4j.LoggerFactory;
  * <p>If the buffer is filled traces are discarded before serializing. Once serialized every effort
  * is made to keep, to avoid wasting the serialization effort.
  */
-public class DDAgentWriter implements Writer {
-
-  private static final Logger log = LoggerFactory.getLogger(DDAgentWriter.class);
+public class DDAgentWriter extends RemoteWriter {
 
   public static DDAgentWriterBuilder builder() {
     return new DDAgentWriterBuilder();
@@ -49,17 +39,8 @@ public class DDAgentWriter implements Writer {
 
   private static final int BUFFER_SIZE = 1024;
 
-  private final DDAgentApi api;
-  private final TraceProcessingWorker traceProcessingWorker;
-  private final PayloadDispatcher dispatcher;
-  private final DDAgentFeaturesDiscovery discovery;
-  private final boolean alwaysFlush;
-
-  private volatile boolean closed;
-
-  public final HealthMetrics healthMetrics;
-
   public static class DDAgentWriterBuilder {
+
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = null;
@@ -153,69 +134,51 @@ public class DDAgentWriter implements Writer {
     }
 
     public DDAgentWriter build() {
+      final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
+      final OkHttpClient client =
+          null == featureDiscovery || null == agentApi
+              ? buildHttpClient(agentUrl, unixDomainSocket, namedPipe, timeoutMillis)
+              : null;
+      if (null == featureDiscovery) {
+        featureDiscovery =
+            new DDAgentFeaturesDiscovery(
+                client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
+      }
+      if (null == agentApi) {
+        agentApi =
+            new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
+      }
+
+      final PayloadDispatcher dispatcher =
+          new PayloadDispatcher(featureDiscovery, agentApi, healthMetrics, monitoring);
+      final TraceProcessingWorker traceProcessingWorker =
+          new TraceProcessingWorker(
+              traceBufferSize,
+              healthMetrics,
+              dispatcher,
+              featureDiscovery,
+              null == prioritization ? FAST_LANE : prioritization,
+              flushFrequencySeconds,
+              TimeUnit.SECONDS);
+
       return new DDAgentWriter(
-          agentApi,
-          agentHost,
-          traceAgentPort,
-          unixDomainSocket,
-          namedPipe,
-          timeoutMillis,
-          traceBufferSize,
-          healthMetrics,
-          flushFrequencySeconds,
-          prioritization,
-          monitoring,
-          traceAgentV05Enabled,
-          metricsReportingEnabled,
           featureDiscovery,
+          agentApi,
+          healthMetrics,
+          dispatcher,
+          traceProcessingWorker,
           alwaysFlush);
     }
   }
 
   private DDAgentWriter(
-      final DDAgentApi agentApi,
-      final String agentHost,
-      final int traceAgentPort,
-      final String unixDomainSocket,
-      final String namedPipe,
-      final long timeoutMillis,
-      final int traceBufferSize,
-      final HealthMetrics healthMetrics,
-      final int flushFrequencySeconds,
-      final Prioritization prioritization,
-      final Monitoring monitoring,
-      final boolean traceAgentV05Enabled,
-      boolean metricsReportingEnabled,
-      DDAgentFeaturesDiscovery featureDiscovery,
-      final boolean alwaysFlush) {
-    HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
-    OkHttpClient client =
-        null == featureDiscovery || null == agentApi
-            ? buildHttpClient(agentUrl, unixDomainSocket, namedPipe, timeoutMillis)
-            : null;
-    if (null == featureDiscovery) {
-      featureDiscovery =
-          new DDAgentFeaturesDiscovery(
-              client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
-    }
-    if (null == agentApi) {
-      api = new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
-    } else {
-      api = agentApi;
-    }
-    discovery = featureDiscovery;
-    this.healthMetrics = healthMetrics;
-    this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
-    this.alwaysFlush = alwaysFlush;
-    this.traceProcessingWorker =
-        new TraceProcessingWorker(
-            traceBufferSize,
-            healthMetrics,
-            dispatcher,
-            featureDiscovery,
-            null == prioritization ? FAST_LANE : prioritization,
-            flushFrequencySeconds,
-            TimeUnit.SECONDS);
+      DDAgentFeaturesDiscovery discovery,
+      DDAgentApi api,
+      HealthMetrics healthMetrics,
+      PayloadDispatcher dispatcher,
+      TraceProcessingWorker worker,
+      boolean alwaysFlush) {
+    super(api, worker, dispatcher, discovery, healthMetrics, alwaysFlush);
   }
 
   private DDAgentWriter(
@@ -224,12 +187,13 @@ public class DDAgentWriter implements Writer {
       HealthMetrics healthMetrics,
       Monitoring monitoring,
       TraceProcessingWorker worker) {
-    this.api = api;
-    this.discovery = discovery;
-    this.healthMetrics = healthMetrics;
-    this.traceProcessingWorker = worker;
-    this.dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring);
-    this.alwaysFlush = false;
+    this(
+        discovery,
+        api,
+        healthMetrics,
+        new PayloadDispatcher(discovery, api, healthMetrics, monitoring),
+        worker,
+        false);
   }
 
   private DDAgentWriter(
@@ -238,94 +202,6 @@ public class DDAgentWriter implements Writer {
       HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
       TraceProcessingWorker worker) {
-    this.discovery = discovery;
-    this.api = api;
-    this.healthMetrics = healthMetrics;
-    this.traceProcessingWorker = worker;
-    this.dispatcher = dispatcher;
-    this.alwaysFlush = false;
-  }
-
-  public void addResponseListener(final DDAgentResponseListener listener) {
-    api.addResponseListener(listener);
-  }
-
-  // Exposing some statistics for consumption by monitors
-  public final long getCapacity() {
-    return traceProcessingWorker.getCapacity();
-  }
-
-  @Override
-  public void write(final List<DDSpan> trace) {
-    // We can't add events after shutdown otherwise it will never complete shutting down.
-    if (!closed) {
-      if (trace.isEmpty()) {
-        handleDroppedTrace("Trace was empty", trace);
-      } else {
-        final DDSpan root = trace.get(0);
-        final int samplingPriority = root.context().getSamplingPriority();
-        if (traceProcessingWorker.publish(root, samplingPriority, trace)) {
-          healthMetrics.onPublish(trace, samplingPriority);
-        } else {
-          handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);
-        }
-      }
-    } else {
-      handleDroppedTrace("Trace written after shutdown.", trace);
-    }
-    if (alwaysFlush) {
-      flush();
-    }
-  }
-
-  private void handleDroppedTrace(final String reason, final List<DDSpan> trace) {
-    log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    healthMetrics.onFailedPublish(UNSET);
-    incrementDropCounts(trace.size());
-  }
-
-  private void handleDroppedTrace(
-      final String reason, final List<DDSpan> trace, final int samplingPriority) {
-    log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    healthMetrics.onFailedPublish(samplingPriority);
-    incrementDropCounts(trace.size());
-  }
-
-  @Override
-  public boolean flush() {
-    if (!closed) { // give up after a second
-      if (traceProcessingWorker.flush(1, TimeUnit.SECONDS)) {
-        healthMetrics.onFlush(false);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public DDAgentApi getApi() {
-    return api;
-  }
-
-  @Override
-  public void start() {
-    if (!closed) {
-      traceProcessingWorker.start();
-      healthMetrics.start();
-      healthMetrics.onStart((int) getCapacity());
-    }
-  }
-
-  @Override
-  public void close() {
-    final boolean flushed = flush();
-    closed = true;
-    traceProcessingWorker.close();
-    healthMetrics.close();
-    healthMetrics.onShutdown(flushed);
-  }
-
-  @Override
-  public void incrementDropCounts(int spanCount) {
-    dispatcher.onDroppedTrace(spanCount);
+    this(discovery, api, healthMetrics, dispatcher, worker, false);
   }
 }

@@ -10,6 +10,8 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.trace.common.writer.Payload;
+import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.relocate.api.IOLogger;
 import java.io.IOException;
@@ -25,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** The API pointing to a DD agent */
-public class DDAgentApi {
+public class DDAgentApi implements RemoteApi {
 
   public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
   private static final Logger log = LoggerFactory.getLogger(DDAgentApi.class);
@@ -40,7 +42,7 @@ public class DDAgentApi {
   private static final String DATADOG_DROPPED_SPAN_COUNT = "Datadog-Client-Dropped-P0-Spans";
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
-  private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
+  private final List<RemoteResponseListener> responseListeners = new ArrayList<>();
   private final boolean metricsEnabled;
 
   private long totalTraces = 0;
@@ -85,13 +87,13 @@ public class DDAgentApi {
     this.headers.put(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
   }
 
-  public void addResponseListener(final DDAgentResponseListener listener) {
+  public void addResponseListener(final RemoteResponseListener listener) {
     if (!responseListeners.contains(listener)) {
       responseListeners.add(listener);
     }
   }
 
-  Response sendSerializedTraces(final Payload payload) {
+  public Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
     if (null == tracesEndpoint) {
@@ -134,7 +136,7 @@ public class DDAgentApi {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);
             final String endpoint = tracesUrl.toString();
-            for (final DDAgentResponseListener listener : responseListeners) {
+            for (final RemoteResponseListener listener : responseListeners) {
               listener.onResponse(endpoint, parsedResponse);
             }
           }
@@ -215,75 +217,5 @@ public class DDAgentApi {
         + ", Failed: "
         + this.failedTraces
         + ".";
-  }
-
-  /**
-   * Encapsulates an attempted response from the Datadog agent.
-   *
-   * <p>If communication fails or times out, the Response will NOT be successful and will lack
-   * status code, but will have an exception.
-   *
-   * <p>If an communication occurs, the Response will have a status code and will be marked as
-   * success or fail in accordance with the code.
-   *
-   * <p>NOTE: A successful communication may still contain an exception if there was a problem
-   * parsing the response from the Datadog agent.
-   */
-  public static final class Response {
-    /** Factory method for a successful request with a trivial response body */
-    public static Response success(final int status) {
-      return new Response(true, status, null, null);
-    }
-
-    /** Factory method for a successful request with a trivial response body */
-    public static Response success(final int status, String response) {
-      return new Response(true, status, null, response);
-    }
-
-    /** Factory method for a successful request will a malformed response body */
-    public static Response success(final int status, final Throwable exception) {
-      return new Response(true, status, exception, null);
-    }
-
-    /** Factory method for a request that receive an error status in response */
-    public static Response failed(final int status) {
-      return new Response(false, status, null, null);
-    }
-
-    /** Factory method for a failed communication attempt */
-    public static Response failed(final Throwable exception) {
-      return new Response(false, null, exception, null);
-    }
-
-    private final boolean success;
-    private final Integer status;
-    private final Throwable exception;
-    private final String response;
-
-    private Response(
-        final boolean success, final Integer status, final Throwable exception, String response) {
-      this.success = success;
-      this.status = status;
-      this.exception = exception;
-      this.response = response;
-    }
-
-    public final boolean success() {
-      return success;
-    }
-
-    // TODO: DQH - In Java 8, switch to OptionalInteger
-    public final Integer status() {
-      return status;
-    }
-
-    // TODO: DQH - In Java 8, switch to Optional<Throwable>?
-    public final Throwable exception() {
-      return exception;
-    }
-
-    public final String response() {
-      return response;
-    }
   }
 }
