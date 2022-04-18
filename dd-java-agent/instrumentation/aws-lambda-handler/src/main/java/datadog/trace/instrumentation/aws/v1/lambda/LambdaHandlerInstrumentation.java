@@ -70,13 +70,13 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       transformation.applyAdvice(
           isMethod()
               .and(named(this.methodName))
-              .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
+              .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
           getClass().getName() + "$ExtensionCommunicationAdvice");
       // three args (streaming)
       transformation.applyAdvice(
           isMethod()
               .and(named(this.methodName))
-              .and(takesArgument(3, named("com.amazonaws.services.lambda.runtime.Context"))),
+              .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
           getClass().getName() + "$ExtensionCommunicationAdvice");
       // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
     }
