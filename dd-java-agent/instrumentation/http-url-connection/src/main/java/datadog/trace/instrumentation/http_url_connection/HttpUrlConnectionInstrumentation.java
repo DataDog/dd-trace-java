@@ -57,6 +57,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
     public static HttpUrlState methodEnter(
         @Advice.This final HttpURLConnection thiz,
         @Advice.FieldValue("connected") final boolean connected) {
+
       final ContextStore<HttpURLConnection, HttpUrlState> contextStore =
           InstrumentationContext.get(HttpURLConnection.class, HttpUrlState.class);
       final HttpUrlState state = contextStore.putIfAbsent(thiz, HttpUrlState.FACTORY);
@@ -66,6 +67,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
         if (callDepth > 0) {
           return null;
         }
+
         if (!state.hasSpan() && !state.isFinished()) {
           final AgentSpan span = state.start(thiz);
           if (!connected) {

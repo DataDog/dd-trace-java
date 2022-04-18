@@ -1169,7 +1169,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
-
         if (activeSpan != null) {
           parentContext = activeSpan.context();
         }
