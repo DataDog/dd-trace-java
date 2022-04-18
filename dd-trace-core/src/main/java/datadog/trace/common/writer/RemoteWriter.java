@@ -15,7 +15,7 @@ public abstract class RemoteWriter implements Writer {
   private static final Logger log = LoggerFactory.getLogger(RemoteWriter.class);
 
   private final RemoteApi api;
-  private final TraceProcessingWorker traceProcessingWorker;
+  protected final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final RemoteFeaturesDiscovery discovery;
   private final boolean alwaysFlush;
