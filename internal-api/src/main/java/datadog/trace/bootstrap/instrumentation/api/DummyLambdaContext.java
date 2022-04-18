@@ -1,7 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.api;
+
 import datadog.trace.api.DDId;
-import java.util.Map;
 import java.util.Collections;
+import java.util.Map;
 
 public class DummyLambdaContext implements AgentSpan.Context {
 
@@ -32,5 +33,4 @@ public class DummyLambdaContext implements AgentSpan.Context {
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return Collections.emptyList();
   }
-
 }

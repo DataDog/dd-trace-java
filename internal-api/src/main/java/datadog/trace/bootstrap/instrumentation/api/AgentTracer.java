@@ -43,7 +43,7 @@ public class AgentTracer {
 
   public static AgentSpan startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, boolean withCheckpoints) {
-        return get().startSpan(spanName, parent, withCheckpoints);
+    return get().startSpan(spanName, parent, withCheckpoints);
   }
 
   // Explicit parent

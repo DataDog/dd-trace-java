@@ -1,38 +1,24 @@
 package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.asm.Advice.AllArguments;
-import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.asm.Advice.Enter;
 import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
-import static net.bytebuddy.asm.Advice.Thrown;
 import static net.bytebuddy.asm.Advice.Origin;
+import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.httpurlconnection.LambdaHandler;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-
-import net.bytebuddy.asm.Advice;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.Versioned;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
-
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.httpurlconnection.LambdaHandler;
+import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,9 +64,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-        packageName + ".LambdaSpanContext"
-    };
+    return new String[] {packageName + ".LambdaSpanContext"};
   }
 
   @Override
@@ -92,11 +76,13 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     }
   }
 
-
   public static class ExtensionCommunicationAdvice {
     @OnMethodEnter
-    static AgentScope enter(@This final Object that, @AllArguments Object[] args, @Origin("#m") final String methodName) {
-      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(args[0]);
+    static AgentScope enter(
+        @This final Object that,
+        @AllArguments Object[] args,
+        @Origin("#m") final String methodName) {
+      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(args[0]); // todo find context
       if (null == lambdaSpanContext) {
         return null;
       }
@@ -106,7 +92,10 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     }
 
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void exit(@Origin String method, @Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+    static void exit(
+        @Origin String method,
+        @Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       LambdaHandler.notifyEndInvocation(null != throwable);
       if (scope == null) {
         return;
@@ -116,6 +105,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         span.finish();
       } finally {
         scope.close();
+        LambdaHandler.endLocal();
       }
     }
   }

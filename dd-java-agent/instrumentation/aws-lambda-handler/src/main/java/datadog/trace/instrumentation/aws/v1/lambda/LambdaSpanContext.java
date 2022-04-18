@@ -4,7 +4,6 @@ import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-
 import java.util.Collections;
 import java.util.Map;
 
@@ -37,5 +36,4 @@ public class LambdaSpanContext implements AgentSpan.Context {
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return Collections.emptyList();
   }
-
 }
