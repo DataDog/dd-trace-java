@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import java.time.Duration;
 import okhttp3.MediaType;
@@ -108,10 +109,13 @@ public class LambdaHandler {
     String json = "{}";
     try {
       ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
       json = mapper.writeValueAsString(obj);
     } catch (Exception e) {
       log.error("could not write the value into a string", e);
     }
+    System.out.println("COUCOU");
+    System.out.println(json);
     return json;
   }
 }

@@ -12,7 +12,7 @@ class LambdaHandlerTest extends DDSpecification {
 
     then:
     objTest == resultTest
-  
+
     where:
     expectedResult    | obj
     "test"            | new String("toto")

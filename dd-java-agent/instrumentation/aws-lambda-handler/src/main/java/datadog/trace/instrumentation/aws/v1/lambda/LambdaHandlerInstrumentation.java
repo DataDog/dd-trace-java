@@ -10,6 +10,7 @@ import static net.bytebuddy.asm.Advice.OnMethodExit;
 import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -69,10 +70,28 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    System.out.println(this.instrumentedType);
+    System.out.println(this.methodName);
     if (null != this.instrumentedType && null != this.methodName) {
+      // one arg
       transformation.applyAdvice(
-          isMethod().and(named(this.methodName)),
+          isMethod()
+              .and(named(this.methodName))
+              .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
           getClass().getName() + "$ExtensionCommunicationAdvice");
+      // two args
+      transformation.applyAdvice(
+          isMethod()
+              .and(named(this.methodName))
+              .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
+          getClass().getName() + "$ExtensionCommunicationAdvice");
+      // three args (streaming)
+      transformation.applyAdvice(
+          isMethod()
+              .and(named(this.methodName))
+              .and(takesArgument(3, named("com.amazonaws.services.lambda.runtime.Context"))),
+          getClass().getName() + "$ExtensionCommunicationAdvice");
+      // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
     }
   }
 
@@ -82,7 +101,8 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @This final Object that,
         @AllArguments Object[] args,
         @Origin("#m") final String methodName) {
-      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(args[0]); // todo find context
+      Object lastArgs = (args.length > 0) ? args[args.length - 1] : null;
+      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(lastArgs);
       if (null == lambdaSpanContext) {
         return null;
       }

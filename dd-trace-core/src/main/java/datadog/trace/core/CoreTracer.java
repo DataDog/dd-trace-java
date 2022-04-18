@@ -60,11 +60,11 @@ import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
@@ -1070,7 +1070,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     private DDSpanContext buildSpanContext() {
       System.out.println("in buildSpancontext");
-      System.out.println(Arrays.toString(Thread.currentThread().getStackTrace()).replace( ',', '\n' ));
+      System.out.println(
+          Arrays.toString(Thread.currentThread().getStackTrace()).replace(',', '\n'));
       final DDId traceId;
       final DDId parentSpanId;
       final Map<String, String> baggage;
