@@ -70,8 +70,6 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    System.out.println(this.instrumentedType);
-    System.out.println(this.methodName);
     if (null != this.instrumentedType && null != this.methodName) {
       // one arg
       transformation.applyAdvice(
