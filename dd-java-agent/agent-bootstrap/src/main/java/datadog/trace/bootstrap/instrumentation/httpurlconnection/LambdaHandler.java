@@ -1,9 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
-import java.time.Duration;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -27,16 +28,16 @@ public class LambdaHandler {
   private static final String END_INVOCATION = "http://127.0.0.1:8124/lambda/end-invocation";
   private static final String FLUSH_INVOCATION = "http://127.0.0.1:8124/lambda/flush";
 
-  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(1);
+  private static final Long REQUEST_TIMEOUT_IN_S = 1L;
   private static final MediaType JSON_MEDIA_TYPE = MediaType.parse("application/json");
 
   private static OkHttpClient httpClient =
       new OkHttpClient.Builder()
           .retryOnConnectionFailure(true)
-          .connectTimeout(REQUEST_TIMEOUT)
-          .writeTimeout(REQUEST_TIMEOUT)
-          .readTimeout(REQUEST_TIMEOUT)
-          .callTimeout(REQUEST_TIMEOUT)
+          .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
           .build();
 
   public static DummyLambdaContext notifyStartInvocation(Object obj) {
