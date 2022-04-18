@@ -125,7 +125,6 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         span.finish();
       } finally {
         scope.close();
-        LambdaHandler.endLocal();
       }
     }
   }

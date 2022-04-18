@@ -21,6 +21,7 @@ public class LambdaHandler {
 
   private static final String DATADOG_TRACE_ID = "x-datadog-trace-id";
   private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
+  private static final String DATADOG_INVOCATION_ERROR = "x-datadog-invocation-error";
 
   private static final String START_INVOCATION = "http://127.0.0.1:8124/lambda/start-invocation";
   private static final String END_INVOCATION = "http://127.0.0.1:8124/lambda/end-invocation";
@@ -69,39 +70,22 @@ public class LambdaHandler {
 
   public static void notifyEndInvocation(boolean isError) {
     RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, "{}");
+    Request.Builder builder = new Request.Builder()
+    .url(END_INVOCATION)
+    .addHeader(DATADOG_META_LANG, "java")
+    .post(body);
+    if (isError) {
+      builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
+    }
     try (Response response =
         httpClient
-            .newCall(
-                new Request.Builder()
-                    .url(END_INVOCATION)
-                    .addHeader(DATADOG_META_LANG, "java")
-                    .post(body)
-                    .build())
+            .newCall(builder.build())
             .execute()) {
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
       }
     } catch (Exception e) {
       log.error("could not reach the extension, not injecting the context", e);
-    }
-  }
-
-  public static void endLocal() {
-    RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, "{}");
-    try (Response response =
-        httpClient
-            .newCall(
-                new Request.Builder()
-                    .url(FLUSH_INVOCATION)
-                    .addHeader(DATADOG_META_LANG, "java")
-                    .post(body)
-                    .build())
-            .execute()) {
-      if (response.isSuccessful()) {
-        log.debug("endLocal success");
-      }
-    } catch (Exception e) {
-      log.error("could not reach the extension, endlocal", e);
     }
   }
 
