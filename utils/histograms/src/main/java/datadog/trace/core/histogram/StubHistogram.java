@@ -9,6 +9,9 @@ public class StubHistogram implements Histogram, HistogramFactory {
   public void accept(long value) {}
 
   @Override
+  public void accept(double value) {}
+
+  @Override
   public double valueAtQuantile(double quantile) {
     return 0;
   }

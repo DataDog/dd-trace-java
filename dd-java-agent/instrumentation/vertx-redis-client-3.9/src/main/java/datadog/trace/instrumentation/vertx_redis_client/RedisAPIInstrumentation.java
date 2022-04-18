@@ -10,7 +10,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public class RedisAPIInstrumentation extends Instrumenter.Tracing
@@ -46,9 +45,7 @@ public class RedisAPIInstrumentation extends Instrumenter.Tracing
         isVirtual().and(isDefaultMethod()).and(returns(named("io.vertx.redis.client.RedisAPI"))),
         packageName + ".RedisAPICallAdvice");
     transformation.applyAdvice(
-        named("send")
-            .and(not(ElementMatchers.isDefaultMethod()))
-            .and(returns(named("io.vertx.core.Future"))),
+        named("send").and(not(isDefaultMethod())).and(returns(named("io.vertx.core.Future"))),
         packageName + ".RedisAPIImplSendAdvice");
   }
 }

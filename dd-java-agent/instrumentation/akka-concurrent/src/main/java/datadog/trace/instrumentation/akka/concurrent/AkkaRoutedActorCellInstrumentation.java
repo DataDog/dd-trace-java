@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akka.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import akka.dispatch.Envelope;
 import akka.routing.RoutedActorCell;
@@ -14,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing
@@ -37,10 +37,7 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        isMethod()
-            .and(
-                named("sendMessage")
-                    .and(ElementMatchers.takesArgument(0, named("akka.dispatch.Envelope")))),
+        isMethod().and(named("sendMessage").and(takesArgument(0, named("akka.dispatch.Envelope")))),
         getClass().getName() + "$SendMessageAdvice");
   }
 

@@ -20,6 +20,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okio.BufferedSink;
+import okio.GzipSink;
+import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +104,11 @@ public final class OkHttpUtils {
     return new ByteBufferRequestBody(buffers);
   }
 
-  private static final class ByteBufferRequestBody extends RequestBody {
+  public static RequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
+    return new GZipByteBufferRequestBody(buffers);
+  }
+
+  private static class ByteBufferRequestBody extends RequestBody {
 
     private static final MediaType MSGPACK = MediaType.get("application/msgpack");
 
@@ -133,6 +139,26 @@ public final class OkHttpUtils {
           sink.write(buffer);
         }
       }
+    }
+  }
+
+  private static final class GZipByteBufferRequestBody extends ByteBufferRequestBody {
+    private GZipByteBufferRequestBody(List<ByteBuffer> buffers) {
+      super(buffers);
+    }
+
+    @Override
+    public long contentLength() {
+      return -1;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      BufferedSink gzipSink = Okio.buffer(new GzipSink(sink));
+
+      super.writeTo(gzipSink);
+
+      gzipSink.close();
     }
   }
 }

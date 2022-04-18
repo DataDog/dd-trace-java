@@ -17,8 +17,13 @@ import com.datadog.appsec.report.raw.events.Parameter
 import com.datadog.appsec.report.raw.events.Tags
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.TraceSegment
+import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
+import io.sqreen.powerwaf.PowerwafMetrics
+
+import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
+import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
 
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
@@ -32,7 +37,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   EventListener eventListener
 
   def pwafAdditive
-  def metrics
+  PowerwafMetrics metrics
 
   private void setupWithStubConfigService() {
     service = new StubAppSecConfigService()
@@ -58,9 +63,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pp.processTraceSegment(segment, ctx, [])
 
     then:
-    1 * segment.setTagTop('dd.appsec.event_rules.loaded', 114)
-    1 * segment.setTagTop('dd.appsec.event_rules.error_count', 1)
-    1 * segment.setTagTop('_dd.appsec.event_rules.version', '0.42.0')
+    1 * segment.setTagTop('_dd.appsec.waf.version', _ as String)
+    1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 114)
+    1 * segment.setTagTop('_dd.appsec.event_rules.error_count', 1)
     1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
     1 * segment.setTagTop('manual.keep', true)
     0 * segment._(*_)
@@ -77,11 +82,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     1 * ctx.getAdditive() >> null
     1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
     1 * ctx.setWafMetrics(_)
@@ -100,11 +104,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     1 * ctx.getAdditive() >> null
     1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
     1 * ctx.getAdditive() >> { pwafAdditive }
@@ -113,17 +116,42 @@ class PowerWAFModuleSpecification extends DDSpecification {
     metrics == null
   }
 
+  void 'reports waf metrics'() {
+    setup:
+    TraceSegment segment = Mock()
+    TraceSegmentPostProcessor pp
+    Flow flow = new ChangeableFlow()
+
+    when:
+    setupWithStubConfigService()
+    pp = service.traceSegmentPostProcessors[1]
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+    pp.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * ctx.getAdditive() >> null
+    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
+    1 * ctx.setWafMetrics(_) >> { metrics = it[0]; null }
+    1 * ctx.getWafMetrics() >> { metrics.with { totalDdwafRunTimeNs = 1000; totalRunTimeNs = 2000; it} }
+    1 * ctx.getAdditive() >> { pwafAdditive }
+    1 * ctx.setAdditive(null)
+
+    1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
+    1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
+    1 * segment.setTagTop('_dd.appsec.event_rules.version', '0.42.0')
+
+    0 * segment._(*_)
+  }
+
   void 'can trigger a nonadditive waf run'() {
     setupWithStubConfigService()
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
 
     then:
-    1 * ctx.size() >> 0
-    1 * ctx.allAddresses >> []
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> false
     1 * ctx.getAdditive() >> pwafAdditive
     1 * ctx.setAdditive(_)
     1 * ctx.setWafMetrics(_)
@@ -137,11 +165,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent100 event
 
     when:
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
@@ -163,6 +190,76 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ]
   }
 
+  void 'redaction with default settings'() {
+    setupWithStubConfigService()
+    AppSecEvent100 event
+
+    when:
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent', 'password'])
+      .withValue('<Redacted>')
+      .withHighlight(['<Redacted>'])
+      .build()
+    ]
+  }
+
+  void 'disabling of key regex'() {
+    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, '')
+    setupWithStubConfigService()
+    AppSecEvent100 event
+
+    when:
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, bundle, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent', 'password'])
+      .withValue('Arachni/v0')
+      .withHighlight(['Arachni/v'])
+      .build()
+    ]
+  }
+
+  void 'redaction of values'() {
+    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, 'Arachni')
+
+    setupWithStubConfigService()
+    AppSecEvent100 event
+
+    when:
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
+
+    event.ruleMatches[0].parameters == [
+      new Parameter.ParameterBuilder()
+      .withAddress('server.request.headers.no_cookies')
+      .withKeyPath(['user-agent'])
+      .withValue('<Redacted>')
+      .withHighlight(['<Redacted>'])
+      .build()
+    ]
+  }
+
   void 'triggers no rule'() {
     setupWithStubConfigService()
     ChangeableFlow flow = new ChangeableFlow()
@@ -170,7 +267,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       new CaseInsensitiveMap<List<String>>(['user-agent': 'Harmless']))
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db)
+    dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
     flow.blocking == false
@@ -182,7 +279,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES, [get: { null }] as List)
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db)
+    dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
     assert !flow.blocking
@@ -205,11 +302,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     thrown AppSecModule.AppSecModuleActivationException
 
     when:
-    1 * ctx.hasAddress(KnownAddresses.HEADERS_NO_COOKIES) >> true
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
-    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
+    dataListener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:

@@ -13,6 +13,8 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+
 class TypeConverterTest extends DDSpecification {
   TypeConverter typeConverter = new TypeConverter(new DefaultLogHandler())
 
@@ -89,6 +91,7 @@ class TypeConverterTest extends DDSpecification {
       0,
       trace,
       null,
+      NoopPathwayContext.INSTANCE,
       false)
   }
 }

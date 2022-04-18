@@ -17,9 +17,13 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -33,6 +37,9 @@ import org.slf4j.LoggerFactory;
 public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
 
   private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
+
+  private static final Map<String, String> DEFAULT_HEADERS =
+      Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
@@ -63,7 +70,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             sharedCommunicationObjects.okHttpClient,
             config.getAgentUrl(),
             V6_METRICS_ENDPOINT,
-            config.isTracerMetricsBufferingEnabled()),
+            config.isTracerMetricsBufferingEnabled(),
+            false,
+            DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending());
   }
@@ -252,7 +261,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public void onEvent(EventType eventType, String message) {
     switch (eventType) {
       case DOWNGRADED:
-        log.debug("Disabling metric reporting because an agent downgrade was detected");
+        log.debug("Agent downgrade was detected");
         disable();
         break;
       case BAD_PAYLOAD:
@@ -268,6 +277,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private void disable() {
     features.discover();
     if (!features.supportsMetrics()) {
+      log.debug("Disabling metric reporting because an agent downgrade was detected");
       AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
       if (null != cancellation) {
         cancellation.cancel();

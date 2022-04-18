@@ -3,7 +3,6 @@ package com.datadog.appsec.gateway;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
-import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
@@ -55,7 +54,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String savedRawURI;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
-  private List<StringKVPair> collectedCookies = new ArrayList<>(4);
+  private Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
   private String peerAddress;
@@ -226,15 +225,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return responseHeaders;
   }
 
-  void addCookie(StringKVPair cookie) {
+  void addCookies(Map<String, List<String>> cookies) {
     if (finishedRequestHeaders) {
       throw new IllegalStateException("Request headers were said to be finished before");
     }
-    collectedCookies.add(cookie);
+    if (collectedCookies == null) {
+      collectedCookies = cookies;
+    } else {
+      collectedCookies.putAll(cookies);
+    }
   }
 
-  List<StringKVPair> getCollectedCookies() {
-    return collectedCookies;
+  Map<String, ? extends Collection<String>> getCookies() {
+    return collectedCookies != null ? collectedCookies : Collections.emptyMap();
   }
 
   String getPeerAddress() {

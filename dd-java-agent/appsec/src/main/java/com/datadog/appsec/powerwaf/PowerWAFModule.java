@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
+import io.sqreen.powerwaf.PowerwafConfig;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
 import io.sqreen.powerwaf.RuleSetInfo;
@@ -115,6 +116,7 @@ public class PowerWAFModule implements AppSecModule {
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
+  private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
 
   @Override
   public void config(AppSecConfigService appSecConfigService)
@@ -132,7 +134,7 @@ public class PowerWAFModule implements AppSecModule {
 
     appSecConfigService.addTraceSegmentPostProcessor(initReporter);
     if (wafMetricsEnabled) {
-      appSecConfigService.addTraceSegmentPostProcessor(new PowerWAFStatsReporter());
+      appSecConfigService.addTraceSegmentPostProcessor(statsReporter);
     }
   }
 
@@ -154,7 +156,9 @@ public class PowerWAFModule implements AppSecModule {
     PowerwafContext newPwafCtx = null;
     try {
       String uniqueId = UUID.randomUUID().toString();
-      newPwafCtx = Powerwaf.createContext(uniqueId, config.getRawConfig());
+      PowerwafConfig pwConfig = createPowerwafConfig();
+      newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, config.getRawConfig());
+
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
 
@@ -162,6 +166,9 @@ public class PowerWAFModule implements AppSecModule {
       config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
 
       newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap);
+      if (initReport != null) {
+        this.statsReporter.rulesVersion = initReport.fileVersion;
+      }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
@@ -184,6 +191,20 @@ public class PowerWAFModule implements AppSecModule {
     if (prevContextAndAddresses != null) {
       prevContextAndAddresses.ctx.delReference();
     }
+  }
+
+  private PowerwafConfig createPowerwafConfig() {
+    PowerwafConfig pwConfig = new PowerwafConfig();
+    Config config = Config.get();
+    String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
+    if (keyRegexp != null) {
+      pwConfig.obfuscatorKeyRegex = keyRegexp;
+    }
+    String valueRegexp = config.getAppSecObfuscationParameterValueRegexp();
+    if (valueRegexp != null) {
+      pwConfig.obfuscatorValueRegex = valueRegexp;
+    }
+    return pwConfig;
   }
 
   @Override
@@ -258,7 +279,7 @@ public class PowerWAFModule implements AppSecModule {
 
     @Override
     public void onDataAvailable(
-        ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData) {
+        ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData, boolean isTransient) {
       Powerwaf.ActionWithData actionWithData;
       CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
       if (ctxAndAddr == null) {
@@ -272,7 +293,7 @@ public class PowerWAFModule implements AppSecModule {
           start = System.currentTimeMillis();
         }
 
-        actionWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr);
+        actionWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
 
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
@@ -301,7 +322,10 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     private Powerwaf.ActionWithData doRunPowerwaf(
-        AppSecRequestContext reqCtx, DataBundle newData, CtxAndAddresses ctxAndAddr)
+        AppSecRequestContext reqCtx,
+        DataBundle newData,
+        CtxAndAddresses ctxAndAddr,
+        boolean isTransient)
         throws AbstractPowerwafException {
       Additive additive;
       PowerwafMetrics metrics = null;
@@ -320,8 +344,6 @@ public class PowerWAFModule implements AppSecModule {
         }
       }
 
-      boolean isTransient =
-          newData.getAllAddresses().stream().anyMatch(addr -> !reqCtx.hasAddress(addr));
       if (isTransient) {
         DataBundle bundle = DataBundle.unionOf(newData, reqCtx);
         return runPowerwafTransient(metrics, bundle, ctxAndAddr);

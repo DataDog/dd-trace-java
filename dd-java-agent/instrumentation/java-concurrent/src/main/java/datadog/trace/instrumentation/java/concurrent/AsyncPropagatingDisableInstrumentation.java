@@ -46,14 +46,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask")
-          .and(
-              declaresField(
-                  ElementMatchers.named("FINISHED")
-                      .and(ElementMatchers.<FieldDescription>isStatic())))
-          .and(
-              declaresField(
-                  ElementMatchers.named("CANCELLED")
-                      .and(ElementMatchers.<FieldDescription>isStatic())));
+          .and(declaresField(named("FINISHED").and(ElementMatchers.<FieldDescription>isStatic())))
+          .and(declaresField(named("CANCELLED").and(ElementMatchers.<FieldDescription>isStatic())));
 
   @Override
   public boolean onlyMatchKnownTypes() {

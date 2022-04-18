@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.NOT_DECORATOR_MATCHER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static net.bytebuddy.matcher.ElementMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;

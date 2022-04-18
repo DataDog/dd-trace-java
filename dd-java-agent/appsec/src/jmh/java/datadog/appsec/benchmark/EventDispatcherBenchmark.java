@@ -84,7 +84,10 @@ public class EventDispatcherBenchmark {
           new DataListener() {
             @Override
             public void onDataAvailable(
-                ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle) {}
+                ChangeableFlow flow,
+                AppSecRequestContext context,
+                DataBundle dataBundle,
+                boolean isTransient) {}
 
             @Override
             public Priority getPriority() {

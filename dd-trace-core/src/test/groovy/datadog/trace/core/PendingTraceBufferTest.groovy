@@ -7,6 +7,7 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.scopemanager.ContinuableScopeManager
@@ -415,6 +416,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      NoopPathwayContext.INSTANCE,
       false)
     return DDSpan.create(0, context)
   }
@@ -438,6 +440,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      NoopPathwayContext.INSTANCE,
       false)
     return DDSpan.create(0, context)
   }

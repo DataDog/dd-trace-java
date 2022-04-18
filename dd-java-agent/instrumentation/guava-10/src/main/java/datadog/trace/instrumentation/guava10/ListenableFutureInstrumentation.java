@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import com.google.common.util.concurrent.AbstractFuture;
@@ -18,7 +19,6 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public class ListenableFutureInstrumentation extends Instrumenter.Tracing
@@ -52,7 +52,7 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("addListener").and(ElementMatchers.takesArguments(Runnable.class, Executor.class)),
+        named("addListener").and(takesArguments(Runnable.class, Executor.class)),
         ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
   }
 

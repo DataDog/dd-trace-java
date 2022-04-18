@@ -18,6 +18,7 @@ import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.Platform;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
@@ -37,6 +38,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.CiVisibilityTraceInterceptor;
@@ -47,6 +49,8 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.core.datastreams.DataStreamsCheckpointer;
+import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -55,9 +59,11 @@ import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -134,7 +140,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final SamplingCheckpointer checkpointer;
+  private final SamplingCheckpointer spanCheckpointer;
+  private final DataStreamsCheckpointer dataStreamsCheckpointer;
   private final ExternalAgentLauncher externalAgentLauncher;
   private boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
@@ -174,47 +181,47 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void checkpoint(AgentSpan span, int flags) {
-    checkpointer.checkpoint(span, flags);
+    spanCheckpointer.checkpoint(span, flags);
   }
 
   @Override
   public void onStart(AgentSpan span) {
-    checkpointer.onStart(span);
+    spanCheckpointer.onStart(span);
   }
 
   @Override
   public void onStartWork(AgentSpan span) {
-    checkpointer.onStartWork(span);
+    spanCheckpointer.onStartWork(span);
   }
 
   @Override
   public void onFinishWork(AgentSpan span) {
-    checkpointer.onFinishWork(span);
+    spanCheckpointer.onFinishWork(span);
   }
 
   @Override
   public void onStartThreadMigration(AgentSpan span) {
-    checkpointer.onStartThreadMigration(span);
+    spanCheckpointer.onStartThreadMigration(span);
   }
 
   @Override
   public void onFinishThreadMigration(AgentSpan span) {
-    checkpointer.onFinishThreadMigration(span);
+    spanCheckpointer.onFinishThreadMigration(span);
   }
 
   @Override
   public void onFinish(AgentSpan span) {
-    checkpointer.onFinish(span);
+    spanCheckpointer.onFinish(span);
   }
 
   @Override
   public void onRootSpanFinished(AgentSpan root, boolean published) {
-    checkpointer.onRootSpanFinished(root, published);
+    spanCheckpointer.onRootSpanFinished(root, published);
   }
 
   @Override
   public void onRootSpanStarted(AgentSpan root) {
-    checkpointer.onRootSpanStarted(root);
+    spanCheckpointer.onRootSpanStarted(root);
   }
 
   public static class CoreTracerBuilder {
@@ -238,6 +245,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean strictTraceWrites;
     private InstrumentationGateway instrumentationGateway;
     private TimeSource timeSource;
+    private DataStreamsCheckpointer dataStreamsCheckpointer;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -335,6 +343,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder dataStreamsCheckpointer(
+        DataStreamsCheckpointer dataStreamsCheckpointer) {
+      this.dataStreamsCheckpointer = dataStreamsCheckpointer;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -383,7 +397,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           tagInterceptor,
           strictTraceWrites,
           instrumentationGateway,
-          timeSource);
+          timeSource,
+          dataStreamsCheckpointer);
     }
   }
 
@@ -407,7 +422,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
-      final TimeSource timeSource) {
+      final TimeSource timeSource,
+      final DataStreamsCheckpointer dataStreamsCheckpointer) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -420,7 +436,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     this.lastSyncTicks = startNanoTicks;
 
-    this.checkpointer = SamplingCheckpointer.create();
+    this.spanCheckpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
     this.sampler = sampler;
     this.injector = injector;
@@ -507,6 +523,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         metricsAggregator,
         1,
         SECONDS);
+
+    if (dataStreamsCheckpointer == null) {
+      this.dataStreamsCheckpointer =
+          createDataStreamsCheckpointer(config, sharedCommunicationObjects, this.timeSource);
+    } else {
+      this.dataStreamsCheckpointer = dataStreamsCheckpointer;
+    }
+    this.dataStreamsCheckpointer.start();
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -718,6 +742,24 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     inject(span.context(), carrier, setter, style);
   }
 
+  @Override
+  public <C> void injectPathwayContext(
+      AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    pathwayContext.start(dataStreamsCheckpointer);
+
+    try {
+      byte[] encodedContext = span.context().getPathwayContext().encode();
+
+      if (encodedContext != null) {
+        log.debug("Injecting pathway context {}", pathwayContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
   private <C> void inject(
       AgentSpan.Context context, C carrier, Setter<C> setter, PropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {
@@ -738,6 +780,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public <C> AgentSpan.Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
     return extractor.extract(carrier, getter);
+  }
+
+  @Override
+  public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    return dataStreamsCheckpointer.extractPathwayContext(carrier, getter);
+  }
+
+  @Override
+  public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
+    span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -865,7 +917,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(Checkpointer checkpointer) {
-    this.checkpointer.register(checkpointer);
+    this.spanCheckpointer.register(checkpointer);
   }
 
   @Override
@@ -879,6 +931,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     writer.close();
     statsDClient.close();
     metricsAggregator.close();
+    dataStreamsCheckpointer.close();
     externalAgentLauncher.close();
   }
 
@@ -933,6 +986,32 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     return constantTags.toArray(new String[0]);
+  }
+
+  @SuppressForbidden
+  private static DataStreamsCheckpointer createDataStreamsCheckpointer(
+      Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
+
+    if (config.isDataStreamsEnabled() && Platform.isJavaVersionAtLeast(8)) {
+      try {
+        // Use reflection to load the class because it should only be loaded on Java 8+
+
+        return (DataStreamsCheckpointer)
+            Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
+                .getConstructor(Config.class, SharedCommunicationObjects.class, TimeSource.class)
+                .newInstance(config, sharedCommunicationObjects, timeSource);
+      } catch (InstantiationException
+          | InvocationTargetException
+          | NoSuchMethodException
+          | IllegalAccessException
+          | ClassNotFoundException e) {
+        log.error("Failed to instantiate data streams checkpointer", e);
+        return new StubDataStreamsCheckpointer();
+      }
+    } else {
+      log.debug("Data streams monitoring not enabled.");
+      return new StubDataStreamsCheckpointer();
+    }
   }
 
   Recording writeTimer() {
@@ -1080,6 +1159,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final DDSpanContext context;
       final Object requestContextData;
+      final PathwayContext pathwayContext;
 
       DDId spanId = idGenerationStrategy.generate();
 
@@ -1117,6 +1197,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
+        pathwayContext =
+            ddsc.getPathwayContext().isStarted()
+                ? ddsc.getPathwayContext()
+                : dataStreamsCheckpointer.newPathwayContext();
       } else {
         long endToEndStartTime;
 
@@ -1167,6 +1251,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (endToEndStartTime > 0) {
           parentTrace.beginEndToEnd(endToEndStartTime);
         }
+
+        pathwayContext = dataStreamsCheckpointer.newPathwayContext();
       }
 
       if (serviceName == null) {
@@ -1200,6 +1286,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               tagsSize,
               parentTrace,
               requestContextData,
+              pathwayContext,
               disableSamplingMechanismValidation);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via

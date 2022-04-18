@@ -17,6 +17,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.CountDownLatch
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
@@ -33,6 +34,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_WITH_CLIENT_DROPPING_STATE = Strings.sha256(INFO_WITH_CLIENT_DROPPING_RESPONSE)
   static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
   static final String INFO_WITHOUT_METRICS_STATE = Strings.sha256(INFO_WITHOUT_METRICS_RESPONSE)
+  static final String INFO_WITHOUT_DATA_STREAMS_RESPONSE = loadJsonFile("agent-info-without-data-streams.json")
+  static final String INFO_WITHOUT_DATA_STREAMS_STATE = Strings.sha256(INFO_WITHOUT_DATA_STREAMS_RESPONSE)
   static final String PROBE_STATE = "probestate"
 
   def "test parse /info response"() {
@@ -49,6 +52,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
+    features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
+    features.supportsDataStreams()
     features.state() == INFO_STATE
   }
 
@@ -67,6 +72,25 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getTraceEndpoint() == "v0.5/traces"
     features.supportsDropping()
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
+  }
+
+
+  def "test parse /info response with data streams unavailable"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITHOUT_DATA_STREAMS_RESPONSE) }
+    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.supportsMetrics()
+    features.getTraceEndpoint() == "v0.5/traces"
+    features.getDataStreamsEndpoint() == null
+    !features.supportsDataStreams()
+    features.state() == INFO_WITHOUT_DATA_STREAMS_STATE
   }
 
   def "test fallback when /info not found"() {
