@@ -105,8 +105,6 @@ public class LambdaHandler {
   }
 
   public static String writeValueAsString(Object obj) {
-    System.out.println(obj);
-    System.out.println(obj.toString());
     String json = "{}";
     try {
       ObjectMapper mapper = new ObjectMapper();
