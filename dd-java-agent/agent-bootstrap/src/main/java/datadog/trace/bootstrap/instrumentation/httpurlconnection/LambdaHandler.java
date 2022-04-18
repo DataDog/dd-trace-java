@@ -111,11 +111,10 @@ public class LambdaHandler {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
       json = mapper.writeValueAsString(obj);
+      return json;
     } catch (Exception e) {
       log.error("could not write the value into a string", e);
     }
-    System.out.println("COUCOU");
-    System.out.println(json);
     return json;
   }
 }
