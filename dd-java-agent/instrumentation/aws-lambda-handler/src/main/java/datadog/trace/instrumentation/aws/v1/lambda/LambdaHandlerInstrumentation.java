@@ -64,11 +64,6 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".LambdaSpanContext"};
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     if (null != this.instrumentedType && null != this.methodName) {
       // one arg

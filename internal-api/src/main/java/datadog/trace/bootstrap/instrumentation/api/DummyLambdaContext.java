@@ -33,4 +33,9 @@ public class DummyLambdaContext implements AgentSpan.Context {
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return Collections.emptyList();
   }
+
+  @Override
+  public PathwayContext getPathwayContext() {
+    return null;
+  }
 }
