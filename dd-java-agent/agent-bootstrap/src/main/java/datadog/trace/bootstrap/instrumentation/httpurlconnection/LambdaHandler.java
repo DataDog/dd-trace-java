@@ -70,17 +70,12 @@ public class LambdaHandler {
 
   public static void notifyEndInvocation(boolean isError) {
     RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, "{}");
-    Request.Builder builder = new Request.Builder()
-    .url(END_INVOCATION)
-    .addHeader(DATADOG_META_LANG, "java")
-    .post(body);
+    Request.Builder builder =
+        new Request.Builder().url(END_INVOCATION).addHeader(DATADOG_META_LANG, "java").post(body);
     if (isError) {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
-    try (Response response =
-        httpClient
-            .newCall(builder.build())
-            .execute()) {
+    try (Response response = httpClient.newCall(builder.build()).execute()) {
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
       }
