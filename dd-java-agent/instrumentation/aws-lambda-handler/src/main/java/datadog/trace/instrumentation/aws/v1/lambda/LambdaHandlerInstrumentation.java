@@ -66,12 +66,6 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     if (null != this.instrumentedType && null != this.methodName) {
-      // one arg
-      transformation.applyAdvice(
-          isMethod()
-              .and(named(this.methodName))
-              .and(takesArgument(1, named("com.amazonaws.services.lambda.runtime.Context"))),
-          getClass().getName() + "$ExtensionCommunicationAdvice");
       // two args
       transformation.applyAdvice(
           isMethod()
@@ -94,8 +88,8 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @This final Object that,
         @AllArguments Object[] args,
         @Origin("#m") final String methodName) {
-      Object lastArgs = (args.length > 0) ? args[args.length - 1] : null;
-      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(lastArgs);
+      Object event = (args.length == 2) ? args[0] : null;
+      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(event);
       if (null == lambdaSpanContext) {
         return null;
       }

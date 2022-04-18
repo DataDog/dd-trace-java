@@ -23,8 +23,8 @@ dependencies {
 
   implementation deps.okhttp
 
-  api 'com.fasterxml.jackson.core:jackson-core:2.11.0'
-  api 'com.fasterxml.jackson.core:jackson-databind:2.11.0'
+  api 'com.fasterxml.jackson.core:jackson-core:2.9.10'
+  api 'com.fasterxml.jackson.core:jackson-databind:2.9.10'
 
   api deps.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.

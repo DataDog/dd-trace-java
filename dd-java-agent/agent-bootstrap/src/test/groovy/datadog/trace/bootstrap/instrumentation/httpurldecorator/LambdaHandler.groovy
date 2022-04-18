@@ -28,6 +28,6 @@ class LambdaHandlerTest extends DDSpecification {
     where:
     expectedResult                                       | obj
     "{\"field1\":\"toto\",\"field2\":true}"              | new TestObject()
-    "null"                                               | null
+    "{}"                                                 | null
   }
 }

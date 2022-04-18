@@ -87,13 +87,15 @@ public class LambdaHandler {
 
   public static String writeValueAsString(Object obj) {
     String json = "{}";
-    try {
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-      json = mapper.writeValueAsString(obj);
-      return json;
-    } catch (Exception e) {
-      log.error("could not write the value into a string", e);
+    if (null != obj) {
+      try {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        json = mapper.writeValueAsString(obj);
+        return json;
+      } catch (Exception e) {
+        log.error("could not write the value into a string", e);
+      }
     }
     return json;
   }
