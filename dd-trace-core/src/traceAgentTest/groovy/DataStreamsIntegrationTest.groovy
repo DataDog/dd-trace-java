@@ -14,7 +14,6 @@ import spock.lang.Requires
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
