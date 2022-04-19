@@ -6,11 +6,16 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.jetty9.JettyDecorator
+import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
+import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainer
+import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer
 import org.springframework.context.ConfigurableApplicationContext
+import spock.lang.Shared
 import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -26,15 +31,20 @@ import static java.util.Collections.singletonMap
  */
 class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContext> {
 
+  @Shared
+  EmbeddedWebApplicationContext context
+
   class SpringBootServer implements HttpServer {
     def port = 0
-    def context
     final app = new SpringApplication(UrlHandlerMappingAppConfig, SecurityConfig)
+
+    SpringBootServer() {
+      app.setDefaultProperties(singletonMap("server.port", 0))
+      context = app.run() as EmbeddedWebApplicationContext
+    }
 
     @Override
     void start() {
-      app.setDefaultProperties(singletonMap("server.port", 0))
-      context = app.run() as EmbeddedWebApplicationContext
       port = context.embeddedServletContainer.port
       assert port > 0
     }
@@ -67,7 +77,12 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
 
   @Override
   String component() {
-    TomcatDecorator.DECORATE.component()
+    if (context.getEmbeddedServletContainer() instanceof TomcatEmbeddedServletContainer) {
+      return "tomcat-server"
+    } else if (context.getEmbeddedServletContainer() instanceof JettyEmbeddedServletContainer) {
+      return "jetty-server"
+    }
+    return "java-web-servlet"
   }
 
   @Override

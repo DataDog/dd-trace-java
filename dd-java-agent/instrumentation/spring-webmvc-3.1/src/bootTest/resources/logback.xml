@@ -14,5 +14,6 @@
   </root>
 
   <logger name="datadog" level="debug" />
+  <logger name="org.eclipse.jetty.server" level="info" />
 
 </configuration>

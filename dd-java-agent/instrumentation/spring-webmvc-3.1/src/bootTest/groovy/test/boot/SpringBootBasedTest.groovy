@@ -6,17 +6,13 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.instrumentation.jetty9.JettyDecorator
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
-import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainer
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer
-import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
@@ -29,6 +25,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static org.junit.Assume.assumeTrue
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -175,7 +172,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   def "test character encoding of #testPassword"() {
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
-    extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
+    if (component() == "tomcat-server") {
+      extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
+    } else if (component() == "jetty-server") {
+      extraServerTags = [
+        'request.body.converted': [password: [testPassword], username: ['test']] as String,
+        'request.body': "username=test&password=${URLEncoder.encode(testPassword)}"
+      ]
+    }
 
     RequestBody formBody = new FormBody.Builder()
       .add("username", "test")

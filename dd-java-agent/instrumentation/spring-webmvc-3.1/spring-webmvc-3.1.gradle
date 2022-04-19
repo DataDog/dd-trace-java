@@ -31,19 +31,26 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
+  libraries {
+    bootTestCommon
+  }
+
   tomcatBootTest {
+    imports "bootTestCommon"
     dirName = 'bootTest'
   }
 
   jettyBootTest {
+    imports "bootTestCommon"
     extendsFrom tomcatBootTest
     dirName = 'bootTest'
   }
 
-  undertowBootTest {
-    extendsFrom tomcatBootTest
-    dirName = 'bootTest'
-  }
+  // spring-boot 1.5 uses undertow 1.4
+//  undertowBootTest {
+//    extendsFrom tomcatBootTest
+//    dirName = 'bootTest'
+//  }
 }
 
 dependencies {
@@ -81,31 +88,33 @@ dependencies {
   tomcatBootTestImplementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
   tomcatBootTestImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
 
-  // Jetty 11 requires java 11
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-7.0')
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-7.6')
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-9')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-11')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-appsec-7')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-appsec-9.2')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:jetty-appsec-9.3')
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:servlet')
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:servlet:request-2')
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:tomcat-5.5')
-
-  // include also tomcat appsec instrumentation for intercepting urlencoded bodies
   tomcatBootTestImplementation project(':dd-java-agent:instrumentation:tomcat-appsec-6')
+  tomcatBootTestImplementation project(':dd-java-agent:instrumentation:undertow-2.0')
 
   jettyBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
     exclude(module: 'spring-boot-starter-tomcat')
   }
   jettyBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-jetty', version: '1.5.22.RELEASE'
 
-  undertowBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
-    exclude(module: 'spring-boot-starter-tomcat')
-  }
-  undertowBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-undertow', version: '1.5.22.RELEASE'
+//  undertowBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
+//    exclude(module: 'spring-boot-starter-tomcat')
+//  }
+//  undertowBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-undertow', version: '1.5.22.RELEASE'
 }
 
 tasks.named("test").configure {
   finalizedBy "tomcatBootTest"
   finalizedBy "jettyBootTest"
-  finalizedBy "undertowBootTest"
+//  finalizedBy "undertowBootTest"
 }

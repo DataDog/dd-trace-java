@@ -24,8 +24,12 @@ public class SetContextPathAdvice {
       Object span = req.getAttribute(DD_SPAN_ATTRIBUTE);
       // Don't want to update while being dispatched to new servlet
       if (span instanceof AgentSpan && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
-        ((AgentSpan) span).setTag(SERVLET_CONTEXT, contextPath);
-        req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
+        String localContextPath = contextPath;
+        if (contextPath.isEmpty()) {
+          localContextPath = "/";
+        }
+        ((AgentSpan) span).setTag(SERVLET_CONTEXT, localContextPath);
+        req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, localContextPath);
       }
     }
   }
