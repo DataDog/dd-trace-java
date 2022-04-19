@@ -2,6 +2,12 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
+import datadog.trace.instrumentation.opentracing.DefaultLogHandler
+import datadog.trace.instrumentation.opentracing31.OTTracer
+import datadog.trace.instrumentation.opentracing31.TypeConverter
+import spock.lang.Shared
+
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
@@ -23,6 +29,9 @@ class OpenTracing31Test extends AgentTestRunner {
 
   @Subject
   def tracer = GlobalTracer.get()
+
+  @Shared
+  TypeConverter typeConverter = new TypeConverter(new DefaultLogHandler())
 
   def "test #method"() {
     setup:
@@ -304,6 +313,37 @@ class OpenTracing31Test extends AgentTestRunner {
 
     then:
     assert tracer.scopeManager().active() == null
+  }
+
+  def "test resource name assignment through MutableSpan casting"() {
+    given:
+    OTTracer.OTSpanBuilder builder = tracer.buildSpan("parent") as OTTracer.OTSpanBuilder
+    builder.delegate.withResourceName("test-resource")
+    Span testSpan = builder.start()
+    Scope testScope = tracer.scopeManager().activate(testSpan, false)
+
+    when:
+    Span active = GlobalTracer.get().activeSpan()
+    Span child = GlobalTracer.get().buildSpan("child").asChildOf(active).start()
+    Scope scope = GlobalTracer.get().scopeManager().activate(child, false)
+
+    MutableSpan localRootSpan = ((MutableSpan) child).getLocalRootSpan()
+    localRootSpan.setResourceName("correct-resource")
+
+    then:
+    typeConverter.toAgentSpan(testSpan).getResourceName() == "correct-resource"
+
+    when:
+    typeConverter.toAgentSpan(testSpan).setResourceName("should-be-ignored", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE)
+
+    then:
+    typeConverter.toAgentSpan(testSpan).getResourceName() == "correct-resource"
+
+    cleanup:
+    scope.close()
+    child.finish()
+    testScope.close()
+    testSpan.finish()
   }
 
   static class TextMapAdapter implements TextMap {
