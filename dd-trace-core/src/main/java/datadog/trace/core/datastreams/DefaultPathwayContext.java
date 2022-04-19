@@ -25,11 +25,12 @@ public class DefaultPathwayContext implements PathwayContext {
   private final GrowingByteArrayOutput outputBuffer =
       GrowingByteArrayOutput.withInitialCapacity(20);
 
-  // Nanotime is necessary because time differences should use a monotonically increasing clock
-  // Milliseconds are kept because nanotime is not comparable across JVMs
-  private long pathwayStartMillis;
-  private long pathwayStart;
-  private long edgeStart;
+  // pathwayStartNanos is nanoseconds since epoch
+  // Nano ticks is necessary because time differences should use a monotonically increasing clock
+  // ticks is not comparable across JVMs
+  private long pathwayStartNanos;
+  private long pathwayStartNanoTicks;
+  private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
 
@@ -39,14 +40,14 @@ public class DefaultPathwayContext implements PathwayContext {
 
   private DefaultPathwayContext(
       TimeSource timeSource,
-      long pathwayStartMillis,
-      long pathwayStartNanoTime,
-      long edgeStartNanoTime,
+      long pathwayStartNanos,
+      long pathwayStartNanoTicks,
+      long edgeStartTicks,
       long hash) {
     this.timeSource = timeSource;
-    this.pathwayStartMillis = pathwayStartMillis;
-    this.pathwayStart = pathwayStartNanoTime;
-    this.edgeStart = edgeStartNanoTime;
+    this.pathwayStartNanos = pathwayStartNanos;
+    this.pathwayStartNanoTicks = pathwayStartNanoTicks;
+    this.edgeStartNanoTicks = edgeStartNanoTicks;
     this.hash = hash;
     this.started = true;
   }
@@ -65,8 +66,8 @@ public class DefaultPathwayContext implements PathwayContext {
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
 
-    long startMillis = timeSource.getCurrentTimeMillis();
-    long nanoTime = timeSource.getNanoTicks();
+    long startNanos = timeSource.getCurrentTimeNanos();
+    long nanoTicks = timeSource.getNanoTicks();
 
     lock.lock();
     try {
@@ -91,9 +92,9 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       if (INITIALIZATION_TOPIC.equals(finalTopic)) {
-        pathwayStartMillis = startMillis;
-        pathwayStart = nanoTime;
-        edgeStart = nanoTime;
+        pathwayStartNanos = startNanos;
+        pathwayStartNanoTicks = nanoTicks;
+        edgeStartNanoTicks = nanoTicks;
         hash = 0;
         started = true;
         log.debug("Started {}", this);
@@ -101,8 +102,8 @@ public class DefaultPathwayContext implements PathwayContext {
 
       long newHash = generatePathwayHash(finalTopic, hash);
 
-      long pathwayLatency = nanoTime - pathwayStart;
-      long edgeLatency = nanoTime - edgeStart;
+      long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
+      long edgeLatencyNano = nanoTicks - pathwayStartNanoTicks;
 
       StatsPoint point =
           new StatsPoint(
@@ -112,9 +113,9 @@ public class DefaultPathwayContext implements PathwayContext {
               newHash,
               hash,
               timeSource.getCurrentTimeNanos(),
-              pathwayLatency,
-              edgeLatency);
-      edgeStart = nanoTime;
+              pathwayLatencyNano,
+              edgeLatencyNano);
+      edgeStartNanoTicks = nanoTicks;
       hash = newHash;
 
       pointConsumer.accept(point);
@@ -134,10 +135,13 @@ public class DefaultPathwayContext implements PathwayContext {
 
       outputBuffer.clear();
       outputBuffer.writeLongLE(hash);
+
+      long pathwayStartMillis = TimeUnit.NANOSECONDS.toMillis(pathwayStartNanos);
       VarEncodingHelper.encodeSignedVarLong(outputBuffer, pathwayStartMillis);
 
       long edgeStartMillis =
-          pathwayStartMillis + TimeUnit.NANOSECONDS.toMillis(edgeStart - pathwayStart);
+          pathwayStartMillis
+              + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
       VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
       return outputBuffer.trimmedCopy();
@@ -152,12 +156,12 @@ public class DefaultPathwayContext implements PathwayContext {
       if (started) {
         return "PathwayContext[ Hash "
             + toUnsignedString(hash)
-            + ", StartMillis: "
-            + pathwayStartMillis
             + ", Start: "
-            + pathwayStart
-            + ", Edge Start: "
-            + edgeStart
+            + pathwayStartNanos
+            + ", StartTicks: "
+            + pathwayStartNanoTicks
+            + ", Edge Start Ticks: "
+            + edgeStartNanoTicks
             + ", objectHashcode:"
             + hashCode()
             + "]";
@@ -222,20 +226,21 @@ public class DefaultPathwayContext implements PathwayContext {
 
     long hash = input.readLongLE();
 
-    // Convert the millisecond start time to the current JVM's nanoclock
     long pathwayStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
-    long nowMillis = timeSource.getCurrentTimeMillis();
-    long nowNano = timeSource.getNanoTicks();
+    long pathwayStartNanos = TimeUnit.MILLISECONDS.toNanos(pathwayStartMillis);
 
-    long pathwayStartNano =
-        nowNano - TimeUnit.MILLISECONDS.toMicros(nowMillis - pathwayStartMillis);
+    // Convert the start time to the current JVM's nanoclock
+    long nowNanos = timeSource.getCurrentTimeNanos();
+    long nanosSinceStart = nowNanos - pathwayStartNanos;
+    long nowNanoTicks = timeSource.getNanoTicks();
+    long pathwayStartNanoTicks = nowNanoTicks - nanosSinceStart;
 
     long edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
-    long edgeStartNano =
-        pathwayStartNano + TimeUnit.MILLISECONDS.toMicros(edgeStartMillis - pathwayStartMillis);
+    long edgeStartNanoTicks =
+        pathwayStartNanoTicks + TimeUnit.MILLISECONDS.toNanos(edgeStartMillis - pathwayStartMillis);
 
     return new DefaultPathwayContext(
-        timeSource, pathwayStartMillis, pathwayStartNano, edgeStartNano, hash);
+        timeSource, pathwayStartNanos, pathwayStartNanoTicks, edgeStartNanoTicks, hash);
   }
 
   private static long generateNodeHash(String serviceName, String edge) {

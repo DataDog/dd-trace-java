@@ -106,11 +106,7 @@ public class DefaultDataStreamsCheckpointer
 
     cancellation =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(),
-            this,
-            bucketDurationNanos,
-            bucketDurationNanos,
-            TimeUnit.NANOSECONDS);
+            new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
     thread.start();
   }
 
