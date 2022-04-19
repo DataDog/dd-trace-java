@@ -21,8 +21,7 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_MILLIS
-import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 
@@ -76,14 +75,14 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(fakeConfig, sharedCommObjects, timeSource)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "", 9, 0, timeSource.currentTimeMillis, 0, 0))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
-    timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS - 100l))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, SECONDS.toNanos(10), SECONDS.toNanos(10)))
-    timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeMillis, SECONDS.toNanos(2), 0))
-    timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "", 9, 0, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
     then:
@@ -115,7 +114,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "Start"
     unpacker.skipValue()
     assert unpacker.unpackString() == "Duration"
-    assert unpacker.unpackLong() == MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS)
+    assert unpacker.unpackLong() == DEFAULT_BUCKET_DURATION_NANOS
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2 // 2 groups in first bucket
 
@@ -154,7 +153,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "Start"
     unpacker.skipValue()
     assert unpacker.unpackString() == "Duration"
-    assert unpacker.unpackLong() == MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS)
+    assert unpacker.unpackLong() == DEFAULT_BUCKET_DURATION_NANOS
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2 // 2 groups in second bucket
 

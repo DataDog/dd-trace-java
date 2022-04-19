@@ -32,8 +32,8 @@ public class DefaultDataStreamsCheckpointer
     implements DataStreamsCheckpointer, AutoCloseable, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
-  static final long DEFAULT_BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
-  static final long FEATURE_CHECK_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(5);
+  static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
+  static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
@@ -43,7 +43,7 @@ public class DefaultDataStreamsCheckpointer
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final long bucketDurationMillis;
+  private final long bucketDurationNanos;
   private final Thread thread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
   private volatile long nextFeatureCheck;
@@ -71,7 +71,7 @@ public class DefaultDataStreamsCheckpointer
         features,
         timeSource,
         new MsgPackDatastreamsPayloadWriter(sink, env),
-        DEFAULT_BUCKET_DURATION_MILLIS);
+        DEFAULT_BUCKET_DURATION_NANOS);
   }
 
   public DefaultDataStreamsCheckpointer(
@@ -79,11 +79,11 @@ public class DefaultDataStreamsCheckpointer
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
       DatastreamsPayloadWriter payloadWriter,
-      long bucketDurationMillis) {
+      long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
     this.payloadWriter = payloadWriter;
-    this.bucketDurationMillis = bucketDurationMillis;
+    this.bucketDurationNanos = bucketDurationNanos;
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
@@ -102,15 +102,15 @@ public class DefaultDataStreamsCheckpointer
       log.debug("Data streams is disabled or not supported by agent");
     }
 
-    nextFeatureCheck = timeSource.getCurrentTimeMillis() + FEATURE_CHECK_INTERVAL_MILLIS;
+    nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
 
     cancellation =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
             new ReportTask(),
             this,
-            bucketDurationMillis,
-            bucketDurationMillis,
-            TimeUnit.MILLISECONDS);
+            bucketDurationNanos,
+            bucketDurationNanos,
+            TimeUnit.NANOSECONDS);
     thread.start();
   }
 
@@ -157,8 +157,8 @@ public class DefaultDataStreamsCheckpointer
 
           if (statsPoint == REPORT) {
             if (supportsDataStreams) {
-              flush(timeSource.getCurrentTimeMillis());
-            } else if (timeSource.getCurrentTimeMillis() >= nextFeatureCheck) {
+              flush(timeSource.getCurrentTimeNanos());
+            } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
               checkFeatures();
             }
           } else if (statsPoint == POISON_PILL) {
@@ -167,14 +167,14 @@ public class DefaultDataStreamsCheckpointer
             }
             break;
           } else if (supportsDataStreams) {
-            Long bucket = currentBucket(statsPoint.getTimestampMillis());
+            Long bucket = currentBucket(statsPoint.getTimestampNanos());
 
             // FIXME computeIfAbsent() is not available because Java 7
             // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
             // DDSketch
             StatsBucket statsBucket = timeToBucket.get(bucket);
             if (statsBucket == null) {
-              statsBucket = new StatsBucket(bucket, bucketDurationMillis);
+              statsBucket = new StatsBucket(bucket, bucketDurationNanos);
               timeToBucket.put(bucket, statsBucket);
             }
 
@@ -189,12 +189,12 @@ public class DefaultDataStreamsCheckpointer
     }
   }
 
-  private long currentBucket(long timestampMillis) {
-    return timestampMillis - (timestampMillis % bucketDurationMillis);
+  private long currentBucket(long timestampNanos) {
+    return timestampNanos - (timestampNanos % bucketDurationNanos);
   }
 
-  private void flush(long timestampMillis) {
-    long currentBucket = currentBucket(timestampMillis);
+  private void flush(long timestampNanos) {
+    long currentBucket = currentBucket(timestampNanos);
 
     List<StatsBucket> includedBuckets = new ArrayList<>();
     Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
@@ -245,7 +245,7 @@ public class DefaultDataStreamsCheckpointer
     } else if (!oldValue && supportsDataStreams) {
       log.info("Agent upgrade detected. Enabling data streams because it is now supported");
     }
-    nextFeatureCheck = timeSource.getCurrentTimeMillis() + FEATURE_CHECK_INTERVAL_MILLIS;
+    nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
   }
 
   private static final class ReportTask

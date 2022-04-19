@@ -111,7 +111,7 @@ public class DefaultPathwayContext implements PathwayContext {
               finalTopic,
               newHash,
               hash,
-              System.currentTimeMillis(),
+              timeSource.getCurrentTimeNanos(),
               pathwayLatency,
               edgeLatency);
       edgeStart = nanoTime;
