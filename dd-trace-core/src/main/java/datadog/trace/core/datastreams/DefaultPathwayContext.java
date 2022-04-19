@@ -42,7 +42,7 @@ public class DefaultPathwayContext implements PathwayContext {
       TimeSource timeSource,
       long pathwayStartNanos,
       long pathwayStartNanoTicks,
-      long edgeStartTicks,
+      long edgeStartNanoTicks,
       long hash) {
     this.timeSource = timeSource;
     this.pathwayStartNanos = pathwayStartNanos;
@@ -103,7 +103,7 @@ public class DefaultPathwayContext implements PathwayContext {
       long newHash = generatePathwayHash(finalTopic, hash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
-      long edgeLatencyNano = nanoTicks - pathwayStartNanoTicks;
+      long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
 
       StatsPoint point =
           new StatsPoint(

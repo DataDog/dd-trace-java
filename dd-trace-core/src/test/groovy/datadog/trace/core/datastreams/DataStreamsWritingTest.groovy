@@ -18,8 +18,6 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import java.util.concurrent.TimeUnit
-
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
 import static java.util.concurrent.TimeUnit.SECONDS
