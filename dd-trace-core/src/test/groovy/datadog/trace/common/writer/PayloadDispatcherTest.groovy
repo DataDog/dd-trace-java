@@ -7,6 +7,7 @@ import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -38,7 +39,7 @@ class PayloadDispatcherTest extends DDSpecification {
       flushed.set(true)
       return RemoteApi.Response.success(200)
     }
-    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     while (!flushed.get()) {
@@ -57,7 +58,7 @@ class PayloadDispatcherTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
@@ -84,7 +85,7 @@ class PayloadDispatcherTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
@@ -111,7 +112,7 @@ class PayloadDispatcherTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
     DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     discovery.getTraceEndpoint() >> null
     when:
@@ -127,7 +128,7 @@ class PayloadDispatcherTest extends DDSpecification {
     DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery) {
       it.getTraceEndpoint() >> "v0.4/traces"
     }
-    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
 
     when:
     dispatcher.addTrace([])

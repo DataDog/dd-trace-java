@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
-import datadog.communication.RemoteFeaturesDiscovery;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.List;
@@ -17,7 +16,6 @@ public abstract class RemoteWriter implements Writer {
   private final RemoteApi api;
   protected final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
-  private final RemoteFeaturesDiscovery discovery;
   private final boolean alwaysFlush;
 
   private volatile boolean closed;
@@ -28,13 +26,11 @@ public abstract class RemoteWriter implements Writer {
       final RemoteApi api,
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
-      final RemoteFeaturesDiscovery discovery,
       final HealthMetrics healthMetrics,
       final boolean alwaysFlush) {
     this.api = api;
     this.traceProcessingWorker = traceProcessingWorker;
     this.dispatcher = dispatcher;
-    this.discovery = discovery;
     this.healthMetrics = healthMetrics;
     this.alwaysFlush = alwaysFlush;
   }

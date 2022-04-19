@@ -1,16 +1,11 @@
 package datadog.trace.common.writer;
 
-import datadog.communication.RemoteFeaturesDiscovery;
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.common.writer.ddagent.DDAgentApi;
-import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
-import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.nio.ByteBuffer;
@@ -25,7 +20,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private static final Logger log = LoggerFactory.getLogger(PayloadDispatcher.class);
 
   private final RemoteApi api;
-  private final RemoteFeaturesDiscovery featuresDiscovery;
+  private final RemoteMapperDiscovery mapperDiscovery;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
 
@@ -39,11 +34,11 @@ public class PayloadDispatcher implements ByteBufferConsumer {
       CountersFactory.createFixedSizeStripedCounter(8);
 
   public PayloadDispatcher(
-      DDAgentFeaturesDiscovery featuresDiscovery,
-      DDAgentApi api,
+      RemoteMapperDiscovery mapperDiscovery,
+      RemoteApi api,
       HealthMetrics healthMetrics,
       Monitoring monitoring) {
-    this.featuresDiscovery = featuresDiscovery;
+    this.mapperDiscovery = mapperDiscovery;
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.monitoring = monitoring;
@@ -61,7 +56,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   }
 
   void addTrace(List<? extends CoreSpan<?>> trace) {
-    selectTraceMapper();
+    selectMapper();
     // the call below is blocking and will trigger IO if a flush is necessary
     // there are alternative approaches to avoid blocking here, such as
     // introducing an unbound queue and another thread to do the IO
@@ -71,17 +66,13 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     }
   }
 
-  private void selectTraceMapper() {
+  private void selectMapper() {
     if (null == mapper) {
-      if (featuresDiscovery.getTraceEndpoint() == null) {
-        featuresDiscovery.discover();
+      if (mapperDiscovery.getMapper() == null) {
+        mapperDiscovery.discover();
       }
-      String tracesUrl = featuresDiscovery.getTraceEndpoint();
-      if (DDAgentFeaturesDiscovery.V5_ENDPOINT.equalsIgnoreCase(tracesUrl)) {
-        this.mapper = new TraceMapperV0_5();
-      } else if (null != tracesUrl) {
-        this.mapper = new TraceMapperV0_4();
-      }
+
+      mapper = mapperDiscovery.getMapper();
       if (null != mapper && null == packer) {
         this.batchTimer =
             monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());

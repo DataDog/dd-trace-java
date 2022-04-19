@@ -11,6 +11,7 @@ import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
+import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.TimeUnit;
@@ -149,8 +150,9 @@ public class DDAgentWriter extends RemoteWriter {
             new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
       }
 
+      final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
-          new PayloadDispatcher(featureDiscovery, agentApi, healthMetrics, monitoring);
+          new PayloadDispatcher(mapperDiscovery, agentApi, healthMetrics, monitoring);
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -178,7 +180,7 @@ public class DDAgentWriter extends RemoteWriter {
       PayloadDispatcher dispatcher,
       TraceProcessingWorker worker,
       boolean alwaysFlush) {
-    super(api, worker, dispatcher, discovery, healthMetrics, alwaysFlush);
+    super(api, worker, dispatcher, healthMetrics, alwaysFlush);
   }
 
   private DDAgentWriter(
@@ -191,7 +193,8 @@ public class DDAgentWriter extends RemoteWriter {
         discovery,
         api,
         healthMetrics,
-        new PayloadDispatcher(discovery, api, healthMetrics, monitoring),
+        new PayloadDispatcher(
+            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring),
         worker,
         false);
   }

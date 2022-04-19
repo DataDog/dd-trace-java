@@ -3,7 +3,6 @@ package datadog.communication.ddagent;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.communication.RemoteFeaturesDiscovery;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
@@ -24,7 +23,7 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DDAgentFeaturesDiscovery implements RemoteFeaturesDiscovery, DroppingPolicy {
+public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private static final Logger log = LoggerFactory.getLogger(DDAgentFeaturesDiscovery.class);
 
