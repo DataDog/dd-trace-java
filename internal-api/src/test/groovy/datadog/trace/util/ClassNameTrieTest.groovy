@@ -38,6 +38,9 @@ class ClassNameTrieTest extends DDSpecification {
     'com.Twos'             | 7
     'com.foo.Threes'       | 8
     'com.foobar.Fives'     | 9
+    'foobar.Thre'          | -1
+    'foobar.Three'         | 15
+    'foobar.ThreeMore'     | 15
     // spotless:on
   }
 
@@ -74,16 +77,23 @@ class ClassNameTrieTest extends DDSpecification {
     'com/Twos'             | 7
     'com/foo/Threes'       | 8
     'com/foobar/Fives'     | 9
+    'foobar/Thre'          | -1
+    'foobar/Three'         | 15
+    'foobar/ThreeMore'     | 15
     // spotless:on
   }
 
   def 'test large trie generation'() {
     setup:
-    def mapping = (0..16383).collectEntries({
+    def mapping = (0..8191).collectEntries({
       [UUID.randomUUID().toString().replace('-', '.'), it]
     }) as TreeMap<String, Integer>
     when:
-    def trie = new ClassNameTrie.Builder(mapping).buildTrie()
+    def builder = new ClassNameTrie.Builder()
+    mapping.each { className, number ->
+      builder.put(className, number)
+    }
+    def trie = builder.buildTrie()
     then:
     mapping.each({
       assert trie.apply(it.key) == it.value
