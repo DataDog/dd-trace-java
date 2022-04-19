@@ -4,6 +4,11 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.common.writer.RemoteMapperDiscovery;
 
+/**
+ * Mapper discovery logic when the DDAgent is used. It leverages the {@code
+ * DDAgentFeaturesDiscovery} to select the correct {@code TraceMapper}. Typically, an instance of
+ * this class is used during the mapper lazy loading in the {@code PayloadDispatcher} class.
+ */
 public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
 
   private final DDAgentFeaturesDiscovery featuresDiscovery;
