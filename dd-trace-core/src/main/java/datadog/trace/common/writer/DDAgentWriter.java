@@ -18,20 +18,6 @@ import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 
-/**
- * This writer buffers traces and sends them to the provided DDApi instance. Buffering is done with
- * a distruptor to limit blocking the application threads. Internally, the trace is serialized and
- * put onto a separate disruptor that does block to decouple the CPU intensive from the IO bound
- * threads.
- *
- * <p>[Application] -> [trace processing buffer] -> [serialized trace batching buffer] -> [dd-agent]
- *
- * <p>Note: the first buffer is non-blocking and will discard if full, the second is blocking and
- * will cause back pressure on the trace processing (serializing) thread.
- *
- * <p>If the buffer is filled traces are discarded before serializing. Once serialized every effort
- * is made to keep, to avoid wasting the serialization effort.
- */
 public class DDAgentWriter extends RemoteWriter {
 
   public static DDAgentWriterBuilder builder() {
