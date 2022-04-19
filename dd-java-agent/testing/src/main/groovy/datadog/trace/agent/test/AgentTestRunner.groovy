@@ -165,10 +165,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     DataStreamsCheckpointer dataStreamsCheckpointer = null
     if (Platform.isJavaVersionAtLeast(8)) {
       try {
+        // Fast enough so tests don't take forever
+        long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+
         // Use reflection to load the class because it should only be loaded on Java 8+
         dataStreamsCheckpointer = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
           .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, DatastreamsPayloadWriter, long)
-          .newInstance(sink, features, SystemTimeSource.INSTANCE, TEST_DATA_STREAMS_WRITER, 10)
+          .newInstance(sink, features, SystemTimeSource.INSTANCE, TEST_DATA_STREAMS_WRITER, bucketDuration)
       } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
         e.printStackTrace()
       }

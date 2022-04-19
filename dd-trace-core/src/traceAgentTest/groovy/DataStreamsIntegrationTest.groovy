@@ -14,11 +14,10 @@ import spock.lang.Requires
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_MILLIS
+import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_NANOS
 
 @Requires({
   "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
@@ -49,8 +48,8 @@ class DataStreamsIntegrationTest extends DDSpecification {
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(sink, sharedCommunicationObjects.featuresDiscovery, timeSource, Config.get().getEnv())
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeMillis, 0, 0))
-    timeSource.advance(TimeUnit.MILLISECONDS.toNanos(DEFAULT_BUCKET_DURATION_MILLIS))
+    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
     then:

@@ -59,7 +59,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       /* 1 */
       writer.writeUTF8(START);
-      writer.writeLong(bucket.getStartTime());
+      writer.writeLong(bucket.getStartTimeNanos());
 
       /* 2 */
       writer.writeUTF8(DURATION);

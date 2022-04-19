@@ -6,7 +6,7 @@ public class StatsPoint {
   private final String topic;
   private final long hash;
   private final long parentHash;
-  private final long timestampMillis;
+  private final long timestampNanos;
   private final long pathwayLatencyNano;
   private final long edgeLatencyNano;
 
@@ -16,7 +16,7 @@ public class StatsPoint {
       String topic,
       long hash,
       long parentHash,
-      long timestampMillis,
+      long timestampNanos,
       long pathwayLatencyNano,
       long edgeLatencyNano) {
     this.type = type;
@@ -24,7 +24,7 @@ public class StatsPoint {
     this.topic = topic;
     this.hash = hash;
     this.parentHash = parentHash;
-    this.timestampMillis = timestampMillis;
+    this.timestampNanos = timestampNanos;
     this.pathwayLatencyNano = pathwayLatencyNano;
     this.edgeLatencyNano = edgeLatencyNano;
   }
@@ -49,8 +49,8 @@ public class StatsPoint {
     return parentHash;
   }
 
-  public long getTimestampMillis() {
-    return timestampMillis;
+  public long getTimestampNanos() {
+    return timestampNanos;
   }
 
   public long getPathwayLatencyNano() {
@@ -77,8 +77,8 @@ public class StatsPoint {
         + hash
         + ", parentHash="
         + parentHash
-        + ", timestampMillis="
-        + timestampMillis
+        + ", timestampNanos="
+        + timestampNanos
         + ", pathwayLatencyNano="
         + pathwayLatencyNano
         + ", edgeLatencyNano="
