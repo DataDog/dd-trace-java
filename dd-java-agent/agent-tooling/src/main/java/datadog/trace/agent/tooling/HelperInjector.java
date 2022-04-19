@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
 import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 
 import datadog.trace.api.Config;
@@ -116,7 +115,7 @@ public class HelperInjector implements Instrumenter.AdviceTransformer {
       ClassLoader classLoader,
       final JavaModule module) {
     if (!helperClassNames.isEmpty()) {
-      if (classLoader == BOOTSTRAP_CLASSLOADER) {
+      if (classLoader == null) {
         classLoader = BOOTSTRAP_CLASSLOADER_PLACEHOLDER;
       }
 

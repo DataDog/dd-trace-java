@@ -1,8 +1,10 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static datadog.trace.util.Strings.getResourceName;
+import static net.bytebuddy.matcher.ElementMatchers.any;
 
+import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
@@ -12,11 +14,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ClassLoaderMatcher {
+public final class ClassLoaderMatchers {
+  private static final Logger log = LoggerFactory.getLogger(ClassLoaderMatchers.class);
 
-  private static final Logger log = LoggerFactory.getLogger(ClassLoaderMatcher.class);
-  public static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
+  public static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
+  private static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
   private static final String DATADOG_CLASSLOADER_NAME =
       "datadog.trace.bootstrap.DatadogClassLoader";
   private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
@@ -26,7 +29,7 @@ public final class ClassLoaderMatcher {
       !Config.get().getExcludedClassLoaders().isEmpty();
 
   /** A private constructor that must not be invoked. */
-  private ClassLoaderMatcher() {
+  private ClassLoaderMatchers() {
     throw new UnsupportedOperationException();
   }
 

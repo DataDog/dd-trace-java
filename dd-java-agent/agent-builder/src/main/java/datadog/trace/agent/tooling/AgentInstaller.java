@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.skipClassLoader;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
