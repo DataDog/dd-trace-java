@@ -1,9 +1,9 @@
-package datadog.trace.bootstrap.instrumentation.httpurlconnection;
+package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -31,6 +31,9 @@ public class LambdaHandler {
   private static final Long REQUEST_TIMEOUT_IN_S = 1L;
   private static final MediaType JSON_MEDIA_TYPE = MediaType.parse("application/json");
 
+  private static final JsonAdapter<Object> ADAPTER =
+      new Moshi.Builder().build().adapter(Object.class);
+
   private static OkHttpClient httpClient =
       new OkHttpClient.Builder()
           .retryOnConnectionFailure(true)
@@ -40,8 +43,8 @@ public class LambdaHandler {
           .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
           .build();
 
-  public static DummyLambdaContext notifyStartInvocation(Object obj) {
-    RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, writeValueAsString(obj));
+  public static DummyLambdaContext notifyStartInvocation(Object event) {
+    RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, writeValueAsString(event));
     try (Response response =
         httpClient
             .newCall(
@@ -89,10 +92,7 @@ public class LambdaHandler {
     String json = "{}";
     if (null != obj) {
       try {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        json = mapper.writeValueAsString(obj);
-        return json;
+        json = ADAPTER.toJson(obj);
       } catch (Exception e) {
         log.error("could not write the value into a string", e);
       }

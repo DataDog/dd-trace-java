@@ -39,6 +39,8 @@ dependencies {
   implementation project(':utils:socket-utils')
   implementation project(':dd-cws-tls')
 
+  implementation 'com.amazonaws:aws-lambda-java-events:2.2.9'
+
   implementation deps.slf4j
   implementation deps.moshi
 
