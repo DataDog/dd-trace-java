@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.canSkipClassLoaderByName;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.canSkipClassLoaderByName;
 
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;

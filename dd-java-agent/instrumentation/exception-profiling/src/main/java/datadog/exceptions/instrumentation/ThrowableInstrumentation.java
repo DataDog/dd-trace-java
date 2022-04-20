@@ -20,7 +20,7 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling
     /* Check only for the open-sources JFR implementation.
      * If it is ever needed to support also the closed sourced JDK 8 version the check should be
      * enhanced.
-     * Need this custom check because ClassLoaderMatcher.hasClassesNamed() does not support bootstrap class loader yet.
+     * Need this custom check because ClassLoaderMatchers.hasClassesNamed() does not support bootstrap class loader yet.
      * Note: the downside of this is that we load some JFR classes at startup.
      * Note2: we cannot check that we can load ExceptionSampleEvent because it is not available on the class path yet.
      */
