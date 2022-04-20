@@ -11,7 +11,3 @@ testSets {
     dirName = 'test'
   }
 }
-
-dependencies {
-  compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-events', version: '2.2.9'
-}
