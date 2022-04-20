@@ -20,12 +20,6 @@ dependencies {
   api project(':internal-api')
   api project(':internal-api:internal-api-8')
   api project(':dd-java-agent:agent-logging')
-
-  implementation deps.okhttp
-
-  api 'com.fasterxml.jackson.core:jackson-core:2.9.10'
-  api 'com.fasterxml.jackson.core:jackson-databind:2.9.10'
-
   api deps.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
 
