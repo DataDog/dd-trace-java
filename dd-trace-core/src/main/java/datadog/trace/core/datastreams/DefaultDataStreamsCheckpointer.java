@@ -8,6 +8,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
+import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,14 +37,17 @@ public class DefaultDataStreamsCheckpointer
   static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
-  private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
-  private static final StatsPoint POISON_PILL = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT =
+      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
+  private static final StatsPoint POISON_PILL =
+      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
+  private final WellKnownTags wellKnownTags;
   private final long bucketDurationNanos;
   private final Thread thread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
@@ -61,16 +66,18 @@ public class DefaultDataStreamsCheckpointer
             Collections.<String, String>emptyMap()),
         sharedCommunicationObjects.featuresDiscovery,
         timeSource,
-        config.getEnv());
+        config);
   }
 
   public DefaultDataStreamsCheckpointer(
-      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, String env) {
+      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, Config config) {
     this(
         sink,
         features,
         timeSource,
-        new MsgPackDatastreamsPayloadWriter(sink, env),
+        config.getWellKnownTags(),
+        new MsgPackDatastreamsPayloadWriter(
+            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
         DEFAULT_BUCKET_DURATION_NANOS);
   }
 
@@ -78,10 +85,12 @@ public class DefaultDataStreamsCheckpointer
       Sink sink,
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
+      WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
       long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
+    this.wellKnownTags = wellKnownTags;
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
 
@@ -120,13 +129,13 @@ public class DefaultDataStreamsCheckpointer
 
   @Override
   public PathwayContext newPathwayContext() {
-    return new DefaultPathwayContext(timeSource);
+    return new DefaultPathwayContext(timeSource, wellKnownTags);
   }
 
   @Override
   public <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    return DefaultPathwayContext.extract(carrier, getter, timeSource);
+    return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
   @Override

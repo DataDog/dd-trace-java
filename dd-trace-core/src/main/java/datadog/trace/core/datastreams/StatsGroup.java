@@ -3,23 +3,20 @@ package datadog.trace.core.datastreams;
 import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.HistogramFactory;
 import datadog.trace.core.histogram.Histograms;
+import java.util.List;
 
 public class StatsGroup {
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;
   private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
-  private final String type;
-  private final String group;
-  private final String topic;
+  private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;
   private final Histogram pathwayLatency;
   private final Histogram edgeLatency;
 
-  public StatsGroup(String type, String group, String topic, long hash, long parentHash) {
-    this.type = type;
-    this.group = group;
-    this.topic = topic;
+  public StatsGroup(List<String> edgeTags, long hash, long parentHash) {
+    this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
     pathwayLatency = HISTOGRAM_FACTORY.newHistogram();
@@ -31,16 +28,8 @@ public class StatsGroup {
     edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
   }
 
-  public String getType() {
-    return type;
-  }
-
-  public String getGroup() {
-    return group;
-  }
-
-  public String getTopic() {
-    return topic;
+  public List<String> getEdgeTags() {
+    return edgeTags;
   }
 
   public long getHash() {
@@ -62,14 +51,8 @@ public class StatsGroup {
   @Override
   public String toString() {
     return "StatsGroup{"
-        + "type='"
-        + type
-        + '\''
-        + ", group='"
-        + group
-        + '\''
-        + ", topic='"
-        + topic
+        + "edgeTags='"
+        + edgeTags
         + '\''
         + ", hash="
         + hash

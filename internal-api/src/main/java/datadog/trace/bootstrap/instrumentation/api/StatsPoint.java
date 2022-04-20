@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.util.List;
+
 public class StatsPoint {
-  private final String type;
-  private final String group;
-  private final String topic;
+  private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;
   private final long timestampNanos;
@@ -11,17 +11,13 @@ public class StatsPoint {
   private final long edgeLatencyNano;
 
   public StatsPoint(
-      String type,
-      String group,
-      String topic,
+      List<String> edgeTags,
       long hash,
       long parentHash,
       long timestampNanos,
       long pathwayLatencyNano,
       long edgeLatencyNano) {
-    this.type = type;
-    this.group = group;
-    this.topic = topic;
+    this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
     this.timestampNanos = timestampNanos;
@@ -29,16 +25,8 @@ public class StatsPoint {
     this.edgeLatencyNano = edgeLatencyNano;
   }
 
-  public String getType() {
-    return type;
-  }
-
-  public String getGroup() {
-    return group;
-  }
-
-  public String getTopic() {
-    return topic;
+  public List<String> getEdgeTags() {
+    return edgeTags;
   }
 
   public long getHash() {
@@ -64,14 +52,8 @@ public class StatsPoint {
   @Override
   public String toString() {
     return "StatsPoint{"
-        + "type='"
-        + type
-        + '\''
-        + ", group='"
-        + group
-        + '\''
-        + ", topic='"
-        + topic
+        + "tags='"
+        + edgeTags
         + '\''
         + ", hash="
         + hash
