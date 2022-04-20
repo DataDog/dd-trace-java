@@ -34,30 +34,36 @@ final class Base64Encoder {
 
   public byte[] encode(byte[] src) {
     int len = outLength(src.length); // dst array size
+    int offset = len - src.length;
     byte[] dst = new byte[len];
-    int ret = encode0(src, 0, src.length, dst);
-    if (ret != dst.length) return Arrays.copyOf(dst, ret);
+    System.arraycopy(src, 0, dst, offset, src.length);
+    int ret = encode0(dst, offset, dst.length, dst);
+    if (ret < len) {
+      Arrays.fill(dst, ret, len, (byte) '=');
+    }
     return dst;
   }
 
   public ByteBuffer encode(ByteBuffer buffer) {
     int len = outLength(buffer.remaining());
+    int offset = len - buffer.remaining();
     byte[] dst = new byte[len];
     int ret = 0;
     if (buffer.hasArray()) {
-      ret =
-          encode0(
-              buffer.array(),
-              buffer.arrayOffset() + buffer.position(),
-              buffer.arrayOffset() + buffer.limit(),
-              dst);
-      buffer.position(buffer.limit());
+      System.arraycopy(
+          buffer.array(),
+          buffer.arrayOffset() + buffer.position(),
+          dst,
+          offset,
+          buffer.remaining());
+      ret = encode0(dst, offset, dst.length, dst);
     } else {
-      byte[] src = new byte[buffer.remaining()];
-      buffer.get(src);
-      ret = encode0(src, 0, src.length, dst);
+      buffer.get(dst, offset, buffer.remaining());
+      ret = encode0(dst, offset, dst.length, dst);
     }
-    if (ret != dst.length) dst = Arrays.copyOf(dst, ret);
+    if (ret < len) {
+      Arrays.fill(dst, ret, len, (byte) '=');
+    }
     return ByteBuffer.wrap(dst);
   }
 

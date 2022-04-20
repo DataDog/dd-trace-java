@@ -1,5 +1,6 @@
 package com.datadog.profiling.context;
 
+import datadog.trace.api.function.ObjToIntFunction;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -21,7 +22,7 @@ import org.slf4j.LoggerFactory;
 public final class ProfilerTracingContextTracker implements TracingContextTracker {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
 
-  private static final byte[] EMPTY_DATA = new byte[0];
+  private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
 
   static final int TRANSITION_STARTED = 0;
   static final int TRANSITION_MAYBE_FINISHED = 1;
@@ -125,7 +126,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private final long initialThreadId;
   private final AtomicBoolean initialized = new AtomicBoolean(false);
-  private final AtomicReference<byte[]> persisted = new AtomicReference<>(null);
+  private final AtomicReference<ByteBuffer> persisted = new AtomicReference<>(null);
 
   private long lastTransitionTimestamp = -1;
 
@@ -211,27 +212,40 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   @Override
   public byte[] persist() {
-    byte[] data = null;
-    if (persisted.compareAndSet(null, EMPTY_DATA)) {
-      try {
-        if (released.get()) {
-          // tracker was released without persisting the data
-          return null;
-        }
-        ByteBuffer buffer = encodeIntervals();
-        data = buffer.array();
-        data = Arrays.copyOf(data, buffer.limit());
-      } finally {
-        // make sure the other threads do not stay blocked even if there is an exception thrown
-        persisted.compareAndSet(EMPTY_DATA, data);
-      }
-    } else {
+    AtomicReference<byte[]> bytes = new AtomicReference<>();
+    persist(
+        byteBuffer -> {
+          byte[] dataBytes = Arrays.copyOf(byteBuffer.array(), byteBuffer.limit());
+          bytes.set(dataBytes);
+          return dataBytes.length;
+        });
+    return bytes.get();
+  }
+
+  @Override
+  public int persist(ObjToIntFunction<ByteBuffer> dataConsumer) {
+    if (dataConsumer == null) {
+      return 0;
+    }
+    ByteBuffer data = null;
+    if (!persisted.compareAndSet(null, EMPTY_DATA)) {
       // busy wait for the data to become available
       while ((data = persisted.get()) == EMPTY_DATA) {
         Thread.yield();
       }
+    } else {
+      try {
+        if (released.get()) {
+          // tracker was released without persisting the data
+          return 0;
+        }
+        data = encodeIntervals();
+      } finally {
+        // make sure the other threads do not stay blocked even if there is an exception thrown
+        persisted.compareAndSet(EMPTY_DATA, data);
+      }
     }
-    return data;
+    return dataConsumer.apply(data.duplicate());
   }
 
   LongIterator pruneIntervals(LongSequence sequence) {

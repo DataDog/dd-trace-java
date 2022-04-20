@@ -38,6 +38,14 @@ public final class UTF8BytesString implements CharSequence {
     }
   }
 
+  public static UTF8BytesString create(ByteBuffer utf8Bytes) {
+    if (null == utf8Bytes) {
+      return null;
+    } else {
+      return new UTF8BytesString(UTF_8.decode(utf8Bytes).toString());
+    }
+  }
+
   private final String string;
   private byte[] utf8Bytes;
 
