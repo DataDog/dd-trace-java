@@ -92,5 +92,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
 
+  static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+
   private ConfigDefaults() {}
 }

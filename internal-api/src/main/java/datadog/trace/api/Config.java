@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -184,6 +185,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DE
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -485,6 +487,7 @@ public class Config {
   private final boolean internalExitOnFailure;
 
   private final boolean resolverUseLoadClassEnabled;
+  private final int resolverTypePoolSize;
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
@@ -1008,6 +1011,8 @@ public class Config {
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverTypePoolSize =
+        configProvider.getInteger(RESOLVER_TYPE_POOL_SIZE, DEFAULT_RESOLVER_TYPE_POOL_SIZE);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -1633,6 +1638,10 @@ public class Config {
 
   public boolean isResolverUseLoadClassEnabled() {
     return resolverUseLoadClassEnabled;
+  }
+
+  public int getResolverTypePoolSize() {
+    return resolverTypePoolSize;
   }
 
   public String getJdbcPreparedStatementClassName() {
@@ -2478,6 +2487,8 @@ public class Config {
         + internalExitOnFailure
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
+        + ", resolverTypePoolSize="
+        + resolverTypePoolSize
         + ", jdbcPreparedStatementClassName='"
         + jdbcPreparedStatementClassName
         + '\''
