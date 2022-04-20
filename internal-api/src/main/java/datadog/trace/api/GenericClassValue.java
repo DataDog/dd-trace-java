@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.function.Function;
+
 public final class GenericClassValue<T> extends ClassValue<T> {
 
   @SuppressWarnings("unchecked")

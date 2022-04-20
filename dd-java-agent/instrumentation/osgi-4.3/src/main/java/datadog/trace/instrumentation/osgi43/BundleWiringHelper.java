@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.osgi43;
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 import java.net.URL;
 import java.util.ArrayDeque;
 import java.util.HashSet;

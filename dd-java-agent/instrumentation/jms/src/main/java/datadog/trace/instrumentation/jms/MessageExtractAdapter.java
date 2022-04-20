@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_BATCH_ID_KEY;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCED_KEY;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;

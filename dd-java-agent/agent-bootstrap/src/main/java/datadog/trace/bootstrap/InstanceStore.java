@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.function.Function;
 
 /**
  * An {@code InstanceStore} is a class global map for registering instances. This can be useful when

@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.ignite.v2.cache;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;

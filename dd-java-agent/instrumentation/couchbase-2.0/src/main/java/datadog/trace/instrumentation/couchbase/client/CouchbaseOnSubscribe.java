@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.couchbase.client;
 
 import static datadog.trace.instrumentation.couchbase.client.CouchbaseClientDecorator.DECORATE;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
 import java.lang.reflect.Method;

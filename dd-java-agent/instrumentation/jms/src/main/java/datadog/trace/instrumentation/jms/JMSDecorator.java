@@ -3,11 +3,11 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;

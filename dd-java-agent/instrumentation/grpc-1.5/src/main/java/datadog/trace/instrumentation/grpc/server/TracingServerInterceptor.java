@@ -10,8 +10,8 @@ import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;

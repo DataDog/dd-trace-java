@@ -2,8 +2,8 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.*;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;

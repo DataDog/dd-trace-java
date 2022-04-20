@@ -2,10 +2,10 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.ExceptionLogger;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.UnsupportedEncodingException;

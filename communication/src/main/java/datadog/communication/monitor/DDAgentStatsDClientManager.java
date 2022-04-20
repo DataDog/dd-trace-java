@@ -4,12 +4,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 

@@ -3,10 +3,10 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 

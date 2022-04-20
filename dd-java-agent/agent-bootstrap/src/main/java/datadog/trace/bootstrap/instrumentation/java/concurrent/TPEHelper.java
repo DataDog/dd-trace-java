@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Set;

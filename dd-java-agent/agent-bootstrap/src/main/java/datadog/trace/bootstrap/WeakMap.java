@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 import java.util.concurrent.atomic.AtomicReference;
 
 public interface WeakMap<K, V> {

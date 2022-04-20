@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TwoArgFunction;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
