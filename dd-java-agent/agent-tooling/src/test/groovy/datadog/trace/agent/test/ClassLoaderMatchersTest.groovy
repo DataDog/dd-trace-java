@@ -1,18 +1,19 @@
 package datadog.trace.agent.test
 
-import datadog.trace.agent.tooling.ClassLoaderMatcher
+
+import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.log.LogContextScopeListener
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileStatic
 
-class ClassLoaderMatcherTest extends DDSpecification {
+class ClassLoaderMatchersTest extends DDSpecification {
 
   def "skip non-delegating classloader"() {
     setup:
     final URLClassLoader badLoader = new NonDelegatingClassLoader()
     expect:
-    ClassLoaderMatcher.skipClassLoader().matches(badLoader)
+    ClassLoaderMatchers.skipClassLoader().matches(badLoader)
   }
 
   def "skips agent classloader"() {
@@ -20,19 +21,19 @@ class ClassLoaderMatcherTest extends DDSpecification {
     URL root = new URL("file://")
     final URLClassLoader agentLoader = new DatadogClassLoader(root, null, new DatadogClassLoader.BootstrapClassLoaderProxy(), null)
     expect:
-    ClassLoaderMatcher.skipClassLoader().matches(agentLoader)
+    ClassLoaderMatchers.skipClassLoader().matches(agentLoader)
   }
 
   def "does not skip empty classloader"() {
     setup:
     final ClassLoader emptyLoader = new ClassLoader() {}
     expect:
-    !ClassLoaderMatcher.skipClassLoader().matches(emptyLoader)
+    !ClassLoaderMatchers.skipClassLoader().matches(emptyLoader)
   }
 
   def "does not skip bootstrap classloader"() {
     expect:
-    !ClassLoaderMatcher.skipClassLoader().matches(null)
+    !ClassLoaderMatchers.skipClassLoader().matches(null)
   }
 
   def "DatadogClassLoader class name is hardcoded in ClassLoaderMatcher"() {

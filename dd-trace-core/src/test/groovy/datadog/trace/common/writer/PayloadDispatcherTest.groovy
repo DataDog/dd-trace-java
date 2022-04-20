@@ -4,6 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
@@ -147,10 +148,12 @@ class PayloadDispatcherTest extends DDSpecification {
 
   def realSpan() {
     CoreTracer tracer = Mock(CoreTracer)
-    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
+    tracer.mapServiceName(_) >> { String serviceName ->
+      serviceName
+    }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
-    return new DDSpan(0, new DDSpanContext(
+    def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
       DDId.ZERO,
@@ -167,6 +170,8 @@ class PayloadDispatcherTest extends DDSpecification {
       0,
       trace,
       null,
-      false))
+      NoopPathwayContext.INSTANCE,
+      false)
+    return new DDSpan(0, context)
   }
 }

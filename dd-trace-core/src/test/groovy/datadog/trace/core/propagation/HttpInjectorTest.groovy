@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -44,6 +45,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      NoopPathwayContext.INSTANCE,
       false)
 
     final Map<String, String> carrier = Mock()
@@ -117,6 +119,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      NoopPathwayContext.INSTANCE,
       false)
 
     final Map<String, String> carrier = Mock()

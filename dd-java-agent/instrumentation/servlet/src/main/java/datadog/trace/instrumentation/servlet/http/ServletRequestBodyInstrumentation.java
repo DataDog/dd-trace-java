@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet.http;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -38,7 +38,6 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
@@ -156,13 +155,11 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
         DynamicType.Unloaded<?> unloaded =
             new ByteBuddy()
                 .rebase(origWrapperType, compoundLocator)
-                .method(ElementMatchers.named("isFinished").and(takesNoArguments()))
+                .method(named("isFinished").and(takesNoArguments()))
                 .intercept(MethodDelegation.toField("is"))
-                .method(ElementMatchers.named("isReady").and(takesNoArguments()))
+                .method(named("isReady").and(takesNoArguments()))
                 .intercept(MethodDelegation.toField("is"))
-                .method(
-                    ElementMatchers.named("setReadListener")
-                        .and(takesArguments(readListenerRes.resolve())))
+                .method(named("setReadListener").and(takesArguments(readListenerRes.resolve())))
                 .intercept(MethodDelegation.toField("is"))
                 .make();
         return new HelperInjector(

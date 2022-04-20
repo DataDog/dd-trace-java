@@ -13,7 +13,7 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.utils.ClasspathUtils.isClassLoaded
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.BOOTSTRAP_CLASSLOADER
 import static datadog.trace.test.util.GCUtils.awaitGC
 
 class HelperInjectionTest extends DDSpecification {

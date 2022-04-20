@@ -12,6 +12,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.test.DDCoreSpecification
@@ -168,7 +169,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
-    return new DDSpan(0, new DDSpanContext(
+    def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
       DDId.ZERO,
@@ -185,6 +186,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
       0,
       trace,
       null,
-      false))
+      NoopPathwayContext.INSTANCE,
+      false)
+    return new DDSpan(0, context)
   }
 }

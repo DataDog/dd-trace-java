@@ -4,23 +4,34 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.util.ContextInitializer
 import com.google.common.collect.Sets
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
+import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
+import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
+import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.time.TimeSource
+import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.common.metrics.EventListener
+import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.datastreams.DataStreamsCheckpointer
+import datadog.trace.core.datastreams.DatastreamsPayloadWriter
 import datadog.trace.test.util.DDSpecification
+import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -37,12 +48,14 @@ import spock.lang.Shared
 
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
+import java.lang.reflect.InvocationTargetException
+import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
+import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.isAdditionallyIgnored
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static net.bytebuddy.matcher.ElementMatchers.named
@@ -112,6 +125,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   Set<DDId> TEST_SPANS = Sets.newHashSet()
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  RecordingDatastreamsPayloadWriter TEST_DATA_STREAMS_WRITER
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -130,12 +147,35 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
   }
 
+  @SuppressForbidden
   def setupSpec() {
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
 
     configurePreAgent()
+
+    TEST_DATA_STREAMS_WRITER = new RecordingDatastreamsPayloadWriter()
+    DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
+
+    Sink sink = new Sink() {
+        void accept(int messageCount, ByteBuffer buffer) {}
+        void register(EventListener listener) {}
+      }
+    DataStreamsCheckpointer dataStreamsCheckpointer = null
+    if (Platform.isJavaVersionAtLeast(8)) {
+      try {
+        // Fast enough so tests don't take forever
+        long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+
+        // Use reflection to load the class because it should only be loaded on Java 8+
+        dataStreamsCheckpointer = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
+          .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, DatastreamsPayloadWriter, long)
+          .newInstance(sink, features, SystemTimeSource.INSTANCE, TEST_DATA_STREAMS_WRITER, bucketDuration)
+      } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
+        e.printStackTrace()
+      }
+    }
 
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
@@ -145,6 +185,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .idGenerationStrategy(SEQUENTIAL)
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
+      .dataStreamsCheckpointer(dataStreamsCheckpointer)
       .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
@@ -213,6 +254,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_SPANS.clear()
     TEST_CHECKPOINTER.clear()
     TEST_WRITER.start()
+    TEST_DATA_STREAMS_WRITER.clear()
 
     new MockUtil().attachMock(STATS_D_CLIENT, this)
     new MockUtil().attachMock(TEST_CHECKPOINTER, this)
@@ -242,7 +284,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
 
-    assert TRANSFORMED_CLASSES_TYPES.findAll { additionalLibraryIgnoresMatcher().matches(it) }.isEmpty(): "Transformed classes match global libraries ignore matcher"
+    assert TRANSFORMED_CLASSES_TYPES.findAll { isAdditionallyIgnored(it.getActualName()) }.isEmpty(): "Transformed classes match global libraries ignore matcher"
   }
 
   boolean useStrictTraceWrites() {

@@ -16,7 +16,7 @@ class AllocatorsTest {
   private static final int chunkSize = 32;
 
   private static final Allocator directAllocator =
-      Allocators.directAllocator(chunkSize * maxChunks, chunkSize);;
+      Allocators.directAllocator(chunkSize * maxChunks, chunkSize);
   private static final Allocator heapAllocator =
       Allocators.heapAllocator(chunkSize * maxChunks, chunkSize);
 

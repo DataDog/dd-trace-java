@@ -21,7 +21,7 @@ public class CassandraClientInstrumentation extends Instrumenter.Tracing
   @Override
   public String instrumentedType() {
     // Note: Cassandra has a large driver and we instrument single class in it.
-    // The rest is ignored in AdditionalLibraryIgnoresMatcher
+    // The rest is ignored in the additional ignores of GlobalIgnoresMatcher
     return "com.datastax.driver.core.Cluster$Manager";
   }
 

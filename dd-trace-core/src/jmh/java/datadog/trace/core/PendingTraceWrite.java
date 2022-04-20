@@ -3,6 +3,7 @@ package datadog.trace.core;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
 import java.util.Collections;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -57,6 +58,7 @@ public class PendingTraceWrite {
                 0,
                 trace,
                 null,
+                NoopPathwayContext.INSTANCE,
                 false));
     span =
         DDSpan.create(
@@ -78,6 +80,7 @@ public class PendingTraceWrite {
                 0,
                 trace,
                 null,
+                NoopPathwayContext.INSTANCE,
                 false));
   }
 

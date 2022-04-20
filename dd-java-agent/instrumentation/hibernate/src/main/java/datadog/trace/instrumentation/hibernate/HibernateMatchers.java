@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.hibernate;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 
 import net.bytebuddy.matcher.ElementMatcher;
 

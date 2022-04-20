@@ -38,6 +38,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
 
+  public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
+
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final OkHttpClient client;
@@ -46,9 +48,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
   private final boolean metricsEnabled;
+  private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
+  private volatile String dataStreamsEndpoint;
   private volatile boolean supportsDropping;
   private volatile String state;
 
@@ -111,10 +115,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, dataStreamsEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
-          supportsDropping);
+          supportsDropping,
+          dataStreamsEndpoint);
     }
   }
 
@@ -156,7 +161,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      // This assignment is done outside of the loop to set metricsEndpoint to null if not found
+      // This is done outside of the loop to set metricsEndpoint to null if not found
       metricsEndpoint = foundMetricsEndpoint;
 
       for (String endpoint : traceEndpoints) {
@@ -165,6 +170,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           break;
         }
       }
+
+      String foundDatastreamsEndpoint = null;
+      for (String endpoint : dataStreamsEndpoints) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+          foundDatastreamsEndpoint = endpoint;
+          break;
+        }
+      }
+
+      // This is done outside of the loop to set dataStreamsEndpoint to null if not found
+      dataStreamsEndpoint = foundDatastreamsEndpoint;
 
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
@@ -210,6 +226,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String getTraceEndpoint() {
     return traceEndpoint;
+  }
+
+  public String getDataStreamsEndpoint() {
+    return dataStreamsEndpoint;
+  }
+
+  public boolean supportsDataStreams() {
+    return dataStreamsEndpoint != null;
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
