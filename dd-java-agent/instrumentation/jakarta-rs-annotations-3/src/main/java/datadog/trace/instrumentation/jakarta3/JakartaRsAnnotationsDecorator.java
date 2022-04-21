@@ -1,19 +1,31 @@
 package datadog.trace.instrumentation.jakarta3;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.api.Pair;
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.PathSegment;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -35,8 +47,8 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
 
   public static JakartaRsAnnotationsDecorator DECORATE = new JakartaRsAnnotationsDecorator();
 
-  private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>>
-      RESOURCE_NAMES = GenericClassValue.constructing(ConcurrentHashMap.class);
+  private static final ClassValue<ConcurrentHashMap<Method, MethodDetails>> RESOURCE_NAMES =
+      GenericClassValue.constructing(ConcurrentHashMap.class);
 
   @Override
   protected String[] instrumentationNames() {
@@ -54,26 +66,85 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
   }
 
   public void onJakartaRsSpan(
-      final AgentSpan span, final AgentSpan parent, final Class<?> target, final Method method) {
+      final AgentSpan span,
+      final AgentSpan parent,
+      final Class<?> target,
+      final Method method,
+      final Object[] arguments) {
 
-    final Pair<CharSequence, CharSequence> httpMethodAndRoute =
-        getHttpMethodAndRoute(target, method);
+    final MethodDetails methodDetails = getMethodDetails(target, method);
     span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
     // When jakarta-rs is the root, we want to name using the path, otherwise use the class/method.
     final boolean isRootScope = parent == null;
     if (isRootScope) {
-      HTTP_RESOURCE_DECORATOR.withRoute(
-          span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+      HTTP_RESOURCE_DECORATOR.withRoute(span, methodDetails.method, methodDetails.route);
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
       if (parent == parent.getLocalRootSpan()) {
         parent.setTag(Tags.COMPONENT, "jakarta-rs");
-        HTTP_RESOURCE_DECORATOR.withRoute(
-            parent, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+        HTTP_RESOURCE_DECORATOR.withRoute(parent, methodDetails.method, methodDetails.route);
       }
     }
+
+    maybePublishPathParameters(span, arguments, methodDetails);
+  }
+
+  private void maybePublishPathParameters(
+      AgentSpan span, Object[] arguments, MethodDetails methodDetails) {
+    if (arguments == null || methodDetails.pathParameters.isEmpty()) {
+      return;
+    }
+
+    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    BiFunction<RequestContext<Object>, Map<String, ?>, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestPathParams());
+    RequestContext<Object> requestContext = span.getRequestContext();
+    if (requestContext == null || callback == null) {
+      return;
+    }
+
+    Map<String, ?> pathParams = buildPathParams(methodDetails.pathParameters, arguments);
+    callback.apply(requestContext, pathParams);
+  }
+
+  private Map<String, ?> buildPathParams(Map<String, Integer> pathParamSpec, Object[] arguments) {
+    Map<String, Object> pathParams = new HashMap<>();
+    for (Map.Entry<String, Integer> e : pathParamSpec.entrySet()) {
+      Object newValue = convertValue(arguments[e.getValue()]);
+      pathParams.put(e.getKey(), newValue);
+    }
+    return pathParams;
+  }
+
+  private Object convertValue(Object orig) {
+    if (orig instanceof String) {
+      return orig;
+    }
+    if (orig instanceof List) {
+      List<Object> newList = new ArrayList<>(((List<?>) orig).size());
+      for (Object o : (List<?>) orig) {
+        newList.add(convertValue(o));
+      }
+      return newList;
+    }
+    if (orig instanceof PathSegment) {
+      PathSegment seg = (PathSegment) orig;
+      String path = seg.getPath();
+      MultivaluedMap<String, String> matrixParameters = seg.getMatrixParameters();
+      if (matrixParameters == null || matrixParameters.isEmpty()) {
+        return path;
+      }
+      if (path == null || path.isEmpty()) {
+        return matrixParameters;
+      }
+      Map<String, Object> ret = new HashMap<>();
+      ret.put("path", path);
+      ret.put("matrixParameters", matrixParameters);
+      return ret;
+    }
+    return orig.toString();
   }
 
   /**
@@ -82,11 +153,10 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
    *
    * @return The result can be an empty string but will never be {@code null}.
    */
-  private Pair<CharSequence, CharSequence> getHttpMethodAndRoute(
-      final Class<?> target, final Method method) {
-    Map<Method, Pair<CharSequence, CharSequence>> classMap = RESOURCE_NAMES.get(target);
-    Pair<CharSequence, CharSequence> httpMethodAndRoute = classMap.get(method);
-    if (httpMethodAndRoute == null) {
+  private MethodDetails getMethodDetails(final Class<?> target, final Method method) {
+    Map<Method, MethodDetails> classMap = RESOURCE_NAMES.get(target);
+    MethodDetails methodDetails = classMap.get(method);
+    if (methodDetails == null) {
       String httpMethod = null;
       Path methodPath = null;
       final Path classPath = findClassPath(target);
@@ -111,12 +181,33 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
           }
         }
       }
-      httpMethodAndRoute =
-          Pair.<CharSequence, CharSequence>of(httpMethod, buildRoutePath(classPath, methodPath));
-      classMap.put(method, httpMethodAndRoute);
+      String route = buildRoutePath(classPath, methodPath);
+      methodDetails = new MethodDetails(httpMethod, route, findPathParameters(method));
+      classMap.put(method, methodDetails);
     }
 
-    return httpMethodAndRoute;
+    return methodDetails;
+  }
+
+  private static Map<String, Integer> findPathParameters(Method method) {
+    Map<String, Integer> result = Collections.emptyMap();
+
+    Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+    for (int i = 0; i < parameterAnnotations.length; i++) {
+      Annotation anns[] = parameterAnnotations[i];
+      for (Annotation a : anns) {
+        if (!PathParam.class.isAssignableFrom(a.getClass())) {
+          continue;
+        }
+        if (result.isEmpty()) {
+          result = new HashMap<>();
+        }
+
+        String name = ((PathParam) a).value();
+        result.put(name, i);
+      }
+    }
+    return result;
   }
 
   private String locateHttpMethod(final Method method) {
@@ -196,5 +287,18 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
     }
 
     return route.toString().trim();
+  }
+
+  public static class MethodDetails {
+    private final CharSequence method;
+    private final CharSequence route;
+    private final Map<String, Integer> pathParameters;
+
+    public MethodDetails(
+        CharSequence method, CharSequence route, Map<String, Integer> pathParameters) {
+      this.method = method;
+      this.route = route;
+      this.pathParameters = pathParameters;
+    }
   }
 }

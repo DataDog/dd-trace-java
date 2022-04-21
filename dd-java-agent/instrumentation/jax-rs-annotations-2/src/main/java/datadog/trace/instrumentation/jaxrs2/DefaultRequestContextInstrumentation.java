@@ -27,7 +27,8 @@ import net.bytebuddy.asm.Advice;
 public class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
   public static class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope createGenericSpan(@Advice.This final ContainerRequestContext context) {
+    public static AgentScope createGenericSpan(
+        @Advice.This final ContainerRequestContext context, @Advice.AllArguments Object[] args) {
 
       if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null) {
         final AgentSpan parent = activeSpan();
@@ -51,7 +52,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
         scope.setAsyncPropagation(true);
 
         DECORATE.afterStart(span);
-        DECORATE.onJaxRsSpan(span, parent, filterClass, method);
+        DECORATE.onJaxRsSpan(span, parent, filterClass, method, args);
 
         return scope;
       }

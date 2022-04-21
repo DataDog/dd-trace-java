@@ -61,6 +61,7 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
       "datadog.trace.agent.tooling.ClassHierarchyIterable",
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JakartaRsAnnotationsDecorator",
+      packageName + ".JakartaRsAnnotationsDecorator$MethodDetails",
     };
   }
 
@@ -113,7 +114,7 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
 
       final AgentSpan span = startSpan(JAKARTA_ENDPOINT_OPERATION_NAME);
       span.setMeasured(true);
-      DECORATE.onJakartaRsSpan(span, parent, target.getClass(), method);
+      DECORATE.onJakartaRsSpan(span, parent, target.getClass(), method, args);
       DECORATE.afterStart(span);
 
       final AgentScope scope = activateSpan(span);

@@ -51,7 +51,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
         scope.setAsyncPropagation(true);
 
         DECORATE.afterStart(span);
-        DECORATE.onJakartaRsSpan(span, parent, filterClass, method);
+        DECORATE.onJakartaRsSpan(span, parent, filterClass, method, null);
 
         return scope;
       }

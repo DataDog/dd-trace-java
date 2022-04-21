@@ -55,6 +55,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
       "datadog.trace.agent.tooling.ClassHierarchyIterable",
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JaxRsAnnotationsDecorator",
+      packageName + ".JaxRsAnnotationsDecorator$MethodDetails",
     };
   }
 
@@ -80,13 +81,15 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameSpan(
-        @Advice.This final Object target, @Advice.Origin final Method method) {
+        @Advice.This final Object target,
+        @Advice.Origin final Method method,
+        @Advice.AllArguments Object[] arguments) {
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
       final AgentSpan span = startSpan(JAX_ENDPOINT_OPERATION_NAME);
       span.setMeasured(true);
-      DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
+      DECORATE.onJaxRsSpan(span, parent, target.getClass(), method, arguments);
       DECORATE.afterStart(span);
 
       final AgentScope scope = activateSpan(span);

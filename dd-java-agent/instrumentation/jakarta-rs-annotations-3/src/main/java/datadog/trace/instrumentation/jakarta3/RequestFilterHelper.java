@@ -32,11 +32,11 @@ public class RequestFilterHelper {
         scope.setAsyncPropagation(true);
 
         DECORATE.afterStart(span);
-        DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);
+        DECORATE.onJakartaRsSpan(span, parent, resourceClass, method, null);
 
         return scope;
       } else {
-        DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);
+        DECORATE.onJakartaRsSpan(span, parent, resourceClass, method, null);
         return null;
       }
     } else {

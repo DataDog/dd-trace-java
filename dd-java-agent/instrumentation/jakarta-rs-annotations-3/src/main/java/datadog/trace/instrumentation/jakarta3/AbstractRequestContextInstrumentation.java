@@ -34,6 +34,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
       "datadog.trace.agent.tooling.ClassHierarchyIterable",
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JakartaRsAnnotationsDecorator",
+      packageName + ".JakartaRsAnnotationsDecorator$MethodDetails",
       packageName + ".RequestFilterHelper",
     };
   }

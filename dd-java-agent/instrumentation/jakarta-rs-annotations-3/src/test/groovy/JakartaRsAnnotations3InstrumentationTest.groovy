@@ -1,7 +1,18 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.function.BiFunction
+import datadog.trace.api.function.Supplier
+import datadog.trace.api.gateway.CallbackProvider
+import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.IGSpanInfo
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator
-
+import groovy.transform.CompileStatic
 import jakarta.ws.rs.DELETE
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.HEAD
@@ -9,10 +20,55 @@ import jakarta.ws.rs.OPTIONS
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.PUT
 import jakarta.ws.rs.Path
+import jakarta.ws.rs.PathParam
+import jakarta.ws.rs.core.MultivaluedMap
+import jakarta.ws.rs.core.PathSegment
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.gateway.Events.EVENTS
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class JakartaRsAnnotations3InstrumentationTest extends AgentTestRunner {
+
+  @CompileStatic
+  def setupSpec() {
+    // Register the Instrumentation Gateway callbacks
+    def ig = get().instrumentationGateway()
+    Events<IGCallbacks.Context> events = Events.get()
+    ig.registerCallback(events.requestStarted(), IGCallbacks.REQUEST_STARTED_CB)
+    ig.registerCallback(events.requestEnded(), IGCallbacks.REQUEST_ENDED_CB)
+    ig.registerCallback(events.requestPathParams(), IGCallbacks.REQUEST_PARAMS_CB)
+  }
+
+
+  @CompileStatic
+  class IGCallbacks {
+    static class Context {
+      Object pathParams
+    }
+
+    static final Supplier<Flow<Context>> REQUEST_STARTED_CB =
+    ({
+      ->
+      new Flow.ResultFlow<Context>(new Context())
+    } as Supplier<Flow<Context>>)
+
+    static final BiFunction<RequestContext<Context>, IGSpanInfo, Flow<Void>> REQUEST_ENDED_CB =
+    ({ RequestContext<Context> rqCtxt, IGSpanInfo info ->
+      (info as AgentSpan).setTag('path_params', rqCtxt.data.pathParams)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, IGSpanInfo, Flow<Void>>)
+
+    static final BiFunction<RequestContext<Context>, Map<String, ?>, Flow<Void>> REQUEST_PARAMS_CB = { RequestContext<Context> rqCtxt, Map<String, ?> map ->
+      if (map && !map.empty) {
+        def context = rqCtxt.data
+        context.pathParams = map
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext<Context>, Map<String, ?>, Flow<Void>>
+  }
 
   def "instrumentation can be used as root span and resource is set to METHOD PATH"() {
     setup:
@@ -38,6 +94,43 @@ class JakartaRsAnnotations3InstrumentationTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  static class PathSegmentImpl implements PathSegment {
+    String path
+    MultivaluedMap<String, String> matrixParameters
+  }
+
+  def 'path segments are published'() {
+    setup:
+    CallbackProvider cbp = AgentTracer.get().instrumentationGateway()
+    Supplier<Flow<Object>> startedCB = cbp.getCallback(EVENTS.requestStarted())
+    IGCallbacks.Context requestContextData = startedCB.get().result
+    TagContext tagContext = new TagContext()
+      .withRequestContextData(requestContextData)
+
+    when:
+    AgentSpan span = startSpan('top_span', tagContext, true)
+    span.resourceName = 'resource name'
+    span.spanType = 'web'
+    AgentScope scope = activateSpan(span)
+    try {
+      new Object() {
+          @POST
+          @Path("/{param1}/{param2}/{others: .*}")
+          void call(@PathParam("param1") PathSegment segment,
+            @PathParam("param2") int id, @PathParam("others") List<PathSegment> others) {
+          }
+        }.call(new PathSegmentImpl(path: 'foo'), 42, [new PathSegmentImpl(path: 'bar')])
+    } finally {
+      cbp.getCallback(EVENTS.requestEnded()).apply(span.requestContext, span)
+      span.finish()
+      scope.close()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    requestContextData.pathParams == [param1: 'foo', others: ['bar'], param2: '42']
   }
 
   def "span named '#name' from annotations on class when is not root span"() {
