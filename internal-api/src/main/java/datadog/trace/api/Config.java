@@ -93,6 +93,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
@@ -511,6 +512,7 @@ public class Config {
 
   private String env;
   private String version;
+  private final String primaryTag;
 
   private final ConfigProvider configProvider;
 
@@ -661,6 +663,8 @@ public class Config {
 
     spanTags = configProvider.getMergedMap(SPAN_TAGS);
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
+
+    primaryTag = configProvider.getString(PRIMARY_TAG);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
@@ -1701,6 +1705,10 @@ public class Config {
         serviceName,
         getVersion(),
         LANGUAGE_TAG_VALUE);
+  }
+
+  public String getPrimaryTag() {
+    return primaryTag;
   }
 
   public Set<String> getMetricsIgnoredResources() {

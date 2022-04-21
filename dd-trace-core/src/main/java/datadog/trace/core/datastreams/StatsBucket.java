@@ -22,11 +22,7 @@ public class StatsBucket {
     if (statsGroup == null) {
       statsGroup =
           new StatsGroup(
-              statsPoint.getType(),
-              statsPoint.getGroup(),
-              statsPoint.getTopic(),
-              statsPoint.getHash(),
-              statsPoint.getParentHash());
+              statsPoint.getEdgeTags(), statsPoint.getHash(), statsPoint.getParentHash());
       hashToGroup.put(statsPoint.getHash(), statsGroup);
     }
 

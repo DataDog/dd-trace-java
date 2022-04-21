@@ -4,8 +4,10 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.core.DDTraceCoreInfo
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okio.BufferedSource
@@ -58,9 +60,12 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       supportsDataStreams() >> true
     }
 
+    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java")
+
     def fakeConfig = Stub(Config) {
       getAgentUrl() >> server.address.toString()
-      getEnv() >> "test"
+      getWellKnownTags() >> wellKnownTags
+      getPrimaryTag() >> "region-1"
     }
 
     def sharedCommObjects = new SharedCommunicationObjects()
@@ -73,13 +78,13 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def checkpointer = new DefaultDataStreamsCheckpointer(fakeConfig, sharedCommObjects, timeSource)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "", 9, 0, timeSource.currentTimeNanos, 0, 0))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint([], 9, 0, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -99,11 +104,17 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 3
+    assert unpacker.unpackMapHeader() == 6
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
     assert unpacker.unpackString() == Config.get().getServiceName()
+    assert unpacker.unpackString() == "Lang"
+    assert unpacker.unpackString() == "java"
+    assert unpacker.unpackString() == "PrimaryTag"
+    assert unpacker.unpackString() == "region-1"
+    assert unpacker.unpackString() == "TracerVersion"
+    assert unpacker.unpackString() == DDTraceCoreInfo.VERSION
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2  // 2 time buckets
 
@@ -140,9 +151,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackLong() == 2
         assert unpacker.unpackString() == "EdgeTags"
         assert unpacker.unpackArrayHeader() == 3
-        assert unpacker.unpackString() == "topic:testTopic"
-        assert unpacker.unpackString() == "group:testGroup"
         assert unpacker.unpackString() == "type:testType"
+        assert unpacker.unpackString() == "group:testGroup"
+        assert unpacker.unpackString() == "topic:testTopic"
       }
     }
 
@@ -169,9 +180,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackLong() == (hash == 1 ? 2 : 4)
       assert unpacker.unpackString() == "EdgeTags"
       assert unpacker.unpackArrayHeader() == 3
-      assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
-      assert unpacker.unpackString() == "group:testGroup"
       assert unpacker.unpackString() == "type:testType"
+      assert unpacker.unpackString() == "group:testGroup"
+      assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
     }
 
     return true
