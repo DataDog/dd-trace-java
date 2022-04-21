@@ -11,6 +11,7 @@ import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
 import javax.ws.rs.POST
 import javax.ws.rs.Path
+import javax.ws.rs.PathParam
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.ContainerResponseContext
@@ -27,6 +28,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -92,6 +95,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint == PATH_PARAM) {
+      'GET /path/?/param'
+    } else {
+      super.expectedResourceName(endpoint, method, address)
+    }
+  }
+
+  @Override
   boolean testRequestBody() {
     true
   }
@@ -104,6 +116,16 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   @Override
   boolean testBodyJson() {
     true
+  }
+
+  @Override
+  String testPathParam() {
+    true
+  }
+
+  @Override
+  Map<String, ?> expectedIGPathParams() {
+    [id: '123']
   }
 
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
@@ -183,6 +205,14 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response query_encoded_both(@QueryParam("some") String param) {
       controller(QUERY_ENCODED_BOTH) {
         Response.status(QUERY_ENCODED_BOTH.status).entity("some=$param".toString()).build()
+      }
+    }
+
+    @GET
+    @Path('path/{id: \\d+}/param')
+    String param(@PathParam('id') int id) {
+      controller(PATH_PARAM) {
+        id as String
       }
     }
 
