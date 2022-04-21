@@ -215,6 +215,7 @@ public final class ClassNameTrie {
 
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
+    private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
 
     private final List<String> keys = new ArrayList<>();
     private final StringBuilder values = new StringBuilder();
@@ -245,6 +246,16 @@ public final class ClassNameTrie {
         keys.add(index, key);
         values.insert(index, value);
       } // else ignore class names that already exist in the trie
+    }
+
+    /** Reads a class-name mapping file into the current builder */
+    public void readClassNameMapping(Path triePath) throws IOException {
+      for (String l : Files.readAllLines(triePath, StandardCharsets.UTF_8)) {
+        Matcher m = MAPPING_LINE.matcher(l);
+        if (m.find()) {
+          put(m.group(2), Integer.parseInt(m.group(1)));
+        }
+      }
     }
 
     public ClassNameTrie buildTrie() {
@@ -379,8 +390,6 @@ public final class ClassNameTrie {
 
   /** Generates Java source for a trie described as a series of "{number} {class-name}" lines. */
   public static class JavaGenerator {
-    private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
-
     public static void main(String[] args) throws IOException {
       if (args.length < 2) {
         throw new IllegalArgumentException("Expected: trie-dir java-dir [file.trie ...]");
@@ -423,12 +432,7 @@ public final class ClassNameTrie {
     private static void generateJavaFile(
         Path triePath, Path javaPath, String pkgName, String className) throws IOException {
       ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
-      for (String l : Files.readAllLines(triePath, StandardCharsets.UTF_8)) {
-        Matcher m = MAPPING_LINE.matcher(l);
-        if (m.find()) {
-          builder.put(m.group(2), Integer.parseInt(m.group(1)));
-        }
-      }
+      builder.readClassNameMapping(triePath);
       List<String> lines = new ArrayList<>();
       if (!pkgName.isEmpty()) {
         lines.add("package " + pkgName + ';');
