@@ -378,7 +378,7 @@ public final class ClassNameTrie {
   }
 
   /** Generates Java source for a trie described as a series of "{number} {class-name}" lines. */
-  public static class Generator {
+  public static class JavaGenerator {
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
 
     public static void main(String[] args) throws IOException {

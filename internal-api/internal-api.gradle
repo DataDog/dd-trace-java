@@ -56,7 +56,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentThreadFactory",
   "datadog.trace.util.AgentThreadFactory.1",
   "datadog.trace.util.ClassNameTrie.Builder",
-  "datadog.trace.util.ClassNameTrie.Generator",
+  "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
 ]
 
