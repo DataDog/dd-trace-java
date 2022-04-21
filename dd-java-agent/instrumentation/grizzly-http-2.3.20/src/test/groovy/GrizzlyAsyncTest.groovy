@@ -4,7 +4,6 @@ import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.POST
 import javax.ws.rs.Path
-import javax.ws.rs.PathParam
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.AsyncResponse
 import javax.ws.rs.container.Suspended
@@ -19,7 +18,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -111,14 +109,6 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     Response query_encoded_both(@QueryParam("some") String param, @Suspended AsyncResponse ar) {
       controller(QUERY_ENCODED_BOTH) {
         ar.resume(Response.status(QUERY_ENCODED_BOTH.status).entity("some=$param".toString()).build())
-      }
-    }
-
-    @GET
-    @Path('path/{id: \\d+}/param')
-    Response param(@PathParam('id') int id, @Suspended AsyncResponse ar) {
-      controller(PATH_PARAM) {
-        ar.resume(Response.status(PATH_PARAM.status).entity(id as String).build())
       }
     }
 
