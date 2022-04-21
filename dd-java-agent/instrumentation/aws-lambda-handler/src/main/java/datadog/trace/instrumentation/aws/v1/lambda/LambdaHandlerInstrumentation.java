@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.asm.Advice.Enter;
 import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
@@ -15,9 +16,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.LambdaHandler;
+
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,67 +63,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   public String instrumentedType() {
     return this.instrumentedType;
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "com.squareup.moshi.JsonDataException",
-      "com.squareup.moshi.StandardJsonAdapters",
-      "com.squareup.moshi.JsonAdapter",
-      "com.squareup.moshi.internal.NonNullJsonAdapter",
-      "com.squareup.moshi.internal.NullSafeJsonAdapter",
-      "com.squareup.moshi.JsonReader",
-      "com.squareup.moshi.JsonWriter",
-      "com.squareup.moshi.JsonValueWriter",
-      "com.squareup.moshi.JsonValueReader",
-      "com.squareup.moshi.JsonAdapter$1",
-      "com.squareup.moshi.JsonAdapter$2",
-      "com.squareup.moshi.JsonAdapter$3",
-      "com.squareup.moshi.JsonAdapter$4",
-      "com.squareup.moshi.JsonAdapter$Factory",
-      "com.squareup.moshi.CollectionJsonAdapter",
-      "com.squareup.moshi.CollectionJsonAdapter$1",
-      "com.squareup.moshi.CollectionJsonAdapter$2",
-      "com.squareup.moshi.CollectionJsonAdapter$3",
-      "com.squareup.moshi.MapJsonAdapter",
-      "com.squareup.moshi.MapJsonAdapter$1",
-      "com.squareup.moshi.ArrayJsonAdapter",
-      "com.squareup.moshi.ArrayJsonAdapter$1",
-      "com.squareup.moshi.ClassJsonAdapter",
-      "com.squareup.moshi.ClassJsonAdapter$1",
-      "com.squareup.moshi.Types",
-      "com.squareup.moshi.StandardJsonAdapters$1",
-      "com.squareup.moshi.StandardJsonAdapters$2",
-      "com.squareup.moshi.StandardJsonAdapters$3",
-      "com.squareup.moshi.StandardJsonAdapters$4",
-      "com.squareup.moshi.StandardJsonAdapters$5",
-      "com.squareup.moshi.StandardJsonAdapters$6",
-      "com.squareup.moshi.StandardJsonAdapters$7",
-      "com.squareup.moshi.StandardJsonAdapters$8",
-      "com.squareup.moshi.StandardJsonAdapters$9",
-      "com.squareup.moshi.StandardJsonAdapters$10",
-      "com.squareup.moshi.StandardJsonAdapters$11",
-      "com.squareup.moshi.internal.Util",
-      "com.squareup.moshi.Moshi",
-      "com.squareup.moshi.Moshi$LookupChain",
-      "com.squareup.moshi.Moshi$Lookup",
-      "com.squareup.moshi.JsonClass",
-      "com.squareup.moshi.ClassFactory",
-      "com.squareup.moshi.ClassFactory$1",
-      "com.squareup.moshi.ClassFactory$2",
-      "com.squareup.moshi.ClassFactory$3",
-      "com.squareup.moshi.ClassFactory$4",
-      "com.squareup.moshi.Json",
-      "com.squareup.moshi.JsonReader$Options",
-      "com.squareup.moshi.JsonUtf8Writer",
-      "com.squareup.moshi.StandardJsonAdapters$ObjectJsonAdapter",
-      "com.squareup.moshi.ClassJsonAdapter$FieldBinding",
-      "com.squareup.moshi.internal.Util$ParameterizedTypeImpl",
-      "com.squareup.moshi.Moshi$Builder",
-      "com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent",
-      "datadog.trace.agent.core.LambdaHandler"
-    };
-  }
+  
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -148,11 +90,11 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @This final Object that,
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
-      DummyLambdaContext lambdaSpanContext = LambdaHandler.notifyStartInvocation(event);
-      if (null == lambdaSpanContext) {
+      DummyLambdaContext lambdaContext = AgentTracer.get().notifyExtensionStart(event);
+      if (null == lambdaContext) {
         return null;
       }
-      AgentSpan span = startSpan(UTF8BytesString.create("aws.lambda"), lambdaSpanContext);
+      AgentSpan span = startSpan(UTF8BytesString.create("aws.lambda"), lambdaContext);
       final AgentScope scope = activateSpan(span);
       return scope;
     }
@@ -162,7 +104,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Origin String method,
         @Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable) {
-      LambdaHandler.notifyEndInvocation(null != throwable);
+        AgentTracer.get().notifyExtensionEnd(null != throwable);
       if (scope == null) {
         return;
       }

@@ -179,6 +179,9 @@ public class AgentTracer {
     InstrumentationGateway instrumentationGateway();
 
     void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic);
+
+    DummyLambdaContext notifyExtensionStart(Object event);
+    void notifyExtensionEnd(boolean isError);
   }
 
   public interface SpanBuilder {
@@ -377,6 +380,14 @@ public class AgentTracer {
 
     @Override
     public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {}
+  
+    @Override
+    public DummyLambdaContext notifyExtensionStart(Object event) {
+      return null;
+    }
+
+    @Override
+    public void notifyExtensionEnd(boolean isError) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

@@ -57,6 +57,7 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -790,6 +791,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
     span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
+  }
+
+  @Override
+  public DummyLambdaContext notifyExtensionStart(Object event) {
+    System.out.println("notify extension start");
+    return LambdaHandler.notifyStartInvocation(event);
+  }
+
+  @Override
+  public void notifyExtensionEnd(boolean isError) {
+    System.out.println("notify extension end");
+    LambdaHandler.notifyEndInvocation(isError);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);

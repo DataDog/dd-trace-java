@@ -1,9 +1,10 @@
-package datadog.trace.core;
+package datadog.trace.lambda;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -12,6 +13,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Arrays;
 
 public class LambdaHandler {
 
@@ -29,22 +31,20 @@ public class LambdaHandler {
   private static final String FLUSH_INVOCATION = "http://127.0.0.1:8124/lambda/flush";
 
   private static final Long REQUEST_TIMEOUT_IN_S = 1L;
-  private static final MediaType JSON_MEDIA_TYPE = MediaType.parse("application/json");
 
-  private static final JsonAdapter<Object> ADAPTER =
-      new Moshi.Builder().build().adapter(Object.class);
+  private static final OkHttpClient httpClient = new OkHttpClient.Builder()
+      .retryOnConnectionFailure(true)
+      .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+      .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+      .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+      .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+      .build();
 
-  private static OkHttpClient httpClient =
-      new OkHttpClient.Builder()
-          .retryOnConnectionFailure(true)
-          .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .build();
+  private static final MediaType jsonMediaType = MediaType.parse("application/json");
+  private static final JsonAdapter<Object> adapter = new Moshi.Builder().build().adapter(Object.class);
 
   public static DummyLambdaContext notifyStartInvocation(Object event) {
-    RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, writeValueAsString(event));
+    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         httpClient
             .newCall(
@@ -73,7 +73,7 @@ public class LambdaHandler {
   }
 
   public static void notifyEndInvocation(boolean isError) {
-    RequestBody body = RequestBody.create(JSON_MEDIA_TYPE, "{}");
+    RequestBody body = RequestBody.create(jsonMediaType, "{}");
     Request.Builder builder =
         new Request.Builder().url(END_INVOCATION).addHeader(DATADOG_META_LANG, "java").post(body);
     if (isError) {
@@ -92,7 +92,7 @@ public class LambdaHandler {
     String json = "{}";
     if (null != obj) {
       try {
-        json = ADAPTER.toJson(obj);
+        json = adapter.toJson(obj);
       } catch (Exception e) {
         log.error("could not write the value into a string", e);
       }
