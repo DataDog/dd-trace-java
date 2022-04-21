@@ -21,7 +21,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.StatusLogger',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.SingleContinuation',
   'datadog.trace.core.SpanCorrelationImpl',
-  'datadog.trace.core.Base64Encoder'
+  'datadog.trace.core.Base64Encoder',
+  'datadog.trace.core.DDSpan.1'
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
