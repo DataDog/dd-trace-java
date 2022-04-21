@@ -32,22 +32,28 @@ final class Base64Encoder {
     return 4 * (srclen / 3) + (n == 0 ? 0 : n + 1);
   }
 
+  private int paddedLength(int len) {
+    return len == 0 ? 0 : (((len - 1) / 4) + 1) * 4;
+  }
+
   public byte[] encode(byte[] src) {
     int len = outLength(src.length); // dst array size
+    int paddedLen = paddedLength(len); // adjust for padding
     int offset = len - src.length;
-    byte[] dst = new byte[len];
+    byte[] dst = new byte[paddedLen];
     System.arraycopy(src, 0, dst, offset, src.length);
-    int ret = encode0(dst, offset, dst.length, dst);
-    if (ret < len) {
-      Arrays.fill(dst, ret, len, (byte) '=');
+    int ret = encode0(dst, offset, len, dst);
+    if (ret < paddedLen) {
+      Arrays.fill(dst, ret, paddedLen, (byte) '=');
     }
     return dst;
   }
 
   public ByteBuffer encode(ByteBuffer buffer) {
-    int len = outLength(buffer.remaining());
+    int len = outLength(buffer.remaining()); // dst array size
+    int paddedLen = paddedLength(len); // adjust for padding
     int offset = len - buffer.remaining();
-    byte[] dst = new byte[len];
+    byte[] dst = new byte[paddedLen];
     int ret = 0;
     if (buffer.hasArray()) {
       System.arraycopy(
@@ -56,13 +62,13 @@ final class Base64Encoder {
           dst,
           offset,
           buffer.remaining());
-      ret = encode0(dst, offset, dst.length, dst);
+      ret = encode0(dst, offset, len, dst);
     } else {
       buffer.get(dst, offset, buffer.remaining());
-      ret = encode0(dst, offset, dst.length, dst);
+      ret = encode0(dst, offset, len, dst);
     }
-    if (ret < len) {
-      Arrays.fill(dst, ret, len, (byte) '=');
+    if (ret < paddedLen) {
+      Arrays.fill(dst, ret, paddedLen, (byte) '=');
     }
     return ByteBuffer.wrap(dst);
   }

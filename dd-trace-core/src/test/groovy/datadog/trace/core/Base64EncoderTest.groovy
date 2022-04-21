@@ -1,6 +1,7 @@
 package datadog.trace.core
 
 import datadog.trace.test.util.DDSpecification
+import org.apache.commons.codec.binary.Base64
 
 import java.nio.ByteBuffer
 
@@ -9,8 +10,11 @@ class Base64EncoderTest extends DDSpecification {
     setup:
     def arr = new byte[0]
 
-    expect:
-    arr == Base64Encoder.INSTANCE.encode(arr)
+    when:
+    def encoded = Base64Encoder.INSTANCE.encode(arr)
+
+    then:
+    arr == Base64.decodeBase64(encoded)
   }
 
   def "encode array exact"() {
@@ -21,7 +25,7 @@ class Base64EncoderTest extends DDSpecification {
     def encoded = Base64Encoder.INSTANCE.encode(arr)
 
     then:
-    arr == Base64.getDecoder().decode(encoded)
+    arr == Base64.decodeBase64(encoded)
   }
 
   def "encode array with remainder"() {
@@ -32,7 +36,7 @@ class Base64EncoderTest extends DDSpecification {
     def encoded = Base64Encoder.INSTANCE.encode(arr)
 
     then:
-    arr == Base64.getDecoder().decode(encoded)
+    arr == Base64.decodeBase64(encoded)
   }
 
   def "encode wrapped byte buffer exact"() {
@@ -44,7 +48,7 @@ class Base64EncoderTest extends DDSpecification {
     def encoded = Base64Encoder.INSTANCE.encode(buf)
 
     then:
-    arr == Base64.getDecoder().decode(encoded).array()
+    arr == Base64.decodeBase64(encoded.array())
   }
 
   def "encode wrapped byte buffer with remainder"() {
@@ -56,6 +60,6 @@ class Base64EncoderTest extends DDSpecification {
     def encoded = Base64Encoder.INSTANCE.encode(buf)
 
     then:
-    arr == Base64.getDecoder().decode(encoded).array()
+    arr == Base64.decodeBase64(encoded.array())
   }
 }
