@@ -84,7 +84,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         continue;
       }
       Object prev = persistentData.putIfAbsent(address, value);
-      if (prev != null) {
+      if (prev == value) {
+        continue;
+      } else if (prev != null) {
         log.warn("Illegal attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
@@ -167,8 +169,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null) {
-      throw new IllegalStateException("Raw URI set already");
+    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
+      throw new IllegalStateException(
+          "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
   }
