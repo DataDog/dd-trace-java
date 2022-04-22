@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
+import datadog.trace.api.function.IntFunction;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
