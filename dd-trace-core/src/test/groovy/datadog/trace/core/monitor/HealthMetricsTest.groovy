@@ -2,8 +2,8 @@ package datadog.trace.core.monitor
 
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.common.writer.DDAgentWriter
-import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.RemoteApi
+import datadog.trace.common.writer.RemoteWriter
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 import spock.lang.Subject
@@ -18,11 +18,11 @@ class HealthMetricsTest extends DDSpecification {
   @Subject
   def healthMetrics = new HealthMetrics(statsD)
 
-  // This fails because DDAgentWriter isn't an interface and the mock doesn't prevent the call.
+  // This fails because RemoteWriter isn't an interface and the mock doesn't prevent the call.
   @Ignore
   def "test onStart"() {
     setup:
-    def writer = Mock(DDAgentWriter)
+    def writer = Mock(RemoteWriter)
 
     when:
     healthMetrics.onStart(writer)
@@ -151,10 +151,10 @@ class HealthMetricsTest extends DDSpecification {
 
     where:
     response << [
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
-      DDAgentApi.Response.failed(new Throwable()),
+      RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
+      RemoteApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
+      RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
+      RemoteApi.Response.failed(new Throwable()),
     ]
 
     traceCount = ThreadLocalRandom.current().nextInt(1, 100)
@@ -179,10 +179,10 @@ class HealthMetricsTest extends DDSpecification {
 
     where:
     response << [
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
-      DDAgentApi.Response.failed(new Throwable()),
+      RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
+      RemoteApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
+      RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
+      RemoteApi.Response.failed(new Throwable()),
     ]
 
     traceCount = ThreadLocalRandom.current().nextInt(1, 100)

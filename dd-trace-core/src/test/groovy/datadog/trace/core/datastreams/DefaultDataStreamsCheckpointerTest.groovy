@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.common.metrics.EventListener
@@ -19,6 +20,8 @@ import static java.util.concurrent.TimeUnit.SECONDS
   jvm.isJava8Compatible()
 })
 class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
+  def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "testing", "service", "version", "java")
+
   def "No payloads written if data streams not supported"() {
     given:
     def conditions = new PollingConditions(timeout: 1)
@@ -30,9 +33,9 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def sink = Mock(Sink)
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("test", "test", "test", 0, 0, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 0, 0, timeSource.currentTimeNanos, 0, 0))
     checkpointer.report()
 
     then:
@@ -57,9 +60,9 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -70,13 +73,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 1
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }
@@ -100,9 +102,9 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def bucketDuration = TimeUnit.MILLISECONDS.toNanos(200)
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, bucketDuration)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, bucketDuration)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(bucketDuration)
 
     then:
@@ -112,13 +114,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 1
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }
@@ -140,11 +141,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
     checkpointer.report()
 
@@ -155,13 +156,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 1
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }
@@ -183,11 +183,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
     checkpointer.close()
 
@@ -198,25 +198,23 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 2
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }
     }
 
-    with(payloadWriter.buckets.get(1))  {
+    with(payloadWriter.buckets.get(1)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic2"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic2"])
+        edgeTags.size() == 3
         hash == 3
         parentHash == 4
       }
@@ -237,11 +235,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -252,25 +250,23 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 2
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }
     }
 
-    with(payloadWriter.buckets.get(1))  {
+    with(payloadWriter.buckets.get(1)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic2"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic2"])
+        edgeTags.size() == 3
         hash == 3
         parentHash == 4
       }
@@ -292,14 +288,14 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when:
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10)))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic2", 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5)))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -310,13 +306,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 2
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
         pathwayLatency.max() >= 10
@@ -324,28 +319,26 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       }
     }
 
-    with(payloadWriter.buckets.get(1))  {
+    with(payloadWriter.buckets.get(1)) {
       groups.size() == 2
 
       List<StatsGroup> sortedGroups = new ArrayList<>(groups)
-      sortedGroups.sort({ it.topic })
+      sortedGroups.sort({ it.hash })
 
-      with (sortedGroups[0]) {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(sortedGroups[0]) {
         hash == 1
         parentHash == 2
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         pathwayLatency.max() >= 5
         pathwayLatency.max() < 5.1
       }
 
-      with (sortedGroups[1])  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic2"
+      with(sortedGroups[1]) {
         hash == 3
         parentHash == 4
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic2"])
+        edgeTags.size() == 3
         pathwayLatency.max() >= 2
         pathwayLatency.max() < 2.1
       }
@@ -368,9 +361,9 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when: "reporting points when data streams is not supported"
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -400,7 +393,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS)
     checkpointer.report()
 
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -410,13 +403,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 1
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }
@@ -439,11 +431,11 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     def payloadWriter = new CapturingPayloadWriter()
 
     when: "reporting points after a downgrade"
-    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def checkpointer = new DefaultDataStreamsCheckpointer(sink, features, timeSource, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.start()
     supportsDataStreaming = false
     checkpointer.onEvent(EventListener.EventType.DOWNGRADED, "")
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -460,7 +452,7 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS)
     checkpointer.report()
 
-    checkpointer.accept(new StatsPoint("testType", "testGroup", "testTopic", 1, 2, timeSource.currentTimeNanos, 0, 0))
+    checkpointer.accept(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, timeSource.currentTimeNanos, 0, 0))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     checkpointer.report()
 
@@ -470,13 +462,12 @@ class DefaultDataStreamsCheckpointerTest extends DDCoreSpecification {
       assert payloadWriter.buckets.size() == 1
     }
 
-    with(payloadWriter.buckets.get(0))  {
+    with(payloadWriter.buckets.get(0)) {
       groups.size() == 1
 
-      with (groups.iterator().next())  {
-        type == "testType"
-        group == "testGroup"
-        topic == "testTopic"
+      with(groups.iterator().next()) {
+        edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
+        edgeTags.size() == 3
         hash == 1
         parentHash == 2
       }

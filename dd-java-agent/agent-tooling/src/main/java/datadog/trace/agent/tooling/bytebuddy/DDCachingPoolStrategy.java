@@ -43,16 +43,13 @@ import org.slf4j.LoggerFactory;
  * used as a further safeguard.
  */
 public class DDCachingPoolStrategy {
-  public static final DDCachingPoolStrategy INSTANCE =
-      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
-
   private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
 
   static final int CONCURRENCY_LEVEL = 8;
   static final int LOADER_CAPACITY = 64;
-  static final int TYPE_CAPACITY = 64;
+  static final int TYPE_CAPACITY = Config.get().getResolverTypePoolSize();
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
@@ -63,6 +60,9 @@ public class DDCachingPoolStrategy {
           return new WeakReference<>(input);
         }
       };
+
+  public static final DDCachingPoolStrategy INSTANCE =
+      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
 
   /**
    * Cache of recent ClassLoader WeakReferences; used to...

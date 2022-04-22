@@ -1,17 +1,33 @@
 package com.datadog.appsec.event.data;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.UndeclaredThrowableException;
+import datadog.trace.api.Platform;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ObjectIntrospection {
   private static final int MAX_DEPTH = 20;
   private static final int MAX_ELEMENTS = 256;
+  private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
+
+  private static final Method trySetAccessible;
+
+  static {
+    // Method AccessibleObject.trySetAccessible introduced in Java 9
+    Method method = null;
+    if (Platform.isJavaVersionAtLeast(9)) {
+      try {
+        method = Field.class.getMethod("trySetAccessible");
+      } catch (NoSuchMethodException e) {
+        log.error("Can't get method 'Field.trySetAccessible'", e);
+      }
+    }
+    trySetAccessible = method;
+  }
 
   private ObjectIntrospection() {}
 
@@ -119,15 +135,40 @@ public final class ObjectIntrospection {
         if (name.equals("this$0")) {
           continue;
         }
-        f.setAccessible(true);
-        try {
-          newMap.put(f.getName(), guardedConversion(f.get(obj), depth + 1, elemsLeft));
-        } catch (IllegalAccessException e) {
-          throw new UndeclaredThrowableException(e);
+
+        if (setAccessible(f)) {
+          try {
+            newMap.put(f.getName(), guardedConversion(f.get(obj), depth + 1, elemsLeft));
+          } catch (IllegalAccessException e) {
+            log.error("Unable to get field value", e);
+          }
+        } else {
+          // One of fields is inaccessible, might be it's Strongly Encapsulated Internal class
+          // consider it as integral object without introspection
+          return obj.toString();
         }
       }
     }
 
     return newMap;
+  }
+
+  /**
+   * Try to make field accessible
+   *
+   * @param field
+   * @return
+   */
+  private static boolean setAccessible(Field field) {
+    try {
+      if (trySetAccessible != null) {
+        return (boolean) trySetAccessible.invoke(field);
+      }
+      field.setAccessible(true);
+      return true;
+    } catch (RuntimeException | IllegalAccessException | InvocationTargetException e) {
+      log.error("Unable to make field accessible", e);
+      return false;
+    }
   }
 }
