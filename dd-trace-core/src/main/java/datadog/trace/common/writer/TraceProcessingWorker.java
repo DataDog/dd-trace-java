@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.trace.common.writer;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
@@ -6,6 +6,9 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.trace.common.writer.ddagent.FlushEvent;
+import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;

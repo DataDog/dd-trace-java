@@ -15,7 +15,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
-import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
@@ -96,8 +95,8 @@ public class WriterFactory {
             .alwaysFlush(alwaysFlush)
             .build();
 
-    if (sampler instanceof DDAgentResponseListener) {
-      ddAgentWriter.addResponseListener((DDAgentResponseListener) sampler);
+    if (sampler instanceof RemoteResponseListener) {
+      ddAgentWriter.addResponseListener((RemoteResponseListener) sampler);
     }
 
     return ddAgentWriter;
