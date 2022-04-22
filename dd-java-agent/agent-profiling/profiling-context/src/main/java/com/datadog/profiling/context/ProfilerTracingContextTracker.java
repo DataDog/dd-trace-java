@@ -1,6 +1,6 @@
 package com.datadog.profiling.context;
 
-import datadog.trace.api.function.ObjToIntFunction;
+import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -223,7 +223,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   @Override
-  public int persist(ObjToIntFunction<ByteBuffer> dataConsumer) {
+  public int persist(ToIntFunction<ByteBuffer> dataConsumer) {
     if (dataConsumer == null) {
       return 0;
     }
@@ -245,7 +245,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         persisted.compareAndSet(EMPTY_DATA, data);
       }
     }
-    return dataConsumer.apply(data.duplicate());
+    return dataConsumer.applyAsInt(data.duplicate());
   }
 
   LongIterator pruneIntervals(LongSequence sequence) {

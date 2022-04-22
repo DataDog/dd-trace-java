@@ -1,6 +1,6 @@
 package datadog.trace.api.profiling;
 
-import datadog.trace.api.function.ObjToIntFunction;
+import datadog.trace.api.function.ToIntFunction;
 import java.nio.ByteBuffer;
 
 final class TestTracingContextTracker implements TracingContextTracker {
@@ -24,8 +24,8 @@ final class TestTracingContextTracker implements TracingContextTracker {
   }
 
   @Override
-  public int persist(ObjToIntFunction<ByteBuffer> dataConsumer) {
-    return dataConsumer.apply(null);
+  public int persist(ToIntFunction<ByteBuffer> dataConsumer) {
+    return dataConsumer.applyAsInt(null);
   }
 
   @Override

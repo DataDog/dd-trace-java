@@ -12,7 +12,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.function.ObjToIntFunction;
+import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -113,10 +113,10 @@ public class DDSpan
   private volatile TracingContextTracker tracingContextTracker;
   // custom function to persist tracing context in the span tag with minimum number of extra
   // allocations
-  private final ObjToIntFunction<ByteBuffer> tracingContextPersistor =
-      new ObjToIntFunction<ByteBuffer>() {
+  private final ToIntFunction<ByteBuffer> tracingContextPersistor =
+      new ToIntFunction<ByteBuffer>() {
         @Override
-        public int apply(ByteBuffer byteBuffer) {
+        public int applyAsInt(ByteBuffer byteBuffer) {
           String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
           UTF8BytesString encodedString =
               UTF8BytesString.create(Base64Encoder.INSTANCE.encode(byteBuffer));

@@ -1,22 +1,22 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.function.IntToObjFunction;
+import datadog.trace.api.function.IntFunction;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /** Sparse cache of values associated with a small integer */
 public final class RadixTreeCache<T> {
 
-  private static final IntToObjFunction<Integer> AUTOBOX =
-      new IntToObjFunction<Integer>() {
+  private static final IntFunction<Integer> AUTOBOX =
+      new IntFunction<Integer>() {
         @Override
         public Integer apply(int value) {
           return value;
         }
       };
 
-  private static final IntToObjFunction<UTF8BytesString> TO_STRING =
-      new IntToObjFunction<UTF8BytesString>() {
+  private static final IntFunction<UTF8BytesString> TO_STRING =
+      new IntFunction<UTF8BytesString>() {
         @Override
         public UTF8BytesString apply(int value) {
           return UTF8BytesString.create(Integer.toString(value));
@@ -42,9 +42,9 @@ public final class RadixTreeCache<T> {
   private final int mask;
 
   private final AtomicReferenceArray<Object[]> tree;
-  private final IntToObjFunction<T> mapper;
+  private final IntFunction<T> mapper;
 
-  public RadixTreeCache(int level1, int level2, IntToObjFunction<T> mapper, int... commonValues) {
+  public RadixTreeCache(int level1, int level2, IntFunction<T> mapper, int... commonValues) {
     this.tree = new AtomicReferenceArray<>(level1);
     this.mapper = mapper;
     this.level1 = level1;

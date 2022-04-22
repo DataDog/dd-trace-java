@@ -8,7 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
-import datadog.trace.api.function.IntToObjFunction;
+import datadog.trace.api.function.IntFunction;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
@@ -32,8 +32,8 @@ import org.jctools.counters.FixedSizeStripedLongCounter;
  */
 public class HealthMetrics implements AutoCloseable {
 
-  private static final IntToObjFunction<String[]> STATUS_TAGS =
-      new IntToObjFunction<String[]>() {
+  private static final IntFunction<String[]> STATUS_TAGS =
+      new IntFunction<String[]>() {
         @Override
         public String[] apply(int httpStatus) {
           return new String[] {"status:" + httpStatus};

@@ -1,6 +1,6 @@
 package datadog.trace.api.profiling;
 
-import datadog.trace.api.function.ObjToIntFunction;
+import datadog.trace.api.function.ToIntFunction;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +51,7 @@ public interface TracingContextTracker {
         }
 
         @Override
-        public int persist(ObjToIntFunction<ByteBuffer> dataConsumer) {
+        public int persist(ToIntFunction<ByteBuffer> dataConsumer) {
           return 0;
         }
 
@@ -94,7 +94,7 @@ public interface TracingContextTracker {
    */
   byte[] persist();
 
-  int persist(ObjToIntFunction<ByteBuffer> dataConsumer);
+  int persist(ToIntFunction<ByteBuffer> dataConsumer);
 
   /**
    * The tracker version - should be in sync with the binary blob format
