@@ -29,7 +29,6 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
-import java.util.HashMap
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
@@ -457,7 +456,6 @@ class TestHttpServer implements AutoCloseable {
         }
         req.orig.handled = true
       }
-
 
       void send(String body) {
         sendWithType(DEFAULT_TYPE, body)
