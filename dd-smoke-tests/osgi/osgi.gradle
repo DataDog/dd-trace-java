@@ -27,7 +27,7 @@ dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13'
 
   equinox 'org.eclipse.platform:org.eclipse.osgi:3.15.300'
-  felix 'org.apache.felix:org.apache.felix.framework:6.0.4'
+  felix 'org.apache.felix:org.apache.felix.framework:6.0.5'
 
   bundles 'org.ops4j.pax.logging:pax-logging-api:1.11.0'
   bundles 'com.google.guava:guava:20.0'

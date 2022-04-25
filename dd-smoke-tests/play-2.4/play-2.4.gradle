@@ -4,6 +4,8 @@ plugins {
 
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
+  // TODO Java 17: This version of play doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
 apply from: "$rootDir/gradle/java.gradle"

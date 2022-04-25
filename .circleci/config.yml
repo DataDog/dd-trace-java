@@ -39,7 +39,7 @@ save_cache_paths: &save_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+    testJvm: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15", "17" ]
 
 parameters:
   gradle_flags:

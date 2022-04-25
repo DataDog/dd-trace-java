@@ -362,6 +362,7 @@ tasks.withType(Test).configureEach {
     forkEvery 1
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
+    onlyIf { !project.rootProject.hasProperty("skipForkedTests") }
   } else {
     exclude("**/*ForkedTest*")
   }
