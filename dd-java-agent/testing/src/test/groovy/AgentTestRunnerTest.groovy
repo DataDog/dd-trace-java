@@ -17,6 +17,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_
 
 class AgentTestRunnerTest extends AgentTestRunner {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null
+  private static final boolean IS_AT_LEAST_JAVA_17 = new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
 
   @Shared
   private Class sharedSpanClass
@@ -59,6 +60,15 @@ class AgentTestRunnerTest extends AgentTestRunner {
               // The rate limiting sampler support is consciously compiled to Java 8 bytecode
               // The sampler will not be used unless JFR is available -> running on Java 8+
               // Simply ignore the error as the class will not be even attempted to get loaded on Java 7
+              break
+            }
+            // rethrow the exception otherwise
+            throw e
+          } catch (IllegalAccessError e) {
+            // A dirty hack to allow passing this test on Java 17
+            if (IS_AT_LEAST_JAVA_17 && info.getName() == "datadog.trace.bootstrap.instrumentation.rmi.ContextDispatcher") {
+              // The ContextDispatcher class implements a public interface sun.rmi.server.Dispatcher which
+              // is in a module that is not open under Java 17+
               break
             }
             // rethrow the exception otherwise

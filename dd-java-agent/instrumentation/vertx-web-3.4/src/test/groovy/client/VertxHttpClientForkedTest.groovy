@@ -9,11 +9,10 @@ import io.vertx.core.http.HttpClientResponse
 import io.vertx.core.http.HttpMethod
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
-@Timeout(10)
 class VertxHttpClientForkedTest extends HttpClientTest {
 
   @Override
@@ -47,7 +46,7 @@ class VertxHttpClientForkedTest extends HttpClientTest {
     }
     request.end()
 
-    return future.get().statusCode()
+    return future.get(10, TimeUnit.SECONDS).statusCode()
   }
 
   @Override

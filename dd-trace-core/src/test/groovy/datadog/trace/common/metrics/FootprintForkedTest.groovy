@@ -17,7 +17,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 @Requires({
   !System.getProperty("java.vendor").toUpperCase().contains("IBM") && isJavaVersionAtLeast(8)
 })
-class FootprintTest extends DDSpecification {
+class FootprintForkedTest extends DDSpecification {
 
   @Shared
   Random random = new Random(0)
