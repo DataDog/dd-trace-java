@@ -28,121 +28,121 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class LambdaHandlerTest extends DDCoreSpecification {
 
-    class TestObject {
+  class TestObject {
 
-        public String field1
-        public boolean field2
+    public String field1
+    public boolean field2
 
-        public TestObject() {
-            this.field1 = "toto"
-            this.field2 = true
-        }
+    public TestObject() {
+      this.field1 = "toto"
+      this.field2 = true
     }
+  }
 
-    def "test start invocation success"() {
-        given:
-        def server = httpServer {
-            handlers {
-                post("/lambda/start-invocation") {
-                    response
-                    .status(200)
-                    .addHeader("x-datadog-trace-id", "1234")
-                    .addHeader("x-datadog-span-id", "5678")
-                    .send()
-                }
-            }
+  def "test start invocation success"() {
+    given:
+    def server = httpServer {
+      handlers {
+        post("/lambda/start-invocation") {
+          response
+            .status(200)
+            .addHeader("x-datadog-trace-id", "1234")
+            .addHeader("x-datadog-span-id", "5678")
+            .send()
         }
-        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-        LambdaHandler.setAgentUrl(server.address.toString())
-
-        when:
-        def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
-        
-        then:
-        objTest.getTraceId().toString() == traceId
-        objTest.getSpanId().toString() == spanId
-
-        where:
-        traceId    | spanId      | obj
-        "1234"     | "5678"      | new TestObject()
+      }
     }
+    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+    LambdaHandler.setAgentUrl(server.address.toString())
 
-    def "test start invocation failure"() {
-        given:
-        def server = httpServer {
-            handlers {
-                post("/lambda/start-invocation") {
-                    response
-                    .status(500)
-                    .send()
-                }
-            }
+    when:
+    def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
+
+    then:
+    objTest.getTraceId().toString() == traceId
+    objTest.getSpanId().toString() == spanId
+
+    where:
+    traceId    | spanId      | obj
+    "1234"     | "5678"      | new TestObject()
+  }
+
+  def "test start invocation failure"() {
+    given:
+    def server = httpServer {
+      handlers {
+        post("/lambda/start-invocation") {
+          response
+            .status(500)
+            .send()
         }
-        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-        LambdaHandler.setAgentUrl(server.address.toString())
-
-        when:
-        def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
-        
-        then:
-        objTest == expected
-
-        where:
-        expected    | obj
-        null        | new TestObject()
+      }
     }
+    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+    LambdaHandler.setAgentUrl(server.address.toString())
 
-    def "test end invocation success"() {
-        given:
-        def server = httpServer {
-            handlers {
-                post("/lambda/end-invocation") {
-                    response
-                    .status(200)
-                    .send()
-                }
-            }
+    when:
+    def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
+
+    then:
+    objTest == expected
+
+    where:
+    expected    | obj
+    null        | new TestObject()
+  }
+
+  def "test end invocation success"() {
+    given:
+    def server = httpServer {
+      handlers {
+        post("/lambda/end-invocation") {
+          response
+            .status(200)
+            .send()
         }
-        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-        LambdaHandler.setAgentUrl(server.address.toString())
-
-        when:
-        def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
-        server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
-        
-        then:
-        result == expected
-
-        where:
-        expected  | headerValue     | boolValue
-        true      | "true"          | true
-        true      | null            | false
+      }
     }
+    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+    LambdaHandler.setAgentUrl(server.address.toString())
 
-    def "test end invocation failure"() {
-        given:
-        def server = httpServer {
-            handlers {
-                post("/lambda/end-invocation") {
-                    response
-                    .status(500)
-                    .send()
-                }
-            }
+    when:
+    def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
+    server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+
+    then:
+    result == expected
+
+    where:
+    expected  | headerValue     | boolValue
+    true      | "true"          | true
+    true      | null            | false
+  }
+
+  def "test end invocation failure"() {
+    given:
+    def server = httpServer {
+      handlers {
+        post("/lambda/end-invocation") {
+          response
+            .status(500)
+            .send()
         }
-        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-        LambdaHandler.setAgentUrl(server.address.toString())
-
-        when:
-        def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
-        
-        then:
-        result == expected
-        server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
-
-        where:
-        expected  | headerValue     | boolValue
-        false     | "true"          | true
-        false     | null            | false
+      }
     }
+    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+    LambdaHandler.setAgentUrl(server.address.toString())
+
+    when:
+    def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
+
+    then:
+    result == expected
+    server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+
+    where:
+    expected  | headerValue     | boolValue
+    false     | "true"          | true
+    false     | null            | false
+  }
 }

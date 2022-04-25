@@ -44,10 +44,10 @@ public class LambdaHandler {
 
   private static String BASE_URL = "http://127.0.0.1:8124";
 
-public static DummyLambdaContext notifyStartInvocation(OkHttpClient client, Object event) {
+  public static DummyLambdaContext notifyStartInvocation(OkHttpClient client, Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
-          getHttpClient(client)
+        getHttpClient(client)
             .newCall(
                 new Request.Builder()
                     .url(BASE_URL + START_INVOCATION)
@@ -76,7 +76,10 @@ public static DummyLambdaContext notifyStartInvocation(OkHttpClient client, Obje
   public static boolean notifyEndInvocation(OkHttpClient client, boolean isError) {
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
     Request.Builder builder =
-        new Request.Builder().url(BASE_URL + END_INVOCATION).addHeader(DATADOG_META_LANG, "java").post(body);
+        new Request.Builder()
+            .url(BASE_URL + END_INVOCATION)
+            .addHeader(DATADOG_META_LANG, "java")
+            .post(body);
     if (isError) {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
@@ -110,5 +113,4 @@ public static DummyLambdaContext notifyStartInvocation(OkHttpClient client, Obje
   public static void setAgentUrl(String agentUrl) {
     BASE_URL = agentUrl;
   }
-  
 }
