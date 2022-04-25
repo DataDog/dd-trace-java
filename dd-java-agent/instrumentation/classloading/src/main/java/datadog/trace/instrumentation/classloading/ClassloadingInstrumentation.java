@@ -34,7 +34,6 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ClassloadingInstrumentation() {
     super("classloading");
-    System.out.println("-> ClassloadingInstrumentation CTOR");
   }
 
   @Override
@@ -70,7 +69,6 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing
   public static class LoadClassAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(0) final String name) {
-      System.out.println("-> ENTER" + name);
       // we must access agent types used in the call-depth block like 'Constants' before entering it
       // - otherwise we risk loading these agent types with a non-zero call-depth, which will fail
       final String[] bootstrapPrefixes = Constants.BOOTSTRAP_PACKAGE_PREFIXES;
@@ -86,12 +84,10 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing
       try {
         for (final String prefix : bootstrapPrefixes) {
           if (name.startsWith(prefix)) {
-            System.out.println("loading : " + name);
             return Class.forName(name, false, null);
           }
         }
       } catch (final ClassNotFoundException e) {
-        System.out.println("[FAILURE]-------- loading : " + name);
         // bootstrap class not found, fall-back to original behaviour
       } finally {
         // need to reset it right away, not waiting until onExit()
