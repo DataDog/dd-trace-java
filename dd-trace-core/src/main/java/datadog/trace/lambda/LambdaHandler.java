@@ -24,13 +24,12 @@ public class LambdaHandler {
   private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
   private static final String DATADOG_INVOCATION_ERROR = "x-datadog-invocation-error";
 
-  private static final String START_INVOCATION = "http://127.0.0.1:8124/lambda/start-invocation";
-  private static final String END_INVOCATION = "http://127.0.0.1:8124/lambda/end-invocation";
-  private static final String FLUSH_INVOCATION = "http://127.0.0.1:8124/lambda/flush";
+  private static final String START_INVOCATION = "/lambda/start-invocation";
+  private static final String END_INVOCATION = "/lambda/end-invocation";
 
   private static final Long REQUEST_TIMEOUT_IN_S = 1L;
 
-  private static final OkHttpClient httpClient =
+  private static final OkHttpClient defaultHttpClient =
       new OkHttpClient.Builder()
           .retryOnConnectionFailure(true)
           .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
@@ -43,13 +42,15 @@ public class LambdaHandler {
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder().build().adapter(Object.class);
 
-  public static DummyLambdaContext notifyStartInvocation(Object event) {
+  private static String BASE_URL = "http://127.0.0.1:8124";
+
+public static DummyLambdaContext notifyStartInvocation(OkHttpClient client, Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
-        httpClient
+          getHttpClient(client)
             .newCall(
                 new Request.Builder()
-                    .url(START_INVOCATION)
+                    .url(BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
                     .post(body)
                     .build())
@@ -67,25 +68,27 @@ public class LambdaHandler {
         }
       }
     } catch (Throwable ignored) {
-      log.error("could not reach the extension, not injecting the context");
+      log.error("could not reach the extension");
     }
     return null;
   }
 
-  public static void notifyEndInvocation(boolean isError) {
+  public static boolean notifyEndInvocation(OkHttpClient client, boolean isError) {
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
     Request.Builder builder =
-        new Request.Builder().url(END_INVOCATION).addHeader(DATADOG_META_LANG, "java").post(body);
+        new Request.Builder().url(BASE_URL + END_INVOCATION).addHeader(DATADOG_META_LANG, "java").post(body);
     if (isError) {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
-    try (Response response = httpClient.newCall(builder.build()).execute()) {
+    try (Response response = getHttpClient(client).newCall(builder.build()).execute()) {
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
+        return true;
       }
     } catch (Exception e) {
       log.error("could not reach the extension, not injecting the context", e);
     }
+    return false;
   }
 
   public static String writeValueAsString(Object obj) {
@@ -99,4 +102,13 @@ public class LambdaHandler {
     }
     return json;
   }
+
+  private static OkHttpClient getHttpClient(OkHttpClient client) {
+    return (null == client) ? client : defaultHttpClient;
+  }
+
+  public static void setAgentUrl(String agentUrl) {
+    BASE_URL = agentUrl;
+  }
+  
 }

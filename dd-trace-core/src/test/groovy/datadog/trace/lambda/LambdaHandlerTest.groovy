@@ -1,85 +1,148 @@
-package datadog.trace.core
+package datadog.trace.lambda
 
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.server.http.HttpProxy
-import datadog.trace.agent.test.utils.OkHttpUtils
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.internal.http.HttpMethod
+
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.communication.http.OkHttpUtils
+import datadog.trace.api.Config
+import datadog.trace.api.time.ControllableTimeSource
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.core.test.DDCoreSpecification
+import okhttp3.HttpUrl
+import okio.BufferedSource
+import okio.GzipSource
+import okio.Okio
+import org.msgpack.core.MessagePack
+import org.msgpack.core.MessageUnpacker
 import spock.lang.AutoCleanup
 import spock.lang.Requires
 import spock.lang.Shared
+import spock.util.concurrent.PollingConditions
+
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_MILLIS
+import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static java.util.concurrent.TimeUnit.SECONDS
 
-/* Don't actually need AgentTestRunner, but it messes up the classloader for AgentTestRunnerTest if this runs first. */
+class LambdaHandlerTest extends DDCoreSpecification {
 
-@Requires({
-  !System.getProperty("java.vm.name").contains("IBM J9 VM")
-})
-class HttpProxyTest extends AgentTestRunner {
+    class TestObject {
 
-  @AutoCleanup
-  @Shared
-  def proxy = new HttpProxy()
+        public String field1
+        public boolean field2
 
-  @AutoCleanup
-  @Shared
-  def server = httpServer {
-    handlers {
-      get("/get") {
-        response.send("/get response")
-      }
-      post("/post") {
-        response.send("/post response")
-      }
-      put("/put") {
-        response.send("/put response")
-      }
-    }
-  }
-
-  @Shared
-  OkHttpClient client = OkHttpUtils.client(server, new ProxySelector() {
-    @Override
-    List<Proxy> select(URI uri) {
-      Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
+        public TestObject() {
+            this.field1 = "toto"
+            this.field2 = true
+        }
     }
 
-    @Override
-    void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-      getDefault().connectFailed(uri, sa, ioe)
+    def "test start invocation success"() {
+        given:
+        def server = httpServer {
+            handlers {
+                post("/lambda/start-invocation") {
+                    response
+                    .status(200)
+                    .addHeader("x-datadog-trace-id", "1234")
+                    .addHeader("x-datadog-span-id", "5678")
+                    .send()
+                }
+            }
+        }
+        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+        LambdaHandler.setAgentUrl(server.address.toString())
+
+        when:
+        def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
+        
+        then:
+        objTest.getTraceId().toString() == traceId
+        objTest.getSpanId().toString() == spanId
+
+        where:
+        traceId    | spanId      | obj
+        "1234"     | "5678"      | new TestObject()
     }
-  })
 
+    def "test start invocation failure"() {
+        given:
+        def server = httpServer {
+            handlers {
+                post("/lambda/start-invocation") {
+                    response
+                    .status(500)
+                    .send()
+                }
+            }
+        }
+        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+        LambdaHandler.setAgentUrl(server.address.toString())
 
-  def request(String path) {
-    return new Request.Builder().url(server.secureAddress.resolve(path).toURL())
-  }
+        when:
+        def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
+        
+        then:
+        objTest == expected
 
-  def "test proxy with #method call"() {
-    setup:
-    proxy.requestCount.set(0)
-    def req = request("/$method").method(method, reqBody).build()
-    def call = client.newCall(req)
+        where:
+        expected    | obj
+        null        | new TestObject()
+    }
 
-    when:
-    def response = call.execute()
+    def "test end invocation success"() {
+        given:
+        def server = httpServer {
+            handlers {
+                post("/lambda/end-invocation") {
+                    response
+                    .status(200)
+                    .send()
+                }
+            }
+        }
+        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+        LambdaHandler.setAgentUrl(server.address.toString())
 
-    then:
-    response.body().string() == "/$method response"
-    response.code() == 200
-    proxy.requestCount() == expectedCount
+        when:
+        def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
+        server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+        
+        then:
+        result == expected
 
-    where:
-    method | body        | expectedCount
-    "get"  | null        | 1
-    "post" | null        | 0 // same request as above from proxy perspective due to keep-alive
-    "post" | "some body" | 0 // same request as above from proxy perspective due to keep-alive
-    "put"  | "some body" | 0 // same request as above from proxy perspective due to keep-alive
+        where:
+        expected  | headerValue     | boolValue
+        true      | "true"          | true
+        true      | null            | false
+    }
 
-    reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
-  }
+    def "test end invocation failure"() {
+        given:
+        def server = httpServer {
+            handlers {
+                post("/lambda/end-invocation") {
+                    response
+                    .status(500)
+                    .send()
+                }
+            }
+        }
+        def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+        LambdaHandler.setAgentUrl(server.address.toString())
+
+        when:
+        def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
+        
+        then:
+        result == expected
+        server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+
+        where:
+        expected  | headerValue     | boolValue
+        false     | "true"          | true
+        false     | null            | false
+    }
 }

@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import java.util.HashMap
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
@@ -430,10 +431,16 @@ class TestHttpServer implements AutoCloseable {
     class ResponseApi {
       private static final String DEFAULT_TYPE = "text/plain;charset=utf-8"
       private int status = 200
+      private Map<String, String> headers = new HashMap<String, String>();
 
       ResponseApi status(int status) {
         this.status = status
         return this
+      }
+
+      ResponseApi addHeader(String headerName, String headerValue) {
+        this.headers.put(headerName, headerValue);
+        return this;
       }
 
       void send() {
@@ -442,12 +449,15 @@ class TestHttpServer implements AutoCloseable {
 
       void sendWithType(String contentType) {
         assert contentType != null
-
         assert !req.orig.handled
         req.orig.contentType = contentType
         resp.status = status
+        headers.each {
+          resp.addHeader(it.key, it.value)
+        }
         req.orig.handled = true
       }
+
 
       void send(String body) {
         sendWithType(DEFAULT_TYPE, body)
