@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -92,6 +93,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
@@ -184,6 +186,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DE
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -485,6 +488,7 @@ public class Config {
   private final boolean internalExitOnFailure;
 
   private final boolean resolverUseLoadClassEnabled;
+  private final int resolverTypePoolSize;
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
@@ -508,6 +512,7 @@ public class Config {
 
   private String env;
   private String version;
+  private final String primaryTag;
 
   private final ConfigProvider configProvider;
 
@@ -658,6 +663,8 @@ public class Config {
 
     spanTags = configProvider.getMergedMap(SPAN_TAGS);
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
+
+    primaryTag = configProvider.getString(PRIMARY_TAG);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
@@ -1008,6 +1015,8 @@ public class Config {
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+    resolverTypePoolSize =
+        configProvider.getInteger(RESOLVER_TYPE_POOL_SIZE, DEFAULT_RESOLVER_TYPE_POOL_SIZE);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -1635,6 +1644,10 @@ public class Config {
     return resolverUseLoadClassEnabled;
   }
 
+  public int getResolverTypePoolSize() {
+    return resolverTypePoolSize;
+  }
+
   public String getJdbcPreparedStatementClassName() {
     return jdbcPreparedStatementClassName;
   }
@@ -1692,6 +1705,10 @@ public class Config {
         serviceName,
         getVersion(),
         LANGUAGE_TAG_VALUE);
+  }
+
+  public String getPrimaryTag() {
+    return primaryTag;
   }
 
   public Set<String> getMetricsIgnoredResources() {
@@ -2478,6 +2495,8 @@ public class Config {
         + internalExitOnFailure
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
+        + ", resolverTypePoolSize="
+        + resolverTypePoolSize
         + ", jdbcPreparedStatementClassName='"
         + jdbcPreparedStatementClassName
         + '\''

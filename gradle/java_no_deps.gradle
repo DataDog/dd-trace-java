@@ -1,4 +1,5 @@
 import java.time.Duration
+import java.time.temporal.ChronoUnit
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -319,6 +320,9 @@ def getJavaHomePath(String path) {
   return javaHome.endsWith("jre") ? javaHome.parent : javaHome
 }
 
+// Force timeout after 9 minutes (CircleCI defaults will fail after 10 minutes without output)
+def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
+
 // Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
   if (project.findProperty("enableJunitPlatform") == true) {
@@ -362,7 +366,10 @@ tasks.withType(Test).configureEach {
     forkEvery 1
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
+    onlyIf { !project.rootProject.hasProperty("skipForkedTests") }
   } else {
     exclude("**/*ForkedTest*")
   }
+
+  timeout = testTimeoutDuration
 }

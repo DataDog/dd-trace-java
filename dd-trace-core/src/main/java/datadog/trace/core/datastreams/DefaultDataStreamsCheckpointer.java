@@ -8,6 +8,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
+import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,18 +34,21 @@ public class DefaultDataStreamsCheckpointer
     implements DataStreamsCheckpointer, AutoCloseable, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsCheckpointer.class);
 
-  static final long DEFAULT_BUCKET_DURATION_MILLIS = TimeUnit.SECONDS.toMillis(10);
-  static final long FEATURE_CHECK_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(5);
+  static final long DEFAULT_BUCKET_DURATION_NANOS = TimeUnit.SECONDS.toNanos(10);
+  static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
-  private static final StatsPoint REPORT = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
-  private static final StatsPoint POISON_PILL = new StatsPoint(null, null, null, 0, 0, 0, 0, 0);
+  private static final StatsPoint REPORT =
+      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
+  private static final StatsPoint POISON_PILL =
+      new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final long bucketDurationMillis;
+  private final WellKnownTags wellKnownTags;
+  private final long bucketDurationNanos;
   private final Thread thread;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsCheckpointer> cancellation;
   private volatile long nextFeatureCheck;
@@ -61,29 +66,33 @@ public class DefaultDataStreamsCheckpointer
             Collections.<String, String>emptyMap()),
         sharedCommunicationObjects.featuresDiscovery,
         timeSource,
-        config.getEnv());
+        config);
   }
 
   public DefaultDataStreamsCheckpointer(
-      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, String env) {
+      Sink sink, DDAgentFeaturesDiscovery features, TimeSource timeSource, Config config) {
     this(
         sink,
         features,
         timeSource,
-        new MsgPackDatastreamsPayloadWriter(sink, env),
-        DEFAULT_BUCKET_DURATION_MILLIS);
+        config.getWellKnownTags(),
+        new MsgPackDatastreamsPayloadWriter(
+            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
+        DEFAULT_BUCKET_DURATION_NANOS);
   }
 
   public DefaultDataStreamsCheckpointer(
       Sink sink,
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
+      WellKnownTags wellKnownTags,
       DatastreamsPayloadWriter payloadWriter,
-      long bucketDurationMillis) {
+      long bucketDurationNanos) {
     this.features = features;
     this.timeSource = timeSource;
+    this.wellKnownTags = wellKnownTags;
     this.payloadWriter = payloadWriter;
-    this.bucketDurationMillis = bucketDurationMillis;
+    this.bucketDurationNanos = bucketDurationNanos;
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
@@ -102,15 +111,11 @@ public class DefaultDataStreamsCheckpointer
       log.debug("Data streams is disabled or not supported by agent");
     }
 
-    nextFeatureCheck = timeSource.getCurrentTimeMillis() + FEATURE_CHECK_INTERVAL_MILLIS;
+    nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
 
     cancellation =
         AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-            new ReportTask(),
-            this,
-            bucketDurationMillis,
-            bucketDurationMillis,
-            TimeUnit.MILLISECONDS);
+            new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
     thread.start();
   }
 
@@ -124,13 +129,13 @@ public class DefaultDataStreamsCheckpointer
 
   @Override
   public PathwayContext newPathwayContext() {
-    return new DefaultPathwayContext(timeSource);
+    return new DefaultPathwayContext(timeSource, wellKnownTags);
   }
 
   @Override
   public <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    return DefaultPathwayContext.extract(carrier, getter, timeSource);
+    return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
   }
 
   @Override
@@ -157,8 +162,8 @@ public class DefaultDataStreamsCheckpointer
 
           if (statsPoint == REPORT) {
             if (supportsDataStreams) {
-              flush(timeSource.getCurrentTimeMillis());
-            } else if (timeSource.getCurrentTimeMillis() >= nextFeatureCheck) {
+              flush(timeSource.getCurrentTimeNanos());
+            } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
               checkFeatures();
             }
           } else if (statsPoint == POISON_PILL) {
@@ -167,14 +172,14 @@ public class DefaultDataStreamsCheckpointer
             }
             break;
           } else if (supportsDataStreams) {
-            Long bucket = currentBucket(statsPoint.getTimestampMillis());
+            Long bucket = currentBucket(statsPoint.getTimestampNanos());
 
             // FIXME computeIfAbsent() is not available because Java 7
             // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
             // DDSketch
             StatsBucket statsBucket = timeToBucket.get(bucket);
             if (statsBucket == null) {
-              statsBucket = new StatsBucket(bucket, bucketDurationMillis);
+              statsBucket = new StatsBucket(bucket, bucketDurationNanos);
               timeToBucket.put(bucket, statsBucket);
             }
 
@@ -189,12 +194,12 @@ public class DefaultDataStreamsCheckpointer
     }
   }
 
-  private long currentBucket(long timestampMillis) {
-    return timestampMillis - (timestampMillis % bucketDurationMillis);
+  private long currentBucket(long timestampNanos) {
+    return timestampNanos - (timestampNanos % bucketDurationNanos);
   }
 
-  private void flush(long timestampMillis) {
-    long currentBucket = currentBucket(timestampMillis);
+  private void flush(long timestampNanos) {
+    long currentBucket = currentBucket(timestampNanos);
 
     List<StatsBucket> includedBuckets = new ArrayList<>();
     Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
@@ -245,7 +250,7 @@ public class DefaultDataStreamsCheckpointer
     } else if (!oldValue && supportsDataStreams) {
       log.info("Agent upgrade detected. Enabling data streams because it is now supported");
     }
-    nextFeatureCheck = timeSource.getCurrentTimeMillis() + FEATURE_CHECK_INTERVAL_MILLIS;
+    nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
   }
 
   private static final class ReportTask

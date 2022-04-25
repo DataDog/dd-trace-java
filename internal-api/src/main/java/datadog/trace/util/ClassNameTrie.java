@@ -8,10 +8,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,7 +36,7 @@ import java.util.regex.Pattern;
  *
  * <p>Leaves mark a definite end of the match, while buds mark a potential end that could continue
  * to a different result if there are more characters to match. A match is a success when either the
- * entire key is matched or the match ends in a punctuation character like '.', '/', or '$'.
+ * entire key is matched or the match is a glob.
  *
  * <p>The jump for branch 0 is assumed to be 0 and is always omitted, that is any continuation of
  * the trie for branch 0 immediately follows the current node. Long jumps that don't fit into a char
@@ -47,16 +45,15 @@ import java.util.regex.Pattern;
  * <p>For example this mapping:
  *
  * <pre>
- * 2 akka.stream.
+ * 2 akka.stream.*
  * 0 akka.stream.impl.FanIn$SubInput
  * 0 akka.stream.impl.FanOut$SubstreamSubscription
- * 0 akka.stream.impl.fusing.ActorGraphInterpreter$
- * 0 akka.stream.stage.GraphStageLogic$
- * 0 akka.stream.stage.TimerGraphStageLogic$
- * 2 ch.qos.logback.
+ * 0 akka.stream.impl.fusing.ActorGraphInterpreter$*
+ * 0 akka.stream.stage.GraphStageLogic$*
+ * 0 akka.stream.stage.TimerGraphStageLogic$*
+ * 2 ch.qos.logback.*
  * 0 ch.qos.logback.classic.Logger
- * 0 ch.qos.logback.classic.spi.LoggingEvent
- * 0 ch.qos.logback.classic.spi.LoggingEventVO
+ * 0 ch.qos.logback.classic.spi.LoggingEvent*
  * 0 ch.qos.logback.core.AsyncAppenderBase$Worker
  * </pre>
  *
@@ -64,24 +61,22 @@ import java.util.regex.Pattern;
  *
  * <pre>
  * | 2 | a | c | length (10) | length (13) | jump (150)
- * kka.stream | 1 | . | bud (2)
+ * kka.stream | 1 | . | bud+glob (2)
  *            | 2 | i | s | length (4) | length (5) | jump (83)
  *            mpl. | 2 | F | f | length (2) | length (28) | jump (44)
  *                 an | 2 | I | O | length (10) | length (24) | jump (11)
  *                    n$SubInput | leaf (0)
  *                    ut$SubstreamSubscription | leaf (0)
- *                 using.ActorGraphInterpreter$ | leaf (0)
+ *                 using.ActorGraphInterpreter$ | leaf+glob (0)
  *            tage. | 2 | G | T | length (15) | length (20) | jump (16)
- *                  raphStageLogic$ | leaf (0)
- *                  imerGraphStageLogic$ | leaf (0)
- * h.qos.logback | 1 | . | bud (2)
+ *                  raphStageLogic$ | leaf+glob (0)
+ *                  imerGraphStageLogic$ | leaf+glob (0)
+ * h.qos.logback | 1 | . | bud+glob (2)
  *               | 1 | c | length (0)
  *               | 2 | l | o | length (6) | length (27) | jump (40)
  *               assic. | 2 | L | s | length (5) | length (14) | jump (6)
  *                      ogger | leaf (0)
- *                      pi.LoggingEven | 1 | t | bud (0)
- *                                     | 1 | V | length (1)
- *                                     O | leaf (0)
+ *                      pi.LoggingEvent | leaf+glob (0)
  *               re.AsyncAppenderBase$Worker | leaf(0)
  * </pre>
  */
@@ -90,11 +85,14 @@ public final class ClassNameTrie {
   /** Marks a leaf in the trie, where the rest of the bits are the index to be returned. */
   private static final char LEAF_MARKER = 0x8000;
 
-  /** Marks a 'bud' in the tree; the same as a leaf except the trie continues beneath it. */
+  /** Marks a 'bud' in the trie; the same as a leaf except the trie continues beneath it. */
   private static final char BUD_MARKER = 0x4000;
 
+  /** Marks a glob in the trie, where a match succeeds even if the key has extra characters. */
+  private static final char GLOB_MARKER = 0x2000;
+
   /** Maximum value that can be held in a single node of the trie. */
-  private static final char MAX_NODE_VALUE = 0x3FFF;
+  private static final char MAX_NODE_VALUE = 0x1FFF;
 
   /** Marks a long jump that was replaced by an index into the long jump table. */
   private static final char LONG_JUMP_MARKER = 0x8000;
@@ -131,9 +129,9 @@ public final class ClassNameTrie {
       int segmentLength = 0;
 
       if ((value & (LEAF_MARKER | BUD_MARKER)) != 0) {
-        // update result if we've matched the key, or we're at a package boundary [./$]
-        if (keyIndex == keyLength || c < '0') {
-          result = value & ~(LEAF_MARKER | BUD_MARKER);
+        // update result if we've matched the key, or we're at a glob
+        if (keyIndex == keyLength || (value & GLOB_MARKER) != 0) {
+          result = value & MAX_NODE_VALUE;
         }
         // stop if there's no more characters left in the key, or we've reached a leaf
         if (keyIndex == keyLength || (value & LEAF_MARKER) != 0) {
@@ -171,9 +169,9 @@ public final class ClassNameTrie {
         // peek ahead - it will either be a node or a leaf
         value = data[dataIndex];
         if ((value & LEAF_MARKER) != 0) {
-          // update result if we've matched the key, or we're at a package boundary [./$]
-          if (keyIndex == keyLength || c < '0') {
-            result = value & ~LEAF_MARKER;
+          // update result if we've matched the key, or we're at a glob
+          if (keyIndex == keyLength || (value & GLOB_MARKER) != 0) {
+            result = value & MAX_NODE_VALUE;
           }
           return result; // no more characters left to match in the trie
         }
@@ -217,33 +215,40 @@ public final class ClassNameTrie {
 
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
+
+    private final List<String> keys = new ArrayList<>();
+    private final StringBuilder values = new StringBuilder();
+
     private final StringBuilder buf = new StringBuilder();
     private int[] longJumps = {};
 
-    private final String[] keys;
-    private final char[] values;
-
-    public Builder(SortedMap<String, Integer> mapping) {
-      int numEntries = mapping.size();
-      this.keys = new String[numEntries];
-      this.values = new char[numEntries];
-      int i = 0;
-      for (Map.Entry<String, Integer> entry : mapping.entrySet()) {
-        this.keys[i] = entry.getKey();
-        int value = entry.getValue();
-        if (value < 0) {
-          throw new IllegalArgumentException("Value is too small: " + value);
-        }
-        if (value > MAX_NODE_VALUE) {
-          throw new IllegalArgumentException("Value is too big: " + value);
-        }
-        this.values[i] = (char) value;
-        i++;
+    public void put(String className, int number) {
+      if (number < 0) {
+        throw new IllegalArgumentException("Number for " + className + " is negative: " + number);
       }
+      if (number > MAX_NODE_VALUE) {
+        throw new IllegalArgumentException("Number for " + className + " is too big: " + number);
+      }
+      String key;
+      char value;
+      // package/class-names ending in '*' are marked as globs
+      if (className.charAt(className.length() - 1) == '*') {
+        key = className.substring(0, className.length() - 1);
+        value = (char) (number | GLOB_MARKER);
+      } else {
+        key = className;
+        value = (char) number;
+      }
+      // invert binarySearch result to get insertion point that maintains the natural order
+      int index = ~Collections.binarySearch(keys, key);
+      if (index >= 0) {
+        keys.add(index, key);
+        values.insert(index, value);
+      } // else ignore class names that already exist in the trie
     }
 
-    ClassNameTrie buildTrie() {
-      buildSubTrie(0, 0, keys.length);
+    public ClassNameTrie buildTrie() {
+      buildSubTrie(0, 0, keys.size());
       char[] data = new char[buf.length()];
       buf.getChars(0, data.length, data, 0);
       return new ClassNameTrie(data, longJumps);
@@ -258,7 +263,7 @@ public final class ClassNameTrie {
       int nextJump = 0;
 
       while (prevRow < rowLimit) {
-        String key = keys[prevRow];
+        String key = keys.get(prevRow);
         int columnLimit = key.length();
 
         char pivot = key.charAt(column);
@@ -303,13 +308,13 @@ public final class ClassNameTrie {
               String segment = key.substring(column + 1, nextColumn);
               buf.insert(valueIndex, (char) segment.length());
               buf.append(segment);
-              buf.append((char) (values[prevRow] | LEAF_MARKER));
+              buf.append((char) (values.charAt(prevRow) | LEAF_MARKER));
             } else {
-              buf.insert(valueIndex, (char) (values[prevRow] | LEAF_MARKER));
+              buf.insert(valueIndex, (char) (values.charAt(prevRow) | LEAF_MARKER));
             }
           } else {
             // we added more branches, so record value and mark it as a bud
-            buf.insert(valueIndex, (char) (values[prevRow] | BUD_MARKER));
+            buf.insert(valueIndex, (char) (values.charAt(prevRow) | BUD_MARKER));
           }
         }
 
@@ -346,7 +351,7 @@ public final class ClassNameTrie {
      */
     private int nextPivotRow(char pivot, int column, int row, int rowLimit) {
       for (int r = row + 1; r < rowLimit; r++) {
-        String key = keys[r];
+        String key = keys.get(r);
         if (key.length() <= column || key.charAt(column) != pivot) {
           return r;
         }
@@ -361,7 +366,7 @@ public final class ClassNameTrie {
      * <p>Returns the column just after the end of the current row if all rows are identical.
      */
     private int nextPivotColumn(int column, int row, int rowLimit) {
-      String key = keys[row];
+      String key = keys.get(row);
       int columnLimit = key.length();
       for (int c = column + 1; c < columnLimit; c++) {
         if (nextPivotRow(key.charAt(c), c, row, rowLimit) < rowLimit) {
@@ -417,11 +422,11 @@ public final class ClassNameTrie {
     /** Reads a trie file and writes out the equivalent Java file. */
     private static void generateJavaFile(
         Path triePath, Path javaPath, String pkgName, String className) throws IOException {
-      SortedMap<String, Integer> mapping = new TreeMap<>();
+      ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
       for (String l : Files.readAllLines(triePath, StandardCharsets.UTF_8)) {
         Matcher m = MAPPING_LINE.matcher(l);
         if (m.find()) {
-          mapping.put(m.group(2), Integer.valueOf(m.group(1)));
+          builder.put(m.group(2), Integer.parseInt(m.group(1)));
         }
       }
       List<String> lines = new ArrayList<>();
@@ -437,7 +442,7 @@ public final class ClassNameTrie {
       lines.add("    return TRIE.apply(key);");
       lines.add("  }");
       lines.add("");
-      generateJavaTrie(lines, "", new Builder(mapping).buildTrie());
+      generateJavaTrie(lines, "", builder.buildTrie());
       lines.add("  private " + className + "() {}");
       lines.add("}");
       Files.write(javaPath, lines, StandardCharsets.UTF_8);

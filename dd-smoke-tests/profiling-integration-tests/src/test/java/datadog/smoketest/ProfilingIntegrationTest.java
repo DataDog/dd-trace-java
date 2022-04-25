@@ -19,6 +19,7 @@ import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -51,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 class ProfilingIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(ProfilingIntegrationTest.class);
+  private static final Duration ONE_NANO = Duration.ofNanos(1);
 
   @FunctionalInterface
   private interface TestBody {
@@ -207,7 +209,9 @@ class ProfilingIntegrationTest {
       IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
-      final Instant firstRangeStart = rangeStartAndEnd.getLeft();
+      // This nano-second compensates for the added nano second in
+      // ProfilingSystem.SnapshotRecording.snapshot()
+      final Instant firstRangeStart = rangeStartAndEnd.getLeft().plus(ONE_NANO);
       final Instant firstRangeEnd = rangeStartAndEnd.getRight();
       assertTrue(
           firstStartTime.compareTo(firstRangeStart) <= 0,
@@ -254,7 +258,9 @@ class ProfilingIntegrationTest {
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
       assertTrue(events.hasItems());
       rangeStartAndEnd = getRangeStartAndEnd(events);
-      final Instant secondRangeStart = rangeStartAndEnd.getLeft();
+      // This nano-second compensates for the added nano second in
+      // ProfilingSystem.SnapshotRecording.snapshot()
+      final Instant secondRangeStart = rangeStartAndEnd.getLeft().plus(ONE_NANO);
       final Instant secondRangeEnd = rangeStartAndEnd.getRight();
       // So the OracleJdkOngoingRecording and underlying recording seems to
       // either lose precision in the reported times, or filter a bit differently

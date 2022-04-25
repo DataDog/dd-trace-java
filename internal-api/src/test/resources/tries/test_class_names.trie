@@ -10,11 +10,12 @@
 
 # wildcard examples
 
-7  com.
-8  com.foo.
-9  com.foobar.
-10 company.
-11 company.foo.
-12 company.foobar.
-13 com.Two$
-14 foobar.Two$
+7  com.*
+8  com.foo.*
+9  com.foobar.*
+10 company.*
+11 company.foo.*
+12 company.foobar.*
+13 com.Two$*
+14 foobar.Two$*
+15 foobar.Three*

@@ -1,6 +1,11 @@
 plugins {
   id "com.github.johnrengelman.shadow"
 }
+
+ext {
+  maxJavaVersionForTests = JavaVersion.VERSION_15
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Smoke Tests.'
 

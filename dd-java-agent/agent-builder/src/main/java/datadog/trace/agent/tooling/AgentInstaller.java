@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.skipClassLoader;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -380,7 +380,9 @@ public class AgentInstaller {
         final JavaModule javaModule,
         final boolean b) {
       final List<Runnable> callbacks;
-      if ("java.util.logging.LogManager".equals(typeName)) {
+      // On Java 17 java.util.logging.LogManager is loaded early even though it's not initialized,
+      // so wait for the LoggerContext to be initialized before the callbacks are processed.
+      if ("java.util.logging.LogManager$LoggerContext".equals(typeName)) {
         callbacks = LOG_MANAGER_CALLBACKS;
       } else if ("javax.management.MBeanServerBuilder".equals(typeName)) {
         callbacks = MBEAN_SERVER_BUILDER_CALLBACKS;

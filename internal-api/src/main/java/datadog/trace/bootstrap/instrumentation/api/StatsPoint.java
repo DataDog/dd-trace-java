@@ -1,44 +1,32 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.util.List;
+
 public class StatsPoint {
-  private final String type;
-  private final String group;
-  private final String topic;
+  private final List<String> edgeTags;
   private final long hash;
   private final long parentHash;
-  private final long timestampMillis;
+  private final long timestampNanos;
   private final long pathwayLatencyNano;
   private final long edgeLatencyNano;
 
   public StatsPoint(
-      String type,
-      String group,
-      String topic,
+      List<String> edgeTags,
       long hash,
       long parentHash,
-      long timestampMillis,
+      long timestampNanos,
       long pathwayLatencyNano,
       long edgeLatencyNano) {
-    this.type = type;
-    this.group = group;
-    this.topic = topic;
+    this.edgeTags = edgeTags;
     this.hash = hash;
     this.parentHash = parentHash;
-    this.timestampMillis = timestampMillis;
+    this.timestampNanos = timestampNanos;
     this.pathwayLatencyNano = pathwayLatencyNano;
     this.edgeLatencyNano = edgeLatencyNano;
   }
 
-  public String getType() {
-    return type;
-  }
-
-  public String getGroup() {
-    return group;
-  }
-
-  public String getTopic() {
-    return topic;
+  public List<String> getEdgeTags() {
+    return edgeTags;
   }
 
   public long getHash() {
@@ -49,8 +37,8 @@ public class StatsPoint {
     return parentHash;
   }
 
-  public long getTimestampMillis() {
-    return timestampMillis;
+  public long getTimestampNanos() {
+    return timestampNanos;
   }
 
   public long getPathwayLatencyNano() {
@@ -64,21 +52,15 @@ public class StatsPoint {
   @Override
   public String toString() {
     return "StatsPoint{"
-        + "type='"
-        + type
-        + '\''
-        + ", group='"
-        + group
-        + '\''
-        + ", topic='"
-        + topic
+        + "tags='"
+        + edgeTags
         + '\''
         + ", hash="
         + hash
         + ", parentHash="
         + parentHash
-        + ", timestampMillis="
-        + timestampMillis
+        + ", timestampNanos="
+        + timestampNanos
         + ", pathwayLatencyNano="
         + pathwayLatencyNano
         + ", edgeLatencyNano="

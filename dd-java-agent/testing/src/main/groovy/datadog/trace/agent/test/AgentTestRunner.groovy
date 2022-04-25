@@ -17,6 +17,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.time.TimeSource
 import datadog.trace.api.time.SystemTimeSource
@@ -165,10 +166,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     DataStreamsCheckpointer dataStreamsCheckpointer = null
     if (Platform.isJavaVersionAtLeast(8)) {
       try {
+        // Fast enough so tests don't take forever
+        long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
+        WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+
         // Use reflection to load the class because it should only be loaded on Java 8+
         dataStreamsCheckpointer = (DataStreamsCheckpointer) Class.forName("datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer")
-          .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, DatastreamsPayloadWriter, long)
-          .newInstance(sink, features, SystemTimeSource.INSTANCE, TEST_DATA_STREAMS_WRITER, 10)
+          .getDeclaredConstructor(Sink, DDAgentFeaturesDiscovery, TimeSource, WellKnownTags, DatastreamsPayloadWriter, long)
+          .newInstance(sink, features, SystemTimeSource.INSTANCE, wellKnownTags, TEST_DATA_STREAMS_WRITER, bucketDuration)
       } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
         e.printStackTrace()
       }

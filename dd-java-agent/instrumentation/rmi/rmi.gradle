@@ -1,6 +1,8 @@
 ext {
   // need access to sun.rmi package
   skipSettingCompilerRelease = true
+  // TODO Java 17: The necessary packages are not opened on Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
 muzzle {

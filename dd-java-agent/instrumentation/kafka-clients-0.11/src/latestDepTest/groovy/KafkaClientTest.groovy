@@ -159,15 +159,13 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        type == null
-        topic == ""
+        edgeTags.isEmpty()
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        type == "kafka"
-        topic == SHARED_TOPIC
-        group == "sender"
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
       }
     }
 
@@ -281,15 +279,13 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        type == null
-        topic == ""
+        edgeTags.isEmpty()
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        type == "kafka"
-        topic == SHARED_TOPIC
-        group == "sender"
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
       }
     }
 
@@ -860,14 +856,13 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        type == null
-        topic == ""
+        edgeTags.isEmpty()
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        type == "kafka"
-        topic == SHARED_TOPIC
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
       }
     }
 

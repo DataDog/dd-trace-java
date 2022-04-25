@@ -6,12 +6,15 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.Config;
+import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
+  private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
+  private static final byte[] LANG = "Lang".getBytes(ISO_8859_1);
+  private static final byte[] TRACER_VERSION = "TracerVersion".getBytes(ISO_8859_1);
   private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
   private static final byte[] START = "Start".getBytes(ISO_8859_1);
   private static final byte[] DURATION = "Duration".getBytes(ISO_8859_1);
@@ -27,13 +30,18 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final WritableFormatter writer;
   private final Sink sink;
   private final GrowableBuffer buffer;
-  private final byte[] envValue;
+  private final WellKnownTags wellKnownTags;
+  private final byte[] tracerVersionValue;
+  private final byte[] primaryTagValue;
 
-  public MsgPackDatastreamsPayloadWriter(Sink sink, String env) {
+  public MsgPackDatastreamsPayloadWriter(
+      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
     buffer = new GrowableBuffer(INITIAL_CAPACITY);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
-    this.envValue = env.getBytes(ISO_8859_1);
+    this.wellKnownTags = wellKnownTags;
+    tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
+    primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
   }
 
   public void reset() {
@@ -42,16 +50,28 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data) {
-    writer.startMap(3);
+    writer.startMap(6);
     /* 1 */
     writer.writeUTF8(ENV);
-    writer.writeUTF8(envValue);
+    writer.writeUTF8(wellKnownTags.getEnv());
 
     /* 2 */
     writer.writeUTF8(SERVICE);
-    writer.writeString(Config.get().getServiceName(), null);
+    writer.writeUTF8(wellKnownTags.getService());
 
     /* 3 */
+    writer.writeUTF8(LANG);
+    writer.writeUTF8(wellKnownTags.getLanguage());
+
+    /* 4 */
+    writer.writeUTF8(PRIMARY_TAG);
+    writer.writeUTF8(primaryTagValue);
+
+    /* 5 */
+    writer.writeUTF8(TRACER_VERSION);
+    writer.writeUTF8(tracerVersionValue);
+
+    /* 6 */
     writer.writeUTF8(STATS);
     writer.startArray(data.size());
     for (StatsBucket bucket : data) {
@@ -59,7 +79,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       /* 1 */
       writer.writeUTF8(START);
-      writer.writeLong(bucket.getStartTime());
+      writer.writeLong(bucket.getStartTimeNanos());
 
       /* 2 */
       writer.writeUTF8(DURATION);
@@ -79,7 +99,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      boolean firstNode = "".equals(group.getTopic());
+      boolean firstNode = group.getEdgeTags().isEmpty();
 
       packer.startMap(firstNode ? 4 : 5);
 
@@ -102,15 +122,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (!firstNode) {
         /* 5 */
         packer.writeUTF8(EDGE_TAGS);
-        if (group.getGroup() == null) {
-          packer.startArray(2);
-          packer.writeString("topic:" + group.getTopic(), null);
-          packer.writeString("type:" + group.getType(), null);
-        } else {
-          packer.startArray(3);
-          packer.writeString("topic:" + group.getTopic(), null);
-          packer.writeString("group:" + group.getGroup(), null);
-          packer.writeString("type:" + group.getType(), null);
+        packer.startArray(group.getEdgeTags().size());
+        for (String tag : group.getEdgeTags()) {
+          packer.writeString(tag, null);
         }
       }
     }

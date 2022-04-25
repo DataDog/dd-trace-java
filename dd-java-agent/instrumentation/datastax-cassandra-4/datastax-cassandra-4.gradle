@@ -1,5 +1,8 @@
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
+  // TODO Java 17: The embedded cassandra deadlocks on start every time on Java 17
+  //  This can be changed to use test-containers
+  maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
 muzzle {

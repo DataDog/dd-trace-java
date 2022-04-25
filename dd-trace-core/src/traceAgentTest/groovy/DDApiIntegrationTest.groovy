@@ -6,8 +6,9 @@ import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
+import datadog.trace.common.writer.RemoteApi
+import datadog.trace.common.writer.RemoteResponseListener
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
@@ -64,7 +65,7 @@ class DDApiIntegrationTest extends DDSpecification {
   def endpoint = new AtomicReference<String>(null)
   def agentResponse = new AtomicReference<Map<String, Map<String, Number>>>(null)
 
-  DDAgentResponseListener responseListener = { String receivedEndpoint, Map<String, Map<String, Number>> responseJson ->
+  RemoteResponseListener responseListener = { String receivedEndpoint, Map<String, Map<String, Number>> responseJson ->
     endpoint.set(receivedEndpoint)
     agentResponse.set(responseJson)
   }
@@ -138,7 +139,7 @@ class DDApiIntegrationTest extends DDSpecification {
     setup:
     beforeTest(enableV05)
     expect:
-    DDAgentApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
+    RemoteApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
     assert null == response.exception()
     assert 200 == response.status()
@@ -161,7 +162,7 @@ class DDApiIntegrationTest extends DDSpecification {
     setup:
     beforeTest(enableV05)
     expect:
-    DDAgentApi.Response response = api.sendSerializedTraces(prepareRequest([[span]], mapper))
+    RemoteApi.Response response = api.sendSerializedTraces(prepareRequest([[span]], mapper))
     assert !response.response().isEmpty()
     assert null == response.exception()
     assert 200 == response.status()
@@ -178,7 +179,7 @@ class DDApiIntegrationTest extends DDSpecification {
     setup:
     beforeTest(enableV05)
     expect:
-    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
+    RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
     assert null == response.exception()
     assert 200 == response.status()
@@ -199,7 +200,7 @@ class DDApiIntegrationTest extends DDSpecification {
     setup:
     beforeTest(enableV05)
     expect:
-    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest([[span]], mapper))
+    RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest([[span]], mapper))
     assert !response.response().isEmpty()
     assert null == response.exception()
     assert 200 == response.status()

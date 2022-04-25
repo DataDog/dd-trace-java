@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -16,7 +15,6 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This class provides some custom ByteBuddy element matchers to use when applying instrumentation
  */
 public class DDElementMatchers {
-  public static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
