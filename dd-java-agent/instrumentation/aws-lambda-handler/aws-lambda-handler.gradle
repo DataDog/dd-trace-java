@@ -2,7 +2,6 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
-
 apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
@@ -11,19 +10,4 @@ testSets {
   latestDepTest {
     dirName = 'test'
   }
-}
-
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-
-  dependencies {
-    deps.okhttp
-  }
-}
-
-
-dependencies {
-  deps.okhttp
 }
