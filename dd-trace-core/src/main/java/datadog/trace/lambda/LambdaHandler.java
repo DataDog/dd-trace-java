@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -13,7 +12,6 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Arrays;
 
 public class LambdaHandler {
 
@@ -32,16 +30,18 @@ public class LambdaHandler {
 
   private static final Long REQUEST_TIMEOUT_IN_S = 1L;
 
-  private static final OkHttpClient httpClient = new OkHttpClient.Builder()
-      .retryOnConnectionFailure(true)
-      .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-      .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-      .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-      .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-      .build();
+  private static final OkHttpClient httpClient =
+      new OkHttpClient.Builder()
+          .retryOnConnectionFailure(true)
+          .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .build();
 
   private static final MediaType jsonMediaType = MediaType.parse("application/json");
-  private static final JsonAdapter<Object> adapter = new Moshi.Builder().build().adapter(Object.class);
+  private static final JsonAdapter<Object> adapter =
+      new Moshi.Builder().build().adapter(Object.class);
 
   public static DummyLambdaContext notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));

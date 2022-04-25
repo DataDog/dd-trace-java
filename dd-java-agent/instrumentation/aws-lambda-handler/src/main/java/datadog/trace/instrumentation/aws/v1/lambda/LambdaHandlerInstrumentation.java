@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.asm.Advice.Enter;
 import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
@@ -19,7 +18,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +61,6 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   public String instrumentedType() {
     return this.instrumentedType;
   }
-  
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
@@ -94,7 +91,8 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       if (null == lambdaContext) {
         return null;
       }
-      AgentSpan span = startSpan(UTF8BytesString.create("aws.lambda"), lambdaContext);
+      AgentSpan span =
+          startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
       final AgentScope scope = activateSpan(span);
       return scope;
     }
@@ -104,7 +102,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Origin String method,
         @Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable) {
-        AgentTracer.get().notifyExtensionEnd(null != throwable);
+      AgentTracer.get().notifyExtensionEnd(null != throwable);
       if (scope == null) {
         return;
       }

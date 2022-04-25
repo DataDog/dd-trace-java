@@ -181,6 +181,7 @@ public class AgentTracer {
     void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic);
 
     DummyLambdaContext notifyExtensionStart(Object event);
+
     void notifyExtensionEnd(boolean isError);
   }
 
@@ -380,7 +381,7 @@ public class AgentTracer {
 
     @Override
     public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {}
-  
+
     @Override
     public DummyLambdaContext notifyExtensionStart(Object event) {
       return null;

@@ -54,7 +54,6 @@ public class DDAgentWriter implements Writer {
   private final PayloadDispatcher dispatcher;
   private final DDAgentFeaturesDiscovery discovery;
   private final boolean alwaysFlush;
-  private final boolean skipRoot;
 
   private volatile boolean closed;
 
@@ -73,7 +72,6 @@ public class DDAgentWriter implements Writer {
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     boolean alwaysFlush = false;
-    boolean skipRoot = false;
 
     private DDAgentApi agentApi;
     private Prioritization prioritization;
@@ -154,11 +152,6 @@ public class DDAgentWriter implements Writer {
       return this;
     }
 
-    public DDAgentWriterBuilder skipRoot(boolean skipRoot) {
-      this.skipRoot = skipRoot;
-      return this;
-    }
-
     public DDAgentWriter build() {
       return new DDAgentWriter(
           agentApi,
@@ -175,8 +168,7 @@ public class DDAgentWriter implements Writer {
           traceAgentV05Enabled,
           metricsReportingEnabled,
           featureDiscovery,
-          alwaysFlush,
-          skipRoot);
+          alwaysFlush);
     }
   }
 
@@ -195,8 +187,7 @@ public class DDAgentWriter implements Writer {
       final boolean traceAgentV05Enabled,
       boolean metricsReportingEnabled,
       DDAgentFeaturesDiscovery featureDiscovery,
-      final boolean alwaysFlush,
-      final boolean skipRoot) {
+      final boolean alwaysFlush) {
     HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
     OkHttpClient client =
         null == featureDiscovery || null == agentApi
@@ -216,7 +207,6 @@ public class DDAgentWriter implements Writer {
     this.healthMetrics = healthMetrics;
     this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
     this.alwaysFlush = alwaysFlush;
-    this.skipRoot = skipRoot;
     this.traceProcessingWorker =
         new TraceProcessingWorker(
             traceBufferSize,
@@ -240,7 +230,6 @@ public class DDAgentWriter implements Writer {
     this.traceProcessingWorker = worker;
     this.dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring);
     this.alwaysFlush = false;
-    this.skipRoot = false;
   }
 
   private DDAgentWriter(
@@ -255,7 +244,6 @@ public class DDAgentWriter implements Writer {
     this.traceProcessingWorker = worker;
     this.dispatcher = dispatcher;
     this.alwaysFlush = false;
-    this.skipRoot = false;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -271,9 +259,6 @@ public class DDAgentWriter implements Writer {
   public void write(final List<DDSpan> trace) {
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (!closed) {
-      if (skipRoot && !trace.isEmpty()) {
-        trace.remove(0);
-      }
       if (trace.isEmpty()) {
         handleDroppedTrace("Trace was empty", trace);
       } else {
