@@ -29,7 +29,7 @@ public class LambdaHandler {
 
   private static final Long REQUEST_TIMEOUT_IN_S = 1L;
 
-  private static final OkHttpClient defaultHttpClient =
+  private static OkHttpClient HTTP_CLIENT =
       new OkHttpClient.Builder()
           .retryOnConnectionFailure(true)
           .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
@@ -42,15 +42,15 @@ public class LambdaHandler {
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder().build().adapter(Object.class);
 
-  private static String BASE_URL = "http://127.0.0.1:8124";
+  private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static DummyLambdaContext notifyStartInvocation(OkHttpClient client, Object event) {
+  public static DummyLambdaContext notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
-        getHttpClient(client)
+        HTTP_CLIENT
             .newCall(
                 new Request.Builder()
-                    .url(BASE_URL + START_INVOCATION)
+                    .url(EXTENSION_BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
                     .post(body)
                     .build())
@@ -73,17 +73,17 @@ public class LambdaHandler {
     return null;
   }
 
-  public static boolean notifyEndInvocation(OkHttpClient client, boolean isError) {
+  public static boolean notifyEndInvocation(boolean isError) {
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
     Request.Builder builder =
         new Request.Builder()
-            .url(BASE_URL + END_INVOCATION)
+            .url(EXTENSION_BASE_URL + END_INVOCATION)
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
     if (isError) {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
-    try (Response response = getHttpClient(client).newCall(builder.build()).execute()) {
+    try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
         return true;
@@ -106,11 +106,7 @@ public class LambdaHandler {
     return json;
   }
 
-  private static OkHttpClient getHttpClient(OkHttpClient client) {
-    return (null == client) ? client : defaultHttpClient;
-  }
-
-  public static void setAgentUrl(String agentUrl) {
-    BASE_URL = agentUrl;
+  public static void setExtensionBaseUrl(String extensionBaseUrl) {
+    EXTENSION_BASE_URL = extensionBaseUrl;
   }
 }

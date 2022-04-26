@@ -795,12 +795,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public DummyLambdaContext notifyExtensionStart(Object event) {
-    return LambdaHandler.notifyStartInvocation(null, event);
+    return LambdaHandler.notifyStartInvocation(event);
   }
 
   @Override
   public void notifyExtensionEnd(boolean isError) {
-    LambdaHandler.notifyEndInvocation(null, isError);
+    LambdaHandler.notifyEndInvocation(isError);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);

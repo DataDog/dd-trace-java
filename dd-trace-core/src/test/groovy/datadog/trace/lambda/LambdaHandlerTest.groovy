@@ -1,30 +1,9 @@
 package datadog.trace.lambda
 
-
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
-import datadog.trace.api.Config
-import datadog.trace.api.time.ControllableTimeSource
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
-import okio.BufferedSource
-import okio.GzipSource
-import okio.Okio
-import org.msgpack.core.MessagePack
-import org.msgpack.core.MessageUnpacker
-import spock.lang.AutoCleanup
-import spock.lang.Requires
-import spock.lang.Shared
-import spock.util.concurrent.PollingConditions
-
-import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.core.datastreams.DefaultDataStreamsCheckpointer.DEFAULT_BUCKET_DURATION_MILLIS
-import static java.util.concurrent.TimeUnit.MILLISECONDS
-import static java.util.concurrent.TimeUnit.SECONDS
 
 class LambdaHandlerTest extends DDCoreSpecification {
 
@@ -52,11 +31,10 @@ class LambdaHandlerTest extends DDCoreSpecification {
         }
       }
     }
-    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-    LambdaHandler.setAgentUrl(server.address.toString())
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj)
 
     then:
     objTest.getTraceId().toString() == traceId
@@ -78,11 +56,10 @@ class LambdaHandlerTest extends DDCoreSpecification {
         }
       }
     }
-    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-    LambdaHandler.setAgentUrl(server.address.toString())
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(testHttpClient, obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj)
 
     then:
     objTest == expected
@@ -103,11 +80,10 @@ class LambdaHandlerTest extends DDCoreSpecification {
         }
       }
     }
-    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-    LambdaHandler.setAgentUrl(server.address.toString())
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(boolValue)
     server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
 
     then:
@@ -130,11 +106,10 @@ class LambdaHandlerTest extends DDCoreSpecification {
         }
       }
     }
-    def testHttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
-    LambdaHandler.setAgentUrl(server.address.toString())
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(testHttpClient, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(boolValue)
 
     then:
     result == expected

@@ -88,11 +88,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
       DummyLambdaContext lambdaContext = AgentTracer.get().notifyExtensionStart(event);
-      if (null == lambdaContext) {
-        return null;
-      }
-      AgentSpan span =
-          startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
+      AgentSpan span = startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
       final AgentScope scope = activateSpan(span);
       return scope;
     }
@@ -102,10 +98,10 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Origin String method,
         @Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable) {
-      AgentTracer.get().notifyExtensionEnd(null != throwable);
       if (scope == null) {
         return;
       }
+      AgentTracer.get().notifyExtensionEnd(null != throwable);
       try {
         final AgentSpan span = scope.span();
         span.finish();
