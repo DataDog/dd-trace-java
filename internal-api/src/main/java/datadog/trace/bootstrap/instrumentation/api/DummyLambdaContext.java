@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.DDId;
+import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Collections;
 import java.util.Map;
 
@@ -11,7 +11,8 @@ public class DummyLambdaContext implements AgentSpan.Context {
   private DDId spanID;
   private int samplingPriority = PrioritySampling.UNSET;
 
-  public DummyLambdaContext(final String traceID, final String spanID, final String samplingPriority) {
+  public DummyLambdaContext(
+      final String traceID, final String spanID, final String samplingPriority) {
     this.traceID = DDId.from(traceID);
     this.spanID = DDId.from(spanID);
     if (null != samplingPriority) {
