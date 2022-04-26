@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 import spock.lang.AutoCleanup
 import datadog.trace.lambda.LambdaHandler
-import okhttp3.HttpUrl;
+import okhttp3.HttpUrl
 import datadog.communication.http.OkHttpUtils
 
 
@@ -16,9 +16,9 @@ class LambdaHandlerInstrumentation extends AgentTestRunner {
 
   def "test lambda handler"() {
     when:
-    environmentVariables.set("_HANDLER", "com.serverless.Handler")
+    environmentVariables.set("_HANDLER", "Handler")
     new Handler().handleRequest(null, null)
-    
+
     then:
     assertTraces(1) {
       trace(1) {

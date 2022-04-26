@@ -12,6 +12,10 @@ testSets {
   }
 }
 
+test {
+  environment "_HANDLER", "handler"
+}
+
 dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
 }
