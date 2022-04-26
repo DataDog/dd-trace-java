@@ -24,7 +24,7 @@ final class CachedData {
     dogstatsd     : "4.0.0",
     jnr_unixsocket: "0.28",
     commons       : "3.2",
-    mockito       : '3.5.10',
+    mockito       : '4.4.0',
     moshi         : '1.9.2',
     testcontainers: '1.15.0-rc2',
     jmc           : "8.1.0-SNAPSHOT",

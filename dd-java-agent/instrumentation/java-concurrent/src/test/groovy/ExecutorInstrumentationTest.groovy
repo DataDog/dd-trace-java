@@ -9,21 +9,17 @@ import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.AbstractExecutorService
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
-import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.Future
-import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
@@ -64,7 +60,7 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
 
-    injectSysConfig("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
+    injectSysConfig("dd.trace.executors", "CustomThreadPoolExecutor")
     injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
@@ -469,107 +465,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     //    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     //    "schedule Runnable"   | scheduleRunnable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     //    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-  }
-
-  static class CustomThreadPoolExecutor extends AbstractExecutorService {
-    volatile running = true
-    def workQueue = new LinkedBlockingQueue<Runnable>(10)
-
-    def worker = new Runnable() {
-      void run() {
-        try {
-          while (running) {
-            def runnable = workQueue.take()
-            runnable.run()
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt()
-        } catch (Exception e) {
-          e.printStackTrace()
-        }
-      }
-    }
-
-    def workerThread = new Thread(worker, "ExecutorTestThread")
-
-    protected CustomThreadPoolExecutor() {
-      workerThread.start()
-    }
-
-    @Override
-    void shutdown() {
-      running = false
-      workerThread.interrupt()
-    }
-
-    @Override
-    List<Runnable> shutdownNow() {
-      running = false
-      workerThread.interrupt()
-      return []
-    }
-
-    @Override
-    boolean isShutdown() {
-      return !running
-    }
-
-    @Override
-    boolean isTerminated() {
-      return workerThread.isAlive()
-    }
-
-    @Override
-    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-      workerThread.join(unit.toMillis(timeout))
-      return true
-    }
-
-    @Override
-    def <T> Future<T> submit(Callable<T> task) {
-      def future = newTaskFor(task)
-      execute(future)
-      return future
-    }
-
-    @Override
-    def <T> Future<T> submit(Runnable task, T result) {
-      def future = newTaskFor(task, result)
-      execute(future)
-      return future
-    }
-
-    @Override
-    Future<?> submit(Runnable task) {
-      def future = newTaskFor(task, null)
-      execute(future)
-      return future
-    }
-
-    @Override
-    def <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
-      return super.invokeAll(tasks)
-    }
-
-    @Override
-    def <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
-      return super.invokeAll(tasks)
-    }
-
-    @Override
-    def <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
-      return super.invokeAny(tasks)
-    }
-
-    @Override
-    def <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-      return super.invokeAny(tasks)
-    }
-
-    @Override
-    void execute(Runnable command) {
-      workQueue.put(command)
-    }
   }
 
   static class ToBeIgnoredExecutor extends ThreadPoolExecutor {

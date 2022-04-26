@@ -4,6 +4,8 @@ plugins {
 
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
+  // TODO Java 17: This version of play doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -13,7 +15,7 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-def playVer = "2.7.5"
+def playVer = "2.7.9"
 def scalaVer = System.getProperty("scala.version", /* default = */ "2.13")
 
 play {

@@ -3,7 +3,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
 import spock.lang.Ignore
-import spock.lang.Requires
+import spock.lang.IgnoreIf
 import spock.lang.Timeout
 import sun.net.www.protocol.https.HttpsURLConnectionImpl
 
@@ -362,7 +362,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
   }
 
   // This test makes no sense on IBM JVM because there is no HttpsURLConnectionImpl class there
-  @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
+  @IgnoreIf({
+    System.getProperty("java.vm.name").contains("IBM J9 VM") ||
+      // TODO Java 17: we can't access HttpsURLConnectionImpl on Java 17
+      new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0) })
   def "Make sure we can load HttpsURLConnectionImpl"() {
     when:
     def instance = new HttpsURLConnectionImpl(null, null, null)

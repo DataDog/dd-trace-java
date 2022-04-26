@@ -7,6 +7,7 @@ import org.glassfish.jersey.client.ClientConfig
 import org.glassfish.jersey.client.ClientProperties
 import org.glassfish.jersey.client.JerseyClientBuilder
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
+import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
 import javax.ws.rs.client.AsyncInvoker
@@ -97,6 +98,11 @@ class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
 }
 
 @Timeout(5)
+@IgnoreIf({
+  // TODO Java 17: This version of apache-cxf doesn't work on Java 17
+  //  exception in org.apache.cxf.common.util.ReflectionUtil
+  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+})
 class CxfClientAsyncTest extends JaxRsClientAsyncTest {
 
   @Override
