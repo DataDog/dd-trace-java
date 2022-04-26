@@ -13,7 +13,7 @@ testSets {
 }
 
 test {
-  environment "_HANDLER", "handler"
+  environment "_HANDLER", "Handler"
 }
 
 dependencies {

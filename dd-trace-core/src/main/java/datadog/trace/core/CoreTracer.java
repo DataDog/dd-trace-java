@@ -1228,7 +1228,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           traceId = dlc.getTraceId();
           spanId = dlc.getSpanId();
           parentSpanId = DDId.ZERO;
-          samplingPriority = PrioritySampling.UNSET;
+          samplingPriority = dlc.getSamplingPriority();
           samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;

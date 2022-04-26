@@ -22,6 +22,7 @@ public class LambdaHandler {
 
   private static final String DATADOG_TRACE_ID = "x-datadog-trace-id";
   private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
+  private static final String DATADOG_SAMPLING_PRIORITY = "x-datadog-sampling-priority";
   private static final String DATADOG_INVOCATION_ERROR = "x-datadog-invocation-error";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
@@ -58,10 +59,11 @@ public class LambdaHandler {
       if (response.isSuccessful()) {
         final String traceID = response.headers().get(DATADOG_TRACE_ID);
         final String spanID = response.headers().get(DATADOG_SPAN_ID);
+        final String samplingPriority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
         if (null != traceID && null != spanID) {
           log.debug(
               "notifyStartInvocation success, found traceID = {} and spanID = {}", traceID, spanID);
-          return new DummyLambdaContext(traceID, spanID);
+          return new DummyLambdaContext(traceID, spanID, samplingPriority);
         } else {
           log.error(
               "could not find traceID/spanID in notifyStartInvocation, not injecting the context");
