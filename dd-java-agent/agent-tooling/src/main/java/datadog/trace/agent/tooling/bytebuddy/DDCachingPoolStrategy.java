@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;

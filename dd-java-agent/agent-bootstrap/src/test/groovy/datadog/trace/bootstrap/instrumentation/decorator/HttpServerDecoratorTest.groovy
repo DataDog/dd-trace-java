@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.Function
+import datadog.trace.api.function.Function
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow

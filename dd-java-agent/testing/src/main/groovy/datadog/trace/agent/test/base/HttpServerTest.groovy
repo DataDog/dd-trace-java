@@ -5,7 +5,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.Function
+import datadog.trace.api.function.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.BiFunction

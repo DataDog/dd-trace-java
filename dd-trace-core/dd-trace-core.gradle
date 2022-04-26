@@ -21,7 +21,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.StatusLogger',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.SingleContinuation',
   'datadog.trace.core.SpanCorrelationImpl',
-  'datadog.trace.core.Base64Encoder'
+  'datadog.trace.core.Base64Encoder',
+  'datadog.trace.core.DDSpan.1'
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
@@ -60,6 +61,7 @@ dependencies {
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
   testImplementation group: 'org.openjdk.jol', name: 'jol-core', version: '0.16'
+  testImplementation group: 'commons-codec', name: 'commons-codec', version: '1.3'
 
   traceAgentTestImplementation deps.testcontainers
 }

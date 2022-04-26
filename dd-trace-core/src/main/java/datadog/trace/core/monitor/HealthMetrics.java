@@ -6,9 +6,9 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.api.IntFunction;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
+import datadog.trace.api.function.IntFunction;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;

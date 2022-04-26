@@ -1,6 +1,6 @@
 package com.datadog.appsec.gateway;
 
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;

@@ -32,32 +32,44 @@ final class Base64Encoder {
     return 4 * (srclen / 3) + (n == 0 ? 0 : n + 1);
   }
 
+  private int paddedLength(int len) {
+    return len == 0 ? 0 : (((len - 1) / 4) + 1) * 4;
+  }
+
   public byte[] encode(byte[] src) {
     int len = outLength(src.length); // dst array size
-    byte[] dst = new byte[len];
-    int ret = encode0(src, 0, src.length, dst);
-    if (ret != dst.length) return Arrays.copyOf(dst, ret);
+    int paddedLen = paddedLength(len); // adjust for padding
+    int offset = len - src.length;
+    byte[] dst = new byte[paddedLen];
+    System.arraycopy(src, 0, dst, offset, src.length);
+    int ret = encode0(dst, offset, len, dst);
+    if (ret < paddedLen) {
+      Arrays.fill(dst, ret, paddedLen, (byte) '=');
+    }
     return dst;
   }
 
   public ByteBuffer encode(ByteBuffer buffer) {
-    int len = outLength(buffer.remaining());
-    byte[] dst = new byte[len];
+    int len = outLength(buffer.remaining()); // dst array size
+    int paddedLen = paddedLength(len); // adjust for padding
+    int offset = len - buffer.remaining();
+    byte[] dst = new byte[paddedLen];
     int ret = 0;
     if (buffer.hasArray()) {
-      ret =
-          encode0(
-              buffer.array(),
-              buffer.arrayOffset() + buffer.position(),
-              buffer.arrayOffset() + buffer.limit(),
-              dst);
-      buffer.position(buffer.limit());
+      System.arraycopy(
+          buffer.array(),
+          buffer.arrayOffset() + buffer.position(),
+          dst,
+          offset,
+          buffer.remaining());
+      ret = encode0(dst, offset, len, dst);
     } else {
-      byte[] src = new byte[buffer.remaining()];
-      buffer.get(src);
-      ret = encode0(src, 0, src.length, dst);
+      buffer.get(dst, offset, buffer.remaining());
+      ret = encode0(dst, offset, len, dst);
     }
-    if (ret != dst.length) dst = Arrays.copyOf(dst, ret);
+    if (ret < paddedLen) {
+      Arrays.fill(dst, ret, paddedLen, (byte) '=');
+    }
     return ByteBuffer.wrap(dst);
   }
 

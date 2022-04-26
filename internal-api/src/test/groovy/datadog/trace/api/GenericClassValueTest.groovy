@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.function.Function
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.ConcurrentHashMap

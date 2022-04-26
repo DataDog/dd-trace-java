@@ -1,6 +1,6 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.IntFunction;
+import datadog.trace.api.function.IntFunction;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 

@@ -1,7 +1,7 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
+import datadog.trace.api.function.Function;
 import java.util.Arrays;
 
 /**

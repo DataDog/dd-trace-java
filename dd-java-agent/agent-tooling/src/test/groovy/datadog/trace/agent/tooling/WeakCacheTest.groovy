@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling
 
-import datadog.trace.api.Function
+import datadog.trace.api.function.Function
 import datadog.trace.test.util.DDSpecification
 
 class WeakCacheTest extends DDSpecification {

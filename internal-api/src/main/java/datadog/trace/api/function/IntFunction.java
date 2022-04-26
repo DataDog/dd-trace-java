@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.api.function;
 
 // TODO replace me when baselining against JDK8
 public interface IntFunction<T> {

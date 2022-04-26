@@ -1,6 +1,6 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 
 public interface DDCache<K, V> {
 
