@@ -44,7 +44,7 @@ public class ProcessSupervisor implements Closeable {
                 continue;
               }
 
-              log.debug("Starting process: {}", name);
+              log.debug("Starting process: [{}]", name);
               nextRestartTime = System.currentTimeMillis() + MIN_RESTART_INTERVAL_MS;
               currentProcess = processBuilder.start();
             }
@@ -57,7 +57,7 @@ public class ProcessSupervisor implements Closeable {
             currentProcess = null;
           } catch (InterruptedException ignored) {
           } catch (IOException e) {
-            log.error("Exception starting process: {}", name, e);
+            log.error("Exception starting process: [{}]", name, e);
           }
         }
       } finally {
