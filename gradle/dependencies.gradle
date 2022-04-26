@@ -13,7 +13,7 @@ final class CachedData {
     groovy        : groovyVer,
     junit5        : "5.6.2",
     logback       : "1.2.3",
-    bytebuddy     : "1.12.8",
+    bytebuddy     : "1.12.9",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     scala210      : "2.10.7",
     scala211      : "2.11.12",
