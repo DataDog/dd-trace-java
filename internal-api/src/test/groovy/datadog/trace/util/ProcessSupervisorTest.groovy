@@ -28,6 +28,12 @@ class ProcessSupervisorTest extends DDSpecification {
     }
 
     when:
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
+    // code coverage: make sure that the supervisor thread loops around once
+    processSupervisor.supervisorThread.interrupt()
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
     def oldProcess = processSupervisor.currentProcess
     processSupervisor.close()
 
@@ -53,18 +59,29 @@ class ProcessSupervisorTest extends DDSpecification {
     }
 
     when:
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
     def oldProcess = processSupervisor.currentProcess
     oldProcess.destroyForcibly()
 
     then:
     conditions.eventually {
       !oldProcess.isAlive()
-      processSupervisor.currentProcess != null
       processSupervisor.currentProcess != oldProcess
+      processSupervisor.currentProcess != null
       processSupervisor.currentProcess.isAlive()
     }
 
-    cleanup:
+    when:
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
+    oldProcess = processSupervisor.currentProcess
     processSupervisor.close()
+
+    then:
+    conditions.eventually {
+      !oldProcess.isAlive()
+      processSupervisor.currentProcess == null || !processSupervisor.currentProcess.isAlive()
+    }
   }
 }
