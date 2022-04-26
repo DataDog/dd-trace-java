@@ -53,6 +53,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
       "datadog.trace.agent.tooling.ClassHierarchyIterable",
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JakartaRsAnnotationsDecorator",
+      packageName + ".JakartaRsAnnotationsDecorator$MethodDetails",
     };
   }
 

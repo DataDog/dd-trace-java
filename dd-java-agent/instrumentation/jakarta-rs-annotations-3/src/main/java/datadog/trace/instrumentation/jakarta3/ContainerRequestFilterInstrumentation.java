@@ -9,8 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.PathSegment;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -55,5 +57,7 @@ public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final ContainerRequestContext context) {
       context.setProperty(JakartaRsAnnotationsDecorator.ABORT_FILTER_CLASS, filter.getClass());
     }
+
+    private void muzzleCheck(@PathParam("foo") PathSegment foo) {}
   }
 }
