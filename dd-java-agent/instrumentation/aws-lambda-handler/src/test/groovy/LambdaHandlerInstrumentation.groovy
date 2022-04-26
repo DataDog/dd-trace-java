@@ -16,6 +16,7 @@ class LambdaHandlerInstrumentation extends AgentTestRunner {
 
   def "test lambda handler"() {
     when:
+
     environmentVariables.set("_HANDLER", "Handler")
     new Handler().handleRequest(null, null)
 

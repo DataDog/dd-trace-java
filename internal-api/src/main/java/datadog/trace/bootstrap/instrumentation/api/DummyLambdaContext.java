@@ -15,12 +15,10 @@ public class DummyLambdaContext implements AgentSpan.Context {
       final String traceID, final String spanID, final String samplingPriority) {
     this.traceID = DDId.from(traceID);
     this.spanID = DDId.from(spanID);
-    if (null != samplingPriority) {
-      try {
-        this.samplingPriority = Integer.parseInt(samplingPriority);
-      } catch (final NumberFormatException ignored) {
-        this.samplingPriority = PrioritySampling.UNSET;
-      }
+    try {
+      this.samplingPriority = Integer.parseInt(samplingPriority);
+    } catch (final NumberFormatException ignored) {
+      this.samplingPriority = PrioritySampling.UNSET;
     }
   }
 

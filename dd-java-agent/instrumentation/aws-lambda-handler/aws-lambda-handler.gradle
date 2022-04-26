@@ -9,6 +9,7 @@ apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
   latestDepTest {
     dirName = 'test'
+    environment "_HANDLER", "Handler"
   }
 }
 
