@@ -37,15 +37,13 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     super("aws-lambda");
     final String handler = System.getenv(HANDLER_ENV_NAME);
     if (null != handler) {
-      final String[] tokens = handler.split(HANDLER_SEPARATOR);
-      if (tokens.length == 1) {
+      final int split = handler.lastIndexOf(HANDLER_SEPARATOR);
+      if (split == -1) {
         this.instrumentedType = handler;
         this.methodName = DEFAULT_METHOD_NAME;
-      } else if (tokens.length == 2) {
-        this.instrumentedType = tokens[0];
-        this.methodName = tokens[1];
       } else {
-        log.error("wrong format for the handler, auto-instrumentation won't be applied");
+        this.instrumentedType = handler.substring(0, split);
+        this.methodName = handler.substring(split + HANDLER_SEPARATOR.length());
       }
     }
   }
@@ -78,6 +76,10 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
           getClass().getName() + "$ExtensionCommunicationAdvice");
       // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
     }
+  }
+
+  protected String getMethodName() {
+    return this.methodName;
   }
 
   public static class ExtensionCommunicationAdvice {
