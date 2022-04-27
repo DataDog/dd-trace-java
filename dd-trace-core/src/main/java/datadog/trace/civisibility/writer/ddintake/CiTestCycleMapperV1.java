@@ -11,10 +11,9 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -194,15 +193,11 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public int sizeInBytes() {
-      return msgpackArrayHeaderSize(traceCount()) + body.remaining();
+      return body.remaining();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      ByteBuffer header = msgpackArrayHeader(traceCount());
-      while (header.hasRemaining()) {
-        channel.write(header);
-      }
       while (body.hasRemaining()) {
         channel.write(body);
       }
@@ -210,7 +205,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
+      return msgpackRequestBodyOf(Collections.singletonList(body));
     }
   }
 }
