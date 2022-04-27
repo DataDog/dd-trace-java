@@ -1,6 +1,5 @@
 package datadog.trace.lambda
 
-import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -12,7 +11,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     public String field1
     public boolean field2
 
-    public TestObject() {
+    TestObject() {
       this.field1 = "toto"
       this.field2 = true
     }
