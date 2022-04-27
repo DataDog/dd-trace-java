@@ -1223,15 +1223,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-        } else if (parentContext instanceof LambdaContext) {
-          final LambdaContext lc = (LambdaContext) parentContext;
-          traceId = lc.getTraceId();
-          spanId = lc.getSpanId();
-          parentSpanId = DDId.ZERO;
-          samplingPriority = lc.getSamplingPriority();
-          samplingMechanism = lc.getSamplingMechanism();
-          baggage = null;
-          endToEndStartTime = 0;
+          if (parentContext instanceof LambdaContext) {
+            spanId = extractedContext.getSpanId();
+          }
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
