@@ -2,7 +2,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.Function
+import datadog.trace.api.function.Function
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer

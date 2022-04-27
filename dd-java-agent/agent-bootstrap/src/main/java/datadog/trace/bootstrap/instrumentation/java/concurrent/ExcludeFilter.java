@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.function.Function;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;

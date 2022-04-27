@@ -6,10 +6,10 @@ import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZEL
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZELCAST_SERVICE;
 
 import com.hazelcast.core.DistributedObject;
-import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;

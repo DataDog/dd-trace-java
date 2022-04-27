@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;

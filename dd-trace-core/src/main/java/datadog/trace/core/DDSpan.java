@@ -12,6 +12,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -25,7 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -110,6 +111,26 @@ public class DDSpan
   }
 
   private volatile TracingContextTracker tracingContextTracker;
+  // custom function to persist tracing context in the span tag with minimum number of extra
+  // allocations
+  private final ToIntFunction<ByteBuffer> tracingContextPersistor =
+      new ToIntFunction<ByteBuffer>() {
+        @Override
+        public int applyAsInt(ByteBuffer byteBuffer) {
+          String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
+          UTF8BytesString encodedString =
+              UTF8BytesString.create(Base64Encoder.INSTANCE.encode(byteBuffer));
+          if (log.isTraceEnabled()) {
+            log.trace(
+                "Tracing context data for s_id:{}, tag:{}={}",
+                getSpanId(),
+                contextTagName,
+                encodedString);
+          }
+          context.setTag(contextTagName, encodedString);
+          return encodedString.encodedLength();
+        }
+      };
 
   private DDSpan(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
@@ -250,20 +271,7 @@ public class DDSpan
 
   public int storeContextToTag() {
     try {
-      byte[] contextContent = tracingContextTracker.persist();
-      if (contextContent != null) {
-        String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
-        byte[] encoded = Base64Encoder.INSTANCE.encode(contextContent);
-        if (log.isTraceEnabled()) {
-          log.trace(
-              "Tracing context data for s_id:{}, tag:{}={}",
-              getSpanId(),
-              contextTagName,
-              new String(encoded, StandardCharsets.UTF_8));
-        }
-        context.setTag(contextTagName, UTF8BytesString.create(encoded));
-        return encoded.length;
-      }
+      return tracingContextTracker.persist(tracingContextPersistor);
     } catch (Throwable t) {
       log.error("", t);
     } finally {

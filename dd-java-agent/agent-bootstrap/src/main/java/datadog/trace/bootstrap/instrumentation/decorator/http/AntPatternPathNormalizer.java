@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import java.util.ArrayList;
 import java.util.List;

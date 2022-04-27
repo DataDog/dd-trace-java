@@ -1,5 +1,8 @@
 package datadog.trace.api.profiling;
 
+import datadog.trace.api.function.ToIntFunction;
+import java.nio.ByteBuffer;
+
 final class TestTracingContextTracker implements TracingContextTracker {
   @Override
   public boolean release() {
@@ -18,6 +21,11 @@ final class TestTracingContextTracker implements TracingContextTracker {
   @Override
   public byte[] persist() {
     return new byte[0];
+  }
+
+  @Override
+  public int persist(ToIntFunction<ByteBuffer> dataConsumer) {
+    return dataConsumer.applyAsInt(null);
   }
 
   @Override

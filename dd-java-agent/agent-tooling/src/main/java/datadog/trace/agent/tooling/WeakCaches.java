@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import datadog.trace.api.Function;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.util.concurrent.ConcurrentMap;
 
