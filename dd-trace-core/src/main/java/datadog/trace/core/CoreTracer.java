@@ -37,7 +37,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -54,6 +53,7 @@ import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.propagation.LambdaContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -794,7 +794,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public DummyLambdaContext notifyExtensionStart(Object event) {
+  public LambdaContext notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(event);
   }
 
@@ -1223,15 +1223,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-        } else if (parentContext instanceof DummyLambdaContext) {
-          final DummyLambdaContext dlc = (DummyLambdaContext) parentContext;
-          traceId = dlc.getTraceId();
-          spanId = dlc.getSpanId();
+        } else if (parentContext instanceof LambdaContext) {
+          final LambdaContext lc = (LambdaContext) parentContext;
+          traceId = lc.getTraceId();
+          spanId = lc.getSpanId();
           parentSpanId = DDId.ZERO;
-          samplingPriority = dlc.getSamplingPriority();
-          samplingMechanism = SamplingMechanism.UNKNOWN;
-          endToEndStartTime = 0;
+          samplingPriority = lc.getSamplingPriority();
+          samplingMechanism = lc.getSamplingMechanism();
           baggage = null;
+          endToEndStartTime = 0;
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();

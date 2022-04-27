@@ -4,7 +4,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.core.propagation.LambdaContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -45,7 +46,7 @@ public class LambdaHandler {
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static DummyLambdaContext notifyStartInvocation(Object event) {
+  public static LambdaContext notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -59,11 +60,17 @@ public class LambdaHandler {
       if (response.isSuccessful()) {
         final String traceID = response.headers().get(DATADOG_TRACE_ID);
         final String spanID = response.headers().get(DATADOG_SPAN_ID);
-        final String samplingPriority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
+        final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
         if (null != traceID && null != spanID) {
           log.debug(
               "notifyStartInvocation success, found traceID = {} and spanID = {}", traceID, spanID);
-          return new DummyLambdaContext(traceID, spanID, samplingPriority);
+          int samplingPriority = PrioritySampling.UNSET;
+          try {
+            samplingPriority = Integer.parseInt(priority);
+          } catch (final NumberFormatException ignored) {
+            log.warn("could not read the sampling priority, defaulting to UNSET");
+          }
+          return new LambdaContext(traceID, spanID, samplingPriority);
         } else {
           log.error(
               "could not find traceID/spanID in notifyStartInvocation, not injecting the context");

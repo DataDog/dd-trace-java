@@ -180,7 +180,7 @@ public class AgentTracer {
 
     void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic);
 
-    DummyLambdaContext notifyExtensionStart(Object event);
+    AgentSpan.Context notifyExtensionStart(Object event);
 
     void notifyExtensionEnd(boolean isError);
   }
@@ -383,7 +383,7 @@ public class AgentTracer {
     public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {}
 
     @Override
-    public DummyLambdaContext notifyExtensionStart(Object event) {
+    public AgentSpan.Context notifyExtensionStart(Object event) {
       return null;
     }
 

@@ -16,7 +16,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.DummyLambdaContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
@@ -87,7 +86,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @This final Object that,
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
-      DummyLambdaContext lambdaContext = AgentTracer.get().notifyExtensionStart(event);
+      AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
       AgentSpan span =
           startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
       final AgentScope scope = activateSpan(span);
