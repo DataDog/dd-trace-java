@@ -81,5 +81,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
 
+  public static final String PREBUILT_MATCHER_DATA_FILE = "prebuilt.matcher.data.file";
+
   private TraceInstrumentationConfig() {}
 }

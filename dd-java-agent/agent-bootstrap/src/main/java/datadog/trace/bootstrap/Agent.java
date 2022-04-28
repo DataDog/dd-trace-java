@@ -256,6 +256,17 @@ public class Agent {
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
   }
 
+  public static synchronized Class<?> installMatcherCacheBuilderCLI(final URL bootstrapURL)
+      throws Exception {
+    createSharedClassloader(bootstrapURL);
+    if (null == AGENT_CLASSLOADER) {
+      // in Cache Builder mode we skip installation of instrumentation because we're not running as
+      // an agent
+      AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
+    }
+    return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MatcherCacheBuilderCLI");
+  }
+
   private static boolean isOracleJDK8() {
     return isJavaVersionBetween(8, 9)
         && System.getProperty("java.vendor").contains("Oracle")

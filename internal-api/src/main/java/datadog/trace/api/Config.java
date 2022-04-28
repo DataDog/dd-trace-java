@@ -236,6 +236,7 @@ import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -1896,6 +1897,10 @@ public class Config {
     return configProvider.getInteger(TracerConfig.DATADOG_TAGS_LIMIT, 512);
   }
 
+  public String getPreBuiltMatcherDataFile() {
+    return configProvider.getString(TraceInstrumentationConfig.PREBUILT_MATCHER_DATA_FILE);
+  }
+
   public <T extends Enum<T>> T getEnumValue(
       final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);
@@ -2087,8 +2092,8 @@ public class Config {
   private static boolean isWindowsOS() {
     return System.getProperty("os.name").startsWith("Windows");
   }
-
   // This has to be placed after all other static fields to give them a chance to initialize
+
   @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE = new Config();
 

@@ -1,0 +1,19 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+//minimumBranchCoverage = 0.6
+//excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
+
+dependencies {
+  implementation deps.slf4j
+  implementation deps.bytebuddy
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+test {
+  useJUnitPlatform()
+}

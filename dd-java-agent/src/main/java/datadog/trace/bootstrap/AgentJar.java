@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
@@ -8,6 +9,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
+import java.util.Arrays;
 
 /** Entry point when running the agent as a sample application with -jar. */
 public final class AgentJar {
@@ -34,6 +36,10 @@ public final class AgentJar {
           case "-v":
             printAgentVersion();
             break;
+          case "--build-matcher-cache":
+          case "-mc":
+            runMatcherCacheBuilderCLI(args);
+            break;
           default:
             throw new IllegalArgumentException(args[0]);
         }
@@ -50,6 +56,7 @@ public final class AgentJar {
   private static void printUsage() {
     System.out.println("usage: sampleTrace [-c count] [-i interval]");
     System.out.println("       [-li | --list-integrations]");
+    System.out.println("       [-mc | --build-matcher-cache]");
     System.out.println("       [-h  | --help]");
     System.out.println("       [-v  | --version]");
   }
@@ -118,5 +125,31 @@ public final class AgentJar {
     }
 
     return sb.toString().trim();
+  }
+
+  public static void runMatcherCacheBuilderCLI(String... args) throws MalformedURLException {
+    final CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
+    if (codeSource == null || codeSource.getLocation() == null) {
+      throw new MalformedURLException("Failed to get dd-java-tracer jar");
+    }
+
+    URL ddJavaAgentJarURL = codeSource.getLocation();
+    try {
+      File bootstrapFile = new File(ddJavaAgentJarURL.toURI());
+
+      Class<?> agentClass =
+          ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+      Method installMatcherCacheBuilderCLIMethod =
+          agentClass.getMethod("installMatcherCacheBuilderCLI", URL.class);
+      Class<?> matcherCacheBuilderClass =
+          (Class<?>) installMatcherCacheBuilderCLIMethod.invoke(null, codeSource.getLocation());
+
+      String[] matcherCacheBuilderArgs = Arrays.copyOfRange(args, 1, args.length);
+      final Method startMethod =
+          matcherCacheBuilderClass.getMethod("run", File.class, String[].class);
+      startMethod.invoke(null, bootstrapFile, matcherCacheBuilderArgs);
+    } catch (Throwable e) {
+      e.printStackTrace();
+    }
   }
 }

@@ -10,9 +10,9 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 /**
  * Intercepts transformation requests before ByteBuddy so we can perform some initial filtering.
  *
- * <p>This class is only used on Java 9+, for Java 7/8 see {@link DDClassFileTransformer}.
+ * <p>This class is only used on Java 8, for Java 9+ see {@link DDJava9ClassFileTransformer}.
  */
-public final class DDJava9ClassFileTransformer
+public final class DDJava8ClassFileTransformer
     extends ResettableClassFileTransformer.WithDelegation {
 
   public static final TransformerDecorator DECORATOR =
@@ -20,11 +20,11 @@ public final class DDJava9ClassFileTransformer
         @Override
         public ResettableClassFileTransformer decorate(
             final ResettableClassFileTransformer classFileTransformer) {
-          return new DDJava9ClassFileTransformer(classFileTransformer);
+          return new DDJava8ClassFileTransformer(classFileTransformer);
         }
       };
 
-  public DDJava9ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
+  public DDJava8ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
     super(classFileTransformer);
   }
 
@@ -47,35 +47,6 @@ public final class DDJava9ClassFileTransformer
     byte[] result =
         classFileTransformer.transform(
             classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
-    event.afterClassTransformation(result);
-    return result;
-  }
-
-  @Override
-  public byte[] transform(
-      final Module module,
-      final ClassLoader classLoader,
-      final String internalClassName,
-      final Class<?> classBeingRedefined,
-      final ProtectionDomain protectionDomain,
-      final byte[] classFileBuffer)
-      throws IllegalClassFormatException {
-
-    if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
-      return null;
-    }
-
-    ClassTransformationEvent event =
-        ClassTransformationEvent.beforeClassTransformation(
-            internalClassName, classFileBuffer, classLoader);
-    byte[] result =
-        classFileTransformer.transform(
-            module,
-            classLoader,
-            internalClassName,
-            classBeingRedefined,
-            protectionDomain,
-            classFileBuffer);
     event.afterClassTransformation(result);
     return result;
   }
