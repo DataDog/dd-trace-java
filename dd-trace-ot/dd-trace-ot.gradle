@@ -42,8 +42,6 @@ dependencies {
   api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   api deps.slf4j
-  api group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
-  api deps.okio
 
   testImplementation project(":dd-java-agent:testing")
 
