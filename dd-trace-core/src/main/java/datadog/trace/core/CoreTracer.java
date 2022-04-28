@@ -53,9 +53,11 @@ import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.propagation.LambdaContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -791,6 +793,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
   }
 
+  @Override
+  public LambdaContext notifyExtensionStart(Object event) {
+    return LambdaHandler.notifyStartInvocation(event);
+  }
+
+  @Override
+  public void notifyExtensionEnd(boolean isError) {
+    LambdaHandler.notifyEndInvocation(isError);
+  }
+
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**
@@ -1147,7 +1159,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     private DDSpanContext buildSpanContext() {
       final DDId traceId;
-      final DDId spanId = idGenerationStrategy.generate();
       final DDId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
@@ -1160,6 +1171,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DDSpanContext context;
       final Object requestContextData;
       final PathwayContext pathwayContext;
+
+      DDId spanId = idGenerationStrategy.generate();
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -1210,6 +1223,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
+          if (parentContext instanceof LambdaContext) {
+            spanId = extractedContext.getSpanId();
+          }
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
