@@ -65,6 +65,11 @@ public class WriterFactory {
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
+      final String apiKey = config.getApiKey();
+      if (apiKey == null || apiKey.isEmpty()) {
+        log.info("Api Key has not been detected, using PrinterWriter.");
+        return new PrintingWriter(System.out, true);
+      }
 
       final DDIntakeApi ddIntakeApi =
           DDIntakeApi.builder().apiKey(config.getApiKey()).trackType(trackType).build();
@@ -77,8 +82,6 @@ public class WriterFactory {
               .healthMetrics(new HealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)
               .build();
-
-      log.info("Using DDIntakeWriter. TrackType: " + trackType);
     } else {
       if (!DD_AGENT_WRITER_TYPE.equals(configuredType)) {
         log.warn(

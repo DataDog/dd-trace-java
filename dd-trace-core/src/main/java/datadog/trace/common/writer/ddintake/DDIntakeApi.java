@@ -19,6 +19,7 @@ import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** The API pointing to a DD Intake endpoint */
 public class DDIntakeApi implements RemoteApi {
 
   private static final String DD_API_KEY_HEADER = "dd-api-key";
@@ -31,10 +32,13 @@ public class DDIntakeApi implements RemoteApi {
   }
 
   public static class DDIntakeApiBuilder {
-    String site = Config.get().getSite();
-    String apiVersion = DEFAULT_INTAKE_VERSION;
-    TrackType trackType = TrackType.NOOP;
-    long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
+    private String site = Config.get().getSite();
+    private String apiVersion = DEFAULT_INTAKE_VERSION;
+    private TrackType trackType = TrackType.NOOP;
+    private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
+
+    HttpUrl hostUrl = null;
+    OkHttpClient httpClient = null;
 
     private String apiKey;
 
@@ -63,13 +67,25 @@ public class DDIntakeApi implements RemoteApi {
       return this;
     }
 
-    public DDIntakeApi build() {
-      final String trackName = (trackType != null ? trackType.name() : NOOP.name()).toLowerCase();
-      final HttpUrl intakeUrl =
-          HttpUrl.get(
-              "https://" + trackName + "-intake." + site + "/api/" + apiVersion + "/" + trackName);
+    DDIntakeApiBuilder hostUrl(final HttpUrl hostUrl) {
+      this.hostUrl = hostUrl;
+      return this;
+    }
 
-      final OkHttpClient client = OkHttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
+    DDIntakeApiBuilder httpClient(final OkHttpClient httpClient) {
+      this.httpClient = httpClient;
+      return this;
+    }
+
+    public DDIntakeApi build() {
+      assert apiKey != null;
+      final String trackName = (trackType != null ? trackType.name() : NOOP.name()).toLowerCase();
+      if (null == hostUrl) {
+        hostUrl = HttpUrl.get(String.format("https://%s-intake.%s", trackName, site));
+      }
+      final HttpUrl intakeUrl = hostUrl.resolve(String.format("/api/%s/%s", apiVersion, trackName));
+      final OkHttpClient client =
+          (httpClient != null) ? httpClient : OkHttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
       return new DDIntakeApi(client, intakeUrl, apiKey);
     }
   }

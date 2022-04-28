@@ -11,6 +11,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -198,14 +199,25 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      while (body.hasRemaining()) {
-        channel.write(body);
+      if (traceCount() == 0) {
+        ByteBuffer header = msgpackMapHeader(0);
+        while (header.hasRemaining()) {
+          channel.write(header);
+        }
+      } else {
+        while (body.hasRemaining()) {
+          channel.write(body);
+        }
       }
     }
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(Collections.singletonList(body));
+      if (traceCount() == 0) {
+        return msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
+      } else {
+        return msgpackRequestBodyOf(Collections.singletonList(body));
+      }
     }
   }
 }
