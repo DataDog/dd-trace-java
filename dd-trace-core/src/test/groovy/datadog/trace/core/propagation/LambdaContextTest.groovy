@@ -1,8 +1,8 @@
 package datadog.trace.core.propagation
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class LambdaContextTest extends Specification {
+class LambdaContextTest extends DDSpecification {
 
   def "test constructor"(){
     when:
