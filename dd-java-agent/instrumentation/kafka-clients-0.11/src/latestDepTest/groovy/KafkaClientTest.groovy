@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -47,6 +49,7 @@ class KafkaClientTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   def "test kafka produce and consume"() {
@@ -97,7 +100,7 @@ class KafkaClientTest extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2)
     }
-
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     // check that the message was received
@@ -137,6 +140,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -151,6 +155,19 @@ class KafkaClientTest extends AgentTestRunner {
     headers.iterator().hasNext()
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.isEmpty()
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
+      }
+    }
 
     cleanup:
     producer.close()
@@ -203,7 +220,7 @@ class KafkaClientTest extends AgentTestRunner {
       })
       blockUntilChildSpansFinished(2)
     }
-
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     // check that the message was received
@@ -243,6 +260,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -257,6 +275,19 @@ class KafkaClientTest extends AgentTestRunner {
     headers.iterator().hasNext()
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.isEmpty()
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
+      }
+    }
 
     cleanup:
     producerFactory.destroy()
@@ -342,6 +373,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.TOMBSTONE" true
             // TODO - test with and without feature enabled once Config is easier to control
@@ -425,6 +457,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -543,6 +576,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
@@ -562,6 +596,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 1
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
@@ -581,6 +616,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 2
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
@@ -602,6 +638,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 2
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
@@ -621,6 +658,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 1
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
@@ -640,6 +678,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
@@ -691,6 +730,7 @@ class KafkaClientTest extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2 * greetings.size())
     }
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     def receivedSet = greetings.toSet()
@@ -763,6 +803,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
 
@@ -782,6 +823,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
 
@@ -801,12 +843,26 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
+            "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
 
             defaultTags(true)
           }
         }
+      }
+    }
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.isEmpty()
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
       }
     }
 

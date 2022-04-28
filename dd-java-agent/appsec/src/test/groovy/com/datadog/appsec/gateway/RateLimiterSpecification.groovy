@@ -17,7 +17,7 @@ class RateLimiterSpecification extends Specification {
     15.times {testee.throttled || count++ }
 
     then:
-    15 * mock.nanoTime >> System.nanoTime()
+    15 * mock.nanoTicks >> System.nanoTime()
     count == 10
     throttledCounter == 5
   }
@@ -31,14 +31,14 @@ class RateLimiterSpecification extends Specification {
     8.times {testee.throttled || count++ }
 
     then:
-    8 * mock.nanoTime >> initialTime
+    8 * mock.nanoTicks >> initialTime
     count == 8
 
     when:
     20.times {testee.throttled || count++ }
 
     then:
-    20 * mock.nanoTime >> initialTime + 1_500_000_000L
+    20 * mock.nanoTicks >> initialTime + 1_500_000_000L
     // 4 events from previous period are considered.
     count == 8 + (10 - 4)
   }
@@ -52,14 +52,14 @@ class RateLimiterSpecification extends Specification {
     10.times {testee.throttled || count++ }
 
     then:
-    10 * mock.nanoTime >> initialTime
+    10 * mock.nanoTicks >> initialTime
     count == 10
 
     when:
     testee.throttled || count++
 
     then:
-    1 * mock.nanoTime >> initialTime + 1_000_000_000L
+    1 * mock.nanoTicks >> initialTime + 1_000_000_000L
     count == 10
   }
 
@@ -72,20 +72,20 @@ class RateLimiterSpecification extends Specification {
     when:
     testee.throttled
     then:
-    1 * mock.nanoTime >> -42_000_000_000L
+    1 * mock.nanoTicks >> -42_000_000_000L
 
     when:
     8.times {testee.throttled || count++ }
 
     then:
-    8 * mock.nanoTime >> initialTime
+    8 * mock.nanoTicks >> initialTime
     count == 8
 
     when:
     20.times {testee.throttled || count++ }
 
     then:
-    20 * mock.nanoTime >> initialTime + 1_500_000_000L
+    20 * mock.nanoTicks >> initialTime + 1_500_000_000L
     // 4 events from previous period are considered.
     count == 8 + (10 - 4)
   }
@@ -99,21 +99,21 @@ class RateLimiterSpecification extends Specification {
     8.times {testee.throttled || count++ }
 
     then:
-    8 * mock.nanoTime >> initialTime
+    8 * mock.nanoTicks >> initialTime
     count == 8
 
     when:
     20.times {testee.throttled || count++ }
 
     then:
-    20 * mock.nanoTime >> initialTime + 2_000_000_000L
+    20 * mock.nanoTicks >> initialTime + 2_000_000_000L
     count == 8 + 10
 
     when:
     20.times {testee.throttled || count++ }
 
     then:
-    20 * mock.nanoTime >> initialTime
+    20 * mock.nanoTicks >> initialTime
     count == 8 + 10 + 10
   }
 
@@ -125,20 +125,20 @@ class RateLimiterSpecification extends Specification {
     9.times {testee.throttled || count++ }
 
     then:
-    9 * mock.nanoTime >> initialTime
+    9 * mock.nanoTicks >> initialTime
 
     when:
     testee.throttled || count++
 
     then:
-    2 * mock.nanoTime >>> [initialTime - 1_000_000_000L, initialTime]
+    2 * mock.nanoTicks >>> [initialTime - 1_000_000_000L, initialTime]
     count == 10
 
     when:
     testee.throttled || count++
 
     then:
-    2 * mock.nanoTime >>> [initialTime - 1_000_000_000L, initialTime]
+    2 * mock.nanoTicks >>> [initialTime - 1_000_000_000L, initialTime]
     count == 10
 
     where:
@@ -154,13 +154,13 @@ class RateLimiterSpecification extends Specification {
     10.times {testee.throttled || count++ }
 
     then:
-    10 * mock.nanoTime >> initialTime
+    10 * mock.nanoTicks >> initialTime
 
     when:
     testee.throttled || count++
 
     then:
-    2 * mock.nanoTime >> initialTime - 1_000_000_000L
+    2 * mock.nanoTicks >> initialTime - 1_000_000_000L
     count == 11
   }
 }

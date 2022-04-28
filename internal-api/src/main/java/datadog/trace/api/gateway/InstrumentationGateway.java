@@ -2,8 +2,8 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.*;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
@@ -226,6 +226,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                 }
               }
             };
+      case GRPC_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {

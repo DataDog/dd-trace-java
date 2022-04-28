@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher.jfr;
 
-import datadog.trace.agent.tooling.AgentInstaller;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +38,9 @@ public class KnownClassesLoaderEvents {
   private static KnownClassesLoaderEvents loadKnownClassesLoaderEvents() {
     if (Platform.isJavaVersionAtLeast(8, 0, 262)) {
       try {
-        AgentInstaller.class.getClassLoader().loadClass("jdk.jfr.Event");
+        Instrumenter.class.getClassLoader().loadClass("jdk.jfr.Event");
         return (KnownClassesLoaderEvents)
-            AgentInstaller.class
+            Instrumenter.class
                 .getClassLoader()
                 .loadClass(
                     "datadog.trace.agent.tooling.bytebuddy.matcher.jfr.KnownClassesLoaderEventsImpl")

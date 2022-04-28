@@ -21,6 +21,7 @@ public final class GeneralConfig {
   public static final String SERVICE_NAME = "service.name";
   public static final String ENV = "env";
   public static final String VERSION = "version";
+  public static final String PRIMARY_TAG = "primary.tag";
   public static final String TAGS = "tags";
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
@@ -50,6 +51,8 @@ public final class GeneralConfig {
 
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
+
+  public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
 
   private GeneralConfig() {}
 }

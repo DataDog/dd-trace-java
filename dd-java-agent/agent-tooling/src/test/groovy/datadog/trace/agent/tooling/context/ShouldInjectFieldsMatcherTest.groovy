@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.context
 
-import datadog.trace.agent.tooling.AgentTooling
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
+import datadog.trace.agent.tooling.bytebuddy.DDClassFileLocator
 import datadog.trace.test.util.DDSpecification
-import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.utility.JavaModule
 import spock.lang.Shared
 
@@ -11,13 +11,12 @@ import java.security.ProtectionDomain
 class ShouldInjectFieldsMatcherTest extends DDSpecification {
 
   @Shared
-  def typePool =
-  AgentTooling.poolStrategy()
-  .typePool(AgentTooling.locationStrategy().classFileLocator(this.class.classLoader, null), this.class.classLoader)
+  def typePool = DDCachingPoolStrategy.INSTANCE.typePool(
+  new DDClassFileLocator(this.class.classLoader), this.class.classLoader)
 
   def "should inject only into #keyType when #klass is transformed"() {
     setup:
-    AgentBuilder.RawMatcher matcher = ShouldInjectFieldsMatcher.of(keyType, "java.lang.String")
+    def matcher = new ShouldInjectFieldsMatcher(keyType, "java.lang.String")
 
     when:
     boolean matches = matcher.matches(
@@ -42,7 +41,7 @@ class ShouldInjectFieldsMatcherTest extends DDSpecification {
 
   def "should inject only into #expected when #klass implementing #keyType is transformed"() {
     setup:
-    AgentBuilder.RawMatcher matcher = ShouldInjectFieldsMatcher.of(keyType, "java.lang.String")
+    def matcher = new ShouldInjectFieldsMatcher(keyType, "java.lang.String")
 
     when:
     boolean matches = matcher.matches(

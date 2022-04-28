@@ -39,7 +39,7 @@ save_cache_paths: &save_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+    testJvm: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15", "17" ]
 
 parameters:
   gradle_flags:
@@ -172,9 +172,10 @@ jobs:
     parameters:
       testTask:
         type: string
-      prefixTestTask:
-        default: false
-        type: boolean
+        default: "test"
+      testJvm:
+        type: string
+        default: ""
 
     steps:
       - setup_code
@@ -187,7 +188,8 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests -PskipSmokeTests
+            ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --continue
@@ -215,7 +217,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh base << parameters.testTask >> || true
+          command: .circleci/upload_ciapp.sh base << parameters.testJvm >> || true
 
   instrumentation_tests:
     <<: *base_tests
@@ -245,13 +247,6 @@ jobs:
           POSTGRES_PASSWORD: sa
           POSTGRES_DB: jdbcUnitTest
 
-    parameters:
-      testTask:
-        type: string
-      prefixTestTask:
-        default: false
-        type: boolean
-
     steps:
       - setup_code
 
@@ -263,7 +258,8 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            ./gradlew :dd-java-agent:instrumentation:<< parameters.testTask >>
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=6
             --continue
@@ -291,7 +287,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh instrumentation << parameters.testTask >> || true
+          command: .circleci/upload_ciapp.sh instrumentation << parameters.testJvm >> || true
 
   smoke_tests:
     <<: *base_tests
@@ -304,13 +300,6 @@ jobs:
         # This is used by mongodb smoke tests
       - image: mongo
 
-    parameters:
-      testTask:
-        type: string
-      prefixTestTask:
-        default: false
-        type: boolean
-
     steps:
       - setup_code
 
@@ -322,7 +311,8 @@ jobs:
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew stageMainDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            ./gradlew stageMainDist :dd-smoke-test:<< parameters.testTask >>
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=2
             --continue
@@ -350,7 +340,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: .circleci/upload_ciapp.sh smoke << parameters.testTask >> || true
+          command: .circleci/upload_ciapp.sh smoke << parameters.testJvm >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
@@ -362,12 +352,12 @@ jobs:
       - image: alpine
 
     parameters:
-      testTask:
+      testJvm:
         type: string
 
     steps:
       - run:
-          name: All tests for << parameters.testTask >> passed!
+          name: All tests for << parameters.testJvm >> passed!
           command: echo 'All tests passed!'
 
   agent_integration_tests:
@@ -376,7 +366,7 @@ jobs:
 
     docker:
       - image: *default_container
-      - image: datadog/agent:7.29.0
+      - image: datadog/agent:7.34.0
         environment:
           - DD_APM_ENABLED=true
           - DD_BIND_HOST=0.0.0.0
@@ -409,7 +399,7 @@ jobs:
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
             cd test-published-dependencies
-            ../gradlew check --max-workers=3
+            ./gradlew check --max-workers=3
 
       - run:
           name: Collect Reports
@@ -466,14 +456,63 @@ jobs:
 
       - display_memory_usage
 
+  system-tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+
+      - setup_code
+
+      - restore_cache:
+          <<: *cache_keys
+
+      - run:
+          name: Install good version of docker-compose
+          command: |
+            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+
+      - run:
+          name: versions
+          command: |
+            docker --version
+            docker-compose --version
+
+      - run:
+          name: Clone System Tests repo
+          command: git clone https://github.com/DataDog/system-tests.git
+
+      - run:
+          name: Copy jar file to system test binaries folder
+          command: |
+            ls -la workspace/dd-java-agent/build/libs
+            cp workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Build
+          command: |
+            cd system-tests
+            ./build.sh java
+
+      - run:
+          name: Run
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - store_artifacts:
+          path: system-tests/logs
+          destination: system-tests.tar.gz
+
 build_test_jobs: &build_test_jobs
   - build
 
   - base_tests:
       requires:
         - build
-      prefixTestTask: true
-      name: z_test_<< matrix.testTask >>_base
+      name: z_test_<< matrix.testJvm >>_base
       matrix:
         <<: *test_matrix
 
@@ -482,12 +521,12 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_8_base
       testTask: test jacocoTestReport jacocoTestCoverageVerification
+      testJvm: "8"
 
   - instrumentation_tests:
       requires:
         - build
-      prefixTestTask: true
-      name: z_test_<< matrix.testTask >>_inst
+      name: z_test_<< matrix.testJvm >>_inst
       matrix:
         <<: *test_matrix
 
@@ -495,19 +534,19 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_inst
-      testTask: test
+      testJvm: "8"
 
   - instrumentation_tests:
       requires:
         - build
       name: test_8_inst_latest
       testTask: latestDepTest
+      testJvm: "8"
 
   - smoke_tests:
       requires:
         - build
-      prefixTestTask: true
-      name: z_test_<< matrix.testTask >>_smoke
+      name: z_test_<< matrix.testJvm >>_smoke
       matrix:
         <<: *test_matrix
 
@@ -515,14 +554,14 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
       name: z_test_8_smoke
-      testTask: test
+      testJvm: "8"
 
   - fan_in:
       requires:
-        - z_test_<< matrix.testTask >>_base
-        - z_test_<< matrix.testTask >>_inst
-        - z_test_<< matrix.testTask >>_smoke
-      name: test_<< matrix.testTask >>
+        - z_test_<< matrix.testJvm >>_base
+        - z_test_<< matrix.testJvm >>_inst
+        - z_test_<< matrix.testJvm >>_smoke
+      name: test_<< matrix.testJvm >>
       matrix:
         <<: *test_matrix
 
@@ -532,7 +571,7 @@ build_test_jobs: &build_test_jobs
         - z_test_8_inst
         - z_test_8_smoke
       name: test_8
-      testTask: "8"
+      testJvm: "8"
 
   - agent_integration_tests:
       requires:
@@ -552,6 +591,10 @@ build_test_jobs: &build_test_jobs
             - master
             - project/*
             - release/*
+
+  - system-tests:
+      requires:
+        - build
 
 workflows:
   build_test:

@@ -6,28 +6,25 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.AbstractExecutorService
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
-import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.Future
-import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
-class ExecutorInstrumentationTest extends AgentTestRunner {
+abstract class ExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
@@ -63,9 +60,11 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
 
-    injectSysConfig("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
+    injectSysConfig("dd.trace.executors", "CustomThreadPoolExecutor")
+    injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
+  @Unroll
   def "#poolImpl '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
@@ -224,12 +223,16 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     // spotless:on
   }
 
+  @Unroll
   def "#poolImpl '#name' doesn't propagate"() {
     setup:
     def pool = poolImpl
     def m = method
     def task = new PeriodicTask()
 
+    when:
+    // make sure that the task is removed from the queue on cancel
+    pool.setRemoveOnCancelPolicy(true)
     new Runnable() {
         @Override
         @Trace(operationName = "parent")
@@ -238,11 +241,17 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
           def future = m(pool, task)
           sleep(500)
           future.cancel(true)
+          while (!future.isDone()) {
+            sleep(500)
+          }
         }
       }.run()
+    // there is a potential race where the task is still executing or about to execute
+    task.ensureFinished()
+    def runCount = task.runCount
 
-    expect:
-    assertTraces(task.runCount + 1) {
+    then:
+    assertTraces(runCount + 1) {
       sortSpansByStart()
       trace(1) {
         span {
@@ -254,7 +263,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
           }
         }
       }
-      for (int i = 0; i < task.runCount; i++) {
+      for (int i = 0; i < runCount; i++) {
         trace(1) {
           span {
             operationName "periodicRun"
@@ -281,6 +290,54 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     // spotless:on
   }
 
+  def "excluded ToBeIgnoredExecutor doesn't propagate"() {
+    setup:
+    def pool = new ToBeIgnoredExecutor()
+    new Runnable() {
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          pool.execute(new JavaAsyncChild())
+          // this child won't
+          pool.execute(new JavaAsyncChild(false, false))
+        }
+      }.run()
+    TEST_WRITER.waitForTraces(2)
+
+    expect:
+    assertTraces(2) {
+      sortSpansByStart()
+      trace(1) {
+        span {
+          operationName "parent"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          operationName "asyncChild"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    if (pool?.hasProperty("shutdown")) {
+      pool?.shutdown()
+    }
+  }
+
+  @Unroll
   def "#poolImpl '#name' wraps"() {
     setup:
     def pool = poolImpl
@@ -317,6 +374,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable" | scheduleRunnable | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
   }
 
+  @Unroll
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll
@@ -358,6 +416,11 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     expect:
     // FIXME: we should improve this test to make sure continuations are actually closed
     TEST_WRITER.size() == 1
+
+    cleanup:
+    if (pool?.hasProperty("shutdown")) {
+      pool?.shutdown()
+    }
 
     where:
     name                  | method             | poolImpl
@@ -404,104 +467,21 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     //    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
   }
 
-  static class CustomThreadPoolExecutor extends AbstractExecutorService {
-    volatile running = true
-    def workQueue = new LinkedBlockingQueue<Runnable>(10)
-
-    def worker = new Runnable() {
-      void run() {
-        try {
-          while (running) {
-            def runnable = workQueue.take()
-            runnable.run()
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt()
-        } catch (Exception e) {
-          e.printStackTrace()
-        }
-      }
+  static class ToBeIgnoredExecutor extends ThreadPoolExecutor {
+    ToBeIgnoredExecutor() {
+      super(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(10))
     }
+  }
+}
 
-    def workerThread = new Thread(worker, "ExecutorTestThread")
+class ExecutorInstrumentationForkedTest extends ExecutorInstrumentationTest {
+  def setupSpec() {
+    System.setProperty("dd.trace.thread-pool-executors.legacy.tracing.enabled", "false")
+  }
+}
 
-    private CustomThreadPoolExecutor() {
-      workerThread.start()
-    }
-
-    @Override
-    void shutdown() {
-      running = false
-      workerThread.interrupt()
-    }
-
-    @Override
-    List<Runnable> shutdownNow() {
-      running = false
-      workerThread.interrupt()
-      return []
-    }
-
-    @Override
-    boolean isShutdown() {
-      return !running
-    }
-
-    @Override
-    boolean isTerminated() {
-      return workerThread.isAlive()
-    }
-
-    @Override
-    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-      workerThread.join(unit.toMillis(timeout))
-      return true
-    }
-
-    @Override
-    def <T> Future<T> submit(Callable<T> task) {
-      def future = newTaskFor(task)
-      execute(future)
-      return future
-    }
-
-    @Override
-    def <T> Future<T> submit(Runnable task, T result) {
-      def future = newTaskFor(task, result)
-      execute(future)
-      return future
-    }
-
-    @Override
-    Future<?> submit(Runnable task) {
-      def future = newTaskFor(task, null)
-      execute(future)
-      return future
-    }
-
-    @Override
-    def <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
-      return super.invokeAll(tasks)
-    }
-
-    @Override
-    def <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
-      return super.invokeAll(tasks)
-    }
-
-    @Override
-    def <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
-      return super.invokeAny(tasks)
-    }
-
-    @Override
-    def <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-      return super.invokeAny(tasks)
-    }
-
-    @Override
-    void execute(Runnable command) {
-      workQueue.put(command)
-    }
+class ExecutorInstrumentationLegacyForkedTest extends ExecutorInstrumentationTest {
+  def setupSpec() {
+    System.setProperty("dd.trace.thread-pool-executors.legacy.tracing.enabled", "true")
   }
 }

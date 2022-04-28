@@ -101,6 +101,21 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  Map<String, ?> expectedIGPathParams() {
+    [id: '123']
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
+    true
+  }
+
+  @Override
   Class<? extends Exception> expectedExceptionType() {
     return RuntimeException
   }

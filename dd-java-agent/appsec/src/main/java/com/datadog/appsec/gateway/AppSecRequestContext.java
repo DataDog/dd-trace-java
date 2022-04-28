@@ -2,12 +2,13 @@ package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
-import com.datadog.appsec.event.data.StringKVPair;
+import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
+import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +54,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String savedRawURI;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
-  private List<StringKVPair> collectedCookies = new ArrayList<>(4);
+  private Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
   private String peerAddress;
@@ -65,12 +66,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean blocked;
 
   private boolean reqDataPublished;
-  private boolean pathParamsPublished;
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
 
+  // should be guarded by this
   private Additive additive;
+  private PowerwafMetrics wafMetrics;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -82,7 +84,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         continue;
       }
       Object prev = persistentData.putIfAbsent(address, value);
-      if (prev != null) {
+      if (prev == value) {
+        continue;
+      } else if (prev != null) {
         log.warn("Illegal attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
@@ -95,7 +99,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return additive;
   }
 
+  public void setWafMetrics(PowerwafMetrics wafMetrics) {
+    this.wafMetrics = wafMetrics;
+  }
+
+  public PowerwafMetrics getWafMetrics() {
+    return wafMetrics;
+  }
+
   public void setAdditive(Additive additive) {
+    Additive curAdditive = this.additive;
+    // the better check would be if the curAdditive has been closed,
+    // but this is behind a private field
+    if (curAdditive != null && additive != null) {
+      log.warn("Replacing WAF object. This is a bug");
+      curAdditive.close();
+    }
     this.additive = additive;
   }
 
@@ -150,8 +169,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null) {
-      throw new IllegalStateException("Raw URI set already");
+    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
+      throw new IllegalStateException(
+          "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
   }
@@ -208,15 +228,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return responseHeaders;
   }
 
-  void addCookie(StringKVPair cookie) {
+  void addCookies(Map<String, List<String>> cookies) {
     if (finishedRequestHeaders) {
       throw new IllegalStateException("Request headers were said to be finished before");
     }
-    collectedCookies.add(cookie);
+    if (collectedCookies == null) {
+      collectedCookies = cookies;
+    } else {
+      collectedCookies.putAll(cookies);
+    }
   }
 
-  List<StringKVPair> getCollectedCookies() {
-    return collectedCookies;
+  Map<String, ? extends Collection<String>> getCookies() {
+    return collectedCookies != null ? collectedCookies : Collections.emptyMap();
   }
 
   String getPeerAddress() {
@@ -264,11 +288,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean isPathParamsPublished() {
-    return pathParamsPublished;
-  }
-
-  public void setPathParamsPublished(boolean pathParamsPublished) {
-    this.pathParamsPublished = pathParamsPublished;
+    return persistentData.containsKey(KnownAddresses.REQUEST_PATH_PARAMS);
   }
 
   public boolean isRawReqBodyPublished() {
@@ -297,7 +317,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   @Override
   public void close() {
-    // currently no-op
+    if (additive != null) {
+      log.warn("WAF object had not been closed (probably missed request-end event)");
+      try {
+        additive.close();
+      } finally {
+        additive = null;
+      }
+    }
   }
 
   /* end interface for GatewayBridge */

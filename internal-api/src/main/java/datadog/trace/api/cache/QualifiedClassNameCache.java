@@ -1,7 +1,7 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.Function;
-import datadog.trace.api.TwoArgFunction;
+import datadog.trace.api.function.Function;
+import datadog.trace.api.function.TwoArgFunction;
 
 public final class QualifiedClassNameCache extends ClassValue<QualifiedClassNameCache.Leaf> {
 

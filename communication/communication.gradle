@@ -1,8 +1,5 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
-
 dependencies {
   implementation deps.slf4j
 
@@ -27,6 +24,7 @@ ext {
     'datadog.communication.ddagent.ExternalAgentLauncher',
     'datadog.communication.http.OkHttpUtils',
     'datadog.communication.http.OkHttpUtils.ByteBufferRequestBody',
+    'datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody',
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',

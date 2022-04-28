@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.springscheduling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public class SpringAsyncInstrumentation extends Instrumenter.Tracing
@@ -33,9 +33,7 @@ public class SpringAsyncInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(
                 named("invoke")
-                    .and(
-                        ElementMatchers.takesArgument(
-                            0, named("org.aopalliance.intercept.MethodInvocation")))),
+                    .and(takesArgument(0, named("org.aopalliance.intercept.MethodInvocation")))),
         packageName + ".SpringAsyncAdvice");
   }
 }

@@ -15,6 +15,7 @@ def mainFilterFile = files("$rootDir/gradle/forbiddenApiFilters/main.txt")
 
 forbiddenApis {
   signaturesFiles = mainFilterFile
+  ignoreSignaturesOfMissingClasses = true
   ignoreFailures = false
 }
 

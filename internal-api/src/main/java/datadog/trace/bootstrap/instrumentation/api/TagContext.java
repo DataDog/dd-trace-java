@@ -84,4 +84,9 @@ public class TagContext implements AgentSpan.Context.Extracted {
     this.requestContextData = requestContextData;
     return this;
   }
+
+  @Override
+  public PathwayContext getPathwayContext() {
+    return null;
+  }
 }

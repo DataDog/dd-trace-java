@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CONSUMER_GROUP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
@@ -89,12 +90,15 @@ public class KafkaDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  public void onConsume(final AgentSpan span, final ConsumerRecord record) {
+  public void onConsume(final AgentSpan span, final ConsumerRecord record, String consumerGroup) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
+      if (consumerGroup != null) {
+        span.setTag(CONSUMER_GROUP, consumerGroup);
+      }
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {

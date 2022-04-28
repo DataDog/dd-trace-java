@@ -1,0 +1,39 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Spring Boot 2.6 Webmvc Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
+}
+
+// Only needed until the final release of 2.5.0
+repositories {
+  mavenCentral()
+  maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.6.0+'
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
+}

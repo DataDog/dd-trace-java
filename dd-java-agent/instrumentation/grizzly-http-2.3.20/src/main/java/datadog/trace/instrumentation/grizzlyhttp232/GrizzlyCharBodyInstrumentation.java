@@ -22,7 +22,7 @@ import org.glassfish.grizzly.http.io.NIOReader;
 public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyCharBodyInstrumentation() {
-    super("grizzly-char-body");
+    super("grizzly");
   }
 
   @Override

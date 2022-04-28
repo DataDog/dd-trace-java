@@ -2,10 +2,10 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.ExceptionLogger;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.UnsupportedEncodingException;
@@ -175,13 +175,13 @@ public enum JDBCConnectionUrlParser {
       }
       final int protoLoc = jdbcUrl.indexOf("://");
       final int typeEndLoc = dbInfo.getType().length();
-      if (protoLoc > typeEndLoc) {
+      if (protoLoc > typeEndLoc && !jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
         return MARIA_SUBPROTO
             .doParse(jdbcUrl.substring(protoLoc + 3), builder)
             .subtype(jdbcUrl.substring(typeEndLoc + 1, protoLoc));
       }
       if (protoLoc > 0) {
-        return GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
+        return GENERIC_URL_LIKE.doParse(dbInfo.getType() + jdbcUrl.substring(protoLoc), builder);
       }
 
       final int hostEndLoc;

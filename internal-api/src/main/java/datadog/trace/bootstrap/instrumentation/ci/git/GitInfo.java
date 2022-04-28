@@ -59,6 +59,11 @@ public class GitInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(repositoryURL, branch, tag, commit);
+    int hash = 1;
+    hash = 31 * hash + (repositoryURL == null ? 0 : repositoryURL.hashCode());
+    hash = 31 * hash + (branch == null ? 0 : branch.hashCode());
+    hash = 31 * hash + (tag == null ? 0 : tag.hashCode());
+    hash = 31 * hash + (commit == null ? 0 : commit.hashCode());
+    return hash;
   }
 }

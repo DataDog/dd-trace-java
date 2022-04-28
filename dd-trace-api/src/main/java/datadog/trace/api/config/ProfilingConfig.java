@@ -10,7 +10,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
-  public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = false;
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
   @Deprecated // Use dd.site instead
@@ -73,11 +72,28 @@ public final class ProfilingConfig {
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_CPU_STACKDEPTH = "profiling.async.cpu.stackdepth";
   public static final int PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT = 512;
+  public static final String PROFILING_ASYNC_CPU_SAFEMODE = "profiling.async.cpu.safemode";
+  public static final int PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
+
+  public static final String PROFILING_TRACING_CONTEXT_ENABLED =
+      "profiling.tracing_context.enabled";
+  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
+  public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
+      "profiling.tracing_context.tracker.inactive.seconds";
+  public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE =
+      "profiling.tracing_context.memory.bytes";
+  public static final int PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE_DEFAULT =
+      32 * 1024 * 1024; // 32MB
+
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE =
+      "profiling.tracing_context.memory.type";
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT = "heap";
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
@@ -103,8 +119,6 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
   public static final boolean PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT = false;
-  public static final String PROFILING_FORMAT_V2_4_ENABLED = "profiling.format.v4.enabled";
-  public static final boolean PROFILING_FORMAT_V2_4_ENABLED_DEFAULT = false;
 
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";

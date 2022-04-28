@@ -1,15 +1,16 @@
 package datadog.trace.core
 
-import datadog.trace.api.DDId
-import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
-import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.ddagent.TraceMapperV0_4
-import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.core.propagation.DatadogTags
+import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
+import datadog.trace.common.writer.ddagent.TraceMapperV0_5
+
 import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
@@ -148,151 +149,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
-      512)
-    context.setAllTags(tags)
-    def span = DDSpan.create(0, context)
-    CaptureBuffer capture = new CaptureBuffer()
-    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
-    packer.format(Collections.singletonList(span), new TraceMapperV0_4())
-    packer.flush()
-    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
-    int traceCount = capture.messageCount
-    int spanCount = unpacker.unpackArrayHeader()
-    int size = unpacker.unpackMapHeader()
-
-    expect:
-    traceCount == 1
-    spanCount == 1
-    size == 12
-    for (int i = 0; i < size; i++) {
-      String key = unpacker.unpackString()
-
-      switch (key) {
-        case "meta":
-          int packedSize = unpacker.unpackMapHeader()
-          Map<String, String> unpackedMeta = [:]
-          for (int j = 0; j < packedSize; j++) {
-            def k = unpacker.unpackString()
-            def v = unpacker.unpackString()
-            if (k != "thread.name" && k != "thread.id") {
-              unpackedMeta.put(k, v)
-            }
-          }
-          assert unpackedMeta == expected
-          break
-        default:
-          unpacker.unpackValue()
-      }
-    }
-
-    cleanup:
-    tracer.close()
-
-    where:
-    baggage       | tags          | expected
-    [:]           | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world']
-    [foo: "bbar"] | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "tbar"]
-  }
-
-  def "serialize trace with baggage and tags correctly v0.5"() {
-    setup:
-    def writer = new ListWriter()
-    def tracer = tracerBuilder().writer(writer).build()
-    def context = new DDSpanContext(
-      DDId.ONE,
-      DDId.ONE,
-      DDId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
-      null,
-      baggage,
-      false,
-      null,
-      tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      null,
-      false,
-      DatadogTags.create("_dd.p.hello=world,_dd.p.upstream_services=bWNudWx0eS13ZWI|0|1|0.1"),
-      512)
-    context.setAllTags(tags)
-    def span = DDSpan.create(0, context)
-    CaptureBuffer capture = new CaptureBuffer()
-    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
-    def mapper = new TraceMapperV0_5()
-    packer.format(Collections.singletonList(span), mapper)
-    packer.flush()
-    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
-    int traceCount = capture.messageCount
-    int spanCount = unpacker.unpackArrayHeader()
-    int size = unpacker.unpackArrayHeader()
-    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(mapper.dictionary.slice())
-    String[] dictionary = new String[mapper.encoding.size()]
-    for (int i = 0; i < dictionary.length; ++i) {
-      dictionary[i] = dictionaryUnpacker.unpackString()
-    }
-
-    expect:
-    traceCount == 1
-    spanCount == 1
-    size == 12
-    for (int i = 0; i < 9; ++i) {
-      unpacker.skipValue()
-    }
-
-    int packedSize = unpacker.unpackMapHeader()
-    Map<String, String> unpackedMeta = [:]
-    for (int j = 0; j < packedSize; j++) {
-      def k = dictionary[unpacker.unpackInt()]
-      def v = dictionary[unpacker.unpackInt()]
-      if (k != "thread.name" && k != "thread.id") {
-        unpackedMeta.put(k, v)
-      }
-    }
-    assert unpackedMeta == expected
-
-    cleanup:
-    tracer.close()
-
-    where:
-    baggage       | tags          | expected
-    [:]           | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world']
-    [foo: "bbar"] | [:]           | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"] | ['_dd.p.upstream_services': 'bWNudWx0eS13ZWI|0|1|0.1', '_dd.p.hello': 'world', foo: "tbar"]
-  }
-
-  def "serialize trace with malformed datadog tags v0.4"() {
-    setup:
-    def writer = new ListWriter()
-    def tracer = tracerBuilder().writer(writer).build()
-    def context = new DDSpanContext(
-      DDId.ONE,
-      DDId.ONE,
-      DDId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
-      null,
-      baggage,
-      false,
-      null,
-      tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      null,
-      false,
-      DatadogTags.create("_dd.p.hello"), // malformed tags
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -340,7 +198,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
   }
 
-  def "serialize trace with malformed datadog tags v0.5"() {
+  def "serialize trace with baggage and tags correctly v0.5"() {
     setup:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
@@ -361,9 +219,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      DatadogTags.create("_dd.p.hello"), // malformed tags
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -442,9 +299,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       1,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }

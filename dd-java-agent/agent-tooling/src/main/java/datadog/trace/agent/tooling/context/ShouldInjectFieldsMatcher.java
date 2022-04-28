@@ -12,15 +12,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
-
+class ShouldInjectFieldsMatcher {
   private static final Logger log = LoggerFactory.getLogger(ShouldInjectFieldsMatcher.class);
 
   // this map will contain as many entries as there are unique
@@ -34,22 +32,17 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
   private static final ConcurrentHashMap<String, BitSet> EXCLUDED_STORE_IDS_BY_TYPE =
       new ConcurrentHashMap<String, BitSet>();
 
-  public static AgentBuilder.RawMatcher of(String keyType, String valueType) {
-    return new ShouldInjectFieldsMatcher(keyType, valueType);
-  }
-
   private final String keyType;
   private final String valueType;
   private final ExcludeFilter.ExcludeType skipType;
 
-  private ShouldInjectFieldsMatcher(String keyType, String valueType) {
+  ShouldInjectFieldsMatcher(String keyType, String valueType) {
     this.keyType = keyType;
     this.valueType = valueType;
     this.skipType = ExcludeFilter.ExcludeType.fromFieldType(keyType);
   }
 
-  @Override
-  public boolean matches(
+  public final boolean matches(
       final TypeDescription typeDescription,
       final ClassLoader classLoader,
       final JavaModule module,
@@ -61,7 +54,12 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
     if (skipType != null && ExcludeFilter.exclude(skipType, matchedType)) {
       excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
       if (log.isDebugEnabled()) {
-        log.debug("Skipping context-store field for {}: {} -> {}", matchedType, keyType, valueType);
+        log.debug(
+            "Skipping context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+            matchedType,
+            classLoader,
+            keyType,
+            valueType);
       }
       return false;
     }
@@ -95,15 +93,21 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
       if (shouldInject) {
         // Only log success the first time we add it to the class
         if (classBeingRedefined == null) {
-          log.debug("Added context-store field to {}: {} -> {}", matchedType, keyType, valueType);
+          log.debug(
+              "Added context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+              matchedType,
+              classLoader,
+              keyType,
+              valueType);
         }
       } else if (null != injectionTarget) {
         log.debug(
-            "Will not add context-store field to {}: {} -> {}, because it will be added to {}",
+            "Will not add context-store field, alternate target found {} - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+            injectionTarget,
             matchedType,
+            classLoader,
             keyType,
-            valueType,
-            injectionTarget);
+            valueType);
       } else {
         // must be a redefine of a class that we weren't able to field-inject on startup
         // - make sure we'd have field-injected (if we'd had the chance) before tracking
@@ -114,7 +118,11 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
 
           // Only log failed redefines where we would have injected this class
           log.debug(
-              "Failed to add context-store field to {}: {} -> {}", matchedType, keyType, valueType);
+              "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
+              matchedType,
+              classLoader,
+              keyType,
+              valueType);
         }
       }
     }

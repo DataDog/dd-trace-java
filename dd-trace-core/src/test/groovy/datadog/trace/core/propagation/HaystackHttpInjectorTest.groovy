@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.DDId
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -30,15 +31,14 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       samplingPriority,
       samplingMechanism,
       origin,
-      ["k1": "v1", "k2": "v2"],
+      ["k1" : "v1", "k2" : "v2"],
       false,
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
 
     final Map<String, String> carrier = Mock()
 
@@ -83,15 +83,14 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       samplingPriority,
       samplingMechanism,
       origin,
-      ["k1": "v1", "k2": "v2", (HAYSTACK_TRACE_ID_BAGGAGE_KEY): haystackUuid],
+      ["k1" : "v1", "k2" : "v2", (HAYSTACK_TRACE_ID_BAGGAGE_KEY) : haystackUuid],
       false,
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
 
     final Map<String, String> carrier = Mock()
 

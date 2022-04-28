@@ -1,43 +1,25 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
+import static java.util.Collections.addAll;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.any;
-import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
-import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
-import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
-import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
-import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
-import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
-import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
-import datadog.trace.agent.tooling.context.NoopContextProvider;
 import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.security.ProtectionDomain;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.ByteCodeElement;
-import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatcher.Junction;
-import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
-import net.bytebuddy.matcher.ElementMatcher.Junction.Disjunction;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,14 +32,15 @@ import org.slf4j.LoggerFactory;
  */
 public interface Instrumenter {
   /**
-   * Since several subsystems are sharing the same instrumentation infractructure in order to enable
+   * Since several subsystems are sharing the same instrumentation infrastructure in order to enable
    * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
-   * Instrumenter} type must declare its target system. Currently only three systems are supported
+   * Instrumenter} type must declare its target system. Four systems are currently supported
    *
    * <ul>
    *   <li>{@link TargetSystem#TRACING tracing}
    *   <li>{@link TargetSystem#PROFILING profiling}
    *   <li>{@link TargetSystem#APPSEC appsec}
+   *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    * </ul>
    */
   enum TargetSystem {
@@ -92,13 +75,14 @@ public interface Instrumenter {
     ElementMatcher<? extends ByteCodeElement> structureMatcher();
   }
 
-  /**
-   * Add this instrumentation to an AgentBuilder.
-   *
-   * @param agentBuilder AgentBuilder to base instrumentation config off of.
-   * @return the original agentBuilder and this instrumentation
-   */
-  AgentBuilder instrument(AgentBuilder agentBuilder);
+  /** Instrumentation that provides method advice. */
+  interface HasAdvice {
+    /**
+     * Instrumenters should register each advice transformation by calling {@link
+     * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
+     */
+    void adviceTransformations(AdviceTransformation transformation);
+  }
 
   /**
    * Indicates the applicability of an {@linkplain Instrumenter} to the given system.<br>
@@ -109,28 +93,28 @@ public interface Instrumenter {
    */
   boolean isApplicable(Set<TargetSystem> enabledSystems);
 
+  /**
+   * Adds this instrumentation to a {@link TransformerBuilder}.
+   *
+   * @param transformerBuilder builds instrumentations into a class transformer.
+   */
+  void instrument(TransformerBuilder transformerBuilder);
+
   @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
-  abstract class Default implements Instrumenter {
+  abstract class Default implements Instrumenter, HasAdvice {
     private static final Logger log = LoggerFactory.getLogger(Default.class);
-    private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
-    // Added here instead of AgentInstaller's ignores because it's relatively
-    // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
-    public static final Junction<AnnotationSource> NOT_DECORATOR_MATCHER =
-        not(isAnnotatedWith(named("javax.decorator.Decorator")));
-
-    private final SortedSet<String> instrumentationNames;
+    private final List<String> instrumentationNames;
     private final String instrumentationPrimaryName;
-    private InstrumentationContextProvider contextProvider;
-    private boolean initialized;
     private final boolean enabled;
 
     protected final String packageName =
         getClass().getPackage() == null ? "" : getClass().getPackage().getName();
 
     public Default(final String instrumentationName, final String... additionalNames) {
-      instrumentationNames = new TreeSet<>(Arrays.asList(additionalNames));
+      instrumentationNames = new ArrayList<>(1 + additionalNames.length);
       instrumentationNames.add(instrumentationName);
+      addAll(instrumentationNames, additionalNames);
       instrumentationPrimaryName = instrumentationName;
 
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
@@ -140,209 +124,98 @@ public interface Instrumenter {
       return instrumentationPrimaryName;
     }
 
-    // Since the super(...) call is first in the constructor, we can't really rely on things
-    // being properly initialized in the Instrumentation until the super(...) call has finished
-    // so do the rest of the initialization lazily
-    private void lazyInit() {
-      synchronized (this) {
-        if (!initialized) {
-          Map<String, String> matchedContextStores = contextStore();
-          if (matchedContextStores.isEmpty()) {
-            contextProvider = NoopContextProvider.INSTANCE;
-          } else {
-            contextProvider =
-                new FieldBackedContextProvider(
-                    this, singletonMap(classLoaderMatcher(), matchedContextStores));
-          }
-          initialized = true;
-        }
-      }
+    public Iterable<String> names() {
+      return instrumentationNames;
     }
 
     @Override
-    public final AgentBuilder instrument(final AgentBuilder parentAgentBuilder) {
-      if (!isEnabled()) {
-        log.debug("Instrumentation {} is disabled", this);
-        return parentAgentBuilder;
-      }
-
-      lazyInit();
-
-      AgentBuilder.Identified.Extendable agentBuilder =
-          filter(parentAgentBuilder).transform(defaultTransformers());
-      agentBuilder = injectHelperClasses(agentBuilder);
-      agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
-      final AdviceTransformer customTransformer = transformer();
-      if (customTransformer != null) {
-        agentBuilder =
-            agentBuilder.transform(
-                new AgentBuilder.Transformer() {
-                  @Override
-                  public DynamicType.Builder<?> transform(
-                      DynamicType.Builder<?> builder,
-                      TypeDescription typeDescription,
-                      ClassLoader classLoader,
-                      JavaModule module) {
-                    return customTransformer.transform(
-                        builder, typeDescription, classLoader, module);
-                  }
-                });
-      }
-      AdviceBuilder adviceBuilder = new AdviceBuilder(agentBuilder, methodIgnoreMatcher());
-      adviceTransformations(adviceBuilder);
-      agentBuilder = adviceBuilder.agentBuilder;
-      agentBuilder = contextProvider.additionalInstrumentation(agentBuilder);
-      return agentBuilder;
-    }
-
-    public ElementMatcher<? super TypeDescription> typeMatcher() {
-      // TODO: this extracted from the following filter method to be able access typeMatcher
-      ElementMatcher<? super TypeDescription> typeMatcher;
-      if (this instanceof ForSingleType) {
-        typeMatcher = new SingleTypeMatcher(((ForSingleType) this).instrumentedType());
-      } else if (this instanceof ForKnownTypes) {
-        typeMatcher = new KnownTypesMatcher(((ForKnownTypes) this).knownMatchingTypes());
-      } else if (this instanceof ForTypeHierarchy) {
-        typeMatcher = ((ForTypeHierarchy) this).hierarchyMatcher();
+    public final void instrument(TransformerBuilder transformerBuilder) {
+      if (isEnabled()) {
+        transformerBuilder.applyInstrumentation(this);
       } else {
-        //        return agentBuilder.type(AgentBuilder.RawMatcher.Trivial.NON_MATCHING);
-        return null;
-      }
-
-      if (this instanceof CanShortcutTypeMatching
-      // TODO: forcing using widest matcher for better coverage in case some Intrumentation using
-      // short cut matching for only known types
-      /*&& !((CanShortcutTypeMatching) this).onlyMatchKnownTypes()*/ ) {
-        // not taking shortcuts, so include wider hierarchical matching
-        typeMatcher = new Disjunction(typeMatcher, ((ForTypeHierarchy) this).hierarchyMatcher());
-      }
-
-      if (this instanceof WithTypeStructure) {
-        // only perform structure matching after we've matched the type
-        typeMatcher = new Conjunction(typeMatcher, ((WithTypeStructure) this).structureMatcher());
-      }
-
-      return typeMatcher;
-    }
-
-    private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
-      ElementMatcher<? super TypeDescription> typeMatcher;
-      if (this instanceof ForSingleType) {
-        typeMatcher = new SingleTypeMatcher(((ForSingleType) this).instrumentedType());
-      } else if (this instanceof ForKnownTypes) {
-        typeMatcher = new KnownTypesMatcher(((ForKnownTypes) this).knownMatchingTypes());
-      } else if (this instanceof ForTypeHierarchy) {
-        typeMatcher = ((ForTypeHierarchy) this).hierarchyMatcher();
-      } else {
-        return agentBuilder.type(AgentBuilder.RawMatcher.Trivial.NON_MATCHING);
-      }
-
-      if (this instanceof CanShortcutTypeMatching
-      // TODO: forcing using widest matcher for better coverage in case some Intrumentation using
-      // short cut matching for only known types
-      /*&& !((CanShortcutTypeMatching) this).onlyMatchKnownTypes()*/ ) {
-        // not taking shortcuts, so include wider hierarchical matching
-        typeMatcher = new Disjunction(typeMatcher, ((ForTypeHierarchy) this).hierarchyMatcher());
-      }
-
-      if (this instanceof WithTypeStructure) {
-        // only perform structure matching after we've matched the type
-        typeMatcher = new Conjunction(typeMatcher, ((WithTypeStructure) this).structureMatcher());
-      }
-
-      ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
-
-      AgentBuilder.RawMatcher rawMatcher;
-      if (classLoaderMatcher == ANY_CLASS_LOADER
-          && typeMatcher instanceof AgentBuilder.RawMatcher) {
-        // optimization when using raw (named) type matcher with no classloader filtering
-        rawMatcher = (AgentBuilder.RawMatcher) typeMatcher;
-      } else {
-        rawMatcher =
-            new FailSafeRawMatcher(
-                typeMatcher,
-                classLoaderMatcher,
-                "Instrumentation matcher unexpected exception: " + getClass().getName());
-      }
-
-      return agentBuilder.type(rawMatcher).and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
-    }
-
-    private AgentBuilder.Identified.Extendable injectHelperClasses(
-        AgentBuilder.Identified.Extendable agentBuilder) {
-      final String[] helperClassNames = helperClassNames();
-      if (helperClassNames.length > 0) {
-        agentBuilder =
-            agentBuilder.transform(
-                new HelperInjector(getClass().getSimpleName(), helperClassNames));
-      }
-      return agentBuilder;
-    }
-
-    private static class AdviceBuilder implements AdviceTransformation {
-      AgentBuilder.Identified.Extendable agentBuilder;
-      final ElementMatcher<? super MethodDescription> ignoreMatcher;
-
-      public AdviceBuilder(
-          AgentBuilder.Identified.Extendable agentBuilder,
-          ElementMatcher<? super MethodDescription> ignoreMatcher) {
-        this.agentBuilder = agentBuilder;
-        this.ignoreMatcher = ignoreMatcher;
-      }
-
-      @Override
-      public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
-        agentBuilder =
-            agentBuilder.transform(
-                new AgentBuilder.Transformer.ForAdvice()
-                    .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
-                    .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                    .advice(not(ignoreMatcher).and(matcher), name));
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Disabled - instrumentation.names=[{}] instrumentation.class={}",
+              Strings.join(",", instrumentationNames),
+              getClass().getName());
+        }
       }
     }
+
+    //    public ElementMatcher<? super TypeDescription> typeMatcher() {
+    //      // TODO: this extracted from the following filter method to be able access typeMatcher
+    //      ElementMatcher<? super TypeDescription> typeMatcher;
+    //      if (this instanceof ForSingleType) {
+    //        typeMatcher = new SingleTypeMatcher(((ForSingleType) this).instrumentedType());
+    //      } else if (this instanceof ForKnownTypes) {
+    //        typeMatcher = new KnownTypesMatcher(((ForKnownTypes) this).knownMatchingTypes());
+    //      } else if (this instanceof ForTypeHierarchy) {
+    //        typeMatcher = ((ForTypeHierarchy) this).hierarchyMatcher();
+    //      } else {
+    //        //        return agentBuilder.type(AgentBuilder.RawMatcher.Trivial.NON_MATCHING);
+    //        return null;
+    //      }
+    //
+    //      if (this instanceof CanShortcutTypeMatching
+    //        // TODO: forcing using widest matcher for better coverage in case some Intrumentation
+    // using
+    //        // short cut matching for only known types
+    //        /*&& !((CanShortcutTypeMatching) this).onlyMatchKnownTypes()*/ ) {
+    //        // not taking shortcuts, so include wider hierarchical matching
+    //        typeMatcher = new Disjunction(typeMatcher, ((ForTypeHierarchy)
+    // this).hierarchyMatcher());
+    //      }
+    //
+    //      if (this instanceof WithTypeStructure) {
+    //        // only perform structure matching after we've matched the type
+    //        typeMatcher = new Conjunction(typeMatcher, ((WithTypeStructure)
+    // this).structureMatcher());
+    //      }
+    //
+    //      return typeMatcher;
+    //    }
 
     /** Matches classes for which instrumentation is not muzzled. */
-    private class MuzzleMatcher implements AgentBuilder.RawMatcher {
-      @Override
-      public boolean matches(
-          final TypeDescription typeDescription,
-          final ClassLoader classLoader,
-          final JavaModule module,
-          final Class<?> classBeingRedefined,
-          final ProtectionDomain protectionDomain) {
-        /* Optimization: calling getInstrumentationMuzzle() inside this method
-         * prevents unnecessary loading of muzzle references during agentBuilder
-         * setup.
-         */
-        final IReferenceMatcher muzzle = getInstrumentationMuzzle();
-        if (null != muzzle) {
-          final boolean isMatch = muzzle.matches(classLoader);
-          if (!isMatch) {
-            if (log.isDebugEnabled()) {
-              final List<Reference.Mismatch> mismatches =
-                  muzzle.getMismatchedReferenceSources(classLoader);
+    public final boolean muzzleMatches(
+        final ClassLoader classLoader, final Class<?> classBeingRedefined) {
+      /* Optimization: calling getInstrumentationMuzzle() inside this method
+       * prevents unnecessary loading of muzzle references during agentBuilder
+       * setup.
+       */
+      final IReferenceMatcher muzzle = getInstrumentationMuzzle();
+      if (null != muzzle) {
+        final boolean isMatch = muzzle.matches(classLoader);
+        if (!isMatch) {
+          if (log.isDebugEnabled()) {
+            final List<Reference.Mismatch> mismatches =
+                muzzle.getMismatchedReferenceSources(classLoader);
+            log.debug(
+                "Muzzled - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
+                Strings.join(",", instrumentationNames),
+                Instrumenter.Default.this.getClass().getName(),
+                classLoader);
+            for (final Reference.Mismatch mismatch : mismatches) {
               log.debug(
-                  "Instrumentation muzzled: {} -- {} on {}",
-                  instrumentationNames,
+                  "Muzzled mismatch - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
+                  Strings.join(",", instrumentationNames),
                   Instrumenter.Default.this.getClass().getName(),
-                  classLoader);
-              for (final Reference.Mismatch mismatch : mismatches) {
-                log.debug("-- {}", mismatch);
-              }
-            }
-          } else {
-            if (log.isDebugEnabled()) {
-              log.debug(
-                  "Applying instrumentation: {} -- {} on {}",
-                  instrumentationPrimaryName,
-                  Instrumenter.Default.this.getClass().getName(),
-                  classLoader);
+                  classLoader,
+                  mismatch);
             }
           }
-          return isMatch;
+        } else {
+          if (log.isDebugEnabled()) {
+            log.debug(
+                "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
+                Strings.join(",", instrumentationNames),
+                Instrumenter.Default.this.getClass().getName(),
+                classLoader,
+                classBeingRedefined == null ? "null" : classBeingRedefined.getName());
+          }
         }
-        return true;
+        return isMatch;
       }
+      return true;
     }
 
     /**
@@ -389,12 +262,6 @@ public interface Instrumenter {
       // here to ignore synthetic methods to not change the behavior for unaware instrumentations
       return isSynthetic();
     }
-
-    /**
-     * Instrumenters should register each advice transformation by calling {@link
-     * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
-     */
-    public abstract void adviceTransformations(AdviceTransformation transformation);
 
     /**
      * Context stores to define for this instrumentation. Are added to matching class loaders.
@@ -472,6 +339,10 @@ public interface Instrumenter {
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
     }
+  }
+
+  interface TransformerBuilder {
+    void applyInstrumentation(HasAdvice instrumenter);
   }
 
   interface AdviceTransformation {

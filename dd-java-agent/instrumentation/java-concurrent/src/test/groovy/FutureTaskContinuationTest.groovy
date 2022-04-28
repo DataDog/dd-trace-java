@@ -7,24 +7,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class FutureTaskContinuationTest extends AgentTestRunner {
-  class SettableFuture extends FutureTask<String> {
-    SettableFuture() {
-      super({ "async result" })
-    }
-
-    @SuppressWarnings('UnnecessaryOverridingMethod')
-    @Override
-    void set(String value) {
-      super.set(value)
-    }
-
-    @SuppressWarnings('UnnecessaryOverridingMethod')
-    @Override
-    void setException(Throwable cause) {
-      super.setException(cause)
-    }
-  }
-
   SettableFuture future
 
   @Override

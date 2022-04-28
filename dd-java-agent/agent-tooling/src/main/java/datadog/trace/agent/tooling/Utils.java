@@ -2,27 +2,19 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
-import java.lang.reflect.Method;
+import java.lang.instrument.Instrumentation;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Utils {
 
-  // This is used in HelperInjectionTest.groovy
-  private static Method findLoadedClassMethod = null;
-
-  private static final BootstrapClassLoaderProxy unitTestBootstrapProxy =
-      new BootstrapClassLoaderProxy();
-
-  static {
-    try {
-      findLoadedClassMethod = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-    } catch (final NoSuchMethodException | SecurityException e) {
-      throw new IllegalStateException(e);
-    }
+  /** Initialization-on-demand, only used during unit tests. */
+  static class BootstrapClassLoaderHolder {
+    static final ClassLoader unitTestBootstrapProxy = new BootstrapClassLoaderProxy();
   }
 
   /** Return the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
-    return AgentInstaller.class.getClassLoader();
+    return Instrumenter.class.getClassLoader();
   }
 
   /** Return a classloader which can be used to look up bootstrap resources. */
@@ -30,9 +22,20 @@ public class Utils {
     if (getAgentClassLoader() instanceof DatadogClassLoader) {
       return ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy();
     } else {
-      // in a unit test
-      return unitTestBootstrapProxy;
+      // only used during unit tests
+      return BootstrapClassLoaderHolder.unitTestBootstrapProxy;
     }
+  }
+
+  private static final AtomicReference<Instrumentation> instrumentationRef =
+      new AtomicReference<>();
+
+  public static void setInstrumentation(Instrumentation instrumentation) {
+    instrumentationRef.compareAndSet(null, instrumentation);
+  }
+
+  public static Instrumentation getInstrumentation() {
+    return instrumentationRef.get();
   }
 
   private Utils() {}

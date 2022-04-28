@@ -5,7 +5,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.api.Function
+import datadog.trace.api.function.Function
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.BiFunction
@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.bootstrap.instrumentation.decorator.http.SimplePathNormalizer
+import datadog.trace.core.DDSpan
 import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
@@ -56,6 +57,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RA
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
@@ -89,6 +93,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ig.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ig.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
     ig.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
+    injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
+    // We don't inject a matching response header tag here since it would be always on and show up in all the tests
   }
 
   @Shared
@@ -150,6 +163,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def encoded = Config.get().isHttpServerRawQueryString() && supportsRaw()
     def query = encoded ? endpoint.rawQuery : endpoint.query
     null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
+  }
+
+  Map<String, ?> expectedIGPathParams() {
+    null
   }
 
   boolean hasHandlerSpan() {
@@ -477,6 +494,70 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     body = null
   }
 
+  def "test success with request header #header tag mapping"() {
+    setup:
+    def request = request(SUCCESS, method, body)
+      .header(header, value)
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, SUCCESS, tags)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+
+    where:
+    method | body | header                           | value | tags
+    'GET'  | null | 'x-datadog-test-both-header'     | 'foo' | [ 'both_header_tag': 'foo' ]
+    'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+  }
+
+  def "test #endpoint with response header #header tag mapping"() {
+    setup:
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
+    def request = request(endpoint, method, body)
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == endpoint.status
+    response.body().string() == endpoint.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(endpoint)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, endpoint, tags)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, endpoint)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(endpoint)) {
+          responseSpan(it, endpoint)
+        }
+      }
+    }
+
+    where:
+    endpoint           | method | body | header             | mapping                      | tags
+    QUERY_ENCODED_BOTH | 'GET'  | null | IG_RESPONSE_HEADER | 'mapped_response_header_tag' | [ 'mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
+  }
+
   def "test tag query string for #endpoint rawQuery=#rawQuery"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
@@ -587,6 +668,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     where:
     method = "GET"
     body = null
+  }
+
+  def "test path param publishes to IG"() {
+    setup:
+    assumeTrue(testPathParam() != null && expectedIGPathParams() != null)
+    def request = request(PATH_PARAM, 'GET', null)
+      .header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+    response.body().string() == PATH_PARAM.body
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
   }
 
   def "test success with multiple header attached parent"() {
@@ -989,7 +1087,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // If you ever feel the need to make this method non final and override it with something that is almost the
   // same, but has a slightly different behavior, then please think again, and see if you can't make that part
   // of the integrations very special behavior into something configurable here instead.
-  final void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+  final void serverSpan(TraceAssert trace,
+    BigInteger traceID = null,
+    BigInteger parentID = null,
+    String method = "GET",
+    ServerEndpoint endpoint = SUCCESS,
+    Map<String, Serializable> extraTags = null) {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
@@ -1042,6 +1145,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         //        }
         defaultTags(true)
         addTags(expectedExtraServerTags)
+        if (extraTags) {
+          it.addTags(extraTags)
+        }
       }
     }
   }
@@ -1160,6 +1266,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             it.key,
             (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
           ]}
+      } else if (!(obj instanceof String)) {
+        obj = obj.properties
+          .findAll { it.key != 'class' }
+          .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
       }
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Flow.ResultFlow.empty()
@@ -1189,13 +1299,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as Function<RequestContext<Context>, Flow<Void>>)
 
-    final BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>> requestParamsCb =
-    { RequestContext<Context> rqCtxt, Map<String, Object> map ->
+    final BiFunction<RequestContext<Context>, Map<String, ?>, Flow<Void>> requestParamsCb =
+    { RequestContext<Context> rqCtxt, Map<String, ?> map ->
       if (map && !map.empty) {
         def context = rqCtxt.data
         context.tags.put(IG_PATH_PARAMS_TAG, map)
       }
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext<Context>, Map<String, Object>, Flow<Void>>
+    } as BiFunction<RequestContext<Context>, Map<String, ?>, Flow<Void>>
   }
 }

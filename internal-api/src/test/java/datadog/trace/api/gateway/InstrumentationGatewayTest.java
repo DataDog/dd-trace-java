@@ -3,10 +3,10 @@ package datadog.trace.api.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -145,6 +145,9 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestBodyProcessed(), callback);
     assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.grpcServerRequestMessage(), callback);
+    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), callback);
     gateway.getCallback(events.responseStarted()).apply(null, null);
     gateway.registerCallback(events.responseHeader(), callback);
@@ -186,6 +189,9 @@ public class InstrumentationGatewayTest {
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.requestBodyProcessed(), throwback);
     assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.grpcServerRequestMessage(), throwback);
+    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), throwback);
     gateway.getCallback(events.responseStarted()).apply(null, null);

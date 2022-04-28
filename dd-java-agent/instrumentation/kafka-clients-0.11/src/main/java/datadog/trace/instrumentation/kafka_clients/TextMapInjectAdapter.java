@@ -7,13 +7,19 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapInjectAdapter implements AgentPropagation.Setter<Headers> {
+public class TextMapInjectAdapter
+    implements AgentPropagation.Setter<Headers>, AgentPropagation.BinarySetter<Headers> {
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
   @Override
   public void set(final Headers headers, final String key, final String value) {
     headers.remove(key).add(key, value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  @Override
+  public void set(Headers headers, String key, byte[] value) {
+    headers.remove(key).add(key, value);
   }
 
   public void injectTimeInQueue(Headers headers) {

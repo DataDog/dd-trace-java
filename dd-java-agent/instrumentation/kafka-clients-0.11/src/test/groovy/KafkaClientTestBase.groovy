@@ -1,8 +1,10 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -43,6 +45,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+    injectSysConfig("dd.data.streams.enabled", "true")
   }
 
   abstract String expectedServiceName()
@@ -99,7 +102,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2)
     }
-
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     // check that the message was received
@@ -107,7 +110,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -129,6 +132,19 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     headers.iterator().hasNext()
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.isEmpty()
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
+      }
+    }
 
     cleanup:
     producer.close()
@@ -181,6 +197,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       })
       blockUntilChildSpansFinished(2)
     }
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     // check that the message was received
@@ -188,7 +205,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -210,6 +227,19 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     headers.iterator().hasNext()
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.isEmpty()
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
+      }
+    }
 
     cleanup:
     producerFactory.stop()
@@ -261,7 +291,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     received.value() == null
     received.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it, null, false, true)
       }
@@ -315,7 +345,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it)
       }
@@ -371,7 +401,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it)
       }
@@ -428,7 +458,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     last.value() == greeting
     last.key() == null
 
-    assertTraces(2) {
+    assertTraces(2, SORT_TRACES_BY_ID) {
       trace(1) {
         producerSpan(it)
       }
@@ -487,7 +517,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     receivedSet.isEmpty()
 
-    assertTraces(9) {
+    assertTraces(9, SORT_TRACES_BY_ID) {
 
       // producing traces
       trace(1) {
@@ -596,6 +626,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2 * greetings.size())
     }
+    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
     def receivedSet = greetings.toSet()
@@ -610,7 +641,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
     assert receivedSet.isEmpty()
 
-    assertTraces(4) {
+    assertTraces(4, SORT_TRACES_BY_ID) {
       trace(7) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -644,6 +675,19 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         trace(1) {
           consumerSpan(it, trace(0)[2], 0..1)
         }
+      }
+    }
+
+    if (Platform.isJavaVersionAtLeast(8)) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.isEmpty()
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+        edgeTags.size() == 3
       }
     }
 
@@ -799,6 +843,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
+        "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {

@@ -6,12 +6,11 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.trace.common.writer.ddagent.PayloadDispatcher
-import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.test.DDCoreSpecification
@@ -168,7 +167,6 @@ class DDAgentWriterTest extends DDCoreSpecification {
     tracer.mapServiceName(_) >> { String serviceName -> serviceName }
     PendingTrace trace = Mock(PendingTrace)
     trace.getTracer() >> tracer
-
     def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
@@ -186,9 +184,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
       0,
       trace,
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
     return new DDSpan(0, context)
   }
 }

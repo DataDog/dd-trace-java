@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
 import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 
 import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import net.bytebuddy.agent.builder.AgentBuilder.Transformer;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
@@ -34,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Injects instrumentation helper classes into the user's classloader. */
-public class HelperInjector implements Transformer {
+public class HelperInjector implements Instrumenter.AdviceTransformer {
   private static final Logger log = LoggerFactory.getLogger(HelperInjector.class);
   // Need this because we can't put null into the injectedClassLoaders map.
   private static final ClassLoader BOOTSTRAP_CLASSLOADER_PLACEHOLDER =
@@ -84,11 +83,11 @@ public class HelperInjector implements Transformer {
 
   public static HelperInjector forDynamicTypes(
       final String requestingName, final Collection<DynamicType.Unloaded<?>> helpers) {
-    final Map<String, byte[]> bytes = new HashMap<>(helpers.size());
+    final Map<String, byte[]> helperMap = new HashMap<>(helpers.size());
     for (final DynamicType.Unloaded<?> helper : helpers) {
-      bytes.put(helper.getTypeDescription().getName(), helper.getBytes());
+      helperMap.put(helper.getTypeDescription().getName(), helper.getBytes());
     }
-    return new HelperInjector(requestingName, bytes);
+    return new HelperInjector(requestingName, helperMap);
   }
 
   private Map<String, byte[]> getHelperMap() throws IOException {
@@ -116,13 +115,19 @@ public class HelperInjector implements Transformer {
       ClassLoader classLoader,
       final JavaModule module) {
     if (!helperClassNames.isEmpty()) {
-      if (classLoader == BOOTSTRAP_CLASSLOADER) {
+      if (classLoader == null) {
         classLoader = BOOTSTRAP_CLASSLOADER_PLACEHOLDER;
       }
 
       if (!injectedClassLoaders.containsKey(classLoader)) {
         try {
-          log.debug("Injecting classes onto classloader {} -> {}", classLoader, helperClassNames);
+          if (log.isDebugEnabled()) {
+            log.debug(
+                "Injecting helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.helper_classes=[{}]",
+                requestingName,
+                classLoader,
+                Strings.join(",", helperClassNames));
+          }
 
           final Map<String, byte[]> classnameToBytes = getHelperMap();
           final Map<String, Class<?>> classes;
@@ -142,10 +147,10 @@ public class HelperInjector implements Transformer {
         } catch (final Exception e) {
           if (log.isErrorEnabled()) {
             log.error(
-                "Error preparing helpers while processing {} for {}. Failed to inject helper classes into instance {}",
-                typeDescription,
+                "Failed to inject helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
                 requestingName,
                 classLoader,
+                typeDescription,
                 e);
           }
           throw new RuntimeException(e);
@@ -172,7 +177,7 @@ public class HelperInjector implements Transformer {
       return ClassInjector.UsingInstrumentation.of(
               tempDir,
               ClassInjector.UsingInstrumentation.Target.BOOTSTRAP,
-              AgentInstaller.getInstrumentation())
+              Utils.getInstrumentation())
           .injectRaw(classnameToBytes);
     } finally {
       INJECTING_HELPERS.end();
@@ -201,7 +206,7 @@ public class HelperInjector implements Transformer {
           if (!target.canRead(helperModule)) {
             log.debug("Adding module read from {} to {}", target, helperModule);
             ClassInjector.UsingInstrumentation.redefineModule(
-                AgentInstaller.getInstrumentation(),
+                Utils.getInstrumentation(),
                 target,
                 Collections.singleton(helperModule),
                 Collections.<String, Set<JavaModule>>emptyMap(),

@@ -64,17 +64,19 @@ class EventDispatcherSpecification extends DDSpecification {
     then:
     1 * dataListener3.onDataAvailable(
       _ as Flow, ctx,
-      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) }) >> { savedFlow3 = it[0] }
+      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) },
+      true) >> { savedFlow3 = it[0] }
 
     then:
     1 * dataListener2.onDataAvailable(
       _ as Flow, ctx,
-      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) }) >> { savedFlow2 = it[0] }
+      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) },
+      true) >> { savedFlow2 = it[0] }
     savedFlow2.is(savedFlow3)
 
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx,
-      _ as DataBundle) >> { savedFlow1 = it[0] }
+      _ as DataBundle, true) >> { savedFlow1 = it[0] }
     savedFlow1.is(savedFlow2)
   }
 
@@ -99,7 +101,7 @@ class EventDispatcherSpecification extends DDSpecification {
 
     then:
     assert !subscribers.empty
-    1 * listener.onDataAvailable(_ as Flow, ctx, db)
+    1 * listener.onDataAvailable(_ as Flow, ctx, db, true)
   }
 
   void 'blocking interrupts data listener calls'() {
@@ -123,11 +125,11 @@ class EventDispatcherSpecification extends DDSpecification {
     ChangeableFlow resultFlow = dispatcher.publishDataEvent(subscribers, ctx, db, true)
 
     then:
-    1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle) >> {
+    1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true) >> {
       ChangeableFlow flow = it.first()
       flow.action = new Flow.Action.Throw(exception)
     }
-    0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle)
+    0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean)
     assert resultFlow.blocking
     assert resultFlow.action.blockingException.is(exception)
   }
@@ -148,7 +150,7 @@ class EventDispatcherSpecification extends DDSpecification {
     dispatcher.publishDataEvent(subscribers, ctx, db, false)
 
     then:
-    1 * listener.onDataAvailable(_ as Flow, ctx, db)
+    1 * listener.onDataAvailable(_ as Flow, ctx, db, false)
     1 * ctx.addAll(db)
   }
 

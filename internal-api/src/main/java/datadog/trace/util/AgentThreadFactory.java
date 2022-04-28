@@ -34,7 +34,9 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     CWS_TLS("dd-cws-tls"),
 
-    PROCESS_SUPERVISOR("dd-process-supervisor");
+    PROCESS_SUPERVISOR("dd-process-supervisor"),
+
+    DATA_STREAMS_MONITORING("dd-data-streams-monitor");
 
     public final String threadName;
 

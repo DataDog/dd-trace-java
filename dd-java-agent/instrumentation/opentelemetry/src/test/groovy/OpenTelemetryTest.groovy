@@ -2,6 +2,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
+import static datadog.trace.api.sampling.PrioritySampling.*
+import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
 import io.grpc.Context
@@ -12,9 +14,6 @@ import io.opentelemetry.trace.Span
 import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
-
-import static datadog.trace.api.sampling.PrioritySampling.*
-import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject
@@ -135,11 +134,11 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:], null)
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
       builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:], null)
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()
@@ -264,7 +263,6 @@ class OpenTelemetryTest extends AgentTestRunner {
     def span = tracer.spanBuilder("some name").startSpan()
     def context = TracingContextUtils.withSpan(span, Context.current())
     def textMap = [:]
-    def serviceNameBase64 = "d29ya2VyLm9yZy5ncmFkbGUucHJvY2Vzcy5pbnRlcm5hbC53b3JrZXIuR3JhZGxlV29ya2VyTWFpbg"
 
     when:
     span.delegate.samplingPriority = contextPriority
@@ -275,7 +273,6 @@ class OpenTelemetryTest extends AgentTestRunner {
       "x-datadog-trace-id"         : "$span.delegate.traceId",
       "x-datadog-parent-id"        : "$span.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
-      "x-datadog-tags"             : "_dd.p.upstream_services=$serviceNameBase64|$propagatedPriority|$propagatedMechanism" + (samplingRate != null ? "|" + samplingRate : ""),
     ]
 
     when:
@@ -291,12 +288,12 @@ class OpenTelemetryTest extends AgentTestRunner {
     span.end()
 
     where:
-    contextPriority | propagatedPriority | propagatedMechanism | samplingRate
-    SAMPLER_DROP    | SAMPLER_DROP       | UNKNOWN             | null
-    SAMPLER_KEEP    | SAMPLER_KEEP       | UNKNOWN             | null
-    UNSET           | SAMPLER_KEEP       | AGENT_RATE          | 1
-    USER_KEEP       | USER_KEEP          | UNKNOWN             | null
-    USER_DROP       | USER_DROP          | UNKNOWN             | null
+    contextPriority | propagatedPriority
+    SAMPLER_DROP    | SAMPLER_DROP
+    SAMPLER_KEEP    | SAMPLER_KEEP
+    UNSET           | SAMPLER_KEEP
+    USER_KEEP       | USER_KEEP
+    USER_DROP       | USER_DROP
   }
 
   def "tolerate null span activation"() {

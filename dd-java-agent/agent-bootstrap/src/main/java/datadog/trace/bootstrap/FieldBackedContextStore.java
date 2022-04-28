@@ -89,14 +89,14 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
   }
 
   // only create WeakMap-based fall-back when we need it
-  private volatile WeakMapContextStore weakStore;
+  private volatile WeakMapContextStore<Object, Object> weakStore;
   private final Object synchronizationInstance = new Object();
 
-  WeakMapContextStore weakStore() {
+  WeakMapContextStore<Object, Object> weakStore() {
     if (null == weakStore) {
       synchronized (synchronizationInstance) {
         if (null == weakStore) {
-          weakStore = new WeakMapContextStore();
+          weakStore = new WeakMapContextStore<>();
         }
       }
     }

@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isJavaVersionBetween;
+import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -56,6 +56,11 @@ public class Agent {
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
   private static final Logger log;
+
+  private static final String AGENT_INSTALLER_CLASS_NAME =
+      "false".equalsIgnoreCase(ddGetProperty("dd.legacy.agent.enabled"))
+          ? "datadog.trace.agent.installer.AgentInstaller"
+          : "datadog.trace.agent.tooling.AgentInstaller";
 
   private enum AgentFeature {
     TRACING("dd.tracing.enabled", true),
@@ -267,16 +272,9 @@ public class Agent {
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MatcherCacheBuilderCLI");
   }
 
-  private static boolean isOracleJDK8() {
-    return isJavaVersionBetween(8, 9)
-        && System.getProperty("java.vendor").contains("Oracle")
-        && !System.getProperty("java.runtime.name").contains("OpenJDK");
-  }
-
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
     try {
-      final Class<?> agentInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+      final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "java.util.logging.LogManager", callback);
@@ -287,8 +285,7 @@ public class Agent {
 
   private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
     try {
-      final Class<?> agentInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+      final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "javax.management.MBeanServerBuilder", callback);
@@ -431,8 +428,7 @@ public class Agent {
         final ClassLoader agentClassLoader =
             createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
-        final Class<?> agentInstallerClass =
-            agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+        final Class<?> agentInstallerClass = agentClassLoader.loadClass(AGENT_INSTALLER_CLASS_NAME);
         final Method agentInstallerMethod =
             agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
         agentInstallerMethod.invoke(null, inst);
@@ -621,8 +617,9 @@ public class Agent {
       Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-      final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
-      profilingInstallerMethod.invoke(null, isStartingFirst);
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
+      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
@@ -788,10 +785,10 @@ public class Agent {
 
     if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
-      return !"false".equalsIgnoreCase(featureEnabled);
+      return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
       // false unless it's explicitly set to "true"
-      return "true".equalsIgnoreCase(featureEnabled);
+      return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
   }
 

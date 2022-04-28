@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -67,8 +67,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer",
-      "datadog.trace.core.util.Clock"
+      packageName + ".TracedDelegatingConsumer"
     };
   }
 

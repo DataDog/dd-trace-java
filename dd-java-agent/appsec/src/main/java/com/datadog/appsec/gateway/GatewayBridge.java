@@ -2,14 +2,15 @@ package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
+import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.*;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Function;
 import datadog.trace.api.TraceSegment;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -52,6 +53,7 @@ public class GatewayBridge {
   private final EventProducerService producerService;
   private final String ipAddrHeader;
   private final RateLimiter rateLimiter;
+  private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
@@ -59,16 +61,19 @@ public class GatewayBridge {
   private volatile EventProducerService.DataSubscriberInfo requestBodySubInfo;
   private volatile EventProducerService.DataSubscriberInfo pathParamsSubInfo;
   private volatile EventProducerService.DataSubscriberInfo respDataSubInfo;
+  private volatile EventProducerService.DataSubscriberInfo grpcServerRequestMsgSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
       RateLimiter rateLimiter,
-      String appSecIpAddrHeader) {
+      String appSecIpAddrHeader,
+      List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.rateLimiter = rateLimiter;
     this.ipAddrHeader = appSecIpAddrHeader;
+    this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
   public void init() {
@@ -101,6 +106,11 @@ public class GatewayBridge {
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
+
+            for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
+              pp.processTraceSegment(traceSeg, ctx, collectedEvents);
+            }
+
             // If detected any events - mark span at appsec.event
             if (!collectedEvents.isEmpty() && (rateLimiter == null || !rateLimiter.isThrottled())) {
               // Keep event related span, because it could be ignored in case of
@@ -175,9 +185,9 @@ public class GatewayBridge {
           (ctx_, data) -> {
             AppSecRequestContext ctx = ctx_.getData();
             if (ctx.isPathParamsPublished()) {
+              log.debug("Second or subsequent publication of request params");
               return NoopFlow.INSTANCE;
             }
-            ctx.setPathParamsPublished(true);
 
             if (pathParamsSubInfo == null) {
               pathParamsSubInfo =
@@ -239,7 +249,9 @@ public class GatewayBridge {
             if (requestBodySubInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
             }
-            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, obj);
+            DataBundle bundle =
+                new SingletonDataBundle<>(
+                    KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
             return producerService.publishDataEvent(requestBodySubInfo, ctx, bundle, false);
           });
     }
@@ -280,6 +292,23 @@ public class GatewayBridge {
           ctx.finishResponseHeaders();
           return maybePublishResponseData(ctx);
         });
+
+    subscriptionService.registerCallback(
+        EVENTS.grpcServerRequestMessage(),
+        (ctx_, obj) -> {
+          AppSecRequestContext ctx = ctx_.getData();
+          if (grpcServerRequestMsgSubInfo == null) {
+            grpcServerRequestMsgSubInfo =
+                producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+          }
+          if (grpcServerRequestMsgSubInfo.isEmpty()) {
+            return Flow.ResultFlow.empty();
+          }
+          Object convObj = ObjectIntrospection.convert(obj);
+          DataBundle bundle =
+              new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
+          return producerService.publishDataEvent(grpcServerRequestMsgSubInfo, ctx, bundle, true);
+        });
   }
 
   // currently unused; doesn't do anything useful
@@ -307,10 +336,8 @@ public class GatewayBridge {
     public void accept(RequestContext<AppSecRequestContext> ctx_, String name, String value) {
       AppSecRequestContext ctx = ctx_.getData();
       if (name.equalsIgnoreCase("cookie")) {
-        List<StringKVPair> cookies = CookieCutter.parseCookieHeader(value);
-        for (StringKVPair cookie : cookies) {
-          ctx.addCookie(cookie);
-        }
+        Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
+        ctx.addCookies(cookies);
       } else {
         ctx.addRequestHeader(name, value);
       }
@@ -401,7 +428,7 @@ public class GatewayBridge {
     MapDataBundle bundle =
         new MapDataBundle.Builder(CAPACITY_6_10)
             .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getRequestHeaders())
-            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCookies())
             .add(KnownAddresses.REQUEST_SCHEME, scheme)
             .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
             .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)

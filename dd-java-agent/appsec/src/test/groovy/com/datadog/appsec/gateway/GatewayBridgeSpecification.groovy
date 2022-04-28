@@ -1,14 +1,15 @@
 package com.datadog.appsec.gateway
 
+import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
-import com.datadog.appsec.event.data.StringKVPair
+import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.report.AppSecEventWrapper
 import com.datadog.appsec.report.raw.events.AppSecEvent100
-import datadog.trace.api.Function
+import datadog.trace.api.function.Function
 import datadog.trace.api.TraceSegment
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
@@ -33,14 +34,11 @@ class GatewayBridgeSpecification extends DDSpecification {
   AppSecRequestContext arCtx = new AppSecRequestContext()
   TraceSegment traceSegment = Mock()
   RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
-    @Override
-    AppSecRequestContext getData() {
-      return arCtx
-    }
+    final AppSecRequestContext data = arCtx
 
     @Override
-    TraceSegment getTraceSegment() {
-      return traceSegment
+    final TraceSegment getTraceSegment() {
+      GatewayBridgeSpecification.this.traceSegment
     }
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -50,7 +48,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   }()
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null)
+  TraceSegmentPostProcessor pp = Mock()
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -65,6 +64,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
+  BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -185,10 +185,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     assert collectedHeaders['another-header'] == ['another value']
     assert !collectedHeaders.containsKey('cookie')
 
-    def cookies = ctx.data.collectedCookies
-    assert cookies.contains(new StringKVPair('foo', 'bar'))
-    assert cookies.contains(new StringKVPair('foo2', 'bar2'))
-    assert cookies.contains(new StringKVPair('foo3', 'bar3'))
+    def cookies = ctx.data.cookies
+    assert cookies['foo'] == ['bar']
+    assert cookies['foo2'] == ['bar2']
+    assert cookies['foo3'] == ['bar3']
   }
 
   void 'headers provided after headers ended are ignored'() {
@@ -322,18 +322,17 @@ class GatewayBridgeSpecification extends DDSpecification {
     assert bundle.get(KnownAddresses.REQUEST_PATH_PARAMS) == [a: 'b']
   }
 
-  void 'path params does not published twice'() {
-    AppSecRequestContext reqCtx = Mock()
+  void 'path params is not published twice'() {
     Flow flow
 
     when:
-    ctx.data.setPathParamsPublished(true)
-    flow = pathParamsCB.apply(ctx, [a: 'b'])
+    arCtx.addAll(new SingletonDataBundle(KnownAddresses.REQUEST_PATH_PARAMS, [a: 'b']))
+    flow = pathParamsCB.apply(ctx, [c: 'd'])
 
     then:
     flow == NoopFlow.INSTANCE
     0 * eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS)
-    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, reqCtx, _ as DataBundle, false)
+    0 * eventDispatcher.publishDataEvent(*_)
   }
 
   void callInitAndCaptureCBs() {
@@ -354,6 +353,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -541,6 +541,25 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false)
   }
 
+  void 'request body transforms object and publishes'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_OBJECT in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+
+    when:
+    Flow<?> flow = requestBodyProcessedCB.apply(ctx, new Object() {
+        @SuppressWarnings('UnusedPrivateField')
+        private String foo = 'bar'
+      })
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == [foo: 'bar']
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+  }
+
   void 'forwards request method'() {
     DataBundle bundle
     def adapter = TestURIDataAdapter.create('http://example.com/')
@@ -610,5 +629,35 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow1.action == Flow.Action.Noop.INSTANCE
     flow2.result == null
     flow2.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'grpc server message recv transforms object and publishes'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+
+    when:
+    Flow<?> flow = grpcServerRequestMessageCB.apply(ctx, new Object() {
+        @SuppressWarnings('UnusedPrivateField')
+        private String foo = 'bar'
+      })
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true) >>
+    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'calls trace segment post processor'() {
+    setup:
+    AgentSpan span = Mock()
+
+    when:
+    requestEndedCB.apply(ctx, span)
+
+    then:
+    1 * pp.processTraceSegment(traceSegment, ctx.data, [])
   }
 }

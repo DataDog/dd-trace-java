@@ -1,7 +1,7 @@
 package datadog.trace.api.gateway;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
@@ -79,9 +79,8 @@ public final class Events<D> {
       new ET<>("server.request.method.uri.raw", REQUEST_PATH_PARAMS_ID);
   /** The parameters the framework got from the request uri (but not the query string) */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext<D>, Map<String, Object>, Flow<Void>>>
-      requestPathParams() {
-    return (EventType<BiFunction<RequestContext<D>, Map<String, Object>, Flow<Void>>>)
+  public EventType<BiFunction<RequestContext<D>, Map<String, ?>, Flow<Void>>> requestPathParams() {
+    return (EventType<BiFunction<RequestContext<D>, Map<String, ?>, Flow<Void>>>)
         REQUEST_PATH_PARAMS;
   }
 
@@ -164,6 +163,18 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<Function<RequestContext<D>, Flow<Void>>> responseHeaderDone() {
     return (EventType<Function<RequestContext<D>, Flow<Void>>>) RESPONSE_HEADER_DONE;
+  }
+
+  static final int GRPC_SERVER_REQUEST_MESSAGE_ID = 13;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRPC_SERVER_REQUEST_MESSAGE =
+      new ET<>("grpc.server.request.message", GRPC_SERVER_REQUEST_MESSAGE_ID);
+  /** All response headers have been provided */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>> grpcServerRequestMessage() {
+    return (EventType<BiFunction<RequestContext<D>, Object, Flow<Void>>>)
+        GRPC_SERVER_REQUEST_MESSAGE;
   }
 
   static final int MAX_EVENTS = nextId.get();

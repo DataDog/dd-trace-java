@@ -1,8 +1,6 @@
 package datadog.trace.common.writer
 
 import datadog.trace.api.StatsDClient
-import datadog.trace.common.writer.ddagent.PayloadDispatcher
-import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl

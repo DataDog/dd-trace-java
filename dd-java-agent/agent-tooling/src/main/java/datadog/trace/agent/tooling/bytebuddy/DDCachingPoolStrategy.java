@@ -1,11 +1,11 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
-import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import datadog.trace.agent.tooling.AgentTooling;
-import datadog.trace.api.Function;
+import datadog.trace.agent.tooling.WeakCaches;
+import datadog.trace.api.Config;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
@@ -42,14 +42,14 @@ import org.slf4j.LoggerFactory;
  * <p>Eviction is handled almost entirely through a size restriction; however, softValues are still
  * used as a further safeguard.
  */
-public class DDCachingPoolStrategy implements PoolStrategy {
+public class DDCachingPoolStrategy {
   private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
 
   static final int CONCURRENCY_LEVEL = 8;
   static final int LOADER_CAPACITY = 64;
-  static final int TYPE_CAPACITY = 64;
+  static final int TYPE_CAPACITY = Config.get().getResolverTypePoolSize();
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
@@ -61,6 +61,9 @@ public class DDCachingPoolStrategy implements PoolStrategy {
         }
       };
 
+  public static final DDCachingPoolStrategy INSTANCE =
+      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
+
   /**
    * Cache of recent ClassLoader WeakReferences; used to...
    *
@@ -70,7 +73,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
    * </ul>
    */
   final WeakCache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
-      AgentTooling.newWeakCache(LOADER_CAPACITY);
+      WeakCaches.newWeakCache(LOADER_CAPACITY);
 
   /**
    * Single shared Type.Resolution cache -- uses a composite key -- conceptually of loader & name
@@ -86,18 +89,18 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
   private final boolean fallBackToLoadClass;
 
-  public DDCachingPoolStrategy() {
+  // visible for testing
+  DDCachingPoolStrategy() {
     this(true);
   }
 
-  public DDCachingPoolStrategy(boolean fallBackToLoadClass) {
+  private DDCachingPoolStrategy(boolean fallBackToLoadClass) {
     this.fallBackToLoadClass = fallBackToLoadClass;
     bootstrapCacheProvider =
         new SharedResolutionCacheAdapter(
             BOOTSTRAP_HASH, null, sharedResolutionCache, fallBackToLoadClass);
   }
 
-  @Override
   public final TypePool typePool(
       final ClassFileLocator classFileLocator, final ClassLoader classLoader) {
     if (classLoader == null) {
@@ -108,14 +111,6 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
     final int loaderHash = classLoader.hashCode();
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
-  }
-
-  @Override
-  public final TypePool typePool(
-      final ClassFileLocator classFileLocator, final ClassLoader classLoader, final String name) {
-    // FIXME satisfy interface constraint that the currently instrumented type is not used in the
-    // cache
-    return typePool(classFileLocator, classLoader);
   }
 
   private TypePool.CacheProvider createCacheProvider(

@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
@@ -37,9 +39,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
 
     final Map<String, String> carrier = Mock()
 
@@ -91,9 +92,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
     final Map<String, String> carrier = Mock()
 
     when:
@@ -138,9 +138,8 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
-      false,
-      null,
-      512)
+      NoopPathwayContext.INSTANCE,
+      false)
 
     mockedContext.beginEndToEnd()
 

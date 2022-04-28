@@ -38,6 +38,8 @@ public final class TracerConfig {
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String HEADER_TAGS = "trace.header.tags";
+  public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
+  public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";
   public static final String TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING =
       "trace.http.server.path-resource-name-mapping";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
@@ -58,22 +60,10 @@ public final class TracerConfig {
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
-
-  /**
-   * Disables validation that prevents invalid combinations of sampling priority and sampling
-   * mechanism on the set sampling priority calls. This check is enabled by default.
-   */
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
 
-  /** Enables x-datadog-tags propagation and upstream_services tracking. Enabled by default. */
-  public static final String DATADOG_TAGS_ENABLED = "trace.datadog.tags.enabled";
-
-  /**
-   * Limit for x-datadog-tags. When exceeded it will stop propagating x-datadog-tags and log a
-   * warning. 512 by default.
-   */
-  public static final String DATADOG_TAGS_LIMIT = "trace.datadog.tags.limit";
+  public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 
   private TracerConfig() {}
 }

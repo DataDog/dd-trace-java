@@ -29,8 +29,8 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing
   @Override
   public String instrumentedType() {
     // HttpRequest is a final class.  Only need to instrument it exactly
-    // Note: the rest of com.google.api is ignored in AdditionalLibraryIgnoresMatcher to speed
-    // things up
+    // Note: the rest of com.google.api is ignored in the additional ignores
+    // of GlobalIgnoresMatcher to speed things up
     return "com.google.api.client.http.HttpRequest";
   }
 

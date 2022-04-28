@@ -6,17 +6,18 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
-import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
+import static datadog.trace.api.DDTags.ORIGIN_KEY
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.THREAD_ID
 import static datadog.trace.api.DDTags.THREAD_NAME
-import static datadog.trace.api.DDTags.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class CoreSpanBuilderTest extends DDCoreSpecification {
@@ -167,6 +168,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
     1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDId.ONE)
+    _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
 
@@ -321,9 +323,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.getTag(THREAD_NAME) == thread.name
 
     where:
-    extractedContext                                                                                                                                                                                    | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, null, 0, [:], [:], null)                                                                     | _
-    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null) | _
+    extractedContext                                                                                                                                                                              | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, null, 0, [:], [:])                                                                     | _
+    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
   }
 
   def "TagContext should populate default span details"() {
@@ -367,7 +369,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     where:
     tagString     | tags
     ""            | [:]
-    "in:val:id"   | [:]
+    "is:val:id"   | [is: "val:id"]
     "a:x"         | [a: "x"]
     "a:a,a:b,a:c" | [a: "c"]
     "a:1,b-c:d"   | [a: "1", "b-c": "d"]

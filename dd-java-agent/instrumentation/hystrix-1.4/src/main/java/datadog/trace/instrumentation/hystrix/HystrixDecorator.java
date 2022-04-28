@@ -12,7 +12,6 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import java.util.Objects;
 
 public class HystrixDecorator extends BaseDecorator {
   public static HystrixDecorator DECORATE = new HystrixDecorator();
@@ -64,7 +63,11 @@ public class HystrixDecorator extends BaseDecorator {
 
     @Override
     public int hashCode() {
-      return Objects.hash(group, command, methodName);
+      int hash = 1;
+      hash = 31 * hash + group.hashCode();
+      hash = 31 * hash + command.hashCode();
+      hash = 31 * hash + methodName.hashCode();
+      return hash;
     }
   }
 

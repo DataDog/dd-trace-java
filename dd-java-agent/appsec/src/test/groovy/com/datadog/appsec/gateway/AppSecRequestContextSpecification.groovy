@@ -1,17 +1,20 @@
 package com.datadog.appsec.gateway
 
-import com.datadog.appsec.event.data.DataBundle
+import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
-import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.raw.events.AppSecEvent100
+import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import io.sqreen.powerwaf.Additive
+import io.sqreen.powerwaf.Powerwaf
+import io.sqreen.powerwaf.PowerwafContext
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
-  void 'implements DataBundle'() {
-    DataBundle ctx = new AppSecRequestContext()
+  AppSecRequestContext ctx = new AppSecRequestContext()
 
+  void 'implements DataBundle'() {
     when:
     ctx.addAll(MapDataBundle.of(KnownAddresses.REQUEST_URI_RAW, '/a'))
 
@@ -36,8 +39,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'it is closeable'() {
-    def ctx = new AppSecRequestContext()
-
     expect:
     assert ctx.respondsTo('close')
 
@@ -49,8 +50,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'adding headers after they are said to be finished is forbidden'() {
-    AppSecRequestContext ctx = new AppSecRequestContext()
-
     when:
     ctx.finishRequestHeaders()
 
@@ -62,15 +61,13 @@ class AppSecRequestContextSpecification extends DDSpecification {
     thrown(IllegalStateException)
 
     when:
-    ctx.addCookie(new StringKVPair('a', 'b'))
+    ctx.addCookies(a: ['b'])
 
     then:
     thrown(IllegalStateException)
   }
 
   void 'adding uri a second time is forbidden'() {
-    AppSecRequestContext ctx = new AppSecRequestContext()
-
     when:
     ctx.rawURI = '/a'
     ctx.rawURI = '/b'
@@ -81,20 +78,16 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'saves cookies and other headers'() {
-    AppSecRequestContext ctx = new AppSecRequestContext()
-
     when:
-    ctx.addCookie(new StringKVPair('a', 'c'))
+    ctx.addCookies([a: ['c']])
     ctx.addRequestHeader('user-agent', 'foo')
 
     then:
     ctx.requestHeaders['user-agent'] == ['foo']
-    ctx.collectedCookies == [['a', 'c']]
+    ctx.cookies == [a: ['c']]
   }
 
   void 'can save the URI'() {
-    AppSecRequestContext ctx = new AppSecRequestContext()
-
     when:
     ctx.savedRawURI = '/a'
 
@@ -103,8 +96,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'can collect events'() {
-    AppSecRequestContext ctx = new AppSecRequestContext()
-
     when:
     ctx.reportEvents([new AppSecEvent100(), new AppSecEvent100()], null)
     def events = ctx.transferCollectedEvents()
@@ -122,10 +113,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'collect events when none reported'() {
-    when:
-    AppSecRequestContext ctx = new AppSecRequestContext()
-
-    then:
+    expect:
     ctx.transferCollectedEvents().empty
   }
 
@@ -137,9 +125,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'basic headers collection test'() {
-    given:
-    def ctx = new AppSecRequestContext()
-
     when:
     ctx.addRequestHeader('Host', '127.0.0.1')
     ctx.addRequestHeader('Content-Type', 'text/html; charset=UTF-8')
@@ -155,9 +140,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'null headers should be ignored'() {
-    given:
-    def ctx = new AppSecRequestContext()
-
     when:
     ctx.addRequestHeader(null, 'value')
     ctx.addRequestHeader('key', null)
@@ -167,9 +149,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   void 'concat multiple values for same header'() {
-    given:
-    def ctx = new AppSecRequestContext()
-
     when:
     ctx.addRequestHeader('Custom-Header', 'value1')
     ctx.addRequestHeader('CUSTOM-HEADER', 'value2')
@@ -180,5 +159,45 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.requestHeaders == [
       'custom-header': ['value1', 'value2'],
       'accept': ['application/json', 'application/xml']] as Map
+  }
+
+  private Additive createAdditive() {
+    Powerwaf.initialize false
+    def service = new StubAppSecConfigService()
+    service.init false
+    AppSecConfig config = service.lastConfig['waf']
+    String uniqueId = UUID.randomUUID() as String
+    PowerwafContext context = Powerwaf.createContext(uniqueId, config.rawConfig)
+    new Additive(context)
+  }
+
+  void 'replacing the additive closes the previous one'() {
+    setup:
+    def additive1 = createAdditive()
+    def additive2 = createAdditive()
+
+    when:
+    ctx.additive = additive1
+    ctx.additive = additive2
+
+    then:
+    additive1.online == false
+    additive2.online == true
+
+    cleanup:
+    [additive1, additive2].findAll {it.online }*.close()
+  }
+
+  void 'close closes the additive'() {
+    setup:
+    def additive = createAdditive()
+
+    when:
+    ctx.additive = additive
+    ctx.close()
+
+    then:
+    ctx.additive == null
+    additive.online == false
   }
 }

@@ -17,7 +17,11 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
+  public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
+
+  public static final String TRACE_THREAD_POOL_EXECUTORS_EXCLUDE =
+      "trace.thread-pool-executors.exclude";
 
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
   public static final String HTTP_SERVER_RAW_QUERY_STRING = "http.server.raw.query-string";
@@ -62,6 +66,8 @@ public final class TraceInstrumentationConfig {
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
   public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
       "trace.grpc.server.trim-package-resource";
+  public static final String GRPC_SERVER_ERROR_STATUSES = "grpc.server.error.statuses";
+  public static final String GRPC_CLIENT_ERROR_STATUSES = "grpc.client.error.statuses";
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String HYSTRIX_MEASURED_ENABLED = "hystrix.measured.enabled";
 
@@ -80,6 +86,7 @@ public final class TraceInstrumentationConfig {
   public static final String TEMP_JARS_CLEAN_ON_BOOT = "temp.jars.clean.on.boot";
 
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
 
   public static final String PREBUILT_MATCHER_DATA_FILE = "prebuilt.matcher.data.file";
 

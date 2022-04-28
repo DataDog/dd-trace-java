@@ -1,6 +1,5 @@
 package com.datadog.appsec;
 
-import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.gateway.GatewayBridge;
@@ -27,7 +26,7 @@ public class AppSecSystem {
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
   private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
-  private static AppSecConfigService APP_SEC_CONFIG_SERVICE;
+  private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -63,7 +62,12 @@ public class AppSecSystem {
     sco.createRemaining(config);
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
     GatewayBridge gatewayBridge =
-        new GatewayBridge(gw, eventDispatcher, rateLimiter, config.getAppSecIpAddrHeader());
+        new GatewayBridge(
+            gw,
+            eventDispatcher,
+            rateLimiter,
+            config.getAppSecIpAddrHeader(),
+            APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);
     gatewayBridge.init();

@@ -38,6 +38,24 @@ public final class UTF8BytesString implements CharSequence {
     }
   }
 
+  /**
+   * Creates a new {@linkplain UTF8BytesString} instance using the provided {@linkplain ByteBuffer}
+   * <br>
+   * All available data from the current position are read and used as the backing array.
+   *
+   * @param utf8BytesBuffer the byte buffer containing UTF8 data
+   * @return a new {@linkplain UTF8BytesString} instance or {@literal null}
+   */
+  public static UTF8BytesString create(ByteBuffer utf8BytesBuffer) {
+    if (null == utf8BytesBuffer) {
+      return null;
+    } else {
+      byte[] utf8Bytes = new byte[utf8BytesBuffer.remaining()];
+      utf8BytesBuffer.get(utf8Bytes);
+      return new UTF8BytesString(utf8Bytes);
+    }
+  }
+
   private final String string;
   private byte[] utf8Bytes;
 

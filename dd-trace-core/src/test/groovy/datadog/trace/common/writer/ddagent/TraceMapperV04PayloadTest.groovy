@@ -1,10 +1,13 @@
 package datadog.trace.common.writer.ddagent
 
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.common.writer.Payload
+import datadog.trace.common.writer.TraceGenerator
+import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
@@ -15,20 +18,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
-import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
+import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
-import static org.msgpack.core.MessageFormat.FLOAT32
-import static org.msgpack.core.MessageFormat.FLOAT64
-import static org.msgpack.core.MessageFormat.INT16
-import static org.msgpack.core.MessageFormat.INT32
-import static org.msgpack.core.MessageFormat.INT64
-import static org.msgpack.core.MessageFormat.INT8
-import static org.msgpack.core.MessageFormat.NEGFIXINT
-import static org.msgpack.core.MessageFormat.POSFIXINT
-import static org.msgpack.core.MessageFormat.UINT16
-import static org.msgpack.core.MessageFormat.UINT32
-import static org.msgpack.core.MessageFormat.UINT64
-import static org.msgpack.core.MessageFormat.UINT8
+import static org.junit.Assert.assertFalse
+import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV04PayloadTest extends DDSpecification {
 
@@ -174,6 +167,13 @@ class TraceMapperV04PayloadTest extends DDSpecification {
               }
               if (DD_MEASURED.toString() == key) {
                 assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+              } else if (DDSpanContext.PRIORITY_SAMPLING_KEY == key) {
+                //check that priority sampling is only on first and last span
+                if (k == 0 || k == spanCount -1) {
+                  assertEquals(expectedSpan.samplingPriority(), n.intValue())
+                } else {
+                  assertFalse(expectedSpan.hasSamplingPriority())
+                }
               } else {
                 metrics.put(key, n)
               }

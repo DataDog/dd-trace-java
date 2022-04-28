@@ -6,12 +6,18 @@ public final class ConfigDefaults {
 
   static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES;
   static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_SERVER_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 
   static {
     DEFAULT_HTTP_SERVER_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES.set(400, 500);
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES.set(2, 17);
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES.set(1, 17);
   }
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
@@ -50,6 +56,9 @@ public final class ConfigDefaults {
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
+
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
@@ -64,6 +73,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_ENABLED = false;
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
+  static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
 
@@ -79,6 +89,10 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
+
+  static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+
+  static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 
   private ConfigDefaults() {}
 }

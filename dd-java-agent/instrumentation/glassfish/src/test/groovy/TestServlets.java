@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.base.HttpServerTest;
 import groovy.lang.Closure;
 import java.io.IOException;
+import java.util.Arrays;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -47,6 +48,23 @@ public class TestServlets {
               resp.setContentType("text/plain");
               resp.setStatus(endpoint.getStatus());
               resp.getWriter().print(req.getHeader("x-forwarded-for"));
+              return null;
+            }
+          });
+    }
+  }
+
+  @WebServlet("/body-urlencoded")
+  public static class BodyUrlEncoded extends HttpServlet {
+    @Override
+    protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
+      HttpServerTest.controller(
+          HttpServerTest.ServerEndpoint.BODY_URLENCODED,
+          new Closure(null) {
+            public Object doCall() throws Exception {
+              resp.setContentType("text/plain");
+              resp.setStatus(HttpServerTest.ServerEndpoint.BODY_URLENCODED.getStatus());
+              resp.getWriter().print("[a:" + Arrays.asList(req.getParameterValues("a")) + "]");
               return null;
             }
           });

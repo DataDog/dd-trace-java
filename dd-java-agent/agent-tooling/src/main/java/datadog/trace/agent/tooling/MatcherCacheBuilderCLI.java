@@ -44,7 +44,7 @@ public final class MatcherCacheBuilderCLI {
         enabledField.setAccessible(true);
 
         ServiceLoader<Instrumenter> loader =
-            ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader());
+            ServiceLoader.load(Instrumenter.class, Instrumenter.class.getClassLoader());
 
         for (Instrumenter instr : loader) {
           if (instr instanceof Instrumenter.Default) {

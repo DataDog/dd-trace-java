@@ -2,6 +2,8 @@ package com.datadog.profiling.agent;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import com.datadog.profiling.context.JfrTimestampPatch;
+import com.datadog.profiling.context.ProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
@@ -9,6 +11,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -32,7 +35,7 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(final boolean isStartingFirst)
+  public static synchronized void run(final boolean isStartingFirst, ClassLoader agentClasLoader)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
@@ -50,10 +53,15 @@ public class ProfilingAgent {
             "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
         return;
       }
+      if (Platform.isJavaVersionAtLeast(9)) {
+        JfrTimestampPatch.execute(agentClasLoader);
+      }
 
       try {
-        final Controller controller = ControllerFactory.createController(config);
         final ConfigProvider configProvider = ConfigProvider.getInstance();
+        final Controller controller = ControllerFactory.createController(configProvider);
+
+        ProfilerTracingContextTrackerFactory.register(configProvider);
 
         final ProfileUploader uploader = new ProfileUploader(config, configProvider);
 

@@ -7,7 +7,7 @@ import org.eclipse.jetty.util.thread.ReservedThreadExecutor
 import spock.lang.Shared
 
 import java.util.concurrent.Callable
-import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
@@ -16,11 +16,16 @@ import static org.junit.Assume.assumeTrue
 class JettyExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared
-  Executor delegate = Executors.newSingleThreadExecutor()
+  ExecutorService exHolder = null
+
+  def delegate() {
+    // We need lazy init, or else the constructor is run before the instrumentation is applied
+    return exHolder == null ? exHolder = Executors.newSingleThreadExecutor() : exHolder
+  }
 
   @Override
   def cleanupSpec() {
-    delegate.shutdownNow()
+    delegate().shutdownNow()
   }
 
   @Shared
@@ -68,6 +73,6 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
     name                     | method              | poolImpl
     "execute Runnable"       | executeRunnable     | new MonitoredQueuedThreadPool(8)
     "execute Runnable"       | executeRunnable     | new QueuedThreadPool(8)
-    "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(delegate, 1)
+    "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(delegate(), 1)
   }
 }

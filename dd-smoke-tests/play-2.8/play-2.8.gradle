@@ -13,7 +13,7 @@ java {
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-def playVer = "2.8.2"
+def playVer = "2.8.15"
 def scalaVer = System.getProperty("scala.version", /* default = */ "2.13")
 
 play {
@@ -57,6 +57,10 @@ dependencies {
   implementation "com.typesafe.play:filters-helpers_$scalaVer:$playVer"
   implementation "com.typesafe.play:play-netty-server_$scalaVer:$playVer"
   implementation "com.typesafe.play:play-ahc-ws_$scalaVer:$playVer"
+
+  // Needed for Java17
+  implementation "com.google.inject:guice:5.1.0"
+  implementation "com.google.inject.extensions:guice-assistedinject:5.1.0"
 
   implementation project(':dd-trace-api')
   implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'

@@ -5,6 +5,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import net.bytebuddy.utility.JavaModule
 import okhttp3.OkHttpClient
 import org.apache.catalina.Context
+import org.apache.catalina.LifecycleException
 import org.apache.catalina.startup.Tomcat
 import spock.lang.Shared
 
@@ -64,8 +65,17 @@ abstract class JSPTestBase extends AgentTestRunner {
   }
 
   def cleanupSpec() {
-    tomcatServer.stop()
-    tomcatServer.destroy()
+    try {
+      tomcatServer.stop()
+      tomcatServer.destroy()
+    } catch (LifecycleException e) {
+      // TODO Java 17: Failure during Catalina shutdown on JDK17
+      if (new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)) {
+        e.printStackTrace(System.out)
+      } else {
+        throw e
+      }
+    }
   }
 
   @Override

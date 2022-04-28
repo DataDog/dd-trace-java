@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.springweb;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -104,7 +104,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.AppS
 
       if (map != null && !map.isEmpty()) {
         CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-        BiFunction<RequestContext<Object>, Map<String, Object>, Flow<Void>> callback =
+        BiFunction<RequestContext<Object>, Map<String, ?>, Flow<Void>> callback =
             cbp.getCallback(EVENTS.requestPathParams());
         RequestContext<Object> requestContext = agentSpan.getRequestContext();
         if (requestContext == null || callback == null) {

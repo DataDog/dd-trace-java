@@ -37,6 +37,11 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return true;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // just an optimization to exclude common class loaders that are known to delegate to the
     // bootstrap loader (or happen to _be_ the bootstrap loader)

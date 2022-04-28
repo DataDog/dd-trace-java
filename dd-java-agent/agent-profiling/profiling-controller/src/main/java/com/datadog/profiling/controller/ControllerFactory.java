@@ -15,7 +15,7 @@
  */
 package com.datadog.profiling.controller;
 
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
 
@@ -31,7 +31,7 @@ public final class ControllerFactory {
    * @throws ConfigurationException if profiler cannot start due to configuration problems
    */
   @SuppressForbidden
-  public static Controller createController(final Config config)
+  public static Controller createController(final ConfigProvider configProvider)
       throws UnsupportedEnvironmentException, ConfigurationException {
     boolean isOracleJfr = false;
     boolean isOpenJdkJfr = false;
@@ -58,7 +58,7 @@ public final class ControllerFactory {
                         ? "com.datadog.profiling.controller.oracle.OracleJdkController"
                         : "com.datadog.profiling.controller.openjdk.OpenJdkController")
                 .asSubclass(Controller.class);
-        return controller.getDeclaredConstructor(Config.class).newInstance(config);
+        return controller.getDeclaredConstructor(ConfigProvider.class).newInstance(configProvider);
       } catch (final ClassNotFoundException
           | NoSuchMethodException
           | InstantiationException

@@ -23,7 +23,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     setup:
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
     long duration = SECONDS.toNanos(10)
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
     ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
     SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
 
