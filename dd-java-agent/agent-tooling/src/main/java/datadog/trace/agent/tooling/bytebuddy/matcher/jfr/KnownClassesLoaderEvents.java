@@ -23,8 +23,6 @@ public class KnownClassesLoaderEvents {
     return NOOP_MATCHER_EVENT;
   }
 
-  public void globalMatcherTransformedEvent(String fqcn) {};
-
   private static boolean ENABLED = true;
 
   public static KnownClassesLoaderEvents get() {
@@ -47,9 +45,7 @@ public class KnownClassesLoaderEvents {
                 .getField("INSTANCE")
                 .get(null);
       } catch (Throwable e) {
-        log.warn(
-            ">>>>>>>> Problem loading Java 8 JFR events support, falling back to no-op implementation.",
-            e);
+        log.warn("No JFR events support, falling back to no-op implementation.", e);
       }
     }
     return new KnownClassesLoaderEvents();

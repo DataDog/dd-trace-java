@@ -142,39 +142,6 @@ public interface Instrumenter {
       }
     }
 
-    //    public ElementMatcher<? super TypeDescription> typeMatcher() {
-    //      // TODO: this extracted from the following filter method to be able access typeMatcher
-    //      ElementMatcher<? super TypeDescription> typeMatcher;
-    //      if (this instanceof ForSingleType) {
-    //        typeMatcher = new SingleTypeMatcher(((ForSingleType) this).instrumentedType());
-    //      } else if (this instanceof ForKnownTypes) {
-    //        typeMatcher = new KnownTypesMatcher(((ForKnownTypes) this).knownMatchingTypes());
-    //      } else if (this instanceof ForTypeHierarchy) {
-    //        typeMatcher = ((ForTypeHierarchy) this).hierarchyMatcher();
-    //      } else {
-    //        //        return agentBuilder.type(AgentBuilder.RawMatcher.Trivial.NON_MATCHING);
-    //        return null;
-    //      }
-    //
-    //      if (this instanceof CanShortcutTypeMatching
-    //        // TODO: forcing using widest matcher for better coverage in case some Intrumentation
-    // using
-    //        // short cut matching for only known types
-    //        /*&& !((CanShortcutTypeMatching) this).onlyMatchKnownTypes()*/ ) {
-    //        // not taking shortcuts, so include wider hierarchical matching
-    //        typeMatcher = new Disjunction(typeMatcher, ((ForTypeHierarchy)
-    // this).hierarchyMatcher());
-    //      }
-    //
-    //      if (this instanceof WithTypeStructure) {
-    //        // only perform structure matching after we've matched the type
-    //        typeMatcher = new Conjunction(typeMatcher, ((WithTypeStructure)
-    // this).structureMatcher());
-    //      }
-    //
-    //      return typeMatcher;
-    //    }
-
     /** Matches classes for which instrumentation is not muzzled. */
     public final boolean muzzleMatches(
         final ClassLoader classLoader, final Class<?> classBeingRedefined) {
