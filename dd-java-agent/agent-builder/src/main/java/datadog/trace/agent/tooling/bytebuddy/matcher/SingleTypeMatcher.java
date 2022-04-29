@@ -17,7 +17,7 @@ public class SingleTypeMatcher extends ElementMatcher.Junction.ForNonNullValues<
 
   @Override
   protected boolean doMatch(TypeDescription target) {
-    return name.equals(target.getName());
+    return name != null && name.equals(target.getName());
   }
 
   @Override

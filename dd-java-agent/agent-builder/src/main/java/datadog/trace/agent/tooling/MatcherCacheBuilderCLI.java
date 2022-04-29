@@ -12,9 +12,12 @@ import java.util.ArrayList;
 import java.util.ServiceLoader;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // called by reflection from agent-bootstrap
 public final class MatcherCacheBuilderCLI {
+  private static final Logger log = LoggerFactory.getLogger(MatcherCacheBuilderCLI.class);
 
   public static void run(File bootstrapFile, String... args) {
     MatcherCacheFileBuilderParams params;
@@ -77,7 +80,8 @@ public final class MatcherCacheBuilderCLI {
     public Instrumenter.Default firstMatching(Class<?> cl) {
       TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
       for (Instrumenter.Default instr : instrumenters) {
-        ElementMatcher<? super TypeDescription> typeMatcher = instr.typeMatcher();
+        ElementMatcher<? super TypeDescription> typeMatcher =
+            AgentTransformerBuilder.typeMatcher(instr, true);
         if (typeMatcher != null) {
           if (typeMatcher.matches(typeDescription)) {
             return instr;

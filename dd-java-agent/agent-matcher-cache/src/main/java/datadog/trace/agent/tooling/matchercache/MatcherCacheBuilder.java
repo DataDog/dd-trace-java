@@ -73,8 +73,7 @@ public class MatcherCacheBuilder {
         PackageData packageData = getDataOrCreate(packageName, source);
         packageData.insert(className, MatchingResult.FAIL_TO_LOAD);
         stats.transformedClassesCounter += 1;
-        //        log.debug("Couldn't load class: {} failed with {}", className, e);
-        log.info("Couldn't load class {} because of:", classData.fullClassName(), e);
+        log.debug("Couldn't load class: {} failed with {}", className, e);
       }
     }
 

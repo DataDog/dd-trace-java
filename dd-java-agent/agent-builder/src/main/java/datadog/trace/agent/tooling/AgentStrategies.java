@@ -34,6 +34,21 @@ public class AgentStrategies {
       } catch (Throwable e) {
         log.warn("Problem loading Java9 Module support, falling back to legacy transformer", e);
       }
+    } else if (Platform.isJavaVersionAtLeast(8, 0, 262)) {
+      try {
+        // check if JFR Event class is available
+        Instrumenter.class.getClassLoader().loadClass("jdk.jfr.Event");
+        return (TransformerDecorator)
+            Instrumenter.class
+                .getClassLoader()
+                .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava8ClassFileTransformer")
+                .getField("DECORATOR")
+                .get(null);
+      } catch (Throwable e) {
+        log.warn(
+            "Problem loading Java8 (u262+) instrumentation JFR support, falling back to legacy transformer",
+            e);
+      }
     }
     return DDClassFileTransformer.DECORATOR;
   }

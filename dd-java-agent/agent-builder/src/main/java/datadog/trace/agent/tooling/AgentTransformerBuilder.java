@@ -115,7 +115,8 @@ public class AgentTransformerBuilder
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
+  static ElementMatcher<? super TypeDescription> typeMatcher(
+      Instrumenter.Default instrumenter, boolean ignoreShortcut) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     if (instrumenter instanceof Instrumenter.ForSingleType) {
       typeMatcher =
@@ -126,11 +127,12 @@ public class AgentTransformerBuilder
     } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
       typeMatcher = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher();
     } else {
-      return AgentBuilder.RawMatcher.Trivial.NON_MATCHING;
+      return null;
     }
 
     if (instrumenter instanceof Instrumenter.CanShortcutTypeMatching
-        && !((Instrumenter.CanShortcutTypeMatching) instrumenter).onlyMatchKnownTypes()) {
+        && (ignoreShortcut
+            || !((Instrumenter.CanShortcutTypeMatching) instrumenter).onlyMatchKnownTypes())) {
       // not taking shortcuts, so include wider hierarchical matching
       typeMatcher =
           new ElementMatcher.Junction.Disjunction(
@@ -142,6 +144,15 @@ public class AgentTransformerBuilder
       typeMatcher =
           new ElementMatcher.Junction.Conjunction(
               typeMatcher, ((Instrumenter.WithTypeStructure) instrumenter).structureMatcher());
+    }
+
+    return typeMatcher;
+  }
+
+  private static AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
+    ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher(instrumenter, false);
+    if (typeMatcher == null) {
+      return AgentBuilder.RawMatcher.Trivial.NON_MATCHING;
     }
 
     ElementMatcher<ClassLoader> classLoaderMatcher = instrumenter.classLoaderMatcher();
