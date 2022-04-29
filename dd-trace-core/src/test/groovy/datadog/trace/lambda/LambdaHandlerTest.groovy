@@ -101,6 +101,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     server.lastRequest.headers.get("x-datadog-trace-id") == tIdHeaderValue
     server.lastRequest.headers.get("x-datadog-span-id") == sIdHeaderValue
     server.lastRequest.headers.get("x-datadog-sampling-priority") == sPIdHeaderValue
+    result == expected
 
     cleanup:
     server.close()
