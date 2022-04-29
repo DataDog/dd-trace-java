@@ -88,8 +88,8 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
-    if (null == span) {
-      log.error("could not notify the extension as the lambda span is null");
+    if (null == span || null == span.getSamplingPriority()) {
+      log.error("could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
