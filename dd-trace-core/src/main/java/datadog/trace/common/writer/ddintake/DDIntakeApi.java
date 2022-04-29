@@ -24,8 +24,12 @@ public class DDIntakeApi implements RemoteApi {
 
   private static final String DD_API_KEY_HEADER = "dd-api-key";
   private static final Logger log = LoggerFactory.getLogger(DDIntakeApi.class);
-
   private final IOLogger ioLogger = new IOLogger(log);
+
+  private long totalTraces = 0;
+  private long receivedTraces = 0;
+  private long sentTraces = 0;
+  private long failedTraces = 0;
 
   public static DDIntakeApiBuilder builder() {
     return new DDIntakeApiBuilder();
@@ -110,11 +114,13 @@ public class DDIntakeApi implements RemoteApi {
               .addHeader(DD_API_KEY_HEADER, apiKey)
               .post(payload.toRequest())
               .build();
-
+      this.totalTraces += payload.traceCount();
+      this.receivedTraces += payload.traceCount();
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
           return Response.failed(response.code());
         }
+        countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());
       }
 
@@ -124,8 +130,62 @@ public class DDIntakeApi implements RemoteApi {
     }
   }
 
+  private void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
+    // count the successful traces
+    this.sentTraces += traceCount;
+
+    ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
+  }
+
   private void countAndLogFailedSend(
-      int traceCount, int sizeInBytes, final okhttp3.Response response, final IOException outer) {}
+      int traceCount, int sizeInBytes, final okhttp3.Response response, final IOException outer) {
+    // count the failed traces
+    this.failedTraces += traceCount;
+    // these are used to catch and log if there is a failure in debug logging the response body
+    String agentError = getResponseBody(response);
+    String sendErrorString =
+        createSendLogMessage(traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
+
+    ioLogger.error(sendErrorString, toLoggerResponse(response, agentError), outer);
+  }
+
+  private static IOLogger.Response toLoggerResponse(okhttp3.Response response, String body) {
+    if (response == null) {
+      return null;
+    }
+    return new IOLogger.Response(response.code(), response.message(), body);
+  }
+
+  private static String getResponseBody(okhttp3.Response response) {
+    if (response != null) {
+      try {
+        return response.body().string().trim();
+      } catch (NullPointerException | IOException ignored) {
+      }
+    }
+    return "";
+  }
+
+  private String createSendLogMessage(
+      final int traceCount, final int sizeInBytes, final String prefix) {
+    String sizeString = sizeInBytes > 1024 ? (sizeInBytes / 1024) + "KB" : sizeInBytes + "B";
+    return prefix
+        + " while sending "
+        + traceCount
+        + " (size="
+        + sizeString
+        + ")"
+        + " traces to the DD Intake."
+        + " Total: "
+        + this.totalTraces
+        + ", Received: "
+        + this.receivedTraces
+        + ", Sent: "
+        + this.sentTraces
+        + ", Failed: "
+        + this.failedTraces
+        + ".";
+  }
 
   @Override
   public void addResponseListener(RemoteResponseListener listener) {}

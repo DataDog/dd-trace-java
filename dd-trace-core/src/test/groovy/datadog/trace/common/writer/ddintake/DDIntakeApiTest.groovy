@@ -90,7 +90,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
 
     where:
     // spotless:off
-    trackType               | apiVersion | traces | expectedRequestBody
+    trackType             | apiVersion | traces | expectedRequestBody
     TrackType.CITESTCYCLE | "v2"       | []     | [:]
     TrackType.CITESTCYCLE | "v2"       | [[buildSpan(1L, "service.name", "my-service")]] | new TreeMap<>([
       "version":1,
