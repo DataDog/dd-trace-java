@@ -1,12 +1,14 @@
 package datadog.trace.lambda;
 
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.propagation.LambdaContext;
+import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -47,7 +49,7 @@ public class LambdaHandler {
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static LambdaContext notifyStartInvocation(Object event) {
+  public static AgentSpan.Context notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -68,12 +70,19 @@ public class LambdaHandler {
           } catch (final NumberFormatException ignored) {
             log.warn("could not read the sampling priority, defaulting to UNSET");
           }
-          log.debug("notifyStartInvocation success, found traceID = {} and samplingPriority = {}", traceID, samplingPriority);
-          System.out.println("notifyStartInvocation success, found traceID = " + traceID + " and samplingPriority = " + samplingPriority);
-          return new LambdaContext(traceID, samplingPriority);
-        } else {
           log.debug(
-              "could not find traceID in notifyStartInvocation, not injecting the context");
+              "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
+              traceID,
+              samplingPriority);
+          System.out.println(
+              "notifyStartInvocation success, found traceID = "
+                  + traceID
+                  + " and samplingPriority = "
+                  + samplingPriority);
+          return new ExtractedContext(
+              DDId.from(traceID), DDId.ZERO, samplingPriority, DEFAULT, null, 0, null, null);
+        } else {
+          log.debug("could not find traceID in notifyStartInvocation, not injecting the context");
           System.out.println(
               "could not find traceID in notifyStartInvocation, not injecting the context");
         }

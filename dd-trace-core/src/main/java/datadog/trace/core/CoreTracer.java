@@ -53,7 +53,6 @@ import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
-import datadog.trace.core.propagation.LambdaContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -794,7 +793,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public LambdaContext notifyExtensionStart(Object event) {
+  public AgentSpan.Context notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(event);
   }
 
