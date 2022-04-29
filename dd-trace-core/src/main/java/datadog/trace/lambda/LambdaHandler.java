@@ -74,17 +74,11 @@ public class LambdaHandler {
               "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
               traceID,
               samplingPriority);
-          System.out.println(
-              "notifyStartInvocation success, found traceID = "
-                  + traceID
-                  + " and samplingPriority = "
-                  + samplingPriority);
           return new ExtractedContext(
               DDId.from(traceID), DDId.ZERO, samplingPriority, DEFAULT, null, 0, null, null);
         } else {
-          log.debug("could not find traceID in notifyStartInvocation, not injecting the context");
-          System.out.println(
-              "could not find traceID in notifyStartInvocation, not injecting the context");
+          log.debug(
+              "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");
         }
       }
     } catch (Throwable ignored) {
