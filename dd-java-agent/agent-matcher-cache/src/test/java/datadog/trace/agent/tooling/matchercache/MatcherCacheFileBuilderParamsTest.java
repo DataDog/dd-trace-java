@@ -20,7 +20,7 @@ public class MatcherCacheFileBuilderParamsTest {
   public void testParseEmpty() {
     MatcherCacheFileBuilderParams params = MatcherCacheFileBuilderParams.parseArgs();
 
-    assertNull(params.getOutputFile());
+    assertNull(params.getOutputCacheDataFile());
     assertTrue(params.getClassPaths().isEmpty());
   }
 
@@ -29,7 +29,7 @@ public class MatcherCacheFileBuilderParamsTest {
     MatcherCacheFileBuilderParams params =
         MatcherCacheFileBuilderParams.parseArgs("-cp", "/tmp", "-o", "./out.bin", "-cp", ".");
 
-    assertEquals("./out.bin", params.getOutputFile());
+    assertEquals("./out.bin", params.getOutputCacheDataFile());
     assertEquals("[/tmp, .]", params.getClassPaths().toString());
   }
 

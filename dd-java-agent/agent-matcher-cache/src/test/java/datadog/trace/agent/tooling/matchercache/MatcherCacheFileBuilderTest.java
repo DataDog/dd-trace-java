@@ -52,7 +52,7 @@ public class MatcherCacheFileBuilderTest {
 
     when(params.validate()).thenReturn(true);
     when(matcherCacheBuilder.getJavaMajorVersion()).thenReturn(JavaVersion.MAJOR_VERSION);
-    when(params.getOutputFile()).thenReturn(outputFile.toString());
+    when(params.getOutputCacheDataFile()).thenReturn(outputFile.toString());
     when(params.getJavaHome()).thenReturn(jdkClassPath.toString());
     when(params.getDDAgentJar()).thenReturn(ddAgentJar);
     when(params.getClassPaths()).thenReturn(classPaths.keySet());

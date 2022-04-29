@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,13 +117,59 @@ public class MatcherCacheBuilder {
     }
   }
 
+  // TODO test
+  public void serializeText(File file) throws IOException {
+    try (FileOutputStream os = new FileOutputStream(file)) {
+      serializeText(os);
+    }
+  }
+
+  public void serializeText(OutputStream os) throws IOException {
+    PrintStream ps = new PrintStream(os);
+    ps.print("Packages: ");
+    ps.println(packages.size());
+    ps.println("<package> : <transform>/<skip>/<fail>/<hash-collisions>");
+    for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
+      PackageData pd = entry.getValue();
+      ps.print(entry.getKey());
+      ps.print(" : ");
+      if (pd.canBeRemoved()) {
+        ps.print("(removed) ");
+      }
+      ps.print(pd.transformedClasses.size());
+      ps.print('/');
+      ps.print(pd.skippedCounter);
+      ps.print('/');
+      ps.print(pd.failedToLoadCounter);
+      ps.print('/');
+      ps.println(pd.falsePositives);
+      printClasses(ps, "Transformed", pd.transformedClasses);
+      printClasses(ps, "Skipped", pd.skippedClasses);
+      printClasses(ps, "Failed", pd.failedClasses);
+    }
+  }
+
+  private void printClasses(PrintStream ps, String header, Collection<String> classes) {
+    if (classes.size() > 0) {
+      ps.print("  ");
+      ps.print(header);
+      ps.println(":");
+    }
+    for (String className : classes) {
+      ps.print("    ");
+      ps.print(className);
+      ps.print(" (");
+      ps.print(className.hashCode());
+      ps.println(")");
+    }
+  }
+
   public void optimize() {
     ArrayList<String> pkgs = new ArrayList<>(this.packages.keySet());
 
     for (String pkg : pkgs) {
       PackageData packageData = this.packages.get(pkg);
-      if (packageData.skippedCounter == 0
-          && packageData.failedToLoadCounter == packageData.transformedClassHashes.size()) {
+      if (packageData.canBeRemoved()) {
         this.packages.remove(pkg);
         log.debug(
             "{} removed because it has no skipped classes. (Transformed classes: {} including failed to load: {}",
@@ -203,6 +250,9 @@ public class MatcherCacheBuilder {
   private final class PackageData {
 
     private final String source;
+    private final TreeSet<String> transformedClasses;
+    private final TreeSet<String> skippedClasses;
+    private final TreeSet<String> failedClasses;
     private final TreeSet<Integer> transformedClassHashes;
     private int failedToLoadCounter;
     private int skippedCounter;
@@ -211,21 +261,27 @@ public class MatcherCacheBuilder {
     public PackageData(String source) {
       this.source = source;
       transformedClassHashes = new TreeSet<>();
+      transformedClasses = new TreeSet<>();
+      skippedClasses = new TreeSet<>();
+      failedClasses = new TreeSet<>();
     }
 
     public void insert(String className, MatchingResult mr) {
       int classHash = classHash(className);
       switch (mr) {
         case TRANSFORM:
+          transformedClasses.add(className);
           transformedClassHashes.add(classHash);
           break;
         case SKIP:
+          skippedClasses.add(className);
           if (transformedClassHashes.contains(classHash)) {
             falsePositives += 1;
           }
           skippedCounter += 1;
           break;
         case FAIL_TO_LOAD:
+          failedClasses.add(className);
           transformedClassHashes.add(classHash);
           failedToLoadCounter += 1;
           break;
@@ -235,6 +291,10 @@ public class MatcherCacheBuilder {
     public boolean isTransformed(String className) {
       int hash = classHash(className);
       return transformedClassHashes.contains(hash);
+    }
+
+    public boolean canBeRemoved() {
+      return skippedCounter == 0 && failedToLoadCounter == transformedClassHashes.size();
     }
   }
 }

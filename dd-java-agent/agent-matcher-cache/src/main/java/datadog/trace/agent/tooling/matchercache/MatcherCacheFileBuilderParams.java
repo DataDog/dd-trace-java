@@ -23,7 +23,7 @@ public class MatcherCacheFileBuilderParams {
         case "-o":
           i += 1;
           if (i < len) {
-            params.setOutputFile(args[i]);
+            params.setOutputCacheDataFile(args[i]);
           } else {
             throw new IllegalArgumentException("Missing an expected output file path after (-o)");
           }
@@ -44,12 +44,20 @@ public class MatcherCacheFileBuilderParams {
     return params;
   }
 
-  private String outputFile;
+  private String outputCacheDataFile;
+  // TODO private String outputCacheTextFile;
   private List<String> classPaths;
   private File ddAgentJar;
 
-  public String getOutputFile() {
-    return outputFile;
+  public String getOutputCacheDataFile() {
+    return outputCacheDataFile;
+  }
+
+  public String getOutputCacheTextFile() {
+    if (outputCacheDataFile == null) {
+      return null;
+    }
+    return outputCacheDataFile + ".txt";
   }
 
   public Collection<String> getClassPaths() {
@@ -63,11 +71,11 @@ public class MatcherCacheFileBuilderParams {
 
   public boolean validate() {
     boolean valid = true;
-    if (outputFile == null) {
+    if (outputCacheDataFile == null) {
       log.error("Mandatory output file path (-o) parameter is missing");
       valid = false;
     } else {
-      File output = new File(outputFile);
+      File output = new File(outputCacheDataFile);
       if (output.exists()) {
         log.warn("File {} already exists and will be replaced", output);
       } else {
@@ -101,15 +109,15 @@ public class MatcherCacheFileBuilderParams {
   }
 
   private MatcherCacheFileBuilderParams() {
-    outputFile = null;
+    outputCacheDataFile = null;
     classPaths = new ArrayList<>();
   }
 
-  private void setOutputFile(String value) {
-    if (outputFile != null) {
+  private void setOutputCacheDataFile(String value) {
+    if (outputCacheDataFile != null) {
       throw new IllegalArgumentException("Only one output file path (-o) allowed");
     }
-    outputFile = value;
+    outputCacheDataFile = value;
   }
 
   private void addClassPath(String value) {
