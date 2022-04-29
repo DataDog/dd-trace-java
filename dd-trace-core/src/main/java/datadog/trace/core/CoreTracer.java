@@ -799,8 +799,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void notifyExtensionEnd(boolean isError) {
-    LambdaHandler.notifyEndInvocation(isError);
+  public void notifyExtensionEnd(AgentSpan span, boolean isError) {
+    LambdaHandler.notifyEndInvocation(span, isError);
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -1223,9 +1223,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
-          if (parentContext instanceof LambdaContext) {
-            spanId = extractedContext.getSpanId();
-          }
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();

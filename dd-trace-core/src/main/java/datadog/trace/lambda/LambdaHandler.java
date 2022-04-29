@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.propagation.LambdaContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -59,21 +60,22 @@ public class LambdaHandler {
             .execute()) {
       if (response.isSuccessful()) {
         final String traceID = response.headers().get(DATADOG_TRACE_ID);
-        final String spanID = response.headers().get(DATADOG_SPAN_ID);
         final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
-        if (null != traceID && null != spanID) {
-          log.debug(
-              "notifyStartInvocation success, found traceID = {} and spanID = {}", traceID, spanID);
+        if (null != traceID && null != priority) {
           int samplingPriority = PrioritySampling.UNSET;
           try {
             samplingPriority = Integer.parseInt(priority);
           } catch (final NumberFormatException ignored) {
             log.warn("could not read the sampling priority, defaulting to UNSET");
           }
-          return new LambdaContext(traceID, spanID, samplingPriority);
+          log.debug("notifyStartInvocation success, found traceID = {} and samplingPriority = {}", traceID, samplingPriority);
+          System.out.println("notifyStartInvocation success, found traceID = " + traceID + " and samplingPriority = " + samplingPriority);
+          return new LambdaContext(traceID, samplingPriority);
         } else {
-          log.error(
-              "could not find traceID/spanID in notifyStartInvocation, not injecting the context");
+          log.debug(
+              "could not find traceID in notifyStartInvocation, not injecting the context");
+          System.out.println(
+              "could not find traceID in notifyStartInvocation, not injecting the context");
         }
       }
     } catch (Throwable ignored) {
@@ -82,11 +84,19 @@ public class LambdaHandler {
     return null;
   }
 
-  public static boolean notifyEndInvocation(boolean isError) {
+  public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
+    if (null == span) {
+      log.error("could not notify the extension as the lambda span is null");
+      return false;
+    }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
     Request.Builder builder =
         new Request.Builder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
+            .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
+            .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
+            .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
     if (isError) {

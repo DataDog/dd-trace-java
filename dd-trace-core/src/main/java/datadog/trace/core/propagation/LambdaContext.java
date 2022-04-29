@@ -8,9 +8,9 @@ public class LambdaContext extends ExtractedContext {
   public LambdaContext(final String traceId, final String spanId, final int samplingPriority) {
     super(
         DDId.from(traceId),
-        DDId.from(spanId),
+        null,
         samplingPriority,
-        SamplingMechanism.UNKNOWN,
+        SamplingMechanism.DEFAULT,
         null,
         0,
         null,

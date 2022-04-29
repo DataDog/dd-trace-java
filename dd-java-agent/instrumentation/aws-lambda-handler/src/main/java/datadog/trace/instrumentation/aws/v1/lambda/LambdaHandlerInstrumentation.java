@@ -89,9 +89,15 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
       AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
+      System.out.println("lambdaContext is = " + lambdaContext);
       AgentSpan span =
           startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
       final AgentScope scope = activateSpan(span);
+      System.out.println("in ENTER");
+      System.out.println("traceID = " + span.getTraceId());
+      System.out.println("spanID = " + span.getSpanId());
+      System.out.println("from scope, span id = " + scope.span().getSpanId());
+      System.out.println("from scope, trace id = " + scope.span().getTraceId());
       return scope;
     }
 
@@ -103,7 +109,10 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       if (scope == null) {
         return;
       }
-      AgentTracer.get().notifyExtensionEnd(null != throwable);
+      System.out.println("in EXIT");
+      System.out.println("from scope, span id = " + scope.span().getSpanId());
+      System.out.println("from scope, trace id = " + scope.span().getTraceId());
+      AgentTracer.get().notifyExtensionEnd(scope.span(), null != throwable);
       try {
         final AgentSpan span = scope.span();
         span.finish();
