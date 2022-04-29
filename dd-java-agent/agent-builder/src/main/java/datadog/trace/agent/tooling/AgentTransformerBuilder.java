@@ -116,7 +116,7 @@ public class AgentTransformerBuilder
   }
 
   static ElementMatcher<? super TypeDescription> typeMatcher(
-      Instrumenter.Default instrumenter, boolean ignoreShortcut) {
+      Instrumenter instrumenter, boolean useShortcutIfEnabled) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     if (instrumenter instanceof Instrumenter.ForSingleType) {
       typeMatcher =
@@ -131,7 +131,7 @@ public class AgentTransformerBuilder
     }
 
     if (instrumenter instanceof Instrumenter.CanShortcutTypeMatching
-        && (ignoreShortcut
+        && (!useShortcutIfEnabled
             || !((Instrumenter.CanShortcutTypeMatching) instrumenter).onlyMatchKnownTypes())) {
       // not taking shortcuts, so include wider hierarchical matching
       typeMatcher =
@@ -150,7 +150,7 @@ public class AgentTransformerBuilder
   }
 
   private static AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
-    ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher(instrumenter, false);
+    ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher(instrumenter, true);
     if (typeMatcher == null) {
       return AgentBuilder.RawMatcher.Trivial.NON_MATCHING;
     }

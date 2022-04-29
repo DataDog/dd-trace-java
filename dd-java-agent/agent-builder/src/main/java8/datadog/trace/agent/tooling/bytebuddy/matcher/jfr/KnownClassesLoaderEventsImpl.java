@@ -67,32 +67,10 @@ public class KnownClassesLoaderEventsImpl extends KnownClassesLoaderEvents {
     }
   }
 
-  @Category({"Datadog", "Tracer"})
-  @Name("datadog.trace.agent.GlobalMatcherTransformed")
-  @Label("Class Matcher Cache")
-  @StackTrace(false)
-  @Enabled(true)
-  public class GlobalMatcherTransformedEvent extends Event {
-    @Label("fqcn")
-    final String fqcn;
-
-    public GlobalMatcherTransformedEvent(String fqcn) {
-      this.fqcn = fqcn;
-    }
-  }
-
   @Override
   public IClassMatcherCacheEvent classCachedMatcherEvent(String fqcn) {
     ClassMatcherCacheEvent evt = new ClassMatcherCacheEvent(fqcn);
     evt.begin();
     return evt;
-  }
-
-  @Override
-  public void globalMatcherTransformedEvent(String fqcn) {
-    GlobalMatcherTransformedEvent evt = new GlobalMatcherTransformedEvent(fqcn);
-    if (evt.shouldCommit()) {
-      evt.commit();
-    }
   }
 }

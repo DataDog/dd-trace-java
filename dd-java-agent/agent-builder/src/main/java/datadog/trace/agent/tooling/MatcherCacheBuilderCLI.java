@@ -30,45 +30,66 @@ public final class MatcherCacheBuilderCLI {
     }
     ClassFinder classFinder = new ClassFinder();
     MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(JavaVersion.MAJOR_VERSION);
-    ClassMatchers classMatchers = AllClassMatchers.create();
+    // TODO maybe implement a param to use only effectively enabled instrumentations
+    ClassMatchers classMatchers = AllClassMatchers.create(true);
     MatcherCacheFileBuilder matcherCacheFileBuilder =
         new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);
     matcherCacheFileBuilder.buildMatcherCacheFile(params);
   }
 
+  // combines all the existing matchers and enables all of them
   // can't unit test it because Instrumenters are not observable from the unit test
   private static final class AllClassMatchers implements ClassMatchers {
-    // combines all the existing matchers and enables all of them
+    final boolean enableAllInstrumenters;
 
-    public static ClassMatchers create() {
-      ArrayList<Instrumenter.Default> instrumenters = new ArrayList<>();
-      try {
-        Field enabledField = Instrumenter.Default.class.getDeclaredField("enabled");
-        enabledField.setAccessible(true);
-
-        ServiceLoader<Instrumenter> loader =
-            ServiceLoader.load(Instrumenter.class, Instrumenter.class.getClassLoader());
-
-        for (Instrumenter instr : loader) {
-          if (instr instanceof Instrumenter.Default) {
-            try {
-              enabledField.setBoolean(instr, true);
-            } catch (IllegalAccessException e) {
-              e.printStackTrace();
+    public static ClassMatchers create(boolean enableAllInstrumenters) {
+      final ArrayList<Instrumenter> instrumenters = new ArrayList<>();
+      Instrumenter.TransformerBuilder intrumenterCollector =
+          new Instrumenter.TransformerBuilder() {
+            @Override
+            public void applyInstrumentation(Instrumenter.HasAdvice hasAdvice) {
+              if (hasAdvice instanceof Instrumenter) {
+                instrumenters.add((Instrumenter) hasAdvice);
+                log.debug("Found instrumenter: " + hasAdvice.getClass());
+              }
             }
-            instrumenters.add((Instrumenter.Default) instr);
-          }
-        }
-      } catch (NoSuchFieldException e) {
-        e.printStackTrace();
+          };
+
+      ServiceLoader<Instrumenter> loader =
+          ServiceLoader.load(Instrumenter.class, Instrumenter.class.getClassLoader());
+
+      // Collect all instrumenters
+      for (Instrumenter instr : loader) {
+        instr.instrument(intrumenterCollector);
       }
 
-      return new AllClassMatchers(instrumenters);
+      if (enableAllInstrumenters) {
+        // Enable default instrumenters
+        try {
+          Field enabledField = Instrumenter.Default.class.getDeclaredField("enabled");
+          enabledField.setAccessible(true);
+          for (Instrumenter instr : instrumenters) {
+            if (instr instanceof Instrumenter.Default) {
+              // TODO first check if the instr already enabled and log if not
+              try {
+                enabledField.setBoolean(instr, true);
+              } catch (IllegalAccessException e) {
+                log.error("Could not enable instrumentation", e);
+              }
+            }
+          }
+        } catch (NoSuchFieldException e) {
+          log.error("Could not enable instrumentations", e);
+        }
+      }
+
+      return new AllClassMatchers(enableAllInstrumenters, instrumenters);
     }
 
-    private final Iterable<Instrumenter.Default> instrumenters;
+    private final Iterable<Instrumenter> instrumenters;
 
-    private AllClassMatchers(Iterable<Instrumenter.Default> instrumenters) {
+    private AllClassMatchers(boolean enableAllInstrumenters, Iterable<Instrumenter> instrumenters) {
+      this.enableAllInstrumenters = enableAllInstrumenters;
       this.instrumenters = instrumenters;
     }
 
@@ -77,11 +98,11 @@ public final class MatcherCacheBuilderCLI {
       return firstMatching(cl) != null;
     }
 
-    public Instrumenter.Default firstMatching(Class<?> cl) {
+    public Instrumenter firstMatching(Class<?> cl) {
       TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
-      for (Instrumenter.Default instr : instrumenters) {
+      for (Instrumenter instr : instrumenters) {
         ElementMatcher<? super TypeDescription> typeMatcher =
-            AgentTransformerBuilder.typeMatcher(instr, true);
+            AgentTransformerBuilder.typeMatcher(instr, !enableAllInstrumenters);
         if (typeMatcher != null) {
           if (typeMatcher.matches(typeDescription)) {
             return instr;
