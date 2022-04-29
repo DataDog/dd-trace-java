@@ -32,7 +32,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
       }
     }
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
-    
+
     when:
     def objTest = LambdaHandler.notifyStartInvocation(obj)
 
@@ -92,7 +92,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
       getSpanId() >> DDId.from("5678")
       getSamplingPriority() >> 2
     }
-    
+
     when:
     def result = LambdaHandler.notifyEndInvocation(span, boolValue)
 
