@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.NOT_DECORATOR_MATCHER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -13,10 +12,8 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
-import datadog.trace.agent.tooling.context.NoopContextProvider;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
-import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.method.MethodDescription;
@@ -80,15 +77,8 @@ public class AgentTransformerBuilder
               new HelperTransformer(instrumenter.getClass().getSimpleName(), helperClassNames));
     }
 
-    InstrumentationContextProvider contextProvider;
-    Map<String, String> matchedContextStores = instrumenter.contextStore();
-    if (matchedContextStores.isEmpty()) {
-      contextProvider = NoopContextProvider.INSTANCE;
-    } else {
-      contextProvider =
-          new FieldBackedContextProvider(
-              instrumenter, singletonMap(instrumenter.classLoaderMatcher(), matchedContextStores));
-    }
+    InstrumentationContextProvider contextProvider =
+        FieldBackedContextProvider.contextProvider(instrumenter);
 
     adviceBuilder = contextProvider.instrumentationTransformer(adviceBuilder);
 
@@ -115,6 +105,7 @@ public class AgentTransformerBuilder
     return adviceBuilder;
   }
 
+  // Used by Matcher Cache Builder to identify transformable classes
   static ElementMatcher<? super TypeDescription> typeMatcher(
       Instrumenter instrumenter, boolean useShortcutIfEnabled) {
     ElementMatcher<? super TypeDescription> typeMatcher;

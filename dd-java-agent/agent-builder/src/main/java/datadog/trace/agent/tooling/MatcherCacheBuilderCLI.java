@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.matchercache.ClassMatchers;
 import datadog.trace.agent.tooling.matchercache.MatcherCacheBuilder;
 import datadog.trace.agent.tooling.matchercache.MatcherCacheFileBuilder;
@@ -103,6 +104,12 @@ public final class MatcherCacheBuilderCLI {
             AgentTransformerBuilder.typeMatcher(instr, !enableAllInstrumenters);
         if (typeMatcher != null) {
           if (typeMatcher.matches(typeDescription)) {
+            return instr;
+          }
+        }
+        if (instr instanceof Instrumenter.Default) {
+          if (FieldBackedContextProvider.typeMatcher((Instrumenter.Default) instr)
+              .matches(typeDescription)) {
             return instr;
           }
         }

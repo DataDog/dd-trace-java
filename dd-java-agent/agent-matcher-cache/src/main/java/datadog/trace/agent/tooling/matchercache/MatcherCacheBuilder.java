@@ -62,7 +62,7 @@ public class MatcherCacheBuilder {
 
         if (classMatchers.matchesAny(cl)) {
           // TODO check if different classCollections share packages that include instrumented
-          // classes and warn about it
+          // classes and warn about it and maybe exclude from the matcher cache
           PackageData packageData = getDataOrCreate(packageName, source);
           packageData.insert(className, MatchingResult.TRANSFORM);
           stats.transformedClassesCounter += 1;
