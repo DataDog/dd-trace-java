@@ -1,8 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
-//minimumBranchCoverage = 0.6
-//excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
+minimumBranchCoverage = 0.6
 
 dependencies {
   implementation deps.slf4j
