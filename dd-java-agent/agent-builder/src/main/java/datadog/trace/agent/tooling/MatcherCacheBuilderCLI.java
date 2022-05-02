@@ -37,8 +37,6 @@ public final class MatcherCacheBuilderCLI {
     matcherCacheFileBuilder.buildMatcherCacheFile(params);
   }
 
-  // combines all the existing matchers and enables all of them
-  // can't unit test it because Instrumenters are not observable from the unit test
   private static final class AllClassMatchers implements ClassMatchers {
     final boolean enableAllInstrumenters;
 

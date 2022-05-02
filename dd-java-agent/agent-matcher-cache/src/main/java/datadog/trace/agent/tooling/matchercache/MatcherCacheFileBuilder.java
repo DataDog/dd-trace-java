@@ -39,12 +39,14 @@ public class MatcherCacheFileBuilder {
     // TODO implement exclusion list or better use the existing global ignores trie
     matcherCacheBuilder.addSkippedPackage("com.sun.proxy", "<skip-list>");
 
-    try {
-      matcherCacheBuilder.serializeText(new File(params.getOutputCacheTextFile()));
-    } catch (IOException e) {
-      log.error(
-          "Failed to serialize matcher cache text into " + params.getOutputCacheTextFile(), e);
-      throw new RuntimeException(e);
+    if (params.getOutputCacheTextFile() != null) {
+      try {
+        matcherCacheBuilder.serializeText(new File(params.getOutputCacheTextFile()));
+      } catch (IOException e) {
+        log.error(
+            "Failed to serialize matcher cache text into " + params.getOutputCacheTextFile(), e);
+        throw new RuntimeException(e);
+      }
     }
 
     matcherCacheBuilder.optimize();
