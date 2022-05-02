@@ -24,10 +24,9 @@ dependencies {
   api deps.bytebuddy
   api deps.bytebuddyagent
 
+  api project(':dd-java-agent:agent-matcher-cache')
   api project(':dd-trace-core')
   api project(':dd-trace-core:jfr-openjdk')
-
-  implementation project(':dd-java-agent:agent-matcher-cache')
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'

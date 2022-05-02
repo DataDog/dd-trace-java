@@ -7,8 +7,6 @@ excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 dependencies {
   api project(':dd-java-agent:agent-tooling')
 
-  implementation project(':dd-java-agent:agent-matcher-cache')
-
   testImplementation project(':dd-java-agent:testing')
 }
 
@@ -40,9 +38,9 @@ dependencies {
   main_java8CompileOnly sourceSets.main.output
   runtimeOnly sourceSets.main_java8.output
 
-  main_java11CompileOnly sourceSets.main_java8.output
   main_java11CompileOnly project(':dd-java-agent:agent-tooling')
   main_java11CompileOnly sourceSets.main.output
+  main_java11CompileOnly sourceSets.main_java8.output
   runtimeOnly sourceSets.main_java11.output
 }
 
