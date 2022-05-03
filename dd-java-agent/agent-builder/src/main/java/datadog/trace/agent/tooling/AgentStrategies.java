@@ -37,7 +37,7 @@ public class AgentStrategies {
     } else if (Platform.isJavaVersionAtLeast(8, 0, 262)) {
       try {
         // check if JFR Event class is available
-        Instrumenter.class.getClassLoader().loadClass("jdk.jfr.Event");
+        ClassLoader.getSystemClassLoader().loadClass("jdk.jfr.Event");
         return (TransformerDecorator)
             Instrumenter.class
                 .getClassLoader()

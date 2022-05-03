@@ -11,25 +11,19 @@ import java.util.Arrays;
 
 public final class MatcherCache {
 
-  public interface EventListener {
-    void cacheMiss(String fqcn);
+  public enum Result {
+    TRANSFORM,
+    SKIP,
+    UNKNOWN,
   }
 
-  public static final EventListener NOOP_EVENT_LISTENER =
-      new EventListener() {
-        @Override
-        public void cacheMiss(String fqcn) {}
-      };
-
-  public static MatcherCache deserialize(File file, EventListener eventListener)
-      throws IOException {
+  public static MatcherCache deserialize(File file) throws IOException {
     try (FileInputStream is = new FileInputStream(file)) {
-      return deserialize(is, eventListener);
+      return deserialize(is);
     }
   }
 
-  public static MatcherCache deserialize(InputStream is, EventListener eventListener)
-      throws IOException {
+  public static MatcherCache deserialize(InputStream is) throws IOException {
     int numberOfPackages = readInt(is);
     assert numberOfPackages >= 0;
     String[] packagesOrdered = new String[numberOfPackages];
@@ -49,36 +43,33 @@ public final class MatcherCache {
       packagesOrdered[i] = packageName;
       transformedClassHashes[i] = readData(is);
     }
-    return new MatcherCache(packagesOrdered, transformedClassHashes, eventListener);
+    return new MatcherCache(packagesOrdered, transformedClassHashes);
   }
 
   private final String[] packagesOrdered;
-
   private final int[][] transformedClassHashes;
-  private final EventListener eventListener;
 
-  public boolean transform(String fqcn) {
+  public Result transform(String fqcn) {
     // TODO: implement binary search without sub string allocation
     int packageEndsAt = fqcn.lastIndexOf('.');
     String packageName = fqcn.substring(0, Math.max(packageEndsAt, 0));
     int index = Arrays.binarySearch(packagesOrdered, packageName);
     if (index < 0) {
-      eventListener.cacheMiss(fqcn);
       // package not found
-      return true;
+      return Result.UNKNOWN;
     }
     int[] transformedClassHashes = this.transformedClassHashes[index];
     if (transformedClassHashes == null) {
       // no hashes, assume all classes are skipped
-      return false;
+      return Result.SKIP;
     }
     String className = fqcn.substring(packageEndsAt + 1);
-    return Arrays.binarySearch(transformedClassHashes, className.hashCode()) >= 0;
+    return Arrays.binarySearch(transformedClassHashes, className.hashCode()) >= 0
+        ? Result.TRANSFORM
+        : Result.SKIP;
   }
 
-  private MatcherCache(
-      String[] packagesOrdered, int[][] transformedClassHashes, EventListener eventListener) {
-    this.eventListener = eventListener;
+  private MatcherCache(String[] packagesOrdered, int[][] transformedClassHashes) {
     assert packagesOrdered.length == transformedClassHashes.length;
     this.packagesOrdered = packagesOrdered;
     this.transformedClassHashes = transformedClassHashes;

@@ -40,7 +40,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
     return isIgnored(target.getActualName(), skipAdditionalLibraryMatcher);
   }
 
-  private static boolean isIgnored(String name, boolean skipAdditionalIgnores) {
+  public static boolean isIgnored(String name, boolean skipAdditionalIgnores) {
     switch (IgnoredClassNameTrie.apply(name)) {
       case 0:
         return false; // global allow

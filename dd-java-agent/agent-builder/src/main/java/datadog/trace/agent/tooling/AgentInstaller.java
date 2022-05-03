@@ -8,7 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.CachedMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.PrebuiltIgnoresMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -103,12 +104,13 @@ public class AgentInstaller {
 
     String cachedMatcherDataFile = Config.get().getPreBuiltMatcherDataFile();
 
+    GlobalIgnoresMatcher<TypeDescription> globalIgnoresMatcher =
+        globalIgnoresMatcher(skipAdditionalLibraryMatcher);
     if (cachedMatcherDataFile == null) {
-      ignoredAgentBuilder =
-          ignoredAgentBuilder.or(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
+      ignoredAgentBuilder = ignoredAgentBuilder.or(globalIgnoresMatcher);
     } else {
       ElementMatcher.Junction<TypeDescription> cachedMatcher =
-          CachedMatcher.create(cachedMatcherDataFile);
+          PrebuiltIgnoresMatcher.create(cachedMatcherDataFile, globalIgnoresMatcher);
       if (cachedMatcher != null) {
         log.info("Cached matcher has been successfully installed from: " + cachedMatcherDataFile);
         ignoredAgentBuilder = ignoredAgentBuilder.or(cachedMatcher);
@@ -117,8 +119,7 @@ public class AgentInstaller {
             "Cached matcher failed to install from: "
                 + cachedMatcherDataFile
                 + ". Falling back to the global ignores matcher.");
-        ignoredAgentBuilder =
-            ignoredAgentBuilder.or(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
+        ignoredAgentBuilder = ignoredAgentBuilder.or(globalIgnoresMatcher);
       }
     }
 

@@ -63,50 +63,49 @@ public class MatcherCacheBuilderTest {
             }
             return false;
           }
+
+          @Override
+          public boolean isGloballyIgnored(String fqcn) {
+            // TODO test
+            return false;
+          }
         };
 
     MatcherCacheBuilder.Stats stats =
         matcherCacheBuilder.fill(classCollection, classLoader, classMatchers);
 
-    assertEquals(4, stats.transformedClassesCounter);
+    // TODO implement test for ignored classes
+    assertEquals(0, stats.ignoredClassesCounter);
     assertEquals(4, stats.skippedClassesCounter);
-    // TODO implement test for a failed to load class
-    assertEquals(0, stats.failedToLoadCounterCounter);
-    assertEquals(1, stats.falsePositives);
-
-    String expectedToString =
-        "packages: 4\n"
-            + "2,1,0,example\n"
-            + "1,1,0,example.classes\n"
-            + "1,1,0,foo.bar\n"
-            + "0,1,0,foo.bar.xyz\n";
-    assertEquals(expectedToString, matcherCacheBuilder.toString());
-
+    assertEquals(4, stats.transformedClassesCounter);
+    // TODO implement test for failed classes
+    assertEquals(0, stats.failedCounterCounter);
     // serialize MatcherCache and load as MatcherCache and check the result
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     matcherCacheBuilder.serializeBinary(os);
 
     ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
-    MatcherCache matcherCache = MatcherCache.deserialize(is, MatcherCache.NOOP_EVENT_LISTENER);
+    MatcherCache matcherCache = MatcherCache.deserialize(is);
 
-    assertTrue(matcherCache.transform("example.OuterJarClass"));
-    assertTrue(matcherCache.transform("example.InnerJarClass"));
-    assertFalse(matcherCache.transform("example.MiddleJarClass"));
-    assertFalse(matcherCache.transform("example.NonExistingClass"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.OuterJarClass"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.InnerJarClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.MiddleJarClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.NonExistingClass"));
 
-    assertTrue(matcherCache.transform("example.classes.Abc"));
-    assertFalse(matcherCache.transform("example.classes.Only9"));
-    assertFalse(matcherCache.transform("example.classes.NonExistingClass"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.classes.Abc"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.classes.Only9"));
+    assertEquals(
+        MatcherCache.Result.SKIP, matcherCache.transform("example.classes.NonExistingClass"));
 
-    assertFalse(matcherCache.transform("foo.bar.Baz"));
-    assertTrue(matcherCache.transform("foo.bar.FooBar"));
-    assertFalse(matcherCache.transform("foo.bar.NonExistingClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.Baz"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("foo.bar.FooBar"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.NonExistingClass"));
 
-    assertFalse(matcherCache.transform("foo.bar.xyz.Xyz"));
-    assertFalse(matcherCache.transform("foo.bar.xyz.NonExistingClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.xyz.Xyz"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.xyz.NonExistingClass"));
 
-    assertTrue(matcherCache.transform("non.existing.package.Foo"));
-    assertTrue(matcherCache.transform("non.existing.package.Bar"));
+    assertEquals(MatcherCache.Result.UNKNOWN, matcherCache.transform("non.existing.package.Foo"));
+    assertEquals(MatcherCache.Result.UNKNOWN, matcherCache.transform("non.existing.package.Bar"));
   }
 
   // TODO check package overlap between different class-collections (should warn about it and

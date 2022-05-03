@@ -14,21 +14,21 @@ import org.slf4j.LoggerFactory;
 
 public class MatcherCacheBuilder {
   static final class Stats {
-    int transformedClassesCounter = 0;
+    int ignoredClassesCounter = 0;
     int skippedClassesCounter = 0;
-    int failedToLoadCounterCounter = 0;
-    int falsePositives = 0;
+    int transformedClassesCounter = 0;
+    int failedCounterCounter = 0;
 
     @Override
     public String toString() {
-      return "Transformable classes: "
-          + transformedClassesCounter
-          + "; Skipped classes: "
+      return "Ignored: "
+          + ignoredClassesCounter
+          + "; Skipped: "
           + skippedClassesCounter
-          + "; Failed to load classes: "
-          + failedToLoadCounterCounter
-          + "; False positives: "
-          + falsePositives;
+          + "; Transformed: "
+          + transformedClassesCounter
+          + "; Failed: "
+          + failedCounterCounter;
     }
   }
 
@@ -47,56 +47,44 @@ public class MatcherCacheBuilder {
 
   public Stats fill(
       ClassCollection classCollection, ClassLoader classLoader, ClassMatchers classMatchers) {
-
     Stats stats = new Stats();
-
-    Set<ClassData> skippedClasses = new HashSet<>();
-
     for (ClassData classData : classCollection.allClasses(javaMajorVersion)) {
       String packageName = classData.packageName();
       String className = classData.className();
       String source = classData.source(javaMajorVersion);
 
-      try {
-        Class<?> cl = classLoader.loadClass(classData.fullClassName());
-
-        if (classMatchers.matchesAny(cl)) {
-          // TODO check if different classCollections share packages that include instrumented
-          // classes and warn about it and maybe exclude from the matcher cache
-          PackageData packageData = getDataOrCreate(packageName, source);
-          packageData.insert(className, MatchingResult.TRANSFORM);
-          stats.transformedClassesCounter += 1;
-        } else {
-          skippedClasses.add(classData);
-        }
-      } catch (Throwable e) {
-        stats.failedToLoadCounterCounter += 1;
+      if (classMatchers.isGloballyIgnored(classData.fullClassName())) {
         PackageData packageData = getDataOrCreate(packageName, source);
-        packageData.insert(className, MatchingResult.FAIL_TO_LOAD);
-        stats.transformedClassesCounter += 1;
-        log.debug("Couldn't load class: {} failed with {}", className, e);
-      }
+        packageData.insert(className, MatchingResult.IGNORE);
+        stats.ignoredClassesCounter += 1;
+      } else
+        try {
+          Class<?> cl = classLoader.loadClass(classData.fullClassName());
+          PackageData packageData = getDataOrCreate(packageName, source);
+          if (classMatchers.matchesAny(cl)) {
+            // TODO check if different classCollections share packages that include instrumented
+            // classes and warn about it and maybe exclude from the matcher cache
+            packageData.insert(className, MatchingResult.TRANSFORM);
+            stats.transformedClassesCounter += 1;
+          } else {
+            packageData.insert(className, MatchingResult.SKIP);
+            stats.skippedClassesCounter += 1;
+          }
+        } catch (Throwable e) {
+          stats.failedCounterCounter += 1;
+          PackageData packageData = getDataOrCreate(packageName, source);
+          packageData.insert(className, MatchingResult.FAIL);
+          log.debug("Couldn't load class: {} failed with {}", className, e);
+        }
     }
-
-    // insert skipped classes after matched to detect false-positives
-    for (ClassData classData : skippedClasses) {
-      PackageData packageData =
-          getDataOrCreate(classData.packageName(), classData.source(javaMajorVersion));
-      String className = classData.className();
-      if (packageData.isTransformed(className)) {
-        stats.falsePositives += 1;
-      }
-      packageData.insert(className, MatchingResult.SKIP);
-      stats.skippedClassesCounter += 1;
-    }
-
     return stats;
   }
 
   public void addSkippedPackage(String packageName, String source) {
+    // TODO remove it if globalIgnores cover this
     PackageData packageData = getDataOrCreate(packageName, source);
     // TODO check if package for another source already exists
-    packageData.insert(packageName + ".0", MatchingResult.SKIP);
+    packageData.insert(packageName + ".0", MatchingResult.IGNORE);
   }
 
   public void serializeBinary(File file) throws IOException {
@@ -113,7 +101,7 @@ public class MatcherCacheBuilder {
       BinarySerializers.writeString(os, entry.getKey());
 
       PackageData packageData = entry.getValue();
-      writeHashCodes(os, packageData.transformedClassHashes);
+      writeHashCodes(os, packageData.transformedClassHashes());
     }
   }
 
@@ -124,96 +112,41 @@ public class MatcherCacheBuilder {
     }
   }
 
-  public void serializeText(OutputStream os) throws IOException {
+  public void serializeText(OutputStream os) {
     PrintStream ps = new PrintStream(os);
     ps.print("Packages: ");
     ps.println(packages.size());
-    ps.println("<package> : <transform>/<skip>/<fail>/<hash-collisions>");
-    for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
-      PackageData pd = entry.getValue();
-      ps.print(entry.getKey());
-      ps.print(" : ");
-      if (pd.canBeRemoved()) {
-        ps.print("(removed) ");
+    for (Map.Entry<String, PackageData> packageEntry : packages.entrySet()) {
+      String packageName = packageEntry.getKey();
+      PackageData pd = packageEntry.getValue();
+      for (Map.Entry<String, MatchingResult> classEntry : pd.classes.entrySet()) {
+        if (!packageName.isEmpty()) {
+          ps.print(packageName);
+          ps.print('.');
+        }
+        String className = classEntry.getKey();
+        ps.print(className);
+        ps.print(',');
+        ps.print(classEntry.getValue());
+        ps.print(',');
+        ps.println(pd.source);
       }
-      ps.print(pd.transformedClasses.size());
-      ps.print('/');
-      ps.print(pd.skippedCounter);
-      ps.print('/');
-      ps.print(pd.failedToLoadCounter);
-      ps.print('/');
-      ps.println(pd.falsePositives);
-      printClasses(ps, "Transformed", pd.transformedClasses);
-      printClasses(ps, "Skipped", pd.skippedClasses);
-      printClasses(ps, "Failed", pd.failedClasses);
-    }
-  }
-
-  private void printClasses(PrintStream ps, String header, Collection<String> classes) {
-    if (classes.size() > 0) {
-      ps.print("  ");
-      ps.print(header);
-      ps.println(":");
-    }
-    for (String className : classes) {
-      ps.print("    ");
-      ps.print(className);
-      ps.print(" (");
-      ps.print(className.hashCode());
-      ps.println(")");
     }
   }
 
   public void optimize() {
-    ArrayList<String> pkgs = new ArrayList<>(this.packages.keySet());
-
-    for (String pkg : pkgs) {
+    Collection<String> packageNames = new ArrayList<>(this.packages.keySet());
+    for (String pkg : packageNames) {
       PackageData packageData = this.packages.get(pkg);
       if (packageData.canBeRemoved()) {
         this.packages.remove(pkg);
-        log.debug(
-            "{} removed because it has no skipped classes. (Transformed classes: {} including failed to load: {}",
-            pkg,
-            packageData.transformedClassHashes.size(),
-            packageData.failedToLoadCounter);
+        log.debug("{} removed because it has no skipped classes.", pkg);
       }
-      // TODO consider removing packages with much more class exclusions then skipped classes to
-      // minimize footprint
     }
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-
-    sb.append("packages: ");
-    sb.append(packages.size());
-    sb.append('\n');
-
-    ArrayList<String> pkgs = new ArrayList<>(packages.keySet());
-    Collections.sort(pkgs);
-    for (String pkg : pkgs) {
-      PackageData packageData = packages.get(pkg);
-      sb.append(packageData.transformedClassHashes.size());
-      sb.append(',');
-      sb.append(packageData.skippedCounter);
-      sb.append(',');
-      sb.append(packageData.failedToLoadCounter);
-      sb.append(',');
-      sb.append(pkg);
-      sb.append('\n');
-    }
-
-    return sb.toString();
   }
 
   protected int classHash(String className) {
     return className.hashCode();
-  }
-
-  private int classNameStartsAt(String fqcn) {
-    int classNameStartsAt = fqcn.lastIndexOf('.');
-    return Math.max(classNameStartsAt, 0);
   }
 
   private PackageData getDataOrCreate(String packageName, String source) {
@@ -242,59 +175,63 @@ public class MatcherCacheBuilder {
   }
 
   private enum MatchingResult {
-    TRANSFORM,
+    IGNORE,
     SKIP,
-    FAIL_TO_LOAD,
+    TRANSFORM,
+    FAIL,
   }
 
-  private final class PackageData {
-
+  private static final class PackageData {
     private final String source;
-    private final TreeSet<String> transformedClasses;
-    private final TreeSet<String> skippedClasses;
-    private final TreeSet<String> failedClasses;
-    private final TreeSet<Integer> transformedClassHashes;
-    private int failedToLoadCounter;
-    private int skippedCounter;
-    private int falsePositives;
+    private final SortedMap<String, MatchingResult> classes;
 
     public PackageData(String source) {
       this.source = source;
-      transformedClassHashes = new TreeSet<>();
-      transformedClasses = new TreeSet<>();
-      skippedClasses = new TreeSet<>();
-      failedClasses = new TreeSet<>();
+      this.classes = new TreeMap<>();
     }
 
     public void insert(String className, MatchingResult mr) {
-      int classHash = classHash(className);
-      switch (mr) {
-        case TRANSFORM:
-          transformedClasses.add(className);
-          transformedClassHashes.add(classHash);
-          break;
-        case SKIP:
-          skippedClasses.add(className);
-          if (transformedClassHashes.contains(classHash)) {
-            falsePositives += 1;
-          }
-          skippedCounter += 1;
-          break;
-        case FAIL_TO_LOAD:
-          failedClasses.add(className);
-          transformedClassHashes.add(classHash);
-          failedToLoadCounter += 1;
-          break;
-      }
-    }
-
-    public boolean isTransformed(String className) {
-      int hash = classHash(className);
-      return transformedClassHashes.contains(hash);
+      classes.put(className, mr);
     }
 
     public boolean canBeRemoved() {
-      return skippedCounter == 0 && failedToLoadCounter == transformedClassHashes.size();
+      int skippedCounter = 0;
+      int failedToLoadCounter = 0;
+      int transformedCounter = 0;
+      for (MatchingResult mr : classes.values()) {
+        switch (mr) {
+          case IGNORE:
+          case SKIP:
+            skippedCounter += 1;
+            break;
+          case TRANSFORM:
+            transformedCounter += 1;
+            break;
+          case FAIL:
+            failedToLoadCounter += 1;
+            break;
+        }
+      }
+      return skippedCounter == 0 && failedToLoadCounter == transformedCounter;
+    }
+
+    public SortedSet<Integer> transformedClassHashes() {
+      SortedSet<Integer> result = new TreeSet<>();
+      for (Map.Entry<String, MatchingResult> entry : classes.entrySet()) {
+        if (isTransformed(entry.getValue())) {
+          result.add(entry.getKey().hashCode());
+        }
+      }
+      return result;
+    }
+
+    private boolean isTransformed(MatchingResult matchingResult) {
+      switch (matchingResult) {
+        case IGNORE:
+        case SKIP:
+          return false;
+      }
+      return true;
     }
   }
 }

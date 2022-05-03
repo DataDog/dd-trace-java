@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.matchercache.ClassMatchers;
 import datadog.trace.agent.tooling.matchercache.MatcherCacheBuilder;
@@ -32,16 +33,16 @@ public final class MatcherCacheBuilderCLI {
     ClassFinder classFinder = new ClassFinder();
     MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(JavaVersion.MAJOR_VERSION);
     // TODO maybe implement a param to use only effectively enabled instrumentations
-    ClassMatchers classMatchers = AllClassMatchers.create(true);
+    // TODO maybe implement a param skipAdditionalIgnores
+    ClassMatchers classMatchers = AllClassMatchers.create(true, true);
     MatcherCacheFileBuilder matcherCacheFileBuilder =
         new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);
     matcherCacheFileBuilder.buildMatcherCacheFile(params);
   }
 
   private static final class AllClassMatchers implements ClassMatchers {
-    final boolean enableAllInstrumenters;
-
-    public static ClassMatchers create(boolean enableAllInstrumenters) {
+    public static ClassMatchers create(
+        boolean enableAllInstrumenters, boolean skipAdditionalIgnores) {
       final ArrayList<Instrumenter> instrumenters = new ArrayList<>();
       Instrumenter.TransformerBuilder intrumenterCollector =
           new Instrumenter.TransformerBuilder() {
@@ -69,9 +70,12 @@ public final class MatcherCacheBuilderCLI {
           enabledField.setAccessible(true);
           for (Instrumenter instr : instrumenters) {
             if (instr instanceof Instrumenter.Default) {
-              // TODO first check if the instr already enabled and log if not
               try {
-                enabledField.setBoolean(instr, true);
+                Object enabled = enabledField.get(instr);
+                if (Boolean.FALSE.equals(enabled)) {
+                  log.info("Enabling disabled instrumentation: " + instr.getClass());
+                  enabledField.setBoolean(instr, true);
+                }
               } catch (IllegalAccessException e) {
                 log.error("Could not enable instrumentation", e);
               }
@@ -82,23 +86,34 @@ public final class MatcherCacheBuilderCLI {
         }
       }
 
-      return new AllClassMatchers(enableAllInstrumenters, instrumenters);
+      return new AllClassMatchers(enableAllInstrumenters, instrumenters, skipAdditionalIgnores);
     }
 
+    private final boolean enableAllInstrumenters;
     private final Iterable<Instrumenter> instrumenters;
+    private final boolean skipAdditionalIgnores;
 
-    private AllClassMatchers(boolean enableAllInstrumenters, Iterable<Instrumenter> instrumenters) {
+    private AllClassMatchers(
+        boolean enableAllInstrumenters,
+        Iterable<Instrumenter> instrumenters,
+        boolean skipAdditionalIgnores) {
       this.enableAllInstrumenters = enableAllInstrumenters;
       this.instrumenters = instrumenters;
+      this.skipAdditionalIgnores = skipAdditionalIgnores;
     }
 
     @Override
     public boolean matchesAny(Class<?> cl) {
-      return firstMatching(cl) != null;
+      TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
+      return firstMatching(typeDescription) != null;
     }
 
-    public Instrumenter firstMatching(Class<?> cl) {
-      TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
+    @Override
+    public boolean isGloballyIgnored(String fqcn) {
+      return GlobalIgnoresMatcher.isIgnored(fqcn, skipAdditionalIgnores);
+    }
+
+    public Instrumenter firstMatching(TypeDescription typeDescription) {
       for (Instrumenter instr : instrumenters) {
         ElementMatcher<? super TypeDescription> typeMatcher =
             AgentTransformerBuilder.typeMatcher(instr, !enableAllInstrumenters);

@@ -110,9 +110,11 @@ public class ClassFinder {
   }
 
   private boolean isJar(String path) {
-    return path.endsWith(
-        ".jar"); // TODO add support for EARs and WARs (need to be tested first!) for now could add
-    // a warning if WAR or EAR is found
+    if (path.endsWith(".war") || path.endsWith(".ear")) {
+      log.warn("Found not supported class archive format: {}", path);
+      // TODO add support (need to be tested)
+    }
+    return path.endsWith(".jar");
   }
 
   private static final byte[] CLASS_FILE_MAGIC_HEADER =
@@ -125,8 +127,10 @@ public class ClassFinder {
     if (classBytes != null) {
       try {
         String className = readClassName(classBytes);
-        if (!"module-info".equals(className) && !relativePath.endsWith(".classdata")) {
-          //        if (!"module-info".equals(className)) {
+        // TODO do we ever transform classes in *.classdata? Remove if not.
+        if (!"module-info".equals(className)
+            && !"package-info".equals(className)
+            && !relativePath.endsWith(".classdata")) {
           classCollection.addClass(classBytes, className, relativePath, parentPath);
           return true;
         }
