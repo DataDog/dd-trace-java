@@ -30,6 +30,8 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     APPSEC_HTTP_DISPATCHER("dd-appsec-http-dispatcher"),
 
+    TELEMETRY("dd-agent-telemetry"),
+
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
 
     CWS_TLS("dd-cws-tls"),

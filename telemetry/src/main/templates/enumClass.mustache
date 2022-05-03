@@ -1,0 +1,21 @@
+{{>additionalEnumTypeAnnotations}}public enum {{datatypeWithEnum}} {
+
+{{#allowableValues}}
+    {{#enumVars}}{{name}}({{dataType}}.valueOf({{{value}}})){{^-last}}, {{/-last}}{{#-last}};{{/-last}}{{/enumVars}}
+{{/allowableValues}}
+
+    {{dataType}} value;
+
+    {{datatypeWithEnum}} ({{dataType}} v) {
+      value = v;
+    }
+
+    public {{dataType}} value() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+  }

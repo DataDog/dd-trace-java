@@ -1,5 +1,6 @@
 package com.datadog.appsec
 
+import com.datadog.appsec.dependency.LocationsCollectingTransformer
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.util.AbortStartupException
@@ -17,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 import okhttp3.OkHttpClient
 
+import java.lang.instrument.Instrumentation
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -25,6 +27,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
   Tracer tracer = Mock()
+  Instrumentation inst = Mock()
 
   def cleanup() {
     AppSecSystem.stop()
@@ -32,10 +35,21 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'registers powerwaf module'() {
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then:
     'powerwaf' in AppSecSystem.startedModulesInfo
+  }
+
+  void 'installs dependencies transformer'() {
+    setup:
+    injectSysConfig('dd.appsec.dependencies', 'true')
+
+    when:
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
+
+    then:
+    1 * inst.addTransformer(_ as LocationsCollectingTransformer)
   }
 
   void 'throws if custom config does not exist'() {
@@ -43,7 +57,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException
@@ -60,7 +74,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.ipheader', 'foo-bar')
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
     requestEndedCB.apply(requestContext, Mock(AgentSpan))
 
     then:
@@ -85,7 +99,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.trace.rate.limit', '5')
 
     when:
-    AppSecSystem.start(subService, sco)
+    AppSecSystem.start(inst, subService, sco)
     7.times { requestEndedCB.apply(requestContext, Mock(AgentSpan)) }
 
     then:
@@ -109,7 +123,7 @@ class AppSecSystemSpecification extends DDSpecification {
     rebuildConfig()
 
     when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
+    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException

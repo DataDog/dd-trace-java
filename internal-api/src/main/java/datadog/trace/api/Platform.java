@@ -7,6 +7,7 @@ import java.util.List;
 public final class Platform {
 
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
+  private static final JmvRuntime RUNTIME = new JmvRuntime();
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
   private static List<Integer> splitDigits(String str) {
@@ -96,6 +97,32 @@ public final class Platform {
     }
   }
 
+  static final class JmvRuntime {
+    /*
+     * Example:
+     *    jvm     -> "AdoptOpenJDK 1.8.0_265-b01"
+     *
+     *    name    -> "OpenJDK"
+     *    vendor  -> "AdoptOpenJDK"
+     *    version -> "1.8.0_265"
+     *    patches -> "b01"
+     */
+    public final String name;
+
+    public final String vendor;
+    public final String version;
+    public final String patches;
+
+    public JmvRuntime() {
+      String rtVer = System.getProperty("java.runtime.version");
+      String javaVer = System.getProperty("java.version");
+      this.name = System.getProperty("java.runtime.name");
+      this.vendor = System.getProperty("java.vm.vendor");
+      this.version = rtVer;
+      this.patches = version.startsWith(javaVer) ? rtVer.substring(javaVer.length()) : null;
+    }
+  }
+
   public static boolean isJavaVersion(int major) {
     return JAVA_VERSION.is(major);
   }
@@ -180,7 +207,23 @@ public final class Platform {
 
   public static boolean isOracleJDK8() {
     return isJavaVersion(8)
-        && System.getProperty("java.vendor").contains("Oracle")
-        && !System.getProperty("java.runtime.name").contains("OpenJDK");
+        && RUNTIME.vendor.contains("Oracle")
+        && !RUNTIME.name.contains("OpenJDK");
+  }
+
+  public static String getLangVersion() {
+    return String.valueOf(JAVA_VERSION.major);
+  }
+
+  public static String getRuntimeVendor() {
+    return RUNTIME.vendor;
+  }
+
+  public static String getRuntimeVersion() {
+    return RUNTIME.version;
+  }
+
+  public static String getRuntimePatches() {
+    return RUNTIME.patches;
   }
 }

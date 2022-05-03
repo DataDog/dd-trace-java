@@ -236,7 +236,7 @@ public class Agent {
      * logging facility.
      */
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(bootstrapURL);
+        new InstallDatadogTracerCallback(bootstrapURL, inst);
     if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
@@ -353,8 +353,11 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
-    InstallDatadogTracerCallback(final URL bootstrapURL) {
+    private final Instrumentation instrumentation;
+
+    public InstallDatadogTracerCallback(final URL bootstrapURL, Instrumentation instrumentation) {
       super(bootstrapURL);
+      this.instrumentation = instrumentation;
     }
 
     @Override
@@ -380,7 +383,7 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      maybeStartAppSec(scoClass, sco);
+      maybeStartAppSec(instrumentation, scoClass, sco);
     }
   }
 
@@ -565,22 +568,24 @@ public class Agent {
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
+  private static void maybeStartAppSec(Instrumentation inst, Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
       return;
     }
 
     InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
-    startAppSec(gw, scoClass, o);
+    startAppSec(inst, gw, scoClass, o);
   }
 
-  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
+  private static void startAppSec(
+      Instrumentation inst, InstrumentationGateway gw, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, gw, sco);
+          appSecSysClass.getMethod(
+              "start", Instrumentation.class, SubscriptionService.class, scoClass);
+      appSecInstallerMethod.invoke(null, inst, gw, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }
