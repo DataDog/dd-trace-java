@@ -17,7 +17,7 @@ public class ProcessSupervisor implements Closeable {
   private final Thread supervisorThread;
 
   private long nextRestartTime = 0;
-  private Process currentProcess;
+  private volatile Process currentProcess;
   private volatile boolean stopped = false;
 
   /**
@@ -73,5 +73,10 @@ public class ProcessSupervisor implements Closeable {
   public void close() {
     stopped = true;
     supervisorThread.interrupt();
+  }
+
+  // Package reachable for testing
+  Process getCurrentProcess() {
+    return currentProcess;
   }
 }
