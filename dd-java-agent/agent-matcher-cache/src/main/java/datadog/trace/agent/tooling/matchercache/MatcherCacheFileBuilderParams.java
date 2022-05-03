@@ -11,7 +11,8 @@ public class MatcherCacheFileBuilderParams {
   private static final Logger log = LoggerFactory.getLogger(MatcherCacheFileBuilderParams.class);
 
   public static void printHelp() {
-    System.out.println("Matcher Cache Builder CLI usage: -o output-file -cp class-path");
+    System.out.println(
+        "Matcher Cache Builder CLI usage: -o output-data-file {-cp class-path} [-r csv-report-file]");
   }
 
   public static MatcherCacheFileBuilderParams parseArgs(String... args) {
@@ -36,6 +37,14 @@ public class MatcherCacheFileBuilderParams {
             throw new IllegalArgumentException("Missing an expected class path after -cp");
           }
           break;
+        case "-r":
+          i += 1;
+          if (i < len) {
+            params.setCsvReportFile(args[i]);
+          } else {
+            throw new IllegalArgumentException("Missing an expected cvs report file after (-r)");
+          }
+          break;
         default:
           throw new IllegalArgumentException(args[i]);
       }
@@ -45,19 +54,16 @@ public class MatcherCacheFileBuilderParams {
   }
 
   private String outputCacheDataFile;
-  // TODO private String outputCacheTextFile;
   private List<String> classPaths;
+  private String outputCsvReportFile;
   private File ddAgentJar;
 
   public String getOutputCacheDataFile() {
     return outputCacheDataFile;
   }
 
-  public String getOutputCacheTextFile() {
-    if (outputCacheDataFile == null) {
-      return null;
-    }
-    return outputCacheDataFile + ".txt";
+  public String getOutputCsvReportFile() {
+    return outputCsvReportFile;
   }
 
   public Collection<String> getClassPaths() {
@@ -70,21 +76,12 @@ public class MatcherCacheFileBuilderParams {
   }
 
   public boolean validate() {
-    boolean valid = true;
+    boolean valid;
     if (outputCacheDataFile == null) {
       log.error("Mandatory output file path (-o) parameter is missing");
       valid = false;
     } else {
-      File output = new File(outputCacheDataFile);
-      if (output.exists()) {
-        log.warn("File {} already exists and will be replaced", output);
-      } else {
-        File parentFile = output.getParentFile();
-        if (parentFile != null && !parentFile.exists()) {
-          log.error("Output folder {} doesn't exist", output.getParent());
-          valid = false;
-        }
-      }
+      valid = validateFilePath(outputCacheDataFile);
     }
     if (classPaths.isEmpty()) {
       log.warn(
@@ -97,7 +94,24 @@ public class MatcherCacheFileBuilderParams {
         }
       }
     }
+    if (outputCsvReportFile != null) {
+      valid &= validateFilePath(outputCsvReportFile);
+    }
     return valid;
+  }
+
+  private boolean validateFilePath(String filePath) {
+    File output = new File(filePath);
+    if (output.exists()) {
+      log.warn("File {} already exists and will be replaced", output);
+    } else {
+      File parentFile = output.getParentFile();
+      if (parentFile != null && !parentFile.exists()) {
+        log.error("Output folder {} doesn't exist", output.getParent());
+        return false;
+      }
+    }
+    return true;
   }
 
   public File getDDAgentJar() {
@@ -115,12 +129,19 @@ public class MatcherCacheFileBuilderParams {
 
   private void setOutputCacheDataFile(String value) {
     if (outputCacheDataFile != null) {
-      throw new IllegalArgumentException("Only one output file path (-o) allowed");
+      throw new IllegalArgumentException("Only one output file (-o) allowed");
     }
     outputCacheDataFile = value;
   }
 
   private void addClassPath(String value) {
     classPaths.add(value);
+  }
+
+  private void setCsvReportFile(String value) {
+    if (outputCsvReportFile != null) {
+      throw new IllegalArgumentException("Only one output report file (-r) allowed");
+    }
+    outputCsvReportFile = value;
   }
 }

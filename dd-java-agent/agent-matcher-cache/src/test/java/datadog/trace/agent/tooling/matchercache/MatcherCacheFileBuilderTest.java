@@ -40,7 +40,8 @@ public class MatcherCacheFileBuilderTest {
 
   @Test
   public void test() throws IOException {
-    File outputFile = new File("/tmp/out.bin");
+    File dataFile = new File("/tmp/out.bin");
+    File reportFile = new File("/tmp/out.csv");
     File jdkClassPath = new File("jdk-class-path");
     ClassCollection jdkClasses = new ClassCollection();
     ClassCollection ddAgentClasses = new ClassCollection();
@@ -51,7 +52,8 @@ public class MatcherCacheFileBuilderTest {
 
     when(params.validate()).thenReturn(true);
     when(matcherCacheBuilder.getJavaMajorVersion()).thenReturn(JavaVersion.MAJOR_VERSION);
-    when(params.getOutputCacheDataFile()).thenReturn(outputFile.toString());
+    when(params.getOutputCacheDataFile()).thenReturn(dataFile.toString());
+    when(params.getOutputCsvReportFile()).thenReturn(reportFile.toString());
     when(params.getJavaHome()).thenReturn(jdkClassPath.toString());
     when(params.getDDAgentJar()).thenReturn(ddAgentJar);
     when(params.getClassPaths()).thenReturn(classPaths.keySet());
@@ -69,6 +71,6 @@ public class MatcherCacheFileBuilderTest {
       verify(matcherCacheBuilder, times(1)).fill(eq(entry.getValue()), any(), eq(classMatchers));
     }
     verify(matcherCacheBuilder, times(1)).optimize();
-    verify(matcherCacheBuilder, times(1)).serializeBinary(outputFile);
+    verify(matcherCacheBuilder, times(1)).serializeBinary(dataFile);
   }
 }

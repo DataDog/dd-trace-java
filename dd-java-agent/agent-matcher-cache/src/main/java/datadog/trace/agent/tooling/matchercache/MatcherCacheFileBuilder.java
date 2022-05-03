@@ -36,19 +36,19 @@ public class MatcherCacheFileBuilder {
       fillFrom(new File(cp));
     }
 
-    if (params.getOutputCacheTextFile() != null) {
+    if (params.getOutputCsvReportFile() != null) {
       try {
-        matcherCacheBuilder.serializeText(new File(params.getOutputCacheTextFile()));
+        matcherCacheBuilder.serializeText(new File(params.getOutputCsvReportFile()));
       } catch (IOException e) {
         log.error(
-            "Failed to serialize matcher cache text into " + params.getOutputCacheTextFile(), e);
+            "Failed to serialize matcher cache CSV report into " + params.getOutputCsvReportFile(),
+            e);
         throw new RuntimeException(e);
       }
     }
 
     matcherCacheBuilder.optimize();
 
-    // TODO implement separate param for matcher cache text report output file
     try {
       matcherCacheBuilder.serializeBinary(new File(params.getOutputCacheDataFile()));
     } catch (IOException e) {

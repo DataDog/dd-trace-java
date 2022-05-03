@@ -22,6 +22,7 @@ public class MatcherCacheFileBuilderParamsTest {
 
     assertNull(params.getOutputCacheDataFile());
     assertTrue(params.getClassPaths().isEmpty());
+    assertNull(params.getOutputCsvReportFile());
   }
 
   @Test
@@ -31,6 +32,28 @@ public class MatcherCacheFileBuilderParamsTest {
 
     assertEquals("./out.bin", params.getOutputCacheDataFile());
     assertEquals("[/tmp, .]", params.getClassPaths().toString());
+    assertNull(params.getOutputCsvReportFile());
+  }
+
+  @Test
+  public void testParseHappyPathWithoutClassPath() {
+    MatcherCacheFileBuilderParams params =
+        MatcherCacheFileBuilderParams.parseArgs("-o", "./out.bin");
+
+    assertEquals("./out.bin", params.getOutputCacheDataFile());
+    assertEquals("[]", params.getClassPaths().toString());
+    assertNull(params.getOutputCsvReportFile());
+  }
+
+  @Test
+  public void testParseHappyPathWithReportFile() {
+    MatcherCacheFileBuilderParams params =
+        MatcherCacheFileBuilderParams.parseArgs(
+            "-cp", "/tmp", "-o", "./out.bin", "-cp", ".", "-r", "./out.csv");
+
+    assertEquals("./out.bin", params.getOutputCacheDataFile());
+    assertEquals("[/tmp, .]", params.getClassPaths().toString());
+    assertEquals("./out.csv", params.getOutputCsvReportFile());
   }
 
   @Test
@@ -61,15 +84,54 @@ public class MatcherCacheFileBuilderParamsTest {
   }
 
   @Test
+  public void testValidateHappyPathMandatoryOnly() throws IOException {
+    File dataFile = File.createTempFile("out", ".bin");
+
+    assertTrue(dataFile.delete());
+    MatcherCacheFileBuilderParams params =
+        MatcherCacheFileBuilderParams.parseArgs("-o", dataFile.toString());
+
+    assertTrue(params.validate());
+    assertEquals(
+        "[WARN] The classpath to search for classes is not specified. Only JDK and dd-java-tracer classes will be scanned.\n",
+        testAppender.toString());
+  }
+
+  @Test
   public void testValidateHappyPath() throws IOException {
-    File outFile = File.createTempFile("out", ".mc");
+    File dataFile = File.createTempFile("out", ".bin");
     File jarFile = File.createTempFile("whatever", ".jar");
     File classFolder = Files.createTempDirectory("classes").toFile();
 
-    assertTrue(outFile.delete());
+    assertTrue(dataFile.delete());
     MatcherCacheFileBuilderParams params =
         MatcherCacheFileBuilderParams.parseArgs(
-            "-o", outFile.toString(), "-cp", jarFile.toString(), "-cp", classFolder.toString());
+            "-o", dataFile.toString(), "-cp", jarFile.toString(), "-cp", classFolder.toString());
+
+    assertTrue(params.validate());
+    assertEquals("", testAppender.toString());
+  }
+
+  @Test
+  public void testValidateHappyPathWithCsvReport() throws IOException {
+    File dataFile = File.createTempFile("out", ".bin");
+    File csvFile = File.createTempFile("out", ".csv");
+    File jarFile = File.createTempFile("whatever", ".jar");
+    File classFolder = Files.createTempDirectory("classes").toFile();
+
+    assertTrue(dataFile.delete());
+    assertTrue(csvFile.delete());
+
+    MatcherCacheFileBuilderParams params =
+        MatcherCacheFileBuilderParams.parseArgs(
+            "-o",
+            dataFile.toString(),
+            "-cp",
+            jarFile.toString(),
+            "-r",
+            csvFile.toString(),
+            "-cp",
+            classFolder.toString());
 
     assertTrue(params.validate());
     assertEquals("", testAppender.toString());
@@ -77,13 +139,20 @@ public class MatcherCacheFileBuilderParamsTest {
 
   @Test
   public void testValidateOutputFileAlreadyExists() throws IOException {
-    File outFile = File.createTempFile("out", ".mc");
+    File dataFile = File.createTempFile("out", ".bin");
+    File csvFile = File.createTempFile("out", ".csv");
     MatcherCacheFileBuilderParams params =
-        MatcherCacheFileBuilderParams.parseArgs("-o", outFile.toString(), "-cp", ".");
+        MatcherCacheFileBuilderParams.parseArgs(
+            "-r", csvFile.toString(), "-o", dataFile.toString(), "-cp", ".");
 
     assertTrue(params.validate());
     assertEquals(
-        "[WARN] File " + outFile + " already exists and will be replaced\n",
+        "[WARN] File "
+            + dataFile
+            + " already exists and will be replaced\n"
+            + "[WARN] File "
+            + csvFile
+            + " already exists and will be replaced\n",
         testAppender.toString());
   }
 

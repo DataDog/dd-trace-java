@@ -32,8 +32,6 @@ public final class MatcherCacheBuilderCLI {
     }
     ClassFinder classFinder = new ClassFinder();
     MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(JavaVersion.MAJOR_VERSION);
-    // TODO maybe implement a param to use only effectively enabled instrumentations
-    // TODO maybe implement a param skipAdditionalIgnores
     ClassMatchers classMatchers = AllClassMatchers.create(true, true);
     MatcherCacheFileBuilder matcherCacheFileBuilder =
         new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);
