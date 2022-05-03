@@ -141,6 +141,10 @@ public class DDIntakeWriter extends RemoteWriter {
     }
   }
 
+  private DDIntakeWriter(RemoteApi api, HealthMetrics healthMetrics, Monitoring monitoring, TraceProcessingWorker worker, RemoteMapperDiscovery discovery) {
+    this(api, healthMetrics, new PayloadDispatcher(discovery, api, healthMetrics, monitoring), worker, true);
+  }
+
   protected DDIntakeWriter(
       RemoteApi api,
       HealthMetrics healthMetrics,
