@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class MatcherCacheFileBuilderTest {
-
   MatcherCacheFileBuilderParams params = mock(MatcherCacheFileBuilderParams.class);
   ClassFinder classFinder;
   MatcherCacheBuilder matcherCacheBuilder;
@@ -69,7 +68,6 @@ public class MatcherCacheFileBuilderTest {
     for (Map.Entry<String, ClassCollection> entry : classPaths.entrySet()) {
       verify(matcherCacheBuilder, times(1)).fill(eq(entry.getValue()), any(), eq(classMatchers));
     }
-    verify(matcherCacheBuilder, times(1)).addSkippedPackage(eq("com.sun.proxy"), any());
     verify(matcherCacheBuilder, times(1)).optimize();
     verify(matcherCacheBuilder, times(1)).serializeBinary(outputFile);
   }

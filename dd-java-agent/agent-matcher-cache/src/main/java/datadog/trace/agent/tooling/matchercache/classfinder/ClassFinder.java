@@ -169,6 +169,6 @@ public class ClassFinder {
 
   private static String readClassName(byte[] classBytes) {
     ClassReader cr = new ClassReader(classBytes);
-    return cr.getClassName().replace("/", ".");
+    return cr.getClassName().replace('/', '.');
   }
 }

@@ -50,7 +50,7 @@ public final class MatcherCache {
   private final int[][] transformedClassHashes;
 
   public Result transform(String fqcn) {
-    // TODO: implement binary search without sub string allocation
+    // TODO: try implement binary search without sub string allocation
     int packageEndsAt = fqcn.lastIndexOf('.');
     String packageName = fqcn.substring(0, Math.max(packageEndsAt, 0));
     int index = Arrays.binarySearch(packagesOrdered, packageName);

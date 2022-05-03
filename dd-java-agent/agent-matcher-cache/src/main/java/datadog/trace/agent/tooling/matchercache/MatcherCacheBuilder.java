@@ -80,13 +80,6 @@ public class MatcherCacheBuilder {
     return stats;
   }
 
-  public void addSkippedPackage(String packageName, String source) {
-    // TODO remove it if globalIgnores cover this
-    PackageData packageData = getDataOrCreate(packageName, source);
-    // TODO check if package for another source already exists
-    packageData.insert(packageName + ".0", MatchingResult.IGNORE);
-  }
-
   public void serializeBinary(File file) throws IOException {
     try (FileOutputStream os = new FileOutputStream(file)) {
       serializeBinary(os);
@@ -105,7 +98,6 @@ public class MatcherCacheBuilder {
     }
   }
 
-  // TODO test
   public void serializeText(File file) throws IOException {
     try (FileOutputStream os = new FileOutputStream(file)) {
       serializeText(os);

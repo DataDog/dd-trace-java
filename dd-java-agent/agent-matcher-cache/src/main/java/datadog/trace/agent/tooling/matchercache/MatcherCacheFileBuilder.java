@@ -36,9 +36,6 @@ public class MatcherCacheFileBuilder {
       fillFrom(new File(cp));
     }
 
-    // TODO if com.sun.proxy.* never instrumented add them to global ignores, otherwise remove it
-    //    matcherCacheBuilder.addSkippedPackage("com.sun.proxy", "<skip-list>");
-
     if (params.getOutputCacheTextFile() != null) {
       try {
         matcherCacheBuilder.serializeText(new File(params.getOutputCacheTextFile()));

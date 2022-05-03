@@ -34,7 +34,7 @@ package datadog.trace.agent.tooling.matchercache.classfinder;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class ClassCollectionLoader extends ClassLoader {
+public class ClassCollectionLoader extends ClassLoader {
 
   private final ClassCollection classCollection;
   private final Map<String, Class<?>> loadedClasses = new HashMap<>();

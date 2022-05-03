@@ -4,11 +4,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ClassCollection {
-  private static final Logger log = LoggerFactory.getLogger(ClassCollection.class);
   private final Map<String, ClassData> classMap = new HashMap<>();
 
   public void addClass(byte[] classBytes, String fqcn, String relativePath, String parentPath) {
