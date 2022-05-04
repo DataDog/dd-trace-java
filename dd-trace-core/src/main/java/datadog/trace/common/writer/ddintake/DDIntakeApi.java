@@ -118,6 +118,7 @@ public class DDIntakeApi implements RemoteApi {
       this.receivedTraces += payload.traceCount();
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
+          countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
         }
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
