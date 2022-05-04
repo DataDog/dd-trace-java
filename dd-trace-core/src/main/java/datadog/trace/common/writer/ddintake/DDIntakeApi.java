@@ -142,11 +142,12 @@ public class DDIntakeApi implements RemoteApi {
     // count the failed traces
     this.failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
-    String agentError = getResponseBody(response);
+    String intakeError = getResponseBody(response);
     String sendErrorString =
-        createSendLogMessage(traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
+        createSendLogMessage(
+            traceCount, sizeInBytes, intakeError.isEmpty() ? "Error" : intakeError);
 
-    ioLogger.error(sendErrorString, toLoggerResponse(response, agentError), outer);
+    ioLogger.error(sendErrorString, toLoggerResponse(response, intakeError), outer);
   }
 
   private static IOLogger.Response toLoggerResponse(okhttp3.Response response, String body) {
