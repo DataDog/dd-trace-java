@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.canSkipClassLoaderByName;
 
+import datadog.trace.agent.tooling.bytebuddy.jfr.ClassTransformationEvent;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
@@ -42,8 +43,7 @@ public final class DDJava8ClassFileTransformer
     }
 
     ClassTransformationEvent event =
-        ClassTransformationEvent.beforeClassTransformation(
-            internalClassName, classFileBuffer, classLoader);
+        ClassTransformationEvent.beforeClassTransformation(internalClassName, classFileBuffer);
     byte[] result =
         classFileTransformer.transform(
             classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);

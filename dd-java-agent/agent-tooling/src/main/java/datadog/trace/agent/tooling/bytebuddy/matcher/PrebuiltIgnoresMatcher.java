@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.KnownClassesLoaderEvents;
+import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatcherCacheEvents;
 import datadog.trace.agent.tooling.matchercache.MatcherCache;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.File;
@@ -30,6 +30,8 @@ public class PrebuiltIgnoresMatcher<T extends TypeDescription>
       matcherCache = MatcherCache.deserialize(is);
       long durationNs = System.nanoTime() - startAt;
       log.info("Loaded pre-built matcher data in ms: {}", durationNs / 1_000_000);
+      // Tracking duration manually because JFR doesn't seem to track duration properly at this
+      // early stage
       commitCacheLoadingTimeEvent(durationNs);
     } catch (Throwable e) {
       log.error("Failed to load pre-build ignores matcher data from: " + preBuiltMatcherData, e);
@@ -55,9 +57,7 @@ public class PrebuiltIgnoresMatcher<T extends TypeDescription>
       case SKIP:
         return true;
       case UNKNOWN:
-        int packageEndsAt = fqcn.lastIndexOf('.');
-        String packageName = fqcn.substring(0, Math.max(packageEndsAt, 0));
-        KnownClassesLoaderEvents.get().classCachedMatcherEvent(fqcn).finish(false, packageName);
+        MatcherCacheEvents.get().commitMatcherCacheMissEvent(fqcn);
         if (fallbackIgnoresMatcher != null) {
           return fallbackIgnoresMatcher.matches(target);
         }
@@ -66,13 +66,14 @@ public class PrebuiltIgnoresMatcher<T extends TypeDescription>
   }
 
   private static void commitCacheLoadingTimeEvent(final long durationNs) {
-    // delay committing event because JFR could not yet initialized and committing immediately will
+    // Delay committing event because JFR could not been initialized yet and committing immediately
+    // will
     // void this event
     AgentTaskScheduler.INSTANCE.schedule(
         new AgentTaskScheduler.Task<Boolean>() {
           @Override
           public void run(Boolean target) {
-            KnownClassesLoaderEvents.get().commitEvent(durationNs, -1);
+            MatcherCacheEvents.get().commitMatcherCacheLoadingEvent(durationNs);
           }
         },
         true,
