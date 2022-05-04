@@ -61,7 +61,8 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
           || name.contains("CGLIB$$")
           || name.contains("$__sisu")
           || name.contains("$$EnhancerByGuice$$")
-          || name.contains("$$EnhancerByProxool$$")) {
+          || name.contains("$$EnhancerByProxool$$")
+          || name.contains("$$_WeldClientProxy")) {
         return true;
       }
     }
