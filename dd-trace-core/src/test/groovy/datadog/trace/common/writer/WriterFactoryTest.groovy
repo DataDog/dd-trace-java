@@ -8,7 +8,7 @@ import datadog.trace.test.util.DDSpecification
 
 class WriterFactoryTest extends DDSpecification {
 
-  def "test"() {
+  def "test direct writer creation"() {
     setup:
     def config = Mock(Config)
     def sharedComm = Mock(SharedCommunicationObjects)
@@ -26,5 +26,6 @@ class WriterFactoryTest extends DDSpecification {
     "LoggingWriter"| LoggingWriter
     "PrintingWriter" | PrintingWriter
     "TraceStructureWriter" | TraceStructureWriter
+    "MultiWriter:LoggingWriter,PrintingWriter" | MultiWriter
   }
 }
