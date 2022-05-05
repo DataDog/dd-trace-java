@@ -1,8 +1,5 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_INTAKE_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_INTAKE_VERSION;
-
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
@@ -16,6 +13,9 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.TimeUnit;
 
 public class DDIntakeWriter extends RemoteWriter {
+
+  public static final String DEFAULT_INTAKE_VERSION = "v2";
+  public static final long DEFAULT_INTAKE_TIMEOUT = 10; // timeout in seconds
 
   private static final int BUFFER_SIZE = 1024;
 

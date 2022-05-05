@@ -32,9 +32,6 @@ public final class ConfigDefaults {
 
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  public static final String DEFAULT_INTAKE_VERSION = "v2";
-  public static final long DEFAULT_INTAKE_TIMEOUT = 10; // timeout in seconds
-
   static final boolean DEFAULT_TRACE_ENABLED = true;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
   static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";

@@ -67,7 +67,7 @@ public class WriterFactory {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
       final String apiKey = config.getApiKey();
       if (apiKey == null || apiKey.isEmpty()) {
-        log.info("Api Key has not been detected, using PrinterWriter.");
+        log.warn("Api Key has not been detected, using PrinterWriter.");
         return new PrintingWriter(System.out, true);
       }
 

@@ -1,8 +1,8 @@
 package datadog.trace.common.writer.ddintake;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_INTAKE_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_INTAKE_VERSION;
 import static datadog.trace.api.intake.TrackType.NOOP;
+import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
+import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
