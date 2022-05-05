@@ -1,20 +1,19 @@
 package datadog.trace.agent.tooling.matchercache.classfinder;
 
-import java.util.Arrays;
 import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ClassData {
+public final class ClassVersions {
   private static final String META_INF_VERSIONS_PATH_PREFIX = "META-INF/versions/";
-  private static final Logger log = LoggerFactory.getLogger(ClassData.class);
+  private static final Logger log = LoggerFactory.getLogger(ClassVersions.class);
 
   private final String fqcn;
   private final int classNameStartsAt;
-  private ClassVersion defaultVersion;
-  private TreeMap<Integer, ClassVersion> otherVersions;
+  private ClassData defaultVersion;
+  private TreeMap<Integer, ClassData> otherVersions;
 
-  public ClassData(String fqcn) {
+  public ClassVersions(String fqcn) {
     classNameStartsAt = fqcn.lastIndexOf('.');
     this.fqcn = fqcn;
   }
@@ -31,41 +30,38 @@ public final class ClassData {
     return fqcn.substring(classNameStartsAt < 0 ? 0 : classNameStartsAt + 1);
   }
 
-  public String source(int jdkMajorVersion) {
-    ClassVersion classVersion = classVersion(jdkMajorVersion);
-    if (classVersion == null) {
-      return null;
-    }
-    return classVersion.parentPath;
+  public String location(int jdkMajorVersion) {
+    ClassData cv = classVersion(jdkMajorVersion);
+    return cv == null ? null : cv.location;
   }
 
   public void addClassBytes(byte[] classBytes, String classPath, String parentPath) {
-    ClassVersion classVersion = new ClassVersion(parentPath, classPath, classBytes);
+    ClassData classData = new ClassData(parentPath, classBytes);
     int version = getClassVersion(classPath);
     if (version == 0) {
-      if (checkNoConflictingClassVersions(defaultVersion, classVersion)) {
-        defaultVersion = classVersion;
+      if (checkNoConflictingClassVersions(defaultVersion, classData)) {
+        defaultVersion = classData;
       }
     } else {
       if (otherVersions == null) {
         otherVersions = new TreeMap<>();
       }
-      ClassVersion existingClassVersion = otherVersions.get(version);
-      if (checkNoConflictingClassVersions(existingClassVersion, classVersion)) {
-        otherVersions.put(version, classVersion);
+      ClassData existingClassData = otherVersions.get(version);
+      if (checkNoConflictingClassVersions(existingClassData, classData)) {
+        otherVersions.put(version, classData);
       }
     }
   }
 
   public byte[] classBytes(int jdkMajorVersion) {
-    ClassVersion classVersion = classVersion(jdkMajorVersion);
-    if (classVersion == null) {
+    ClassData classData = classVersion(jdkMajorVersion);
+    if (classData == null) {
       return null;
     }
-    return classVersion.classBytes;
+    return classData.classBytes;
   }
 
-  private ClassVersion classVersion(int jdkMajorVersion) {
+  private ClassData classVersion(int jdkMajorVersion) {
     if (otherVersions != null) {
       int useVersion = 0;
       for (int classVersion : otherVersions.keySet()) {
@@ -75,9 +71,9 @@ public final class ClassData {
           break;
         }
       }
-      ClassVersion classVersion = otherVersions.get(useVersion);
-      if (classVersion != null) {
-        return classVersion;
+      ClassData classData = otherVersions.get(useVersion);
+      if (classData != null) {
+        return classData;
       }
     }
     if (defaultVersion != null) {
@@ -86,7 +82,7 @@ public final class ClassData {
     return null;
   }
 
-  private boolean checkNoConflictingClassVersions(ClassVersion existing, ClassVersion other) {
+  private boolean checkNoConflictingClassVersions(ClassData existing, ClassData other) {
     if (existing != null && !other.equals(existing)) {
       log.debug(
           "Detected conflicting class version: {} and {}. Using existing version.",
@@ -112,27 +108,13 @@ public final class ClassData {
     return version;
   }
 
-  private final class ClassVersion {
-    private final String parentPath;
-    private final String relativePath;
+  private static final class ClassData {
+    private final String location;
     private final byte[] classBytes;
 
-    private ClassVersion(String parentPath, String relativePath, byte[] classBytes) {
-      this.parentPath = parentPath;
-      this.relativePath = relativePath;
+    private ClassData(String location, byte[] classBytes) {
+      this.location = location;
       this.classBytes = classBytes;
-    }
-
-    @Override
-    public String toString() {
-      return fqcn
-          + " from "
-          + parentPath
-          + "/"
-          + relativePath
-          + " ("
-          + Arrays.hashCode(classBytes)
-          + ")";
     }
   }
 }

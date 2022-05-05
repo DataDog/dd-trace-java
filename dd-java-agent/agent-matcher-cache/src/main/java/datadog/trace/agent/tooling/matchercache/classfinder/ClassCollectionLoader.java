@@ -72,15 +72,15 @@ public class ClassCollectionLoader extends ClassLoader {
         // return already defined class
         return loadedClasses.get(className);
       }
-      ClassData classData = classCollection.findClass(className);
-      if (classData == null) {
+      ClassVersions classVersions = classCollection.findClass(className);
+      if (classVersions == null) {
         return null;
       }
       // define the new class
       definePackageForClass(className);
       Class<?> loadedClass = findLoadedClass(className);
       if (loadedClass == null) {
-        byte[] classBytes = classData.classBytes(javaMajorVersion);
+        byte[] classBytes = classVersions.classBytes(javaMajorVersion);
         if (classBytes == null) {
           throw new ClassNotFoundException(className);
         }

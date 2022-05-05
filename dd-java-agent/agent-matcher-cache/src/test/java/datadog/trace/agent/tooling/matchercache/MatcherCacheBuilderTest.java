@@ -24,7 +24,7 @@ public class MatcherCacheBuilderTest {
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
       if ("example.InnerJarClass".equals(name)) {
-        throw new RuntimeException("Test failed to load class");
+        throw new RuntimeException("Intentional test class load failure");
       }
       return super.loadClass(name, resolve);
     }
@@ -54,7 +54,7 @@ public class MatcherCacheBuilderTest {
     public boolean isGloballyIgnored(String fqcn) {
       switch (fqcn) {
         case "foo.bar.xyz.Xyz":
-        case "foo.bar.Baz":
+        case "bar.foo.Baz":
           return true;
       }
       return false;
@@ -63,8 +63,11 @@ public class MatcherCacheBuilderTest {
 
   @Test
   public void test() throws IOException {
+    File classPath = new File(TEST_CLASSES_FOLDER);
+    assertTrue(classPath.exists());
+
     ClassFinder classFinder = new ClassFinder();
-    ClassCollection classCollection = classFinder.findClassesIn(new File(TEST_CLASSES_FOLDER));
+    ClassCollection classCollection = classFinder.findClassesIn(classPath);
     int javaMajorVersion = 9;
     ClassLoader classLoader = new TestClassLoader(classCollection, javaMajorVersion);
     MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(javaMajorVersion);
@@ -102,13 +105,14 @@ public class MatcherCacheBuilderTest {
     // serialize text report
     String reportData = serializeTextReport(matcherCacheBuilder);
     String expectedTextReport =
-        "Packages: 4\n"
-            + "example.InnerJarClass,FAIL,build/resources/test/test-classes/inner-jars/example.jar/Middle.jar\n"
+        "Packages: 5\n"
+            + "bar.foo.Baz,IGNORE,build/resources/test/test-classes/relocated-classes/somefolder/Baz.class\n"
+            + "example.InnerJarClass,FAIL,build/resources/test/test-classes/inner-jars/example.jar/Middle.jar/InnerJarClass.jar"
+            + ",java.lang.RuntimeException: Intentional test class load failure\n"
             + "example.MiddleJarClass,SKIP,build/resources/test/test-classes/inner-jars/example.jar/Middle.jar\n"
-            + "example.OuterJarClass,TRANSFORM,build/resources/test/test-classes/inner-jars/example.jar/Middle.jar\n"
+            + "example.OuterJarClass,TRANSFORM,build/resources/test/test-classes/inner-jars/example.jar\n"
             + "example.classes.Abc,TRANSFORM,build/resources/test/test-classes/multi-release-jar/multi-release.jar\n"
             + "example.classes.Only9,SKIP,build/resources/test/test-classes/multi-release-jar/multi-release.jar\n"
-            + "foo.bar.Baz,IGNORE,build/resources/test/test-classes/renamed-class-file/renamed-foobar-class.bin\n"
             + "foo.bar.FooBar,TRANSFORM,build/resources/test/test-classes/renamed-class-file/renamed-foobar-class.bin\n"
             + "foo.bar.xyz.Xyz,IGNORE,build/resources/test/test-classes/standard-layout/foo/bar/xyz/Xyz.class\n";
     assertEquals(expectedTextReport, reportData);

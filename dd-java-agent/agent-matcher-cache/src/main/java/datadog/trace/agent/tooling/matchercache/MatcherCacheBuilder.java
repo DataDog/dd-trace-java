@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.matchercache;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
-import datadog.trace.agent.tooling.matchercache.classfinder.ClassData;
+import datadog.trace.agent.tooling.matchercache.classfinder.ClassVersions;
 import datadog.trace.agent.tooling.matchercache.util.BinarySerializers;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -48,33 +48,33 @@ public class MatcherCacheBuilder {
   public Stats fill(
       ClassCollection classCollection, ClassLoader classLoader, ClassMatchers classMatchers) {
     Stats stats = new Stats();
-    for (ClassData classData : classCollection.allClasses(javaMajorVersion)) {
-      String packageName = classData.packageName();
-      String className = classData.className();
-      String source = classData.source(javaMajorVersion);
+    for (ClassVersions classVersions : classCollection.allClasses(javaMajorVersion)) {
+      String packageName = classVersions.packageName();
+      String className = classVersions.className();
+      String location = classVersions.location(javaMajorVersion);
 
-      if (classMatchers.isGloballyIgnored(classData.fullClassName())) {
-        PackageData packageData = getDataOrCreate(packageName, source);
-        packageData.insert(className, MatchingResult.IGNORE);
+      if (classMatchers.isGloballyIgnored(classVersions.fullClassName())) {
+        PackageData packageData = getDataOrCreate(packageName);
+        packageData.insert(className, MatchingResult.IGNORE, location, null);
         stats.ignoredClassesCounter += 1;
       } else
         try {
-          Class<?> cl = classLoader.loadClass(classData.fullClassName());
-          PackageData packageData = getDataOrCreate(packageName, source);
+          Class<?> cl = classLoader.loadClass(classVersions.fullClassName());
+          PackageData packageData = getDataOrCreate(packageName);
           if (classMatchers.matchesAny(cl)) {
             // TODO check if different classCollections share packages that include instrumented
             // classes and warn about it and maybe exclude from the matcher cache
-            packageData.insert(className, MatchingResult.TRANSFORM);
+            packageData.insert(className, MatchingResult.TRANSFORM, location, null);
             stats.transformedClassesCounter += 1;
           } else {
-            packageData.insert(className, MatchingResult.SKIP);
+            packageData.insert(className, MatchingResult.SKIP, location, null);
             stats.skippedClassesCounter += 1;
           }
         } catch (Throwable e) {
           stats.failedCounterCounter += 1;
-          PackageData packageData = getDataOrCreate(packageName, source);
-          packageData.insert(className, MatchingResult.FAIL);
-          log.debug("Couldn't load class: {} failed with {}", className, e);
+          PackageData packageData = getDataOrCreate(packageName);
+          packageData.insert(className, MatchingResult.FAIL, location, e.toString());
+          log.debug("Couldn't load class: {} failed with {}", className, e.toString());
         }
     }
     return stats;
@@ -111,7 +111,7 @@ public class MatcherCacheBuilder {
     for (Map.Entry<String, PackageData> packageEntry : packages.entrySet()) {
       String packageName = packageEntry.getKey();
       PackageData pd = packageEntry.getValue();
-      for (Map.Entry<String, MatchingResult> classEntry : pd.classes.entrySet()) {
+      for (Map.Entry<String, ClassInfo> classEntry : pd.classes.entrySet()) {
         if (!packageName.isEmpty()) {
           ps.print(packageName);
           ps.print('.');
@@ -119,9 +119,15 @@ public class MatcherCacheBuilder {
         String className = classEntry.getKey();
         ps.print(className);
         ps.print(',');
-        ps.print(classEntry.getValue());
+        ClassInfo ci = classEntry.getValue();
+        ps.print(ci.matchingResult);
         ps.print(',');
-        ps.println(pd.source);
+        ps.print(ci.classLocation);
+        if (ci.additionalInfo != null) {
+          ps.print(',');
+          ps.print(ci.additionalInfo);
+        }
+        ps.println();
       }
     }
   }
@@ -137,14 +143,10 @@ public class MatcherCacheBuilder {
     }
   }
 
-  protected int classHash(String className) {
-    return className.hashCode();
-  }
-
-  private PackageData getDataOrCreate(String packageName, String source) {
+  private PackageData getDataOrCreate(String packageName) {
     PackageData packageData = packages.get(packageName);
     if (packageData == null) {
-      packageData = new PackageData(source);
+      packageData = new PackageData();
       packages.put(packageName, packageData);
     }
     return packageData;
@@ -167,31 +169,46 @@ public class MatcherCacheBuilder {
   }
 
   private enum MatchingResult {
-    IGNORE,
-    SKIP,
+    // ordering matters, listed by priority
     TRANSFORM,
+    SKIP,
+    IGNORE,
     FAIL,
   }
 
-  private static final class PackageData {
-    private final String source;
-    private final SortedMap<String, MatchingResult> classes;
+  private static final class ClassInfo {
+    private final MatchingResult matchingResult;
+    private final String classLocation;
+    private final String additionalInfo;
 
-    public PackageData(String source) {
-      this.source = source;
+    public ClassInfo(MatchingResult matchingResult, String classLocation, String additionalInfo) {
+      this.matchingResult = matchingResult;
+      this.classLocation = classLocation;
+      this.additionalInfo = additionalInfo;
+    }
+  }
+
+  private static final class PackageData {
+    private final SortedMap<String, ClassInfo> classes;
+
+    public PackageData() {
       this.classes = new TreeMap<>();
     }
 
-    public void insert(String className, MatchingResult mr) {
-      classes.put(className, mr);
+    public void insert(String className, MatchingResult mr, String source, String info) {
+      ClassInfo classInfo = classes.get(className);
+      if (classInfo == null || mr.compareTo(classInfo.matchingResult) < 0) {
+        classInfo = new ClassInfo(mr, source, info);
+        classes.put(className, classInfo);
+      }
     }
 
     public boolean canBeRemoved() {
       int skippedCounter = 0;
       int failedToLoadCounter = 0;
       int transformedCounter = 0;
-      for (MatchingResult mr : classes.values()) {
-        switch (mr) {
+      for (ClassInfo css : classes.values()) {
+        switch (css.matchingResult) {
           case IGNORE:
           case SKIP:
             skippedCounter += 1;
@@ -209,8 +226,8 @@ public class MatcherCacheBuilder {
 
     public SortedSet<Integer> transformedClassHashes() {
       SortedSet<Integer> result = new TreeSet<>();
-      for (Map.Entry<String, MatchingResult> entry : classes.entrySet()) {
-        if (isTransformed(entry.getValue())) {
+      for (Map.Entry<String, ClassInfo> entry : classes.entrySet()) {
+        if (isTransformed(entry.getValue().matchingResult)) {
           result.add(entry.getKey().hashCode());
         }
       }
