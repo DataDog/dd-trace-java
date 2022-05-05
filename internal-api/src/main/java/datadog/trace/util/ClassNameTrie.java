@@ -283,7 +283,7 @@ public final class ClassNameTrie {
       trieLength += length;
     }
 
-    private char handleJump(int jump) {
+    private char packJump(int jump) {
       if (jump < LONG_JUMP_MARKER) {
         return (char) jump;
       }
@@ -291,6 +291,10 @@ public final class ClassNameTrie {
       longJumps = Arrays.copyOf(longJumps, longJumpId + 1);
       longJumps[longJumpId] = jump;
       return (char) (longJumpId | LONG_JUMP_MARKER);
+    }
+
+    private int unpackJump(char jump) {
+      return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
     }
 
     private void insertMapping(String key, char valueToInsert) {
@@ -334,11 +338,7 @@ public final class ClassNameTrie {
         if (branch < branchCount - 1) {
           int nextJumpIndex = valueIndex + branchCount;
 
-          int nextBranchJump = trieData[nextJumpIndex];
-          if ((nextBranchJump & LONG_JUMP_MARKER) != 0) {
-            nextBranchJump = longJumps[nextBranchJump & ~LONG_JUMP_MARKER];
-          }
-
+          int nextBranchJump = unpackJump(trieData[nextJumpIndex]);
           subTrieEnd = dataIndex + (branchCount * 3) - 1 + nextBranchJump;
 
           for (int b = branch + 1; b < branchCount; b++) {
@@ -348,11 +348,7 @@ public final class ClassNameTrie {
 
         // move on to the segment/node for the picked branch...
         if (branch > 0) {
-          int branchJump = trieData[valueIndex + branchCount - 1];
-          if ((branchJump & LONG_JUMP_MARKER) != 0) {
-            branchJump = longJumps[branchJump & ~LONG_JUMP_MARKER];
-          }
-          dataIndex += branchJump;
+          dataIndex += unpackJump(trieData[valueIndex + branchCount - 1]);
         }
 
         // ...always include moving past the current node
@@ -389,8 +385,7 @@ public final class ClassNameTrie {
             } else {
               trieData[valueIndex] -= segmentEnd - dataIndex;
               if (c < trieData[dataIndex]) {
-                jumpOffset =
-                    insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
+                jumpOffset = insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
               } else {
                 jumpOffset =
                     insertLeafRight(
@@ -418,7 +413,7 @@ public final class ClassNameTrie {
 
       if (jumpOffset > 0) {
         for (int i = jumpsToOffset.nextSetBit(0); i >= 0; i = jumpsToOffset.nextSetBit(i + 1)) {
-          trieData[i] = handleJump(trieData[i] + jumpOffset);
+          trieData[i] = packJump(unpackJump(trieData[i]) + jumpOffset);
         }
       }
     }
@@ -461,17 +456,17 @@ public final class ClassNameTrie {
         System.arraycopy(trieData, j, trieData, i, branchCount);
         i += branchCount;
         j += branchCount;
-        precedingJump = newBranch > 0 ? trieData[i - 1] : 0;
-        trieData[i++] = handleJump(precedingJump + remainingKeyLength);
+        precedingJump = newBranch > 0 ? unpackJump(trieData[i - 1]) : 0;
+        trieData[i++] = packJump(precedingJump + remainingKeyLength);
         for (int b = newBranch + 1; b < branchCount; b++) {
-          trieData[i++] = handleJump(trieData[j++] + remainingKeyLength);
+          trieData[i++] = packJump(unpackJump(trieData[j++]) + remainingKeyLength);
         }
       } else {
         System.arraycopy(trieData, j, trieData, i, branchCount - 1);
         i += branchCount - 1;
         j += branchCount - 1;
         precedingJump = subTrieEnd - subTrieStart;
-        trieData[i++] = handleJump(precedingJump);
+        trieData[i++] = packJump(precedingJump);
       }
 
       System.arraycopy(trieData, subTrieStart + insertedCharacters, trieData, i, precedingJump);
@@ -593,7 +588,7 @@ public final class ClassNameTrie {
       trieData[i++] = key.charAt(keyIndex);
       trieData[i++] = (char) (collapseLeft ? trieData[j + 1] : segmentEnd - pivot);
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
-      trieData[i++] = (char) (subTrieEnd - pivot);
+      trieData[i++] = packJump(subTrieEnd - pivot);
       System.arraycopy(trieData, pivot + insertedCharacters, trieData, i, subTrieEnd - pivot);
       i += subTrieEnd - pivot;
       if (!collapseRight) {
