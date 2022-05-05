@@ -1,5 +1,16 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+/**
+ * Global ignores used by the agent.
+ *
+ * <p>There are two levels of ignores:
+ *
+ * <ul>
+ *   <li>Ignore classes that are unsafe or pointless to transform. 'System' level classes like jvm
+ *       classes or groovy classes, other tracers, debuggers, etc.
+ *   <li>Ignore additional classes to minimize the number of classes we apply expensive matchers to.
+ * </ul>
+ */
 public class GlobalIgnores {
   private GlobalIgnores() {}
 

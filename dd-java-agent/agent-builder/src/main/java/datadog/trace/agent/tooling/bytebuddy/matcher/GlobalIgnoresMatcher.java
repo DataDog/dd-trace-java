@@ -6,15 +6,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
 
 /**
- * Global ignores matcher used by the agent.
- *
- * <p>This matcher services two main purposes:
- *
- * <ul>
- *   <li>Ignore classes that are unsafe or pointless to transform. 'System' level classes like jvm
- *       classes or groovy classes, other tracers, debuggers, etc.
- *   <li>Ignore additional classes to minimize the number of classes we apply expensive matchers to.
- * </ul>
+ * Global ignores matcher which combines the common skipClassLoader check with other global
+ * name-based ignores and custom exclusions.
  */
 public class GlobalIgnoresMatcher implements AgentBuilder.RawMatcher {
 
@@ -41,7 +34,7 @@ public class GlobalIgnoresMatcher implements AgentBuilder.RawMatcher {
     String name = typeDescription.getActualName();
     return GlobalIgnores.isIgnored(name, skipAdditionalLibraryMatcher)
         || CustomExcludes.isExcluded(name)
-        || ProxyIgnores.isIgnored(name);
+        || ProxyClassIgnores.isIgnored(name);
   }
 
   @Override

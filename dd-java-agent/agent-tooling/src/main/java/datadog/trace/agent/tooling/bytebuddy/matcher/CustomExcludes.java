@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Custom class/package excludes configured by the user. */
 public class CustomExcludes {
   private static final Logger log = LoggerFactory.getLogger(CustomExcludes.class);
 
