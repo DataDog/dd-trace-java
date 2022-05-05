@@ -8,6 +8,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -73,6 +74,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -445,6 +447,7 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
 
   private final boolean ciVisibilityEnabled;
+  private final boolean ciVisibilityAgentlessEnabled;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -546,6 +549,7 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
+
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
             SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
@@ -951,6 +955,9 @@ public class Config {
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
+    ciVisibilityAgentlessEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -1506,6 +1513,10 @@ public class Config {
 
   public boolean isCiVisibilityEnabled() {
     return ciVisibilityEnabled;
+  }
+
+  public boolean isCiVisibilityAgentlessEnabled() {
+    return ciVisibilityAgentlessEnabled;
   }
 
   public String getAppSecRulesFile() {

@@ -76,6 +76,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
+  static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
