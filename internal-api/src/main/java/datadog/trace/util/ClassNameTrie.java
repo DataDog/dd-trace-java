@@ -215,7 +215,7 @@ public final class ClassNameTrie {
 
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
-    private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*([0-9]+)\\s+([^\\s#]+)");
+    private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
 
     private final List<String> keys = new ArrayList<>();
     private final StringBuilder values = new StringBuilder();
@@ -253,7 +253,7 @@ public final class ClassNameTrie {
       for (String l : Files.readAllLines(triePath, StandardCharsets.UTF_8)) {
         Matcher m = MAPPING_LINE.matcher(l);
         if (m.find()) {
-          put(m.group(2), Integer.parseInt(m.group(1)));
+          put(m.group(2), m.group(1) != null ? Integer.parseInt(m.group(1)) : 1);
         }
       }
     }
