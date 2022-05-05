@@ -216,15 +216,16 @@ public final class ClassNameTrie {
   public static class Builder {
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
 
-    private char[] trieData = {};
+    private char[] trieData = new char[8192];
+    private int trieLength = 0;
     private int[] longJumps = {};
 
     public boolean isEmpty() {
-      return trieData.length == 0;
+      return trieLength == 0;
     }
 
     public ClassNameTrie buildTrie() {
-      return new ClassNameTrie(trieData, longJumps);
+      return new ClassNameTrie(Arrays.copyOfRange(trieData, 0, trieLength), longJumps);
     }
 
     /** Reads a class-name mapping file into the current builder */
@@ -257,38 +258,57 @@ public final class ClassNameTrie {
         value = (char) number;
       }
 
-      if (trieData.length == 0) {
+      if (trieLength == 0) {
         int keyLength = key.length();
-        trieData = new char[(keyLength > 1 ? 3 : 2) + keyLength];
+        trieLength = (keyLength > 1 ? 3 : 2) + keyLength;
         trieData[0] = (char) 1;
         trieData[1] = key.charAt(0);
         if (keyLength > 1) {
           trieData[2] = (char) (keyLength - 1);
           key.getChars(1, keyLength, trieData, 3);
         }
-        trieData[trieData.length - 1] = (char) (value | LEAF_MARKER);
+        trieData[trieLength - 1] = (char) (value | LEAF_MARKER);
       } else {
         insertMapping(key, value);
       }
     }
 
+    private void makeHole(int start, int length) {
+      char[] oldData = trieData;
+      if (trieLength + length > oldData.length) {
+        trieData = new char[Math.max(trieLength + length, oldData.length + (oldData.length >> 1))];
+        System.arraycopy(oldData, 0, trieData, 0, start);
+      }
+      System.arraycopy(oldData, start, trieData, start + length, trieLength - start);
+      trieLength += length;
+    }
+
+    private char handleJump(int jump) {
+      if (jump < LONG_JUMP_MARKER) {
+        return (char) jump;
+      }
+      int longJumpId = longJumps.length;
+      longJumps = Arrays.copyOf(longJumps, longJumpId + 1);
+      longJumps[longJumpId] = jump;
+      return (char) (longJumpId | LONG_JUMP_MARKER);
+    }
+
     private void insertMapping(String key, char valueToInsert) {
       BitSet jumpsToOffset = new BitSet();
 
-      char[] data = trieData;
       int keyLength = key.length();
       int keyIndex = 0;
       int dataIndex = 0;
-      int subTrieEnd = data.length;
+      int subTrieEnd = trieLength;
       int jumpOffset = 0;
 
       while (keyIndex < keyLength) {
         char c = key.charAt(keyIndex++);
-        char branchCount = data[dataIndex++];
+        char branchCount = trieData[dataIndex++];
 
         // trie is ordered, so we can use binary search to pick the right branch
         int branchIndex =
-            Arrays.binarySearch(data, dataIndex, dataIndex + branchCount, c == '/' ? '.' : c);
+            Arrays.binarySearch(trieData, dataIndex, dataIndex + branchCount, c == '/' ? '.' : c);
 
         if (branchIndex < 0) {
           jumpOffset =
@@ -304,7 +324,7 @@ public final class ClassNameTrie {
         }
 
         int valueIndex = branchIndex + branchCount;
-        char value = data[valueIndex];
+        char value = trieData[valueIndex];
 
         if ((value & (LEAF_MARKER | BUD_MARKER)) != 0 && keyIndex == keyLength) {
           return;
@@ -314,7 +334,7 @@ public final class ClassNameTrie {
         if (branch < branchCount - 1) {
           int nextJumpIndex = valueIndex + branchCount;
 
-          int nextBranchJump = data[nextJumpIndex];
+          int nextBranchJump = trieData[nextJumpIndex];
           if ((nextBranchJump & LONG_JUMP_MARKER) != 0) {
             nextBranchJump = longJumps[nextBranchJump & ~LONG_JUMP_MARKER];
           }
@@ -328,7 +348,7 @@ public final class ClassNameTrie {
 
         // move on to the segment/node for the picked branch...
         if (branch > 0) {
-          int branchJump = data[valueIndex + branchCount - 1];
+          int branchJump = trieData[valueIndex + branchCount - 1];
           if ((branchJump & LONG_JUMP_MARKER) != 0) {
             branchJump = longJumps[branchJump & ~LONG_JUMP_MARKER];
           }
@@ -339,7 +359,7 @@ public final class ClassNameTrie {
         dataIndex += (branchCount * 3) - 1;
 
         if ((value & LEAF_MARKER) != 0) {
-          data[valueIndex] = (char) ((value & ~LEAF_MARKER) | BUD_MARKER);
+          trieData[valueIndex] = (char) ((value & ~LEAF_MARKER) | BUD_MARKER);
           jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
           break;
         } else if ((value & BUD_MARKER) != 0) {
@@ -351,7 +371,7 @@ public final class ClassNameTrie {
           int segmentEnd = dataIndex + segmentLength;
           while (keyIndex < keyLength && dataIndex < segmentEnd) {
             c = key.charAt(keyIndex);
-            if ((c == '/' ? '.' : c) != data[dataIndex]) {
+            if ((c == '/' ? '.' : c) != trieData[dataIndex]) {
               break;
             }
             keyIndex++;
@@ -360,15 +380,15 @@ public final class ClassNameTrie {
           if (dataIndex < segmentEnd) {
             if (keyIndex == keyLength) {
               if (segmentEnd == dataIndex + segmentLength) {
-                data[valueIndex] = (char) (valueToInsert | BUD_MARKER);
+                trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
                 jumpOffset = prependNode(dataIndex, segmentLength - 1);
               } else {
-                data[valueIndex] -= segmentEnd - (dataIndex - 1);
+                trieData[valueIndex] -= segmentEnd - (dataIndex - 1);
                 jumpOffset = insertBud(dataIndex - 1, valueToInsert, segmentEnd);
               }
             } else {
-              data[valueIndex] -= segmentEnd - dataIndex;
-              if (c < data[dataIndex]) {
+              trieData[valueIndex] -= segmentEnd - dataIndex;
+              if (c < trieData[dataIndex]) {
                 jumpOffset =
                     insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
               } else {
@@ -381,18 +401,18 @@ public final class ClassNameTrie {
           }
 
           // peek ahead - it will either be a node or a leaf
-          value = data[dataIndex];
+          value = trieData[dataIndex];
           if ((value & LEAF_MARKER) != 0 && keyIndex < keyLength) {
-            data[valueIndex]--;
+            trieData[valueIndex]--;
             jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
             break;
           } else if ((value & (LEAF_MARKER | BUD_MARKER)) == 0 && keyIndex == keyLength) {
-            data[valueIndex]--;
+            trieData[valueIndex]--;
             jumpOffset = prependNode(dataIndex - 1, valueToInsert | BUD_MARKER);
             break;
           }
         } else if (keyIndex == keyLength) {
-          data[valueIndex] = (char) (valueToInsert | BUD_MARKER);
+          trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
         }
       }
 
@@ -403,16 +423,6 @@ public final class ClassNameTrie {
       }
     }
 
-    private char handleJump(int jump) {
-      if (jump < LONG_JUMP_MARKER) {
-        return (char) jump;
-      }
-      int longJumpId = longJumps.length;
-      longJumps = Arrays.copyOf(longJumps, longJumpId + 1);
-      longJumps[longJumpId] = jump;
-      return (char) (longJumpId | LONG_JUMP_MARKER);
-    }
-
     private int insertBranch(
         int dataIndex,
         String key,
@@ -421,7 +431,7 @@ public final class ClassNameTrie {
         int branchCount,
         int newBranch,
         int subTrieEnd) {
-      char[] oldData = trieData, newData;
+
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 + remainingKeyLength;
 
@@ -431,54 +441,52 @@ public final class ClassNameTrie {
         insertedCharacters = 3;
       }
 
-      int i = dataIndex + newBranch;
+      int i = dataIndex + newBranch, j = i + insertedCharacters;
 
-      newData = new char[oldData.length + insertedCharacters];
-      System.arraycopy(oldData, 0, newData, 0, i);
-      newData[dataIndex - 1] = (char) (branchCount + 1);
+      makeHole(i, insertedCharacters);
 
-      newData[i++] = key.charAt(keyIndex);
-      System.arraycopy(oldData, i - 1, newData, i, branchCount);
+      trieData[dataIndex - 1] = (char) (branchCount + 1);
+
+      trieData[i++] = key.charAt(keyIndex);
+      System.arraycopy(trieData, j, trieData, i, branchCount);
       i += branchCount;
+      j += branchCount;
 
-      newData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
+      trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
 
       int subTrieStart = dataIndex + (branchCount * 3) - 1;
 
       int precedingJump;
       if (newBranch < branchCount) {
-        System.arraycopy(oldData, i - 2, newData, i, branchCount);
+        System.arraycopy(trieData, j, trieData, i, branchCount);
         i += branchCount;
-        precedingJump = newBranch > 0 ? newData[i - 1] : 0;
-        newData[i++] = handleJump(precedingJump + remainingKeyLength);
-        for (int b = newBranch + 1; b < branchCount; b++, i++) {
-          newData[i] = handleJump(oldData[i - 3] + remainingKeyLength);
+        j += branchCount;
+        precedingJump = newBranch > 0 ? trieData[i - 1] : 0;
+        trieData[i++] = handleJump(precedingJump + remainingKeyLength);
+        for (int b = newBranch + 1; b < branchCount; b++) {
+          trieData[i++] = handleJump(trieData[j++] + remainingKeyLength);
         }
       } else {
-        System.arraycopy(oldData, i - 2, newData, i, branchCount - 1);
+        System.arraycopy(trieData, j, trieData, i, branchCount - 1);
         i += branchCount - 1;
+        j += branchCount - 1;
         precedingJump = subTrieEnd - subTrieStart;
-        newData[i++] = handleJump(precedingJump);
+        trieData[i++] = handleJump(precedingJump);
       }
 
-      System.arraycopy(oldData, subTrieStart, newData, i, precedingJump);
+      System.arraycopy(trieData, subTrieStart + insertedCharacters, trieData, i, precedingJump);
       i += precedingJump;
 
       if (!collapseRight) {
-        key.getChars(keyIndex + 1, key.length(), newData, i);
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
         i += remainingKeyLength - 1;
-        newData[i++] = (char) (value | LEAF_MARKER);
+        trieData[i++] = (char) (value | LEAF_MARKER);
       }
 
-      System.arraycopy(
-          oldData, i - insertedCharacters, newData, i, oldData.length - (i - insertedCharacters));
-
-      trieData = newData;
       return insertedCharacters;
     }
 
     private int prependNode(int dataIndex, int value) {
-      char[] oldData = trieData, newData;
       int insertedCharacters = 2;
 
       boolean collapseRight = value == 0;
@@ -486,57 +494,45 @@ public final class ClassNameTrie {
         insertedCharacters--;
       }
 
-      int i = dataIndex;
+      int i = dataIndex, j = i + insertedCharacters;
 
-      newData = new char[oldData.length + insertedCharacters];
-      System.arraycopy(oldData, 0, newData, 0, i);
+      makeHole(i, insertedCharacters);
 
-      newData[i++] = 1;
-      newData[i++] = oldData[dataIndex];
+      trieData[i++] = 1;
+      trieData[i++] = trieData[j];
       if (!collapseRight) {
-        newData[i++] = (char) value;
+        trieData[i++] = (char) value;
       }
 
-      System.arraycopy(
-          oldData, i - insertedCharacters, newData, i, oldData.length - (i - insertedCharacters));
-
-      trieData = newData;
       return insertedCharacters;
     }
 
     private int insertBud(int dataIndex, int value, int segmentEnd) {
-      char[] oldData = trieData, newData;
       int insertedCharacters = 4;
       int pivot = dataIndex + 2;
 
-      boolean collapseRight = pivot == segmentEnd && (oldData[segmentEnd] & LEAF_MARKER) != 0;
+      boolean collapseRight = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
       if (collapseRight) {
         insertedCharacters = 3;
       }
 
-      int i = dataIndex;
+      int i = dataIndex, j = i + insertedCharacters;
 
-      newData = new char[oldData.length + insertedCharacters];
-      System.arraycopy(oldData, 0, newData, 0, i);
+      makeHole(i, insertedCharacters);
 
-      newData[i++] = 1;
-      newData[i++] = oldData[dataIndex];
-      newData[i++] = (char) (value | BUD_MARKER);
-      newData[i++] = 1;
-      newData[i++] = oldData[dataIndex + 1];
+      trieData[i++] = 1;
+      trieData[i++] = trieData[j];
+      trieData[i++] = (char) (value | BUD_MARKER);
+      trieData[i++] = 1;
+      trieData[i++] = trieData[j + 1];
       if (!collapseRight) {
-        newData[i++] = (char) (segmentEnd - pivot);
+        trieData[i++] = (char) (segmentEnd - pivot);
       }
 
-      System.arraycopy(
-          oldData, i - insertedCharacters, newData, i, oldData.length - (i - insertedCharacters));
-
-      trieData = newData;
       return insertedCharacters;
     }
 
     private int insertLeafLeft(int dataIndex, String key, int keyIndex, int value, int segmentEnd) {
-      char[] oldData = trieData, newData;
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 5 + remainingKeyLength;
       int pivot = dataIndex + 1;
@@ -545,46 +541,40 @@ public final class ClassNameTrie {
       if (collapseLeft) {
         insertedCharacters--;
       }
-      boolean collapseRight = pivot == segmentEnd && (oldData[segmentEnd] & LEAF_MARKER) != 0;
+      boolean collapseRight = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
       if (collapseRight) {
         insertedCharacters--;
         pivot++;
       }
 
-      int i = dataIndex;
+      int i = dataIndex, j = i + insertedCharacters;
 
-      newData = new char[oldData.length + insertedCharacters];
-      System.arraycopy(oldData, 0, newData, 0, i);
+      makeHole(i, insertedCharacters);
 
-      newData[i++] = 2;
-      newData[i++] = key.charAt(keyIndex);
-      newData[i++] = oldData[dataIndex];
-      newData[i++] = (char) (collapseLeft ? value | LEAF_MARKER : remainingKeyLength - 1);
-      newData[i++] = (char) (collapseRight ? oldData[dataIndex + 1] : segmentEnd - pivot);
+      trieData[i++] = 2;
+      trieData[i++] = key.charAt(keyIndex);
+      trieData[i++] = trieData[j];
+      trieData[i++] = (char) (collapseLeft ? value | LEAF_MARKER : remainingKeyLength - 1);
+      trieData[i++] = (char) (collapseRight ? trieData[j + 1] : segmentEnd - pivot);
       if (!collapseLeft) {
-        newData[i++] = (char) remainingKeyLength;
-        key.getChars(keyIndex + 1, key.length(), newData, i);
+        trieData[i++] = (char) remainingKeyLength;
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
         i += remainingKeyLength - 1;
-        newData[i++] = (char) (value | LEAF_MARKER);
+        trieData[i++] = (char) (value | LEAF_MARKER);
       } else {
-        newData[i++] = 0;
+        trieData[i++] = 0;
       }
 
-      System.arraycopy(
-          oldData, i - insertedCharacters, newData, i, oldData.length - (i - insertedCharacters));
-
-      trieData = newData;
       return insertedCharacters;
     }
 
     private int insertLeafRight(
         int dataIndex, String key, int keyIndex, int value, int segmentEnd, int subTrieEnd) {
-      char[] oldData = trieData, newData;
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 5 + remainingKeyLength;
       int pivot = dataIndex + 1;
 
-      boolean collapseLeft = pivot == segmentEnd && (oldData[segmentEnd] & LEAF_MARKER) != 0;
+      boolean collapseLeft = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
       if (collapseLeft) {
         insertedCharacters--;
         pivot++;
@@ -594,38 +584,32 @@ public final class ClassNameTrie {
         insertedCharacters--;
       }
 
-      int i = dataIndex;
+      int i = dataIndex, j = i + insertedCharacters;
 
-      newData = new char[oldData.length + insertedCharacters];
-      System.arraycopy(oldData, 0, newData, 0, i);
+      makeHole(i, insertedCharacters);
 
-      newData[i++] = 2;
-      newData[i++] = oldData[dataIndex];
-      newData[i++] = key.charAt(keyIndex);
-      newData[i++] = (char) (collapseLeft ? oldData[dataIndex + 1] : segmentEnd - pivot);
-      newData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
-      newData[i++] = (char) (subTrieEnd - pivot);
-      System.arraycopy(oldData, pivot, newData, i, subTrieEnd - pivot);
+      trieData[i++] = 2;
+      trieData[i++] = trieData[j];
+      trieData[i++] = key.charAt(keyIndex);
+      trieData[i++] = (char) (collapseLeft ? trieData[j + 1] : segmentEnd - pivot);
+      trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
+      trieData[i++] = (char) (subTrieEnd - pivot);
+      System.arraycopy(trieData, pivot + insertedCharacters, trieData, i, subTrieEnd - pivot);
       i += subTrieEnd - pivot;
       if (!collapseRight) {
-        key.getChars(keyIndex + 1, key.length(), newData, i);
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
         i += remainingKeyLength - 1;
-        newData[i++] = (char) (value | LEAF_MARKER);
+        trieData[i++] = (char) (value | LEAF_MARKER);
       }
 
-      System.arraycopy(
-          oldData, i - insertedCharacters, newData, i, oldData.length - (i - insertedCharacters));
-
-      trieData = newData;
       return insertedCharacters;
     }
 
     private int appendLeaf(int dataIndex, String key, int keyIndex, int value) {
-      char[] oldData = trieData, newData;
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 + remainingKeyLength;
 
-      boolean insertBud = dataIndex < oldData.length && (oldData[dataIndex] & LEAF_MARKER) != 0;
+      boolean insertBud = dataIndex < trieLength && (trieData[dataIndex] & LEAF_MARKER) != 0;
       if (insertBud) {
         insertedCharacters++;
       }
@@ -634,29 +618,25 @@ public final class ClassNameTrie {
         insertedCharacters--;
       }
 
-      int i = dataIndex;
+      int i = dataIndex, j = i + insertedCharacters;
 
-      newData = new char[oldData.length + insertedCharacters];
-      System.arraycopy(oldData, 0, newData, 0, i);
+      makeHole(i, insertedCharacters);
 
       if (insertBud) {
-        newData[i - 1] = 1;
-        newData[i++] = oldData[dataIndex - 1];
-        newData[i++] = (char) ((oldData[dataIndex] & ~LEAF_MARKER) | BUD_MARKER);
+        char c = trieData[i - 1];
+        trieData[i - 1] = 1;
+        trieData[i++] = c;
+        trieData[i++] = (char) ((trieData[j] & ~LEAF_MARKER) | BUD_MARKER);
       }
-      newData[i++] = 1;
-      newData[i++] = key.charAt(keyIndex);
+      trieData[i++] = 1;
+      trieData[i++] = key.charAt(keyIndex);
       if (!collapseRight) {
-        newData[i++] = (char) (remainingKeyLength - 1);
-        key.getChars(keyIndex + 1, key.length(), newData, i);
+        trieData[i++] = (char) (remainingKeyLength - 1);
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
         i += remainingKeyLength - 1;
       }
-      newData[i++] = (char) (value | LEAF_MARKER);
+      trieData[i++] = (char) (value | LEAF_MARKER);
 
-      System.arraycopy(
-          oldData, i - insertedCharacters, newData, i, oldData.length - (i - insertedCharacters));
-
-      trieData = newData;
       return insertedCharacters;
     }
   }
