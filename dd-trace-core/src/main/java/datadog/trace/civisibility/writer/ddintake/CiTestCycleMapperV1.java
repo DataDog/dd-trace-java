@@ -199,6 +199,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
+      // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
         ByteBuffer header = msgpackMapHeader(0);
         while (header.hasRemaining()) {
@@ -213,6 +214,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public RequestBody toRequest() {
+      // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
         return msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
       } else {

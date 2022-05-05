@@ -11,6 +11,7 @@ import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
 import datadog.trace.core.CoreTracer
@@ -373,7 +374,49 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   }
 
   def "unreachable intake test"() {
+    setup:
+    def healthMetrics = Mock(HealthMetrics)
+    def minimalTrace = createMinimalTrace()
 
+    def api = Mock(DDIntakeApi) {
+      it.sendSerializedTraces(_) >> {
+        // simulating a communication failure to a server
+        return RemoteApi.Response.failed(new IOException("comm error"))
+      }
+    }
+
+    def writer = DDIntakeWriter.builder()
+      .intakeApi(api)
+      .trackType(trackType)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .alwaysFlush(false)
+      .build()
+
+    when:
+    writer.start()
+
+    then:
+    1 * healthMetrics.onStart(writer.getCapacity())
+
+    when:
+    writer.write(minimalTrace)
+    writer.flush()
+
+    then:
+    // if we know there's no agent, we'll drop the traces before serialising them
+    // but we also know that there's nowhere to send health metrics to
+    1 * healthMetrics.onPublish(_, _)
+    1 * healthMetrics.onFlush(false)
+
+    when:
+    writer.close()
+
+    then:
+    1 * healthMetrics.onShutdown(true)
+
+    where:
+    trackType << [TrackType.CITESTCYCLE]
   }
 
   @Retry(delay = 500)
