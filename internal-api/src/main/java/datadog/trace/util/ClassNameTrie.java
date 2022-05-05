@@ -258,6 +258,10 @@ public final class ClassNameTrie {
       }
     }
 
+    public boolean isEmpty() {
+      return keys.isEmpty();
+    }
+
     public ClassNameTrie buildTrie() {
       buildSubTrie(0, 0, keys.size());
       char[] data = new char[buf.length()];
