@@ -225,7 +225,7 @@ public final class ClassNameTrie {
     }
 
     public ClassNameTrie buildTrie() {
-      return new ClassNameTrie(Arrays.copyOfRange(trieData, 0, trieLength), longJumps);
+      return new ClassNameTrie(Arrays.copyOfRange(trieData, 0, trieLength), longJumps.clone());
     }
 
     /** Reads a class-name mapping file into the current builder */
@@ -273,6 +273,7 @@ public final class ClassNameTrie {
       }
     }
 
+    /** Makes a hole in the current trie data to fit a new node/branch, etc. */
     private void makeHole(int start, int length) {
       char[] oldData = trieData;
       if (trieLength + length > oldData.length) {
@@ -283,6 +284,7 @@ public final class ClassNameTrie {
       trieLength += length;
     }
 
+    /** Moves jump values that won't fit into the long-jump table and replaces them with an id. */
     private char packJump(int jump) {
       if (jump < LONG_JUMP_MARKER) {
         return (char) jump;
@@ -293,6 +295,7 @@ public final class ClassNameTrie {
       return (char) (longJumpId | LONG_JUMP_MARKER);
     }
 
+    /** Restores jump values previously moved into the long-jump table. */
     private int unpackJump(char jump) {
       return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
     }
@@ -331,16 +334,18 @@ public final class ClassNameTrie {
         char value = trieData[valueIndex];
 
         if ((value & (LEAF_MARKER | BUD_MARKER)) != 0 && keyIndex == keyLength) {
-          return;
+          return; // ignore duplicate key
         }
 
         int branch = branchIndex - dataIndex;
         if (branch < branchCount - 1) {
           int nextJumpIndex = valueIndex + branchCount;
-
           int nextBranchJump = unpackJump(trieData[nextJumpIndex]);
+
+          // update subTrieEnd to reflect we've moved down a left/centre branch
           subTrieEnd = dataIndex + (branchCount * 3) - 1 + nextBranchJump;
 
+          // remember to update jump offsets on right once we know how much we've added
           for (int b = branch + 1; b < branchCount; b++) {
             jumpsToOffset.set(nextJumpIndex++);
           }
@@ -355,13 +360,24 @@ public final class ClassNameTrie {
         dataIndex += (branchCount * 3) - 1;
 
         if ((value & LEAF_MARKER) != 0) {
+          // change leaf branch to a bud and append our new leaf node below it
           trieData[valueIndex] = (char) ((value & ~LEAF_MARKER) | BUD_MARKER);
           jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
           break;
         } else if ((value & BUD_MARKER) != 0) {
+          // ignore bud as we still have more of the key to match
           continue;
+        } else if (keyIndex == keyLength) {
+          // branch originally led to a segment - record it's now a bud
+          trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
+          if (value > 0) {
+            // add the usual node preamble before the old segment
+            jumpOffset = prependNode(dataIndex, value - 1);
+          }
+          break;
         }
 
+        // must be a segment - try to match as much as possible before we insert a bud/leaf
         if (value > 0) {
           int segmentLength = value;
           int segmentEnd = dataIndex + segmentLength;
@@ -375,14 +391,11 @@ public final class ClassNameTrie {
           }
           if (dataIndex < segmentEnd) {
             if (keyIndex == keyLength) {
-              if (segmentEnd == dataIndex + segmentLength) {
-                trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
-                jumpOffset = prependNode(dataIndex, segmentLength - 1);
-              } else {
-                trieData[valueIndex] -= segmentEnd - (dataIndex - 1);
-                jumpOffset = insertBud(dataIndex - 1, valueToInsert, segmentEnd);
-              }
+              // key is shorter than segment; add bud at the point the key ends
+              trieData[valueIndex] -= segmentEnd - (dataIndex - 1);
+              jumpOffset = insertBud(dataIndex - 1, valueToInsert, segmentEnd);
             } else {
+              // key diverges from segment; add leaf on left/right to capture that
               trieData[valueIndex] -= segmentEnd - dataIndex;
               if (c < trieData[dataIndex]) {
                 jumpOffset = insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
@@ -392,26 +405,31 @@ public final class ClassNameTrie {
                         dataIndex, key, keyIndex, valueToInsert, segmentEnd, subTrieEnd);
               }
             }
-            break;
+            break; // nothing more to add
           }
 
           // peek ahead - it will either be a node or a leaf
           value = trieData[dataIndex];
-          if ((value & LEAF_MARKER) != 0 && keyIndex < keyLength) {
-            trieData[valueIndex]--;
-            jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
-            break;
-          } else if ((value & (LEAF_MARKER | BUD_MARKER)) == 0 && keyIndex == keyLength) {
-            trieData[valueIndex]--;
-            jumpOffset = prependNode(dataIndex - 1, valueToInsert | BUD_MARKER);
-            break;
+          if ((value & LEAF_MARKER) != 0) {
+            if (keyIndex < keyLength) {
+              // key goes past leaf segment, extend old leaf with a bud node and add our new leaf
+              trieData[valueIndex]--;
+              jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+              break;
+            }
+          } else /* segment is followed by a node */ {
+            if (keyIndex == keyLength) {
+              // key stops at boundary between segment and node, insert bud node just before this
+              trieData[valueIndex]--;
+              jumpOffset = prependNode(dataIndex - 1, valueToInsert | BUD_MARKER);
+              break;
+            }
           }
-        } else if (keyIndex == keyLength) {
-          trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
         }
       }
 
       if (jumpOffset > 0) {
+        // now we know how much we added, update all jumps that need to jump past our addition
         for (int i = jumpsToOffset.nextSetBit(0); i >= 0; i = jumpsToOffset.nextSetBit(i + 1)) {
           trieData[i] = packJump(unpackJump(trieData[i]) + jumpOffset);
         }
@@ -440,39 +458,49 @@ public final class ClassNameTrie {
 
       makeHole(i, insertedCharacters);
 
+      // update branch count leading into our branches
       trieData[dataIndex - 1] = (char) (branchCount + 1);
 
+      // insert our new branch key
       trieData[i++] = key.charAt(keyIndex);
       System.arraycopy(trieData, j, trieData, i, branchCount);
       i += branchCount;
       j += branchCount;
 
+      // insert our new branch value
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
 
       int subTrieStart = dataIndex + (branchCount * 3) - 1;
 
       int precedingJump;
       if (newBranch < branchCount) {
+        // adding branch on left/centre
         System.arraycopy(trieData, j, trieData, i, branchCount);
         i += branchCount;
         j += branchCount;
         precedingJump = newBranch > 0 ? unpackJump(trieData[i - 1]) : 0;
+        // calculate jump for next branch, using previous jump as a reference
         trieData[i++] = packJump(precedingJump + remainingKeyLength);
         for (int b = newBranch + 1; b < branchCount; b++) {
+          // update old branch jumps on right to account for added content
           trieData[i++] = packJump(unpackJump(trieData[j++]) + remainingKeyLength);
         }
       } else {
+        // adding branch on right
         System.arraycopy(trieData, j, trieData, i, branchCount - 1);
         i += branchCount - 1;
         j += branchCount - 1;
+        // calculate jump needed to reach our new branch based on the size of the old sub-trie
         precedingJump = subTrieEnd - subTrieStart;
         trieData[i++] = packJump(precedingJump);
       }
 
+      // now move up the sub-trie content before our new branch
       System.arraycopy(trieData, subTrieStart + insertedCharacters, trieData, i, precedingJump);
       i += precedingJump;
 
       if (!collapseRight) {
+        // lastly add the rest of our key as a leaf segment under our new branch
         key.getChars(keyIndex + 1, key.length(), trieData, i);
         i += remainingKeyLength - 1;
         trieData[i++] = (char) (value | LEAF_MARKER);
@@ -484,7 +512,8 @@ public final class ClassNameTrie {
     private int prependNode(int dataIndex, int value) {
       int insertedCharacters = 2;
 
-      boolean collapseRight = value == 0;
+      // can collapse branch if it would lead to a leaf segment of zero-length
+      boolean collapseRight = value == 0 && (trieData[dataIndex + 1] & LEAF_MARKER) != 0;
       if (collapseRight) {
         insertedCharacters--;
       }
@@ -506,6 +535,7 @@ public final class ClassNameTrie {
       int insertedCharacters = 4;
       int pivot = dataIndex + 2;
 
+      // can collapse right branch if it would lead to a leaf segment of zero-length
       boolean collapseRight = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
       if (collapseRight) {
         insertedCharacters = 3;
@@ -532,10 +562,12 @@ public final class ClassNameTrie {
       int insertedCharacters = 5 + remainingKeyLength;
       int pivot = dataIndex + 1;
 
+      // can collapse left branch if the key only has a single character left
       boolean collapseLeft = remainingKeyLength == 1;
       if (collapseLeft) {
         insertedCharacters--;
       }
+      // can collapse right branch if it would lead to a leaf segment of zero-length
       boolean collapseRight = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
       if (collapseRight) {
         insertedCharacters--;
@@ -569,11 +601,13 @@ public final class ClassNameTrie {
       int insertedCharacters = 5 + remainingKeyLength;
       int pivot = dataIndex + 1;
 
+      // can collapse left branch if it would lead to a leaf segment of zero-length
       boolean collapseLeft = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
       if (collapseLeft) {
         insertedCharacters--;
         pivot++;
       }
+      // can collapse right branch if the key only has a single character left
       boolean collapseRight = remainingKeyLength == 1;
       if (collapseRight) {
         insertedCharacters--;
@@ -604,10 +638,12 @@ public final class ClassNameTrie {
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 + remainingKeyLength;
 
+      // if we're adding this to a leaf segment then we need to introduce a bud first
       boolean insertBud = dataIndex < trieLength && (trieData[dataIndex] & LEAF_MARKER) != 0;
       if (insertBud) {
         insertedCharacters++;
       }
+      // can collapse right branch if the key only has a single character left
       boolean collapseRight = remainingKeyLength == 1;
       if (collapseRight) {
         insertedCharacters--;
