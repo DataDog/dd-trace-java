@@ -198,6 +198,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
@@ -339,6 +340,7 @@ public class Config {
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   private final List<String> excludedClasses;
+  private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
@@ -671,6 +673,7 @@ public class Config {
     primaryTag = configProvider.getString(PRIMARY_TAG);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
+    excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
 
     if (isEnabled(false, HEADER_TAGS, ".legacy.parsing.enabled")) {
@@ -1153,6 +1156,10 @@ public class Config {
 
   public List<String> getExcludedClasses() {
     return excludedClasses;
+  }
+
+  public String getExcludedClassesFile() {
+    return excludedClassesFile;
   }
 
   public Set<String> getExcludedClassLoaders() {
@@ -2297,6 +2304,8 @@ public class Config {
         + jmxTags
         + ", excludedClasses="
         + excludedClasses
+        + ", excludedClassesFile="
+        + excludedClassesFile
         + ", excludedClassLoaders="
         + excludedClassLoaders
         + ", requestHeaderTags="
