@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -194,23 +194,32 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
     @Override
     public int sizeInBytes() {
-      return msgpackArrayHeaderSize(traceCount()) + body.remaining();
+      return body.remaining();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      ByteBuffer header = msgpackArrayHeader(traceCount());
-      while (header.hasRemaining()) {
-        channel.write(header);
-      }
-      while (body.hasRemaining()) {
-        channel.write(body);
+      // If traceCount is 0, we write a map with 0 elements in MsgPack format.
+      if (traceCount() == 0) {
+        ByteBuffer header = msgpackMapHeader(0);
+        while (header.hasRemaining()) {
+          channel.write(header);
+        }
+      } else {
+        while (body.hasRemaining()) {
+          channel.write(body);
+        }
       }
     }
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
+      // If traceCount is 0, we write a map with 0 elements in MsgPack format.
+      if (traceCount() == 0) {
+        return msgpackRequestBodyOf(Collections.singletonList(msgpackMapHeader(0)));
+      } else {
+        return msgpackRequestBodyOf(Collections.singletonList(body));
+      }
     }
   }
 }

@@ -3,6 +3,9 @@ package datadog.trace.common.writer;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY32;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXMAP;
+import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
+import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -71,6 +74,16 @@ public abstract class Payload {
       return ByteBuffer.allocate(3).put(0, ARRAY16).putShort(1, (short) count);
     } else {
       return ByteBuffer.allocate(5).put(0, ARRAY32).putInt(1, count);
+    }
+  }
+
+  protected ByteBuffer msgpackMapHeader(int count) {
+    if (count < 0x10) {
+      return ByteBuffer.allocate(1).put(0, (byte) (FIXMAP | count));
+    } else if (count < 0x10000) {
+      return ByteBuffer.allocate(3).put(0, MAP16).putShort((short) count);
+    } else {
+      return ByteBuffer.allocate(5).put(0, MAP32).putInt(1, count);
     }
   }
 }

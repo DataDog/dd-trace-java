@@ -22,7 +22,6 @@ import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
 import static org.junit.Assert.assertNotNull
-import static org.junit.Assert.assertTrue
 import static org.msgpack.core.MessageFormat.FLOAT32
 import static org.msgpack.core.MessageFormat.FLOAT64
 import static org.msgpack.core.MessageFormat.INT16
@@ -114,11 +113,9 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
         captured.flip()
-        assertTrue(payload.sizeInBytes() > 0)
         assertNotNull(payload.toRequest())
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
-        int traceCount = unpacker.unpackArrayHeader()
-        for (int i = 0; i < traceCount; ++i) {
+        for (int i = 0; i < messageCount; ++i) {
           assertEquals(3, unpacker.unpackMapHeader())
           assertEquals("version", unpacker.unpackString())
           assertEquals(1, unpacker.unpackInt())

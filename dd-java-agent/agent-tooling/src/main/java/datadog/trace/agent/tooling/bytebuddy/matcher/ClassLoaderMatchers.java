@@ -28,13 +28,37 @@ public final class ClassLoaderMatchers {
   private static final boolean HAS_CLASSLOADER_EXCLUDES =
       !Config.get().getExcludedClassLoaders().isEmpty();
 
+  /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
+  private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache();
+
   /** A private constructor that must not be invoked. */
   private ClassLoaderMatchers() {
     throw new UnsupportedOperationException();
   }
 
-  public static ElementMatcher.Junction.AbstractBase<ClassLoader> skipClassLoader() {
-    return SkipClassLoaderMatcher.INSTANCE;
+  public static boolean skipClassLoader(final ClassLoader loader) {
+    if (loader == BOOTSTRAP_CLASSLOADER) {
+      // Don't skip bootstrap loader
+      return false;
+    }
+    if (canSkipClassLoaderByName(loader)) {
+      return true;
+    }
+    Boolean v = skipCache.getIfPresent(loader);
+    if (v != null) {
+      return v;
+    }
+    // when ClassloadingInstrumentation is active, checking delegatesToBootstrap() below is not
+    // required, because ClassloadingInstrumentation forces all class loaders to load all of the
+    // classes in Constants.BOOTSTRAP_PACKAGE_PREFIXES directly from the bootstrap class loader
+    //
+    // however, at this time we don't want to introduce the concept of a required instrumentation,
+    // and we don't want to introduce the concept of the tooling code depending on whether or not
+    // a particular instrumentation is active (mainly because this particular use case doesn't
+    // seem to justify introducing either of these new concepts)
+    v = !delegatesToBootstrap(loader);
+    skipCache.put(loader, v);
+    return v;
   }
 
   public static boolean canSkipClassLoaderByName(final ClassLoader loader) {
@@ -80,66 +104,31 @@ public final class ClassLoaderMatchers {
     return new ClassLoaderHasClassNamedMatcher(className);
   }
 
-  private static final class SkipClassLoaderMatcher
-      extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
-    public static final SkipClassLoaderMatcher INSTANCE = new SkipClassLoaderMatcher();
-    /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
-    private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache();
-
-    private SkipClassLoaderMatcher() {}
-
-    @Override
-    public boolean matches(final ClassLoader cl) {
-      if (cl == BOOTSTRAP_CLASSLOADER) {
-        // Don't skip bootstrap loader
-        return false;
-      }
-      if (canSkipClassLoaderByName(cl)) {
-        return true;
-      }
-      Boolean v = skipCache.getIfPresent(cl);
-      if (v != null) {
-        return v;
-      }
-      // when ClassloadingInstrumentation is active, checking delegatesToBootstrap() below is not
-      // required, because ClassloadingInstrumentation forces all class loaders to load all of the
-      // classes in Constants.BOOTSTRAP_PACKAGE_PREFIXES directly from the bootstrap class loader
-      //
-      // however, at this time we don't want to introduce the concept of a required instrumentation,
-      // and we don't want to introduce the concept of the tooling code depending on whether or not
-      // a particular instrumentation is active (mainly because this particular use case doesn't
-      // seem to justify introducing either of these new concepts)
-      v = !delegatesToBootstrap(cl);
-      skipCache.put(cl, v);
-      return v;
+  /**
+   * TODO: this turns out to be useless with OSGi: {@code
+   * org.eclipse.osgi.internal.loader.BundleLoader#isRequestFromVM} returns {@code true} when class
+   * loading is issued from this check and {@code false} for 'real' class loads. We should come up
+   * with some sort of hack to avoid this problem.
+   */
+  private static boolean delegatesToBootstrap(final ClassLoader loader) {
+    boolean delegates = true;
+    if (!loadsExpectedClass(loader, Tracer.class)) {
+      log.debug("Loader {} failed to delegate to bootstrap dd-trace-api class", loader);
+      delegates = false;
     }
-
-    /**
-     * TODO: this turns out to be useless with OSGi: {@code
-     * org.eclipse.osgi.internal.loader.BundleLoader#isRequestFromVM} returns {@code true} when
-     * class loading is issued from this check and {@code false} for 'real' class loads. We should
-     * come up with some sort of hack to avoid this problem.
-     */
-    private static boolean delegatesToBootstrap(final ClassLoader loader) {
-      boolean delegates = true;
-      if (!loadsExpectedClass(loader, Tracer.class)) {
-        log.debug("Loader {} failed to delegate to bootstrap dd-trace-api class", loader);
-        delegates = false;
-      }
-      if (!loadsExpectedClass(loader, PatchLogger.class)) {
-        log.debug("Loader {} failed to delegate to bootstrap agent-bootstrap class", loader);
-        delegates = false;
-      }
-      return delegates;
+    if (!loadsExpectedClass(loader, PatchLogger.class)) {
+      log.debug("Loader {} failed to delegate to bootstrap agent-bootstrap class", loader);
+      delegates = false;
     }
+    return delegates;
+  }
 
-    private static boolean loadsExpectedClass(
-        final ClassLoader loader, final Class<?> expectedClass) {
-      try {
-        return loader.loadClass(expectedClass.getName()) == expectedClass;
-      } catch (final Throwable ignored) {
-        return false;
-      }
+  private static boolean loadsExpectedClass(
+      final ClassLoader loader, final Class<?> expectedClass) {
+    try {
+      return loader.loadClass(expectedClass.getName()) == expectedClass;
+    } catch (final Throwable ignored) {
+      return false;
     }
   }
 

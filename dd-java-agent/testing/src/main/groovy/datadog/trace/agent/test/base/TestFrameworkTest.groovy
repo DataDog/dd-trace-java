@@ -17,7 +17,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     injectSysConfig("dd.civisibility.enabled", "true")
   }
 
-  void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null) {
+  void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null, final boolean emptyDuration = false) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -27,6 +27,11 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       resourceName "$testSuite.$testName"
       spanType DDSpanTypes.TEST
       errored exception != null
+      if(emptyDuration) {
+        duration({it == 1L})
+      } else {
+        duration({it > 1L})
+      }
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST
