@@ -195,6 +195,11 @@ public class DDSpan
     finishAndAddToTrace(durationNano);
   }
 
+  @Override
+  public final void finishWithDuration(final long durationNano) {
+    finishAndAddToTrace(durationNano);
+  }
+
   private static final boolean legacyEndToEndEnabled =
       Config.get().isEndToEndDurationEnabled(false, "legacy");
 

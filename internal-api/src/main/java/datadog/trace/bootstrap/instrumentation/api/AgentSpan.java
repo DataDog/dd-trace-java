@@ -89,6 +89,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void finish(long finishMicros);
 
+  void finishWithDuration(long durationNanos);
+
   /** Marks the start of a message pipeline where we want to track end-to-end processing time. */
   void beginEndToEnd();
 
