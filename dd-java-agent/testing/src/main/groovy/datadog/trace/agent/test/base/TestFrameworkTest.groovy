@@ -28,9 +28,9 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       spanType DDSpanTypes.TEST
       errored exception != null
       if(emptyDuration) {
-        duration({it == 0L})
+        duration({it == 1L})
       } else {
-        duration({it > 0L})
+        duration({it > 1L})
       }
       tags {
         "$Tags.COMPONENT" component
@@ -43,7 +43,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
         }
         "$Tags.TEST_STATUS" testStatus
-
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
         }

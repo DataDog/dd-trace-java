@@ -153,13 +153,8 @@ public class DDSpan
   }
 
   private void finishAndAddToTrace(final long durationNano) {
-    this.finishAndAddToTrace(durationNano, false);
-  }
-
-  private void finishAndAddToTrace(final long durationNano, boolean force) {
-    // ensure a min duration of 1 if !force
-    if (DURATION_NANO_UPDATER.compareAndSet(
-        this, 0, !force ? Math.max(1, durationNano) : durationNano)) {
+    // ensure a min duration of 1
+    if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
       tracingContextTracker.deactivateContext();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
@@ -202,7 +197,7 @@ public class DDSpan
 
   @Override
   public final void finishWithDuration(final long durationNano) {
-    finishAndAddToTrace(durationNano, true);
+    finishAndAddToTrace(durationNano);
   }
 
   private static final boolean legacyEndToEndEnabled =
