@@ -119,7 +119,7 @@ public class TracingListener extends RunListener {
       DECORATE.afterStart(span, version);
       DECORATE.onTestIgnored(span, description, testName, reason);
       DECORATE.beforeFinish(span);
-      span.finish(span.getStartTime());
+      span.finishWithDuration(0L);
     }
   }
 }

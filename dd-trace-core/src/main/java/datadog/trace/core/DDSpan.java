@@ -153,8 +153,13 @@ public class DDSpan
   }
 
   private void finishAndAddToTrace(final long durationNano) {
-    // ensure a min duration of 1
-    if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
+    this.finishAndAddToTrace(durationNano, false);
+  }
+
+  private void finishAndAddToTrace(final long durationNano, boolean force) {
+    // ensure a min duration of 1 if !force
+    if (DURATION_NANO_UPDATER.compareAndSet(
+        this, 0, !force ? Math.max(1, durationNano) : durationNano)) {
       context.getTrace().onFinish(this);
       tracingContextTracker.deactivateContext();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
@@ -193,6 +198,11 @@ public class DDSpan
       context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
     finishAndAddToTrace(durationNano);
+  }
+
+  @Override
+  public final void finishWithDuration(final long durationNano) {
+    finishAndAddToTrace(durationNano, true);
   }
 
   private static final boolean legacyEndToEndEnabled =

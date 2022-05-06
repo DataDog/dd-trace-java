@@ -82,6 +82,11 @@ class SpanAssert {
     checked.resourceName = true
   }
 
+  def duration(Closure<Boolean> eval) {
+    assert eval(span.durationNano)
+    checked.duration = true
+  }
+
   def spanType(String type) {
     if (null == span.spanType) {
       // code less readable makes for a better assertion message, don't want NPE

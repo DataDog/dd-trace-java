@@ -86,7 +86,7 @@ public class TracingListener implements ITestListener {
 
     DECORATE.onTestIgnored(span, result);
     DECORATE.beforeFinish(span);
-    span.finish(span.getStartTime());
+    span.finishWithDuration(0L);
   }
 
   @Override

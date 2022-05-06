@@ -132,7 +132,7 @@ public class TracingListener implements TestExecutionListener {
       DECORATE.afterStart(span, version);
       DECORATE.onTestIgnore(span, testSuite, testName, reason);
       DECORATE.beforeFinish(span);
-      span.finish(span.getStartTime());
+      span.finishWithDuration(0L);
     }
   }
 
@@ -145,6 +145,6 @@ public class TracingListener implements TestExecutionListener {
     DECORATE.afterStart(span, version);
     DECORATE.onTestIgnore(span, testSuite, testName, reason);
     DECORATE.beforeFinish(span);
-    span.finish(span.getStartTime());
+    span.finishWithDuration(0L);
   }
 }
