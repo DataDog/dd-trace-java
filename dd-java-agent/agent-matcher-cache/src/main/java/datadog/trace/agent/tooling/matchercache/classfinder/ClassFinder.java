@@ -127,7 +127,6 @@ public class ClassFinder {
     if (classBytes != null) {
       try {
         String className = readClassName(classBytes);
-        // TODO do we ever transform classes in *.classdata? Remove if not.
         if (!"module-info".equals(className)
             && !"package-info".equals(className)
             && !relativePath.endsWith(".classdata")) {
@@ -135,7 +134,7 @@ public class ClassFinder {
           return true;
         }
       } catch (Throwable t) {
-        log.debug("Can't read class: {}", relativePath);
+        log.debug("Can't read class: {}/{}", parentPath, relativePath);
       }
     }
     return false;

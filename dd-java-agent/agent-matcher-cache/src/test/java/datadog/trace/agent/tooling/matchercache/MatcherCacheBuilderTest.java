@@ -14,6 +14,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import org.junit.jupiter.api.Test;
 
 public class MatcherCacheBuilderTest {
+  //  public static final String TEST_CLASSES_FOLDER =
+  // "dd-java-agent/agent-matcher-cache/src/test/resources/test-classes";
   public static final String TEST_CLASSES_FOLDER = "build/resources/test/test-classes";
 
   private static class TestClassLoader extends ClassCollectionLoader {
@@ -34,9 +36,9 @@ public class MatcherCacheBuilderTest {
     @Override
     public boolean matchesAny(Class<?> cl) {
       TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
-      String fqcn = typeDescription.getCanonicalName();
-      if (fqcn != null) {
-        switch (fqcn) {
+      String fullClassName = typeDescription.getCanonicalName();
+      if (fullClassName != null) {
+        switch (fullClassName) {
           case "example.OuterJarClass":
           case "example.InnerJarClass":
           case "example.classes.Abc":
@@ -51,8 +53,8 @@ public class MatcherCacheBuilderTest {
     }
 
     @Override
-    public boolean isGloballyIgnored(String fqcn) {
-      switch (fqcn) {
+    public boolean isGloballyIgnored(String fullClassName) {
+      switch (fullClassName) {
         case "foo.bar.xyz.Xyz":
         case "bar.foo.Baz":
           return true;

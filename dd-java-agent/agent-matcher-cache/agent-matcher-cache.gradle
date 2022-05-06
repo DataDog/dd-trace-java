@@ -3,11 +3,21 @@ apply plugin: "idea"
 
 minimumBranchCoverage = 0.6
 
+sourceSets {
+  test_java11 {
+    java {
+      srcDir file('src/test/java11')
+    }
+  }
+}
+
 dependencies {
   implementation deps.slf4j
   implementation deps.bytebuddy
   testImplementation deps.junit5
   testImplementation deps.mockito
+  test_java11Implementation sourceSets.main.output
+  test_java11Implementation sourceSets.test.output
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
@@ -15,4 +25,34 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 test {
   useJUnitPlatform()
+}
+
+configurations {
+  test_java11Implementation.extendsFrom implementationRuntime
+  test_java11Implementation.extendsFrom testImplementation
+  test_java11Runtime.extendsFrom testRuntime
+}
+
+compileTest_java11Java.configure {
+  setJavaVersion(it, 11)
+}
+
+task testJava11(type: Test) {
+  javaLauncher.set(javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(11))
+  })
+  testClassesDirs = sourceSets.test_java11.output.classesDirs
+  classpath = sourceSets.test_java11.runtimeClasspath
+}
+
+testJava11 {
+  useJUnitPlatform()
+}
+
+test.dependsOn testJava11
+
+idea {
+  module {
+    jdkName = '11'
+  }
 }

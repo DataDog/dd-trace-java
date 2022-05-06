@@ -6,26 +6,27 @@ import java.util.Map;
 import java.util.Set;
 
 public class ClassCollection {
-  private final Map<String, ClassVersions> classMap = new HashMap<>();
+  private final Map<String, ClassData> classMap = new HashMap<>();
 
-  public void addClass(byte[] classBytes, String fqcn, String relativePath, String parentPath) {
-    ClassVersions classVersions = classMap.get(fqcn);
-    if (classVersions == null) {
-      classVersions = new ClassVersions(fqcn);
-      classMap.put(fqcn, classVersions);
+  public void addClass(
+      byte[] classBytes, String fullClassName, String relativePath, String parentPath) {
+    ClassData classData = classMap.get(fullClassName);
+    if (classData == null) {
+      classData = new ClassData(fullClassName);
+      classMap.put(fullClassName, classData);
     }
-    classVersions.addClassBytes(classBytes, relativePath, parentPath);
+    classData.addClassBytes(classBytes, relativePath, parentPath);
   }
 
-  public ClassVersions findClass(String className) {
+  public ClassData findClass(String className) {
     return classMap.get(className);
   }
 
-  public Set<ClassVersions> allClasses(int majorJavaVersion) {
-    Set<ClassVersions> classes = new HashSet<>();
-    for (ClassVersions classVersions : classMap.values()) {
-      if (classVersions.classBytes(majorJavaVersion) != null) {
-        classes.add(classVersions);
+  public Set<ClassData> allClasses(int majorJavaVersion) {
+    Set<ClassData> classes = new HashSet<>();
+    for (ClassData classData : classMap.values()) {
+      if (classData.classBytes(majorJavaVersion) != null) {
+        classes.add(classData);
       }
     }
     return classes;

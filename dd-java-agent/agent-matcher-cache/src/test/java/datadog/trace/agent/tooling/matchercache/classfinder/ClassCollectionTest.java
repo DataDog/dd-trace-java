@@ -22,12 +22,12 @@ public class ClassCollectionTest {
     cc.addClass(bytesJava9, "foo.bar.FooBar", "META-INF/versions/9/foo/bar/FooBar.class", "");
     cc.addClass(bytesJavaOnly9, "foo.bar.Only9", "META-INF/versions/9/foo/bar/Only9.class", "");
 
-    ClassVersions cvs = cc.findClass("foo.bar.FooBar");
+    ClassData cvs = cc.findClass("foo.bar.FooBar");
     assertEquals(bytesDefault, cvs.classBytes(7));
     assertEquals(bytesJava9, cvs.classBytes(9));
     assertEquals(bytesJava9, cvs.classBytes(11));
 
-    ClassVersions cvs9 = cc.findClass("foo.bar.Only9");
+    ClassData cvs9 = cc.findClass("foo.bar.Only9");
     assertNull(cvs9.classBytes(7));
     assertNull(cvs9.classBytes(8));
     assertEquals(bytesJavaOnly9, cvs9.classBytes(9));
@@ -78,10 +78,10 @@ public class ClassCollectionTest {
     assertClasses(expectedClasses, cc.allClasses(11));
   }
 
-  private void assertClasses(Set<String> expectedClasses, Set<ClassVersions> actualClassData) {
+  private void assertClasses(Set<String> expectedClasses, Set<ClassData> actualClassData) {
     Set<String> actualClasses = new HashSet<>();
-    for (ClassVersions cd : actualClassData) {
-      actualClasses.add(cd.fullClassName());
+    for (ClassData cd : actualClassData) {
+      actualClasses.add(cd.getFullClassName());
     }
     assertEquals(expectedClasses, actualClasses);
   }

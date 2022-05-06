@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.matchercache;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
-import datadog.trace.agent.tooling.matchercache.classfinder.ClassVersions;
+import datadog.trace.agent.tooling.matchercache.classfinder.ClassData;
 import datadog.trace.agent.tooling.matchercache.util.BinarySerializers;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -48,18 +48,18 @@ public class MatcherCacheBuilder {
   public Stats fill(
       ClassCollection classCollection, ClassLoader classLoader, ClassMatchers classMatchers) {
     Stats stats = new Stats();
-    for (ClassVersions classVersions : classCollection.allClasses(javaMajorVersion)) {
-      String packageName = classVersions.packageName();
-      String className = classVersions.className();
-      String location = classVersions.location(javaMajorVersion);
+    for (ClassData classData : classCollection.allClasses(javaMajorVersion)) {
+      String packageName = classData.packageName();
+      String className = classData.className();
+      String location = classData.location(javaMajorVersion);
 
-      if (classMatchers.isGloballyIgnored(classVersions.fullClassName())) {
+      if (classMatchers.isGloballyIgnored(classData.getFullClassName())) {
         PackageData packageData = getDataOrCreate(packageName);
         packageData.insert(className, MatchingResult.IGNORE, location, null);
         stats.ignoredClassesCounter += 1;
       } else
         try {
-          Class<?> cl = classLoader.loadClass(classVersions.fullClassName());
+          Class<?> cl = classLoader.loadClass(classData.getFullClassName());
           PackageData packageData = getDataOrCreate(packageName);
           if (classMatchers.matchesAny(cl)) {
             // TODO check if different classCollections share packages that include instrumented
@@ -195,10 +195,11 @@ public class MatcherCacheBuilder {
       this.classes = new TreeMap<>();
     }
 
-    public void insert(String className, MatchingResult mr, String source, String info) {
+    public void insert(
+        String className, MatchingResult mr, String classLocation, String additionalInfo) {
       ClassInfo classInfo = classes.get(className);
       if (classInfo == null || mr.compareTo(classInfo.matchingResult) < 0) {
-        classInfo = new ClassInfo(mr, source, info);
+        classInfo = new ClassInfo(mr, classLocation, additionalInfo);
         classes.put(className, classInfo);
       }
     }

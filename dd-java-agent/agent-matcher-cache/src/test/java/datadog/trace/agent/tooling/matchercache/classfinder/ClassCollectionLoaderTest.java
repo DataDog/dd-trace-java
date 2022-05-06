@@ -4,18 +4,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
 import java.io.IOException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class ClassCollectionLoaderTest {
   public static final String TEST_CLASSES_FOLDER = "build/resources/test/test-classes";
 
-  private ClassFinder classFinder;
-
-  @BeforeEach
-  void initializeClassFinder() {
-    classFinder = new ClassFinder();
+  public void assertClass(
+      String expectedToString, String className, ClassCollectionLoader classCollectionLoader)
+      throws ClassNotFoundException {
+    Class<?> innerJarClass = classCollectionLoader.loadClass(className, false);
+    assertNotNull(innerJarClass);
+    Object instance;
+    try {
+      instance = innerJarClass.newInstance();
+    } catch (InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException(e);
+    }
+    assertEquals(expectedToString, instance.toString());
   }
+
+  private final ClassFinder classFinder = new ClassFinder();
 
   @Test
   public void testInnerJars() throws IOException, ClassNotFoundException {
@@ -35,13 +43,6 @@ public class ClassCollectionLoaderTest {
     assertClass("OuterJarClass9", "example.OuterJarClass", ccl);
   }
 
-  //  @Test
-  //  void testJavaModule() throws IOException, ClassNotFoundException {
-  //    ClassCollectionLoader ccl = createClassLoader("java-module", 9);
-  //
-  //    assertClass("InnerJarClass", "example.InnerJarClass", ccl);
-  //  }
-
   @Test
   void testMultiReleaseClasses() throws IOException, ClassNotFoundException {
     ClassCollectionLoader ccl = createClassLoader("multi-release-jar", 8);
@@ -54,7 +55,7 @@ public class ClassCollectionLoaderTest {
   @Test
   void testMultiReleaseClasses9() throws IOException, ClassNotFoundException {
     ClassCollectionLoader ccl = createClassLoader("multi-release-jar", 9);
-
+    //    assertTrue(false);
     assertClass("Abc9", "example.classes.Abc", ccl);
     assertClass("Only9", "example.classes.Only9", ccl);
   }
@@ -123,20 +124,6 @@ public class ClassCollectionLoaderTest {
     ClassCollection classCollection =
         classFinder.findClassesIn(new File(TEST_CLASSES_FOLDER, testClassesSubFolder));
     return new ClassCollectionLoader(classCollection, javaMajorVersion);
-  }
-
-  private void assertClass(
-      String expectedToString, String className, ClassCollectionLoader classCollectionLoader)
-      throws ClassNotFoundException {
-    Class<?> innerJarClass = classCollectionLoader.loadClass(className, false);
-    assertNotNull(innerJarClass);
-    Object instance;
-    try {
-      instance = innerJarClass.newInstance();
-    } catch (InstantiationException | IllegalAccessException e) {
-      throw new RuntimeException(e);
-    }
-    assertEquals(expectedToString, instance.toString());
   }
 
   private void assertClassNotFound(ClassCollectionLoader ccl, String className) {

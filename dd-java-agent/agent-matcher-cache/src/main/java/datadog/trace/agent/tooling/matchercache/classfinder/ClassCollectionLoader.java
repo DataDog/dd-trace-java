@@ -49,12 +49,10 @@ public class ClassCollectionLoader extends ClassLoader {
   public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
     synchronized (getClassLoadingLock(name)) {
       Class<?> found = null;
-      if (!name.startsWith("datadog.")) {
-        try {
-          found = super.loadClass(name, resolve);
-        } catch (ClassNotFoundException | SecurityException e) {
-          /* ignore */
-        }
+      try {
+        found = super.loadClass(name, resolve);
+      } catch (ClassNotFoundException | SecurityException e) {
+        /* ignore */
       }
       if (found == null) {
         found = getLoadedClass(name, resolve);
@@ -72,15 +70,15 @@ public class ClassCollectionLoader extends ClassLoader {
         // return already defined class
         return loadedClasses.get(className);
       }
-      ClassVersions classVersions = classCollection.findClass(className);
-      if (classVersions == null) {
+      ClassData classData = classCollection.findClass(className);
+      if (classData == null) {
         return null;
       }
       // define the new class
       definePackageForClass(className);
       Class<?> loadedClass = findLoadedClass(className);
       if (loadedClass == null) {
-        byte[] classBytes = classVersions.classBytes(javaMajorVersion);
+        byte[] classBytes = classData.classBytes(javaMajorVersion);
         if (classBytes == null) {
           throw new ClassNotFoundException(className);
         }

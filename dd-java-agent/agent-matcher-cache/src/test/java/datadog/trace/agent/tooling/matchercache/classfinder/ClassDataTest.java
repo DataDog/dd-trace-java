@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
-public class ClassVersionsTest {
+public class ClassDataTest {
 
   @Test
   void testDefaultVersionOnly() {
-    ClassVersions cv = new ClassVersions("foo.bar.FooBar");
+    ClassData cv = new ClassData("foo.bar.FooBar");
 
     byte[] bytes = new byte[] {1, 2, 3};
     cv.addClassBytes(bytes, "foo/bar/FooBar.class", "");
@@ -22,7 +22,7 @@ public class ClassVersionsTest {
 
   @Test
   void testSpecificVersionOnly() {
-    ClassVersions cv = new ClassVersions("foo.bar.FooBar");
+    ClassData cv = new ClassData("foo.bar.FooBar");
 
     byte[] bytes9 = new byte[] {1, 2, 3};
     cv.addClassBytes(bytes9, "META-INF/versions/9/foo/bar/FooBar.class", "");
@@ -35,7 +35,7 @@ public class ClassVersionsTest {
 
   @Test
   void testMultipleVersions() {
-    ClassVersions cv = new ClassVersions("foo.bar.FooBar");
+    ClassData cv = new ClassData("foo.bar.FooBar");
 
     // insertion order shouldn't matter
     byte[] bytes11 = new byte[] {7, 8, 9};
