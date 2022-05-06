@@ -17,6 +17,10 @@ test {
   useJUnitPlatform()
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 idea {
   module {
     jdkName = '11'
