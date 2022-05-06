@@ -13,6 +13,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.StatsDClient",
   "datadog.trace.api.NoOpStatsDClient",
   "datadog.trace.api.TraceSegment.NoOp",
+  "datadog.trace.api.intake.TrackType",
   "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.api.sampling.AdaptiveSampler",
   // this one is covered by tests in internal-api-8 together with AdaptiveSampler8
@@ -56,7 +57,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentThreadFactory",
   "datadog.trace.util.AgentThreadFactory.1",
   "datadog.trace.util.ClassNameTrie.Builder",
-  "datadog.trace.util.ClassNameTrie.Generator",
+  "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
 ]
 

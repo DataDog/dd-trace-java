@@ -8,21 +8,22 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.security.ProtectionDomain;
 import javax.annotation.Nullable;
+import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PrebuiltIgnoresMatcher<T extends TypeDescription>
-    extends ElementMatcher.Junction.ForNonNullValues<T> {
+public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
   // TODO unit test
 
   private static final Logger log = LoggerFactory.getLogger(PrebuiltIgnoresMatcher.class);
 
   @Nullable
-  public static <T extends TypeDescription> ElementMatcher.Junction<T> create(
-      String preBuiltMatcherData, ElementMatcher<TypeDescription> fallbackIgnoresMatcher) {
+  public static PrebuiltIgnoresMatcher create(
+      String preBuiltMatcherData, AgentBuilder.RawMatcher fallbackIgnoresMatcher) {
     File cacheFile = new File(preBuiltMatcherData);
     MatcherCache matcherCache = null;
     try (InputStream is = Files.newInputStream(cacheFile.toPath())) {
@@ -38,28 +39,34 @@ public class PrebuiltIgnoresMatcher<T extends TypeDescription>
     }
     return matcherCache == null
         ? null
-        : new PrebuiltIgnoresMatcher<T>(matcherCache, fallbackIgnoresMatcher);
+        : new PrebuiltIgnoresMatcher(matcherCache, fallbackIgnoresMatcher);
   }
 
   private final MatcherCache matcherCache;
-  private final ElementMatcher<TypeDescription> fallbackIgnoresMatcher;
+  private final AgentBuilder.RawMatcher fallbackIgnoresMatcher;
 
   public PrebuiltIgnoresMatcher(
-      MatcherCache matcherCache, ElementMatcher<TypeDescription> fallbackIgnoresMatcher) {
+      MatcherCache matcherCache, AgentBuilder.RawMatcher fallbackIgnoresMatcher) {
     this.matcherCache = matcherCache;
     this.fallbackIgnoresMatcher = fallbackIgnoresMatcher;
   }
 
   @Override
-  protected boolean doMatch(T target) {
-    String fqcn = target.getActualName();
+  public boolean matches(
+      TypeDescription typeDescription,
+      ClassLoader classLoader,
+      JavaModule module,
+      Class<?> classBeingRedefined,
+      ProtectionDomain protectionDomain) {
+    String fqcn = typeDescription.getActualName();
     switch (matcherCache.transform(fqcn)) {
       case SKIP:
         return true;
       case UNKNOWN:
         MatcherCacheEvents.get().commitMatcherCacheMissEvent(fqcn);
         if (fallbackIgnoresMatcher != null) {
-          return fallbackIgnoresMatcher.matches(target);
+          return fallbackIgnoresMatcher.matches(
+              typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
         }
     }
     return false;
@@ -67,8 +74,7 @@ public class PrebuiltIgnoresMatcher<T extends TypeDescription>
 
   private static void commitCacheLoadingTimeEvent(final long durationNs) {
     // Delay committing event because JFR could not been initialized yet and committing immediately
-    // will
-    // void this event
+    // will void this event
     AgentTaskScheduler.INSTANCE.schedule(
         new AgentTaskScheduler.Task<Boolean>() {
           @Override

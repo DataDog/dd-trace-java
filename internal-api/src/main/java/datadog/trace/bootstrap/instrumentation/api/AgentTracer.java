@@ -632,6 +632,9 @@ public class AgentTracer {
     public void finish(final long finishMicros) {}
 
     @Override
+    public void finishWithDuration(final long durationNanos) {}
+
+    @Override
     public void beginEndToEnd() {}
 
     @Override

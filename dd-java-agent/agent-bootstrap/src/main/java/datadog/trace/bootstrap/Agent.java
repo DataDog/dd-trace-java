@@ -19,6 +19,7 @@ import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -69,7 +70,8 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     CWS("dd.cws.enabled", false),
-    CIVISIBILITY("dd.civisibility.enabled", false);
+    CIVISIBILITY("dd.civisibility.enabled", false),
+    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -133,6 +135,11 @@ public class Agent {
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
       setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
+
+      boolean ciVisibilityAgentlessEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY_AGENTLESS);
+      if (ciVisibilityAgentlessEnabled) {
+        setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
+      }
     }
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);

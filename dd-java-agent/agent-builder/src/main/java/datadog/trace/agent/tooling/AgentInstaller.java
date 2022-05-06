@@ -1,21 +1,14 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.skipClassLoader;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
-import static net.bytebuddy.matcher.ElementMatchers.none;
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.PrebuiltIgnoresMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -29,7 +22,6 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.LatentMatcher;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
@@ -86,7 +78,7 @@ public class AgentInstaller {
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
     ByteBuddy byteBuddy =
         new ByteBuddy().ignore(new LatentMatcher.Resolved<>(isDefaultFinalizer()));
-    AgentBuilder.Ignored ignoredAgentBuilder =
+    AgentBuilder agentBuilder =
         new AgentBuilder.Default(byteBuddy)
             .disableClassFormatChanges()
             .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
@@ -100,32 +92,10 @@ public class AgentInstaller {
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
-            .ignore(any(), skipClassLoader());
+            .ignore(
+                getPrebuiltMatcherCacheOrFallbackToGlobalIgnores(
+                    globalIgnoresMatcher(skipAdditionalLibraryMatcher)));
 
-    String cachedMatcherDataFile = Config.get().getPreBuiltMatcherDataFile();
-
-    GlobalIgnoresMatcher<TypeDescription> globalIgnoresMatcher =
-        globalIgnoresMatcher(skipAdditionalLibraryMatcher);
-    if (cachedMatcherDataFile == null) {
-      ignoredAgentBuilder = ignoredAgentBuilder.or(globalIgnoresMatcher);
-    } else {
-      ElementMatcher.Junction<TypeDescription> cachedMatcher =
-          PrebuiltIgnoresMatcher.create(cachedMatcherDataFile, globalIgnoresMatcher);
-      if (cachedMatcher != null) {
-        log.info("Cached matcher has been successfully installed from: " + cachedMatcherDataFile);
-        ignoredAgentBuilder = ignoredAgentBuilder.or(cachedMatcher);
-      } else {
-        log.warn(
-            "Cached matcher failed to install from: "
-                + cachedMatcherDataFile
-                + ". Falling back to the global ignores matcher.");
-        ignoredAgentBuilder = ignoredAgentBuilder.or(globalIgnoresMatcher);
-      }
-    }
-
-    ignoredAgentBuilder = ignoredAgentBuilder.or(matchesConfiguredExcludes());
-
-    AgentBuilder agentBuilder = ignoredAgentBuilder;
     if (DEBUG) {
       agentBuilder =
           agentBuilder
@@ -186,6 +156,26 @@ public class AgentInstaller {
     return transformerBuilder.installOn(inst);
   }
 
+  private static AgentBuilder.RawMatcher getPrebuiltMatcherCacheOrFallbackToGlobalIgnores(
+      AgentBuilder.RawMatcher globalIgnoresMatcher) {
+    String cachedMatcherDataFile = Config.get().getPreBuiltMatcherDataFile();
+
+    if (cachedMatcherDataFile != null) {
+      PrebuiltIgnoresMatcher cachedMatcher =
+          PrebuiltIgnoresMatcher.create(cachedMatcherDataFile, globalIgnoresMatcher);
+      if (cachedMatcher != null) {
+        log.info("Cached Matcher has been successfully installed from: " + cachedMatcherDataFile);
+        return cachedMatcher;
+      }
+      log.warn(
+          "Cached matcher failed to install from: "
+              + cachedMatcherDataFile
+              + ". Falling back to Global Ignores matcher.");
+    }
+
+    return globalIgnoresMatcher;
+  }
+
   private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
     EnumSet<Instrumenter.TargetSystem> enabledSystems =
         EnumSet.noneOf(Instrumenter.TargetSystem.class);
@@ -220,34 +210,6 @@ public class AgentInstaller {
         System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
       }
     }
-  }
-
-  private static ElementMatcher.Junction<Object> matchesConfiguredExcludes() {
-    final List<String> excludedClasses = Config.get().getExcludedClasses();
-    ElementMatcher.Junction matcher = none();
-    if (!excludedClasses.isEmpty()) {
-      List<String> literals = new ArrayList<>();
-      List<String> prefixes = new ArrayList<>();
-      // first accumulate by operation because a lot of work can be aggregated
-      for (String excludedClass : excludedClasses) {
-        excludedClass = excludedClass.trim();
-        if (excludedClass.endsWith("*")) {
-          // remove the trailing *
-          prefixes.add(excludedClass.substring(0, excludedClass.length() - 1));
-        } else {
-          literals.add(excludedClass);
-        }
-      }
-      if (!literals.isEmpty()) {
-        matcher = matcher.or(namedOneOf(literals));
-      }
-      for (String prefix : prefixes) {
-        // TODO - with a prefix tree this matching logic can be handled by a
-        // single longest common prefix query
-        matcher = matcher.or(nameStartsWith(prefix));
-      }
-    }
-    return matcher;
   }
 
   static class RedefinitionLoggingListener implements AgentBuilder.RedefinitionStrategy.Listener {

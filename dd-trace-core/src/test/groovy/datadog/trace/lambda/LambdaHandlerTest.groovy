@@ -39,6 +39,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     objTest.getTraceId().toString() == traceId
     objTest.getSpanId().toString() == spanId
 
+    cleanup:
+    server.close()
+
     where:
     traceId    | spanId      | obj
     "1234"     | "5678"      | new TestObject()
@@ -62,6 +65,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
     then:
     objTest == expected
+
+    cleanup:
+    server.close()
 
     where:
     expected    | obj
@@ -88,6 +94,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     then:
     result == expected
 
+    cleanup:
+    server.close()
+
     where:
     expected  | headerValue     | boolValue
     true      | "true"          | true
@@ -113,6 +122,9 @@ class LambdaHandlerTest extends DDCoreSpecification {
     then:
     result == expected
     server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+
+    cleanup:
+    server.close()
 
     where:
     expected  | headerValue     | boolValue
