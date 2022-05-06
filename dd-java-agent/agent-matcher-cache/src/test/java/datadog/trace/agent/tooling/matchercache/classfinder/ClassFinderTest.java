@@ -7,10 +7,14 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
 public class ClassFinderTest {
 
   public static final File TEST_CLASSES_FOLDER = new File("build/resources/test/test-classes");
+  public static final File TEST_CLASSES_FOLDER_JAVA_11 =
+      new File("build/resources/test/test-classes-11");
 
   public static void assertClasses(Set<String> expectedClasses, Set<ClassData> actualClassData) {
     Set<String> actualClasses = new HashSet<>();
@@ -114,6 +118,21 @@ public class ClassFinderTest {
     assertClasses(expectedClasses, classCollection.allClasses(8));
 
     expectedClasses.add("example.classes.Only9");
+    assertClasses(expectedClasses, classCollection.allClasses(9));
+    assertClasses(expectedClasses, classCollection.allClasses(11));
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_11)
+  void testJavaModule() throws IOException {
+    ClassCollection classCollection =
+        classFinder.findClassesIn(new File(TEST_CLASSES_FOLDER_JAVA_11, "java-module"));
+
+    Set<String> expectedClasses = new HashSet<>();
+    expectedClasses.add("org.company.Abc");
+
+    assertClasses(expectedClasses, classCollection.allClasses(7));
+    assertClasses(expectedClasses, classCollection.allClasses(8));
     assertClasses(expectedClasses, classCollection.allClasses(9));
     assertClasses(expectedClasses, classCollection.allClasses(11));
   }

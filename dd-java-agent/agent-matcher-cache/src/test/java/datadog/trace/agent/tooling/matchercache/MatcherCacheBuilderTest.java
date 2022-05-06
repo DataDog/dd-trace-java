@@ -76,10 +76,7 @@ public class MatcherCacheBuilderTest {
     MatcherCacheBuilder.Stats stats =
         matcherCacheBuilder.fill(classCollection, classLoader, new TestClassMatchers());
 
-    assertEquals(2, stats.ignoredClassesCounter);
-    assertEquals(2, stats.skippedClassesCounter);
-    assertEquals(3, stats.transformedClassesCounter);
-    assertEquals(1, stats.failedCounterCounter);
+    assertEquals("Ignore: 2; Skip: 2; Transform: 3; Fail: 1", stats.toString());
 
     // serialize MatcherCache and load as MatcherCache and check the result
     MatcherCache matcherCache = serializeAndLoadCacheData(matcherCacheBuilder);

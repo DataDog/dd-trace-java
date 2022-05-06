@@ -14,21 +14,21 @@ import org.slf4j.LoggerFactory;
 
 public class MatcherCacheBuilder {
   static final class Stats {
-    int ignoredClassesCounter = 0;
-    int skippedClassesCounter = 0;
-    int transformedClassesCounter = 0;
-    int failedCounterCounter = 0;
+    int counterIgnore = 0;
+    int counterSkip = 0;
+    int counterTransform = 0;
+    int counterFail = 0;
 
     @Override
     public String toString() {
-      return "Ignored: "
-          + ignoredClassesCounter
-          + "; Skipped: "
-          + skippedClassesCounter
-          + "; Transformed: "
-          + transformedClassesCounter
-          + "; Failed: "
-          + failedCounterCounter;
+      return "Ignore: "
+          + counterIgnore
+          + "; Skip: "
+          + counterSkip
+          + "; Transform: "
+          + counterTransform
+          + "; Fail: "
+          + counterFail;
     }
   }
 
@@ -56,22 +56,22 @@ public class MatcherCacheBuilder {
       if (classMatchers.isGloballyIgnored(classData.getFullClassName())) {
         PackageData packageData = getDataOrCreate(packageName);
         packageData.insert(className, MatchingResult.IGNORE, location, null);
-        stats.ignoredClassesCounter += 1;
+        stats.counterIgnore += 1;
       } else
         try {
           Class<?> cl = classLoader.loadClass(classData.getFullClassName());
           PackageData packageData = getDataOrCreate(packageName);
           if (classMatchers.matchesAny(cl)) {
             // TODO check if different classCollections share packages that include instrumented
-            // classes and warn about it and maybe exclude from the matcher cache
+            // classes and warn about it, and maybe exclude from the matcher cache
             packageData.insert(className, MatchingResult.TRANSFORM, location, null);
-            stats.transformedClassesCounter += 1;
+            stats.counterTransform += 1;
           } else {
             packageData.insert(className, MatchingResult.SKIP, location, null);
-            stats.skippedClassesCounter += 1;
+            stats.counterSkip += 1;
           }
         } catch (Throwable e) {
-          stats.failedCounterCounter += 1;
+          stats.counterFail += 1;
           PackageData packageData = getDataOrCreate(packageName);
           packageData.insert(className, MatchingResult.FAIL, location, e.toString());
           log.debug("Couldn't load class: {} failed with {}", className, e.toString());
@@ -169,7 +169,7 @@ public class MatcherCacheBuilder {
   }
 
   private enum MatchingResult {
-    // ordering matters, listed by priority
+    // this ordering matters, listed by priority
     TRANSFORM,
     SKIP,
     IGNORE,

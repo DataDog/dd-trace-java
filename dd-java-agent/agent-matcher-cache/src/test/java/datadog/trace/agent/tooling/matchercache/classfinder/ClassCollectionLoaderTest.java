@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.File;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
 public class ClassCollectionLoaderTest {
-  public static final String TEST_CLASSES_FOLDER = "build/resources/test/test-classes";
+  public static final String TEST_CLASSES_FOLDER = "build/resources/test";
 
   public void assertClass(
       String expectedToString, String className, ClassCollectionLoader classCollectionLoader)
@@ -27,7 +29,7 @@ public class ClassCollectionLoaderTest {
 
   @Test
   public void testInnerJars() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("inner-jars", 7);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/inner-jars", 7);
 
     assertClass("InnerJarClass", "example.InnerJarClass", ccl);
     assertClass("MiddleJarClass", "example.MiddleJarClass", ccl);
@@ -36,7 +38,7 @@ public class ClassCollectionLoaderTest {
 
   @Test
   public void testInnerJars9() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("inner-jars", 9);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/inner-jars", 9);
 
     assertClass("InnerJarClass", "example.InnerJarClass", ccl);
     assertClass("MiddleJarClass", "example.MiddleJarClass", ccl);
@@ -45,7 +47,7 @@ public class ClassCollectionLoaderTest {
 
   @Test
   void testMultiReleaseClasses() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("multi-release-jar", 8);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/multi-release-jar", 8);
 
     assertClass("Abc", "example.classes.Abc", ccl);
 
@@ -54,7 +56,7 @@ public class ClassCollectionLoaderTest {
 
   @Test
   void testMultiReleaseClasses9() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("multi-release-jar", 9);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/multi-release-jar", 9);
     //    assertTrue(false);
     assertClass("Abc9", "example.classes.Abc", ccl);
     assertClass("Only9", "example.classes.Only9", ccl);
@@ -62,28 +64,28 @@ public class ClassCollectionLoaderTest {
 
   @Test
   void testRelocatedClasses() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("relocated-classes", 7);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/relocated-classes", 7);
 
     assertClass("bar.foo.Baz", "bar.foo.Baz", ccl);
   }
 
   @Test
   void testRenamedClassFile() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("renamed-class-file", 8);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/renamed-class-file", 8);
 
     assertClass("FooBar", "foo.bar.FooBar", ccl);
   }
 
   @Test
   void testStandardLayout() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("standard-layout", 11);
+    ClassCollectionLoader ccl = createClassLoader("test-classes/standard-layout", 11);
 
     assertClass("XYZ", "foo.bar.xyz.Xyz", ccl);
   }
 
   @Test
   void testAllTogether() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("/", 8);
+    ClassCollectionLoader ccl = createClassLoader("test-classes", 8);
 
     assertClass("InnerJarClass", "example.InnerJarClass", ccl);
     assertClass("MiddleJarClass", "example.MiddleJarClass", ccl);
@@ -101,7 +103,7 @@ public class ClassCollectionLoaderTest {
 
   @Test
   void testAllTogether9() throws IOException, ClassNotFoundException {
-    ClassCollectionLoader ccl = createClassLoader("/", 9);
+    ClassCollectionLoader ccl = createClassLoader("test-classes", 9);
 
     assertClass("InnerJarClass", "example.InnerJarClass", ccl);
     assertClass("MiddleJarClass", "example.MiddleJarClass", ccl);
@@ -117,6 +119,13 @@ public class ClassCollectionLoaderTest {
     assertClass("FooBar", "foo.bar.FooBar", ccl);
 
     assertClass("XYZ", "foo.bar.xyz.Xyz", ccl);
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_11)
+  void testJavaModule() throws IOException, ClassNotFoundException {
+    ClassCollectionLoader ccl = createClassLoader("test-classes-11/java-module", 11);
+    assertClass("org.company.Abc", "org.company.Abc", ccl);
   }
 
   private ClassCollectionLoader createClassLoader(String testClassesSubFolder, int javaMajorVersion)
