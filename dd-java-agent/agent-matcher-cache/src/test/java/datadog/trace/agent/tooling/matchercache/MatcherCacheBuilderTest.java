@@ -10,13 +10,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
 import org.junit.jupiter.api.Test;
 
 public class MatcherCacheBuilderTest {
-  //  public static final String TEST_CLASSES_FOLDER =
-  // "dd-java-agent/agent-matcher-cache/src/test/resources/test-classes";
-  public static final String TEST_CLASSES_FOLDER = "build/resources/test/test-classes";
+  public final String TEST_CLASSES_FOLDER =
+      this.getClass().getClassLoader().getResource("test-classes").getFile();
 
   private static class TestClassLoader extends ClassCollectionLoader {
     public TestClassLoader(ClassCollection classCollection, int javaMajorVersion) {
@@ -66,7 +66,6 @@ public class MatcherCacheBuilderTest {
   @Test
   public void test() throws IOException {
     File classPath = new File(TEST_CLASSES_FOLDER);
-    assertTrue(classPath.exists());
 
     ClassFinder classFinder = new ClassFinder();
     ClassCollection classCollection = classFinder.findClassesIn(classPath);
@@ -102,19 +101,22 @@ public class MatcherCacheBuilderTest {
     assertEquals(MatcherCache.Result.UNKNOWN, matcherCache.transform("non.existing.package.Bar"));
 
     // serialize text report
+    Pattern expectedPattern =
+        Pattern.compile(
+            "Packages: 5\n"
+                + "bar.foo.Baz,IGNORE,.*/test-classes/relocated-classes/somefolder/Baz.class\n"
+                + "example.InnerJarClass,FAIL,.*/test-classes/inner-jars/example.jar/Middle.jar/InnerJarClass.jar"
+                + ",java.lang.RuntimeException: Intentional test class load failure\n"
+                + "example.MiddleJarClass,SKIP,.*/test-classes/inner-jars/example.jar/Middle.jar\n"
+                + "example.OuterJarClass,TRANSFORM,.*/test-classes/inner-jars/example.jar\n"
+                + "example.classes.Abc,TRANSFORM,.*/test-classes/multi-release-jar/multi-release.jar\n"
+                + "example.classes.Only9,SKIP,.*/test-classes/multi-release-jar/multi-release.jar\n"
+                + "foo.bar.FooBar,TRANSFORM,.*/test-classes/renamed-class-file/renamed-foobar-class.bin\n"
+                + "foo.bar.xyz.Xyz,IGNORE,.*/test-classes/standard-layout/foo/bar/xyz/Xyz.class\n");
     String reportData = serializeTextReport(matcherCacheBuilder);
-    String expectedTextReport =
-        "Packages: 5\n"
-            + "bar.foo.Baz,IGNORE,build/resources/test/test-classes/relocated-classes/somefolder/Baz.class\n"
-            + "example.InnerJarClass,FAIL,build/resources/test/test-classes/inner-jars/example.jar/Middle.jar/InnerJarClass.jar"
-            + ",java.lang.RuntimeException: Intentional test class load failure\n"
-            + "example.MiddleJarClass,SKIP,build/resources/test/test-classes/inner-jars/example.jar/Middle.jar\n"
-            + "example.OuterJarClass,TRANSFORM,build/resources/test/test-classes/inner-jars/example.jar\n"
-            + "example.classes.Abc,TRANSFORM,build/resources/test/test-classes/multi-release-jar/multi-release.jar\n"
-            + "example.classes.Only9,SKIP,build/resources/test/test-classes/multi-release-jar/multi-release.jar\n"
-            + "foo.bar.FooBar,TRANSFORM,build/resources/test/test-classes/renamed-class-file/renamed-foobar-class.bin\n"
-            + "foo.bar.xyz.Xyz,IGNORE,build/resources/test/test-classes/standard-layout/foo/bar/xyz/Xyz.class\n";
-    assertEquals(expectedTextReport, reportData);
+    assertTrue(
+        expectedPattern.matcher(reportData).matches(),
+        "Expected:\n" + expectedPattern + "Actual:\n" + reportData);
   }
 
   private String serializeTextReport(MatcherCacheBuilder matcherCacheBuilder) {

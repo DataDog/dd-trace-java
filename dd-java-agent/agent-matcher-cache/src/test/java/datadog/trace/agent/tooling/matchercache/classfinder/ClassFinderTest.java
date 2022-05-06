@@ -11,10 +11,10 @@ import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 
 public class ClassFinderTest {
-
-  public static final File TEST_CLASSES_FOLDER = new File("build/resources/test/test-classes");
-  public static final File TEST_CLASSES_FOLDER_JAVA_11 =
-      new File("build/resources/test/test-classes-11");
+  public final String TEST_CLASSES_FOLDER =
+      this.getClass().getClassLoader().getResource("test-classes").getFile();
+  public final String TEST_CLASSES_FOLDER_JAVA_11 =
+      this.getClass().getClassLoader().getResource("test-classes-11").getFile();
 
   public static void assertClasses(Set<String> expectedClasses, Set<ClassData> actualClassData) {
     Set<String> actualClasses = new HashSet<>();
@@ -103,7 +103,7 @@ public class ClassFinderTest {
 
   @Test
   void testAllTogether() throws IOException {
-    ClassCollection classCollection = classFinder.findClassesIn(TEST_CLASSES_FOLDER);
+    ClassCollection classCollection = classFinder.findClassesIn(new File(TEST_CLASSES_FOLDER));
 
     Set<String> expectedClasses = new HashSet<>();
     expectedClasses.add("example.InnerJarClass");

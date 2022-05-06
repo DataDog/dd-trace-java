@@ -45,16 +45,16 @@ public final class MatcherCacheEventsImpl extends MatcherCacheEvents {
   @Label("Matcher Cache Miss")
   @StackTrace(false)
   public static final class MatcherCacheMissEventImpl extends Event {
-    @Label("FQCN")
-    final String fqcn;
-
     @Label("Package Name")
     final String packageName;
 
-    public MatcherCacheMissEventImpl(String fqcn) {
-      this.fqcn = fqcn;
-      int packageEndsAt = fqcn.lastIndexOf('.');
-      this.packageName = fqcn.substring(0, Math.max(packageEndsAt, 0));
+    @Label("Class Name")
+    final String className;
+
+    public MatcherCacheMissEventImpl(String className) {
+      int packageEndsAt = className.lastIndexOf('.');
+      this.packageName = className.substring(0, Math.max(packageEndsAt, 0));
+      this.className = className.substring(Math.max(packageEndsAt, 0));
     }
   }
 }
