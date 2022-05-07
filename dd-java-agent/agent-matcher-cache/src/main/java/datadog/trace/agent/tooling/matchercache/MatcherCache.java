@@ -3,8 +3,6 @@ package datadog.trace.agent.tooling.matchercache;
 import static datadog.trace.agent.tooling.matchercache.util.BinarySerializers.readInt;
 import static datadog.trace.agent.tooling.matchercache.util.BinarySerializers.readString;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -15,12 +13,6 @@ public final class MatcherCache {
     TRANSFORM,
     SKIP,
     UNKNOWN,
-  }
-
-  public static MatcherCache deserialize(File file) throws IOException {
-    try (FileInputStream is = new FileInputStream(file)) {
-      return deserialize(is);
-    }
   }
 
   public static MatcherCache deserialize(InputStream is) throws IOException {
@@ -50,7 +42,6 @@ public final class MatcherCache {
   private final int[][] transformedClassHashes;
 
   public Result transform(String fullClassName) {
-    // TODO: try implement binary search without sub string allocation
     int packageEndsAt = fullClassName.lastIndexOf('.');
     String packageName = fullClassName.substring(0, Math.max(packageEndsAt, 0));
     int index = Arrays.binarySearch(packagesOrdered, packageName);
@@ -94,52 +85,4 @@ public final class MatcherCache {
     }
     return hashes;
   }
-
-  //  private static final Comparator<String> PACKAGE_COMPARATOR = new Comparator<String>() {
-  //    @Override
-  //    public int compare(String pkg, String fullClassName) {
-  //      int i = 0;
-  //      int n = pkg.length();
-  //      int k = fullClassName.lastIndexOf('.');
-  //      int lim = Math.min(n, k);
-  //      char c1, c2;
-  //      do {
-  //        c1 = pkg.charAt(i);
-  //        c2 = fullClassName.charAt(i);
-  //        i++;
-  //      } while (c1 == c2 && i < lim);
-  //      int r = c1 - c2;
-  //      if (r != 0) {
-  //        return r;
-  //      }
-  //      if (i == k) {
-  //        // pkg == fullClassName package matches
-  //        return Integer.compare(n, k);
-  //      }
-  //      if (i < k) {
-  //        // higher level pkg matches fullClassName package
-  //        return -1;
-  //      }
-  //      return 1;
-  //    }
-  //  };
-  //
-  //  public boolean transform(String fullClassName) {
-  //    int index = Arrays.binarySearch(packagesOrdered, fullClassName, PACKAGE_COMPARATOR);
-  //    if (index < 0) {
-  //      // package not found
-  //      return true;
-  //    }
-  //    int[] transformedClassHashes = this.transformedClassHashes[index];
-  //    if (transformedClassHashes == null) {
-  //      // no hashes, assume all classes are skipped
-  //      return false;
-  //    }
-  //    int h = 0;
-  //    int len = fullClassName.length();
-  //    for (int i = fullClassName.lastIndexOf('.') + 1; i < len; i++) {
-  //      h = 31 * h + fullClassName.charAt(i);
-  //    }
-  //    return Arrays.binarySearch(transformedClassHashes, h) >= 0;
-  //  }
 }

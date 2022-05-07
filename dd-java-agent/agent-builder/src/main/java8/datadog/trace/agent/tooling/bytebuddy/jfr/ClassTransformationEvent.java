@@ -13,14 +13,16 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public final class ClassTransformationEvent extends Event {
 
-  public static ClassTransformationEvent beforeClassTransformation(String fqcn, byte[] classBytes) {
-    ClassTransformationEvent evt = new ClassTransformationEvent(fqcn, classBytes.length);
+  public static ClassTransformationEvent beforeClassTransformation(
+      String internalClassName, byte[] classBytes) {
+    ClassTransformationEvent evt =
+        new ClassTransformationEvent(internalClassName, classBytes.length);
     evt.begin();
     return evt;
   }
 
-  @Label("FQCN")
-  final String fqcn;
+  @Label("Internal Class Name")
+  final String internalClassName;
 
   @Label("Class Size")
   final int classSize;
@@ -42,8 +44,8 @@ public final class ClassTransformationEvent extends Event {
     }
   }
 
-  private ClassTransformationEvent(String fqcn, int classSize) {
-    this.fqcn = fqcn;
+  private ClassTransformationEvent(String internalClassName, int classSize) {
+    this.internalClassName = internalClassName;
     this.classSize = classSize;
     this.classSizeDifference = 0;
     this.transformed = false;

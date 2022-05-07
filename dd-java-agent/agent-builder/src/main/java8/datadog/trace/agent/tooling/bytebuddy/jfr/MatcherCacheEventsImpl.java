@@ -51,10 +51,10 @@ public final class MatcherCacheEventsImpl extends MatcherCacheEvents {
     @Label("Class Name")
     final String className;
 
-    public MatcherCacheMissEventImpl(String className) {
-      int packageEndsAt = className.lastIndexOf('.');
-      this.packageName = className.substring(0, Math.max(packageEndsAt, 0));
-      this.className = className.substring(Math.max(packageEndsAt, 0));
+    public MatcherCacheMissEventImpl(String fullClassName) {
+      int packageEndsAt = fullClassName.lastIndexOf('.');
+      packageName = fullClassName.substring(0, Math.max(packageEndsAt, 0));
+      className = fullClassName.substring(packageEndsAt + 1);
     }
   }
 }
