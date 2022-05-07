@@ -102,9 +102,9 @@ class ClassNameTrieTest extends DDSpecification {
 
   def 'test manual trie creation'() {
     setup:
-    def data = ['\001\141\u4001', '\001\142\u4002', '\001\143\u8003',]
+    def data = '\001\141\u4001\001\142\u4002\001\143\u8003'
     when:
-    def trie = ClassNameTrie.create(data as String[])
+    def trie = new ClassNameTrie(data as char[], null)
     then:
     trie.apply('a') == 1
     trie.apply('ab') == 2

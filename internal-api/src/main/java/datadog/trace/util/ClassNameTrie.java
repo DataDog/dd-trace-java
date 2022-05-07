@@ -97,8 +97,6 @@ public final class ClassNameTrie {
   /** Marks a long jump that was replaced by an index into the long jump table. */
   private static final char LONG_JUMP_MARKER = 0x8000;
 
-  private static final int[] NO_LONG_JUMPS = {};
-
   /** The compressed trie. */
   private final char[] trieData;
 
@@ -106,7 +104,10 @@ public final class ClassNameTrie {
   private final int[] longJumps;
 
   public int apply(String key) {
-    char[] data = trieData;
+    return apply(trieData, longJumps, key);
+  }
+
+  public static int apply(char[] data, int[] longJumps, String key) {
     int keyLength = key.length();
     int keyIndex = 0;
     int dataIndex = 0;
@@ -178,33 +179,6 @@ public final class ClassNameTrie {
     }
 
     return result; // no more characters left to match in the key
-  }
-
-  public static ClassNameTrie create(String trieData) {
-    return create(trieData, NO_LONG_JUMPS);
-  }
-
-  public static ClassNameTrie create(String[] trieData) {
-    return create(trieData, NO_LONG_JUMPS);
-  }
-
-  public static ClassNameTrie create(String trieData, int[] longJumps) {
-    return new ClassNameTrie(trieData.toCharArray(), longJumps);
-  }
-
-  public static ClassNameTrie create(String[] trieData, int[] longJumps) {
-    int dataLength = 0;
-    for (String chunk : trieData) {
-      dataLength += chunk.length();
-    }
-    char[] data = new char[dataLength];
-    int dataIndex = 0;
-    for (String chunk : trieData) {
-      int chunkLength = chunk.length();
-      System.arraycopy(chunk.toCharArray(), 0, data, dataIndex, chunkLength);
-      dataIndex += chunkLength;
-    }
-    return new ClassNameTrie(data, longJumps);
   }
 
   ClassNameTrie(char[] trieData, int[] longJumps) {
@@ -715,8 +689,8 @@ public final class ClassNameTrie {
     /** Reads a trie file and writes out the equivalent Java file. */
     private static void generateJavaFile(
         Path triePath, Path javaPath, String pkgName, String className) throws IOException {
-      ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
-      builder.readClassNameMapping(triePath);
+      ClassNameTrie.Builder trie = new ClassNameTrie.Builder();
+      trie.readClassNameMapping(triePath);
       List<String> lines = new ArrayList<>();
       if (!pkgName.isEmpty()) {
         lines.add("package " + pkgName + ';');
@@ -726,31 +700,40 @@ public final class ClassNameTrie {
       lines.add("");
       lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
       lines.add("public final class " + className + " {");
+      lines.add("");
+      boolean hasLongJumps = generateJavaTrie(lines, "", trie);
+      lines.add("");
       lines.add("  public static int apply(String key) {");
-      lines.add("    return TRIE.apply(key);");
+      if (hasLongJumps) {
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, LONG_JUMPS, key);");
+      } else {
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, null, key);");
+      }
       lines.add("  }");
       lines.add("");
-      generateJavaTrie(lines, "", builder.buildTrie());
       lines.add("  private " + className + "() {}");
       lines.add("}");
       Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
 
     /** Writes the Java form of the trie as a series of lines. */
-    public static void generateJavaTrie(List<String> lines, String prefix, ClassNameTrie trie) {
+    public static boolean generateJavaTrie(
+        List<String> lines, String prefix, ClassNameTrie.Builder trie) {
       boolean hasLongJumps = trie.longJumps.length > 0;
       int firstLineNumber = lines.size();
       int chunk = 1;
-      lines.add("  private static final String " + prefix + "TRIE_DATA_" + chunk + " =");
+      lines.add("  private static final String " + prefix + "TRIE_TEXT_" + chunk + " =");
       int chunkSize = 0;
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
-      for (char c : trie.trieData) {
+      for (int i = 0; i < trie.trieLength; i++) {
+        char c = trie.trieData[i];
         if (++chunkSize > 10_000) {
           chunk++;
           chunkSize = 0;
           lines.add(buf + "\";");
-          lines.add("  private static final String " + prefix + "TRIE_DATA_" + chunk + " =");
+          lines.add("");
+          lines.add("  private static final String " + prefix + "TRIE_TEXT_" + chunk + " =");
           buf.setLength(0);
           buf.append("      \"");
         } else if (buf.length() > 120) {
@@ -767,17 +750,33 @@ public final class ClassNameTrie {
       lines.add(buf + "\";");
       lines.add("");
       if (chunk > 1) {
-        lines.add("  private static final String[] " + prefix + "TRIE_DATA = {");
-        for (int n = 1; n < chunk; n++) {
-          lines.add("    TRIE_DATA_" + n + ',');
+        lines.add("  private static final char[] " + prefix + "TRIE_DATA;");
+        lines.add("  static {");
+        lines.add("    int dataLength = 0;");
+        for (int n = 1; n <= chunk; n++) {
+          lines.add("    dataLength += " + prefix + "TRIE_TEXT_" + n + ".length();");
         }
-        lines.add("  };");
-        lines.add("");
+        lines.add("    " + prefix + "TRIE_DATA = new char[dataLength];");
+        lines.add("    int dataIndex = 0;");
+        lines.add("    String chunk;");
+        for (int n = 1; n <= chunk; n++) {
+          lines.add("    chunk = " + prefix + "TRIE_TEXT_" + n + ";");
+          lines.add("    chunk.getChars(0, chunk.length(), " + prefix + "TRIE_DATA, dataIndex);");
+          lines.add("    dataIndex += chunk.length();");
+        }
+        lines.add("  }");
       } else {
-        // only one chunk, simplify the first chunk name to match the constructor call
-        lines.set(firstLineNumber, "  private static final String " + prefix + "TRIE_DATA =");
+        // only one chunk so can simplify char array creation
+        lines.set(firstLineNumber, "  private static final String " + prefix + "TRIE_TEXT =");
+        lines.add(
+            "  private static final char[] "
+                + prefix
+                + "TRIE_DATA = "
+                + prefix
+                + "TRIE_TEXT.toCharArray();");
       }
       if (hasLongJumps) {
+        lines.add("");
         lines.add("  private static final int[] " + prefix + "LONG_JUMPS = {");
         buf.setLength(0);
         buf.append("   ");
@@ -791,26 +790,8 @@ public final class ClassNameTrie {
         }
         lines.add(buf.toString());
         lines.add("  };");
-        lines.add("");
       }
-      if (hasLongJumps) {
-        lines.add(
-            "  private static final ClassNameTrie "
-                + prefix
-                + "TRIE = ClassNameTrie.create("
-                + prefix
-                + "TRIE_DATA, "
-                + prefix
-                + "LONG_JUMPS);");
-      } else {
-        lines.add(
-            "  private static final ClassNameTrie "
-                + prefix
-                + "TRIE = ClassNameTrie.create("
-                + prefix
-                + "TRIE_DATA);");
-      }
-      lines.add("");
+      return hasLongJumps;
     }
   }
 }
