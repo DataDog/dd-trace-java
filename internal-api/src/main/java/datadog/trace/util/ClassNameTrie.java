@@ -192,14 +192,17 @@ public final class ClassNameTrie {
 
     private char[] trieData = new char[8192];
     private int trieLength = 0;
-    private int[] longJumps = {};
+    private int[] longJumps = new int[16];
+    private int longJumpCount = 0;
 
     public boolean isEmpty() {
       return trieLength == 0;
     }
 
     public ClassNameTrie buildTrie() {
-      return new ClassNameTrie(Arrays.copyOfRange(trieData, 0, trieLength), longJumps.clone());
+      return new ClassNameTrie(
+          Arrays.copyOfRange(trieData, 0, trieLength),
+          Arrays.copyOfRange(longJumps, 0, longJumpCount));
     }
 
     /** Reads a class-name mapping file into the current builder */
@@ -259,19 +262,33 @@ public final class ClassNameTrie {
     }
 
     /** Moves jump values that won't fit into the long-jump table and replaces them with an id. */
-    private char packJump(int jump) {
+    private char setJump(int jump) {
       if (jump < LONG_JUMP_MARKER) {
-        return (char) jump;
+        return (char) jump; // jump is small enough to fit into the trie
       }
-      int longJumpId = longJumps.length;
-      longJumps = Arrays.copyOf(longJumps, longJumpId + 1);
-      longJumps[longJumpId] = jump;
-      return (char) (longJumpId | LONG_JUMP_MARKER);
+      if (longJumpCount == longJumps.length) {
+        int[] oldJumps = longJumps;
+        longJumps = new int[longJumpCount + (longJumpCount >> 1)];
+        System.arraycopy(oldJumps, 0, longJumps, 0, longJumpCount);
+      }
+      longJumps[longJumpCount] = jump;
+      return (char) (longJumpCount++ | LONG_JUMP_MARKER);
     }
 
     /** Restores jump values previously moved into the long-jump table. */
-    private int unpackJump(char jump) {
+    private int getJump(char jump) {
       return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
+    }
+
+    /**
+     * Increases jump by the given offset, this may result in it moving into the long-jump table.
+     */
+    private char updateJump(char jump, int offset) {
+      if (jump < LONG_JUMP_MARKER) {
+        return setJump(jump + offset);
+      }
+      longJumps[jump & ~LONG_JUMP_MARKER] += offset;
+      return jump;
     }
 
     private void insertMapping(String key, char valueToInsert) {
@@ -314,7 +331,7 @@ public final class ClassNameTrie {
         int branch = branchIndex - dataIndex;
         if (branch < branchCount - 1) {
           int nextJumpIndex = valueIndex + branchCount;
-          int nextBranchJump = unpackJump(trieData[nextJumpIndex]);
+          int nextBranchJump = getJump(trieData[nextJumpIndex]);
 
           // update subTrieEnd to reflect we've moved down a left/centre branch
           subTrieEnd = dataIndex + (branchCount * 3) - 1 + nextBranchJump;
@@ -327,7 +344,7 @@ public final class ClassNameTrie {
 
         // move on to the segment/node for the picked branch...
         if (branch > 0) {
-          dataIndex += unpackJump(trieData[valueIndex + branchCount - 1]);
+          dataIndex += getJump(trieData[valueIndex + branchCount - 1]);
         }
 
         // ...always include moving past the current node
@@ -405,7 +422,7 @@ public final class ClassNameTrie {
       if (jumpOffset > 0) {
         // now we know how much we added, update all jumps that need to jump past our addition
         for (int i = jumpsToOffset.nextSetBit(0); i >= 0; i = jumpsToOffset.nextSetBit(i + 1)) {
-          trieData[i] = packJump(unpackJump(trieData[i]) + jumpOffset);
+          trieData[i] = updateJump(trieData[i], jumpOffset);
         }
       }
     }
@@ -452,12 +469,12 @@ public final class ClassNameTrie {
         System.arraycopy(trieData, j, trieData, i, branchCount);
         i += branchCount;
         j += branchCount;
-        precedingJump = newBranch > 0 ? unpackJump(trieData[i - 1]) : 0;
+        precedingJump = newBranch > 0 ? getJump(trieData[i - 1]) : 0;
         // calculate jump for next branch, using previous jump as a reference
-        trieData[i++] = packJump(precedingJump + remainingKeyLength);
+        trieData[i++] = setJump(precedingJump + remainingKeyLength);
         for (int b = newBranch + 1; b < branchCount; b++) {
           // update old branch jumps on right to account for added content
-          trieData[i++] = packJump(unpackJump(trieData[j++]) + remainingKeyLength);
+          trieData[i++] = updateJump(trieData[j++], remainingKeyLength);
         }
       } else {
         // adding branch on right
@@ -466,7 +483,7 @@ public final class ClassNameTrie {
         j += branchCount - 1;
         // calculate jump needed to reach our new branch based on the size of the old sub-trie
         precedingJump = subTrieEnd - subTrieStart;
-        trieData[i++] = packJump(precedingJump);
+        trieData[i++] = setJump(precedingJump);
       }
 
       // now move up the sub-trie content before our new branch
@@ -596,7 +613,7 @@ public final class ClassNameTrie {
       trieData[i++] = key.charAt(keyIndex);
       trieData[i++] = (char) (collapseLeft ? trieData[j + 1] : segmentEnd - pivot);
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
-      trieData[i++] = packJump(subTrieEnd - pivot);
+      trieData[i++] = setJump(subTrieEnd - pivot);
       System.arraycopy(trieData, pivot + insertedCharacters, trieData, i, subTrieEnd - pivot);
       i += subTrieEnd - pivot;
       if (!collapseRight) {
@@ -719,7 +736,7 @@ public final class ClassNameTrie {
     /** Writes the Java form of the trie as a series of lines. */
     public static boolean generateJavaTrie(
         List<String> lines, String prefix, ClassNameTrie.Builder trie) {
-      boolean hasLongJumps = trie.longJumps.length > 0;
+      boolean hasLongJumps = trie.longJumpCount > 0;
       int firstLineNumber = lines.size();
       int chunk = 1;
       lines.add("  private static final String " + prefix + "TRIE_TEXT_" + chunk + " =");
@@ -780,13 +797,14 @@ public final class ClassNameTrie {
         lines.add("  private static final int[] " + prefix + "LONG_JUMPS = {");
         buf.setLength(0);
         buf.append("   ");
-        for (int j : trie.longJumps) {
+        for (int i = 0; i < trie.longJumpCount; i++) {
+          int jump = trie.longJumps[i];
           if (buf.length() > 90) {
             lines.add(buf.toString());
             buf.setLength(0);
             buf.append("   ");
           }
-          buf.append(' ').append(String.format("0x%06X", j)).append(',');
+          buf.append(' ').append(String.format("0x%06X", jump)).append(',');
         }
         lines.add(buf.toString());
         lines.add("  };");
