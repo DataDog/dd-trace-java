@@ -4,6 +4,11 @@ apply plugin: "idea"
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.7
 
+excludedClassesCoverage += [
+  // Exclude catch branches that only log errors
+  "datadog.trace.agent.tooling.matchercache.MatcherCacheFileBuilder"
+]
+
 dependencies {
   implementation deps.slf4j
   implementation deps.bytebuddy
