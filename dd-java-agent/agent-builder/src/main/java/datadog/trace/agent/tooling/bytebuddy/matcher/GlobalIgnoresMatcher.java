@@ -34,6 +34,7 @@ public class GlobalIgnoresMatcher implements AgentBuilder.RawMatcher {
     String name = typeDescription.getActualName();
     return GlobalIgnores.isIgnored(name, skipAdditionalLibraryMatcher)
         || CustomExcludes.isExcluded(name)
+        || CodeSourceExcludes.isExcluded(protectionDomain)
         || ProxyClassIgnores.isIgnored(name);
   }
 
