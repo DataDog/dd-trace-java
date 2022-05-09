@@ -5,7 +5,7 @@ minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.7
 
 excludedClassesCoverage += [
-  // Exclude catch branches that only log errors
+  // Excluded because it has catch branches that only log errors and are not covered with tests
   "datadog.trace.agent.tooling.matchercache.MatcherCacheFileBuilder"
 ]
 

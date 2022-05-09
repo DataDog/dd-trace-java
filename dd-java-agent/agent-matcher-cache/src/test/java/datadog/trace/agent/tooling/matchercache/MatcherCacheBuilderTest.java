@@ -77,8 +77,6 @@ public class MatcherCacheBuilderTest {
 
     assertEquals("Ignore: 2; Skip: 2; Transform: 3; Fail: 1", stats.toString());
 
-    matcherCacheBuilder.optimize();
-
     // serialize MatcherCache and load as MatcherCache and check the result
     MatcherCache matcherCache = serializeAndLoadCacheData(matcherCacheBuilder);
 

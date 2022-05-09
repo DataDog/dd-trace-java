@@ -24,7 +24,6 @@ public final class BinarySerializers {
   public static void writeString(OutputStream os, String str) throws IOException {
     byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
     writeInt(os, bytes.length);
-    os.write('\n');
     os.write(bytes);
   }
 
@@ -34,10 +33,6 @@ public final class BinarySerializers {
       return "";
     }
     byte[] bytes = new byte[length];
-    int newLineChar = is.read();
-    if (newLineChar != '\n') {
-      throw new IllegalStateException("Expected \\n but read " + (char) newLineChar);
-    }
     int len = is.read(bytes, 0, length);
     return new String(bytes, 0, len, StandardCharsets.UTF_8);
   }

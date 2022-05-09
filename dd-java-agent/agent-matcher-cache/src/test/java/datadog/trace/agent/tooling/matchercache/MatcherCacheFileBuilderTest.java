@@ -70,7 +70,6 @@ public class MatcherCacheFileBuilderTest {
     for (Map.Entry<String, ClassCollection> entry : classPaths.entrySet()) {
       verify(matcherCacheBuilder, times(1)).fill(eq(entry.getValue()), any(), eq(classMatchers));
     }
-    verify(matcherCacheBuilder, times(1)).optimize();
     verify(matcherCacheBuilder, times(1)).serializeBinary(dataFile);
   }
 }

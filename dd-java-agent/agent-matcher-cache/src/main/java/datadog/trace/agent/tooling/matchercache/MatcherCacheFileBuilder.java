@@ -47,8 +47,6 @@ public class MatcherCacheFileBuilder {
       }
     }
 
-    matcherCacheBuilder.optimize();
-
     try {
       matcherCacheBuilder.serializeBinary(new File(params.getOutputCacheDataFile()));
     } catch (IOException e) {

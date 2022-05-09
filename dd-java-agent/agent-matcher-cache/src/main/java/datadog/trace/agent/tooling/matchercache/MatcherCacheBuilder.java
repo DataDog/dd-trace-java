@@ -87,14 +87,23 @@ public class MatcherCacheBuilder {
   }
 
   public void serializeBinary(OutputStream os) throws IOException {
-    int numberOfPackages = packages.size();
-    BinarySerializers.writeInt(os, numberOfPackages);
-
+    int numberOfPackages = 0;
     for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
-      BinarySerializers.writeString(os, entry.getKey());
-
+      if (entry.getValue().canBeRemoved()) {
+        log.info(
+            "Package {} will be excluded from the matcher cache, because all its classes can't be skipped",
+            entry.getKey());
+      } else {
+        numberOfPackages += 1;
+      }
+    }
+    BinarySerializers.writeInt(os, numberOfPackages);
+    for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
       PackageData packageData = entry.getValue();
-      writeHashCodes(os, packageData.transformedClassHashes());
+      if (!packageData.canBeRemoved()) {
+        BinarySerializers.writeString(os, entry.getKey());
+        writeHashCodes(os, packageData.transformedClassHashes());
+      }
     }
   }
 
@@ -127,18 +136,12 @@ public class MatcherCacheBuilder {
           ps.print(',');
           ps.print(ci.additionalInfo);
         }
+        if (pd.canBeRemoved()) {
+          ps.print(',');
+          ps.print(
+              "Package excluded from the matcher cache, because all its classes can't be skipped");
+        }
         ps.println();
-      }
-    }
-  }
-
-  public void optimize() {
-    Collection<String> packageNames = new ArrayList<>(this.packages.keySet());
-    for (String pkg : packageNames) {
-      PackageData packageData = this.packages.get(pkg);
-      if (packageData.canBeRemoved()) {
-        this.packages.remove(pkg);
-        log.debug("{} removed because it has no skipped classes.", pkg);
       }
     }
   }
