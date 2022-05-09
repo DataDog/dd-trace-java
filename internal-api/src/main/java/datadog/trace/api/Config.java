@@ -75,6 +75,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -261,8 +262,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -450,6 +453,7 @@ public class Config {
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
+  private final String ciVisibilityAgentlessUrl;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -961,6 +965,22 @@ public class Config {
     ciVisibilityAgentlessEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
+
+    final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
+    URI parsedCiVisibilityUri = null;
+    if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
+      try {
+        parsedCiVisibilityUri = new URL(ciVisibilityAgentlessUrlStr).toURI();
+      } catch (MalformedURLException | URISyntaxException ex) {
+        log.error(
+            "Cannot parse CI Visibility agentless URL '{}', skipping", ciVisibilityAgentlessUrlStr);
+      }
+    }
+    if (parsedCiVisibilityUri != null) {
+      ciVisibilityAgentlessUrl = ciVisibilityAgentlessUrlStr;
+    } else {
+      ciVisibilityAgentlessUrl = null;
+    }
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -1524,6 +1544,10 @@ public class Config {
 
   public boolean isCiVisibilityAgentlessEnabled() {
     return ciVisibilityAgentlessEnabled;
+  }
+
+  public String getCiVisibilityAgentlessUrl() {
+    return ciVisibilityAgentlessUrl;
   }
 
   public String getAppSecRulesFile() {
