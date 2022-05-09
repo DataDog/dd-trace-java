@@ -966,18 +966,17 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
 
-    final String ciVisibilityAgentlessUrlStr =
-        configProvider.getString(CIVISIBILITY_AGENTLESS_URL, null);
-    URL parsedCiVisibilityUrl = null;
+    final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
+    URI parsedCiVisibilityUri = null;
     if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
       try {
-        parsedCiVisibilityUrl = new URL(ciVisibilityAgentlessUrlStr);
-      } catch (MalformedURLException ex) {
+        parsedCiVisibilityUri = new URL(ciVisibilityAgentlessUrlStr).toURI();
+      } catch (MalformedURLException | URISyntaxException ex) {
         log.error(
             "Cannot parse CI Visibility agentless URL '{}', skipping", ciVisibilityAgentlessUrlStr);
       }
     }
-    if (parsedCiVisibilityUrl != null) {
+    if (parsedCiVisibilityUri != null) {
       ciVisibilityAgentlessUrl = ciVisibilityAgentlessUrlStr;
     } else {
       ciVisibilityAgentlessUrl = null;
