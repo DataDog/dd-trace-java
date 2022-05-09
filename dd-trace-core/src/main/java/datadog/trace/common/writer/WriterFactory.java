@@ -22,6 +22,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
+import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +72,19 @@ public class WriterFactory {
         return new PrintingWriter(System.out, true);
       }
 
+      HttpUrl hostUrl = null;
+      if (config.getCiVisibilityAgentlessUrl() != null) {
+        hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
+        log.info(
+            "Using host URL '" + hostUrl + "' to report CI Visibility traces in Agentless mode.");
+      }
+
       final DDIntakeApi ddIntakeApi =
-          DDIntakeApi.builder().apiKey(config.getApiKey()).trackType(trackType).build();
+          DDIntakeApi.builder()
+              .hostUrl(hostUrl)
+              .apiKey(config.getApiKey())
+              .trackType(trackType)
+              .build();
 
       remoteWriter =
           DDIntakeWriter.builder()
