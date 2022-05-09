@@ -6,7 +6,7 @@ import java.util.List;
 
 public final class Platform {
 
-  private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
+  public static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
   private static List<Integer> splitDigits(String str) {
@@ -56,7 +56,7 @@ public final class Platform {
     return new Version(major, minor, update);
   }
 
-  static final class Version {
+  public static final class Version {
     public final int major, minor, update;
 
     public Version(int major, int minor, int update) {

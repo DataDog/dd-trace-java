@@ -112,7 +112,7 @@ public class ClassFinder {
   private boolean isJar(String path) {
     if (path.endsWith(".war") || path.endsWith(".ear")) {
       log.warn("Found not supported class archive format: {}", path);
-      // TODO add support (need to be tested)
+      // TODO add support (needs to be tested)
     }
     return path.endsWith(".jar");
   }

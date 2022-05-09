@@ -4,7 +4,7 @@ import static org.mockito.Mockito.*;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
-import datadog.trace.agent.tooling.matchercache.util.JavaVersion;
+import datadog.trace.api.Platform;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class MatcherCacheFileBuilderTest {
   }
 
   @Test
-  public void test() throws IOException {
+  public void testBuildMatcherCacheFile() throws IOException {
     File dataFile = new File("/tmp/out.bin");
     File reportFile = new File("/tmp/out.csv");
     File jdkClassPath = new File("jdk-class-path");
@@ -51,7 +51,7 @@ public class MatcherCacheFileBuilderTest {
     classPaths.put("/libs/", new ClassCollection());
 
     when(params.validate()).thenReturn(true);
-    when(matcherCacheBuilder.getJavaMajorVersion()).thenReturn(JavaVersion.MAJOR_VERSION);
+    when(matcherCacheBuilder.getJavaMajorVersion()).thenReturn(Platform.JAVA_VERSION.major);
     when(params.getOutputCacheDataFile()).thenReturn(dataFile.toString());
     when(params.getOutputCsvReportFile()).thenReturn(reportFile.toString());
     when(params.getJavaHome()).thenReturn(jdkClassPath.toString());

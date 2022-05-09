@@ -7,7 +7,7 @@ import datadog.trace.agent.tooling.matchercache.MatcherCacheBuilder;
 import datadog.trace.agent.tooling.matchercache.MatcherCacheFileBuilder;
 import datadog.trace.agent.tooling.matchercache.MatcherCacheFileBuilderParams;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
-import datadog.trace.agent.tooling.matchercache.util.JavaVersion;
+import datadog.trace.api.Platform;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public final class MatcherCacheBuilderCLI {
       return;
     }
     ClassFinder classFinder = new ClassFinder();
-    MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(JavaVersion.MAJOR_VERSION);
+    MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(Platform.JAVA_VERSION.major);
     ClassMatchers classMatchers = AllClassMatchers.create(true, true);
     MatcherCacheFileBuilder matcherCacheFileBuilder =
         new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);

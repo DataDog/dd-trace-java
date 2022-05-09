@@ -17,7 +17,7 @@ public class ClassCollectionLoaderTest {
   public void assertClass(
       String expectedToString, String className, ClassCollectionLoader classCollectionLoader)
       throws ClassNotFoundException {
-    Class<?> innerJarClass = classCollectionLoader.loadClass(className, false);
+    Class<?> innerJarClass = classCollectionLoader.loadClass(className, true);
     assertNotNull(innerJarClass);
     Object instance;
     try {
@@ -60,7 +60,6 @@ public class ClassCollectionLoaderTest {
   @Test
   void testMultiReleaseClasses9() throws IOException, ClassNotFoundException {
     ClassCollectionLoader ccl = createClassLoader(TEST_CLASSES_FOLDER, "multi-release-jar", 9);
-    //    assertTrue(false);
     assertClass("Abc9", "example.classes.Abc", ccl);
     assertClass("Only9", "example.classes.Only9", ccl);
   }

@@ -1,13 +1,15 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
-minimumBranchCoverage = 0.6
+minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.7
 
 dependencies {
   implementation deps.slf4j
   implementation deps.bytebuddy
   testImplementation deps.junit5
   testImplementation deps.mockito
+  testImplementation project(':internal-api')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

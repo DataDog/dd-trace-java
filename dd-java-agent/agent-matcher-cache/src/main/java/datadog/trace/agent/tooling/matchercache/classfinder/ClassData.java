@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.matchercache.classfinder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +37,7 @@ public final class ClassData {
 
   public void addClassBytes(byte[] classBytes, String relativePath, String parentPath) {
     int jdkMajorVersion = parseJdkMajorVersionFromClassPath(relativePath);
-    ClassVersion classVersion =
-        new ClassVersion(parentPath, relativePath, classBytes, jdkMajorVersion);
+    ClassVersion classVersion = new ClassVersion(parentPath, classBytes, jdkMajorVersion);
     int insertAt = findInsertPos(jdkMajorVersion);
     versions.add(insertAt, classVersion);
   }
@@ -83,29 +81,15 @@ public final class ClassData {
     return insertAt;
   }
 
-  private final class ClassVersion {
+  private static final class ClassVersion {
     private final String parentPath;
-    private final String relativePath;
     private final byte[] classBytes;
     private final int version;
 
-    private ClassVersion(String parentPath, String relativePath, byte[] classBytes, int version) {
+    private ClassVersion(String parentPath, byte[] classBytes, int version) {
       this.parentPath = parentPath;
-      this.relativePath = relativePath;
       this.classBytes = classBytes;
       this.version = version;
-    }
-
-    @Override
-    public String toString() {
-      return fullClassName
-          + " from "
-          + parentPath
-          + "/"
-          + relativePath
-          + " ("
-          + Arrays.hashCode(classBytes)
-          + ")";
     }
 
     public String getLocation() {
