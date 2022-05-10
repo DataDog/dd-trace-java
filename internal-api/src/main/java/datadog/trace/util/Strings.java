@@ -220,7 +220,7 @@ public final class Strings {
   }
 
   public static CharSequence truncate(CharSequence input, int limit) {
-    if (input == null || input.length() == 0) {
+    if (input == null || input.length() <= limit) {
       return input;
     }
     return input.subSequence(0, limit);
