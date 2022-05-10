@@ -71,7 +71,7 @@ public class DDIntakeApi implements RemoteApi {
       return this;
     }
 
-    DDIntakeApiBuilder hostUrl(final HttpUrl hostUrl) {
+    public DDIntakeApiBuilder hostUrl(final HttpUrl hostUrl) {
       this.hostUrl = hostUrl;
       return this;
     }
