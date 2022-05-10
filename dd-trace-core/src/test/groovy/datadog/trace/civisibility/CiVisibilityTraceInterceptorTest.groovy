@@ -1,5 +1,6 @@
 package datadog.trace.civisibility
 
+import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
@@ -22,7 +23,7 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
     writer.size() == 0
   }
 
-  def "add ciapp origin the context origin to all spans"() {
+  def "add ciapp origin and tracer version to all spans"() {
     setup:
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
 
@@ -36,5 +37,6 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
     def span = trace[0]
 
     span.context().origin == CiVisibilityTraceInterceptor.CIAPP_TEST_ORIGIN
+    span.getTag(DDTags.LIBRARY_VERSION_TAG_KEY) != null
   }
 }
