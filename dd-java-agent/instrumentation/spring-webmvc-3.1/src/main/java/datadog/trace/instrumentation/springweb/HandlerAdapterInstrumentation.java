@@ -69,9 +69,10 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(2) final Object handler) {
       // Name the parent span based on the matching pattern
       Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
-      Object dispatchSpan = request.getAttribute("datadog.already_handled_span");
-      if (parentSpan instanceof AgentSpan && !(dispatchSpan instanceof AgentSpan)) {
+      Object dispatchSpan = request.getAttribute("datadog.already_handled_parent_span");
+      if (parentSpan instanceof AgentSpan && parentSpan != dispatchSpan) {
         DECORATE.onRequest((AgentSpan) parentSpan, request, request, null);
+        request.setAttribute("datadog.already_handled_parent_span", parentSpan);
       }
 
       if (activeSpan() == null) {
@@ -83,7 +84,6 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
       final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
-      request.setAttribute("datadog.already_handled_span", span);
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

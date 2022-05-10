@@ -325,7 +325,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           defaultTags()
         }
       }
-      if (getContainerType() != ContainerType.JETTY) {
+      if (getContainerType() == ContainerType.TOMCAT) {
         def extraTags = expectedExtraServerTags(NOT_FOUND)
         trace.span {
           operationName "servlet.forward"

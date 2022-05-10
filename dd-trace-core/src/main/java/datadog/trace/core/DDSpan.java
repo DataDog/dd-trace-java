@@ -492,12 +492,14 @@ public class DDSpan
   @Override
   public DDSpan setTag(final String tag, final CharSequence value) {
     context.setTag(tag, value);
+    log.debug("setTag[{}]: {}", tag, this);
     return this;
   }
 
   @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
+    log.debug("setTag[{}]: {}", tag, this);
     return this;
   }
 
@@ -566,7 +568,8 @@ public class DDSpan
   @Override
   public final DDSpan setResourceName(final CharSequence resourceName, byte priority) {
     context.setResourceName(resourceName, priority);
-    log.debug("setResourceName: {} {} {}", resourceName, priority, this, new RuntimeException("log"));
+    log.debug(
+        "setResourceName: {} {} {}", resourceName, priority, this, new RuntimeException("log"));
     return this;
   }
 
