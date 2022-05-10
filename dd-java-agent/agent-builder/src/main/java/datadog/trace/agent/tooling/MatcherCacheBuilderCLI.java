@@ -33,7 +33,10 @@ public final class MatcherCacheBuilderCLI {
     ClassFinder classFinder = new ClassFinder();
     MatcherCacheBuilder matcherCacheBuilder =
         new MatcherCacheBuilder(Platform.JAVA_VERSION.major, agentVersion);
-    ClassMatchers classMatchers = AllClassMatchers.create(true, true);
+    boolean enableAllInstrumenters = true;
+    boolean skipAdditionalIgnores = false;
+    ClassMatchers classMatchers =
+        AllClassMatchers.create(enableAllInstrumenters, skipAdditionalIgnores);
     MatcherCacheFileBuilder matcherCacheFileBuilder =
         new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);
     matcherCacheFileBuilder.buildMatcherCacheFile(params);
@@ -104,12 +107,19 @@ public final class MatcherCacheBuilderCLI {
     @Override
     public boolean matchesAny(Class<?> cl) {
       TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
-      return firstMatching(typeDescription) != null;
+      Instrumenter instr = firstMatching(typeDescription);
+      boolean result = instr != null;
+      if (result) {
+        log.debug("{} matched by {}", typeDescription.getActualName(), instr.getClass());
+      }
+      return result;
     }
 
     @Override
     public boolean isGloballyIgnored(String fqcn) {
-      return GlobalIgnoresMatcher.isIgnored(fqcn, skipAdditionalIgnores);
+      boolean ignored = GlobalIgnoresMatcher.isIgnored(fqcn, skipAdditionalIgnores);
+      log.debug("{} ignored = {}", fqcn, ignored);
+      return ignored;
     }
 
     public Instrumenter firstMatching(TypeDescription typeDescription) {

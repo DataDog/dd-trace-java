@@ -46,7 +46,7 @@ When Matcher Cache is being used it emits next JFR events:
 - `datadog.trace.agent.MatcherCacheMiss` for classes that where not found it the cache
 - `datadog.trace.agent.MatcherCacheLoading` the time it took to load cache data
 
-## Class Tranformation JFR events
+## Class Transformation JFR events
 
 When Agent loads classes it produces `datadog.trace.agent.ClassTransformation` events.
 

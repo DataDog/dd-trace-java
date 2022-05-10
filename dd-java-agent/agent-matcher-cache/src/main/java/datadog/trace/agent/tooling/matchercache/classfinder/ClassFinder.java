@@ -128,7 +128,7 @@ public class ClassFinder {
       try {
         String className = readClassName(classBytes);
         if (!"module-info".equals(className)
-            && !"package-info".equals(className)
+            && !className.endsWith(".package-info")
             && !relativePath.endsWith(".classdata")) {
           classCollection.addClass(classBytes, className, relativePath, parentPath);
           return true;

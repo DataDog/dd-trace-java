@@ -39,8 +39,7 @@ public class MatcherCacheFileBuilder {
     if (params.getOutputCsvReportFile() != null) {
       try {
         matcherCacheBuilder.serializeText(new File(params.getOutputCsvReportFile()));
-        log.info(
-            "Matcher cache CSV report has been serialized into " + params.getOutputCsvReportFile());
+        log.info("Matcher cache CSV report has been saved into " + params.getOutputCsvReportFile());
       } catch (IOException e) {
         log.error(
             "Failed to serialize matcher cache CSV report into " + params.getOutputCsvReportFile(),
@@ -51,7 +50,7 @@ public class MatcherCacheFileBuilder {
 
     try {
       matcherCacheBuilder.serializeBinary(new File(params.getOutputCacheDataFile()));
-      log.info("Matcher cache data has been serialized into " + params.getOutputCacheDataFile());
+      log.info("Matcher cache data has been saved into " + params.getOutputCacheDataFile());
     } catch (IOException e) {
       log.error(
           "Failed to serialize matcher cache data into " + params.getOutputCacheDataFile(), e);
