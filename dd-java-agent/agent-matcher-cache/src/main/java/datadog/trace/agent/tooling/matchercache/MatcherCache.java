@@ -9,13 +9,59 @@ import java.util.Arrays;
 
 public final class MatcherCache {
 
+  public static class UnexpectedDataFormatVersion extends RuntimeException {
+    public UnexpectedDataFormatVersion(
+        int expectedMatcherCacheFormatVersion, int matcherCacheFileFormatVersion) {
+      super(
+          "Unknown Matcher Cache data format version. Expected: "
+              + expectedMatcherCacheFormatVersion
+              + " but read: "
+              + matcherCacheFileFormatVersion);
+    }
+  }
+
+  public static class IncompatibleJavaVersionData extends RuntimeException {
+    public IncompatibleJavaVersionData(int expectedJavaMajorVersion, int javaMajorVersionInFile) {
+      super(
+          "Matcher Cache data file was built for Java "
+              + javaMajorVersionInFile
+              + " that is not compatible with Java "
+              + expectedJavaMajorVersion);
+    }
+  }
+
+  public static class IncompatibleAgentVersion extends RuntimeException {
+    public IncompatibleAgentVersion(String agentVersion, String agentVersionInFile) {
+      super(
+          "Matcher Cache data file was built with "
+              + agentVersionInFile
+              + " that is not compatible with current "
+              + agentVersion);
+    }
+  }
+
   public enum Result {
     TRANSFORM,
     SKIP,
     UNKNOWN,
   }
 
-  public static MatcherCache deserialize(InputStream is) throws IOException {
+  public static MatcherCache deserialize(InputStream is, int javaMajorVersion, String agentVersion)
+      throws IOException {
+    int matcherCacheFileFormatVersion = readInt(is);
+    int expectedMatcherCacheFormatVersion = MatcherCacheBuilder.MATCHER_CACHE_FILE_FORMAT_VERSION;
+    if (matcherCacheFileFormatVersion != expectedMatcherCacheFormatVersion) {
+      throw new UnexpectedDataFormatVersion(
+          expectedMatcherCacheFormatVersion, matcherCacheFileFormatVersion);
+    }
+    int javaMajorVersionInFile = readInt(is);
+    if (javaMajorVersionInFile != javaMajorVersion) {
+      throw new IncompatibleJavaVersionData(javaMajorVersion, javaMajorVersionInFile);
+    }
+    String agentVersionInFile = readString(is);
+    if (!agentVersionInFile.equals(agentVersion)) {
+      throw new IncompatibleAgentVersion(agentVersion, agentVersionInFile);
+    }
     int numberOfPackages = readInt(is);
     assert numberOfPackages >= 0;
     String[] packagesOrdered = new String[numberOfPackages];

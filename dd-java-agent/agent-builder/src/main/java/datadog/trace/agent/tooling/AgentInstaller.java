@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 import datadog.trace.agent.tooling.bytebuddy.matcher.PrebuiltIgnoresMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
@@ -158,18 +159,19 @@ public class AgentInstaller {
 
   private static AgentBuilder.RawMatcher getPrebuiltMatcherCacheOrFallbackToGlobalIgnores(
       AgentBuilder.RawMatcher globalIgnoresMatcher) {
-    String cachedMatcherDataFile = Config.get().getPreBuiltMatcherDataFile();
+    String matcherCacheFile = Config.get().getPreBuiltMatcherDataFile();
 
-    if (cachedMatcherDataFile != null) {
+    if (matcherCacheFile != null) {
       PrebuiltIgnoresMatcher cachedMatcher =
-          PrebuiltIgnoresMatcher.create(cachedMatcherDataFile, globalIgnoresMatcher);
+          PrebuiltIgnoresMatcher.create(
+              matcherCacheFile, globalIgnoresMatcher, Platform.JAVA_VERSION.major);
       if (cachedMatcher != null) {
-        log.info("Cached Matcher has been successfully installed from: " + cachedMatcherDataFile);
+        log.info("Cached Matcher has been successfully installed from: " + matcherCacheFile);
         return cachedMatcher;
       }
       log.warn(
           "Cached matcher failed to install from: "
-              + cachedMatcherDataFile
+              + matcherCacheFile
               + ". Falling back to Global Ignores matcher.");
     }
 

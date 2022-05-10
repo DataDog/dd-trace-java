@@ -4,7 +4,6 @@ import static org.mockito.Mockito.*;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
-import datadog.trace.api.Platform;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -51,7 +50,6 @@ public class MatcherCacheFileBuilderTest {
     classPaths.put("/libs/", new ClassCollection());
 
     when(params.validate()).thenReturn(true);
-    when(matcherCacheBuilder.getJavaMajorVersion()).thenReturn(Platform.JAVA_VERSION.major);
     when(params.getOutputCacheDataFile()).thenReturn(dataFile.toString());
     when(params.getOutputCsvReportFile()).thenReturn(reportFile.toString());
     when(params.getJavaHome()).thenReturn(jdkClassPath.toString());

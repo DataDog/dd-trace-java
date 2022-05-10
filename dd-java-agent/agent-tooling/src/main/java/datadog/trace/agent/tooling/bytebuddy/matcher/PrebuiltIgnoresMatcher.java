@@ -5,8 +5,12 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.agent.tooling.bytebuddy.matcher.jfr.MatcherCacheEvents;
 import datadog.trace.agent.tooling.matchercache.MatcherCache;
 import datadog.trace.util.AgentTaskScheduler;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.ProtectionDomain;
 import javax.annotation.Nullable;
@@ -17,29 +21,49 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
-  // TODO unit test
 
   private static final Logger log = LoggerFactory.getLogger(PrebuiltIgnoresMatcher.class);
 
   @Nullable
   public static PrebuiltIgnoresMatcher create(
-      String preBuiltMatcherData, AgentBuilder.RawMatcher fallbackIgnoresMatcher) {
-    File cacheFile = new File(preBuiltMatcherData);
+      String matcherCacheFile,
+      AgentBuilder.RawMatcher fallbackIgnoresMatcher,
+      int javaMajorVersion) {
+    File cacheFile = new File(matcherCacheFile);
+    String agentVersion = getAgentVersion();
     MatcherCache matcherCache = null;
     try (InputStream is = Files.newInputStream(cacheFile.toPath())) {
       long startAt = System.nanoTime();
-      matcherCache = MatcherCache.deserialize(is);
+      matcherCache = MatcherCache.deserialize(is, javaMajorVersion, agentVersion);
       long durationNs = System.nanoTime() - startAt;
       log.info("Loaded pre-built matcher data in ms: {}", durationNs / 1_000_000);
       // Tracking duration manually because JFR doesn't seem to track duration properly at this
       // early stage
       commitCacheLoadingTimeEvent(durationNs);
     } catch (Throwable e) {
-      log.error("Failed to load pre-build ignores matcher data from: " + preBuiltMatcherData, e);
+      log.error("Failed to load pre-build ignores matcher data from: " + matcherCacheFile, e);
     }
     return matcherCache == null
         ? null
         : new PrebuiltIgnoresMatcher(matcherCache, fallbackIgnoresMatcher);
+  }
+
+  public static String getAgentVersion() {
+    final StringBuilder sb = new StringBuilder();
+    try (final BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(
+                PrebuiltIgnoresMatcher.class.getResourceAsStream("/dd-java-agent.version"),
+                StandardCharsets.UTF_8))) {
+
+      for (int c = reader.read(); c != -1; c = reader.read()) {
+        sb.append((char) c);
+      }
+      return sb.toString().trim();
+    } catch (IOException e) {
+      log.error("Can't read dd-java-agent.version");
+    }
+    return null;
   }
 
   private final MatcherCache matcherCache;

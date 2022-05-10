@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 public final class MatcherCacheBuilderCLI {
   private static final Logger log = LoggerFactory.getLogger(MatcherCacheBuilderCLI.class);
 
-  public static void run(File bootstrapFile, String... args) {
+  public static void run(File bootstrapFile, String agentVersion, String... args) {
     MatcherCacheFileBuilderParams params;
     try {
       params = MatcherCacheFileBuilderParams.parseArgs(args).withDDJavaTracerJar(bootstrapFile);
@@ -31,7 +31,8 @@ public final class MatcherCacheBuilderCLI {
       return;
     }
     ClassFinder classFinder = new ClassFinder();
-    MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(Platform.JAVA_VERSION.major);
+    MatcherCacheBuilder matcherCacheBuilder =
+        new MatcherCacheBuilder(Platform.JAVA_VERSION.major, agentVersion);
     ClassMatchers classMatchers = AllClassMatchers.create(true, true);
     MatcherCacheFileBuilder matcherCacheFileBuilder =
         new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);

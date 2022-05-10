@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollectionLoader;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
+import datadog.trace.agent.tooling.matchercache.util.BinarySerializers;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class MatcherCacheBuilderTest {
@@ -64,21 +66,24 @@ public class MatcherCacheBuilderTest {
   }
 
   @Test
-  public void test() throws IOException {
+  public void testHappyPath() throws IOException {
     File classPath = new File(TEST_CLASSES_FOLDER);
 
     ClassFinder classFinder = new ClassFinder();
     ClassCollection classCollection = classFinder.findClassesIn(classPath);
     int javaMajorVersion = 9;
+    String agentVersion = "0.95.0";
     ClassLoader classLoader = new TestClassLoader(classCollection, javaMajorVersion);
-    MatcherCacheBuilder matcherCacheBuilder = new MatcherCacheBuilder(javaMajorVersion);
+    MatcherCacheBuilder matcherCacheBuilder =
+        new MatcherCacheBuilder(javaMajorVersion, agentVersion);
     MatcherCacheBuilder.Stats stats =
         matcherCacheBuilder.fill(classCollection, classLoader, new TestClassMatchers());
 
     assertEquals("Ignore: 2; Skip: 2; Transform: 3; Fail: 1", stats.toString());
 
     // serialize MatcherCache and load as MatcherCache and check the result
-    MatcherCache matcherCache = serializeAndLoadCacheData(matcherCacheBuilder);
+    MatcherCache matcherCache =
+        serializeAndLoadCacheData(matcherCacheBuilder, javaMajorVersion, agentVersion);
 
     assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.OuterJarClass"));
     assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.InnerJarClass"));
@@ -103,7 +108,11 @@ public class MatcherCacheBuilderTest {
     // serialize text report
     Pattern expectedPattern =
         Pattern.compile(
-            "Packages: 5\n"
+            "Matcher Cache Report\n"
+                + "Format Version: 1\n"
+                + "Agent Version: 0\\.95\\.0\n"
+                + "Java Major Version: 9\n"
+                + "Packages: 5\n"
                 + "bar.foo.Baz,IGNORE,.*/test-classes/relocated-classes/somefolder/Baz.class\n"
                 + "example.InnerJarClass,FAIL,.*/test-classes/inner-jars/example.jar/Middle.jar/InnerJarClass.jar"
                 + ",java.lang.RuntimeException: Intentional test class load failure\n"
@@ -119,17 +128,66 @@ public class MatcherCacheBuilderTest {
         "Expected:\n" + expectedPattern + "Actual:\n" + reportData);
   }
 
+  @Test
+  public void testFailIfUnexpectedDataFormatVersion() throws IOException {
+    int incorrectMatcherCacheDataFormat = MatcherCacheBuilder.MATCHER_CACHE_FILE_FORMAT_VERSION + 1;
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    BinarySerializers.writeInt(os, incorrectMatcherCacheDataFormat);
+    ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
+    int whateverJavaVersion = 11;
+    Assertions.assertThrows(
+        MatcherCache.UnexpectedDataFormatVersion.class,
+        () -> MatcherCache.deserialize(is, whateverJavaVersion, "whatever-agent-version"));
+  }
+
+  @Test
+  public void testFailIfCacheDataIsForAnotherJavaVersion() {
+    int javaMajorVersion = 9;
+    MatcherCacheBuilder matcherCacheBuilder =
+        new MatcherCacheBuilder(javaMajorVersion, "whatever-agent-version");
+
+    int anotherJavaMajorVersion = 8;
+    assertNotEquals(anotherJavaMajorVersion, javaMajorVersion);
+
+    Assertions.assertThrows(
+        MatcherCache.IncompatibleJavaVersionData.class,
+        () ->
+            serializeAndLoadCacheData(
+                matcherCacheBuilder, anotherJavaMajorVersion, "whatever-agent-version"));
+  }
+
+  @Test
+  public void testFailIfCacheDataBuiltWithDifferentAgentVersion() throws IOException {
+    int javaMajorVersion = 11;
+    MatcherCacheBuilder matcherCacheBuilder =
+        new MatcherCacheBuilder(javaMajorVersion, "whatever-agent-version");
+
+    String agentVersion = "0.95.0";
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    matcherCacheBuilder.serializeBinary(os);
+
+    String anotherAgentVersion = "0.95.1";
+    assertNotEquals(anotherAgentVersion, agentVersion);
+    Assertions.assertThrows(
+        MatcherCache.IncompatibleAgentVersion.class,
+        () -> {
+          ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
+          MatcherCache.deserialize(is, javaMajorVersion, anotherAgentVersion);
+        });
+  }
+
   private String serializeTextReport(MatcherCacheBuilder matcherCacheBuilder) {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     matcherCacheBuilder.serializeText(os);
     return new String(os.toByteArray(), StandardCharsets.UTF_8);
   }
 
-  private MatcherCache serializeAndLoadCacheData(MatcherCacheBuilder matcherCacheBuilder)
+  private MatcherCache serializeAndLoadCacheData(
+      MatcherCacheBuilder matcherCacheBuilder, int javaMajorVersion, String agentVersion)
       throws IOException {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     matcherCacheBuilder.serializeBinary(os);
     ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
-    return MatcherCache.deserialize(is);
+    return MatcherCache.deserialize(is, javaMajorVersion, agentVersion);
   }
 }

@@ -38,7 +38,7 @@ public final class AgentJar {
             break;
           case "--build-matcher-cache":
           case "-mc":
-            runMatcherCacheBuilderCLI(args);
+            runMatcherCacheBuilderCLI(getAgentVersion(), args);
             break;
           default:
             throw new IllegalArgumentException(args[0]);
@@ -105,6 +105,7 @@ public final class AgentJar {
 
   private static void printAgentVersion() {
     try {
+      //      System.out.println(Version.VERSION);
       System.out.println(getAgentVersion());
     } catch (final Exception e) {
       System.out.println("Failed to parse agent version");
@@ -127,7 +128,8 @@ public final class AgentJar {
     return sb.toString().trim();
   }
 
-  public static void runMatcherCacheBuilderCLI(String... args) throws MalformedURLException {
+  public static void runMatcherCacheBuilderCLI(String agentVersion, String... args)
+      throws MalformedURLException {
     final CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
     if (codeSource == null || codeSource.getLocation() == null) {
       throw new MalformedURLException("Failed to get dd-java-tracer jar");
@@ -146,8 +148,8 @@ public final class AgentJar {
 
       String[] matcherCacheBuilderArgs = Arrays.copyOfRange(args, 1, args.length);
       final Method startMethod =
-          matcherCacheBuilderClass.getMethod("run", File.class, String[].class);
-      startMethod.invoke(null, bootstrapFile, matcherCacheBuilderArgs);
+          matcherCacheBuilderClass.getMethod("run", File.class, String.class, String[].class);
+      startMethod.invoke(null, bootstrapFile, agentVersion, matcherCacheBuilderArgs);
     } catch (Throwable e) {
       e.printStackTrace();
     }

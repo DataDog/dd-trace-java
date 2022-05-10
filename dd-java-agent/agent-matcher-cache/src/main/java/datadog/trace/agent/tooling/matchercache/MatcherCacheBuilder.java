@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MatcherCacheBuilder {
+  public static final int MATCHER_CACHE_FILE_FORMAT_VERSION = 1;
+
   static final class Stats {
     int counterIgnore = 0;
     int counterSkip = 0;
@@ -35,10 +37,12 @@ public class MatcherCacheBuilder {
   private static final Logger log = LoggerFactory.getLogger(MatcherCacheBuilder.class);
   private final TreeMap<String, PackageData> packages;
   private final int javaMajorVersion;
+  private final String agentVersion;
 
-  public MatcherCacheBuilder(int javaMajorVersion) {
+  public MatcherCacheBuilder(int javaMajorVersion, String agentVersion) {
     this.packages = new TreeMap<>();
     this.javaMajorVersion = javaMajorVersion;
+    this.agentVersion = agentVersion;
   }
 
   public int getJavaMajorVersion() {
@@ -87,6 +91,9 @@ public class MatcherCacheBuilder {
   }
 
   public void serializeBinary(OutputStream os) throws IOException {
+    BinarySerializers.writeInt(os, MATCHER_CACHE_FILE_FORMAT_VERSION);
+    BinarySerializers.writeInt(os, javaMajorVersion);
+    BinarySerializers.writeString(os, agentVersion);
     int numberOfPackages = 0;
     for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
       if (entry.getValue().canBeRemoved()) {
@@ -115,6 +122,13 @@ public class MatcherCacheBuilder {
 
   public void serializeText(OutputStream os) {
     PrintStream ps = new PrintStream(os);
+    ps.println("Matcher Cache Report");
+    ps.print("Format Version: ");
+    ps.println(MATCHER_CACHE_FILE_FORMAT_VERSION);
+    ps.print("Agent Version: ");
+    ps.println(agentVersion);
+    ps.print("Java Major Version: ");
+    ps.println(javaMajorVersion);
     ps.print("Packages: ");
     ps.println(packages.size());
     for (Map.Entry<String, PackageData> packageEntry : packages.entrySet()) {
