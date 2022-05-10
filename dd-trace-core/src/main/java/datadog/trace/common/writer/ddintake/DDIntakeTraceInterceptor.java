@@ -4,17 +4,19 @@ import static datadog.trace.util.TraceUtils.isValidStatusCode;
 import static datadog.trace.util.TraceUtils.normalizeOperationName;
 import static datadog.trace.util.TraceUtils.normalizeServiceName;
 import static datadog.trace.util.TraceUtils.normalizeSpanType;
-import static datadog.trace.util.TraceUtils.normalizeTag;
 
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.TraceUtils;
 import java.util.Collection;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DDIntakeTraceInterceptor implements TraceInterceptor {
+
+  public static final DDIntakeTraceInterceptor INSTANCE = new DDIntakeTraceInterceptor();
 
   private static final Logger log = LoggerFactory.getLogger(DDIntakeTraceInterceptor.class);
 
@@ -46,7 +48,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
 
     final Map<String, Object> tags = span.getTags();
     if (tags.get("env") != null) {
-      tags.put("env", normalizeTag((String) tags.get("env")));
+      tags.put("env", TraceUtils.normalizeEnv((String) tags.get("env")));
     }
 
     final String httpStatusCode = (String) tags.get(Tags.HTTP_STATUS);

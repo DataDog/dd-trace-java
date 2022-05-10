@@ -10,6 +10,7 @@ public class TraceUtils {
   private static final int MAX_TYPE_LEN = 100;
   private static final int MAX_SERVICE_LEN = 100;
   private static final int MAX_OP_NAME_LEN = 100;
+  private static final int MAX_ENV_LEN = 200;
 
   static final String DEFAULT_SERVICE_NAME = "unnamed-service";
   static final String DEFAULT_OPERATION_NAME = "unnamed_operation";
@@ -63,6 +64,15 @@ public class TraceUtils {
       return truncate(spanType, MAX_TYPE_LEN);
     }
     return spanType;
+  }
+
+  public static String normalizeEnv(final String env) {
+    if (env == null || env.length() == 0) {
+      return "";
+    }
+
+    String e = truncate(env, MAX_ENV_LEN);
+    return normalizeTag(e);
   }
 
   public static boolean isValidStatusCode(final String httpStatusCode) {

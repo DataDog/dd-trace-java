@@ -105,6 +105,21 @@ class TraceUtilsTest extends DDSpecification {
     "VeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLong"|"VeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVery"
   }
 
+  def "test normalize env"() {
+    when:
+    String normalized = TraceUtils.normalizeEnv(env)
+
+    then:
+    normalized == expected
+
+    where:
+    env | expected
+    null | ""
+    "" | ""
+    "ok" | "ok"
+    repeat("a",300)|repeat("a",200)
+  }
+
   def "test is valid http status code"() {
     when:
     boolean isValid = TraceUtils.isValidStatusCode(httpStatusCode)
@@ -120,5 +135,13 @@ class TraceUtilsTest extends DDSpecification {
     "100" | true
     "404" | true
     "600" | false
+  }
+
+  def repeat(String str, int length) {
+    StringBuilder sb = new StringBuilder(length)
+    for(int i=0;i<length;i++) {
+      sb.append(str)
+    }
+    return sb.toString()
   }
 }
