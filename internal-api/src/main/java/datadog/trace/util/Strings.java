@@ -223,6 +223,6 @@ public final class Strings {
     if (input == null || input.length() == 0) {
       return input;
     }
-    return input.subSequence(0, limit - 1);
+    return input.subSequence(0, limit);
   }
 }

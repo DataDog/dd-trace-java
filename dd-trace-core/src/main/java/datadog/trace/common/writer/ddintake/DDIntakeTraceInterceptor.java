@@ -1,10 +1,10 @@
 package datadog.trace.common.writer.ddintake;
 
-import static datadog.trace.util.Traces.isValidStatusCode;
-import static datadog.trace.util.Traces.normalizeOperationName;
-import static datadog.trace.util.Traces.normalizeServiceName;
-import static datadog.trace.util.Traces.normalizeSpanType;
-import static datadog.trace.util.Traces.normalizeTag;
+import static datadog.trace.util.TraceUtils.isValidStatusCode;
+import static datadog.trace.util.TraceUtils.normalizeOperationName;
+import static datadog.trace.util.TraceUtils.normalizeServiceName;
+import static datadog.trace.util.TraceUtils.normalizeSpanType;
+import static datadog.trace.util.TraceUtils.normalizeTag;
 
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
