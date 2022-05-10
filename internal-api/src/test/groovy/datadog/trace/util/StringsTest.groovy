@@ -111,22 +111,4 @@ class StringsTest extends DDSpecification {
     'the quick brown fox jumps over the lazy dog'    | '05c6e08f1d9fdafa03147fcb8f82f124c76d2f70e3d989dc8aadb5e7d7450bec'
     'det kommer bli bättre, du kommer andas lättare' | '9e6215a16fc8968bf3ba29d81f028f7d4bbf22ccc59ae87a0e36a8085f1c2968'
   }
-
-  def "test truncate UTF8"() {
-    when:
-    String truncated = Strings.truncateUTF8(input, maxBytes)
-
-    then:
-    truncated == expected
-
-    where:
-    input|maxBytes|expected
-    ""|5|""
-    "télé"|5|"tél"
-    "télé"|2|"t"
-    "ééééé"|5|"éé"
-    "ééééé"|18|"ééééé"
-    "ééééé"|10|"ééééé"
-    "ééééé"|6|"ééé"
-  }
 }
