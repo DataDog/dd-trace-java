@@ -87,5 +87,6 @@ class TraceAssert {
     trace = Collections.unmodifiableList(new ArrayList(trace).sort { a, b ->
       return a.startTimeNano <=> b.startTimeNano
     })
+    System.err.println(trace)
   }
 }

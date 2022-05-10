@@ -10,9 +10,11 @@ import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
+import org.springframework.boot.context.embedded.EmbeddedServletContainer
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainer
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer
+import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
@@ -80,14 +82,43 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     return new SpringBootServer()
   }
 
+  enum ContainerType {
+    TOMCAT("tomcat-server"),
+    JETTY("jetty-server"),
+    UNDERTOW("unknown"),
+    DEFAULT("java-web-servlet");
+
+    final String component
+
+    ContainerType(String component) {
+      this.component = component
+    }
+
+    static ContainerType forEmbeddedServletContainer(EmbeddedServletContainer container) {
+      if (container instanceof TomcatEmbeddedServletContainer) {
+        return TOMCAT
+      } else if (container instanceof JettyEmbeddedServletContainer) {
+        return JETTY
+      } else if (container instanceof UndertowEmbeddedServletContainer) {
+        return UNDERTOW
+      } else {
+        return DEFAULT
+      }
+    }
+  }
+
+  private ContainerType containerType
+
+  ContainerType getContainerType() {
+    if (containerType == null) {
+      containerType = ContainerType.forEmbeddedServletContainer(context.getEmbeddedServletContainer())
+    }
+    return containerType
+  }
+
   @Override
   String component() {
-    if (context.getEmbeddedServletContainer() instanceof TomcatEmbeddedServletContainer) {
-      return "tomcat-server"
-    } else if (context.getEmbeddedServletContainer() instanceof JettyEmbeddedServletContainer) {
-      return "jetty-server"
-    }
-    return "java-web-servlet"
+    return getContainerType().component
   }
 
   String getServletContext() {
@@ -159,6 +190,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       // Spring is generates a RenderView and ResponseSpan for REDIRECT
       return super.spanCount(endpoint) + 1
     } else if (endpoint == NOT_FOUND) {
+      if (getContainerType() == ContainerType.JETTY) {
+        // jetty doesn't have servlet.forward
+        return super.spanCount(endpoint) + 1
+      }
       return super.spanCount(endpoint) + 2
     }
     return super.spanCount(endpoint)
@@ -172,13 +207,17 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   def "test character encoding of #testPassword"() {
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
-    if (component() == "tomcat-server") {
-      extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
-    } else if (component() == "jetty-server") {
-      extraServerTags = [
-        'request.body.converted': [password: [testPassword], username: ['test']] as String,
-        'request.body': "username=test&password=${URLEncoder.encode(testPassword)}"
-      ]
+    switch (getContainerType()) {
+      case ContainerType.TOMCAT:
+        // tomcat doesn't have the raw parameters
+        extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
+        break
+      case ContainerType.JETTY:
+        extraServerTags = [
+          'request.body.converted': [password: [testPassword], username: ['test']] as String,
+          'request.body': "username=test&password=${URLEncoder.encode(testPassword)}"
+        ]
+        break
     }
 
     RequestBody formBody = new FormBody.Builder()
@@ -286,17 +325,19 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           defaultTags()
         }
       }
-      def extraTags = expectedExtraServerTags(NOT_FOUND)
-      trace.span {
-        operationName "servlet.forward"
-        resourceName "GET /error"
-        spanType DDSpanTypes.HTTP_SERVER
-        childOf(trace.span(0))
-        tags {
-          "component" "java-web-servlet-dispatcher"
-          "$Tags.HTTP_ROUTE" "/error"
-          addTags(extraTags)
-          defaultTags()
+      if (getContainerType() != ContainerType.JETTY) {
+        def extraTags = expectedExtraServerTags(NOT_FOUND)
+        trace.span {
+          operationName "servlet.forward"
+          resourceName "GET /error"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(trace.span(0))
+          tags {
+            "component" "java-web-servlet-dispatcher"
+            "$Tags.HTTP_ROUTE" "/error"
+            addTags(extraTags)
+            defaultTags()
+          }
         }
       }
       trace.span {

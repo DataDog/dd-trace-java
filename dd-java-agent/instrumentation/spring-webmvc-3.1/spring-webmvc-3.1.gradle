@@ -31,17 +31,11 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
-  libraries {
-    bootTestCommon
-  }
-
   tomcatBootTest {
-    imports "bootTestCommon"
     dirName = 'bootTest'
   }
 
   jettyBootTest {
-    imports "bootTestCommon"
     extendsFrom tomcatBootTest
     dirName = 'bootTest'
   }

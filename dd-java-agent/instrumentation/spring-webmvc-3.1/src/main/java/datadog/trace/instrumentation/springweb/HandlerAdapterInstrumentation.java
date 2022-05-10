@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -68,7 +69,8 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(2) final Object handler) {
       // Name the parent span based on the matching pattern
       Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (parentSpan instanceof AgentSpan) {
+      Object dispatchSpan = request.getAttribute("datadog.already_handled_span");
+      if (parentSpan instanceof AgentSpan && !(dispatchSpan instanceof AgentSpan)) {
         DECORATE.onRequest((AgentSpan) parentSpan, request, request, null);
       }
 
@@ -81,6 +83,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
       final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
+      request.setAttribute("datadog.already_handled_span", span);
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

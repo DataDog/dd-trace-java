@@ -11,6 +11,8 @@ import java.lang.reflect.Method;
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.servlet.mvc.Controller;
 
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
+  private static final Logger log = LoggerFactory.getLogger(SpringWebHttpServerDecorator.class);
 
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
@@ -95,6 +98,7 @@ public class SpringWebHttpServerDecorator
       final HttpServletRequest connection,
       final HttpServletRequest request,
       AgentSpan.Context.Extracted context) {
+    log.debug("onRequest: {}", span, new RuntimeException("log"));
     if (request != null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =
