@@ -11,8 +11,8 @@ public class TraceUtils {
   private static final int MAX_SERVICE_LEN = 100;
   private static final int MAX_OP_NAME_LEN = 100;
 
-  private static final String DEFAULT_SERVICE_NAME = "unnamed-service";
-  private static final String DEFAULT_OPERATION_NAME = "unnamed_operation";
+  static final String DEFAULT_SERVICE_NAME = "unnamed-service";
+  static final String DEFAULT_OPERATION_NAME = "unnamed_operation";
 
   private static final Logger log = LoggerFactory.getLogger(TraceUtils.class);
 
@@ -78,6 +78,10 @@ public class TraceUtils {
   }
 
   public static String normalizeTag(final String tag) {
+    if (tag == null || tag.isEmpty()) {
+      return "";
+    }
+
     StringBuilder builder = new StringBuilder(tag.length());
     boolean isJumping = false;
     for (int i = 0; i < tag.length(); ++i) {
@@ -122,7 +126,7 @@ public class TraceUtils {
     return builder.toString();
   }
 
-  public static CharSequence normalizeSpanName(final CharSequence name) {
+  private static CharSequence normalizeSpanName(final CharSequence name) {
     if (name.length() == 0) {
       return name;
     }
