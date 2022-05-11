@@ -40,12 +40,6 @@ public final class MatcherCache {
     }
   }
 
-  public enum Result {
-    TRANSFORM,
-    SKIP,
-    UNKNOWN,
-  }
-
   public static MatcherCache deserialize(InputStream is, int javaMajorVersion, String agentVersion)
       throws IOException {
     int matcherCacheFileFormatVersion = readInt(is);
@@ -87,23 +81,21 @@ public final class MatcherCache {
   private final String[] packagesOrdered;
   private final int[][] transformedClassHashes;
 
-  public Result transform(String fullClassName) {
+  public Boolean isIgnored(String fullClassName) {
     int packageEndsAt = fullClassName.lastIndexOf('.');
     String packageName = fullClassName.substring(0, Math.max(packageEndsAt, 0));
     int index = Arrays.binarySearch(packagesOrdered, packageName);
     if (index < 0) {
       // package not found
-      return Result.UNKNOWN;
+      return null;
     }
     int[] transformedClassHashes = this.transformedClassHashes[index];
     if (transformedClassHashes == null) {
       // no hashes, assume all classes are skipped
-      return Result.SKIP;
+      return true;
     }
     String className = fullClassName.substring(packageEndsAt + 1);
-    return Arrays.binarySearch(transformedClassHashes, className.hashCode()) >= 0
-        ? Result.TRANSFORM
-        : Result.SKIP;
+    return Arrays.binarySearch(transformedClassHashes, className.hashCode()) < 0;
   }
 
   private MatcherCache(String[] packagesOrdered, int[][] transformedClassHashes) {

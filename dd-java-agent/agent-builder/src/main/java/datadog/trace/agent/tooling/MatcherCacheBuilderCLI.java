@@ -116,9 +116,9 @@ public final class MatcherCacheBuilderCLI {
     }
 
     @Override
-    public boolean isGloballyIgnored(String fqcn) {
-      boolean ignored = GlobalIgnoresMatcher.isIgnored(fqcn, skipAdditionalIgnores);
-      log.debug("{} ignored = {}", fqcn, ignored);
+    public boolean isGloballyIgnored(String fullClassName) {
+      boolean ignored = GlobalIgnoresMatcher.isIgnored(fullClassName, skipAdditionalIgnores);
+      log.debug("{} ignored = {}", fullClassName, ignored);
       return ignored;
     }
 

@@ -9,7 +9,7 @@ public class MatcherCacheEvents {
 
   public void commitMatcherCacheLoadingEvent(long duration) {}
 
-  public void commitMatcherCacheMissEvent(String fqcn) {}
+  public void commitMatcherCacheMissEvent(String fullClassName) {}
 
   public static MatcherCacheEvents get() {
     return INSTANCE;

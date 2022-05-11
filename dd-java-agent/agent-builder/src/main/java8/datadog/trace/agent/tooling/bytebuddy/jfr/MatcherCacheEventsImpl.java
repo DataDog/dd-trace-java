@@ -20,8 +20,8 @@ public final class MatcherCacheEventsImpl extends MatcherCacheEvents {
   }
 
   @Override
-  public void commitMatcherCacheMissEvent(String fqcn) {
-    MatcherCacheMissEventImpl evt = new MatcherCacheMissEventImpl(fqcn);
+  public void commitMatcherCacheMissEvent(String fullClassName) {
+    MatcherCacheMissEventImpl evt = new MatcherCacheMissEventImpl(fullClassName);
     if (evt.shouldCommit()) {
       evt.commit();
     }

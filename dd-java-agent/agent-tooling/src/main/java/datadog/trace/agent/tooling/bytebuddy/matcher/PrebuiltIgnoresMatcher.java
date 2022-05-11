@@ -48,7 +48,37 @@ public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
         : new PrebuiltIgnoresMatcher(matcherCache, fallbackIgnoresMatcher);
   }
 
-  public static String getAgentVersion() {
+  private final MatcherCache matcherCache;
+
+  private final AgentBuilder.RawMatcher fallbackIgnoresMatcher;
+
+  public PrebuiltIgnoresMatcher(
+      MatcherCache matcherCache, AgentBuilder.RawMatcher fallbackIgnoresMatcher) {
+    if (fallbackIgnoresMatcher == null) {
+      throw new NullPointerException("fallbackIgnoresMatcher can't be null");
+    }
+    this.matcherCache = matcherCache;
+    this.fallbackIgnoresMatcher = fallbackIgnoresMatcher;
+  }
+
+  @Override
+  public boolean matches(
+      TypeDescription typeDescription,
+      ClassLoader classLoader,
+      JavaModule module,
+      Class<?> classBeingRedefined,
+      ProtectionDomain protectionDomain) {
+    String fullClassName = typeDescription.getActualName();
+    Boolean isIgnored = matcherCache.isIgnored(fullClassName);
+    if (isIgnored != null) {
+      return isIgnored;
+    }
+    MatcherCacheEvents.get().commitMatcherCacheMissEvent(fullClassName);
+    return fallbackIgnoresMatcher.matches(
+        typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
+  }
+
+  private static String getAgentVersion() {
     final StringBuilder sb = new StringBuilder();
     try (final BufferedReader reader =
         new BufferedReader(
@@ -64,36 +94,6 @@ public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
       log.error("Can't read dd-java-agent.version");
     }
     return null;
-  }
-
-  private final MatcherCache matcherCache;
-  private final AgentBuilder.RawMatcher fallbackIgnoresMatcher;
-
-  public PrebuiltIgnoresMatcher(
-      MatcherCache matcherCache, AgentBuilder.RawMatcher fallbackIgnoresMatcher) {
-    this.matcherCache = matcherCache;
-    this.fallbackIgnoresMatcher = fallbackIgnoresMatcher;
-  }
-
-  @Override
-  public boolean matches(
-      TypeDescription typeDescription,
-      ClassLoader classLoader,
-      JavaModule module,
-      Class<?> classBeingRedefined,
-      ProtectionDomain protectionDomain) {
-    String fqcn = typeDescription.getActualName();
-    switch (matcherCache.transform(fqcn)) {
-      case SKIP:
-        return true;
-      case UNKNOWN:
-        MatcherCacheEvents.get().commitMatcherCacheMissEvent(fqcn);
-        if (fallbackIgnoresMatcher != null) {
-          return fallbackIgnoresMatcher.matches(
-              typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
-        }
-    }
-    return false;
   }
 
   private static void commitCacheLoadingTimeEvent(final long durationNs) {
