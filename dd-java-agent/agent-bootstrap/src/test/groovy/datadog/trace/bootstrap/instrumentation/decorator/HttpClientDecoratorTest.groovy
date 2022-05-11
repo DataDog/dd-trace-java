@@ -93,6 +93,41 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     req = [url: url == null ? null : new URI(url)]
   }
 
+  def "test split-by-domain #url"() {
+    setup:
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    if (expectedServiceName) {
+      1 * span.setServiceName(expectedServiceName)
+    }
+    if (url != null) {
+      1 * span.setResourceName(_, _)
+    } else {
+      1 * span.setResourceName(_)
+    }
+    _ * span.setTag(_, _)
+    0 * _
+
+    where:
+    url                                   | expectedServiceName
+    null                                  | null
+    ""                                    | null
+    "/path?query"                         | null
+    "http://host:0"                       | "host"
+    "http://ahost:0"                      | "ahost"
+    "http://AHOST:0"                      | "AHOST"
+    "https://host123/path"                | "host123"
+    "https://123host/path"                | null
+    "http://10.20.30.40"                  | null
+
+    req = [url: url == null ? null : new URI(url)]
+  }
+
   def "test onResponse"() {
     setup:
     def decorator = newDecorator()
