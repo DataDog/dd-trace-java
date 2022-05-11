@@ -20,7 +20,11 @@ import datadog.trace.api.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Powerwaf
+import io.sqreen.powerwaf.PowerwafContext
 import io.sqreen.powerwaf.PowerwafMetrics
+import spock.lang.Unroll
+
+import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
@@ -86,11 +90,14 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.getAdditive() >> null
-    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
-    1 * ctx.setWafMetrics(_)
-    1 * ctx.getAdditive() >> { pwafAdditive }
-    1 * ctx.setAdditive(null)
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      PowerwafContext pwCtx = it[0] as PowerwafContext
+      pwafAdditive = pwCtx.openAdditive()
+      metrics = pwCtx.createMetrics()
+      pwafAdditive
+    }
+    1 * ctx.getWafMetrics() >> metrics
+    1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_, _)
     0 * ctx._(*_)
     flow.blocking == true
@@ -108,11 +115,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * ctx.getAdditive() >> null
-    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
-    1 * ctx.getAdditive() >> { pwafAdditive }
-    1 * ctx.setAdditive(null)
-    0 * ctx.setWafMetrics(_)
+    1 * ctx.getOrCreateAdditive(_, false) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics() >> null
+    1 * ctx.closeAdditive()
+    1 * ctx.reportEvents(_, _)
+    0 * ctx._(*_)
     metrics == null
   }
 
@@ -130,12 +137,14 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pp.processTraceSegment(segment, ctx, [])
 
     then:
-    1 * ctx.getAdditive() >> null
-    1 * ctx.setAdditive(_) >> { pwafAdditive = it[0]; null }
-    1 * ctx.setWafMetrics(_) >> { metrics = it[0]; null }
-    1 * ctx.getWafMetrics() >> { metrics.with { totalDdwafRunTimeNs = 1000; totalRunTimeNs = 2000; it} }
-    1 * ctx.getAdditive() >> { pwafAdditive }
-    1 * ctx.setAdditive(null)
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      PowerwafContext pwCtx = it[0] as PowerwafContext
+      pwafAdditive = pwCtx.openAdditive()
+      metrics = pwCtx.createMetrics()
+      pwafAdditive
+    }
+    1 * ctx.closeAdditive()
+    2 * ctx.getWafMetrics() >> { metrics.with { totalDdwafRunTimeNs = 1000; totalRunTimeNs = 2000; it} }
 
     1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
     1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
@@ -152,9 +161,13 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
 
     then:
-    1 * ctx.getAdditive() >> pwafAdditive
-    1 * ctx.setAdditive(_)
-    1 * ctx.setWafMetrics(_)
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      PowerwafContext pwCtx = it[0] as PowerwafContext
+      pwafAdditive = pwCtx.openAdditive()
+      metrics = pwCtx.createMetrics()
+      pwafAdditive
+    }
+    1 * ctx.getWafMetrics() >> metrics
     1 * ctx.reportEvents(*_)
     0 * ctx._(*_)
     flow.blocking == true
@@ -169,6 +182,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.rule.id == 'ua0-600-12x'
@@ -201,6 +215,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -225,6 +240,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -248,6 +264,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     ctx.reportEvents(_ as Collection<AppSecEvent100>, _) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters == [
@@ -270,6 +287,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     flow.blocking == false
   }
 
@@ -282,6 +300,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, db, false)
 
     then:
+    ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     assert !flow.blocking
   }
 
@@ -309,6 +328,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     eventListener.onEvent(ctx, EventType.REQUEST_END)
 
     then:
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
   }
 
@@ -396,6 +416,40 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     ret.isEmpty()
+  }
+
+  /**
+   * This test simulates double REQUEST_END with increasing interval
+   * The race condition shouldn't happen when closing Additive
+   */
+  @Unroll("test repeated #n time")
+  void 'parallel REQUEST_END should not cause race condition'() {
+    setupWithStubConfigService()
+    ChangeableFlow flow = new ChangeableFlow()
+    AppSecRequestContext ctx = new AppSecRequestContext()
+
+    when:
+    for (int t = 0; t < 20; t++) {
+      CountDownLatch latch = new CountDownLatch(1)
+      dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+      Thread thread = new Thread({ p ->
+        latch.countDown()
+        eventListener.onEvent(ctx, EventType.REQUEST_END)
+      })
+      thread.start()
+      latch.await()
+      sleep(t)
+      ctx.close()
+      thread.join()
+    }
+
+    then:
+    // java.lang.IllegalStateException: This Additive is no longer online
+    // Should not be thrown
+    noExceptionThrown()
+
+    where:
+    n << (1..3)
   }
 
   private Map<String, Object> getDefaultConfig() {
