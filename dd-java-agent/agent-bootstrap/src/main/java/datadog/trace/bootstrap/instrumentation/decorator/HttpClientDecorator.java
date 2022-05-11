@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.util.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
@@ -60,7 +59,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
           span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.getScheme(), host, port, path));
           if (null != host && !host.isEmpty()) {
             span.setTag(Tags.PEER_HOSTNAME, host);
-            if (Config.get().isHttpClientSplitByDomain() && Strings.hasLetter(host)) {
+            if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
               span.setServiceName(host);
             }
             if (port > 0) {

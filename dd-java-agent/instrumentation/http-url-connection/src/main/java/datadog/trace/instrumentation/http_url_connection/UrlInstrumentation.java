@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.Strings;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import net.bytebuddy.asm.Advice;
@@ -74,7 +73,7 @@ public class UrlInstrumentation extends Instrumenter.Tracing implements Instrume
           if (null != host && !host.isEmpty()) {
             span.setTag(Tags.PEER_HOSTNAME, host);
             span.setTag(Tags.PEER_PORT, port > UNSET_PORT ? PORTS.get(port) : PORTS.get(80));
-            if (Config.get().isHttpClientSplitByDomain() && Strings.hasLetter(host)) {
+            if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
               span.setServiceName(host);
             }
           }

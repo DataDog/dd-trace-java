@@ -119,8 +119,10 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     ""                                    | null
     "/path?query"                         | null
     "http://host:0"                       | "host"
+    "http://ahost:0"                      | "ahost"
+    "http://AHOST:0"                      | "AHOST"
     "https://host123/path"                | "host123"
-    "https://123host/path"                | "123host"
+    "https://123host/path"                | null
     "http://10.20.30.40"                  | null
 
     req = [url: url == null ? null : new URI(url)]

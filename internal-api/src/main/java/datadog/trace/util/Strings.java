@@ -214,14 +214,4 @@ public final class Strings {
     }
     return hexString.toString();
   }
-
-  public static boolean hasLetter(String string) {
-    for (int i = 0, len = string.length(); i < len; i++) {
-      int c = string.charAt(i) & ~0x0020; // remove lower-case bit
-      if (c >= 'A' && c <= 'Z') {
-        return true;
-      }
-    }
-    return false;
-  }
 }
