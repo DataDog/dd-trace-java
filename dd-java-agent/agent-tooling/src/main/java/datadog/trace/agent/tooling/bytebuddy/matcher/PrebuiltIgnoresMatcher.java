@@ -68,12 +68,14 @@ public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
       JavaModule module,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain) {
-    String fullClassName = typeDescription.getActualName();
-    Boolean isIgnored = matcherCache.isIgnored(fullClassName);
-    if (isIgnored != null) {
-      return isIgnored;
+    String fqcn = typeDescription.getActualName();
+    switch (matcherCache.transform(fqcn)) {
+      case SKIP:
+        return true;
+      case TRANSFORM:
+        return false;
     }
-    MatcherCacheEvents.get().commitMatcherCacheMissEvent(fullClassName);
+    MatcherCacheEvents.get().commitMatcherCacheMissEvent(fqcn);
     return fallbackIgnoresMatcher.matches(
         typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
   }

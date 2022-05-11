@@ -85,24 +85,25 @@ public class MatcherCacheBuilderTest {
     MatcherCache matcherCache =
         serializeAndLoadCacheData(matcherCacheBuilder, javaMajorVersion, agentVersion);
 
-    assertEquals(false, matcherCache.isIgnored("example.OuterJarClass"));
-    assertEquals(false, matcherCache.isIgnored("example.InnerJarClass"));
-    assertEquals(true, matcherCache.isIgnored("example.MiddleJarClass"));
-    assertEquals(true, matcherCache.isIgnored("example.NonExistingClass"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.OuterJarClass"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.InnerJarClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.MiddleJarClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.NonExistingClass"));
 
-    assertEquals(false, matcherCache.isIgnored("example.classes.Abc"));
-    assertEquals(true, matcherCache.isIgnored("example.classes.Only9"));
-    assertEquals(true, matcherCache.isIgnored("example.classes.NonExistingClass"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.classes.Abc"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.classes.Only9"));
+    assertEquals(
+        MatcherCache.Result.SKIP, matcherCache.transform("example.classes.NonExistingClass"));
 
-    assertEquals(true, matcherCache.isIgnored("foo.bar.Baz"));
-    assertEquals(false, matcherCache.isIgnored("foo.bar.FooBar"));
-    assertEquals(true, matcherCache.isIgnored("foo.bar.NonExistingClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.Baz"));
+    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("foo.bar.FooBar"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.NonExistingClass"));
 
-    assertEquals(true, matcherCache.isIgnored("foo.bar.xyz.Xyz"));
-    assertEquals(true, matcherCache.isIgnored("foo.bar.xyz.NonExistingClass"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.xyz.Xyz"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("foo.bar.xyz.NonExistingClass"));
 
-    assertNull(matcherCache.isIgnored("non.existing.package.Foo"));
-    assertNull(matcherCache.isIgnored("non.existing.package.Bar"));
+    assertEquals(MatcherCache.Result.UNKNOWN, matcherCache.transform("non.existing.package.Foo"));
+    assertEquals(MatcherCache.Result.UNKNOWN, matcherCache.transform("non.existing.package.Bar"));
 
     // serialize text report
     Pattern expectedPattern =
