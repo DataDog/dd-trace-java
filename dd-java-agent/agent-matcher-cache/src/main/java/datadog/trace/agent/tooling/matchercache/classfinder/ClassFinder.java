@@ -32,7 +32,7 @@ public class ClassFinder {
   public void findClassesIn(File classPath, ClassCollection outClassCollection) throws IOException {
     if (!classPath.exists()) {
       log.warn("Class path {} doesn't exist.", classPath);
-    } else if (isJar(classPath.getName())) {
+    } else if (isArchive(classPath.getName())) {
       log.debug("Exploring archive: {}", classPath);
       try (InputStream is = Files.newInputStream(classPath.toPath())) {
         scanJarFile(classPath.toString(), is, outClassCollection);
@@ -53,7 +53,7 @@ public class ClassFinder {
       JarEntry jarEntry;
       while ((jarEntry = jarInputStream.getNextJarEntry()) != null) {
         String entryPath = jarEntry.getName();
-        if (isJar(entryPath)) {
+        if (isArchive(entryPath)) {
           log.debug("Exploring archive: {}", entryPath);
           try (ByteArrayOutputStream archiveStream = new ByteArrayOutputStream()) {
             copyInputStreamToOutputStream(jarInputStream, archiveStream);
@@ -77,7 +77,7 @@ public class ClassFinder {
     for (File file : files) {
       if (file.isDirectory()) {
         scanDirectory(file, classCollection);
-      } else if (isJar(file.getName())) {
+      } else if (isArchive(file.getName())) {
         findClassesIn(file, classCollection);
       } else if (file.getName().endsWith(".jmod")) {
         scanModule(file, classCollection);
@@ -109,12 +109,8 @@ public class ClassFinder {
     }
   }
 
-  private boolean isJar(String path) {
-    if (path.endsWith(".war") || path.endsWith(".ear")) {
-      log.warn("Found not supported class archive format: {}", path);
-      // TODO add support (needs to be tested)
-    }
-    return path.endsWith(".jar");
+  private boolean isArchive(String path) {
+    return path.endsWith(".jar") || path.endsWith(".war") || path.endsWith(".ear");
   }
 
   private static final byte[] CLASS_FILE_MAGIC_HEADER =
