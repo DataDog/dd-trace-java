@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.Strings;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import net.bytebuddy.asm.Advice;
@@ -68,13 +69,14 @@ public class UrlInstrumentation extends Instrumenter.Tracing implements Instrume
 
         try (final AgentScope scope = activateSpan(span)) {
           span.setTag(Tags.HTTP_URL, url.toString());
-          span.setTag(
-              Tags.PEER_PORT,
-              url.getPort() > UNSET_PORT ? PORTS.get(url.getPort()) : PORTS.get(80));
           String host = url.getHost();
-          span.setTag(Tags.PEER_HOSTNAME, host);
-          if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
-            span.setServiceName(host);
+          int port = url.getPort();
+          if (null != host && !host.isEmpty()) {
+            span.setTag(Tags.PEER_HOSTNAME, host);
+            span.setTag(Tags.PEER_PORT, port > UNSET_PORT ? PORTS.get(port) : PORTS.get(80));
+            if (Config.get().isHttpClientSplitByDomain() && Strings.hasLetter(host)) {
+              span.setServiceName(host);
+            }
           }
           HTTP_RESOURCE_DECORATOR.withClientPath(span, null, url.getPath());
 
