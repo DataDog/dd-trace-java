@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDSharedTypePools;
 import datadog.trace.api.Platform;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
@@ -45,14 +45,14 @@ public class AgentStrategies {
       new PoolStrategy() {
         @Override
         public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-          return DDCachingPoolStrategy.INSTANCE.typePool(classFileLocator, classLoader);
+          return DDSharedTypePools.typePool(classFileLocator, classLoader);
         }
 
         @Override
         public TypePool typePool(
             ClassFileLocator classFileLocator, ClassLoader classLoader, String name) {
           // FIXME satisfy interface constraint that currently instrumented type is not cached
-          return DDCachingPoolStrategy.INSTANCE.typePool(classFileLocator, classLoader);
+          return DDSharedTypePools.typePool(classFileLocator, classLoader);
         }
       };
 
