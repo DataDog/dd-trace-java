@@ -31,9 +31,7 @@ public final class MatcherCacheBuilderCLI {
       return;
     }
     boolean enableAllInstrumenters = true;
-    boolean skipAdditionalIgnores = false;
-    ClassMatchers classMatchers =
-        AllClassMatchers.create(enableAllInstrumenters, skipAdditionalIgnores);
+    ClassMatchers classMatchers = AllClassMatchers.create(enableAllInstrumenters);
     MatcherCacheBuilder matcherCacheBuilder =
         new MatcherCacheBuilder(classMatchers, Platform.JAVA_VERSION.major, agentVersion);
 
@@ -44,8 +42,7 @@ public final class MatcherCacheBuilderCLI {
   }
 
   private static final class AllClassMatchers implements ClassMatchers {
-    public static AllClassMatchers create(
-        boolean enableAllInstrumenters, boolean skipAdditionalIgnores) {
+    public static AllClassMatchers create(boolean enableAllInstrumenters) {
       final ArrayList<Instrumenter> instrumenters = new ArrayList<>();
       Instrumenter.TransformerBuilder intrumenterCollector =
           new Instrumenter.TransformerBuilder() {
@@ -89,24 +86,19 @@ public final class MatcherCacheBuilderCLI {
         }
       }
 
-      return new AllClassMatchers(enableAllInstrumenters, instrumenters, skipAdditionalIgnores);
+      return new AllClassMatchers(enableAllInstrumenters, instrumenters);
     }
 
     private final boolean enableAllInstrumenters;
     private final Iterable<Instrumenter> instrumenters;
-    private final boolean skipAdditionalIgnores;
 
-    private AllClassMatchers(
-        boolean enableAllInstrumenters,
-        Iterable<Instrumenter> instrumenters,
-        boolean skipAdditionalIgnores) {
+    private AllClassMatchers(boolean enableAllInstrumenters, Iterable<Instrumenter> instrumenters) {
       this.enableAllInstrumenters = enableAllInstrumenters;
       this.instrumenters = instrumenters;
-      this.skipAdditionalIgnores = skipAdditionalIgnores;
     }
 
     @Override
-    public boolean isGloballyIgnored(String fullClassName) {
+    public boolean isGloballyIgnored(String fullClassName, boolean skipAdditionalIgnores) {
       boolean ignored = GlobalIgnoresMatcher.isIgnored(fullClassName, skipAdditionalIgnores);
       log.debug("{} ignored = {}", fullClassName, ignored);
       return ignored;

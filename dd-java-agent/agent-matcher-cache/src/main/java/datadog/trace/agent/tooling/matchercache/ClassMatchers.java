@@ -4,7 +4,7 @@ import net.bytebuddy.description.type.TypeDescription;
 
 public interface ClassMatchers {
 
-  boolean isGloballyIgnored(String fullClassName);
+  boolean isGloballyIgnored(String fullClassName, boolean skipAdditionalIgnores);
 
   boolean matchesAny(TypeDescription typeDescription);
 }

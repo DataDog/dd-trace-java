@@ -54,33 +54,53 @@ public class MatcherCacheBuilder {
     Stats stats = new Stats();
     TypeResolver typeResolver = getTypeResolver(classCollection);
     for (ClassData classData : classCollection.allClasses(javaMajorVersion)) {
+      // TODO check if different classCollections share packages that include instrumented
+      // classes and warn about it, and maybe exclude from the matcher cache
+
       String packageName = classData.packageName();
       String className = classData.className();
+      String fullClassName = classData.getFullClassName();
       String location = classData.location(javaMajorVersion);
 
-      if (classMatchers.isGloballyIgnored(classData.getFullClassName())) {
+      boolean globallyIgnored = classMatchers.isGloballyIgnored(fullClassName, true);
+      boolean additionallyIgnored = classMatchers.isGloballyIgnored(fullClassName, false);
+
+      if (globallyIgnored) {
         PackageData packageData = getDataOrCreate(packageName);
         packageData.insert(className, MatchingResult.IGNORE, location, null);
         stats.counterIgnore += 1;
       } else
         try {
           PackageData packageData = getDataOrCreate(packageName);
-          TypeDescription typeDescription =
-              typeResolver.typeDescription(classData.getFullClassName());
+          TypeDescription typeDescription = typeResolver.typeDescription(fullClassName);
           if (classMatchers.matchesAny(typeDescription)) {
-            // TODO check if different classCollections share packages that include instrumented
-            // classes and warn about it, and maybe exclude from the matcher cache
-            packageData.insert(className, MatchingResult.TRANSFORM, location, null);
+            if (additionallyIgnored) {
+              String warn = "transformable but ignored by the additional ignores only";
+              packageData.insert(className, MatchingResult.TRANSFORM, location, "WARN: " + warn);
+              log.warn("{} is {}", fullClassName, warn);
+            } else {
+              packageData.insert(className, MatchingResult.TRANSFORM, location, null);
+            }
             stats.counterTransform += 1;
           } else {
-            packageData.insert(className, MatchingResult.SKIP, location, null);
-            stats.counterSkip += 1;
+            if (additionallyIgnored) {
+              packageData.insert(className, MatchingResult.IGNORE, location, null);
+              stats.counterIgnore += 1;
+            } else {
+              packageData.insert(className, MatchingResult.SKIP, location, null);
+              stats.counterSkip += 1;
+            }
           }
         } catch (Throwable e) {
-          stats.counterFail += 1;
           PackageData packageData = getDataOrCreate(packageName);
-          packageData.insert(className, MatchingResult.FAIL, location, e.toString());
-          log.debug("Couldn't load class: {} failed with {}", className, e.toString());
+          if (additionallyIgnored) {
+            packageData.insert(className, MatchingResult.IGNORE, location, null);
+            stats.counterIgnore += 1;
+          } else {
+            packageData.insert(className, MatchingResult.FAIL, location, e.toString());
+            log.debug("Couldn't load class: {} failed with {}", className, e.toString());
+            stats.counterFail += 1;
+          }
         }
     }
     return stats;

@@ -22,7 +22,7 @@ public class MatcherCacheBuilderTest {
 
   private static class TestClassMatchers implements ClassMatchers {
     @Override
-    public boolean isGloballyIgnored(String fullClassName) {
+    public boolean isGloballyIgnored(String fullClassName, boolean skipAdditionalIgnores) {
       switch (fullClassName) {
         case "foo.bar.xyz.Xyz":
         case "bar.foo.Baz":
