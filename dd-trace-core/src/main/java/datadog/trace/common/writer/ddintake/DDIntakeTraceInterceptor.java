@@ -8,6 +8,7 @@ import static datadog.trace.util.TraceUtils.normalizeSpanType;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpan;
 import datadog.trace.util.TraceUtils;
 import java.util.Collection;
 import java.util.Map;
@@ -48,7 +49,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
 
     final Map<String, Object> tags = span.getTags();
     if (tags.get("env") != null) {
-      tags.put("env", TraceUtils.normalizeEnv((String) tags.get("env")));
+      ((DDSpan) span).context().setTag("env", TraceUtils.normalizeEnv((String) tags.get("env")));
     }
 
     final String httpStatusCode = (String) tags.get(Tags.HTTP_STATUS);
@@ -57,7 +58,7 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
           "Fixing malformed trace. HTTP status code is invalid (reason:invalid_http_status_code), dropping invalid http.status_code={}: {}",
           httpStatusCode,
           span);
-      tags.remove(Tags.HTTP_STATUS);
+      ((DDSpan) span).context().setTag(Tags.HTTP_STATUS, null);
     }
   }
 

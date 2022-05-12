@@ -5,6 +5,11 @@ import static datadog.trace.util.Strings.truncate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Utility methods to normalize trace data. This normalization is recommended if the trace is sent
+ * to a public HTTP intake directly instead of using a Datadog Agent. The normalization methods try
+ * to mimic the normalization is done in the Datadog Agent.
+ */
 public class TraceUtils {
 
   private static final int MAX_TYPE_LEN = 100;
@@ -87,6 +92,18 @@ public class TraceUtils {
     }
   }
 
+  // spotless:off
+  /**
+   * Normalizes a tag value:
+   * - Only letters, digits, ":", ".", "-", "_" and "/" are allowed.
+   * - If a non-valid char is found, it's replaced with "_". If it's the last char, it's removed.
+   * - It must start with a letter or ":".
+   * - It applies lower case.
+   *
+   * @param tag value
+   * @return normalized tag value
+   */
+  // spotless:on
   public static String normalizeTag(final String tag) {
     if (tag == null || tag.isEmpty()) {
       return "";
@@ -136,6 +153,18 @@ public class TraceUtils {
     return builder.toString();
   }
 
+  // spotless:off
+  /**
+   * Normalizes the span name:
+   * - Only alphanumeric chars, "_" and "." are allowed.
+   * - If a non-valid char is found, it's replaced with "_". If it's the last char, it's removed.
+   * - Multiple underscores "___" transformed into a single one "_"
+   * - Pattern "-." transformed into "."
+   *
+   * @param name
+   * @return normalized span name
+   */
+  // spotless:on
   private static CharSequence normalizeSpanName(final CharSequence name) {
     if (name.length() == 0) {
       return name;

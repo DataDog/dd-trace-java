@@ -1,5 +1,6 @@
 package datadog.trace.common.writer.ddintake
 
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
@@ -25,6 +26,8 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
       .withSpanType("my-span-type")
       .withServiceName("my-service-name")
       .withTag("some-tag-key", "some-tag-value")
+      .withTag("env","     My_____Env     ")
+      .withTag(Tags.HTTP_STATUS, "wrong")
       .start().finish()
     writer.waitForTraces(1)
 
@@ -39,5 +42,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
     span.getResourceName() == "my-resource-name"
     span.getSpanType() == "my-span-type"
     span.getTag("some-tag-key") == "some-tag-value"
+    span.getTag("env") == "my_env"
+    span.getTag(Tags.HTTP_STATUS) == null
   }
 }
