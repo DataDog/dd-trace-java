@@ -42,8 +42,8 @@ public final class ClassData {
     versions.add(insertAt, classVersion);
   }
 
-  public byte[] classBytes(int jdkMajorVersion) {
-    ClassVersion classVersion = classVersion(jdkMajorVersion);
+  public byte[] classBytes(int javaMajorVersion) {
+    ClassVersion classVersion = classVersion(javaMajorVersion);
     if (classVersion == null) {
       return null;
     }
@@ -65,8 +65,8 @@ public final class ClassData {
     return version;
   }
 
-  private ClassVersion classVersion(int jdkMajorVersion) {
-    int pos = findInsertPos(jdkMajorVersion);
+  private ClassVersion classVersion(int javaMajorVersion) {
+    int pos = findInsertPos(javaMajorVersion);
     if (pos > 0) {
       return versions.get(pos - 1);
     }

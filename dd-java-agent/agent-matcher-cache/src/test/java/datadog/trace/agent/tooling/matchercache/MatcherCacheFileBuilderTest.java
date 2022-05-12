@@ -15,7 +15,6 @@ public class MatcherCacheFileBuilderTest {
   MatcherCacheFileBuilderParams params = mock(MatcherCacheFileBuilderParams.class);
   ClassFinder classFinder;
   MatcherCacheBuilder matcherCacheBuilder;
-  ClassMatchers classMatchers;
   MatcherCacheFileBuilder matcherCacheFileBuilder;
 
   @BeforeEach
@@ -23,9 +22,7 @@ public class MatcherCacheFileBuilderTest {
     params = mock(MatcherCacheFileBuilderParams.class);
     classFinder = mock(ClassFinder.class);
     matcherCacheBuilder = mock(MatcherCacheBuilder.class);
-    classMatchers = mock(ClassMatchers.class);
-    matcherCacheFileBuilder =
-        new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);
+    matcherCacheFileBuilder = new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder);
   }
 
   @Test
@@ -42,12 +39,19 @@ public class MatcherCacheFileBuilderTest {
     File dataFile = new File("/tmp/out.bin");
     File reportFile = new File("/tmp/out.csv");
     File jdkClassPath = new File("jdk-class-path");
-    ClassCollection jdkClasses = new ClassCollection();
-    ClassCollection ddAgentClasses = new ClassCollection();
+
+    ClassCollection.Builder ccb = new ClassCollection.Builder();
+    ccb.addClass(new byte[0], "a.b.C", "", "");
+    ClassCollection jdkClasses = ccb.buildAndReset();
+
+    ccb.addClass(new byte[0], "dd.Agent", "", "");
+    ClassCollection ddAgentClasses = ccb.buildAndReset().withParent(jdkClasses);
     File ddAgentJar = new File("dd-java-trace.jar");
     Map<String, ClassCollection> classPaths = new TreeMap<>();
-    classPaths.put("/app/app.jar", new ClassCollection());
-    classPaths.put("/libs/", new ClassCollection());
+    ccb.addClass(new byte[0], "app.App", "", "");
+    classPaths.put("/app/app.jar", ccb.buildAndReset().withParent(jdkClasses));
+    ccb.addClass(new byte[0], "lib.Utils", "", "");
+    classPaths.put("/libs/", ccb.buildAndReset().withParent(jdkClasses));
 
     when(params.validate()).thenReturn(true);
     when(params.getOutputCacheDataFile()).thenReturn(dataFile.toString());
@@ -63,10 +67,10 @@ public class MatcherCacheFileBuilderTest {
 
     matcherCacheFileBuilder.buildMatcherCacheFile(params);
 
-    verify(matcherCacheBuilder, times(1)).fill(eq(jdkClasses), any(), eq(classMatchers));
-    verify(matcherCacheBuilder, times(1)).fill(eq(ddAgentClasses), any(), eq(classMatchers));
+    verify(matcherCacheBuilder, times(1)).fill(eq(jdkClasses));
+    verify(matcherCacheBuilder, times(1)).fill(eq(ddAgentClasses));
     for (Map.Entry<String, ClassCollection> entry : classPaths.entrySet()) {
-      verify(matcherCacheBuilder, times(1)).fill(eq(entry.getValue()), any(), eq(classMatchers));
+      verify(matcherCacheBuilder, times(1)).fill(eq(entry.getValue()));
     }
     verify(matcherCacheBuilder, times(1)).serializeBinary(dataFile);
   }

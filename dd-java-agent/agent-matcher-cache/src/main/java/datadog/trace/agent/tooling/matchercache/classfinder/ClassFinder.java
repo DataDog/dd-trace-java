@@ -24,12 +24,13 @@ public class ClassFinder {
   private static final Logger log = LoggerFactory.getLogger(ClassFinder.class);
 
   public ClassCollection findClassesIn(File classPath) throws IOException {
-    ClassCollection classCollection = new ClassCollection();
+    ClassCollection.Builder classCollection = new ClassCollection.Builder();
     findClassesIn(classPath, classCollection);
-    return classCollection;
+    return classCollection.buildAndReset();
   }
 
-  public void findClassesIn(File classPath, ClassCollection outClassCollection) throws IOException {
+  public void findClassesIn(File classPath, ClassCollection.Builder outClassCollection)
+      throws IOException {
     if (!classPath.exists()) {
       log.warn("Class path {} doesn't exist.", classPath);
     } else if (isArchive(classPath.getName())) {
@@ -47,7 +48,8 @@ public class ClassFinder {
     }
   }
 
-  private void scanJarFile(String parentPath, InputStream is, ClassCollection classCollection)
+  private void scanJarFile(
+      String parentPath, InputStream is, ClassCollection.Builder classCollection)
       throws IOException {
     try (JarInputStream jarInputStream = new JarInputStream(is)) {
       JarEntry jarEntry;
@@ -69,7 +71,8 @@ public class ClassFinder {
     }
   }
 
-  private void scanDirectory(File directory, ClassCollection classCollection) throws IOException {
+  private void scanDirectory(File directory, ClassCollection.Builder classCollection)
+      throws IOException {
     File[] files = directory.listFiles();
     if (files == null) {
       throw new IllegalStateException("No files found in " + directory);
@@ -94,7 +97,7 @@ public class ClassFinder {
     }
   }
 
-  private void scanModule(File cp, ClassCollection classCollection) {
+  private void scanModule(File cp, ClassCollection.Builder classCollection) {
     try (ZipFile zipFile = new ZipFile(cp)) {
       for (Enumeration<? extends ZipEntry> entries = zipFile.entries();
           entries.hasMoreElements(); ) {
@@ -117,7 +120,10 @@ public class ClassFinder {
       new byte[] {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE};
 
   private boolean readIfClass(
-      String parentPath, String relativePath, InputStream is, ClassCollection classCollection)
+      String parentPath,
+      String relativePath,
+      InputStream is,
+      ClassCollection.Builder classCollection)
       throws IOException {
     byte[] classBytes = readInputStreamToByteArray(is, CLASS_FILE_MAGIC_HEADER);
     if (classBytes != null) {

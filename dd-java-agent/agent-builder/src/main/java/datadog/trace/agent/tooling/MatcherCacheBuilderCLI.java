@@ -30,20 +30,21 @@ public final class MatcherCacheBuilderCLI {
       MatcherCacheFileBuilderParams.printHelp();
       return;
     }
-    ClassFinder classFinder = new ClassFinder();
-    MatcherCacheBuilder matcherCacheBuilder =
-        new MatcherCacheBuilder(Platform.JAVA_VERSION.major, agentVersion);
     boolean enableAllInstrumenters = true;
     boolean skipAdditionalIgnores = false;
     ClassMatchers classMatchers =
         AllClassMatchers.create(enableAllInstrumenters, skipAdditionalIgnores);
+    MatcherCacheBuilder matcherCacheBuilder =
+        new MatcherCacheBuilder(classMatchers, Platform.JAVA_VERSION.major, agentVersion);
+
+    ClassFinder classFinder = new ClassFinder();
     MatcherCacheFileBuilder matcherCacheFileBuilder =
-        new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder, classMatchers);
+        new MatcherCacheFileBuilder(classFinder, matcherCacheBuilder);
     matcherCacheFileBuilder.buildMatcherCacheFile(params);
   }
 
   private static final class AllClassMatchers implements ClassMatchers {
-    public static ClassMatchers create(
+    public static AllClassMatchers create(
         boolean enableAllInstrumenters, boolean skipAdditionalIgnores) {
       final ArrayList<Instrumenter> instrumenters = new ArrayList<>();
       Instrumenter.TransformerBuilder intrumenterCollector =
@@ -105,8 +106,14 @@ public final class MatcherCacheBuilderCLI {
     }
 
     @Override
-    public boolean matchesAny(Class<?> cl) {
-      TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
+    public boolean isGloballyIgnored(String fullClassName) {
+      boolean ignored = GlobalIgnoresMatcher.isIgnored(fullClassName, skipAdditionalIgnores);
+      log.debug("{} ignored = {}", fullClassName, ignored);
+      return ignored;
+    }
+
+    @Override
+    public boolean matchesAny(TypeDescription typeDescription) {
       Instrumenter instr = firstMatching(typeDescription);
       boolean result = instr != null;
       if (result) {
@@ -115,14 +122,7 @@ public final class MatcherCacheBuilderCLI {
       return result;
     }
 
-    @Override
-    public boolean isGloballyIgnored(String fullClassName) {
-      boolean ignored = GlobalIgnoresMatcher.isIgnored(fullClassName, skipAdditionalIgnores);
-      log.debug("{} ignored = {}", fullClassName, ignored);
-      return ignored;
-    }
-
-    public Instrumenter firstMatching(TypeDescription typeDescription) {
+    private Instrumenter firstMatching(TypeDescription typeDescription) {
       for (Instrumenter instr : instrumenters) {
         ElementMatcher<? super TypeDescription> typeMatcher =
             AgentTransformerBuilder.typeMatcher(instr, !enableAllInstrumenters);

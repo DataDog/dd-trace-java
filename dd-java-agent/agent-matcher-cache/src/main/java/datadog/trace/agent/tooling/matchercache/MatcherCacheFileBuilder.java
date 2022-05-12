@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.matchercache;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
-import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollectionLoader;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
 import java.io.File;
 import java.io.IOException;
@@ -13,15 +12,10 @@ public class MatcherCacheFileBuilder {
 
   private final ClassFinder classFinder;
   private final MatcherCacheBuilder matcherCacheBuilder;
-  private final ClassMatchers classMatchers;
 
-  public MatcherCacheFileBuilder(
-      ClassFinder classFinder,
-      MatcherCacheBuilder matcherCacheBuilder,
-      ClassMatchers classMatchers) {
+  public MatcherCacheFileBuilder(ClassFinder classFinder, MatcherCacheBuilder matcherCacheBuilder) {
     this.classFinder = classFinder;
     this.matcherCacheBuilder = matcherCacheBuilder;
-    this.classMatchers = classMatchers;
   }
 
   public void buildMatcherCacheFile(MatcherCacheFileBuilderParams params) {
@@ -29,11 +23,23 @@ public class MatcherCacheFileBuilder {
       return;
     }
 
-    fillFrom(new File(params.getJavaHome()));
+    final File jdkClassPath =
+        new File(params.getJavaHome()); // TODO pass JDK home as an arg, and get it's version (java
+    // -version)
+    ClassCollection jdkClassCollection = findClassesIn(jdkClassPath);
+    fillFrom(jdkClassPath, jdkClassCollection);
 
-    fillFrom(params.getDDAgentJar());
+    ClassCollection ddAgentClassCollection = findClassesIn(params.getDDAgentJar());
+    if (ddAgentClassCollection != null) {
+      fillFrom(params.getDDAgentJar(), ddAgentClassCollection.withParent(jdkClassCollection));
+    }
+
     for (String cp : params.getClassPaths()) {
-      fillFrom(new File(cp));
+      final File classPath = new File(cp);
+      ClassCollection classCollection = findClassesIn(classPath);
+      if (classCollection != null) {
+        fillFrom(classPath, classCollection.withParent(jdkClassCollection));
+      }
     }
 
     if (params.getOutputCsvReportFile() != null) {
@@ -58,16 +64,17 @@ public class MatcherCacheFileBuilder {
     }
   }
 
-  private void fillFrom(File classPath) {
-    final int javaMajorVersion = matcherCacheBuilder.getJavaMajorVersion();
+  private ClassCollection findClassesIn(File classPath) {
     try {
-      ClassCollection classes = classFinder.findClassesIn(classPath);
-      ClassCollectionLoader classLoader = new ClassCollectionLoader(classes, javaMajorVersion);
-      MatcherCacheBuilder.Stats stats =
-          matcherCacheBuilder.fill(classes, classLoader, classMatchers);
-      log.info("Scanned {}: {}", classPath, stats);
+      return classFinder.findClassesIn(classPath);
     } catch (IOException e) {
       log.error("Failed to scan: " + classPath, e);
     }
+    return null;
+  }
+
+  private void fillFrom(File classPath, ClassCollection classCollection) {
+    MatcherCacheBuilder.Stats stats = matcherCacheBuilder.fill(classCollection);
+    log.info("Scanned {}: {}", classPath, stats);
   }
 }

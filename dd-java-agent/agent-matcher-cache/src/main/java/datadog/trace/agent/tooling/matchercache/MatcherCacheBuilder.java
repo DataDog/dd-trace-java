@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.matchercache;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassData;
+import datadog.trace.agent.tooling.matchercache.classfinder.TypeResolver;
 import datadog.trace.agent.tooling.matchercache.util.BinarySerializers;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.*;
+import net.bytebuddy.description.type.TypeDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,23 +37,22 @@ public class MatcherCacheBuilder {
   }
 
   private static final Logger log = LoggerFactory.getLogger(MatcherCacheBuilder.class);
-  private final TreeMap<String, PackageData> packages;
+  private final ClassMatchers classMatchers;
   private final int javaMajorVersion;
   private final String agentVersion;
+  private final TreeMap<String, PackageData> packages;
 
-  public MatcherCacheBuilder(int javaMajorVersion, String agentVersion) {
+  public MatcherCacheBuilder(
+      ClassMatchers classMatchers, int javaMajorVersion, String agentVersion) {
+    this.classMatchers = classMatchers;
     this.packages = new TreeMap<>();
     this.javaMajorVersion = javaMajorVersion;
     this.agentVersion = agentVersion;
   }
 
-  public int getJavaMajorVersion() {
-    return javaMajorVersion;
-  }
-
-  public Stats fill(
-      ClassCollection classCollection, ClassLoader classLoader, ClassMatchers classMatchers) {
+  public Stats fill(ClassCollection classCollection) {
     Stats stats = new Stats();
+    TypeResolver typeResolver = getTypeResolver(classCollection);
     for (ClassData classData : classCollection.allClasses(javaMajorVersion)) {
       String packageName = classData.packageName();
       String className = classData.className();
@@ -63,9 +64,10 @@ public class MatcherCacheBuilder {
         stats.counterIgnore += 1;
       } else
         try {
-          Class<?> cl = classLoader.loadClass(classData.getFullClassName());
           PackageData packageData = getDataOrCreate(packageName);
-          if (classMatchers.matchesAny(cl)) {
+          TypeDescription typeDescription =
+              typeResolver.typeDescription(classData.getFullClassName());
+          if (classMatchers.matchesAny(typeDescription)) {
             // TODO check if different classCollections share packages that include instrumented
             // classes and warn about it, and maybe exclude from the matcher cache
             packageData.insert(className, MatchingResult.TRANSFORM, location, null);
@@ -82,6 +84,10 @@ public class MatcherCacheBuilder {
         }
     }
     return stats;
+  }
+
+  protected TypeResolver getTypeResolver(ClassCollection classCollection) {
+    return new TypeResolver(classCollection, javaMajorVersion);
   }
 
   public void serializeBinary(File file) throws IOException {

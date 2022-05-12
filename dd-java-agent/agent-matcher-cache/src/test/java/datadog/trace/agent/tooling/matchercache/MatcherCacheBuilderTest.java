@@ -3,8 +3,8 @@ package datadog.trace.agent.tooling.matchercache;
 import static org.junit.jupiter.api.Assertions.*;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
-import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollectionLoader;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
+import datadog.trace.agent.tooling.matchercache.classfinder.TypeResolver;
 import datadog.trace.agent.tooling.matchercache.util.BinarySerializers;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -20,24 +20,19 @@ public class MatcherCacheBuilderTest {
   public final String TEST_CLASSES_FOLDER =
       this.getClass().getClassLoader().getResource("test-classes").getFile();
 
-  private static class TestClassLoader extends ClassCollectionLoader {
-    public TestClassLoader(ClassCollection classCollection, int javaMajorVersion) {
-      super(classCollection, javaMajorVersion);
-    }
-
-    @Override
-    public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-      if ("example.InnerJarClass".equals(name)) {
-        throw new RuntimeException("Intentional test class load failure");
-      }
-      return super.loadClass(name, resolve);
-    }
-  }
-
   private static class TestClassMatchers implements ClassMatchers {
     @Override
-    public boolean matchesAny(Class<?> cl) {
-      TypeDescription typeDescription = TypeDescription.ForLoadedType.of(cl);
+    public boolean isGloballyIgnored(String fullClassName) {
+      switch (fullClassName) {
+        case "foo.bar.xyz.Xyz":
+        case "bar.foo.Baz":
+          return true;
+      }
+      return false;
+    }
+
+    @Override
+    public boolean matchesAny(TypeDescription typeDescription) {
       String fullClassName = typeDescription.getCanonicalName();
       if (fullClassName != null) {
         switch (fullClassName) {
@@ -53,16 +48,6 @@ public class MatcherCacheBuilderTest {
       }
       return false;
     }
-
-    @Override
-    public boolean isGloballyIgnored(String fullClassName) {
-      switch (fullClassName) {
-        case "foo.bar.xyz.Xyz":
-        case "bar.foo.Baz":
-          return true;
-      }
-      return false;
-    }
   }
 
   @Test
@@ -73,11 +58,23 @@ public class MatcherCacheBuilderTest {
     ClassCollection classCollection = classFinder.findClassesIn(classPath);
     int javaMajorVersion = 9;
     String agentVersion = "0.95.0";
-    ClassLoader classLoader = new TestClassLoader(classCollection, javaMajorVersion);
     MatcherCacheBuilder matcherCacheBuilder =
-        new MatcherCacheBuilder(javaMajorVersion, agentVersion);
-    MatcherCacheBuilder.Stats stats =
-        matcherCacheBuilder.fill(classCollection, classLoader, new TestClassMatchers());
+        new MatcherCacheBuilder(new TestClassMatchers(), javaMajorVersion, agentVersion) {
+          @Override
+          protected TypeResolver getTypeResolver(ClassCollection classCollection) {
+            return new TypeResolver(classCollection, javaMajorVersion) {
+              @Override
+              public TypeDescription typeDescription(String fullClassName) {
+                if ("example.InnerJarClass".equals(fullClassName)) {
+                  throw new RuntimeException("Intentional test class load failure");
+                }
+                return super.typeDescription(fullClassName);
+              }
+            };
+          }
+        };
+
+    MatcherCacheBuilder.Stats stats = matcherCacheBuilder.fill(classCollection);
 
     assertEquals("Ignore: 2; Skip: 2; Transform: 3; Fail: 1", stats.toString());
 
@@ -144,7 +141,8 @@ public class MatcherCacheBuilderTest {
   public void testFailIfCacheDataIsForAnotherJavaVersion() {
     int javaMajorVersion = 9;
     MatcherCacheBuilder matcherCacheBuilder =
-        new MatcherCacheBuilder(javaMajorVersion, "whatever-agent-version");
+        new MatcherCacheBuilder(
+            new TestClassMatchers(), javaMajorVersion, "whatever-agent-version");
 
     int anotherJavaMajorVersion = 8;
     assertNotEquals(anotherJavaMajorVersion, javaMajorVersion);
@@ -160,7 +158,8 @@ public class MatcherCacheBuilderTest {
   public void testFailIfCacheDataBuiltWithDifferentAgentVersion() throws IOException {
     int javaMajorVersion = 11;
     MatcherCacheBuilder matcherCacheBuilder =
-        new MatcherCacheBuilder(javaMajorVersion, "whatever-agent-version");
+        new MatcherCacheBuilder(
+            new TestClassMatchers(), javaMajorVersion, "whatever-agent-version");
 
     String agentVersion = "0.95.0";
     ByteArrayOutputStream os = new ByteArrayOutputStream();
