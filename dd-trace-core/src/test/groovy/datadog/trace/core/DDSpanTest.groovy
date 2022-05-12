@@ -436,6 +436,16 @@ class DDSpanTest extends DDCoreSpecification {
     span.getTag(DDTags.ERROR_MSG) == "Broken pipe"
   }
 
+  def "wrapped broken pipe exception does not create error span"() {
+    when:
+    def span = tracer.buildSpan("root").start()
+    span.addThrowable(new RuntimeException(new IOException("Broken pipe")))
+    then:
+    !span.isError()
+    span.getTag(DDTags.ERROR_STACK) == null
+    span.getTag(DDTags.ERROR_MSG) == "java.io.IOException: Broken pipe"
+  }
+
   def "null exception safe to add"() {
     when:
     def span = tracer.buildSpan("root").start()

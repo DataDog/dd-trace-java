@@ -392,7 +392,9 @@ public class DDSpan
   public DDSpan addThrowable(final Throwable error) {
     if (null != error) {
       String message = error.getMessage();
-      if (!"broken pipe".equalsIgnoreCase(message)) {
+      if (!"broken pipe".equalsIgnoreCase(message)
+          && (error.getCause() == null
+              || !"broken pipe".equalsIgnoreCase(error.getCause().getMessage()))) {
         // broken pipes happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
