@@ -4,7 +4,10 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.Utils;
+import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
+import datadog.trace.api.function.Function;
+import datadog.trace.bootstrap.WeakCache;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -18,9 +21,22 @@ import net.bytebuddy.utility.StreamDrainer;
  */
 public final class DDClassFileLocators {
 
+  private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
+      WeakCaches.newWeakCache(64);
+
+  private static final Function<ClassLoader, DDClassFileLocator> NEW_CLASS_FILE_LOCATOR =
+      new Function<ClassLoader, DDClassFileLocator>() {
+        @Override
+        public DDClassFileLocator apply(ClassLoader input) {
+          return new DDClassFileLocator(input);
+        }
+      };
+
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
-    return new DDClassFileLocator(classLoader);
+    return classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR);
   }
+
+  private DDClassFileLocators() {}
 
   static final class DDClassFileLocator extends WeakReference<ClassLoader>
       implements ClassFileLocator {
