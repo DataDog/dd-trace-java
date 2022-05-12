@@ -103,7 +103,6 @@ class UrlConnectionTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" UrlInstrumentation.COMPONENT
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_PORT" 80
             // FIXME: These tags really make no sense for non-http connections, why do we set them?
             "$Tags.HTTP_URL" "$url"
             errorTags IllegalArgumentException, String
