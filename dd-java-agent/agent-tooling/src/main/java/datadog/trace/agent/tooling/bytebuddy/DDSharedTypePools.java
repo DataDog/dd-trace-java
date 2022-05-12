@@ -8,6 +8,10 @@ import net.bytebuddy.pool.TypePool;
 public class DDSharedTypePools {
   private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
 
+  public static TypePool typePool(ClassLoader classLoader) {
+    return typePool(DDClassFileLocators.classFileLocator(classLoader), classLoader);
+  }
+
   public static TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
     return SUPPLIER.get().typePool(classFileLocator, classLoader);
   }

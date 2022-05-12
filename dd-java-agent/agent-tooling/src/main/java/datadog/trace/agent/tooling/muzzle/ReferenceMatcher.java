@@ -4,7 +4,6 @@ import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADE
 
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.WeakCaches;
-import datadog.trace.agent.tooling.bytebuddy.DDClassFileLocator;
 import datadog.trace.agent.tooling.bytebuddy.DDSharedTypePools;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.api.Pair;
@@ -112,7 +111,7 @@ public final class ReferenceMatcher implements IReferenceMatcher {
   @SuppressForbidden
   private static boolean checkMatch(
       final Reference reference, final ClassLoader loader, final List<Mismatch> mismatches) {
-    final TypePool typePool = DDSharedTypePools.typePool(new DDClassFileLocator(loader), loader);
+    final TypePool typePool = DDSharedTypePools.typePool(loader);
     try {
       final TypePool.Resolution resolution = typePool.describe(reference.className);
       if (!resolution.isResolved()) {

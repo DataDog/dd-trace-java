@@ -17,7 +17,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
-class RealTypeHierarchyMatcherTests extends DDSpecification {
+class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
 
   def "test implementsInterface: #name"() {
     setup:

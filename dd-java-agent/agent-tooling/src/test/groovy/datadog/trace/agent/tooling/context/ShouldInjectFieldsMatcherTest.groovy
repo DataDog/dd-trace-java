@@ -1,18 +1,11 @@
 package datadog.trace.agent.tooling.context
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
-import datadog.trace.agent.tooling.bytebuddy.DDClassFileLocator
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.agent.tooling.bytebuddy.matcher.AbstractHierarchyMatcherTest
 import net.bytebuddy.utility.JavaModule
-import spock.lang.Shared
 
 import java.security.ProtectionDomain
 
-class ShouldInjectFieldsMatcherTest extends DDSpecification {
-
-  @Shared
-  def typePool = DDCachingPoolStrategy.INSTANCE.typePool(
-  new DDClassFileLocator(this.class.classLoader), this.class.classLoader)
+class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
 
   def "should inject only into #keyType when #klass is transformed"() {
     setup:
