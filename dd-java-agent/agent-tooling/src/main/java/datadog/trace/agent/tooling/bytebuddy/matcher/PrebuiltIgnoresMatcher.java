@@ -30,11 +30,11 @@ public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
       AgentBuilder.RawMatcher fallbackIgnoresMatcher,
       int javaMajorVersion) {
     File cacheFile = new File(matcherCacheFile);
-    String agentVersion = getAgentVersion();
+    String tracerVersion = getTracerVersion();
     MatcherCache matcherCache = null;
     try (InputStream is = Files.newInputStream(cacheFile.toPath())) {
       long startAt = System.nanoTime();
-      matcherCache = MatcherCache.deserialize(is, javaMajorVersion, agentVersion);
+      matcherCache = MatcherCache.deserialize(is, javaMajorVersion, tracerVersion);
       long durationNs = System.nanoTime() - startAt;
       log.info("Loaded pre-built matcher data in ms: {}", durationNs / 1_000_000);
       // Tracking duration manually because JFR doesn't seem to track duration properly at this
@@ -80,7 +80,7 @@ public class PrebuiltIgnoresMatcher implements AgentBuilder.RawMatcher {
         typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
   }
 
-  private static String getAgentVersion() {
+  private static String getTracerVersion() {
     final StringBuilder sb = new StringBuilder();
     try (final BufferedReader reader =
         new BufferedReader(

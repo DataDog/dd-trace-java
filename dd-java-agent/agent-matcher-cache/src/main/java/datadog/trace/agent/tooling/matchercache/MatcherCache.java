@@ -30,13 +30,13 @@ public final class MatcherCache {
     }
   }
 
-  public static class IncompatibleAgentVersion extends RuntimeException {
-    public IncompatibleAgentVersion(String agentVersion, String agentVersionInFile) {
+  public static class IncompatibleTracerVersion extends RuntimeException {
+    public IncompatibleTracerVersion(String tracerVersion, String tracerVersionInFile) {
       super(
-          "Matcher Cache data file was built with "
-              + agentVersionInFile
+          "Matcher Cache data file was built with Java Tracer "
+              + tracerVersionInFile
               + " that is not compatible with current "
-              + agentVersion);
+              + tracerVersion);
     }
   }
 
@@ -46,7 +46,7 @@ public final class MatcherCache {
     UNKNOWN,
   }
 
-  public static MatcherCache deserialize(InputStream is, int javaMajorVersion, String agentVersion)
+  public static MatcherCache deserialize(InputStream is, int javaMajorVersion, String tracerVersion)
       throws IOException {
     int matcherCacheFileFormatVersion = readInt(is);
     int expectedMatcherCacheFormatVersion = MatcherCacheBuilder.MATCHER_CACHE_FILE_FORMAT_VERSION;
@@ -58,9 +58,9 @@ public final class MatcherCache {
     if (javaMajorVersionInFile != javaMajorVersion) {
       throw new IncompatibleJavaVersionData(javaMajorVersion, javaMajorVersionInFile);
     }
-    String agentVersionInFile = readString(is);
-    if (!agentVersionInFile.equals(agentVersion)) {
-      throw new IncompatibleAgentVersion(agentVersion, agentVersionInFile);
+    String tracerVersionInFile = readString(is);
+    if (!tracerVersionInFile.equals(tracerVersion)) {
+      throw new IncompatibleTracerVersion(tracerVersion, tracerVersionInFile);
     }
     int numberOfPackages = readInt(is);
     assert numberOfPackages >= 0;

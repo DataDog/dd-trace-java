@@ -168,7 +168,7 @@ public class MatcherCacheBuilderTest {
     String anotherAgentVersion = "0.95.1";
     assertNotEquals(anotherAgentVersion, agentVersion);
     Assertions.assertThrows(
-        MatcherCache.IncompatibleAgentVersion.class,
+        MatcherCache.IncompatibleTracerVersion.class,
         () -> {
           ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
           MatcherCache.deserialize(is, javaMajorVersion, anotherAgentVersion);
