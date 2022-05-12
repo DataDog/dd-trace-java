@@ -80,16 +80,8 @@ public class TraceUtils {
     return normalizeTag(e);
   }
 
-  public static boolean isValidStatusCode(final String httpStatusCode) {
-    if (httpStatusCode == null || httpStatusCode.isEmpty()) {
-      return false;
-    }
-    try {
-      final int code = Integer.parseInt(httpStatusCode);
-      return (code >= 100 && code < 600);
-    } catch (NumberFormatException ex) {
-      return false;
-    }
+  public static boolean isValidStatusCode(final int httpStatusCode) {
+    return (httpStatusCode >= 100 && httpStatusCode < 600);
   }
 
   // spotless:off

@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.TraceUtils;
 import java.util.Collection;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,12 +28,14 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
     }
 
     for (MutableSpan span : trace) {
-      process(span);
+      if (span instanceof DDSpan) {
+        process((DDSpan) span);
+      }
     }
     return trace;
   }
 
-  private void process(MutableSpan span) {
+  private void process(DDSpan span) {
     span.setServiceName(normalizeServiceName(span.getServiceName()));
     span.setOperationName(normalizeOperationName(span.getOperationName()));
     span.setSpanType(normalizeSpanType(span.getSpanType()));
@@ -47,18 +48,17 @@ public class DDIntakeTraceInterceptor implements TraceInterceptor {
       span.setResourceName(span.getOperationName());
     }
 
-    final Map<String, Object> tags = span.getTags();
-    if (tags.get("env") != null) {
-      ((DDSpan) span).context().setTag("env", TraceUtils.normalizeEnv((String) tags.get("env")));
+    if (span.getTag("env") != null) {
+      span.setTag("env", TraceUtils.normalizeEnv((String) span.getTag("env")));
     }
 
-    final String httpStatusCode = (String) tags.get(Tags.HTTP_STATUS);
+    final Integer httpStatusCode = (Integer) span.getTag(Tags.HTTP_STATUS);
     if (httpStatusCode != null && !isValidStatusCode(httpStatusCode)) {
       log.debug(
           "Fixing malformed trace. HTTP status code is invalid (reason:invalid_http_status_code), dropping invalid http.status_code={}: {}",
           httpStatusCode,
           span);
-      ((DDSpan) span).context().setTag(Tags.HTTP_STATUS, null);
+      span.removeTag(Tags.HTTP_STATUS);
     }
   }
 
