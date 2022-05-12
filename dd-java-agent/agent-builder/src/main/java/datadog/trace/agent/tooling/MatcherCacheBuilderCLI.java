@@ -11,7 +11,9 @@ import datadog.trace.api.Platform;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.ServiceLoader;
+import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
@@ -99,38 +101,36 @@ public final class MatcherCacheBuilderCLI {
 
     @Override
     public boolean isGloballyIgnored(String fullClassName, boolean skipAdditionalIgnores) {
-      boolean ignored = GlobalIgnoresMatcher.isIgnored(fullClassName, skipAdditionalIgnores);
-      log.debug("{} ignored = {}", fullClassName, ignored);
-      return ignored;
+      return GlobalIgnoresMatcher.isIgnored(fullClassName, skipAdditionalIgnores);
     }
 
     @Override
-    public boolean matchesAny(TypeDescription typeDescription) {
-      Instrumenter instr = firstMatching(typeDescription);
-      boolean result = instr != null;
-      if (result) {
-        log.debug("{} matched by {}", typeDescription.getActualName(), instr.getClass());
+    public String matchingIntrumenters(TypeDescription typeDescription) {
+      Set<String> result = allMatchingInstrumenters(typeDescription);
+      if (result.isEmpty()) {
+        return null;
       }
-      return result;
+      return result.toString();
     }
 
-    private Instrumenter firstMatching(TypeDescription typeDescription) {
+    private Set<String> allMatchingInstrumenters(TypeDescription typeDescription) {
+      Set<String> result = new HashSet<>();
       for (Instrumenter instr : instrumenters) {
         ElementMatcher<? super TypeDescription> typeMatcher =
             AgentTransformerBuilder.typeMatcher(instr, !enableAllInstrumenters);
         if (typeMatcher != null) {
           if (typeMatcher.matches(typeDescription)) {
-            return instr;
+            result.add(instr.getClass().getSimpleName());
           }
         }
         if (instr instanceof Instrumenter.Default) {
           if (FieldBackedContextProvider.typeMatcher((Instrumenter.Default) instr)
               .matches(typeDescription)) {
-            return instr;
+            result.add(instr.getClass().getSimpleName());
           }
         }
       }
-      return null;
+      return result;
     }
   }
 }

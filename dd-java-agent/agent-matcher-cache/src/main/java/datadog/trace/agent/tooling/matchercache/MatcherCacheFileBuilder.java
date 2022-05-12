@@ -23,9 +23,7 @@ public class MatcherCacheFileBuilder {
       return;
     }
 
-    final File jdkClassPath =
-        new File(params.getJavaHome()); // TODO pass JDK home as an arg, and get it's version (java
-    // -version)
+    final File jdkClassPath = new File(params.getJavaHome());
     ClassCollection jdkClassCollection = findClassesIn(jdkClassPath);
     fillFrom(jdkClassPath, jdkClassCollection);
 

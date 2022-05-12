@@ -60,44 +60,50 @@ public class MatcherCacheBuilder {
       String packageName = classData.packageName();
       String className = classData.className();
       String fullClassName = classData.getFullClassName();
-      String location = classData.location(javaMajorVersion);
+      String classLocation = classData.location(javaMajorVersion);
 
       boolean globallyIgnored = classMatchers.isGloballyIgnored(fullClassName, true);
       boolean additionallyIgnored = classMatchers.isGloballyIgnored(fullClassName, false);
 
       if (globallyIgnored) {
         PackageData packageData = getDataOrCreate(packageName);
-        packageData.insert(className, MatchingResult.IGNORE, location, null);
+        packageData.insert(className, MatchingResult.IGNORE, classLocation);
         stats.counterIgnore += 1;
       } else
         try {
           PackageData packageData = getDataOrCreate(packageName);
           TypeDescription typeDescription = typeResolver.typeDescription(fullClassName);
-          if (classMatchers.matchesAny(typeDescription)) {
+          String matchingInstrumenters = classMatchers.matchingIntrumenters(typeDescription);
+          if (matchingInstrumenters != null) {
             if (additionallyIgnored) {
-              String warn = "transformable but ignored by the additional ignores only";
-              packageData.insert(className, MatchingResult.TRANSFORM, location, "WARN: " + warn);
-              log.warn("{} is {}", fullClassName, warn);
-            } else {
-              packageData.insert(className, MatchingResult.TRANSFORM, location, null);
-            }
-            stats.counterTransform += 1;
-          } else {
-            if (additionallyIgnored) {
-              packageData.insert(className, MatchingResult.IGNORE, location, null);
+              packageData.insert(
+                  className,
+                  MatchingResult.IGNORE,
+                  classLocation,
+                  "AdditionalIgnores",
+                  matchingInstrumenters);
               stats.counterIgnore += 1;
             } else {
-              packageData.insert(className, MatchingResult.SKIP, location, null);
+              packageData.insert(
+                  className, MatchingResult.TRANSFORM, classLocation, matchingInstrumenters);
+              stats.counterTransform += 1;
+            }
+          } else {
+            if (additionallyIgnored) {
+              packageData.insert(className, MatchingResult.IGNORE, classLocation);
+              stats.counterIgnore += 1;
+            } else {
+              packageData.insert(className, MatchingResult.SKIP, classLocation);
               stats.counterSkip += 1;
             }
           }
         } catch (Throwable e) {
           PackageData packageData = getDataOrCreate(packageName);
           if (additionallyIgnored) {
-            packageData.insert(className, MatchingResult.IGNORE, location, null);
+            packageData.insert(className, MatchingResult.IGNORE, classLocation);
             stats.counterIgnore += 1;
           } else {
-            packageData.insert(className, MatchingResult.FAIL, location, e.toString());
+            packageData.insert(className, MatchingResult.FAIL, classLocation, e.toString());
             log.debug("Couldn't load class: {} failed with {}", className, e.toString());
             stats.counterFail += 1;
           }
@@ -120,23 +126,11 @@ public class MatcherCacheBuilder {
     BinarySerializers.writeInt(os, MATCHER_CACHE_FILE_FORMAT_VERSION);
     BinarySerializers.writeInt(os, javaMajorVersion);
     BinarySerializers.writeString(os, agentVersion);
-    int numberOfPackages = 0;
-    for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
-      if (entry.getValue().canBeRemoved()) {
-        log.info(
-            "Package {} will be excluded from the matcher cache, because all its classes can't be skipped",
-            entry.getKey());
-      } else {
-        numberOfPackages += 1;
-      }
-    }
-    BinarySerializers.writeInt(os, numberOfPackages);
+    BinarySerializers.writeInt(os, packages.size());
     for (Map.Entry<String, PackageData> entry : packages.entrySet()) {
       PackageData packageData = entry.getValue();
-      if (!packageData.canBeRemoved()) {
-        BinarySerializers.writeString(os, entry.getKey());
-        writeHashCodes(os, packageData.transformedClassHashes());
-      }
+      BinarySerializers.writeString(os, entry.getKey());
+      writeHashCodes(os, packageData.transformedClassHashes());
     }
   }
 
@@ -148,15 +142,13 @@ public class MatcherCacheBuilder {
 
   public void serializeText(OutputStream os) {
     PrintStream ps = new PrintStream(os);
-    ps.println("Matcher Cache Report");
-    ps.print("Format Version: ");
-    ps.println(MATCHER_CACHE_FILE_FORMAT_VERSION);
-    ps.print("Agent Version: ");
-    ps.println(agentVersion);
-    ps.print("Java Major Version: ");
-    ps.println(javaMajorVersion);
-    ps.print("Packages: ");
-    ps.println(packages.size());
+    ps.println(
+        "Matcher Cache Format "
+            + MATCHER_CACHE_FILE_FORMAT_VERSION
+            + ", Tracer "
+            + agentVersion
+            + ", Java "
+            + javaMajorVersion);
     for (Map.Entry<String, PackageData> packageEntry : packages.entrySet()) {
       String packageName = packageEntry.getKey();
       PackageData pd = packageEntry.getValue();
@@ -170,17 +162,14 @@ public class MatcherCacheBuilder {
         ps.print(',');
         ClassInfo ci = classEntry.getValue();
         ps.print(ci.matchingResult);
+        if (ci.additionalInfo != null) {
+          for (String info : ci.additionalInfo) {
+            ps.print(',');
+            ps.print(info);
+          }
+        }
         ps.print(',');
         ps.print(ci.classLocation);
-        if (ci.additionalInfo != null) {
-          ps.print(',');
-          ps.print(ci.additionalInfo);
-        }
-        if (pd.canBeRemoved()) {
-          ps.print(',');
-          ps.print(
-              "Package excluded from the matcher cache, because all its classes can't be skipped");
-        }
         ps.println();
       }
     }
@@ -222,9 +211,9 @@ public class MatcherCacheBuilder {
   private static final class ClassInfo {
     private final MatchingResult matchingResult;
     private final String classLocation;
-    private final String additionalInfo;
+    private final String[] additionalInfo;
 
-    public ClassInfo(MatchingResult matchingResult, String classLocation, String additionalInfo) {
+    public ClassInfo(MatchingResult matchingResult, String classLocation, String[] additionalInfo) {
       this.matchingResult = matchingResult;
       this.classLocation = classLocation;
       this.additionalInfo = additionalInfo;
@@ -239,33 +228,12 @@ public class MatcherCacheBuilder {
     }
 
     public void insert(
-        String className, MatchingResult mr, String classLocation, String additionalInfo) {
+        String className, MatchingResult mr, String classLocation, String... additionalInfo) {
       ClassInfo classInfo = classes.get(className);
       if (classInfo == null || mr.compareTo(classInfo.matchingResult) < 0) {
         classInfo = new ClassInfo(mr, classLocation, additionalInfo);
         classes.put(className, classInfo);
       }
-    }
-
-    public boolean canBeRemoved() {
-      int skippedCounter = 0;
-      int failedToLoadCounter = 0;
-      int transformedCounter = 0;
-      for (ClassInfo css : classes.values()) {
-        switch (css.matchingResult) {
-          case IGNORE:
-          case SKIP:
-            skippedCounter += 1;
-            break;
-          case TRANSFORM:
-            transformedCounter += 1;
-            break;
-          case FAIL:
-            failedToLoadCounter += 1;
-            break;
-        }
-      }
-      return skippedCounter == 0 && failedToLoadCounter == transformedCounter;
     }
 
     public SortedSet<Integer> transformedClassHashes() {

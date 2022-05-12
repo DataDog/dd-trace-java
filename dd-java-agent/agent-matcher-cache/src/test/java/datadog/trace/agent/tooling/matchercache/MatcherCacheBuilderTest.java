@@ -1,6 +1,8 @@
 package datadog.trace.agent.tooling.matchercache;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassCollection;
 import datadog.trace.agent.tooling.matchercache.classfinder.ClassFinder;
@@ -23,6 +25,12 @@ public class MatcherCacheBuilderTest {
   private static class TestClassMatchers implements ClassMatchers {
     @Override
     public boolean isGloballyIgnored(String fullClassName, boolean skipAdditionalIgnores) {
+      if (!skipAdditionalIgnores) {
+        switch (fullClassName) {
+          case "example.classes.Abc":
+            return true;
+        }
+      }
       switch (fullClassName) {
         case "foo.bar.xyz.Xyz":
         case "bar.foo.Baz":
@@ -32,7 +40,7 @@ public class MatcherCacheBuilderTest {
     }
 
     @Override
-    public boolean matchesAny(TypeDescription typeDescription) {
+    public String matchingIntrumenters(TypeDescription typeDescription) {
       String fullClassName = typeDescription.getCanonicalName();
       if (fullClassName != null) {
         switch (fullClassName) {
@@ -40,13 +48,13 @@ public class MatcherCacheBuilderTest {
           case "example.InnerJarClass":
           case "example.classes.Abc":
           case "foo.bar.FooBar":
-            return true;
+            return "TestInstrumenters";
           case "example.MiddleJarClass":
           case "example.classes.Only9":
-            return false;
+            return null;
         }
       }
-      return false;
+      return null;
     }
   }
 
@@ -65,8 +73,10 @@ public class MatcherCacheBuilderTest {
             return new TypeResolver(classCollection, javaMajorVersion) {
               @Override
               public TypeDescription typeDescription(String fullClassName) {
-                if ("example.InnerJarClass".equals(fullClassName)) {
-                  throw new RuntimeException("Intentional test class load failure");
+                switch (fullClassName) {
+                  case "example.InnerJarClass":
+                  case "foo.bar.FooBar":
+                    throw new RuntimeException("Intentional test class load failure");
                 }
                 return super.typeDescription(fullClassName);
               }
@@ -76,7 +86,7 @@ public class MatcherCacheBuilderTest {
 
     MatcherCacheBuilder.Stats stats = matcherCacheBuilder.fill(classCollection);
 
-    assertEquals("Ignore: 2; Skip: 2; Transform: 3; Fail: 1", stats.toString());
+    assertEquals("Ignore: 3; Skip: 2; Transform: 1; Fail: 2", stats.toString());
 
     // serialize MatcherCache and load as MatcherCache and check the result
     MatcherCache matcherCache =
@@ -87,7 +97,7 @@ public class MatcherCacheBuilderTest {
     assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.MiddleJarClass"));
     assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.NonExistingClass"));
 
-    assertEquals(MatcherCache.Result.TRANSFORM, matcherCache.transform("example.classes.Abc"));
+    assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.classes.Abc"));
     assertEquals(MatcherCache.Result.SKIP, matcherCache.transform("example.classes.Only9"));
     assertEquals(
         MatcherCache.Result.SKIP, matcherCache.transform("example.classes.NonExistingClass"));
@@ -103,26 +113,34 @@ public class MatcherCacheBuilderTest {
     assertEquals(MatcherCache.Result.UNKNOWN, matcherCache.transform("non.existing.package.Bar"));
 
     // serialize text report
-    Pattern expectedPattern =
-        Pattern.compile(
-            "Matcher Cache Report\n"
-                + "Format Version: 1\n"
-                + "Agent Version: 0\\.95\\.0\n"
-                + "Java Major Version: 9\n"
-                + "Packages: 5\n"
-                + "bar.foo.Baz,IGNORE,.*/test-classes/relocated-classes/somefolder/Baz.class\n"
-                + "example.InnerJarClass,FAIL,.*/test-classes/inner-jars/example.jar/Middle.jar/InnerJarClass.jar"
-                + ",java.lang.RuntimeException: Intentional test class load failure\n"
-                + "example.MiddleJarClass,SKIP,.*/test-classes/inner-jars/example.jar/Middle.jar\n"
-                + "example.OuterJarClass,TRANSFORM,.*/test-classes/inner-jars/example.jar\n"
-                + "example.classes.Abc,TRANSFORM,.*/test-classes/multi-release-jar/multi-release.jar\n"
-                + "example.classes.Only9,SKIP,.*/test-classes/multi-release-jar/multi-release.jar\n"
-                + "foo.bar.FooBar,TRANSFORM,.*/test-classes/renamed-class-file/renamed-foobar-class.bin\n"
-                + "foo.bar.xyz.Xyz,IGNORE,.*/test-classes/standard-layout/foo/bar/xyz/Xyz.class\n");
     String reportData = serializeTextReport(matcherCacheBuilder);
-    assertTrue(
-        expectedPattern.matcher(reportData).matches(),
-        "Expected:\n" + expectedPattern + "Actual:\n" + reportData);
+
+    assertLines(
+        reportData,
+        "Matcher Cache Format 1, Tracer 0\\.95\\.0, Java 9",
+        "bar.foo.Baz,IGNORE,[^,]*/test-classes/relocated-classes/somefolder/Baz.class",
+        "example.InnerJarClass,FAIL,java.lang.RuntimeException: Intentional test class load failure,[^,]*/test-classes/inner-jars/example.jar/Middle.jar/InnerJarClass.jar",
+        "example.MiddleJarClass,SKIP,[^,]*/test-classes/inner-jars/example.jar/Middle.jar",
+        "example.OuterJarClass,TRANSFORM,TestInstrumenters,[^,]*/test-classes/inner-jars/example.jar",
+        "example.classes.Abc,IGNORE,AdditionalIgnores,TestInstrumenters,[^,]*/test-classes/multi-release-jar/multi-release.jar",
+        "example.classes.Only9,SKIP,[^,]*/test-classes/multi-release-jar/multi-release.jar",
+        "foo.bar.FooBar,FAIL,java.lang.RuntimeException: Intentional test class load failure,[^,]*/test-classes/renamed-class-file/renamed-foobar-class.bin",
+        "foo.bar.xyz.Xyz,IGNORE,[^,]*/test-classes/standard-layout/foo/bar/xyz/Xyz.class");
+  }
+
+  private void assertLines(String actual, String... expectedLines) {
+    String[] actualLines = actual.split("\n");
+    assertEquals(
+        expectedLines.length,
+        actualLines.length,
+        "Expected number of lines doesn't match actual number of lines: \n" + actual);
+    for (int i = 0; i < expectedLines.length; i++) {
+      String expectedLine = expectedLines[i];
+      String actualLine = actualLines[i];
+      assertTrue(
+          Pattern.compile(expectedLine).matcher(actualLine).matches(),
+          "Actual line:\n" + actualLine + "\nDoes Not match expected:\n" + expectedLine);
+    }
   }
 
   @Test
