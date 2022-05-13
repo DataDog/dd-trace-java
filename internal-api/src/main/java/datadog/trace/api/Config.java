@@ -201,6 +201,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATI
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOURCES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
@@ -345,6 +346,7 @@ public class Config {
   private final List<String> excludedClasses;
   private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
+  private final List<String> excludedCodeSources;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final BitSet httpServerErrorStatuses;
@@ -679,6 +681,7 @@ public class Config {
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
+    excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
 
     if (isEnabled(false, HEADER_TAGS, ".legacy.parsing.enabled")) {
       requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
@@ -1184,6 +1187,10 @@ public class Config {
 
   public Set<String> getExcludedClassLoaders() {
     return excludedClassLoaders;
+  }
+
+  public List<String> getExcludedCodeSources() {
+    return excludedCodeSources;
   }
 
   public Map<String, String> getRequestHeaderTags() {
@@ -2332,6 +2339,8 @@ public class Config {
         + excludedClassesFile
         + ", excludedClassLoaders="
         + excludedClassLoaders
+        + ", excludedCodeSources="
+        + excludedCodeSources
         + ", requestHeaderTags="
         + requestHeaderTags
         + ", responseHeaderTags="
