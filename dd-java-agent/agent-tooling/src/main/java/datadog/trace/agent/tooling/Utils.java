@@ -7,9 +7,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Utils {
 
-  /** Initialization-on-demand, only used during unit tests. */
-  static class BootstrapClassLoaderHolder {
-    static final ClassLoader unitTestBootstrapProxy = new BootstrapClassLoaderProxy();
+  /** Initialization-on-demand. */
+  static class BootstrapProxyHolder {
+    static final ClassLoader bootstrapProxy =
+        getAgentClassLoader() instanceof DatadogClassLoader
+            ? ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy()
+            : new BootstrapClassLoaderProxy(); // only used during unit tests
   }
 
   /** Return the classloader the core agent is running on. */
@@ -19,12 +22,7 @@ public class Utils {
 
   /** Return a classloader which can be used to look up bootstrap resources. */
   public static ClassLoader getBootstrapProxy() {
-    if (getAgentClassLoader() instanceof DatadogClassLoader) {
-      return ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy();
-    } else {
-      // only used during unit tests
-      return BootstrapClassLoaderHolder.unitTestBootstrapProxy;
-    }
+    return BootstrapProxyHolder.bootstrapProxy;
   }
 
   private static final AtomicReference<Instrumentation> instrumentationRef =

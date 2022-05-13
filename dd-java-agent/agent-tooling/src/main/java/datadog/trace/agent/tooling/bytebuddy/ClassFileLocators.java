@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import net.bytebuddy.dynamic.ClassFileLocator;
+import net.bytebuddy.dynamic.ClassFileLocator.Resolution;
 import net.bytebuddy.utility.StreamDrainer;
 
 /**
@@ -20,10 +21,6 @@ import net.bytebuddy.utility.StreamDrainer;
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
 public final class ClassFileLocators {
-
-  private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
-      WeakCaches.newWeakCache(64);
-
   private static final Function<ClassLoader, DDClassFileLocator> NEW_CLASS_FILE_LOCATOR =
       new Function<ClassLoader, DDClassFileLocator>() {
         @Override
@@ -32,8 +29,26 @@ public final class ClassFileLocators {
         }
       };
 
+  private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
+      WeakCaches.newWeakCache(64);
+
+  private static final ClassFileLocator bootClassFileLocator =
+      new ClassFileLocator() {
+        @Override
+        public Resolution locate(String className) throws IOException {
+          return loadClassResource(Utils.getBootstrapProxy(), getResourceName(className));
+        }
+
+        @Override
+        public void close() {
+          // nothing to close
+        }
+      };
+
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
-    return classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR);
+    return null != classLoader
+        ? classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR)
+        : bootClassFileLocator;
   }
 
   static final class DDClassFileLocator extends WeakReference<ClassLoader>
@@ -77,19 +92,19 @@ public final class ClassFileLocators {
     public void close() {
       // nothing to close
     }
+  }
 
-    private static Resolution loadClassResource(
-        final ClassLoader classLoader, final String resourceName) throws IOException {
-      try {
-        try (InputStream in = classLoader.getResourceAsStream(resourceName)) {
-          if (null != in) {
-            return new Resolution.Explicit(StreamDrainer.DEFAULT.drain(in));
-          }
-          return null;
+  static Resolution loadClassResource(ClassLoader classLoader, String resourceName)
+      throws IOException {
+    try {
+      try (InputStream in = classLoader.getResourceAsStream(resourceName)) {
+        if (null != in) {
+          return new Resolution.Explicit(StreamDrainer.DEFAULT.drain(in));
         }
-      } catch (IllegalStateException ignored) {
         return null;
       }
+    } catch (IllegalStateException ignored) {
+      return null;
     }
   }
 
