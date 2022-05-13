@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.agent.tooling.Instrumenter
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.matcher.ElementMatcher
 
@@ -19,9 +18,6 @@ import static datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.Some
 import static datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.ValidHelperInst
 
 class MuzzleVersionScanPluginTest extends DDSpecification {
-  static {
-    DDCachingPoolStrategy.registerAsSupplier()
-  }
 
   def "test assertInstrumentationMuzzled advice"() {
     setup:
