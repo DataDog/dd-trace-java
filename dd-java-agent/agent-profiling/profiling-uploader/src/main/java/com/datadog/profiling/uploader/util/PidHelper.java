@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 public class PidHelper {
   private static final Logger log = LoggerFactory.getLogger(PidHelper.class);
 
-  public static final String PID_TAG = "pid";
+  public static final String PID_TAG = "process_id";
   public static final Long PID = getPid();
 
   private static Long getPid() {
