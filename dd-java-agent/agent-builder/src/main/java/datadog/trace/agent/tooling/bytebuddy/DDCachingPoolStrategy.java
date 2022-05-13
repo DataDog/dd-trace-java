@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * <p>Eviction is handled almost entirely through a size restriction; however, softValues are still
  * used as a further safeguard.
  */
-public class DDCachingPoolStrategy implements DDSharedTypePools.Supplier {
+public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
   private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
@@ -65,7 +65,7 @@ public class DDCachingPoolStrategy implements DDSharedTypePools.Supplier {
       new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
 
   public static void registerAsSupplier() {
-    DDSharedTypePools.registerIfAbsent(INSTANCE);
+    SharedTypePools.registerIfAbsent(INSTANCE);
   }
 
   /**

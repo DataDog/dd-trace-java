@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
-import datadog.trace.agent.tooling.bytebuddy.DDSharedTypePools
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
@@ -11,5 +11,5 @@ class AbstractHierarchyMatcherTest extends DDSpecification {
   }
 
   @Shared
-  def typePool = DDSharedTypePools.typePool(this.class.classLoader)
+  def typePool = SharedTypePools.typePool(this.class.classLoader)
 }

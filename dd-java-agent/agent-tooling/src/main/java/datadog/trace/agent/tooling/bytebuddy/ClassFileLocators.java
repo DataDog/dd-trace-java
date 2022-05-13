@@ -19,7 +19,7 @@ import net.bytebuddy.utility.StreamDrainer;
  * to the bootstrap classpath work, we first check our bootstrap proxy. If the loading classloader
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
-public final class DDClassFileLocators {
+public final class ClassFileLocators {
 
   private static final WeakCache<ClassLoader, DDClassFileLocator> classFileLocators =
       WeakCaches.newWeakCache(64);
@@ -35,8 +35,6 @@ public final class DDClassFileLocators {
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
     return classFileLocators.computeIfAbsent(classLoader, NEW_CLASS_FILE_LOCATOR);
   }
-
-  private DDClassFileLocators() {}
 
   static final class DDClassFileLocator extends WeakReference<ClassLoader>
       implements ClassFileLocator {
@@ -94,4 +92,6 @@ public final class DDClassFileLocators {
       }
     }
   }
+
+  private ClassFileLocators() {}
 }

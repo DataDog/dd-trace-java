@@ -5,11 +5,11 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 
 /** Manages {@link TypePool} use across muzzle and instrumentations. */
-public class DDSharedTypePools {
+public final class SharedTypePools {
   private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
 
   public static TypePool typePool(ClassLoader classLoader) {
-    return typePool(DDClassFileLocators.classFileLocator(classLoader), classLoader);
+    return typePool(ClassFileLocators.classFileLocator(classLoader), classLoader);
   }
 
   public static TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
@@ -23,4 +23,6 @@ public class DDSharedTypePools {
   public interface Supplier {
     TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader);
   }
+
+  private SharedTypePools() {}
 }
