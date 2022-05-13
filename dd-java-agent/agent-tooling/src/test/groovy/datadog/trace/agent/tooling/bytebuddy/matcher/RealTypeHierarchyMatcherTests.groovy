@@ -4,7 +4,6 @@ import datadog.trace.agent.test.DirectRunnable
 import datadog.trace.agent.test.ExtendedRunnable
 import datadog.trace.agent.test.LeafFutureTask
 import datadog.trace.agent.test.NoInterfacesInTheMiddle
-import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 
 import java.util.concurrent.Callable
