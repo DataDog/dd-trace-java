@@ -36,7 +36,9 @@ public final class ClassFileLocators {
       new ClassFileLocator() {
         @Override
         public Resolution locate(String className) throws IOException {
-          return loadClassResource(Utils.getBootstrapProxy(), getResourceName(className));
+          String resourceName = getResourceName(className);
+          Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);
+          return resolution != null ? resolution : new Resolution.Illegal(className);
         }
 
         @Override
