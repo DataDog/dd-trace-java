@@ -25,7 +25,10 @@ class VertxHttpClientForkedTest extends HttpClientTest {
   def vertx = Vertx.vertx(new VertxOptions())
 
   @Shared
-  def clientOptions = new HttpClientOptions().setConnectTimeout(CONNECT_TIMEOUT_MS).setIdleTimeout(READ_TIMEOUT_MS)
+  def clientOptions = new HttpClientOptions()
+  // vertx default is in seconds
+  .setConnectTimeout(TimeUnit.SECONDS.toSeconds(3) as int)
+  .setIdleTimeout(TimeUnit.SECONDS.toSeconds(5) as int)
 
   @AutoCleanup
   @Shared
@@ -34,17 +37,19 @@ class VertxHttpClientForkedTest extends HttpClientTest {
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     CompletableFuture<HttpClientResponse> future = new CompletableFuture<>()
-    def request = httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
-    headers.each { request.putHeader(it.key, it.value) }
-    request.handler { response ->
-      try {
-        callback?.call()
-        future.complete(response)
-      } catch (Exception e) {
-        future.completeExceptionally(e)
-      }
-    }
-    request.end()
+
+    httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri", { requestReadyToBeSend ->
+      def request = requestReadyToBeSend.result()
+      headers.each { request.putHeader(it.key, it.value) }
+      request.send({ response ->
+        try {
+          callback?.call()
+          future.complete(response.result())
+        } catch (Exception e) {
+          future.completeExceptionally(e)
+        }
+      })
+    })
 
     return future.get(10, TimeUnit.SECONDS).statusCode()
   }

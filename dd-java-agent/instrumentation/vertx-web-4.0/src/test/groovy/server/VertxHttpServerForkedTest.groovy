@@ -37,10 +37,9 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
     @Override
     void start() {
-      server = Vertx.vertx(new VertxOptions()
-        // Useful for debugging:
-        // .setBlockedThreadCheckInterval(Integer.MAX_VALUE)
-        .setClusterPort(0))
+      server = Vertx.vertx()
+
+      port = 1242
       final CompletableFuture<Void> future = new CompletableFuture<>()
       server.deployVerticle(verticle().name,
         new DeploymentOptions()
@@ -52,7 +51,6 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
           future.complete(null)
         }
       future.get()
-      port = server.sharedHttpServers().values().first().actualPort()
     }
 
     @Override

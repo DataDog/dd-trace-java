@@ -21,8 +21,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.agent.test.base.HttpServerTest;
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -32,7 +32,7 @@ public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
 
   @Override
-  public void start(final Future<Void> startFuture) {
+  public void start(final Promise<Void> startPromise) {
     final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT);
     Router router = Router.router(vertx);
 
@@ -186,10 +186,7 @@ public class VertxTestServer extends AbstractVerticle {
 
     router = customizeAfterRoutes(router);
 
-    vertx
-        .createHttpServer()
-        .requestHandler(router::accept)
-        .listen(port, event -> startFuture.complete());
+    vertx.createHttpServer().requestHandler(router).listen(port, event -> startPromise.complete());
   }
 
   protected void customizeBeforeRoutes(Router router) {}
