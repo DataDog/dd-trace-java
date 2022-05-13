@@ -7,5 +7,6 @@ import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 public class VertxVersionMatcher {
   // added in 4.0
   static final ReferenceMatcher INSTANCE =
-      new ReferenceMatcher(new Reference.Builder("io.vertx.core.http.impl.Http1xServerResponse").build());
+      new ReferenceMatcher(
+          new Reference.Builder("io.vertx.core.http.impl.Http1xServerResponse").build());
 }
