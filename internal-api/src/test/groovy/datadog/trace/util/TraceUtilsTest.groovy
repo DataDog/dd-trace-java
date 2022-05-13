@@ -129,12 +129,9 @@ class TraceUtilsTest extends DDSpecification {
 
     where:
     httpStatusCode | expected
-    null | false
-    "" | false
-    "not-valid" | false
-    "100" | true
-    "404" | true
-    "600" | false
+    100 | true
+    404 | true
+    600 | false
   }
 
   def repeat(String str, int length) {

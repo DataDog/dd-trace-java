@@ -5,7 +5,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
-@Timeout(10)
+@Timeout(100)
 class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
@@ -27,7 +27,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
       .withServiceName("my-service-name")
       .withTag("some-tag-key", "some-tag-value")
       .withTag("env","     My_____Env     ")
-      .withTag(Tags.HTTP_STATUS, "wrong")
+      .withTag(Tags.HTTP_STATUS, httpStatus)
       .start().finish()
     writer.waitForTraces(1)
 
@@ -43,6 +43,14 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
     span.getSpanType() == "my-span-type"
     span.getTag("some-tag-key") == "some-tag-value"
     span.getTag("env") == "my_env"
-    span.getTag(Tags.HTTP_STATUS) == null
+    span.getTag(Tags.HTTP_STATUS) == expectedHttpStatus
+
+    where:
+    httpStatus | expectedHttpStatus
+    null | null
+    "" | null
+    "500" | 500
+    500 | 500
+    600 | null
   }
 }
