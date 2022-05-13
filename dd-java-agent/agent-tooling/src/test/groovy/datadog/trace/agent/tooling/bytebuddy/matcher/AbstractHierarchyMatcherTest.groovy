@@ -5,7 +5,7 @@ import datadog.trace.agent.tooling.bytebuddy.SharedTypePools
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-class AbstractHierarchyMatcherTest extends DDSpecification {
+abstract class AbstractHierarchyMatcherTest extends DDSpecification {
   static {
     DDCachingPoolStrategy.registerAsSupplier()
   }
