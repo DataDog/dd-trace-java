@@ -32,7 +32,7 @@ public class EndHandlerWrapper implements Handler<Void> {
     } finally {
       if (path != null) {
         HTTP_RESOURCE_DECORATOR.withRoute(
-            parentSpan, routingContext.request().rawMethod(), path, true);
+            parentSpan, routingContext.request().method().name(), path, true);
       }
       DECORATE.onResponse(span, routingContext.response());
       span.finish();

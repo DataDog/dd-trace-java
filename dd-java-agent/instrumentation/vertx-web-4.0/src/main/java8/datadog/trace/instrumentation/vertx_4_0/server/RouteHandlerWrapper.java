@@ -60,7 +60,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   }
 
   private void updateRoutingContextWithRoute(RoutingContext routingContext) {
-    final String method = routingContext.request().rawMethod();
+    final String method = routingContext.request().method().name();
     final String mountPoint = routingContext.mountPoint();
     String path = routingContext.currentRoute().getPath();
     if (mountPoint != null) {

@@ -26,12 +26,11 @@ public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public String[] instrumentedType() {
-    return {
+  public String[] knownMatchingTypes() {
+    return new String[] {
       "io.vertx.core.http.impl.Http1xServerResponse",
       "io.vertx.core.http.impl.Http2ServerResponse "
-
-    }
+    };
   }
 
   @Override

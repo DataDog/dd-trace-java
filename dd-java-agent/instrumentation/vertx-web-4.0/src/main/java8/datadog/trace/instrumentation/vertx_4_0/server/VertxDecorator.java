@@ -44,7 +44,7 @@ public class VertxDecorator
 
   @Override
   protected String method(final RoutingContext routingContext) {
-    return routingContext.request().rawMethod();
+    return routingContext.request().method().name();
   }
 
   @Override
