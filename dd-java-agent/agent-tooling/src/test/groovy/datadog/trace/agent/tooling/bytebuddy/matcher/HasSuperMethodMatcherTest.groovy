@@ -8,14 +8,13 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.TracedClass
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.UntracedClass
 import datadog.trace.api.Trace
-import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.method.MethodDescription
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith
 import static net.bytebuddy.matcher.ElementMatchers.none
 
-class HasSuperMethodMatcherTest extends DDSpecification {
+class HasSuperMethodMatcherTest extends AbstractHierarchyMatcherTest {
 
   def "test matcher #type.simpleName #method"() {
     expect:

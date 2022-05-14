@@ -1,24 +1,17 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
-import datadog.trace.agent.tooling.bytebuddy.DDClassFileLocator
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.A
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.B
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.E
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.F
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
-import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.description.type.TypeList
-import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
-class SafeHasSuperTypeMatcherTest extends DDSpecification {
-  @Shared
-  def typePool = DDCachingPoolStrategy.INSTANCE.typePool(
-  new DDClassFileLocator(this.class.classLoader), this.class.classLoader)
+class SafeHasSuperTypeMatcherTest extends AbstractHierarchyMatcherTest {
 
   def "test matcher #matcherClass.simpleName -> #type.simpleName"() {
     expect:
