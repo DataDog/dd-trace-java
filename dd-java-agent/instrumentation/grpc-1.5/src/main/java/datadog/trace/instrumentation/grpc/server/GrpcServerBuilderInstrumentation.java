@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.grpc.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.CallDepthThreadLocalMap.incrementCallDepth;
 import static java.util.Collections.singletonMap;
