@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.description.annotation.AnnotationSource;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -33,6 +34,11 @@ public final class HierarchyMatchers {
     return SUPPLIER.get().hasSuperType(matcher);
   }
 
+  public static <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
+      ElementMatcher<? super MethodDescription> matcher) {
+    return SUPPLIER.get().hasSuperMethod(matcher);
+  }
+
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       ElementMatcher<? super TypeDescription> matcher) {
     return SUPPLIER.get().hasInterface(matcher);
@@ -51,6 +57,9 @@ public final class HierarchyMatchers {
 
     <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
         ElementMatcher<? super TypeDescription> matcher);
+
+    <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
+        ElementMatcher<? super MethodDescription> matcher);
 
     <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
         ElementMatcher<? super TypeDescription> matcher);
