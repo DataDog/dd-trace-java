@@ -14,4 +14,5 @@ net.bytebuddy.matcher.ElementMatchers#namedOneOf(java.lang.String[])
 net.bytebuddy.matcher.ElementMatchers#hasSuperClass(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#declaresField(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#declaresMethod(net.bytebuddy.matcher.ElementMatcher)
+net.bytebuddy.matcher.ElementMatchers#isAnnotatedWith(net.bytebuddy.matcher.ElementMatcher)
 

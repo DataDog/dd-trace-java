@@ -30,6 +30,11 @@ public final class HierarchyMatchers {
     return SUPPLIER.get().implementsInterface(matcher);
   }
 
+  public static <T extends AnnotationSource> ElementMatcher.Junction<T> isAnnotatedWith(
+      ElementMatcher<? super TypeDescription> matcher) {
+    return SUPPLIER.get().isAnnotatedWith(matcher);
+  }
+
   public static <T extends TypeDescription> ElementMatcher.Junction<T> declaresField(
       ElementMatcher<? super FieldDescription> matcher) {
     return SUPPLIER.get().declaresField(matcher);
@@ -64,6 +69,9 @@ public final class HierarchyMatchers {
         ElementMatcher<? super TypeDescription> matcher);
 
     <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
+        ElementMatcher<? super TypeDescription> matcher);
+
+    <T extends AnnotationSource> ElementMatcher.Junction<T> isAnnotatedWith(
         ElementMatcher<? super TypeDescription> matcher);
 
     <T extends TypeDescription> ElementMatcher.Junction<T> declaresField(
