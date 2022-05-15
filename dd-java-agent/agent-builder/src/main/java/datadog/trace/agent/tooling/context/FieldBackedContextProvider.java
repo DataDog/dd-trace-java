@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.NOT_DECORATOR_MATCHER;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -129,7 +129,7 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
              */
             builder =
                 builder
-                    .type(safeHasSuperType(named(keyClassName)), classLoaderMatcher)
+                    .type(hasSuperType(named(keyClassName)), classLoaderMatcher)
                     .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
                     .and(NOT_DECORATOR_MATCHER)
                     .transform(

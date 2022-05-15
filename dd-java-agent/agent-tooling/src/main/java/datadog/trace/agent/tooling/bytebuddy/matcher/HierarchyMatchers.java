@@ -28,6 +28,11 @@ public final class HierarchyMatchers {
     return SUPPLIER.get().implementsInterface(matcher);
   }
 
+  public static <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
+      ElementMatcher<? super TypeDescription> matcher) {
+    return SUPPLIER.get().hasSuperType(matcher);
+  }
+
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       ElementMatcher<? super TypeDescription> matcher) {
     return SUPPLIER.get().hasInterface(matcher);
@@ -42,6 +47,9 @@ public final class HierarchyMatchers {
         ElementMatcher<? super TypeDescription> matcher);
 
     <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
+        ElementMatcher<? super TypeDescription> matcher);
+
+    <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
         ElementMatcher<? super TypeDescription> matcher);
 
     <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
