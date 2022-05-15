@@ -29,6 +29,16 @@ public final class HierarchyMatchers {
     return SUPPLIER.get().implementsInterface(matcher);
   }
 
+  public static <T extends TypeDescription> ElementMatcher.Junction<T> declaresMethod(
+      ElementMatcher<? super MethodDescription> matcher) {
+    return SUPPLIER.get().declaresMethod(matcher);
+  }
+
+  public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
+      ElementMatcher<? super TypeDescription> matcher) {
+    return SUPPLIER.get().hasInterface(matcher);
+  }
+
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
       ElementMatcher<? super TypeDescription> matcher) {
     return SUPPLIER.get().hasSuperType(matcher);
@@ -37,11 +47,6 @@ public final class HierarchyMatchers {
   public static <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
       ElementMatcher<? super MethodDescription> matcher) {
     return SUPPLIER.get().hasSuperMethod(matcher);
-  }
-
-  public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
-      ElementMatcher<? super TypeDescription> matcher) {
-    return SUPPLIER.get().hasInterface(matcher);
   }
 
   public static void registerIfAbsent(Supplier supplier) {
@@ -55,14 +60,17 @@ public final class HierarchyMatchers {
     <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
         ElementMatcher<? super TypeDescription> matcher);
 
+    <T extends TypeDescription> ElementMatcher.Junction<T> declaresMethod(
+        ElementMatcher<? super MethodDescription> matcher);
+
+    <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
+        ElementMatcher<? super TypeDescription> matcher);
+
     <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
         ElementMatcher<? super TypeDescription> matcher);
 
     <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
         ElementMatcher<? super MethodDescription> matcher);
-
-    <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
-        ElementMatcher<? super TypeDescription> matcher);
   }
 
   private HierarchyMatchers() {}
