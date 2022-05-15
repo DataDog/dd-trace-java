@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import java.io.File;
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;
@@ -19,6 +20,10 @@ import net.bytebuddy.dynamic.DynamicType;
  * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
  */
 public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
+  static {
+    DDElementMatchers.registerAsSupplier();
+  }
+
   private final File targetDir;
 
   public MuzzleGradlePlugin(File targetDir) {
