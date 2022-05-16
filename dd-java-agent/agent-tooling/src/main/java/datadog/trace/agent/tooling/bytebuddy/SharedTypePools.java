@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
@@ -27,12 +28,22 @@ public final class SharedTypePools {
   /** Simple soft-cache for use during the build when testing or validating muzzle ranges. */
   public static Supplier simpleCache() {
     return new SharedTypePools.Supplier() {
+      private final WeakHashMap<ClassLoader, TypePool> typePools = new WeakHashMap<>();
+
       @Override
       public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-        return new TypePool.Default.WithLazyResolution(
-            new TypePool.CacheProvider.Simple.UsingSoftReference(),
-            classFileLocator,
-            TypePool.Default.ReaderMode.FAST);
+        TypePool typePool = typePools.get(classLoader);
+        if (null == typePool) {
+          typePool =
+              new TypePool.Default.WithLazyResolution(
+                  TypePool.CacheProvider.Simple.withObjectType(),
+                  classFileLocator,
+                  TypePool.Default.ReaderMode.FAST);
+          synchronized (typePools) {
+            typePools.put(classLoader, typePool);
+          }
+        }
+        return typePool;
       }
     };
   }

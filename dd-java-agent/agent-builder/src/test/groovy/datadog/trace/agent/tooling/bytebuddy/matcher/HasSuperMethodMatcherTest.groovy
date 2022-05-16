@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.UntracedClass
 import datadog.trace.api.Trace
 import net.bytebuddy.description.method.MethodDescription
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith
 import static net.bytebuddy.matcher.ElementMatchers.none
 
@@ -22,14 +22,14 @@ class HasSuperMethodMatcherTest extends AbstractHierarchyMatcherTest {
 
     where:
     type          | method | result
-    A             | "a"    | false
-    B             | "b"    | true
-    C             | "c"    | false
-    F             | "f"    | true
-    G             | "g"    | false
-    TracedClass   | "a"    | true
-    UntracedClass | "a"    | false
-    UntracedClass | "b"    | true
+    A             | "a" | false
+    B             | "b" | true
+    C             | "c" | false
+    F             | "f" | true
+    G             | "g" | false
+    TracedClass   | "a" | true
+    UntracedClass | "a" | false
+    UntracedClass | "b" | true
 
     argument = new MethodDescription.ForLoadedMethod(type.getDeclaredMethod(method))
   }
