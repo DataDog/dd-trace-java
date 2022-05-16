@@ -9,8 +9,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
+/** Pluggable hierarchy matchers for use with instrumentation matching and muzzle checks. */
 public final class HierarchyMatchers {
-
   private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> extendsClass(
@@ -38,16 +38,23 @@ public final class HierarchyMatchers {
     return SUPPLIER.get().declaresMethod(matcher);
   }
 
+  /**
+   * Like {@link #implementsInterface} but also matches when the target type is an interface.
+   *
+   * <p>Use this when matching return or parameter types that could be classes or interfaces.
+   */
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       ElementMatcher<? super TypeDescription> matcher) {
     return SUPPLIER.get().hasInterface(matcher);
   }
 
+  /** Considers both interfaces and super-classes when matching the target type's hierarchy. */
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
       ElementMatcher<? super TypeDescription> matcher) {
     return SUPPLIER.get().hasSuperType(matcher);
   }
 
+  /** Targets methods whose declaring class has a super-type that declares a matching method. */
   public static <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
       ElementMatcher<? super MethodDescription> matcher) {
     return SUPPLIER.get().hasSuperMethod(matcher);
