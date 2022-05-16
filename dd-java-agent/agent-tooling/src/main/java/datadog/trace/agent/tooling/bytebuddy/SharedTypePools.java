@@ -24,5 +24,18 @@ public final class SharedTypePools {
     TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader);
   }
 
+  /** Simple soft-cache for use during the build when testing or validating muzzle ranges. */
+  public static Supplier simpleCache() {
+    return new SharedTypePools.Supplier() {
+      @Override
+      public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
+        return new TypePool.Default.WithLazyResolution(
+            new TypePool.CacheProvider.Simple.UsingSoftReference(),
+            classFileLocator,
+            TypePool.Default.ReaderMode.FAST);
+      }
+    };
+  }
+
   private SharedTypePools() {}
 }
