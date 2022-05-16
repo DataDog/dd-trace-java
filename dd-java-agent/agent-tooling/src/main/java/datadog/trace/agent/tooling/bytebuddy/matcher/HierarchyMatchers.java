@@ -1,11 +1,13 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.ElementMatchers;
 
 public final class HierarchyMatchers {
 
@@ -79,6 +81,68 @@ public final class HierarchyMatchers {
 
     <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
         ElementMatcher<? super MethodDescription> matcher);
+  }
+
+  /** Simple hierarchy checks for use during the build when testing or validating muzzle ranges. */
+  public static HierarchyMatchers.Supplier simpleChecks() {
+    return new HierarchyMatchers.Supplier() {
+      @Override
+      @SuppressForbidden
+      public <T extends TypeDescription> ElementMatcher.Junction<T> extendsClass(
+          ElementMatcher<? super TypeDescription> matcher) {
+        return ElementMatchers.hasSuperClass(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
+          ElementMatcher<? super TypeDescription> matcher) {
+        return ElementMatchers.hasSuperType(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends AnnotationSource> ElementMatcher.Junction<T> isAnnotatedWith(
+          ElementMatcher<? super TypeDescription> matcher) {
+        return ElementMatchers.isAnnotatedWith(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends TypeDescription> ElementMatcher.Junction<T> declaresField(
+          ElementMatcher<? super FieldDescription> matcher) {
+        return ElementMatchers.declaresField(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends TypeDescription> ElementMatcher.Junction<T> declaresMethod(
+          ElementMatcher<? super MethodDescription> matcher) {
+        return ElementMatchers.declaresMethod(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
+          ElementMatcher<? super TypeDescription> matcher) {
+        return ElementMatchers.hasSuperType(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends TypeDescription> ElementMatcher.Junction<T> hasSuperType(
+          ElementMatcher<? super TypeDescription> matcher) {
+        return ElementMatchers.hasSuperType(matcher);
+      }
+
+      @Override
+      @SuppressForbidden
+      public <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
+          ElementMatcher<? super MethodDescription> matcher) {
+        return ElementMatchers.isDeclaredBy(
+            ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(matcher)));
+      }
+    };
   }
 
   private HierarchyMatchers() {}

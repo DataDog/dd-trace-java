@@ -1,19 +1,16 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import net.bytebuddy.build.Plugin;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -26,7 +23,8 @@ import net.bytebuddy.dynamic.DynamicType;
  */
 public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   static {
-    HierarchyMatchers.registerIfAbsent(skipHierarchyChecks());
+    SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
+    HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
   }
 
   private final File targetDir;
@@ -47,18 +45,4 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
 
   @Override
   public void close() throws IOException {}
-
-  /** Skip complex hierarchy checks as we're just scraping transformations for advice classes. */
-  private static HierarchyMatchers.Supplier skipHierarchyChecks() {
-    return (HierarchyMatchers.Supplier)
-        Proxy.newProxyInstance(
-            HierarchyMatchers.Supplier.class.getClassLoader(),
-            new Class[] {HierarchyMatchers.Supplier.class},
-            new InvocationHandler() {
-              @Override
-              public Object invoke(Object proxy, Method method, Object[] args) {
-                return any();
-              }
-            });
-  }
 }

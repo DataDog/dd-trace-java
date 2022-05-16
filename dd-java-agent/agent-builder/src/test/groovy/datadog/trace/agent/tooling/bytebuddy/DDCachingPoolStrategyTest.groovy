@@ -12,12 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.named
 
 class DDCachingPoolStrategyTest extends DDSpecification {
   static {
+    DDCachingPoolStrategy.registerAsSupplier()
     DDElementMatchers.registerAsSupplier()
   }
 
   def "bootstrap classes can be loaded by our caching type pool"() {
     setup:
-    def pool = new DDCachingPoolStrategy(true).typePool(NoOp.INSTANCE, null)
+    def pool = SharedTypePools.typePool(NoOp.INSTANCE, null)
     def description = pool.describe(ForkJoinTask.name).resolve()
 
     expect:
