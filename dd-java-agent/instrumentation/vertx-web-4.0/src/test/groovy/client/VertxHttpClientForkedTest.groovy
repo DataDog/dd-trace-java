@@ -41,7 +41,7 @@ class VertxHttpClientForkedTest extends HttpClientTest {
     httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri", { requestReadyToBeSend ->
       def request = requestReadyToBeSend.result()
       headers.each { request.putHeader(it.key, it.value) }
-      request.send({ response ->
+      request.send(body, { response ->
         try {
           callback?.call()
           future.complete(response.result())
