@@ -22,14 +22,14 @@ class HasSuperMethodMatcherTest extends AbstractHierarchyMatcherTest {
 
     where:
     type          | method | result
-    A             | "a" | false
-    B             | "b" | true
-    C             | "c" | false
-    F             | "f" | true
-    G             | "g" | false
-    TracedClass   | "a" | true
-    UntracedClass | "a" | false
-    UntracedClass | "b" | true
+    A             | "a"    | false
+    B             | "b"    | true
+    C             | "c"    | false
+    F             | "f"    | true
+    G             | "g"    | false
+    TracedClass   | "a"    | true
+    UntracedClass | "a"    | false
+    UntracedClass | "b"    | true
 
     argument = new MethodDescription.ForLoadedMethod(type.getDeclaredMethod(method))
   }

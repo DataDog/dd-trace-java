@@ -19,15 +19,15 @@ class HasInterfaceMatcherTest extends AbstractHierarchyMatcherTest {
 
     where:
     matcherClass | type | result
-    A | A | true
-    A | B | true
-    B | A | false
-    A | E | true
-    A | F | true
-    A | G | true
-    F | A | false
-    F | F | false
-    F | G | false
+    A            | A    | true
+    A            | B    | true
+    B            | A    | false
+    A            | E    | true
+    A            | F    | true
+    A            | G    | true
+    F            | A    | false
+    F            | F    | false
+    F            | G    | false
 
     matcher = named(matcherClass.name)
     argument = typePool.describe(type.name).resolve()

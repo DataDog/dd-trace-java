@@ -27,13 +27,13 @@ class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
 
     where:
     clazz                   | implementsRunnable | name
-    DirectRunnable          | true  | "direct match"
+    DirectRunnable          | true               | "direct match"
     FutureTask              | true               | "transitive match via interface"
-    NoInterfacesInTheMiddle | true  | "transitive match via class then interface"
+    NoInterfacesInTheMiddle | true               | "transitive match via class then interface"
     ForkJoinTask            | false              | "class extends Object has no match"
     StringBuffer            | false              | "no match with class inheritance"
     Callable                | false              | "interface doesn't match"
-    ExtendedRunnable        | false | "reject interface targets, even if they have the interface"
+    ExtendedRunnable        | false              | "reject interface targets, even if they have the interface"
     Runnable                | false              | "an interface can't implement itself"
   }
 
@@ -46,13 +46,13 @@ class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
 
     where:
     clazz                   | implementsRunnable | name
-    DirectRunnable          | true | "direct match"
+    DirectRunnable          | true               | "direct match"
     FutureTask              | true               | "transitive match via interface"
-    NoInterfacesInTheMiddle | true | "transitive match via class then interface"
+    NoInterfacesInTheMiddle | true               | "transitive match via class then interface"
     ForkJoinTask            | false              | "class extends Object has no match"
     StringBuffer            | false              | "no match with class inheritance"
     Callable                | false              | "interface doesn't match"
-    ExtendedRunnable        | true | "accept interface targets"
+    ExtendedRunnable        | true               | "accept interface targets"
     Runnable                | true               | "accept the interface itself"
   }
 
@@ -65,13 +65,13 @@ class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
 
     where:
     clazz                   | implementsRunnable | name
-    DirectRunnable          | true  | "direct match"
+    DirectRunnable          | true               | "direct match"
     FutureTask              | true               | "transitive match via interface"
-    NoInterfacesInTheMiddle | true  | "transitive match via class then interface"
+    NoInterfacesInTheMiddle | true               | "transitive match via class then interface"
     ForkJoinTask            | false              | "class extends Object has no match"
     StringBuffer            | false              | "no match with class inheritance"
     Callable                | false              | "interface doesn't match"
-    ExtendedRunnable        | false | "reject interface targets"
+    ExtendedRunnable        | false              | "reject interface targets"
     Runnable                | false              | "reject the interface itself"
   }
 
@@ -85,10 +85,10 @@ class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
     where:
     clazz                   | extendsFutureTask | name
     FutureTask              | true              | "match the class itself"
-    NoInterfacesInTheMiddle | true  | "direct supertype relationship"
-    LeafFutureTask          | true  | "transitive supertype relationship"
+    NoInterfacesInTheMiddle | true              | "direct supertype relationship"
+    LeafFutureTask          | true              | "transitive supertype relationship"
     ForkJoinTask            | false             | "class extends Object has no match"
     StringBuffer            | false             | "no match with class inheritance"
-    ExtendedRunnable        | false | "reject interface targets"
+    ExtendedRunnable        | false             | "reject interface targets"
   }
 }

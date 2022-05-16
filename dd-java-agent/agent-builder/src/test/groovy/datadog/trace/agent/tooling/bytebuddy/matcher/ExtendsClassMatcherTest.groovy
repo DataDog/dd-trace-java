@@ -17,11 +17,11 @@ class ExtendsClassMatcherTest extends AbstractHierarchyMatcherTest {
 
     where:
     matcherClass | type | result
-    A | B | false
-    A | F | false
-    G | F | false
-    F | F | true
-    F | G | true
+    A            | B    | false
+    A            | F    | false
+    G            | F    | false
+    F            | F    | true
+    F            | G    | true
 
     matcher = named(matcherClass.name)
     argument = typePool.describe(type.name).resolve()

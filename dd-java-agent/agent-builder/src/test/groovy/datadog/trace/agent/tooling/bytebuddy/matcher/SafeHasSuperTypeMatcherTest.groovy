@@ -19,15 +19,15 @@ class SafeHasSuperTypeMatcherTest extends AbstractHierarchyMatcherTest {
 
     where:
     matcherClass | type | result
-    A | A | false
-    A | B | false
-    B | A | false
-    A | E | false
-    A | F | true
-    B | G | true
-    F | A | false
-    F | F | true
-    F | G | true
+    A            | A    | false
+    A            | B    | false
+    B            | A    | false
+    A            | E    | false
+    A            | F    | true
+    B            | G    | true
+    F            | A    | false
+    F            | F    | true
+    F            | G    | true
 
     matcher = named(matcherClass.name)
     argument = typePool.describe(type.name).resolve()
