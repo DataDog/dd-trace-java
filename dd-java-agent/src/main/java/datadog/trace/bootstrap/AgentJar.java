@@ -105,7 +105,6 @@ public final class AgentJar {
 
   private static void printAgentVersion() {
     try {
-      //      System.out.println(Version.VERSION);
       System.out.println(getAgentVersion());
     } catch (final Exception e) {
       System.out.println("Failed to parse agent version");

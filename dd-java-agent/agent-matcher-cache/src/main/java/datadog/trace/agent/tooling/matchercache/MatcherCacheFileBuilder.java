@@ -20,6 +20,7 @@ public class MatcherCacheFileBuilder {
 
   public void buildMatcherCacheFile(MatcherCacheFileBuilderParams params) {
     if (!params.validate()) {
+      MatcherCacheFileBuilderParams.printHelp();
       return;
     }
 
