@@ -8,6 +8,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
+import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
@@ -72,7 +73,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // should be guarded by this
   private Additive additive;
-  private PowerwafMetrics wafMetrics;
+  // set after additive is set
+  private volatile PowerwafMetrics wafMetrics;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -95,27 +97,38 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public Additive getAdditive() {
-    return additive;
-  }
-
-  public void setWafMetrics(PowerwafMetrics wafMetrics) {
-    this.wafMetrics = wafMetrics;
-  }
-
   public PowerwafMetrics getWafMetrics() {
     return wafMetrics;
   }
 
-  public void setAdditive(Additive additive) {
-    Additive curAdditive = this.additive;
-    // the better check would be if the curAdditive has been closed,
-    // but this is behind a private field
-    if (curAdditive != null && additive != null) {
-      log.warn("Replacing WAF object. This is a bug");
-      curAdditive.close();
+  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {
+    Additive curAdditive;
+    synchronized (this) {
+      curAdditive = this.additive;
+      if (curAdditive != null) {
+        return curAdditive;
+      }
+      curAdditive = ctx.openAdditive();
+      this.additive = curAdditive;
     }
-    this.additive = additive;
+
+    // new additive was created
+    if (createMetrics) {
+      this.wafMetrics = ctx.createMetrics();
+    }
+    return curAdditive;
+  }
+
+  public void closeAdditive() {
+    synchronized (this) {
+      if (additive != null) {
+        try {
+          additive.close();
+        } finally {
+          additive = null;
+        }
+      }
+    }
   }
 
   /* Implementation of DataBundle */
@@ -317,14 +330,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   @Override
   public void close() {
-    if (additive != null) {
-      log.warn("WAF object had not been closed (probably missed request-end event)");
-      try {
-        additive.close();
-      } finally {
-        additive = null;
+    synchronized (this) {
+      if (additive == null) {
+        return;
       }
     }
+
+    log.warn("WAF object had not been closed (probably missed request-end event)");
+    closeAdditive();
   }
 
   /* end interface for GatewayBridge */
