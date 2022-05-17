@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.communication.http.RetryPolicy;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
@@ -35,6 +36,9 @@ public class DDIntakeWriter extends RemoteWriter {
     Monitoring monitoring = Monitoring.DISABLED;
     DroppingPolicy droppingPolicy = DroppingPolicy.DISABLED;
     Prioritization prioritization = Prioritization.FAST_LANE;
+    RetryPolicy retryPolicy = RetryPolicy.builder().withMaxRetry(5).withBackoff(100).build();
+    private int flushTimeout = 5;
+    private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
     private boolean alwaysFlush = true;
 
     private DDIntakeApi intakeApi;
@@ -110,6 +114,18 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
+    public DDIntakeWriterBuilder retryPolicy(final RetryPolicy retryPolicy) {
+      this.retryPolicy = retryPolicy;
+      return this;
+    }
+
+    public DDIntakeWriterBuilder flushTimeout(
+        final int flushTimeout, final TimeUnit flushTimeoutUnit) {
+      this.flushTimeout = flushTimeout;
+      this.flushTimeoutUnit = flushTimeoutUnit;
+      return this;
+    }
+
     public DDIntakeWriter build() {
       if (null == intakeApi) {
         intakeApi =
@@ -119,6 +135,7 @@ public class DDIntakeWriter extends RemoteWriter {
                 .apiVersion(apiVersion)
                 .apiKey(apiKey)
                 .timeoutMillis(timeoutMillis)
+                .retryPolicy(retryPolicy)
                 .build();
       }
 
@@ -137,7 +154,13 @@ public class DDIntakeWriter extends RemoteWriter {
               TimeUnit.SECONDS);
 
       return new DDIntakeWriter(
-          intakeApi, healthMetrics, dispatcher, traceProcessingWorker, alwaysFlush);
+          intakeApi,
+          healthMetrics,
+          dispatcher,
+          traceProcessingWorker,
+          flushTimeout,
+          flushTimeoutUnit,
+          alwaysFlush);
     }
   }
 
@@ -162,5 +185,23 @@ public class DDIntakeWriter extends RemoteWriter {
       TraceProcessingWorker traceProcessingWorker,
       boolean alwaysFlush) {
     super(api, traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
+  }
+
+  protected DDIntakeWriter(
+      RemoteApi api,
+      HealthMetrics healthMetrics,
+      PayloadDispatcher dispatcher,
+      TraceProcessingWorker traceProcessingWorker,
+      int flushTimeout,
+      TimeUnit flushTimeoutUnit,
+      boolean alwaysFlush) {
+    super(
+        api,
+        traceProcessingWorker,
+        dispatcher,
+        healthMetrics,
+        flushTimeout,
+        flushTimeoutUnit,
+        alwaysFlush);
   }
 }

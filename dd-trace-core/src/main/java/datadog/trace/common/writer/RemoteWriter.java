@@ -31,9 +31,10 @@ public abstract class RemoteWriter implements Writer {
   protected final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final boolean alwaysFlush;
+  private final int flushTimeout;
+  private final TimeUnit flushTimeoutUnit;
 
   private volatile boolean closed;
-
   public final HealthMetrics healthMetrics;
 
   protected RemoteWriter(
@@ -41,12 +42,26 @@ public abstract class RemoteWriter implements Writer {
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
       final HealthMetrics healthMetrics,
+      final int flushTimeout,
+      final TimeUnit flushTimeoutUnit,
       final boolean alwaysFlush) {
     this.api = api;
     this.traceProcessingWorker = traceProcessingWorker;
     this.dispatcher = dispatcher;
     this.healthMetrics = healthMetrics;
+    this.flushTimeout = flushTimeout;
+    this.flushTimeoutUnit = flushTimeoutUnit;
     this.alwaysFlush = alwaysFlush;
+  }
+
+  protected RemoteWriter(
+      final RemoteApi api,
+      final TraceProcessingWorker traceProcessingWorker,
+      final PayloadDispatcher dispatcher,
+      final HealthMetrics healthMetrics,
+      final boolean alwaysFlush) {
+    // Default constructor with 1 second of flush timeout. Used by the DDAgentWriter.
+    this(api, traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
   }
 
   public void addResponseListener(final RemoteResponseListener listener) {
@@ -100,8 +115,8 @@ public abstract class RemoteWriter implements Writer {
 
   @Override
   public boolean flush() {
-    if (!closed) { // give up after a second
-      if (traceProcessingWorker.flush(1, TimeUnit.SECONDS)) {
+    if (!closed) {
+      if (traceProcessingWorker.flush(flushTimeout, flushTimeoutUnit)) {
         healthMetrics.onFlush(false);
         return true;
       }
