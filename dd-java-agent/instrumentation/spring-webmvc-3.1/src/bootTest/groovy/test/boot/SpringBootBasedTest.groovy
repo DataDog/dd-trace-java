@@ -10,14 +10,11 @@ import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.context.embedded.EmbeddedServletContainer
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
-import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainer
-import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer
-import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
+import test.ContainerType
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
@@ -27,7 +24,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static org.junit.Assume.assumeTrue
+import static test.ContainerType.JETTY
+import static test.ContainerType.TOMCAT
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -80,31 +78,6 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   HttpServer server() {
     return new SpringBootServer()
-  }
-
-  enum ContainerType {
-    TOMCAT("tomcat-server"),
-    JETTY("jetty-server"),
-    UNDERTOW("unknown"),
-    DEFAULT("java-web-servlet");
-
-    final String component
-
-    ContainerType(String component) {
-      this.component = component
-    }
-
-    static ContainerType forEmbeddedServletContainer(EmbeddedServletContainer container) {
-      if (container instanceof TomcatEmbeddedServletContainer) {
-        return TOMCAT
-      } else if (container instanceof JettyEmbeddedServletContainer) {
-        return JETTY
-      } else if (container instanceof UndertowEmbeddedServletContainer) {
-        return UNDERTOW
-      } else {
-        return DEFAULT
-      }
-    }
   }
 
   private ContainerType containerType
@@ -187,10 +160,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == REDIRECT) {
-      // Spring is generates a RenderView and ResponseSpan for REDIRECT
+      // Spring generates a RenderView and ResponseSpan for REDIRECT
       return super.spanCount(endpoint) + 1
     } else if (endpoint == NOT_FOUND) {
-      if (getContainerType() == ContainerType.JETTY) {
+      if (getContainerType() == JETTY) {
         // jetty doesn't have servlet.forward
         return super.spanCount(endpoint) + 1
       }
@@ -208,11 +181,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
     switch (getContainerType()) {
-      case ContainerType.TOMCAT:
+      case TOMCAT:
         // tomcat doesn't have the raw parameters
         extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
         break
-      case ContainerType.JETTY:
+      case JETTY:
         extraServerTags = [
           'request.body.converted': [password: [testPassword], username: ['test']] as String,
           'request.body': "username=test&password=${URLEncoder.encode(testPassword)}"
@@ -325,7 +298,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           defaultTags()
         }
       }
-      if (getContainerType() == ContainerType.TOMCAT) {
+      if (getContainerType() == TOMCAT) {
         def extraTags = expectedExtraServerTags(NOT_FOUND)
         trace.span {
           operationName "servlet.forward"

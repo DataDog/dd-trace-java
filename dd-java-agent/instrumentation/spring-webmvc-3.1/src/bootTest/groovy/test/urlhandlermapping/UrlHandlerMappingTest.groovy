@@ -16,6 +16,7 @@ import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletConta
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Shared
+import test.ContainerType
 import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -75,14 +76,18 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     return "root-servlet"
   }
 
+  private ContainerType containerType
+
+  ContainerType getContainerType() {
+    if (containerType == null) {
+      containerType = ContainerType.forEmbeddedServletContainer(context.getEmbeddedServletContainer())
+    }
+    return containerType
+  }
+
   @Override
   String component() {
-    if (context.getEmbeddedServletContainer() instanceof TomcatEmbeddedServletContainer) {
-      return "tomcat-server"
-    } else if (context.getEmbeddedServletContainer() instanceof JettyEmbeddedServletContainer) {
-      return "jetty-server"
-    }
-    return "java-web-servlet"
+    return getContainerType().component
   }
 
   @Override

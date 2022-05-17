@@ -74,21 +74,6 @@ class DynamicRoutingAppConfig extends WebMvcConfigurerAdapter {
   }
 
   @Bean
-  EmbeddedServletContainerFactory servletContainerFactory() {
-    def factory = new TomcatEmbeddedServletContainerFactory()
-
-    factory.addConnectorCustomizers(
-      new TomcatConnectorCustomizer() {
-        @Override
-        void customize(final Connector connector) {
-          connector.setEnableLookups(true)
-        }
-      })
-
-    return factory
-  }
-
-  @Bean
   HttpMessageConverter<Map<String, Object>> createPlainMapMessageConverter() {
     return new AbstractHttpMessageConverter<Map<String, Object>>(MediaType.TEXT_PLAIN) {
 

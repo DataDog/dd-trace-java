@@ -10,8 +10,12 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HttpResourceDecorator {
+  private static final Logger log = LoggerFactory.getLogger(HttpResourceDecorator.class);
+
   public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
@@ -71,6 +75,7 @@ public class HttpResourceDecorator {
       resourcePath = simplePathNormalizer.normalize(path.toString(), encoded);
       priority = ResourceNamePriorities.HTTP_PATH_NORMALIZER;
     }
+    log.debug("encoded {} path {} normalized {} priority {}", encoded, path, resourcePath, priority);
     span.setResourceName(
         RESOURCE_NAME_CACHE.computeIfAbsent(
             Pair.of(method, (CharSequence) resourcePath), RESOURCE_NAME_JOINER),

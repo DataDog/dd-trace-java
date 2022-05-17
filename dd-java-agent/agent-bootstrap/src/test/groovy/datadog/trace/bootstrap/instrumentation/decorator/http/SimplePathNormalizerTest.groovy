@@ -28,6 +28,7 @@ class SimplePathNormalizerTest extends DDSpecification {
     "   /:userId"    | "/:userId"
     "\t/90"          | "/?"
     "\t/:userId"     | "/:userId"
+    "/a%20path"      | "/a path"
   }
 
   def "should replace all digits"() {

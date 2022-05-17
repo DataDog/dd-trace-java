@@ -11,6 +11,8 @@ import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
+import spock.lang.Shared
+import test.ContainerType
 import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -26,15 +28,20 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
     return false
   }
 
+  @Shared
+  EmbeddedWebApplicationContext context
+
   class SpringBootServer implements HttpServer {
     def port = 0
-    def context
     final app = new SpringApplication(DynamicRoutingAppConfig, SecurityConfig)
+
+    SpringBootServer() {
+      app.setDefaultProperties(singletonMap("server.port", 0))
+      context = app.run() as EmbeddedWebApplicationContext
+    }
 
     @Override
     void start() {
-      app.setDefaultProperties(singletonMap("server.port", 0))
-      context = app.run() as EmbeddedWebApplicationContext
       port = context.embeddedServletContainer.port
       assert port > 0
     }
@@ -65,9 +72,18 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
     return "root-servlet"
   }
 
+  private ContainerType containerType
+
+  ContainerType getContainerType() {
+    if (containerType == null) {
+      containerType = ContainerType.forEmbeddedServletContainer(context.getEmbeddedServletContainer())
+    }
+    return containerType
+  }
+
   @Override
   String component() {
-    return TomcatDecorator.DECORATE.component()
+    return getContainerType().component
   }
 
   @Override

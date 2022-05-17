@@ -10,6 +10,8 @@ import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import spock.lang.Shared
+import test.ContainerType
 import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -17,6 +19,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static java.util.Collections.singletonMap
+import static test.ContainerType.JETTY
 
 class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -26,15 +29,20 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
     return false
   }
 
+  @Shared
+  EmbeddedWebApplicationContext context
+
   class SpringBootServer implements HttpServer {
     def port = 0
-    def context
     final app = new SpringApplication(FilteredAppConfig, SecurityConfig)
+
+    SpringBootServer() {
+      app.setDefaultProperties(singletonMap("server.port", 0))
+      context = app.run() as EmbeddedWebApplicationContext
+    }
 
     @Override
     void start() {
-      app.setDefaultProperties(singletonMap("server.port", 0))
-      context = app.run() as EmbeddedWebApplicationContext
       port = context.embeddedServletContainer.port
       assert port > 0
     }
@@ -65,9 +73,18 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
     return "root-servlet"
   }
 
+  private ContainerType containerType
+
+  ContainerType getContainerType() {
+    if (containerType == null) {
+      containerType = ContainerType.forEmbeddedServletContainer(context.getEmbeddedServletContainer())
+    }
+    return containerType
+  }
+
   @Override
   String component() {
-    return TomcatDecorator.DECORATE.component()
+    return getContainerType().component
   }
 
   @Override
@@ -77,7 +94,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   String testPathParam() {
-    "/path/{id}/param"
+    "/path/?/param"
   }
 
   @Override
@@ -122,7 +139,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
     if (endpoint == PATH_PARAM) {
       return testPathParam()
     }
-    return endpoint.path
+    return null
   }
 
   @Override
@@ -133,9 +150,19 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
   @Override
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == ERROR) {
+      // Jetty: [servlet.request[controller[servlet.response[spring.handler]]]]
+      if (getContainerType() == JETTY) {
+        return super.spanCount(endpoint) + 1
+      }
+      // Tomcat: [servlet.request[servlet.forward[spring.handler]][controller[servlet.response]]]
       // adds servlet.forward/GET /error and spring.handler/BasicErrorController.error
       return super.spanCount(endpoint) + 2
     } else if (endpoint == EXCEPTION) {
+      // Jetty: [servlet.request[servlet.response[spring.handler]][controller]]
+      if (getContainerType() == JETTY) {
+        // jetty doesn't have servlet.forward
+        return super.spanCount(endpoint)
+      }
       // adds servlet.forward/GET /error and spring.handler/BasicErrorController.error
       // removes servlet.response/HttpServletResponse
       return super.spanCount(endpoint) + 1

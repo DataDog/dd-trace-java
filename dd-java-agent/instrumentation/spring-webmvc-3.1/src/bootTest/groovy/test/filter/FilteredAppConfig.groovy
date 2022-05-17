@@ -2,12 +2,9 @@ package test.filter
 
 import com.google.common.base.Charsets
 import datadog.trace.agent.test.base.HttpServerTest
-import org.apache.catalina.connector.Connector
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory
-import org.springframework.boot.context.embedded.tomcat.TomcatConnectorCustomizer
-import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory
 import org.springframework.context.annotation.Bean
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpInputMessage
 import org.springframework.http.HttpOutputMessage
 import org.springframework.http.MediaType
@@ -60,21 +57,6 @@ class FilteredAppConfig extends WebMvcConfigurerAdapter {
   }
 
   @Bean
-  EmbeddedServletContainerFactory servletContainerFactory() {
-    def factory = new TomcatEmbeddedServletContainerFactory()
-
-    factory.addConnectorCustomizers(
-      new TomcatConnectorCustomizer() {
-        @Override
-        void customize(final Connector connector) {
-          connector.setEnableLookups(true)
-        }
-      })
-
-    return factory
-  }
-
-  @Bean
   HttpMessageConverter<Map<String, Object>> createPlainMapMessageConverter() {
     return new AbstractHttpMessageConverter<Map<String, Object>>(MediaType.TEXT_PLAIN) {
 
@@ -96,6 +78,7 @@ class FilteredAppConfig extends WebMvcConfigurerAdapter {
   }
 
   @Bean
+  @Order(-2147483646) //Ordered.HIGHEST_PRECEDENCE + 2
   Filter servletFilter() {
     return new Filter() {
 
