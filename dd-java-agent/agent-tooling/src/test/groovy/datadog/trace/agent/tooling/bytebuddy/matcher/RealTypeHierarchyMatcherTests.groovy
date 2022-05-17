@@ -4,7 +4,6 @@ import datadog.trace.agent.test.DirectRunnable
 import datadog.trace.agent.test.ExtendedRunnable
 import datadog.trace.agent.test.LeafFutureTask
 import datadog.trace.agent.test.NoInterfacesInTheMiddle
-import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 
 import java.util.concurrent.Callable
@@ -17,7 +16,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
-class RealTypeHierarchyMatcherTests extends DDSpecification {
+class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
 
   def "test implementsInterface: #name"() {
     setup:

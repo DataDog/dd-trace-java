@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
@@ -14,10 +13,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Sometimes classes do lazy initialization for scheduling of tasks. If this is done during a trace
@@ -45,9 +42,7 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
   private static final ElementMatcher<TypeDescription> GRPC_MANAGED_CHANNEL =
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
-      namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask")
-          .and(declaresField(named("FINISHED").and(ElementMatchers.<FieldDescription>isStatic())))
-          .and(declaresField(named("CANCELLED").and(ElementMatchers.<FieldDescription>isStatic())));
+      namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
 
   @Override
   public boolean onlyMatchKnownTypes() {

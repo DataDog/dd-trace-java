@@ -47,6 +47,7 @@ import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
+import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
@@ -538,6 +539,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (config.isCiVisibilityEnabled()) {
       addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
+      if (config.isCiVisibilityAgentlessEnabled()) {
+        addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
+      }
     }
 
     this.instrumentationGateway = instrumentationGateway;

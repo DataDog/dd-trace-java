@@ -239,12 +239,7 @@ public class PowerWAFModule implements AppSecModule {
     @Override
     public void onEvent(AppSecRequestContext reqCtx, EventType eventType) {
       if (eventType == EventType.REQUEST_END) {
-        Additive additive = reqCtx.getAdditive();
-        if (additive != null) {
-          additive.close();
-        }
-
-        reqCtx.setAdditive(null);
+        reqCtx.closeAdditive();
       }
     }
   }
@@ -327,22 +322,9 @@ public class PowerWAFModule implements AppSecModule {
         CtxAndAddresses ctxAndAddr,
         boolean isTransient)
         throws AbstractPowerwafException {
-      Additive additive;
-      PowerwafMetrics metrics = null;
 
-      synchronized (reqCtx) {
-        additive = reqCtx.getAdditive();
-        if (additive == null) {
-          additive = ctxAndAddr.ctx.openAdditive();
-          reqCtx.setAdditive(additive);
-          if (wafMetricsEnabled) {
-            metrics = ctxAndAddr.ctx.createMetrics();
-            reqCtx.setWafMetrics(metrics);
-          }
-        } else {
-          metrics = reqCtx.getWafMetrics();
-        }
-      }
+      Additive additive = reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled);
+      PowerwafMetrics metrics = reqCtx.getWafMetrics();
 
       if (isTransient) {
         DataBundle bundle = DataBundle.unionOf(newData, reqCtx);

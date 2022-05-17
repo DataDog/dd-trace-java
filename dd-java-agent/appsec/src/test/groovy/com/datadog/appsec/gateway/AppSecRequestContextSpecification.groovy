@@ -171,23 +171,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
     new Additive(context)
   }
 
-  void 'replacing the additive closes the previous one'() {
-    setup:
-    def additive1 = createAdditive()
-    def additive2 = createAdditive()
-
-    when:
-    ctx.additive = additive1
-    ctx.additive = additive2
-
-    then:
-    additive1.online == false
-    additive2.online == true
-
-    cleanup:
-    [additive1, additive2].findAll {it.online }*.close()
-  }
-
   void 'close closes the additive'() {
     setup:
     def additive = createAdditive()
