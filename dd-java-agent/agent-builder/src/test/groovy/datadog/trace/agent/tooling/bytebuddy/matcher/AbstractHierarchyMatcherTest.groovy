@@ -8,6 +8,7 @@ import spock.lang.Shared
 abstract class AbstractHierarchyMatcherTest extends DDSpecification {
   static {
     DDCachingPoolStrategy.registerAsSupplier()
+    DDElementMatchers.registerAsSupplier()
   }
 
   @Shared

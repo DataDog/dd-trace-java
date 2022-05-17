@@ -2,7 +2,8 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.NOT_DECORATOR_MATCHER;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -19,6 +20,7 @@ import java.security.ProtectionDomain;
 import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
+import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -27,6 +29,11 @@ import net.bytebuddy.utility.JavaModule;
 
 public class AgentTransformerBuilder
     implements Instrumenter.TransformerBuilder, Instrumenter.AdviceTransformation {
+
+  // Added here instead of byte-buddy's ignores because it's relatively
+  // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
+  public static final ElementMatcher.Junction<AnnotationSource> NOT_DECORATOR_MATCHER =
+      not(isAnnotatedWith(named("javax.decorator.Decorator")));
 
   private AgentBuilder agentBuilder;
   private ElementMatcher<? super MethodDescription> ignoreMatcher;

@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -9,8 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -49,7 +49,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return safeHasSuperType(
+    return hasSuperType(
         isAnnotatedWith(named("javax.ws.rs.Path"))
             .<TypeDescription>or(declaresMethod(isAnnotatedWith(named("javax.ws.rs.Path")))));
   }

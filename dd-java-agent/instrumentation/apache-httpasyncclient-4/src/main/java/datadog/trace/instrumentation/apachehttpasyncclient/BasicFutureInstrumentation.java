@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
