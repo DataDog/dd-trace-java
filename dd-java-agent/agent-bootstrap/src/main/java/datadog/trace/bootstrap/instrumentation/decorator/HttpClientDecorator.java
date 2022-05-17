@@ -57,13 +57,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
           String path = url.getPath();
           int port = url.getPort();
           span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.getScheme(), host, port, path));
-          if (null != host) {
+          if (null != host && !host.isEmpty()) {
             span.setTag(Tags.PEER_HOSTNAME, host);
-            if (Config.get().isHttpClientSplitByDomain()) {
+            if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
               span.setServiceName(host);
             }
-            if (url.getPort() > 0) {
-              setPeerPort(span, url.getPort());
+            if (port > 0) {
+              setPeerPort(span, port);
             }
           }
 

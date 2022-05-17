@@ -1,9 +1,11 @@
 package datadog.trace.civisibility;
 
+import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDTraceCoreInfo;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -36,6 +38,7 @@ public class CiVisibilityTraceInterceptor implements TraceInterceptor {
     // `ciapp-test`.
     for (MutableSpan span : trace) {
       ((DDSpan) span).context().setOrigin(CIAPP_TEST_ORIGIN);
+      span.setTag(DDTags.LIBRARY_VERSION_TAG_KEY, DDTraceCoreInfo.VERSION);
     }
 
     return trace;

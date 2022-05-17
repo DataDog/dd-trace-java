@@ -3,6 +3,7 @@ package datadog.trace.agent.test.base
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import spock.lang.Shared
@@ -61,6 +62,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.RUNTIME_VENDOR" String
         "$Tags.RUNTIME_NAME" String
         "$Tags.RUNTIME_VERSION" String
+        "$DDTags.LIBRARY_VERSION_TAG_KEY" String
 
         defaultTags()
       }

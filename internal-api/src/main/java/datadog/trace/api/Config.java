@@ -75,6 +75,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -200,6 +201,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATI
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOURCES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
@@ -261,8 +263,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -342,6 +346,7 @@ public class Config {
   private final List<String> excludedClasses;
   private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
+  private final List<String> excludedCodeSources;
   private final Map<String, String> requestHeaderTags;
   private final Map<String, String> responseHeaderTags;
   private final BitSet httpServerErrorStatuses;
@@ -450,6 +455,7 @@ public class Config {
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
+  private final String ciVisibilityAgentlessUrl;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -675,6 +681,7 @@ public class Config {
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
+    excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
 
     if (isEnabled(false, HEADER_TAGS, ".legacy.parsing.enabled")) {
       requestHeaderTags = configProvider.getMergedMap(HEADER_TAGS);
@@ -962,6 +969,22 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_AGENTLESS_ENABLED, DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED);
 
+    final String ciVisibilityAgentlessUrlStr = configProvider.getString(CIVISIBILITY_AGENTLESS_URL);
+    URI parsedCiVisibilityUri = null;
+    if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
+      try {
+        parsedCiVisibilityUri = new URL(ciVisibilityAgentlessUrlStr).toURI();
+      } catch (MalformedURLException | URISyntaxException ex) {
+        log.error(
+            "Cannot parse CI Visibility agentless URL '{}', skipping", ciVisibilityAgentlessUrlStr);
+      }
+    }
+    if (parsedCiVisibilityUri != null) {
+      ciVisibilityAgentlessUrl = ciVisibilityAgentlessUrlStr;
+    } else {
+      ciVisibilityAgentlessUrl = null;
+    }
+
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
 
@@ -1164,6 +1187,10 @@ public class Config {
 
   public Set<String> getExcludedClassLoaders() {
     return excludedClassLoaders;
+  }
+
+  public List<String> getExcludedCodeSources() {
+    return excludedCodeSources;
   }
 
   public Map<String, String> getRequestHeaderTags() {
@@ -1524,6 +1551,10 @@ public class Config {
 
   public boolean isCiVisibilityAgentlessEnabled() {
     return ciVisibilityAgentlessEnabled;
+  }
+
+  public String getCiVisibilityAgentlessUrl() {
+    return ciVisibilityAgentlessUrl;
   }
 
   public String getAppSecRulesFile() {
@@ -2308,6 +2339,8 @@ public class Config {
         + excludedClassesFile
         + ", excludedClassLoaders="
         + excludedClassLoaders
+        + ", excludedCodeSources="
+        + excludedCodeSources
         + ", requestHeaderTags="
         + requestHeaderTags
         + ", responseHeaderTags="

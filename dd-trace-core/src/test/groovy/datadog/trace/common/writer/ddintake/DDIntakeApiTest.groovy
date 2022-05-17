@@ -66,6 +66,40 @@ class DDIntakeApiTest extends DDCoreSpecification {
     TrackType.CITESTCYCLE | "v2"
   }
 
+  def "retries when backend returns 5xx"() {
+    setup:
+    def retry = 1
+    def path = buildIntakePath(trackType, apiVersion)
+    def intake = httpServer {
+      handlers {
+        post(path) {
+          if(retry < 5) {
+            response.status(503).send()
+            retry+=1
+          } else {
+            response.status(200).send()
+          }
+        }
+      }
+    }
+
+    def client = createIntakeApi(intake.address.toString(), trackType)
+    def payload = prepareTraces(trackType, [])
+
+    expect:
+    def response = client.sendSerializedTraces(payload)
+    response.success()
+    response.status() == 200
+    intake.getLastRequest().path == path
+
+    cleanup:
+    intake.close()
+
+    where:
+    trackType | apiVersion
+    TrackType.CITESTCYCLE | "v2"
+  }
+
   def "content is sent as MSGPACK"() {
     setup:
     def path = buildIntakePath(trackType, apiVersion)
