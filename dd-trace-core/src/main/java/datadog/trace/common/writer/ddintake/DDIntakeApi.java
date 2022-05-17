@@ -140,6 +140,7 @@ public class DDIntakeApi implements RemoteApi {
       IOException lastException = null;
       Response lastResponse = null;
       while (true) {
+        // Exponential backoff retry when http code >= 500 or ConnectException is thrown.
         try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
           httpCode = response.code();
           shouldRetry = httpCode >= 500 && retryPolicy.shouldRetry(retry);

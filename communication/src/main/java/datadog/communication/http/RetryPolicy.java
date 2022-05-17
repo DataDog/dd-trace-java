@@ -1,5 +1,9 @@
 package datadog.communication.http;
 
+/**
+ * Used to define simple retry policies based on exponential backoff mechanism. Typically used for
+ * retrying HTTP calls in the DDIntakeApi class.
+ */
 public class RetryPolicy {
 
   private final int maxRetries;
