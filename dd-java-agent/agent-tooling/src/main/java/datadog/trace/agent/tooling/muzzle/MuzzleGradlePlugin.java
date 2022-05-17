@@ -1,14 +1,13 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;
@@ -29,9 +28,8 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
 
   private final File targetDir;
 
-  @SuppressForbidden // allow use of ElementMatchers.hasSuperClass during build
   public MuzzleGradlePlugin(File targetDir) {
-    super(not(isAbstract()).and(hasSuperClass(named(Instrumenter.Default.class.getName()))));
+    super(not(isAbstract()).and(extendsClass(named(Instrumenter.Default.class.getName()))));
     this.targetDir = targetDir;
   }
 
