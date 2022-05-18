@@ -58,6 +58,9 @@ class RequestBuilderSpecification extends DDSpecification {
       hostname != null
       os != null
       os_version != null
+      kernel_name != null
+      kernel_release != null
+      kernel_version != null
     }
     body['request_type'] == 'APP_STARTED'
     body['runtime_id'] =~ /[\da-f]{8}-([\da-f]{4}-){3}[\da-f]{12}/

@@ -16,8 +16,15 @@ ext {
   excludedClassesCoverage = [
     'datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl',
     'datadog.telemetry.HostnameGuessing',
+    'datadog.telemetry.Uname',
+    'datadog.telemetry.Uname.UtsNameMacOs',
+    'datadog.telemetry.Uname.UtsNameLinux',
+    'datadog.telemetry.Uname.EmptyUtsName',
   ]
-  excludedClassesBranchCoverage = ['datadog.telemetry.PolymorphicAdapterFactory.1']
+  excludedClassesBranchCoverage = [
+    'datadog.telemetry.PolymorphicAdapterFactory.1',
+    'datadog.telemetry.Uname.UtsNameMapper',
+  ]
   excludedClassesInstructionCoverage = []
   minJavaVersionForTests = JavaVersion.VERSION_1_7
 }
@@ -74,12 +81,21 @@ dependencies {
   implementation deps.slf4j
 
   implementation project(':internal-api')
-  implementation project(':communication')
+
+  compileOnly project(':communication')
+  testImplementation project(':communication')
+
+  compileOnly project(':utils:container-utils')
+  testImplementation project(':utils:container-utils')
 
   compileOnly sourceSets.generatedApis.compileClasspath
   api sourceSets.generatedApis.output
 
   api deps.okhttp
+
+  compileOnly deps.jnr_ffi
+  testImplementation deps.jnr_ffi
+
   generatedApisImplementation deps.moshi
 
   testImplementation project(':utils:test-utils')
