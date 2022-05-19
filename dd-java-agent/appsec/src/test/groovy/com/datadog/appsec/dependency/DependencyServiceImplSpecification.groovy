@@ -263,37 +263,9 @@ class DependencyServiceImplSpecification extends DDSpecification {
   }
 
   private static File getJar(String jarName) {
-    File jarFile = new File(
-      "${projectPath.absolutePath}/dd-java-agent/appsec/build/resources/test/com/datadog/appsec/dependencies/${jarName}")
+    String path = ClassLoader.systemClassLoader.getResource("com/datadog/appsec/dependencies/$jarName").path
+    File jarFile = new File(path)
     assert jarFile.isFile()
     jarFile
-  }
-
-  private static File getProjectPath() {
-    String fileName = DependencyServiceImplSpecification.name.replace('.', '/') + '.class'
-    URL resource = DependencyServiceImplSpecification.classLoader.getResource(fileName)
-    assert resource != null
-
-    String path = resource.path
-    path = path.substring(0, path.indexOf(fileName))
-
-    File file = new File(path)
-
-    boolean found = false
-    while (file != null && file.isDirectory() && !found) {
-      found = new File(file, '.git').exists()
-      if (!found) {
-        if (!file.isDirectory()) {
-          throw new IllegalStateException('.git not found, can\'t search further')
-        }
-        file = file.getParentFile()
-      }
-    }
-
-    if (file == null) {
-      throw new IllegalStateException("unable to find project root by searching for .git")
-    }
-
-    file
   }
 }
