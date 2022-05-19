@@ -2,9 +2,10 @@ package datadog.telemetry;
 
 import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.Integration;
-import datadog.telemetry.api.KeyValue;
 import datadog.telemetry.api.Metric;
 import okhttp3.Request;
+
+import java.util.Map;
 
 public interface TelemetryService {
 
@@ -14,7 +15,7 @@ public interface TelemetryService {
   Request appClosingRequest();
 
   // Data for periodic telemetry requests
-  boolean addConfiguration(KeyValue configuration);
+  boolean addConfiguration(Map<String, Object> configuration);
 
   boolean addDependency(Dependency dependency);
 

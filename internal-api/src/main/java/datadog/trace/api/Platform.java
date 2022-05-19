@@ -119,7 +119,7 @@ public final class Platform {
       this.name = System.getProperty("java.runtime.name");
       this.vendor = System.getProperty("java.vm.vendor");
       this.version = rtVer;
-      this.patches = version.startsWith(javaVer) ? rtVer.substring(javaVer.length()) : null;
+      this.patches = version.startsWith(javaVer) ? rtVer.substring(javaVer.length() + 1) : null;
     }
   }
 

@@ -6,6 +6,9 @@ final class EnvironmentConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    return System.getenv(propertyNameToEnvironmentVariableName(key));
+    String envVarName = propertyNameToEnvironmentVariableName(key);
+    String value = System.getenv(envVarName);
+    collect(envVarName, value);
+    return value;
   }
 }

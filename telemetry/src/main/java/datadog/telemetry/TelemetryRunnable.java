@@ -3,6 +3,8 @@ package datadog.telemetry;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
+
+import datadog.trace.api.ConfigCollector;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -44,6 +46,7 @@ public class TelemetryRunnable implements Runnable {
   @Override
   public void run() {
     log.info("Adding APP_STARTED telemetry event");
+    this.telemetryService.addConfiguration(ConfigCollector.get());
     this.telemetryService.addStartedRequest();
 
     while (!Thread.interrupted()) {

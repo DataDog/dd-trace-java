@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
+import datadog.trace.api.ConfigCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -322,5 +323,11 @@ public final class ConfigProvider {
     }
 
     protected abstract String get(String key);
+
+    protected final void collect(String key, String value) {
+      if (key != null && value != null) {
+        ConfigCollector.get().put(key, value);
+      }
+    }
   }
 }

@@ -584,7 +584,7 @@ public class Config {
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(ConfigProvider.createDefault());
+    this(ConfigProvider.getInstance());
   }
 
   private Config(final ConfigProvider configProvider) {
@@ -928,7 +928,7 @@ public class Config {
 
     if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile = configProvider.getString(PROFILING_API_KEY_FILE_OLD);
-      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
+      tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
@@ -943,7 +943,7 @@ public class Config {
     if (tmpApiKey == null) {
       final String veryOldProfilingApiKeyFile =
           configProvider.getString(PROFILING_API_KEY_FILE_VERY_OLD);
-      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
+      tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
       if (veryOldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
@@ -2061,8 +2061,9 @@ public class Config {
     Map<String, String> aasTags = new HashMap<>();
 
     /// The site name of the site instance in Azure where the traced application is running.
-    String siteName = System.getenv("WEBSITE_SITE_NAME");
+    String siteName = getEnv("WEBSITE_SITE_NAME");
     if (siteName != null) {
+      ConfigCollector.get().put("WEBSITE_SITE_NAME", siteName);
       aasTags.put("aas.site.name", siteName);
     }
 
@@ -2072,8 +2073,8 @@ public class Config {
 
     // The type of application instance running in Azure.
     // Possible values: app, function
-    if (System.getenv("FUNCTIONS_WORKER_RUNTIME") != null
-        || System.getenv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
+    if (getEnv("FUNCTIONS_WORKER_RUNTIME") != null
+        || getEnv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
       aasTags.put("aas.site.kind", "functionapp");
       aasTags.put("aas.site.type", "function");
     } else {
@@ -2082,14 +2083,14 @@ public class Config {
     }
 
     //  The resource group of the site instance in Azure App Services
-    String resourceGroup = System.getenv("WEBSITE_RESOURCE_GROUP");
+    String resourceGroup = getEnv("WEBSITE_RESOURCE_GROUP");
     if (resourceGroup != null) {
       aasTags.put("aas.resource.group", resourceGroup);
     }
 
     // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
     // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
-    String websiteOwner = System.getenv("WEBSITE_OWNER_NAME");
+    String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
     int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
 
     // The subscription ID of the site instance in Azure App Services
@@ -2119,26 +2120,26 @@ public class Config {
     }
 
     // The instance ID in Azure
-    String instanceId = System.getenv("WEBSITE_INSTANCE_ID");
+    String instanceId = getEnv("WEBSITE_INSTANCE_ID");
     instanceId = instanceId == null ? "unknown" : instanceId;
     aasTags.put("aas.environment.instance_id", instanceId);
 
     // The instance name in Azure
-    String instanceName = System.getenv("COMPUTERNAME");
+    String instanceName = getEnv("COMPUTERNAME");
     instanceName = instanceName == null ? "unknown" : instanceName;
     aasTags.put("aas.environment.instance_name", instanceName);
 
     // The operating system in Azure
-    String operatingSystem = System.getenv("WEBSITE_OS");
+    String operatingSystem = getEnv("WEBSITE_OS");
     operatingSystem = operatingSystem == null ? "unknown" : operatingSystem;
     aasTags.put("aas.environment.os", operatingSystem);
 
     // The version of the extension installed
-    String siteExtensionVersion = System.getenv("DD_AAS_JAVA_EXTENSION_VERSION");
+    String siteExtensionVersion = getEnv("DD_AAS_JAVA_EXTENSION_VERSION");
     siteExtensionVersion = siteExtensionVersion == null ? "unknown" : siteExtensionVersion;
     aasTags.put("aas.environment.extension_version", siteExtensionVersion);
 
-    aasTags.put("aas.environment.runtime", System.getProperty("java.vm.name", "unknown"));
+    aasTags.put("aas.environment.runtime", getProp("java.vm.name", "unknown"));
 
     return aasTags;
   }
@@ -2246,13 +2247,13 @@ public class Config {
 
   private static boolean isDebugMode() {
     final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
+    final String tracerDebugLevelProp = getProp(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
       return Boolean.parseBoolean(tracerDebugLevelProp);
     }
 
-    final String tracerDebugLevelEnv = System.getenv(toEnvVar(tracerDebugLevelSysprop));
+    final String tracerDebugLevelEnv = getEnv(toEnvVar(tracerDebugLevelSysprop));
 
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
@@ -2393,9 +2394,9 @@ public class Config {
 
     // Try environment variable.  This works in almost all environments
     if (isWindowsOS()) {
-      possibleHostname = System.getenv("COMPUTERNAME");
+      possibleHostname = getEnv("COMPUTERNAME");
     } else {
-      possibleHostname = System.getenv("HOSTNAME");
+      possibleHostname = getEnv("HOSTNAME");
     }
 
     if (possibleHostname != null && !possibleHostname.isEmpty()) {
@@ -2428,7 +2429,27 @@ public class Config {
   }
 
   private static boolean isWindowsOS() {
-    return System.getProperty("os.name").startsWith("Windows");
+    return getProp("os.name").startsWith("Windows");
+  }
+
+  private static String getEnv(String name) {
+    String value = System.getenv(name);
+    if (value != null) {
+      ConfigCollector.get().put(name, value);
+    }
+    return value;
+  }
+
+  private static String getProp(String name) {
+    return getProp(name, null);
+  }
+
+  private static String getProp(String name, String def) {
+    String value = System.getProperty(name, def);
+    if (value != null) {
+      ConfigCollector.get().put(name, value);
+    }
+    return value;
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize

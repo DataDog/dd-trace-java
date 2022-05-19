@@ -33,7 +33,7 @@ public class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
-  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
+  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
   private static Thread TELEMETRY_THREAD;
@@ -65,7 +65,7 @@ public class AppSecSystem {
             sco, new AgentThreadFactory(AgentThreadFactory.AgentThread.FLEET_MANAGEMENT_POLLER));
     // do not start its thread, support not merged in agent yet
     //    fleetService.init();
-    // may throw and abort starup
+    // may throw and abort startup
     APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService);
     // no point initializing fleet service, as it will receive no notifications
     APP_SEC_CONFIG_SERVICE.init(false);

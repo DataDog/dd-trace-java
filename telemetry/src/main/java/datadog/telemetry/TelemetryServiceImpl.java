@@ -11,9 +11,8 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.Payload;
 import datadog.telemetry.api.RequestType;
 import datadog.trace.api.time.TimeSource;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -63,8 +62,17 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   @Override
-  public boolean addConfiguration(KeyValue configuration) {
-    return this.configurations.offer(configuration);
+  public boolean addConfiguration(Map<String, Object> configuration) {
+    for (Map.Entry<String, Object> entry : configuration.entrySet()) {
+      if (!this.configurations.offer(
+          new KeyValue()
+              .name(entry.getKey())
+              .value(entry.getValue())
+      )) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
