@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.jaxws2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxws2.WebServiceProviderDecorator.DECORATE;
 import static datadog.trace.instrumentation.jaxws2.WebServiceProviderDecorator.JAX_WS_REQUEST;
-import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 

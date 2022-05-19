@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.classloading;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;

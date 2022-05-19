@@ -37,16 +37,20 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V5_ENDPOINT = "v0.5/traces";
 
   public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
+  public static final String V7_CONFIG_ENDPOINT = "v0.7/config";
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
+
+  public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
+  private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
 
@@ -55,6 +59,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String dataStreamsEndpoint;
   private volatile boolean supportsDropping;
   private volatile String state;
+  private volatile String configEndpoint;
+  private volatile String debuggerEndpoint;
+  private volatile String version;
 
   public DDAgentFeaturesDiscovery(
       OkHttpClient client,
@@ -77,6 +84,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     metricsEndpoint = null;
     supportsDropping = false;
     state = null;
+    configEndpoint = null;
+    debuggerEndpoint = null;
+    version = null;
   }
 
   public void discover() {
@@ -149,6 +159,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
       discoverStatsDPort(map);
+      version = (String) map.get("version");
       Set<String> endpoints = new HashSet<>((List<String>) map.get("endpoints"));
 
       String foundMetricsEndpoint = null;
@@ -169,6 +180,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           traceEndpoint = endpoint;
           break;
         }
+      }
+
+      for (String endpoint : configEndpoints) {
+        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+          configEndpoint = endpoint;
+          break;
+        }
+      }
+
+      if (endpoints.contains(DEBUGGER_ENDPOINT) || endpoints.contains("/" + DEBUGGER_ENDPOINT)) {
+        debuggerEndpoint = DEBUGGER_ENDPOINT;
       }
 
       String foundDatastreamsEndpoint = null;
@@ -216,6 +238,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return metricsEnabled && null != metricsEndpoint;
   }
 
+  public boolean supportsDebugger() {
+    return debuggerEndpoint != null;
+  }
+
   boolean supportsDropping() {
     return supportsDropping;
   }
@@ -234,6 +260,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsDataStreams() {
     return dataStreamsEndpoint != null;
+  }
+
+  public String getConfigEndpoint() {
+    return configEndpoint;
+  }
+
+  public String getVersion() {
+    return version;
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {

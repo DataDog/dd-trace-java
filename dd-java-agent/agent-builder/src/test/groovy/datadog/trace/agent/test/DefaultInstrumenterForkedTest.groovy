@@ -2,6 +2,8 @@ package datadog.trace.agent.test
 
 import datadog.trace.agent.tooling.AgentTransformerBuilder
 import datadog.trace.agent.tooling.Instrumenter
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
+import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
@@ -10,6 +12,11 @@ import net.bytebuddy.matcher.ElementMatcher
 import static net.bytebuddy.matcher.ElementMatchers.none
 
 class DefaultInstrumenterForkedTest extends DDSpecification {
+  static {
+    DDCachingPoolStrategy.registerAsSupplier()
+    DDElementMatchers.registerAsSupplier()
+  }
+
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")

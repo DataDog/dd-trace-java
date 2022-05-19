@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rmi.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;

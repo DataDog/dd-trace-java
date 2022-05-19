@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;

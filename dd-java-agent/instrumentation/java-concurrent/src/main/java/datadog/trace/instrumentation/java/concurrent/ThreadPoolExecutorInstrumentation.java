@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;

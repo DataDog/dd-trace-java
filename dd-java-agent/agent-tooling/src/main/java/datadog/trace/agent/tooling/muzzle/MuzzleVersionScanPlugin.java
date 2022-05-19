@@ -2,7 +2,8 @@ package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -24,7 +25,8 @@ import net.bytebuddy.dynamic.ClassFileLocator;
  */
 public class MuzzleVersionScanPlugin {
   static {
-    DDCachingPoolStrategy.registerAsSupplier();
+    SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
+    HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
   }
 
   public static void assertInstrumentationMuzzled(

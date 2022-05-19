@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.osgi43;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
