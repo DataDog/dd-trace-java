@@ -4,9 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
-import datadog.trace.agent.tooling.bytebuddy.matcher.PrebuiltIgnoresMatcher;
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.bytebuddy.matcher.PrebuiltIgnoresMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;

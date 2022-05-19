@@ -6,7 +6,6 @@ import static java.util.Collections.singletonMap;
 
 import datadog.trace.agent.tooling.AgentTransformerBuilder;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,7 +17,6 @@ import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,43 +53,25 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
   private final boolean fieldInjectionEnabled;
 
   public static InstrumentationContextProvider contextProvider(
-      final Instrumenter.Default instrumenter) {
+      final Instrumenter.Default instrumenter, boolean runtimeContextFieldInjection) {
     Map<String, String> matchedContextStores = instrumenter.contextStore();
     if (matchedContextStores.isEmpty()) {
       return NoopContextProvider.INSTANCE;
     }
     return new FieldBackedContextProvider(
-        instrumenter, singletonMap(instrumenter.classLoaderMatcher(), matchedContextStores));
-  }
-
-  // Used by Matcher Cache Builder to identify transformable classes
-  public static ElementMatcher<TypeDescription> typeMatcher(Instrumenter.Default instrumenter) {
-    // TODO refactor to remove duplicating logic in additionalInstrumentation for Matcher Cache
-    // Builder
-    // could pass AgentBuilder.Identified.Extendable impl into additionalInstrumentation to collect
-    // type matchers
-    Map<String, String> contextStore = instrumenter.contextStore();
-    if (contextStore.isEmpty()) {
-      return ElementMatchers.none();
-    }
-    ElementMatcher<TypeDescription>[] typeMatchers =
-        new ElementMatcher[contextStore.keySet().size()];
-    int i = 0;
-    for (Map.Entry<String, String> entry : contextStore.entrySet()) {
-      String keyClassName = entry.getKey();
-      ElementMatcher<TypeDescription> typeMatcher = safeHasSuperType(named(keyClassName));
-      typeMatchers[i++] = typeMatcher;
-    }
-    return new ElementMatcher.Junction.Disjunction(typeMatchers);
+        instrumenter,
+        singletonMap(instrumenter.classLoaderMatcher(), matchedContextStores),
+        runtimeContextFieldInjection);
   }
 
   private FieldBackedContextProvider(
       final Instrumenter.Default instrumenter,
-      final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores) {
+      final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores,
+      boolean fieldInjectionEnabled) {
     this.instrumenterName = instrumenter.getClass().getName();
     this.matchedContextStores = matchedContextStores;
     this.contextStore = unpackContextStore(matchedContextStores);
-    this.fieldInjectionEnabled = Config.get().isRuntimeContextFieldInjection();
+    this.fieldInjectionEnabled = fieldInjectionEnabled;
   }
 
   @Override
