@@ -16,6 +16,16 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
@@ -79,6 +89,19 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_URL;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
@@ -456,6 +479,20 @@ public class Config {
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
+
+  private final boolean debuggerEnabled;
+  private final String debuggerSnapshotUrl;
+  private final String debuggerProbeUrl;
+  private final int debuggerUploadTimeout;
+  private final int debuggerUploadFlushInterval;
+  private final boolean debuggerClassFileDumpEnabled;
+  private final int debuggerPollInterval;
+  private final int debuggerDiagnosticsInterval;
+  private final boolean debuggerMetricEnabled;
+  private final String debuggerProbeFileLocation;
+  private final int debuggerBatchSize;
+  private final long debuggerMaxPayloadSize;
+  private final boolean debuggerVerifyByteCode;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -984,6 +1021,35 @@ public class Config {
     } else {
       ciVisibilityAgentlessUrl = null;
     }
+
+    debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
+    debuggerSnapshotUrl = configProvider.getString(DEBUGGER_SNAPSHOT_URL);
+    debuggerProbeUrl = configProvider.getString(DEBUGGER_PROBE_URL);
+    debuggerUploadTimeout =
+        configProvider.getInteger(DEBUGGER_UPLOAD_TIMEOUT, DEFAULT_DEBUGGER_UPLOAD_TIMEOUT);
+    debuggerUploadFlushInterval =
+        configProvider.getInteger(
+            DEBUGGER_UPLOAD_FLUSH_INTERVAL, DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL);
+    debuggerClassFileDumpEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_CLASSFILE_DUMP_ENABLED, DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED);
+    debuggerPollInterval =
+        configProvider.getInteger(DEBUGGER_POLL_INTERVAL, DEFAULT_DEBUGGER_POLL_INTERVAL);
+    debuggerDiagnosticsInterval =
+        configProvider.getInteger(
+            DEBUGGER_DIAGNOSTICS_INTERVAL, DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL);
+    debuggerMetricEnabled =
+        runtimeMetricsEnabled
+            && configProvider.getBoolean(
+                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
+    debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
+    debuggerBatchSize =
+        configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
+    debuggerMaxPayloadSize =
+        configProvider.getInteger(DEBUGGER_MAX_PAYLOAD_SIZE, DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE)
+            * 1024;
+    debuggerVerifyByteCode =
+        configProvider.getBoolean(DEBUGGER_VERIFY_BYTECODE, DEFAULT_DEBUGGER_VERIFY_BYTECODE);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -1559,6 +1625,66 @@ public class Config {
 
   public String getAppSecRulesFile() {
     return appSecRulesFile;
+  }
+
+  public boolean isDebuggerEnabled() {
+    return debuggerEnabled;
+  }
+
+  public int getDebuggerUploadTimeout() {
+    return debuggerUploadTimeout;
+  }
+
+  public int getDebuggerUploadFlushInterval() {
+    return debuggerUploadFlushInterval;
+  }
+
+  public boolean isDebuggerClassFileDumpEnabled() {
+    return debuggerClassFileDumpEnabled;
+  }
+
+  public int getDebuggerPollInterval() {
+    return debuggerPollInterval;
+  }
+
+  public int getDebuggerDiagnosticsInterval() {
+    return debuggerDiagnosticsInterval;
+  }
+
+  public boolean isDebuggerMetricsEnabled() {
+    return debuggerMetricEnabled;
+  }
+
+  public int getDebuggerBatchSize() {
+    return debuggerBatchSize;
+  }
+
+  public long getDebuggerMaxPayloadSize() {
+    return debuggerMaxPayloadSize;
+  }
+
+  public boolean isDebuggerVerifyByteCode() {
+    return debuggerVerifyByteCode;
+  }
+
+  public String getFinalDebuggerProbeUrl() {
+    if (debuggerProbeUrl != null) {
+      return debuggerProbeUrl;
+    }
+    // by default poll from datadog agent
+    return "http://" + agentHost + ":" + agentPort;
+  }
+
+  public String getFinalDebuggerSnapshotUrl() {
+    if (debuggerSnapshotUrl != null) {
+      return debuggerSnapshotUrl;
+    }
+    // by default send to datadog agent
+    return agentUrl + "/debugger/v1/input";
+  }
+
+  public String getDebuggerProbeFileLocation() {
+    return debuggerProbeFileLocation;
   }
 
   public boolean isAwsPropagationEnabled() {

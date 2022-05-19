@@ -78,6 +78,17 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
+  static final boolean DEFAULT_DEBUGGER_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
+  static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
+  static final boolean DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_POLL_INTERVAL = 1; // seconds
+  static final int DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
+  static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
+  static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
+  static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
+
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
