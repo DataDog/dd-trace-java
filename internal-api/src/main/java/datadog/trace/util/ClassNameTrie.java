@@ -97,6 +97,12 @@ public final class ClassNameTrie {
   /** Marks a long jump that was replaced by an index into the long jump table. */
   private static final char LONG_JUMP_MARKER = 0x8000;
 
+  /** A branch has at most 3 control characters: key, value, and optional jump offset/id. */
+  private static final int BRANCH_CONTROL_CHARS = 3;
+
+  /** Constant to account for the fact that the last branch doesn't have a jump offset/id. */
+  private static final int NO_END_JUMP = 1;
+
   /** The compressed trie. */
   private final char[] trieData;
 
@@ -152,7 +158,7 @@ public final class ClassNameTrie {
       }
 
       // ...always include moving past the current node
-      dataIndex += (branchCount * 3) - 1;
+      dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
 
       // attempt to match any inline segment that precedes the next node
       if (segmentLength > 0) {
@@ -334,7 +340,8 @@ public final class ClassNameTrie {
           int nextBranchJump = getJump(trieData[nextJumpIndex]);
 
           // update subTrieEnd to reflect we've moved down a left/centre branch
-          subTrieEnd = dataIndex + (branchCount * 3) - 1 + nextBranchJump;
+          subTrieEnd =
+              dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP + nextBranchJump;
 
           // remember to update jump offsets on right once we know how much we've added
           for (int b = branch + 1; b < branchCount; b++) {
@@ -348,7 +355,7 @@ public final class ClassNameTrie {
         }
 
         // ...always include moving past the current node
-        dataIndex += (branchCount * 3) - 1;
+        dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
 
         if ((value & LEAF_MARKER) != 0) {
           // change leaf branch to a bud and append our new leaf node below it
@@ -437,12 +444,13 @@ public final class ClassNameTrie {
         int subTrieEnd) {
 
       int remainingKeyLength = key.length() - keyIndex;
-      int insertedCharacters = 3 + remainingKeyLength;
+      int insertedCharacters = 3 /* segment-length, jump, value */ + remainingKeyLength;
 
+      // can collapse branch if the key only has a single character left
       boolean collapseRight = remainingKeyLength == 1;
       if (collapseRight) {
         remainingKeyLength = 0;
-        insertedCharacters = 3;
+        insertedCharacters = 3; /* branch-key, value, jump */
       }
 
       int i = dataIndex + newBranch, j = i + insertedCharacters;
@@ -461,7 +469,7 @@ public final class ClassNameTrie {
       // insert our new branch value
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
 
-      int subTrieStart = dataIndex + (branchCount * 3) - 1;
+      int subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
 
       int precedingJump;
       if (newBranch < branchCount) {
@@ -501,7 +509,7 @@ public final class ClassNameTrie {
     }
 
     private int prependNode(int dataIndex, int value) {
-      int insertedCharacters = 2;
+      int insertedCharacters = 2; /* branch count, value */
 
       // can collapse branch if it would lead to a leaf segment of zero-length
       boolean collapseRight = value == 0 && (trieData[dataIndex + 1] & LEAF_MARKER) != 0;
@@ -523,7 +531,7 @@ public final class ClassNameTrie {
     }
 
     private int insertBud(int dataIndex, int value, int segmentEnd) {
-      int insertedCharacters = 4;
+      int insertedCharacters = 4; // branch count (bud), value, branch count (rest), segment-length
       int pivot = dataIndex + 2;
 
       // can collapse right branch if it would lead to a leaf segment of zero-length
@@ -550,7 +558,8 @@ public final class ClassNameTrie {
 
     private int insertLeafLeft(int dataIndex, String key, int keyIndex, int value, int segmentEnd) {
       int remainingKeyLength = key.length() - keyIndex;
-      int insertedCharacters = 5 + remainingKeyLength;
+      int insertedCharacters =
+          5 /* branch count, 2 * segment-length, jump, value */ + remainingKeyLength;
       int pivot = dataIndex + 1;
 
       // can collapse left branch if the key only has a single character left
@@ -589,7 +598,8 @@ public final class ClassNameTrie {
     private int insertLeafRight(
         int dataIndex, String key, int keyIndex, int value, int segmentEnd, int subTrieEnd) {
       int remainingKeyLength = key.length() - keyIndex;
-      int insertedCharacters = 5 + remainingKeyLength;
+      int insertedCharacters =
+          5 /* branch count, 2 * segment-length, jump, value */ + remainingKeyLength;
       int pivot = dataIndex + 1;
 
       // can collapse left branch if it would lead to a leaf segment of zero-length
@@ -627,7 +637,7 @@ public final class ClassNameTrie {
 
     private int appendLeaf(int dataIndex, String key, int keyIndex, int value) {
       int remainingKeyLength = key.length() - keyIndex;
-      int insertedCharacters = 3 + remainingKeyLength;
+      int insertedCharacters = 3 /* branch count, segment-length, value */ + remainingKeyLength;
 
       // if we're adding this to a leaf segment then we need to introduce a bud first
       boolean insertBud = dataIndex < trieLength && (trieData[dataIndex] & LEAF_MARKER) != 0;
