@@ -14,4 +14,6 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_POLL_INTERVAL = "debugger.poll.interval";
   public static final String DEBUGGER_DIAGNOSTICS_INTERVAL = "debugger.diagnostics.interval";
   public static final String DEBUGGER_VERIFY_BYTECODE = "debugger.verify.bytecode";
+  public static final String DEBUGGER_INSTRUMENT_THE_WORLD = "debugger.instrument.the.world";
+  public static final String DEBUGGER_EXCLUDE_FILE = "debugger.exclude.file";
 }

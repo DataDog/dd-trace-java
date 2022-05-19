@@ -19,6 +19,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
@@ -92,6 +93,8 @@ import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
@@ -493,6 +496,8 @@ public class Config {
   private final int debuggerBatchSize;
   private final long debuggerMaxPayloadSize;
   private final boolean debuggerVerifyByteCode;
+  private final boolean debuggerInstrumentTheWorld;
+  private final String debuggerExcludeFile;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1050,6 +1055,10 @@ public class Config {
             * 1024;
     debuggerVerifyByteCode =
         configProvider.getBoolean(DEBUGGER_VERIFY_BYTECODE, DEFAULT_DEBUGGER_VERIFY_BYTECODE);
+    debuggerInstrumentTheWorld =
+        configProvider.getBoolean(
+            DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
+    debuggerExcludeFile = configProvider.getString(DEBUGGER_EXCLUDE_FILE);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -1665,6 +1674,14 @@ public class Config {
 
   public boolean isDebuggerVerifyByteCode() {
     return debuggerVerifyByteCode;
+  }
+
+  public boolean isDebuggerInstrumentTheWorld() {
+    return debuggerInstrumentTheWorld;
+  }
+
+  public String getDebuggerExcludeFile() {
+    return debuggerExcludeFile;
   }
 
   public String getFinalDebuggerProbeUrl() {

@@ -88,6 +88,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
   static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
+  static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
