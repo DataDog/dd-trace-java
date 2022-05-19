@@ -8,14 +8,14 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.description.type.TypeList
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class SafeHasSuperTypeMatcherTest extends AbstractHierarchyMatcherTest {
 
   def "test matcher #matcherClass.simpleName -> #type.simpleName"() {
     expect:
-    safeHasSuperType(matcher).matches(argument) == result
+    hasSuperType(matcher).matches(argument) == result
 
     where:
     matcherClass | type | result
@@ -37,7 +37,7 @@ class SafeHasSuperTypeMatcherTest extends AbstractHierarchyMatcherTest {
     setup:
     def type = Mock(TypeDescription)
     def typeGeneric = Mock(TypeDescription.Generic)
-    def matcher = safeHasSuperType(named(Object.name))
+    def matcher = hasSuperType(named(Object.name))
 
     when:
     def result = matcher.matches(type)
@@ -59,7 +59,7 @@ class SafeHasSuperTypeMatcherTest extends AbstractHierarchyMatcherTest {
     setup:
     def type = Mock(TypeDescription)
     def typeGeneric = Mock(TypeDescription.Generic)
-    def matcher = safeHasSuperType(named(Object.name))
+    def matcher = hasSuperType(named(Object.name))
     def interfaces = Mock(TypeList.Generic)
     def it = new ThrowOnFirstElement()
 

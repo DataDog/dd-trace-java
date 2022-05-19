@@ -5,6 +5,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.matcher.PrebuiltIgnoresMatcher;
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
@@ -76,6 +78,7 @@ public class AgentInstaller {
 
     FieldBackedContextProvider.resetContextMatchers();
     DDCachingPoolStrategy.registerAsSupplier();
+    DDElementMatchers.registerAsSupplier();
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher

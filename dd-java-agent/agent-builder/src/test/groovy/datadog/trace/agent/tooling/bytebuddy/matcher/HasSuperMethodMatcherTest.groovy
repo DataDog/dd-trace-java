@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.UntracedClass
 import datadog.trace.api.Trace
 import net.bytebuddy.description.method.MethodDescription
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith
 import static net.bytebuddy.matcher.ElementMatchers.none
 

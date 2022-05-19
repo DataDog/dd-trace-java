@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -30,8 +31,8 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return safeHasSuperType( // search both interfaces (FilterChain) and superclasses (HttpServlet)
-        namedOneOf("javax.servlet.FilterChain", "javax.servlet.http.HttpServlet"));
+    return extendsClass(named("javax.servlet.http.HttpServlet"))
+        .or(implementsInterface(named("javax.servlet.FilterChain")));
   }
 
   @Override

@@ -10,10 +10,10 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.FutureTask
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
@@ -56,9 +56,9 @@ class RealTypeHierarchyMatcherTests extends AbstractHierarchyMatcherTest {
     Runnable                | true               | "accept the interface itself"
   }
 
-  def "test safeHasSuperType: #name"() {
+  def "test hasSuperType: #name"() {
     setup:
-    def matcher = safeHasSuperType(named(Runnable.getName()))
+    def matcher = hasSuperType(named(Runnable.getName()))
 
     expect:
     matcher.matches(new TypeDescription.ForLoadedType(clazz)) == implementsRunnable

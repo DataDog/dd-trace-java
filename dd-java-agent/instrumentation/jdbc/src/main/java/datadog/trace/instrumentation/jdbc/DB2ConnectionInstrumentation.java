@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.DB2PreparedStatementInstrumentation.CLASS_LOADER_MATCHER;
 

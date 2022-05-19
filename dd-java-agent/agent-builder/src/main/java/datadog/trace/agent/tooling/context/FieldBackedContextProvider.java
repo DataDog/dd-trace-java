@@ -1,10 +1,10 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.NOT_DECORATOR_MATCHER;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 
+import datadog.trace.agent.tooling.AgentTransformerBuilder;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -162,9 +162,9 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
              */
             builder =
                 builder
-                    .type(safeHasSuperType(named(keyClassName)), classLoaderMatcher)
+                    .type(hasSuperType(named(keyClassName)), classLoaderMatcher)
                     .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
-                    .and(NOT_DECORATOR_MATCHER)
+                    .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
                     .transform(
                         wrapVisitor(
                             new FieldBackedContextInjector(keyClassName, contextClassName)));

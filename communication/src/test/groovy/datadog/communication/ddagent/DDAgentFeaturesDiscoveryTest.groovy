@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V7_CONFIG_ENDPOINT
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
@@ -55,6 +56,9 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
+    features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
+    features.supportsDebugger()
+    features.getVersion() == "0.99.0"
   }
 
   def "test parse /info response with client dropping"() {

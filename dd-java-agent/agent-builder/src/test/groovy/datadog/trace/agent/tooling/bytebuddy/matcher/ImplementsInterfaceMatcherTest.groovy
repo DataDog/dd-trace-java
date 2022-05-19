@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.description.type.TypeList
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class ImplementsInterfaceMatcherTest extends AbstractHierarchyMatcherTest {

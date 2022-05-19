@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.agent.test.utils.ClasspathUtils
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools
+import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers
 import datadog.trace.agent.tooling.muzzle.TestAdviceClasses.MethodBodyAdvice
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.jar.asm.Type
@@ -19,7 +20,8 @@ import static datadog.trace.agent.tooling.muzzle.Reference.Mismatch.MissingMetho
 
 class ReferenceMatcherTest extends DDSpecification {
   static {
-    DDCachingPoolStrategy.registerAsSupplier()
+    SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache())
+    HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks())
   }
 
   @Shared

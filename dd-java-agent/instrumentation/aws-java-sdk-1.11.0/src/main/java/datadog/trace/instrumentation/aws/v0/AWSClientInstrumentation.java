@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.amazonaws.handlers.RequestHandler2;
