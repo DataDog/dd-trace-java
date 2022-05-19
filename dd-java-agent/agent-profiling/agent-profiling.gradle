@@ -23,6 +23,7 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-openj9')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

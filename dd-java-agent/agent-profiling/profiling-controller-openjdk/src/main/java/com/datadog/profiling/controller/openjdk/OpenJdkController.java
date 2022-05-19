@@ -156,7 +156,7 @@ public final class OpenJdkController implements Controller {
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName) {
+  public OpenJdkOngoingRecording createRecording(final String recordingName) throws Exception {
     return new OpenJdkOngoingRecording(
         recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
   }

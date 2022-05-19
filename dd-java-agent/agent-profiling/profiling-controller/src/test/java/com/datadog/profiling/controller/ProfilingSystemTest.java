@@ -78,7 +78,7 @@ public class ProfilingSystemTest {
 
   @SuppressWarnings("unchecked")
   @BeforeEach
-  public void setup() {
+  public void setup() throws Exception {
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
     when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
@@ -161,7 +161,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdown() throws ConfigurationException {
+  public void testShutdown() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
@@ -181,7 +181,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdownWithRunningProfilingRecording() throws ConfigurationException {
+  public void testShutdownWithRunningProfilingRecording() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
@@ -201,7 +201,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testForceEarlySTartup() throws ConfigurationException {
+  public void testForceEarlySTartup() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
@@ -218,7 +218,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdownInterruption() throws ConfigurationException {
+  public void testShutdownInterruption() throws Exception {
     final Thread mainThread = Thread.currentThread();
     doAnswer(
             (InvocationOnMock invocation) -> {
@@ -270,7 +270,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testDoesntSendDataIfNotStarted() throws InterruptedException, ConfigurationException {
+  public void testDoesntSendDataIfNotStarted() throws Exception {
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
@@ -449,7 +449,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testEarlyShutdownException() throws InterruptedException, ConfigurationException {
+  public void testEarlyShutdownException() throws Exception {
     when(controller.createRecording(any()))
         .thenThrow(new IllegalStateException("Shutdown in progress"));
 

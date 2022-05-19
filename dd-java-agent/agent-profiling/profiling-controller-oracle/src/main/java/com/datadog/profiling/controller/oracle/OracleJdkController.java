@@ -47,7 +47,8 @@ public final class OracleJdkController implements Controller {
 
   @Override
   @Nonnull
-  public OracleJdkOngoingRecording createRecording(@Nonnull final String recordingName) {
+  public OracleJdkOngoingRecording createRecording(@Nonnull final String recordingName)
+      throws Exception {
     try {
       log.debug("Attempting to create a new recording with name '{}'", recordingName);
       return new OracleJdkOngoingRecording(

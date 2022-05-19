@@ -27,6 +27,18 @@ public final class AsyncProfiler {
 
   public static final String TYPE = "async";
 
+  private static final class Singleton {
+    private static final AsyncProfiler INSTANCE;
+
+    static {
+      try {
+        INSTANCE = new AsyncProfiler();
+      } catch (Throwable t) {
+        throw new RuntimeException(t);
+      }
+    }
+  }
+
   private final long memleakIntervalDefault;
 
   private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
@@ -34,7 +46,11 @@ public final class AsyncProfiler {
   private final one.profiler.AsyncProfiler asyncProfiler;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
-  public AsyncProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
+  private AsyncProfiler() throws UnsupportedEnvironmentException {
+    this(ConfigProvider.getInstance());
+  }
+
+  AsyncProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
     this.configProvider = configProvider;
     String libDir = configProvider.getString(ProfilingConfig.PROFILING_ASYNC_LIBPATH);
     if (libDir != null && Files.exists(Paths.get(libDir))) {
@@ -68,6 +84,10 @@ public final class AsyncProfiler {
     long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     this.memleakIntervalDefault =
         maxheap <= 0 ? 1 * 1024 * 1024 : maxheap / Math.max(1, getMemleakCapacity());
+  }
+
+  public static AsyncProfiler getInstance() {
+    return Singleton.INSTANCE;
   }
 
   private static one.profiler.AsyncProfiler inferFromOsAndArch()
@@ -130,6 +150,7 @@ public final class AsyncProfiler {
       try {
         return new AsyncProfilerRecording(this);
       } catch (IOException | IllegalStateException e) {
+        log.debug("Failed to start async profiler recording", e);
         return null;
       }
     }

@@ -18,9 +18,33 @@ package com.datadog.profiling.controller;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Factory used to get a {@link Controller}. */
 public final class ControllerFactory {
+  private static final Logger log = LoggerFactory.getLogger(ControllerFactory.class);
+
+  private static enum Implementation {
+    NONE(),
+    ORACLE("com.datadog.profiling.controller.oracle.OracleJdkController"),
+    OPENJDK("com.datadog.profiling.controller.openjdk.OpenJdkController"),
+    OPENJ9("com.datadog.profiling.controller.openj9.OpenJ9Controller");
+
+    private final String className;
+
+    Implementation() {
+      this.className = null;
+    }
+
+    Implementation(String className) {
+      this.className = className;
+    }
+
+    String className() {
+      return className;
+    }
+  }
 
   /**
    * Returns the created controller.
@@ -33,44 +57,47 @@ public final class ControllerFactory {
   @SuppressForbidden
   public static Controller createController(final ConfigProvider configProvider)
       throws UnsupportedEnvironmentException, ConfigurationException {
-    boolean isOracleJfr = false;
-    boolean isOpenJdkJfr = false;
+    Implementation impl = Implementation.NONE;
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
-      isOracleJfr = true;
+      impl = Implementation.ORACLE;
     } catch (ClassNotFoundException ignored) {
       // expected
     }
-    if (!isOracleJfr) {
+    if (impl == Implementation.NONE) {
       try {
         Class.forName("jdk.jfr.Event");
-        isOpenJdkJfr = true;
+        impl = Implementation.OPENJDK;
       } catch (ClassNotFoundException ignored) {
         // expected
       }
     }
-    if (isOracleJfr || isOpenJdkJfr) {
-      try {
-
-        final Class<? extends Controller> controller =
-            Class.forName(
-                    isOracleJfr
-                        ? "com.datadog.profiling.controller.oracle.OracleJdkController"
-                        : "com.datadog.profiling.controller.openjdk.OpenJdkController")
-                .asSubclass(Controller.class);
-        return controller.getDeclaredConstructor(ConfigProvider.class).newInstance(configProvider);
-      } catch (final ClassNotFoundException
-          | NoSuchMethodException
-          | InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException e) {
-        if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
-          throw (ConfigurationException) e.getCause();
-        }
-        throw new UnsupportedEnvironmentException(getFixProposalMessage(), e);
+    if (impl == Implementation.NONE) {
+      if (System.getProperty("java.vendor").equals("IBM Corporation")
+          && System.getProperty("java.runtime.name").startsWith("IBM Semeru Runtime")) {
+        impl = Implementation.OPENJ9;
       }
     }
-    throw new UnsupportedEnvironmentException(getFixProposalMessage());
+    if (impl == Implementation.NONE) {
+      throw new UnsupportedEnvironmentException(getFixProposalMessage());
+    }
+
+    try {
+      log.debug("Trying to load " + impl.className());
+      return Class.forName(impl.className())
+          .asSubclass(Controller.class)
+          .getDeclaredConstructor(ConfigProvider.class)
+          .newInstance(configProvider);
+    } catch (final ClassNotFoundException
+        | NoSuchMethodException
+        | InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException e) {
+      if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
+        throw (ConfigurationException) e.getCause();
+      }
+      throw new UnsupportedEnvironmentException(getFixProposalMessage(), e);
+    }
   }
 
   private static String getFixProposalMessage() {
