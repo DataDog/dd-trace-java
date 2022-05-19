@@ -13,17 +13,17 @@ import org.slf4j.LoggerFactory;
 final class AsyncProfilerRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(AsyncProfilerRecording.class);
 
-  private final AuxiliaryAsyncProfiler profiler;
+  private final AsyncProfiler profiler;
   private volatile Path recordingFile;
   private final Instant started = Instant.now();
 
   /**
-   * Do not use this constructor directly. Rather use {@linkplain AuxiliaryAsyncProfiler#start()}
+   * Do not use this constructor directly. Rather use {@linkplain AsyncProfiler#start()}
    *
    * @param profiler the associated profiler
    * @throws IOException
    */
-  AsyncProfilerRecording(AuxiliaryAsyncProfiler profiler) throws IOException {
+  AsyncProfilerRecording(AsyncProfiler profiler) throws IOException {
     this.profiler = profiler;
     this.recordingFile = profiler.newRecording();
   }

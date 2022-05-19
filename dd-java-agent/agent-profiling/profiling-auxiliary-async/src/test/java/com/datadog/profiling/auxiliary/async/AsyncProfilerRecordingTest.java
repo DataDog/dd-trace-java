@@ -17,12 +17,12 @@ import org.slf4j.LoggerFactory;
 class AsyncProfilerRecordingTest {
   private static final Logger log = LoggerFactory.getLogger(AsyncProfilerRecordingTest.class);
 
-  private AuxiliaryAsyncProfiler profiler;
+  private AsyncProfiler profiler;
   private AsyncProfilerRecording recording;
 
   @BeforeEach
   void setup() throws Exception {
-    profiler = new AuxiliaryAsyncProfiler(ConfigProvider.getInstance());
+    profiler = new AsyncProfiler(ConfigProvider.getInstance());
     log.info(
         "Async Profiler: available={}, active={}", profiler.isAvailable(), profiler.isActive());
     Assume.assumeTrue(profiler.isAvailable());
