@@ -493,7 +493,7 @@ public class Config {
   private final int debuggerDiagnosticsInterval;
   private final boolean debuggerMetricEnabled;
   private final String debuggerProbeFileLocation;
-  private final int debuggerBatchSize;
+  private final int debuggerUploadBatchSize;
   private final long debuggerMaxPayloadSize;
   private final boolean debuggerVerifyByteCode;
   private final boolean debuggerInstrumentTheWorld;
@@ -1048,7 +1048,7 @@ public class Config {
             && configProvider.getBoolean(
                 DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
     debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
-    debuggerBatchSize =
+    debuggerUploadBatchSize =
         configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
     debuggerMaxPayloadSize =
         configProvider.getInteger(DEBUGGER_MAX_PAYLOAD_SIZE, DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE)
@@ -1664,8 +1664,8 @@ public class Config {
     return debuggerMetricEnabled;
   }
 
-  public int getDebuggerBatchSize() {
-    return debuggerBatchSize;
+  public int getDebuggerUploadBatchSize() {
+    return debuggerUploadBatchSize;
   }
 
   public long getDebuggerMaxPayloadSize() {
@@ -2640,6 +2640,36 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", debuggerEnabled="
+        + debuggerEnabled
+        + ", debuggerSnapshotUrl="
+        + debuggerSnapshotUrl
+        + ", debuggerProbeUrl="
+        + debuggerProbeUrl
+        + ", debuggerUploadTimeout="
+        + debuggerUploadTimeout
+        + ", debuggerUploadFlushInterval="
+        + debuggerUploadFlushInterval
+        + ", debuggerClassFileDumpEnabled="
+        + debuggerClassFileDumpEnabled
+        + ", debuggerPollInterval="
+        + debuggerPollInterval
+        + ", debuggerDiagnosticsInterval="
+        + debuggerDiagnosticsInterval
+        + ", debuggerMetricEnabled="
+        + debuggerMetricEnabled
+        + ", debuggerProbeFileLocation="
+        + debuggerProbeFileLocation
+        + ", debuggerUploadBatchSize="
+        + debuggerUploadBatchSize
+        + ", debuggerMaxPayloadSize="
+        + debuggerMaxPayloadSize
+        + ", debuggerVerifyByteCode="
+        + debuggerVerifyByteCode
+        + ", debuggerInstrumentTheWorld="
+        + debuggerInstrumentTheWorld
+        + ", debuggerExcludeFile="
+        + debuggerExcludeFile
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
