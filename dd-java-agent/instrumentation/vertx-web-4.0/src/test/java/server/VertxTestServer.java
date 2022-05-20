@@ -30,6 +30,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 
 public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
+  public static final String PORT_DATA_ADDRESS = "PORT_DATA";
 
   @Override
   public void start(final Promise<Void> startPromise) {
@@ -186,7 +187,17 @@ public class VertxTestServer extends AbstractVerticle {
 
     router = customizeAfterRoutes(router);
 
-    vertx.createHttpServer().requestHandler(router).listen(port, event -> startPromise.complete());
+    vertx.createHttpServer().requestHandler(router).listen(port, event -> {
+      // send this though event bus and succed deploy after successfull response
+      int actualPort = event.result().actualPort();
+      vertx.eventBus().request(PORT_DATA_ADDRESS, actualPort, ar -> {
+        if (ar.succeeded()) {
+          startPromise.complete();
+        } else {
+          startPromise.fail(ar.cause());
+        }
+      });
+    });
   }
 
   protected void customizeBeforeRoutes(Router router) {}

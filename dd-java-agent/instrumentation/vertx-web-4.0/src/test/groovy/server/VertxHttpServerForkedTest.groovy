@@ -22,7 +22,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   private class VertxServer implements HttpServer {
     private VertxInternal server
     private String routerBasePath
-    private port = 12420
+    private port
 
     VertxServer(String routerBasePath) {
       this.routerBasePath = routerBasePath
@@ -33,15 +33,21 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
       server = Vertx.vertx()
 
       final CompletableFuture<Void> future = new CompletableFuture<>()
+      server.eventBus().localConsumer("PORT_DATA")
+        .handler({ message -> 
+          port = message.body();
+          message.reply(null);
+          future.complete(null);
+        })
+
       server.deployVerticle(verticle().name,
         new DeploymentOptions()
-        .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, port))
+        .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, 0))
         .setInstances(1)) { res ->
           if (!res.succeeded()) {
             throw new RuntimeException("Cannot deploy server Verticle", res.cause())
           }
-          future.complete(null)
-        }
+      }
       future.get()
     }
 
