@@ -18,6 +18,12 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class communicates with the serverless extension on start invocation and on end invocation.
+ * The extension is responsible to parse the context and create the invocation span. The tracer will
+ * also create the span (to be dropped by the extension) so newly created spans will be parenting to
+ * the right span.
+ */
 public class LambdaHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaHandler.class);
