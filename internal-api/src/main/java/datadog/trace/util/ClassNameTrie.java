@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.BitSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -97,7 +97,11 @@ public final class ClassNameTrie {
   /** Marks a long jump that was replaced by an index into the long jump table. */
   private static final char LONG_JUMP_MARKER = 0x8000;
 
-  private static final int[] NO_LONG_JUMPS = {};
+  /** A branch has at most 3 control characters: key, value, and optional jump offset/id. */
+  private static final int BRANCH_CONTROL_CHARS = 3;
+
+  /** Constant to account for the fact that the last branch doesn't have a jump offset/id. */
+  private static final int NO_END_JUMP = 1;
 
   /** The compressed trie. */
   private final char[] trieData;
@@ -106,7 +110,10 @@ public final class ClassNameTrie {
   private final int[] longJumps;
 
   public int apply(String key) {
-    char[] data = trieData;
+    return apply(trieData, longJumps, key);
+  }
+
+  public static int apply(char[] data, int[] longJumps, String key) {
     int keyLength = key.length();
     int keyIndex = 0;
     int dataIndex = 0;
@@ -143,16 +150,15 @@ public final class ClassNameTrie {
 
       // move on to the segment/node for the picked branch...
       if (branchIndex > dataIndex) {
-        int jumpIndex = valueIndex + branchCount - 1;
-        int nextJump = data[jumpIndex];
-        if ((nextJump & LONG_JUMP_MARKER) != 0) {
-          nextJump = longJumps[nextJump & ~LONG_JUMP_MARKER];
+        int branchJump = data[valueIndex + branchCount - 1];
+        if ((branchJump & LONG_JUMP_MARKER) != 0) {
+          branchJump = longJumps[branchJump & ~LONG_JUMP_MARKER];
         }
-        dataIndex += nextJump;
+        dataIndex += branchJump;
       }
 
       // ...always include moving past the current node
-      dataIndex += (branchCount * 3) - 1;
+      dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
 
       // attempt to match any inline segment that precedes the next node
       if (segmentLength > 0) {
@@ -181,34 +187,7 @@ public final class ClassNameTrie {
     return result; // no more characters left to match in the key
   }
 
-  public static ClassNameTrie create(String trieData) {
-    return create(trieData, NO_LONG_JUMPS);
-  }
-
-  public static ClassNameTrie create(String[] trieData) {
-    return create(trieData, NO_LONG_JUMPS);
-  }
-
-  public static ClassNameTrie create(String trieData, int[] longJumps) {
-    return new ClassNameTrie(trieData.toCharArray(), longJumps);
-  }
-
-  public static ClassNameTrie create(String[] trieData, int[] longJumps) {
-    int dataLength = 0;
-    for (String chunk : trieData) {
-      dataLength += chunk.length();
-    }
-    char[] data = new char[dataLength];
-    int dataIndex = 0;
-    for (String chunk : trieData) {
-      int chunkLength = chunk.length();
-      System.arraycopy(chunk.toCharArray(), 0, data, dataIndex, chunkLength);
-      dataIndex += chunkLength;
-    }
-    return new ClassNameTrie(data, longJumps);
-  }
-
-  private ClassNameTrie(char[] trieData, int[] longJumps) {
+  ClassNameTrie(char[] trieData, int[] longJumps) {
     this.trieData = trieData;
     this.longJumps = longJumps;
   }
@@ -217,35 +196,19 @@ public final class ClassNameTrie {
   public static class Builder {
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
 
-    private final List<String> keys = new ArrayList<>();
-    private final StringBuilder values = new StringBuilder();
+    private char[] trieData = new char[8192];
+    private int trieLength = 0;
+    private int[] longJumps = new int[16];
+    private int longJumpCount = 0;
 
-    private final StringBuilder buf = new StringBuilder();
-    private int[] longJumps = {};
+    public boolean isEmpty() {
+      return trieLength == 0;
+    }
 
-    public void put(String className, int number) {
-      if (number < 0) {
-        throw new IllegalArgumentException("Number for " + className + " is negative: " + number);
-      }
-      if (number > MAX_NODE_VALUE) {
-        throw new IllegalArgumentException("Number for " + className + " is too big: " + number);
-      }
-      String key;
-      char value;
-      // package/class-names ending in '*' are marked as globs
-      if (className.charAt(className.length() - 1) == '*') {
-        key = className.substring(0, className.length() - 1);
-        value = (char) (number | GLOB_MARKER);
-      } else {
-        key = className;
-        value = (char) number;
-      }
-      // invert binarySearch result to get insertion point that maintains the natural order
-      int index = ~Collections.binarySearch(keys, key);
-      if (index >= 0) {
-        keys.add(index, key);
-        values.insert(index, value);
-      } // else ignore class names that already exist in the trie
+    public ClassNameTrie buildTrie() {
+      return new ClassNameTrie(
+          Arrays.copyOfRange(trieData, 0, trieLength),
+          Arrays.copyOfRange(longJumps, 0, longJumpCount));
     }
 
     /** Reads a class-name mapping file into the current builder */
@@ -258,137 +221,455 @@ public final class ClassNameTrie {
       }
     }
 
-    public boolean isEmpty() {
-      return keys.isEmpty();
+    /** Merges a new class-name mapping into the current builder */
+    public void put(String className, int number) {
+      if (number < 0) {
+        throw new IllegalArgumentException("Number for " + className + " is negative: " + number);
+      }
+      if (number > MAX_NODE_VALUE) {
+        throw new IllegalArgumentException("Number for " + className + " is too big: " + number);
+      }
+
+      String key;
+      char value;
+      // package/class-names ending in '*' are marked as globs
+      if (className.charAt(className.length() - 1) == '*') {
+        key = className.substring(0, className.length() - 1);
+        value = (char) (number | GLOB_MARKER);
+      } else {
+        key = className;
+        value = (char) number;
+      }
+
+      if (trieLength == 0) {
+        int keyLength = key.length();
+        trieLength = (keyLength > 1 ? 3 : 2) + keyLength;
+        trieData[0] = (char) 1;
+        trieData[1] = key.charAt(0);
+        if (keyLength > 1) {
+          trieData[2] = (char) (keyLength - 1);
+          key.getChars(1, keyLength, trieData, 3);
+        }
+        trieData[trieLength - 1] = (char) (value | LEAF_MARKER);
+      } else {
+        insertMapping(key, value);
+      }
     }
 
-    public ClassNameTrie buildTrie() {
-      buildSubTrie(0, 0, keys.size());
-      char[] data = new char[buf.length()];
-      buf.getChars(0, data.length, data, 0);
-      return new ClassNameTrie(data, longJumps);
+    /** Makes a hole in the current trie data to fit a new node/branch, etc. */
+    private void makeHole(int start, int length) {
+      char[] oldData = trieData;
+      if (trieLength + length > oldData.length) {
+        trieData = new char[Math.max(trieLength + length, oldData.length + (oldData.length >> 1))];
+        System.arraycopy(oldData, 0, trieData, 0, start);
+      }
+      System.arraycopy(oldData, start, trieData, start + length, trieLength - start);
+      trieLength += length;
     }
 
-    /** Recursively builds a trie for a slice of rows at a particular column. */
-    private void buildSubTrie(int column, int row, int rowLimit) {
-      int trieStart = buf.length();
+    /** Moves jump values that won't fit into the long-jump table and replaces them with an id. */
+    private char setJump(int jump) {
+      if (jump < LONG_JUMP_MARKER) {
+        return (char) jump; // jump is small enough to fit into the trie
+      }
+      if (longJumpCount == longJumps.length) {
+        int[] oldJumps = longJumps;
+        longJumps = new int[longJumpCount + (longJumpCount >> 1)];
+        System.arraycopy(oldJumps, 0, longJumps, 0, longJumpCount);
+      }
+      longJumps[longJumpCount] = jump;
+      return (char) (longJumpCount++ | LONG_JUMP_MARKER);
+    }
 
-      int prevRow = row;
-      int branchCount = 0;
-      int nextJump = 0;
+    /** Restores jump values previously moved into the long-jump table. */
+    private int getJump(char jump) {
+      return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
+    }
 
-      while (prevRow < rowLimit) {
-        String key = keys.get(prevRow);
-        int columnLimit = key.length();
+    /**
+     * Increases jump by the given offset, this may result in it moving into the long-jump table.
+     */
+    private char updateJump(char jump, int offset) {
+      if (jump < LONG_JUMP_MARKER) {
+        return setJump(jump + offset);
+      }
+      longJumps[jump & ~LONG_JUMP_MARKER] += offset;
+      return jump;
+    }
 
-        char pivot = key.charAt(column);
+    private void insertMapping(String key, char valueToInsert) {
+      BitSet jumpsToOffset = new BitSet();
 
-        // find the row that marks the start of the next branch, and the end of this one
-        int nextRow = nextPivotRow(pivot, column, prevRow, rowLimit);
+      int keyLength = key.length();
+      int keyIndex = 0;
+      int dataIndex = 0;
+      int subTrieEnd = trieLength;
+      int jumpOffset = 0;
 
-        // find the column along this branch that marks the next decision point/pivot
-        int nextColumn = nextPivotColumn(column, prevRow, nextRow);
+      while (keyIndex < keyLength) {
+        char c = key.charAt(keyIndex++);
+        char branchCount = trieData[dataIndex++];
 
-        // adjust pivot point if it would involve adding a bud spanning more than one column
-        if (nextColumn == columnLimit && nextColumn - column > 1 && nextRow - prevRow > 1) {
-          // move it back so this becomes a jump branch followed immediately by sub-trie bud
-          nextColumn--;
+        // trie is ordered, so we can use binary search to pick the right branch
+        int branchIndex =
+            Arrays.binarySearch(trieData, dataIndex, dataIndex + branchCount, c == '/' ? '.' : c);
+
+        if (branchIndex < 0) {
+          jumpOffset =
+              insertBranch(
+                  dataIndex,
+                  key,
+                  keyIndex - 1,
+                  valueToInsert,
+                  branchCount,
+                  ~branchIndex - dataIndex,
+                  subTrieEnd);
+          break;
         }
 
-        // record the character for this branch
-        int branchIndex = trieStart + branchCount;
-        buf.insert(branchIndex, pivot);
+        int valueIndex = branchIndex + branchCount;
+        char value = trieData[valueIndex];
 
-        int valueIndex = branchIndex + 1 + branchCount;
+        if ((value & (LEAF_MARKER | BUD_MARKER)) != 0 && keyIndex == keyLength) {
+          return; // ignore duplicate key
+        }
 
-        // any sub tries will start after the value (to be inserted)
-        int subTrieStart = buf.length() + 1;
+        int branch = branchIndex - dataIndex;
+        if (branch < branchCount - 1) {
+          int nextJumpIndex = valueIndex + branchCount;
+          int nextBranchJump = getJump(trieData[nextJumpIndex]);
 
-        if (nextColumn < columnLimit) {
-          // same row, record the segment before processing rest of the row as sub trie
-          if (nextColumn - column > 1) {
-            String segment = key.substring(column + 1, nextColumn);
-            buf.insert(valueIndex, (char) segment.length());
-            buf.append(segment);
-          } else {
-            buf.insert(valueIndex, (char) 0);
+          // update subTrieEnd to reflect we've moved down a left/centre branch
+          subTrieEnd =
+              dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP + nextBranchJump;
+
+          // remember to update jump offsets on right once we know how much we've added
+          for (int b = branch + 1; b < branchCount; b++) {
+            jumpsToOffset.set(nextJumpIndex++);
           }
-          buildSubTrie(nextColumn, prevRow, nextRow);
-        } else {
-          // build next row as sub trie, this tells us if current value is a leaf or bud
-          buildSubTrie(nextColumn, prevRow + 1, nextRow);
-          if (subTrieStart > buf.length()) {
-            // no more branches so record last segment followed by a leaf
-            if (nextColumn - column > 1) {
-              String segment = key.substring(column + 1, nextColumn);
-              buf.insert(valueIndex, (char) segment.length());
-              buf.append(segment);
-              buf.append((char) (values.charAt(prevRow) | LEAF_MARKER));
-            } else {
-              buf.insert(valueIndex, (char) (values.charAt(prevRow) | LEAF_MARKER));
+        }
+
+        // move on to the segment/node for the picked branch...
+        if (branch > 0) {
+          dataIndex += getJump(trieData[valueIndex + branchCount - 1]);
+        }
+
+        // ...always include moving past the current node
+        dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
+
+        if ((value & LEAF_MARKER) != 0) {
+          // change leaf branch to a bud and append our new leaf node below it
+          trieData[valueIndex] = (char) ((value & ~LEAF_MARKER) | BUD_MARKER);
+          jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+          break;
+        } else if ((value & BUD_MARKER) != 0) {
+          // ignore bud as we still have more of the key to match
+          continue;
+        } else if (keyIndex == keyLength) {
+          // branch originally led to a segment - record it's now a bud
+          trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
+          if (value > 0) {
+            // add the usual node preamble before the old segment
+            jumpOffset = prependNode(dataIndex, value - 1);
+          }
+          break;
+        }
+
+        // must be a segment - try to match as much as possible before we insert a bud/leaf
+        if (value > 0) {
+          int segmentLength = value;
+          int segmentEnd = dataIndex + segmentLength;
+          while (keyIndex < keyLength && dataIndex < segmentEnd) {
+            c = key.charAt(keyIndex);
+            if ((c == '/' ? '.' : c) != trieData[dataIndex]) {
+              break;
             }
-          } else {
-            // we added more branches, so record value and mark it as a bud
-            buf.insert(valueIndex, (char) (values.charAt(prevRow) | BUD_MARKER));
+            keyIndex++;
+            dataIndex++;
+          }
+          if (dataIndex < segmentEnd) {
+            if (keyIndex == keyLength) {
+              // key is shorter than segment; add bud at the point the key ends
+              trieData[valueIndex] -= segmentEnd - (dataIndex - 1);
+              jumpOffset = insertBud(dataIndex - 1, valueToInsert, segmentEnd);
+            } else {
+              // key diverges from segment; add leaf on left/right to capture that
+              trieData[valueIndex] -= segmentEnd - dataIndex;
+              if (c < trieData[dataIndex]) {
+                jumpOffset = insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
+              } else {
+                jumpOffset =
+                    insertLeafRight(
+                        dataIndex, key, keyIndex, valueToInsert, segmentEnd, subTrieEnd);
+              }
+            }
+            break; // nothing more to add
+          }
+
+          // peek ahead - it will either be a node or a leaf
+          value = trieData[dataIndex];
+          if ((value & LEAF_MARKER) != 0) {
+            if (keyIndex < keyLength) {
+              // key goes past leaf segment, extend old leaf with a bud node and add our new leaf
+              trieData[valueIndex]--;
+              jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+              break;
+            }
+          } else /* segment is followed by a node */ {
+            if (keyIndex == keyLength) {
+              // key stops at boundary between segment and node, insert bud node just before this
+              trieData[valueIndex]--;
+              jumpOffset = prependNode(dataIndex - 1, valueToInsert | BUD_MARKER);
+              break;
+            }
           }
         }
-
-        if (nextRow < rowLimit) {
-          // child sub-tries have been added, so can now calculate jump to next branch
-          int jumpIndex = valueIndex + 1 + branchCount;
-          nextJump += buf.length() - subTrieStart;
-          if (nextJump >= LONG_JUMP_MARKER) {
-            // jump too big for a single char, record its long jump index instead
-            int longJumpIndex = longJumps.length;
-            longJumps = Arrays.copyOf(longJumps, longJumpIndex + 1);
-            longJumps[longJumpIndex] = nextJump;
-            buf.insert(jumpIndex, (char) (LONG_JUMP_MARKER | longJumpIndex));
-          } else {
-            buf.insert(jumpIndex, (char) nextJump);
-          }
-        }
-
-        prevRow = nextRow;
-        branchCount++;
       }
 
-      if (branchCount > 0) {
-        buf.insert(trieStart, (char) branchCount);
+      if (jumpOffset > 0) {
+        // now we know how much we added, update all jumps that need to jump past our addition
+        for (int i = jumpsToOffset.nextSetBit(0); i >= 0; i = jumpsToOffset.nextSetBit(i + 1)) {
+          trieData[i] = updateJump(trieData[i], jumpOffset);
+        }
       }
     }
 
-    /**
-     * Finds the next row that has a different character in the selected column to the given one, or
-     * is too short to include the column. This determines the span of rows that fall under the
-     * given character in the trie.
-     *
-     * <p>Returns the row just after the end of the range if all rows have the same character.
-     */
-    private int nextPivotRow(char pivot, int column, int row, int rowLimit) {
-      for (int r = row + 1; r < rowLimit; r++) {
-        String key = keys.get(r);
-        if (key.length() <= column || key.charAt(column) != pivot) {
-          return r;
-        }
+    private int insertBranch(
+        int dataIndex,
+        String key,
+        int keyIndex,
+        int value,
+        int branchCount,
+        int newBranch,
+        int subTrieEnd) {
+
+      int remainingKeyLength = key.length() - keyIndex;
+      int insertedCharacters = 3 /* segment-length, jump, value */ + remainingKeyLength;
+
+      // can collapse branch if the key only has a single character left
+      boolean collapseRight = remainingKeyLength == 1;
+      if (collapseRight) {
+        remainingKeyLength = 0;
+        insertedCharacters = 3; /* branch-key, value, jump */
       }
-      return rowLimit;
+
+      int i = dataIndex + newBranch, j = i + insertedCharacters;
+
+      makeHole(i, insertedCharacters);
+
+      // update branch count leading into our branches
+      trieData[dataIndex - 1] = (char) (branchCount + 1);
+
+      // insert our new branch key
+      trieData[i++] = key.charAt(keyIndex);
+      System.arraycopy(trieData, j, trieData, i, branchCount);
+      i += branchCount;
+      j += branchCount;
+
+      // insert our new branch value
+      trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
+
+      int subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
+
+      int precedingJump;
+      if (newBranch < branchCount) {
+        // adding branch on left/centre
+        System.arraycopy(trieData, j, trieData, i, branchCount);
+        i += branchCount;
+        j += branchCount;
+        precedingJump = newBranch > 0 ? getJump(trieData[i - 1]) : 0;
+        // calculate jump for next branch, using previous jump as a reference
+        trieData[i++] = setJump(precedingJump + remainingKeyLength);
+        for (int b = newBranch + 1; b < branchCount; b++) {
+          // update old branch jumps on right to account for added content
+          trieData[i++] = updateJump(trieData[j++], remainingKeyLength);
+        }
+      } else {
+        // adding branch on right
+        System.arraycopy(trieData, j, trieData, i, branchCount - 1);
+        i += branchCount - 1;
+        j += branchCount - 1;
+        // calculate jump needed to reach our new branch based on the size of the old sub-trie
+        precedingJump = subTrieEnd - subTrieStart;
+        trieData[i++] = setJump(precedingJump);
+      }
+
+      // now move up the sub-trie content before our new branch
+      System.arraycopy(trieData, subTrieStart + insertedCharacters, trieData, i, precedingJump);
+      i += precedingJump;
+
+      if (!collapseRight) {
+        // lastly add the rest of our key as a leaf segment under our new branch
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
+        i += remainingKeyLength - 1;
+        trieData[i++] = (char) (value | LEAF_MARKER);
+      }
+
+      return insertedCharacters;
     }
 
-    /**
-     * Finds the next column in the current row whose character differs in at least one other row.
-     * This helps identify the longest common prefix from the current pivot point to the next one.
-     *
-     * <p>Returns the column just after the end of the current row if all rows are identical.
-     */
-    private int nextPivotColumn(int column, int row, int rowLimit) {
-      String key = keys.get(row);
-      int columnLimit = key.length();
-      for (int c = column + 1; c < columnLimit; c++) {
-        if (nextPivotRow(key.charAt(c), c, row, rowLimit) < rowLimit) {
-          return c;
-        }
+    private int prependNode(int dataIndex, int value) {
+      int insertedCharacters = 2; /* branch count, value */
+
+      // can collapse branch if it would lead to a leaf segment of zero-length
+      boolean collapseRight = value == 0 && (trieData[dataIndex + 1] & LEAF_MARKER) != 0;
+      if (collapseRight) {
+        insertedCharacters--;
       }
-      return columnLimit;
+
+      int i = dataIndex, j = i + insertedCharacters;
+
+      makeHole(i, insertedCharacters);
+
+      trieData[i++] = 1;
+      trieData[i++] = trieData[j];
+      if (!collapseRight) {
+        trieData[i++] = (char) value;
+      }
+
+      return insertedCharacters;
+    }
+
+    private int insertBud(int dataIndex, int value, int segmentEnd) {
+      int insertedCharacters = 4; // branch count (bud), value, branch count (rest), segment-length
+      int pivot = dataIndex + 2;
+
+      // can collapse right branch if it would lead to a leaf segment of zero-length
+      boolean collapseRight = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
+      if (collapseRight) {
+        insertedCharacters = 3;
+      }
+
+      int i = dataIndex, j = i + insertedCharacters;
+
+      makeHole(i, insertedCharacters);
+
+      trieData[i++] = 1;
+      trieData[i++] = trieData[j];
+      trieData[i++] = (char) (value | BUD_MARKER);
+      trieData[i++] = 1;
+      trieData[i++] = trieData[j + 1];
+      if (!collapseRight) {
+        trieData[i++] = (char) (segmentEnd - pivot);
+      }
+
+      return insertedCharacters;
+    }
+
+    private int insertLeafLeft(int dataIndex, String key, int keyIndex, int value, int segmentEnd) {
+      int remainingKeyLength = key.length() - keyIndex;
+      int insertedCharacters =
+          5 /* branch count, 2 * segment-length, jump, value */ + remainingKeyLength;
+      int pivot = dataIndex + 1;
+
+      // can collapse left branch if the key only has a single character left
+      boolean collapseLeft = remainingKeyLength == 1;
+      if (collapseLeft) {
+        insertedCharacters--;
+      }
+      // can collapse right branch if it would lead to a leaf segment of zero-length
+      boolean collapseRight = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
+      if (collapseRight) {
+        insertedCharacters--;
+        pivot++;
+      }
+
+      int i = dataIndex, j = i + insertedCharacters;
+
+      makeHole(i, insertedCharacters);
+
+      trieData[i++] = 2;
+      trieData[i++] = key.charAt(keyIndex);
+      trieData[i++] = trieData[j];
+      trieData[i++] = (char) (collapseLeft ? value | LEAF_MARKER : remainingKeyLength - 1);
+      trieData[i++] = (char) (collapseRight ? trieData[j + 1] : segmentEnd - pivot);
+      if (!collapseLeft) {
+        trieData[i++] = (char) remainingKeyLength;
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
+        i += remainingKeyLength - 1;
+        trieData[i++] = (char) (value | LEAF_MARKER);
+      } else {
+        trieData[i++] = 0;
+      }
+
+      return insertedCharacters;
+    }
+
+    private int insertLeafRight(
+        int dataIndex, String key, int keyIndex, int value, int segmentEnd, int subTrieEnd) {
+      int remainingKeyLength = key.length() - keyIndex;
+      int insertedCharacters =
+          5 /* branch count, 2 * segment-length, jump, value */ + remainingKeyLength;
+      int pivot = dataIndex + 1;
+
+      // can collapse left branch if it would lead to a leaf segment of zero-length
+      boolean collapseLeft = pivot == segmentEnd && (trieData[segmentEnd] & LEAF_MARKER) != 0;
+      if (collapseLeft) {
+        insertedCharacters--;
+        pivot++;
+      }
+      // can collapse right branch if the key only has a single character left
+      boolean collapseRight = remainingKeyLength == 1;
+      if (collapseRight) {
+        insertedCharacters--;
+      }
+
+      int i = dataIndex, j = i + insertedCharacters;
+
+      makeHole(i, insertedCharacters);
+
+      trieData[i++] = 2;
+      trieData[i++] = trieData[j];
+      trieData[i++] = key.charAt(keyIndex);
+      trieData[i++] = (char) (collapseLeft ? trieData[j + 1] : segmentEnd - pivot);
+      trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
+      trieData[i++] = setJump(subTrieEnd - pivot);
+      System.arraycopy(trieData, pivot + insertedCharacters, trieData, i, subTrieEnd - pivot);
+      i += subTrieEnd - pivot;
+      if (!collapseRight) {
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
+        i += remainingKeyLength - 1;
+        trieData[i++] = (char) (value | LEAF_MARKER);
+      }
+
+      return insertedCharacters;
+    }
+
+    private int appendLeaf(int dataIndex, String key, int keyIndex, int value) {
+      int remainingKeyLength = key.length() - keyIndex;
+      int insertedCharacters = 3 /* branch count, segment-length, value */ + remainingKeyLength;
+
+      // if we're adding this to a leaf segment then we need to introduce a bud first
+      boolean insertBud = dataIndex < trieLength && (trieData[dataIndex] & LEAF_MARKER) != 0;
+      if (insertBud) {
+        insertedCharacters++;
+      }
+      // can collapse right branch if the key only has a single character left
+      boolean collapseRight = remainingKeyLength == 1;
+      if (collapseRight) {
+        insertedCharacters--;
+      }
+
+      int i = dataIndex, j = i + insertedCharacters;
+
+      makeHole(i, insertedCharacters);
+
+      if (insertBud) {
+        char c = trieData[i - 1];
+        trieData[i - 1] = 1;
+        trieData[i++] = c;
+        trieData[i++] = (char) ((trieData[j] & ~LEAF_MARKER) | BUD_MARKER);
+      }
+      trieData[i++] = 1;
+      trieData[i++] = key.charAt(keyIndex);
+      if (!collapseRight) {
+        trieData[i++] = (char) (remainingKeyLength - 1);
+        key.getChars(keyIndex + 1, key.length(), trieData, i);
+        i += remainingKeyLength - 1;
+      }
+      trieData[i++] = (char) (value | LEAF_MARKER);
+
+      return insertedCharacters;
     }
   }
 
@@ -435,8 +716,8 @@ public final class ClassNameTrie {
     /** Reads a trie file and writes out the equivalent Java file. */
     private static void generateJavaFile(
         Path triePath, Path javaPath, String pkgName, String className) throws IOException {
-      ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
-      builder.readClassNameMapping(triePath);
+      ClassNameTrie.Builder trie = new ClassNameTrie.Builder();
+      trie.readClassNameMapping(triePath);
       List<String> lines = new ArrayList<>();
       if (!pkgName.isEmpty()) {
         lines.add("package " + pkgName + ';');
@@ -446,31 +727,40 @@ public final class ClassNameTrie {
       lines.add("");
       lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
       lines.add("public final class " + className + " {");
+      lines.add("");
+      boolean hasLongJumps = generateJavaTrie(lines, "", trie);
+      lines.add("");
       lines.add("  public static int apply(String key) {");
-      lines.add("    return TRIE.apply(key);");
+      if (hasLongJumps) {
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, LONG_JUMPS, key);");
+      } else {
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, null, key);");
+      }
       lines.add("  }");
       lines.add("");
-      generateJavaTrie(lines, "", builder.buildTrie());
       lines.add("  private " + className + "() {}");
       lines.add("}");
       Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
 
     /** Writes the Java form of the trie as a series of lines. */
-    public static void generateJavaTrie(List<String> lines, String prefix, ClassNameTrie trie) {
-      boolean hasLongJumps = trie.longJumps.length > 0;
+    public static boolean generateJavaTrie(
+        List<String> lines, String prefix, ClassNameTrie.Builder trie) {
+      boolean hasLongJumps = trie.longJumpCount > 0;
       int firstLineNumber = lines.size();
       int chunk = 1;
-      lines.add("  private static final String " + prefix + "TRIE_DATA_" + chunk + " =");
+      lines.add("  private static final String " + prefix + "TRIE_TEXT_" + chunk + " =");
       int chunkSize = 0;
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
-      for (char c : trie.trieData) {
+      for (int i = 0; i < trie.trieLength; i++) {
+        char c = trie.trieData[i];
         if (++chunkSize > 10_000) {
           chunk++;
           chunkSize = 0;
           lines.add(buf + "\";");
-          lines.add("  private static final String " + prefix + "TRIE_DATA_" + chunk + " =");
+          lines.add("");
+          lines.add("  private static final String " + prefix + "TRIE_TEXT_" + chunk + " =");
           buf.setLength(0);
           buf.append("      \"");
         } else if (buf.length() > 120) {
@@ -487,50 +777,49 @@ public final class ClassNameTrie {
       lines.add(buf + "\";");
       lines.add("");
       if (chunk > 1) {
-        lines.add("  private static final String[] " + prefix + "TRIE_DATA = {");
-        for (int n = 1; n < chunk; n++) {
-          lines.add("    TRIE_DATA_" + n + ',');
+        lines.add("  private static final char[] " + prefix + "TRIE_DATA;");
+        lines.add("  static {");
+        lines.add("    int dataLength = 0;");
+        for (int n = 1; n <= chunk; n++) {
+          lines.add("    dataLength += " + prefix + "TRIE_TEXT_" + n + ".length();");
         }
-        lines.add("  };");
-        lines.add("");
+        lines.add("    " + prefix + "TRIE_DATA = new char[dataLength];");
+        lines.add("    int dataIndex = 0;");
+        lines.add("    String chunk;");
+        for (int n = 1; n <= chunk; n++) {
+          lines.add("    chunk = " + prefix + "TRIE_TEXT_" + n + ";");
+          lines.add("    chunk.getChars(0, chunk.length(), " + prefix + "TRIE_DATA, dataIndex);");
+          lines.add("    dataIndex += chunk.length();");
+        }
+        lines.add("  }");
       } else {
-        // only one chunk, simplify the first chunk name to match the constructor call
-        lines.set(firstLineNumber, "  private static final String " + prefix + "TRIE_DATA =");
+        // only one chunk so can simplify char array creation
+        lines.set(firstLineNumber, "  private static final String " + prefix + "TRIE_TEXT =");
+        lines.add(
+            "  private static final char[] "
+                + prefix
+                + "TRIE_DATA = "
+                + prefix
+                + "TRIE_TEXT.toCharArray();");
       }
       if (hasLongJumps) {
+        lines.add("");
         lines.add("  private static final int[] " + prefix + "LONG_JUMPS = {");
         buf.setLength(0);
         buf.append("   ");
-        for (int j : trie.longJumps) {
+        for (int i = 0; i < trie.longJumpCount; i++) {
+          int jump = trie.longJumps[i];
           if (buf.length() > 90) {
             lines.add(buf.toString());
             buf.setLength(0);
             buf.append("   ");
           }
-          buf.append(' ').append(String.format("0x%06X", j)).append(',');
+          buf.append(' ').append(String.format("0x%06X", jump)).append(',');
         }
         lines.add(buf.toString());
         lines.add("  };");
-        lines.add("");
       }
-      if (hasLongJumps) {
-        lines.add(
-            "  private static final ClassNameTrie "
-                + prefix
-                + "TRIE = ClassNameTrie.create("
-                + prefix
-                + "TRIE_DATA, "
-                + prefix
-                + "LONG_JUMPS);");
-      } else {
-        lines.add(
-            "  private static final ClassNameTrie "
-                + prefix
-                + "TRIE = ClassNameTrie.create("
-                + prefix
-                + "TRIE_DATA);");
-      }
-      lines.add("");
+      return hasLongJumps;
     }
   }
 }

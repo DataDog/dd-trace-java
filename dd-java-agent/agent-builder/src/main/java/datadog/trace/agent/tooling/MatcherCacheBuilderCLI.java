@@ -496,8 +496,22 @@ public final class MatcherCacheBuilderCLI {
       }
 
       @Override
+      public ResettableClassFileTransformer patchOn(
+          Instrumentation instrumentation,
+          ResettableClassFileTransformer classFileTransformer,
+          PatchMode patchMode) {
+        throw new UnexpectedAgentBuilderMethodUse();
+      }
+
+      @Override
       public ResettableClassFileTransformer patchOnByteBuddyAgent(
           ResettableClassFileTransformer classFileTransformer) {
+        throw new UnexpectedAgentBuilderMethodUse();
+      }
+
+      @Override
+      public ResettableClassFileTransformer patchOnByteBuddyAgent(
+          ResettableClassFileTransformer classFileTransformer, PatchMode patchMode) {
         throw new UnexpectedAgentBuilderMethodUse();
       }
 
