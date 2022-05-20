@@ -2,6 +2,11 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
+ext {
+  // Need to exclude OpenJ9 and Oracle JDK 8 since it doesn't support JFR fully
+  excludeJdk = ['IBM8', 'ORACLE8']
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
