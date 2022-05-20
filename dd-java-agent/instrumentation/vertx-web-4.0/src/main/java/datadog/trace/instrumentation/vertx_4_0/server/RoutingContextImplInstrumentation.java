@@ -13,7 +13,7 @@ public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForSingleType {
 
   public RoutingContextImplInstrumentation() {
-    super("vertx", "vertx-4.2");
+    super("vertx", "vertx-4.0");
   }
 
   @Override

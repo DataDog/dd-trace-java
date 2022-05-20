@@ -39,8 +39,8 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
-  testImplementation group: 'io.vertx', name: 'vertx-web', version: '4.2.7'
-  testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.2.7'
+  testImplementation group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
+  testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.0.0'
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'

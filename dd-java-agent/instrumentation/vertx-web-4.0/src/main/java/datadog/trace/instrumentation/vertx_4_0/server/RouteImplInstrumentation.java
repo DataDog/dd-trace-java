@@ -16,7 +16,7 @@ public class RouteImplInstrumentation extends Instrumenter.AppSec
     implements Instrumenter.ForKnownTypes {
 
   public RouteImplInstrumentation() {
-    super("vertx", "vertx-4.2");
+    super("vertx", "vertx-4.0");
   }
 
   private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {

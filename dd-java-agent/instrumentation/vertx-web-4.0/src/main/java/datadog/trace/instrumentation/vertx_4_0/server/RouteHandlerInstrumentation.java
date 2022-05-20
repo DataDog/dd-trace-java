@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 public class RouteHandlerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
   public RouteHandlerInstrumentation() {
-    super("vertx", "vertx-4.2");
+    super("vertx", "vertx-4.0");
   }
 
   @Override
