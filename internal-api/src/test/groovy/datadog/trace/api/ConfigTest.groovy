@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
@@ -17,6 +18,21 @@ import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.IdGenerationStrategy.RANDOM
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_URL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
@@ -185,6 +201,22 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     prop.setProperty(PROFILING_AGENTLESS, "true")
 
+    prop.setProperty(DEBUGGER_ENABLED, "true")
+    prop.setProperty(DEBUGGER_SNAPSHOT_URL, "snapshot url")
+    prop.setProperty(DEBUGGER_PROBE_URL, "probe url")
+    prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
+    prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
+    prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    prop.setProperty(DEBUGGER_MAX_PAYLOAD_SIZE, "2")
+    prop.setProperty(DEBUGGER_METRICS_ENABLED, "false")
+    prop.setProperty(DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
+    prop.setProperty(DEBUGGER_POLL_INTERVAL, "10")
+    prop.setProperty(DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
+    prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
+    prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
+    prop.setProperty(DEBUGGER_EXCLUDE_FILE, "exclude file")
+
     when:
     Config config = Config.get(prop)
 
@@ -249,6 +281,22 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
     config.profilingAgentless == true
+
+    config.debuggerEnabled == true
+    config.getFinalDebuggerProbeUrl() == "probe url"
+    config.getFinalDebuggerSnapshotUrl() == "snapshot url"
+    config.debuggerProbeFileLocation == "file location"
+    config.debuggerUploadTimeout == 10
+    config.debuggerUploadFlushInterval == 1000
+    config.debuggerUploadBatchSize == 200
+    config.debuggerMaxPayloadSize == 2048
+    config.debuggerMetricsEnabled == false
+    config.debuggerClassFileDumpEnabled == true
+    config.debuggerPollInterval == 10
+    config.debuggerDiagnosticsInterval == 60
+    config.debuggerVerifyByteCode == true
+    config.debuggerInstrumentTheWorld == true
+    config.debuggerExcludeFile == "exclude file"
   }
 
   def "specify overrides via system properties"() {
@@ -313,6 +361,22 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     System.setProperty(PREFIX + PROFILING_AGENTLESS, "true")
 
+    System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
+    System.setProperty(PREFIX + DEBUGGER_SNAPSHOT_URL, "snapshot url")
+    System.setProperty(PREFIX + DEBUGGER_PROBE_URL, "probe url")
+    System.setProperty(PREFIX + DEBUGGER_PROBE_FILE_LOCATION, "file location")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_TIMEOUT, "10")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    System.setProperty(PREFIX + DEBUGGER_MAX_PAYLOAD_SIZE, "2")
+    System.setProperty(PREFIX + DEBUGGER_METRICS_ENABLED, "false")
+    System.setProperty(PREFIX + DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
+    System.setProperty(PREFIX + DEBUGGER_POLL_INTERVAL, "10")
+    System.setProperty(PREFIX + DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
+    System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
+    System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
+    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILE, "exclude file")
+
     when:
     Config config = new Config()
 
@@ -375,6 +439,22 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
     config.profilingAgentless == true
+
+    config.debuggerEnabled == true
+    config.getFinalDebuggerProbeUrl() == "probe url"
+    config.getFinalDebuggerSnapshotUrl() == "snapshot url"
+    config.debuggerProbeFileLocation == "file location"
+    config.debuggerUploadTimeout == 10
+    config.debuggerUploadFlushInterval == 1000
+    config.debuggerUploadBatchSize == 200
+    config.debuggerMaxPayloadSize == 2048
+    config.debuggerMetricsEnabled == false
+    config.debuggerClassFileDumpEnabled == true
+    config.debuggerPollInterval == 10
+    config.debuggerDiagnosticsInterval == 60
+    config.debuggerVerifyByteCode == true
+    config.debuggerInstrumentTheWorld == true
+    config.debuggerExcludeFile == "exclude file"
   }
 
   def "specify overrides via env vars"() {
