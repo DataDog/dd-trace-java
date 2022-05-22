@@ -15,6 +15,12 @@ import io.vertx.core.json.JsonObject
 
 import java.util.concurrent.CompletableFuture
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
