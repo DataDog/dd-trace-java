@@ -1,6 +1,8 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
+
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +80,7 @@ final class LongSequence {
   public LongSequence(Allocator allocator) {
     this.allocator = allocator;
     this.bufferWriteSlot = -1;
+    Arrays.fill(bufferBoundaryMap, Integer.MAX_VALUE);
   }
 
   public int add(long value) {
@@ -105,7 +108,14 @@ final class LongSequence {
           threshold = -1;
         }
       } else {
+        if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
+          return 0;
+        }
         if (threshold > -1 && sizeInBytes == threshold) {
+          if (bufferWriteSlot == buffers.length - 1) {
+            // can not allocate another chunk without breaking the limit
+            return 0;
+          }
           // we hit the threshold - let's prepare the next-in-line buffer
           int newCapacity = 2 * capacityInChunks; // capacity stays aligned
           AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
@@ -121,7 +131,7 @@ final class LongSequence {
           }
         }
       }
-      if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
+      if (buffers[bufferWriteSlot] != null) {
         return 0;
       }
       while (!buffers[bufferWriteSlot].putLong(value)) {
@@ -154,7 +164,11 @@ final class LongSequence {
       PositionDecoder.Coordinates decoded =
           positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
       if (decoded != null) {
-        return buffers[decoded.slot].putLong(decoded.index, value);
+        if (decoded.slot >= buffers.length) {
+          return false;
+        }
+        AllocatedBuffer buffer = buffers[decoded.slot];
+        return buffer != null ? buffer.putLong(decoded.index, value) : false;
       }
       return false;
     } finally {
@@ -177,7 +191,11 @@ final class LongSequence {
       PositionDecoder.Coordinates decoded =
           positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
       if (decoded != null) {
-        return buffers[decoded.slot].getLong(decoded.index);
+        if (decoded.slot >= buffers.length) {
+          return Long.MIN_VALUE;
+        }
+        AllocatedBuffer buffer = buffers[decoded.slot];
+        return buffer != null ? buffer.getLong(decoded.index) : Long.MIN_VALUE;
       }
       return Long.MIN_VALUE;
     } finally {
