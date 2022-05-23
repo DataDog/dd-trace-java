@@ -187,6 +187,8 @@ import java.nio.ByteBuffer;
  */
 final class IntervalEncoder {
   private final ByteBuffer prologueBuffer;
+  private final ByteBuffer threadCountBuffer;
+  private final ByteBuffer threadMetadDataBuffer;
   private final ByteBuffer dataChunkBuffer;
   private final ByteBuffer groupVarintMapBuffer;
   private final int threadCount;
@@ -227,8 +229,8 @@ final class IntervalEncoder {
       if (threadFinished) {
         throw new IllegalStateException("Illegal state: threadFinished=" + threadFinished);
       }
-      leb128Support.putVarint(prologueBuffer, threadId);
-      leb128Support.putVarint(prologueBuffer, intervals);
+      leb128Support.putVarint(threadMetadDataBuffer, threadId);
+      leb128Support.putVarint(threadMetadDataBuffer, intervals);
       threadInFlight = false;
       threadFinished = true;
       return IntervalEncoder.this;
@@ -269,26 +271,28 @@ final class IntervalEncoder {
    * @param timestampMillis the timestamp in epoch millis
    * @param freqMultiplier number of ticks per 1000ns
    * @param threadCount number of tracked threads
-   * @param maxSize max data size
+   * @param maxDataSize max data size
    */
-  IntervalEncoder(long timestampMillis, long freqMultiplier, int threadCount, int maxSize) {
+  IntervalEncoder(long timestampMillis, long freqMultiplier, int threadCount, int maxDataSize) {
     this.threadCount = threadCount;
+
+    this.threadCountBuffer = ByteBuffer.allocate(leb128Support.varintSize(threadCount));
+    this.threadMetadDataBuffer = ByteBuffer.allocate(threadCount * 18);
 
     this.prologueBuffer =
         ByteBuffer.allocate(
-            leb128Support.varintSize(timestampMillis)
-                + leb128Support.varintSize(freqMultiplier)
-                + leb128Support.varintSize(threadCount)
-                + threadCount * 18);
-    this.dataChunkBuffer = ByteBuffer.allocate(maxSize * 8 + 4);
+            5 // 1 byte for truncated flag + 4 bytes for datachunk offset
+                + leb128Support.varintSize(timestampMillis)
+                + leb128Support.varintSize(freqMultiplier));
+    this.dataChunkBuffer = ByteBuffer.allocate(maxDataSize * 8 + 4);
     this.groupVarintMapBuffer =
-        ByteBuffer.allocate(leb128Support.align((int) (Math.ceil(maxSize / 8d) * 3), 4));
+        ByteBuffer.allocate(leb128Support.align((int) (Math.ceil(maxDataSize / 8d) * 3), 4));
 
+    prologueBuffer.put((byte) 0); // pre-allocated space for the truncated flag
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset
     dataChunkBuffer.putInt(0); // pre-allocate space for the group varint map offset
     leb128Support.putVarint(prologueBuffer, timestampMillis);
     leb128Support.putVarint(prologueBuffer, freqMultiplier);
-    leb128Support.putVarint(prologueBuffer, threadCount);
   }
 
   ThreadEncoder startThread(long threadId) {
@@ -306,6 +310,10 @@ final class IntervalEncoder {
   }
 
   ByteBuffer finish() {
+    return finish(threadCount);
+  }
+
+  ByteBuffer finish(int processedThreads) {
     if (encoderFinished || threadInFlight) {
       throw new IllegalStateException(
           "Illegal state: encoderFinished="
@@ -314,17 +322,28 @@ final class IntervalEncoder {
               + threadInFlight);
     }
     encoderFinished = true;
-    ByteBuffer buffer =
-        ByteBuffer.allocate(
-            prologueBuffer.position()
-                + dataChunkBuffer.position()
-                + groupVarintMapBuffer.position());
-    prologueBuffer.putInt(0, prologueBuffer.position()); // store the data chunk offset
+    leb128Support.putVarint(threadCountBuffer, processedThreads);
+    int dataOffset =
+        prologueBuffer.position() + threadCountBuffer.position() + threadMetadDataBuffer.position();
+    ByteBuffer buffer = ByteBuffer.allocate(getDataSize());
+    prologueBuffer.put(
+        0, (byte) (processedThreads < threadCount ? 1 : 0)); // store the truncated flag
+    prologueBuffer.putInt(1, dataOffset); // store the data chunk offset
     dataChunkBuffer.putInt(0, dataChunkBuffer.position()); // store the group varint bitmap offset
     // and now store the parts of the blob
     buffer.put((ByteBuffer) prologueBuffer.flip()); // prologue
+    buffer.put((ByteBuffer) threadCountBuffer.flip()); // thread count
+    buffer.put((ByteBuffer) threadMetadDataBuffer.flip()); // thread metadata
     buffer.put((ByteBuffer) dataChunkBuffer.flip()); // data chunk
     buffer.put((ByteBuffer) groupVarintMapBuffer.flip()); // group varint bitmap
     return (ByteBuffer) buffer.flip();
+  }
+
+  public int getDataSize() {
+    return prologueBuffer.position()
+        + threadCountBuffer.position()
+        + threadMetadDataBuffer.position()
+        + dataChunkBuffer.position()
+        + groupVarintMapBuffer.position();
   }
 }

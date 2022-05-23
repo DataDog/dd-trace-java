@@ -66,4 +66,27 @@ class PositionDecoderTest {
 
     assertNull(instance.decode(map[map.length - 1] + 1, map));
   }
+
+  @Test
+  void testDecodeWithPartialBoundaryMap() {
+    int[] boundaryMap =
+        new int[] {
+          31,
+          95,
+          287,
+          863,
+          2591,
+          7775,
+          Integer.MAX_VALUE,
+          Integer.MAX_VALUE,
+          Integer.MAX_VALUE,
+          Integer.MAX_VALUE
+        };
+    int limit = 5;
+    int pos = 324 * 8;
+    PositionDecoder.Coordinates expectedCoordinates = new PositionDecoder.Coordinates(5, 0);
+
+    PositionDecoder.Coordinates decoded = instance.decode(pos, boundaryMap, limit + 1);
+    assertEquals(expectedCoordinates, decoded);
+  }
 }
