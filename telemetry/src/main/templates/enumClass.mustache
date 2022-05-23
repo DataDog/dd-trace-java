@@ -1,7 +1,10 @@
 {{>additionalEnumTypeAnnotations}}public enum {{datatypeWithEnum}} {
 
 {{#allowableValues}}
-    {{#enumVars}}{{name}}({{dataType}}.valueOf({{{value}}})){{^-last}}, {{/-last}}{{#-last}};{{/-last}}{{/enumVars}}
+    {{#enumVars}}
+      @com.squareup.moshi.Json(name = {{{value}}})
+      {{name}}({{dataType}}.valueOf({{{value}}})){{^-last}}, {{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
 {{/allowableValues}}
 
     {{dataType}} value;
