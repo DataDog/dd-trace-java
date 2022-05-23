@@ -152,6 +152,7 @@ public final class ConfigProvider {
         continue;
       }
       if (value != null) {
+        ConfigCollector.get().put(key, value);
         return value;
       }
     }
@@ -323,11 +324,5 @@ public final class ConfigProvider {
     }
 
     protected abstract String get(String key);
-
-    protected final void collect(String key, String value) {
-      if (key != null && value != null) {
-        ConfigCollector.get().put(key, value);
-      }
-    }
   }
 }

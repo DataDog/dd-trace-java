@@ -23,9 +23,6 @@ final class PropertiesConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    String propName = useSystemPropertyFormat ? propertyNameToSystemPropertyName(key) : key;
-    String value = props.getProperty(propName);
-    collect(propName, value);
-    return value;
+    return props.getProperty(useSystemPropertyFormat ? propertyNameToSystemPropertyName(key) : key);
   }
 }
