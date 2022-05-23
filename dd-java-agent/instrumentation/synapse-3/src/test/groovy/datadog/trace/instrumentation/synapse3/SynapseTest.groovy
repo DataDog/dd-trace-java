@@ -206,7 +206,7 @@ class SynapseTest extends AgentTestRunner {
   def serverSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null, boolean distributedRootSpan = false) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "http.request"
+      operationName "synapse.request"
       resourceName "${method} /services/SimpleStockQuoteService"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
@@ -232,7 +232,7 @@ class SynapseTest extends AgentTestRunner {
   def proxySpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "http.request"
+      operationName "synapse.request"
       resourceName "${method} /services/StockQuoteProxy"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
