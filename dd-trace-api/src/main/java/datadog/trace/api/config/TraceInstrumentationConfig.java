@@ -12,6 +12,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
 
+  public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
+      "integration.synapse.legacy-operation-name";
   public static final String TRACE_ANNOTATIONS = "trace.annotations";
   public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
   public static final String TRACE_EXECUTORS = "trace.executors";
