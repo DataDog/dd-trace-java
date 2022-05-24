@@ -1,6 +1,7 @@
 // Set properties before any plugins get loaded
 ext {
   enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -13,8 +14,8 @@ apply from: "$rootDir/gradle/version.gradle"
 minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0
 
-sourceCompatibility = 8
-targetCompatibility = 8
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
   implementation deps.slf4j
