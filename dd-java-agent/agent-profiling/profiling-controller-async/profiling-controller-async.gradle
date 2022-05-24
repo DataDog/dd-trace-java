@@ -1,10 +1,11 @@
-plugins {
-  id "com.github.johnrengelman.shadow"
-}
-
+// Set properties before any plugins get loaded
 ext {
-  // Need to exclude OpenJ9 and Oracle JDK 8 since it doesn't support JFR fully
-  excludeJdk = ['IBM8', 'ORACLE8']
+  minJavaVersionForTests = JavaVersion.VERSION_11
+  // By default tests with be compiled for `minJavaVersionForTests` version,
+  // but in this case we would like to avoid this since we would like to run with ZULU8
+  skipSettingTestJavaVersion = true
+  // need access to jdk.jfr package
+  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -14,27 +15,28 @@ minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7
 
 excludedClassesCoverage += [
-  // the config event is a simple data holder
-  'com.datadog.profiling.auxiliary.async.AsyncProfilerConfigEvent',
-  // mostly a wrapper around com.datadog.profiling.async.AsyncProfiler
-  'com.datadog.profiling.auxiliary.async.AuxiliaryAsyncProfiler',
+  'com.datadog.profiling.controller.async.AsyncController',
+  'com.datadog.profiling.controller.async.AsyncOngoingRecording',
 ]
 
 dependencies {
+  api deps.slf4j
+  api project(':internal-api')
   implementation project(path: ':dd-java-agent:agent-profiling:profiling-async', configuration: 'shadow')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
-  api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
 
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
-
-  implementation deps.slf4j
-
-  testImplementation deps.jmc
   testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
 }
 
+/*
+ Setup here is as following:
+ * We compile with Java11 compiler to get JFR definitions.
+ * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
+ * We force IDEA to treat this as Java11 project with 'idea' plugin below.
+ */
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 

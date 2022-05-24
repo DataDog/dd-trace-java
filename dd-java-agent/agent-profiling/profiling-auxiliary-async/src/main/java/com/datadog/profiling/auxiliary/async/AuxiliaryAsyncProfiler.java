@@ -1,9 +1,10 @@
 package com.datadog.profiling.auxiliary.async;
 
+import com.datadog.profiling.async.AsyncProfiler;
 import com.datadog.profiling.auxiliary.AuxiliaryImplementation;
-import com.datadog.profiling.auxiliary.ProfilingMode;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.utils.ProfilingMode;
 import com.google.auto.service.AutoService;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -44,7 +45,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
     this.configProvider = configProvider;
     AsyncProfiler instance;
     try {
-      instance = new AsyncProfiler(configProvider);
+      instance = AsyncProfiler.getInstance();
     } catch (Throwable t) {
       log.debug("Async Profiler is not available", t);
       instance = null;

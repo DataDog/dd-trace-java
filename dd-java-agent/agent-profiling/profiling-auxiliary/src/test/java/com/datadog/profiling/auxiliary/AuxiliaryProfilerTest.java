@@ -3,6 +3,7 @@ package com.datadog.profiling.auxiliary;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.EnumSet;

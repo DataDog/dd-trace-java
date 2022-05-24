@@ -59,6 +59,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_AUXILIARY_TYPE = "profiling.auxiliary";
   public static final String PROFILING_AUXILIARY_TYPE_DEFAULT = "none";
 
+  public static final String PROFILING_ASYNC_ENABLED = "profiling.async.enabled";
+  public static final boolean PROFILING_ASYNC_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
   public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
   public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;

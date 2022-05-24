@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
@@ -29,7 +30,7 @@ public final class ControllerFactory {
     NONE(),
     ORACLE("com.datadog.profiling.controller.oracle.OracleJdkController"),
     OPENJDK("com.datadog.profiling.controller.openjdk.OpenJdkController"),
-    OPENJ9("com.datadog.profiling.controller.openj9.OpenJ9Controller");
+    ASYNC("com.datadog.profiling.controller.async.AsyncController");
 
     private final String className;
 
@@ -62,20 +63,36 @@ public final class ControllerFactory {
       Class.forName("com.oracle.jrockit.jfr.Producer");
       impl = Implementation.ORACLE;
     } catch (ClassNotFoundException ignored) {
-      // expected
+      log.debug("Failed to load oracle profiler", ignored);
     }
     if (impl == Implementation.NONE) {
       try {
         Class.forName("jdk.jfr.Event");
         impl = Implementation.OPENJDK;
       } catch (ClassNotFoundException ignored) {
-        // expected
+        log.debug("Failed to load openjdk profiler", ignored);
       }
     }
     if (impl == Implementation.NONE) {
-      if (System.getProperty("java.vendor").equals("IBM Corporation")
-          && System.getProperty("java.runtime.name").startsWith("IBM Semeru Runtime")) {
-        impl = Implementation.OPENJ9;
+      if (configProvider.getBoolean(
+          ProfilingConfig.PROFILING_ASYNC_ENABLED,
+          ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)) {
+        try {
+          Class<?> asyncProfilerClass = Class.forName("com.datadog.profiling.async.AsyncProfiler");
+          if ((boolean)
+              asyncProfilerClass
+                  .getMethod("isAvailable")
+                  .invoke(asyncProfilerClass.getMethod("getInstance").invoke(null))) {
+            impl = Implementation.ASYNC;
+          } else {
+            log.debug("Failed to load async profiler, it is not available");
+          }
+        } catch (final ClassNotFoundException
+            | NoSuchMethodException
+            | IllegalAccessException
+            | InvocationTargetException ignored) {
+          log.debug("Failed to load async profiler", ignored);
+        }
       }
     }
     if (impl == Implementation.NONE) {
