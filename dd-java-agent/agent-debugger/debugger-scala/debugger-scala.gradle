@@ -1,0 +1,9 @@
+plugins {
+  id "scala"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  implementation group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'
+}
