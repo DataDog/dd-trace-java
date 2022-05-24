@@ -121,8 +121,11 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.msg"  : { it == null || it == "Request processing failed; nested exception is java.lang.Exception: controller exception" },
-        "error.type" : { it == null || it == "org.springframework.web.util.NestedServletException" },
+      def errorMsg = getContainerType() == ContainerType.TOMCAT ? "Request processing failed; nested exception is java.lang.Exception: controller exception" : "controller exception"
+      def errorType = getContainerType() == ContainerType.TOMCAT ? "org.springframework.web.util.NestedServletException" : "java.lang.Exception"
+
+      ["error.msg"  : { it == null || it == errorMsg },
+        "error.type" : { it == null || it == errorType },
         "error.stack": { it == null || it instanceof String }]
     } else {
       Collections.emptyMap()
@@ -184,28 +187,51 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
         }
       }
     } else if (endpoint == EXCEPTION) {
-      def extraTags = expectedExtraServerTags(EXCEPTION)
-      trace.span {
-        operationName "servlet.forward"
-        resourceName "GET /error"
-        spanType DDSpanTypes.HTTP_SERVER
-        childOf(trace.span(0))
-        tags {
-          "component" "java-web-servlet-dispatcher"
-          "$Tags.HTTP_ROUTE" "/error"
-          addTags(extraTags)
-          defaultTags()
+      if (getContainerType() == ContainerType.TOMCAT) {
+        def extraTags = expectedExtraServerTags(EXCEPTION)
+        trace.span {
+          operationName "servlet.forward"
+          resourceName "GET /error"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(trace.span(0))
+          tags {
+            "component" "java-web-servlet-dispatcher"
+            "$Tags.HTTP_ROUTE" "/error"
+            addTags(extraTags)
+            defaultTags()
+          }
         }
-      }
-      trace.span {
-        operationName "spring.handler"
-        resourceName "BasicErrorController.error"
-        spanType DDSpanTypes.HTTP_SERVER
-        childOfPrevious()
-        tags {
-          "component" "spring-web-controller"
-          "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-          defaultTags()
+        trace.span {
+          operationName "spring.handler"
+          resourceName "BasicErrorController.error"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOfPrevious()
+          tags {
+            "component" "spring-web-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+      } else if (getContainerType() == ContainerType.JETTY) {
+        trace.span {
+          operationName "servlet.response"
+          resourceName "HttpServletResponse.sendError"
+          childOf(trace.span(0))
+          tags {
+            "component" "java-web-servlet-response"
+            defaultTags()
+          }
+        }
+        trace.span {
+          operationName "spring.handler"
+          resourceName "BasicErrorController.error"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOfPrevious()
+          tags {
+            "component" "spring-web-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
         }
       }
     } else {

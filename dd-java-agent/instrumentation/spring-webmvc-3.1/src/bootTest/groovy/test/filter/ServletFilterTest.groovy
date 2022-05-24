@@ -94,7 +94,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   String testPathParam() {
-    "/path/?/param"
+    "/path/{id}/param"
   }
 
   @Override
