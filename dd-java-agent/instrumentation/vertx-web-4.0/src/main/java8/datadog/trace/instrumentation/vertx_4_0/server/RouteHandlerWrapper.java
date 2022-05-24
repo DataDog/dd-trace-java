@@ -65,6 +65,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     String path = routingContext.currentRoute().getPath();
     if (mountPoint != null) {
       path = mountPoint + path;
+      path = path.replaceAll("//", "/");
     }
     if (method != null && path != null) {
       routingContext.put(ROUTE_CONTEXT_KEY, path);
