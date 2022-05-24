@@ -202,6 +202,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
@@ -353,6 +354,7 @@ public class Config {
   private final String rootContextServiceName;
   private final boolean traceEnabled;
   private final boolean integrationsEnabled;
+  private final boolean integrationSynapseLegacyOperationName;
   private final String writerType;
   private final boolean agentConfiguredUsingDefault;
   private final String agentUrl;
@@ -619,6 +621,8 @@ public class Config {
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
+    integrationSynapseLegacyOperationName =
+        configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
     idGenerationStrategy =
@@ -1198,6 +1202,10 @@ public class Config {
 
   public boolean isIntegrationsEnabled() {
     return integrationsEnabled;
+  }
+
+  public boolean isIntegrationSynapseLegacyOperationName() {
+    return integrationSynapseLegacyOperationName;
   }
 
   public String getWriterType() {
@@ -2441,6 +2449,8 @@ public class Config {
         + traceEnabled
         + ", integrationsEnabled="
         + integrationsEnabled
+        + ", integrationSynapseLegacyOperationName="
+        + integrationSynapseLegacyOperationName
         + ", writerType='"
         + writerType
         + '\''
