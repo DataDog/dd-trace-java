@@ -29,7 +29,9 @@ public class RoutingContextImplInstrumentation extends Instrumenter.AppSec
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("getBodyAsJson").or(named("getBodyAsJsonArray")).and(takesArguments(0)),
-        packageName + ".RoutingContextJsonAdvice");
+      named("getBodyAsJson")
+        .or(named("getBodyAsJsonArray"))
+        .and(takesArguments(1).and(takesArgument(0, int.class))),
+      packageName + ".RoutingContextJsonAdvice");
   }
 }
