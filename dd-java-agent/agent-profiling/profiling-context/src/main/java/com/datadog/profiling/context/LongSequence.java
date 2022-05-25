@@ -221,39 +221,11 @@ final class LongSequence {
   }
 
   public int size() {
-    // check'n'update the state - if it is non-negative, increment the counter and proceed,
-    // otherwise bail out
-    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
-      // bail out if this instance was already released
-      return 0;
-    }
-    try {
-      return size;
-    } finally {
-      // check'n'update the state - if it is negative before update, perform release, otherwise just
-      // decrement the counter
-      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
-        doRelease();
-      }
-    }
+    return size;
   }
 
   public int sizeInBytes() {
-    // check'n'update the state - if it is non-negative, increment the counter and proceed,
-    // otherwise bail out
-    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
-      // bail out if this instance was already released
-      return 0;
-    }
-    try {
-      return sizeInBytes;
-    } finally {
-      // check'n'update the state - if it is negative before update, perform release, otherwise just
-      // decrement the counter
-      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
-        doRelease();
-      }
-    }
+    return sizeInBytes;
   }
 
   public void release() {
@@ -274,7 +246,6 @@ final class LongSequence {
     buffers = null;
     bufferBoundaryMap = null;
     bufferInitSlot = -1;
-    size = 0;
     state.set(-1);
   }
 

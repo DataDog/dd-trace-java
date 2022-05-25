@@ -1,7 +1,9 @@
 package com.datadog.profiling.context;
 
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.profiling.TracingContextTracker;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
@@ -110,7 +112,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   static final long TRANSITION_MASK = TRANSITION_FINISHED_MASK | TRANSITION_MAYBE_FINISHED_MASK;
   static final long TIMESTAMP_MASK = ~TRANSITION_MASK;
 
-  private static final int SPAN_ACTIVATION_DATA_LIMIT = 20000; // at most 20000 bytes
+  private static final int SPAN_ACTIVATION_DATA_LIMIT;
 
   private final long inactivityDelay;
 
@@ -143,6 +145,14 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   private long lastTransitionTimestamp = -1;
 
   private volatile DelayedTrackerImpl delayedTrackerRef = null;
+
+  static {
+    SPAN_ACTIVATION_DATA_LIMIT =
+        ConfigProvider.getInstance()
+            .getInteger(
+                ProfilingConfig.PROFILING_TRACING_CONTEXT_MAX_SIZE,
+                ProfilingConfig.PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT);
+  }
 
   ProfilerTracingContextTracker(
       Allocator allocator,
