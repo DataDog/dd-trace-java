@@ -62,7 +62,7 @@ deploy_to_reliability_env:
       when: never
     - when: on_success
   trigger:
-    project: DataDog/datadog-reliability-env
+    project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
   variables:
     UPSTREAM_PACKAGE_JOB: build
