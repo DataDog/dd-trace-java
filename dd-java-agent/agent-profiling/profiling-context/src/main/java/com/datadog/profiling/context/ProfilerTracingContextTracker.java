@@ -5,20 +5,15 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Random;
 import java.util.concurrent.Delayed;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import org.jctools.maps.NonBlockingHashMapLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,7 +114,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private final long inactivityDelay;
 
-  private final ConcurrentMap<Long, LongSequence> threadSequences = new ConcurrentHashMap<>(64);
+  private final NonBlockingHashMapLong<LongSequence> threadSequences =
+      new NonBlockingHashMapLong<>(64);
   private final long startTimestampTicks;
   private final long startTimestampMillis;
   private final long delayedActivationTimestamp;
@@ -338,7 +334,13 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       return;
     }
     int added = 0;
-    LongSequence sequence = threadSequences.computeIfAbsent(threadId, this::newLongSequence);
+    // this is a thread map so there will be no concurrent attempts to add a new key
+    // therefore it is safe to use get-put sequence without the risk of racing
+    LongSequence sequence = threadSequences.get(threadId);
+    if (sequence == null) {
+      sequence = new LongSequence(allocator, maxDataSize);
+      threadSequences.put(threadId, sequence);
+    }
     synchronized (sequence) {
       added = sequence.add(value, obeyLimit);
     }
@@ -355,15 +357,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     } else if (added == 0) {
       if (!truncated) {
         warnlog.warn(
-            "Profiling Context Buffer is full ({} bytes) - losing tracing context data",
+            "Profiling Context Buffer is full ({}/{} bytes) - losing tracing context data",
+            sequence.getCapacity(),
             sequence.sizeInBytes());
         truncated = true;
       }
     }
-  }
-
-  private LongSequence newLongSequence(long dummy) {
-    return new LongSequence(allocator, maxDataSize);
   }
 
   private ByteBuffer encodeIntervals() {
@@ -371,9 +370,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         (maxDataSize * 3) / 4; // encoded data is in base64, growing by 4/3 in size
     int totalSequenceBufferSize = 0;
     int maxSequenceSize = 0;
-    Set<Map.Entry<Long, LongSequence>> entrySet = new HashSet<>(threadSequences.entrySet());
-    for (Map.Entry<Long, LongSequence> entry : entrySet) {
-      LongSequence sequence = entry.getValue();
+    long[] threadIds = shuffleArray(threadSequences.keySetLong());
+    for (LongSequence sequence : threadSequences.values()) {
       maxSequenceSize = Math.max(maxSequenceSize, sequence.size());
       totalSequenceBufferSize += sequence.size();
     }
@@ -382,21 +380,21 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         new IntervalEncoder(
             startTimestampMillis,
             timeTicksProvider.frequency() / 1_000_000L,
-            entrySet.size(),
+            threadIds.length,
             totalSequenceBufferSize);
     int threadCount = 0;
-    /*
-    The overall size limit can be hit when persisting the per-thread data.
-    By randomizing the order of threads when persisting we can avoid the situation
-    when certain threads will be consistently ignored.
-     */
-    List<Long> threadIds = new ArrayList<>(threadSequences.keySet());
-    Collections.shuffle(threadIds);
     outer:
-    for (Long threadId : threadIds) {
+    for (long threadId : threadIds) {
       threadCount++;
       IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
       LongSequence rawIntervals = threadSequences.get(threadId);
+      /*
+      The only potential contention here will be between the tracked thread and the context summarization
+      when the trace and span is being serialized. At that moment, however, the possibility of code related
+      to that span still being executed in some other thread is pretty low. Therefore, most of the time the lock
+      will be uncontented.
+       */
+      //
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
         int sequenceIndex = 0;
@@ -428,5 +426,17 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       log.trace("Storing delayed activation for span {}", span);
       activateContext(initialThreadId, delayedActivationTimestamp);
     }
+  }
+
+  // Fisher–Yates shuffle
+  private static long[] shuffleArray(long[] array) {
+    Random rnd = ThreadLocalRandom.current();
+    for (int i = array.length - 1; i > 0; i--) {
+      int index = rnd.nextInt(i + 1);
+      long item = array[index];
+      array[index] = array[i];
+      array[i] = item;
+    }
+    return array;
   }
 }

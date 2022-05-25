@@ -281,4 +281,8 @@ final class LongSequence {
   public LongIterator iterator() {
     return new LongIteratorImpl();
   }
+
+  public int getCapacity() {
+    return capacity;
+  }
 }
