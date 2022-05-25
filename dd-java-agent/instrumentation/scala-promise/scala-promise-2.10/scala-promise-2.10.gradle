@@ -40,6 +40,12 @@ testSets {
   }
 }
 
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
+}
+
 sourceSets {
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
@@ -64,11 +70,6 @@ tasks.named("compileLatestDepTestGroovy").configure {
 tasks.named("compileLatestDepForkedTestGroovy").configure {
   classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
   dependsOn "compileLatestDepForkedTestScala"
-}
-
-tasks.named("latestDepTest").configure {
-  dependsOn "latestDepForkedTest"
-
 }
 
 dependencies {
