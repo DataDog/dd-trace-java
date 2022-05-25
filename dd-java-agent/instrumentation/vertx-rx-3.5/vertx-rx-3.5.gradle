@@ -11,6 +11,17 @@ testSets {
   latestDepTest {
     dirName = 'test'
   }
+
+  latestDepForkedTest {
+    extendsFrom latestDepTest
+    dirName = 'test'
+  }
+}
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
 }
 
 dependencies {

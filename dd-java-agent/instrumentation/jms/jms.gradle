@@ -22,6 +22,17 @@ apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
   latestDepTest {
   }
+
+  latestDepForkedTest {
+    extendsFrom latestDepTest
+    dirName = 'test'
+  }
+}
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
 }
 
 dependencies {
