@@ -247,6 +247,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     storeDelayedActivation();
     long tsDiff = timestamp - startTimestampTicks;
     long masked = maskDeactivation(tsDiff, maybe);
+    // store the transition even if it would cross the limit - for the sake of interval completeness
     store(threadId, masked, false);
   }
 
@@ -404,7 +405,6 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       to that span still being executed in some other thread is pretty low. Therefore, most of the time the lock
       will be uncontented.
        */
-      //
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
         int sequenceIndex = 0;
