@@ -44,7 +44,7 @@ public class RenaissanceInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) int index, @Advice.FieldValue("benchmarkName") String benchmarkName) {
-      AgentSpan span = startSpan("renaissanceBenchmark").setResourceName(benchmarkName);
+      AgentSpan span = startSpan("renaissance.benchmark").setResourceName(benchmarkName);
       return activateSpan(span);
     }
 
