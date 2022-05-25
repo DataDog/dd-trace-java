@@ -182,7 +182,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     def authProvider = context.getBean(SavingAuthenticationProvider)
     switch (getContainerType()) {
       case TOMCAT:
-        // tomcat doesn't have the raw parameters
+      // tomcat doesn't have the raw parameters
         extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
         break
       case JETTY:

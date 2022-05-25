@@ -41,10 +41,10 @@ testSets {
   }
 
   // spring-boot 1.5 uses undertow 1.4
-//  undertowBootTest {
-//    extendsFrom tomcatBootTest
-//    dirName = 'bootTest'
-//  }
+  //  undertowBootTest {
+  //    extendsFrom tomcatBootTest
+  //    dirName = 'bootTest'
+  //  }
 }
 
 dependencies {
@@ -101,14 +101,14 @@ dependencies {
   }
   jettyBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-jetty', version: '1.5.22.RELEASE'
 
-//  undertowBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
-//    exclude(module: 'spring-boot-starter-tomcat')
-//  }
-//  undertowBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-undertow', version: '1.5.22.RELEASE'
+  //  undertowBootTestImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.22.RELEASE') {
+  //    exclude(module: 'spring-boot-starter-tomcat')
+  //  }
+  //  undertowBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-undertow', version: '1.5.22.RELEASE'
 }
 
 tasks.named("test").configure {
   finalizedBy "tomcatBootTest"
   finalizedBy "jettyBootTest"
-//  finalizedBy "undertowBootTest"
+  //  finalizedBy "undertowBootTest"
 }

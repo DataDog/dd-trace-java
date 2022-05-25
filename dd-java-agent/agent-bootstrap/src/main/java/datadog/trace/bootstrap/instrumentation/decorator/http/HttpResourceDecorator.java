@@ -75,7 +75,8 @@ public class HttpResourceDecorator {
       resourcePath = simplePathNormalizer.normalize(path.toString(), encoded);
       priority = ResourceNamePriorities.HTTP_PATH_NORMALIZER;
     }
-    log.debug("encoded {} path {} normalized {} priority {}", encoded, path, resourcePath, priority);
+    log.debug(
+        "encoded {} path {} normalized {} priority {}", encoded, path, resourcePath, priority);
     span.setResourceName(
         RESOURCE_NAME_CACHE.computeIfAbsent(
             Pair.of(method, (CharSequence) resourcePath), RESOURCE_NAME_JOINER),

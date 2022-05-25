@@ -6,7 +6,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
-import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
@@ -16,7 +15,6 @@ import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static java.util.Collections.singletonMap
 import static test.ContainerType.JETTY
@@ -94,7 +92,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   String testPathParam() {
-    "/path/{id}/param"
+    "/path/?/param"
   }
 
   @Override
@@ -126,20 +124,12 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
   @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.msg"  : { it == null || it == "Filter execution threw an exception" },
+      ["error.msg"  : { it == null || it == "java.lang.Exception: controller exception" },
         "error.type" : { it == null || it == "javax.servlet.ServletException" },
         "error.stack": { it == null || it instanceof String }]
     } else {
       Collections.emptyMap()
     }
-  }
-
-  @Override
-  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
-    if (endpoint == PATH_PARAM) {
-      return testPathParam()
-    }
-    return null
   }
 
   @Override
@@ -161,11 +151,11 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
       // Jetty: [servlet.request[servlet.response[spring.handler]][controller]]
       if (getContainerType() == JETTY) {
         // jetty doesn't have servlet.forward
-        return super.spanCount(endpoint)
+        return super.spanCount(endpoint) + 1
       }
       // adds servlet.forward/GET /error and spring.handler/BasicErrorController.error
       // removes servlet.response/HttpServletResponse
-      return super.spanCount(endpoint) + 1
+      return super.spanCount(endpoint) + 2
     }
     return super.spanCount(endpoint)
   }
@@ -176,8 +166,18 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
       return "404"
     } else if (endpoint.hasPathParam) {
       return "$method ${testPathParam()}"
+    } else if (endpoint.errored) {
+      return "$method /error"
     }
     return "$method ${endpoint.resolve(address).path}"
+  }
+
+  @Override
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    if (endpoint.errored) {
+      return "/error"
+    }
+    return null
   }
 
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
