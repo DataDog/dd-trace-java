@@ -187,17 +187,27 @@ public class VertxTestServer extends AbstractVerticle {
 
     router = customizeAfterRoutes(router);
 
-    vertx.createHttpServer().requestHandler(router).listen(port, event -> {
-      // send this though event bus and succed deploy after successfull response
-      int actualPort = event.result().actualPort();
-      vertx.eventBus().request(PORT_DATA_ADDRESS, actualPort, ar -> {
-        if (ar.succeeded()) {
-          startPromise.complete();
-        } else {
-          startPromise.fail(ar.cause());
-        }
-      });
-    });
+    vertx
+        .createHttpServer()
+        .requestHandler(router)
+        .listen(
+            port,
+            event -> {
+              // send this though event bus and succed deploy after successfull response
+              int actualPort = event.result().actualPort();
+              vertx
+                  .eventBus()
+                  .request(
+                      PORT_DATA_ADDRESS,
+                      actualPort,
+                      ar -> {
+                        if (ar.succeeded()) {
+                          startPromise.complete();
+                        } else {
+                          startPromise.fail(ar.cause());
+                        }
+                      });
+            });
   }
 
   protected void customizeBeforeRoutes(Router router) {}

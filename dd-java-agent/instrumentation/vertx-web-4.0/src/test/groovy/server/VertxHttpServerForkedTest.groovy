@@ -40,10 +40,10 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
       final CompletableFuture<Void> future = new CompletableFuture<>()
       server.eventBus().localConsumer("PORT_DATA")
-        .handler({ message -> 
-          port = message.body();
-          message.reply(null);
-          future.complete(null);
+        .handler({ message ->
+          port = message.body()
+          message.reply(null)
+          future.complete(null)
         })
 
       server.deployVerticle(verticle().name,
@@ -53,7 +53,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
           if (!res.succeeded()) {
             throw new RuntimeException("Cannot deploy server Verticle", res.cause())
           }
-      }
+        }
       future.get()
     }
 
