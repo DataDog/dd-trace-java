@@ -7,7 +7,7 @@ import java.util.List;
 public final class Platform {
 
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
-  private static final JmvRuntime RUNTIME = new JmvRuntime();
+  private static final JvmRuntime RUNTIME = new JvmRuntime();
 
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
   private static List<Integer> splitDigits(String str) {
@@ -97,7 +97,7 @@ public final class Platform {
     }
   }
 
-  static final class JmvRuntime {
+  static final class JvmRuntime {
     /*
      * Example:
      *    jvm     -> "AdoptOpenJDK 1.8.0_265-b01"
@@ -113,7 +113,7 @@ public final class Platform {
     public final String version;
     public final String patches;
 
-    public JmvRuntime() {
+    public JvmRuntime() {
       String rtVer = System.getProperty("java.runtime.version");
       String javaVer = System.getProperty("java.version");
       this.name = System.getProperty("java.runtime.name");

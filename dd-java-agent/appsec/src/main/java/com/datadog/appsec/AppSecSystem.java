@@ -13,6 +13,7 @@ import datadog.communication.fleet.FleetService;
 import datadog.communication.fleet.FleetServiceImpl;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
+import datadog.telemetry.IntegrationPeriodicAction;
 import datadog.telemetry.RequestBuilder;
 import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryServiceImpl;
@@ -109,7 +110,10 @@ public class AppSecSystem {
         new TelemetryRunnable(
             sco.okHttpClient,
             telemetryService,
-            Collections.singletonList(new DependencyPeriodicAction(dependencyService)));
+            Arrays.asList(
+                new DependencyPeriodicAction(dependencyService),
+                new IntegrationPeriodicAction()
+                ));
     TELEMETRY_THREAD =
         AgentThreadFactory.newAgentThread(
             AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);

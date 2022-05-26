@@ -19,6 +19,8 @@ import datadog.trace.agent.tooling.context.NoopContextProvider;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.Map;
+
+import datadog.trace.api.IntegrationsCollector;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.method.MethodDescription;
@@ -75,7 +77,11 @@ public class AgentTransformerBuilder
                       JavaModule module,
                       Class<?> classBeingRedefined,
                       ProtectionDomain protectionDomain) {
-                    return instrumenter.muzzleMatches(classLoader, classBeingRedefined);
+                    boolean isMatch = instrumenter.muzzleMatches(classLoader, classBeingRedefined);
+                    if (isMatch) {
+                      IntegrationsCollector.get().update(instrumenter.names(), true);
+                    }
+                    return isMatch;
                   }
                 })
             .transform(defaultTransformers());

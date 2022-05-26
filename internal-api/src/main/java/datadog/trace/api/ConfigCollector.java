@@ -10,7 +10,7 @@ public class ConfigCollector extends LinkedHashMap<String, Object> {
   public static final Set<String> CONFIG_FILTER_LIST =
       new TreeSet<>(
           Arrays.asList(
-              "dd_api_key",
+              "DD_API_KEY",
               "dd.api-key",
               "dd.profiling.api-key",
               "dd.profiling.apikey"

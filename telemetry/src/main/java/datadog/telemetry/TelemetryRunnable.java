@@ -47,6 +47,10 @@ public class TelemetryRunnable implements Runnable {
   public void run() {
     log.info("Adding APP_STARTED telemetry event");
     this.telemetryService.addConfiguration(ConfigCollector.get());
+    for (TelemetryPeriodicAction action : this.actions) {
+      action.doIteration(this.telemetryService);
+    }
+
     this.telemetryService.addStartedRequest();
 
     while (!Thread.interrupted()) {
