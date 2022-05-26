@@ -1,6 +1,7 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +61,7 @@ final class LongSequence {
   private int[] bufferBoundaryMap = new int[10];
 
   private int bufferInitSlot = 0;
-  private int bufferWriteSlot = 0;
+  private int bufferWriteSlot = -1;
   private int capacity = 0;
   private int capacityInChunks = 0;
   private int size = 0;
@@ -74,18 +75,34 @@ final class LongSequence {
   }
 
   private AtomicInteger state = new AtomicInteger(0);
+  private final int limit;
 
   public LongSequence(Allocator allocator) {
+    this(allocator, Integer.MAX_VALUE);
+  }
+
+  public LongSequence(Allocator allocator, int limit) {
     this.allocator = allocator;
+    this.limit = limit;
     this.bufferWriteSlot = -1;
+    Arrays.fill(bufferBoundaryMap, Integer.MAX_VALUE);
   }
 
   public int add(long value) {
+    return add(value, true);
+  }
+
+  public int add(long value, boolean obeyLimit) {
     // check'n'update the state - if it is non-negative, increment the counter and proceed,
     // otherwise bail out
     if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
       // bail out if this instance was already released
       return -1;
+    }
+
+    if (obeyLimit && sizeInBytes > limit) {
+      // hit the sequence bytes limit; bail out
+      return -2;
     }
 
     try {
@@ -105,23 +122,29 @@ final class LongSequence {
           threshold = -1;
         }
       } else {
+        if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
+          return 0;
+        }
         if (threshold > -1 && sizeInBytes == threshold) {
-          // we hit the threshold - let's prepare the next-in-line buffer
-          int newCapacity = 2 * capacityInChunks; // capacity stays aligned
-          AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
-          if (cBuffer != null) {
-            bufferInitSlot = bufferWriteSlot + 1;
-            buffers[bufferInitSlot] = cBuffer;
-            capacityInChunks += newCapacity;
-            capacity += cBuffer.capacity(); // update the sequence capacity
-            threshold = align((int) (capacity * 0.75f)); // update the threshold
-            bufferBoundaryMap[bufferInitSlot] = capacity - 1;
-          } else {
-            threshold = -1;
+          // we hit the threshold - let's prepare the next-in-line buffer if it can be done without
+          // breaking the limit
+          if (bufferWriteSlot < buffers.length - 1) {
+            int newCapacity = 2 * capacityInChunks; // capacity stays aligned
+            AllocatedBuffer cBuffer = allocator.allocateChunks(newCapacity);
+            if (cBuffer != null) {
+              bufferInitSlot = bufferWriteSlot + 1;
+              buffers[bufferInitSlot] = cBuffer;
+              capacityInChunks += newCapacity;
+              capacity += cBuffer.capacity(); // update the sequence capacity
+              threshold = align((int) (capacity * 0.75f)); // update the threshold
+              bufferBoundaryMap[bufferInitSlot] = capacity - 1;
+            } else {
+              threshold = -1;
+            }
           }
         }
       }
-      if (bufferWriteSlot == buffers.length || buffers[bufferWriteSlot] == null) {
+      if (buffers[bufferWriteSlot] == null) {
         return 0;
       }
       while (!buffers[bufferWriteSlot].putLong(value)) {
@@ -154,7 +177,11 @@ final class LongSequence {
       PositionDecoder.Coordinates decoded =
           positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
       if (decoded != null) {
-        return buffers[decoded.slot].putLong(decoded.index, value);
+        if (decoded.slot >= buffers.length) {
+          return false;
+        }
+        AllocatedBuffer buffer = buffers[decoded.slot];
+        return buffer != null && buffer.putLong(decoded.index, value);
       }
       return false;
     } finally {
@@ -177,7 +204,11 @@ final class LongSequence {
       PositionDecoder.Coordinates decoded =
           positionDecoder.decode(index * 8, bufferBoundaryMap, bufferInitSlot + 1);
       if (decoded != null) {
-        return buffers[decoded.slot].getLong(decoded.index);
+        if (decoded.slot >= buffers.length) {
+          return Long.MIN_VALUE;
+        }
+        AllocatedBuffer buffer = buffers[decoded.slot];
+        return buffer != null ? buffer.getLong(decoded.index) : Long.MIN_VALUE;
       }
       return Long.MIN_VALUE;
     } finally {
@@ -190,21 +221,11 @@ final class LongSequence {
   }
 
   public int size() {
-    // check'n'update the state - if it is non-negative, increment the counter and proceed,
-    // otherwise bail out
-    if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
-      // bail out if this instance was already released
-      return 0;
-    }
-    try {
-      return size;
-    } finally {
-      // check'n'update the state - if it is negative before update, perform release, otherwise just
-      // decrement the counter
-      if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
-        doRelease();
-      }
-    }
+    return size;
+  }
+
+  public int sizeInBytes() {
+    return sizeInBytes;
   }
 
   public void release() {
@@ -225,11 +246,14 @@ final class LongSequence {
     buffers = null;
     bufferBoundaryMap = null;
     bufferInitSlot = -1;
-    size = 0;
     state.set(-1);
   }
 
   public LongIterator iterator() {
     return new LongIteratorImpl();
+  }
+
+  public int getCapacity() {
+    return capacity;
   }
 }

@@ -54,7 +54,7 @@ class ProfilerTracingContextTrackerTest {
         new TestTimeTickProvider(100_000L, 1000L, 1_000_000_000L);
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.heapAllocator(32, 16), null, ticker, sequencePruner);
+            Allocators.heapAllocator(32, 16), null, ticker, sequencePruner, 512);
   }
 
   @Test
@@ -65,13 +65,19 @@ class ProfilerTracingContextTrackerTest {
     TestTimeTickProvider tickProvider = new TestTimeTickProvider(100_000L, 3, 1_000_000_000L);
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.directAllocator(8192, 64), null, tickProvider, sequencePruner);
+            Allocators.directAllocator(8192, 64),
+            null,
+            tickProvider,
+            sequencePruner,
+            Integer.MAX_VALUE);
     for (int i = 0; i < 40; i += 4) {
       instance.activateContext(1L, (i + 1) * 1_000_000L);
       instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);
       instance.activateContext(2L, (i + 3) * 1_000_000L);
       instance.deactivateContext(2L, (i + 4) * 1_000_000L, true);
     }
+
+    assertFalse(instance.isTruncated());
     // set the timestamp after the last transition's timestamp
     tickProvider.set((44 * 1_000_000L) + 1);
 
@@ -80,6 +86,54 @@ class ProfilerTracingContextTrackerTest {
 
     List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(persisted);
     assertEquals(11, intervals.size());
+
+    byte[] encoded = Base64.getEncoder().encode(persisted);
+    System.out.println("===> encoded: " + encoded.length);
+    System.err.println("===> " + new String(encoded, StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void persistTruncated() {
+    int dataSizeLimit = 140;
+    TestTimeTickProvider tickProvider = new TestTimeTickProvider(100_000L, 3, 1_000_000_000L);
+    instance =
+        new ProfilerTracingContextTracker(
+            Allocators.directAllocator(8192, 64),
+            null,
+            tickProvider,
+            sequencePruner,
+            dataSizeLimit);
+    int intervalsCount = 0;
+    for (int i = 0; i < 10 * 12; i += 12) {
+      instance.activateContext(1L, (i + 1) * 1_000_000L);
+      instance.deactivateContext(1L, (i + 2) * 1_000_000L, false);
+      instance.activateContext(2L, (i + 3) * 1_000_000L);
+      instance.deactivateContext(2L, (i + 4) * 1_000_000L, true);
+      instance.activateContext(3L, (i + 5) * 1_000_000L);
+      instance.deactivateContext(3L, (i + 6) * 1_000_000L, true);
+      instance.activateContext(4L, (i + 7) * 1_000_000L);
+      instance.deactivateContext(4L, (i + 8) * 1_000_000L, true);
+      instance.activateContext(5L, (i + 9) * 1_000_000L);
+      instance.deactivateContext(5L, (i + 10) * 1_000_000L, true);
+      instance.activateContext(6L, (i + 11) * 1_000_000L);
+      instance.deactivateContext(6L, (i + 11) * 1_000_000L, true);
+      instance.activateContext(7L, (i + 12) * 1_000_000L);
+      instance.deactivateContext(7L, (i + 12) * 1_000_000L, true);
+      intervalsCount += 7;
+    }
+
+    assertTrue(instance.isTruncated());
+    // set the timestamp after the last transition's timestamp
+    tickProvider.set(((11 * 12) * 1_000_000L) + 1);
+
+    byte[] persisted = instance.persist();
+    assertNotNull(persisted);
+
+    assertTrue(persisted.length < dataSizeLimit);
+
+    List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(persisted);
+    // only 8 intervals can be persisted obeying the 128 bytes data limit
+    assertTrue(intervals.size() < intervalsCount);
 
     byte[] encoded = Base64.getEncoder().encode(persisted);
     System.out.println("===> encoded: " + encoded.length);

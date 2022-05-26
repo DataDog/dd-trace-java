@@ -83,6 +83,7 @@ public final class IntervalParser {
 
   public void parseIntervals(byte[] intervalData, IntervalConsumer consumer) {
     ByteBuffer buffer = ByteBuffer.wrap(intervalData);
+    boolean truncated = buffer.get() != 0;
     int chunkDataOffset = buffer.getInt();
     long timestampMillis = getVarint(buffer);
     long frequencyMultiplier = getVarint(buffer);

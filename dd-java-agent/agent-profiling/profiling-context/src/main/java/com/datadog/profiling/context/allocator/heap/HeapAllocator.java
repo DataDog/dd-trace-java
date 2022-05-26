@@ -34,6 +34,8 @@ public final class HeapAllocator implements Allocator {
 
     StatsDClient statsd = getStatsdClient();
     statsDClient = statsd;
+
+    log.info("HeapAllocator created with the limit of {} bytes", topMemory);
   }
 
   private static StatsDClient getStatsdClient() {
@@ -71,7 +73,7 @@ public final class HeapAllocator implements Allocator {
         long restored = remaining.addAndGet(size); // restore the remaining size
         size = (int) (newRemaining + size);
         if (size <= chunkSize) {
-          warnlog.warn("Capacity exhausted - buffer could not be allocated");
+          warnlog.warn("Capacity exhausted ({} bytes)- buffer could not be allocated", topMemory);
           return null;
         }
         // align at chunkSize
