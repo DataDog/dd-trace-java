@@ -11,6 +11,7 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.Strings;
@@ -24,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecSystem {
+
+  public static volatile boolean ACTIVE;
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
@@ -43,12 +46,16 @@ public class AppSecSystem {
 
   private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
     final Config config = Config.get();
-    if (!config.isAppSecEnabled()) {
+    ProductActivationConfig appSecEnabledConfig = config.getAppSecEnabledConfig();
+    if (appSecEnabledConfig == ProductActivationConfig.FULLY_DISABLED) {
       log.debug("AppSec: disabled");
       return;
     }
-    log.debug("AppSec is starting");
+    log.info("AppSec is starting ({})", appSecEnabledConfig);
 
+    ACTIVE = appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED;
+
+    sco.createRemaining(config);
     ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, configurationPoller);
@@ -67,6 +74,7 @@ public class AppSecSystem {
 
     loadModules(eventDispatcher);
     gatewayBridge.init();
+    APP_SEC_CONFIG_SERVICE.maybeInitPoller();
 
     STARTED.set(true);
 

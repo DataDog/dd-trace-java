@@ -35,6 +35,10 @@ class StubAppSecConfigService implements AppSecConfigService {
   }
 
   @Override
+  void maybeInitPoller() {
+  }
+
+  @Override
   Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener) {
     listeners[key] = listener
 

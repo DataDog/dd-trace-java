@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
@@ -50,7 +51,7 @@ public class AgentInstaller {
      */
     if (Config.get().isTraceEnabled()
         || Config.get().isProfilingEnabled()
-        || Config.get().isAppSecEnabled()
+        || Config.get().getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED
         || Config.get().isIastEnabled()
         || Config.get().isCiVisibilityEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
@@ -179,7 +180,7 @@ public class AgentInstaller {
     if (cfg.isProfilingEnabled()) {
       enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
     }
-    if (cfg.isAppSecEnabled()) {
+    if (cfg.getAppSecEnabledConfig() != ProductActivationConfig.FULLY_DISABLED) {
       enabledSystems.add(Instrumenter.TargetSystem.APPSEC);
     }
     if (cfg.isIastEnabled()) {

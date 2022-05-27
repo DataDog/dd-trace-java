@@ -18,9 +18,7 @@ class StoredBodyFactoriesTest extends DDSpecification {
   AgentTracer.TracerAPI tracerAPI = Mock()
   AgentSpan agentSpan
 
-  RequestContext requestContext = Mock(RequestContext) {
-    getData() >> it
-  }
+  RequestContext requestContext = Mock(RequestContext)
   CallbackProvider cbp = Mock()
 
   def setup() {
@@ -38,31 +36,29 @@ class StoredBodyFactoriesTest extends DDSpecification {
     expect:
     StoredBodyFactories.maybeCreateForByte(null, null) == null
     StoredBodyFactories.maybeCreateForChar(null) == null
-    StoredBodyFactories.maybeDeliverBodyInOneGo('').is(Flow.ResultFlow.empty())
+    StoredBodyFactories.maybeDeliverBodyInOneGo('', requestContext).is(Flow.ResultFlow.empty())
   }
 
   void 'no active context'() {
     agentSpan = Mock()
 
     when:
-    StoredBodyFactories.maybeCreateForByte(null, null) == null
-    StoredBodyFactories.maybeCreateForChar(null) == null
-    StoredBodyFactories.maybeDeliverBodyInOneGo('').is(Flow.ResultFlow.empty())
+    StoredByteBody sbb1 = StoredBodyFactories.maybeCreateForByte(null, null)
+    StoredByteBody sbb2 = StoredBodyFactories.maybeCreateForChar(null)
+    Flow<Void> flow = StoredBodyFactories.maybeDeliverBodyInOneGo('', requestContext)
 
     then:
-    3 * agentSpan.requestContext >> null
+    2 * agentSpan.requestContext >> null
+    sbb1 == null
+    sbb2 == null
+    flow.is(Flow.ResultFlow.empty())
   }
 
   void 'no IG callbacks'() {
-    agentSpan = Mock()
-
-    when:
+    expect:
     StoredBodyFactories.maybeCreateForByte(null, null) == null
     StoredBodyFactories.maybeCreateForChar(null) == null
-    StoredBodyFactories.maybeDeliverBodyInOneGo('').is(Flow.ResultFlow.empty())
-
-    then:
-    3 * agentSpan.requestContext >> requestContext
+    StoredBodyFactories.maybeDeliverBodyInOneGo('', requestContext).is(Flow.ResultFlow.empty())
   }
 
   void 'everything needed provided'() {
@@ -82,10 +78,9 @@ class StoredBodyFactoriesTest extends DDSpecification {
     2 * cbp.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
 
     when:
-    Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo({ 'body' } as Supplier<CharSequence>)
+    Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo({ 'body' } as Supplier<CharSequence>, requestContext)
 
     then:
-    1 * agentSpan.requestContext >> requestContext
     1 * cbp.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
     1 * cbp.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
     1 * mockRequestBodyStart.apply(requestContext, _ as StoredBodySupplier) >> {
@@ -109,10 +104,9 @@ class StoredBodyFactoriesTest extends DDSpecification {
     Flow mockFlow = Mock()
 
     when:
-    Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo('body')
+    Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo('body', requestContext)
 
     then:
-    1 * agentSpan.requestContext >> requestContext
     1 * cbp.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
     1 * cbp.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
     1 * mockRequestBodyDone.apply(requestContext, _ as StoredBodySupplier) >> {

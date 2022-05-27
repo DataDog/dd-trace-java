@@ -147,7 +147,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   private static void configureLoggingLevels() {
-    final Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
+    def logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
+    if (!(logger instanceof Logger)) {
+      return
+    }
+    final Logger rootLogger = logger
     if (!rootLogger.iteratorForAppenders().hasNext()) {
       try {
         // previous test wiped out the logging config bring it back for the next test
@@ -227,7 +231,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   private void enableAppSec() {
-    if (Config.get().isAppSecEnabled()) {
+    if (Config.get().getAppSecEnabledConfig()) {
       return
     }
 

@@ -2,6 +2,7 @@ package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
+import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
@@ -83,6 +84,10 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         events.requestStarted(),
         () -> {
+          if (!AppSecSystem.ACTIVE) {
+            return null;
+          }
+
           RequestContextSupplier requestContextSupplier = new RequestContextSupplier();
           AppSecRequestContext ctx = requestContextSupplier.getResult();
           producerService.publishEvent(ctx, EventType.REQUEST_START);

@@ -29,3 +29,9 @@ tasks.withType(Test).configureEach {
 
   jvmArgs "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
 }
+
+task testRuntimeActivation(type: Test) {
+  jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
+    "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
+}
+tasks['check'].dependsOn(testRuntimeActivation)

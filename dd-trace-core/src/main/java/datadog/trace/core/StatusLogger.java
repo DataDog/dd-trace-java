@@ -102,7 +102,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.name("profiling_enabled");
     writer.value(config.isProfilingEnabled());
     writer.name("appsec_enabled");
-    writer.value(config.isAppSecEnabled());
+    writer.value(config.getAppSecEnabledConfig().toString());
     writer.name("appsec_rules_file_path");
     writer.value(config.getAppSecRulesFile());
     writer.name("dd_version");
