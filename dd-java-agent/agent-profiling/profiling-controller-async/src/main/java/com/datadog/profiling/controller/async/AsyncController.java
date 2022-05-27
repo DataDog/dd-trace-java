@@ -49,7 +49,8 @@ public final class AsyncController implements Controller {
   }
 
   @Override
-  public AsyncOngoingRecording createRecording(final String recordingName) throws Exception {
+  public AsyncOngoingRecording createRecording(final String recordingName)
+      throws UnsupportedEnvironmentException {
     return new AsyncOngoingRecording(asyncProfiler, recordingName);
   }
 }
