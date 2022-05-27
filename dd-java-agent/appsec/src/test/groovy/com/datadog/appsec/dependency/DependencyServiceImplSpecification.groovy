@@ -29,7 +29,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
 
   void 'null uri results in NPE'() {
     when:
-    depService.addURI(null)
+    depService.addURL(null)
 
     then:
     thrown NullPointerException
@@ -37,7 +37,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
 
   void 'class files are ignored as dependencies'() {
     when:
-    depService.addURI(new URI('file:///tmp/toto.class'))
+    depService.addURL(new URL('file:///tmp/toto.class'))
 
     then:
     depService.determineNewDependencies().isEmpty()
@@ -46,19 +46,16 @@ class DependencyServiceImplSpecification extends DDSpecification {
   void 'add missing jar url dependency'() throws URISyntaxException {
     when:
     // this URI comes from a spring-boot application
-    URI uri = new URI('jar:file:/tmp//spring-petclinic-2.1.0.BUILD-SNAPSHOT.jar!/BOOT-INF/lib/spring-boot-2.1.0.BUILD-SNAPSHOT.jar!//')
-    then:
-    uri.path == null
+    URL url = new URL('jar:file:/tmp//spring-petclinic-2.1.0.BUILD-SNAPSHOT.jar!/BOOT-INF/lib/spring-boot-2.1.0.BUILD-SNAPSHOT.jar!//')
+    depService.addURL(url)
 
-    when:
-    depService.addURI(uri)
     then:
     depService.determineNewDependencies().isEmpty()
   }
 
   void 'invalid jar names are ignored'() {
     when:
-    depService.addURI(new File(".zip").toURI())
+    depService.addURL(new File(".zip").toURL())
 
     then:
     depService.determineNewDependencies().isEmpty()
@@ -142,7 +139,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
     when:
     File junitJar = getJar('junit-4.12.jar')
 
-    depService.addURI(new File(junitJar.getAbsolutePath()).toURI())
+    depService.addURL(new File(junitJar.getAbsolutePath()).toURL())
     def set = depService.determineNewDependencies()
 
     then:

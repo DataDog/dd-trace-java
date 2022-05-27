@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import datadog.telemetry.api.Integration;
 import datadog.trace.api.IntegrationsCollector;
-
 import java.util.Map;
 
 public class IntegrationPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {

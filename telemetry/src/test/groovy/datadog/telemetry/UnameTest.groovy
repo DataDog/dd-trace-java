@@ -6,10 +6,10 @@ class UnameTest extends Specification {
   void 'can obtain the data via libc'() {
     expect:
     Uname.UTS_NAME != null
-    Uname.UTS_NAME.machine().size() > 0
-    Uname.UTS_NAME.nodename().size() > 0
-    Uname.UTS_NAME.release().size() > 0
-    Uname.UTS_NAME.version().size() > 0
+    Uname.UTS_NAME.machine() == 'uname -m'.execute().text.trim()
+    Uname.UTS_NAME.nodename() == 'uname -n'.execute().text.trim()
+    Uname.UTS_NAME.release() == 'uname -r'.execute().text.trim()
+    Uname.UTS_NAME.version() == 'uname -v'.execute().text.trim()
     if (System.getProperty('os.name') == 'Linux') {
       assert Uname.UTS_NAME.sysname() == 'Linux'
     } else {

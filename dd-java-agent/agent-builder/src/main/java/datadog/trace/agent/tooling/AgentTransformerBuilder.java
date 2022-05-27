@@ -16,11 +16,10 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
+import datadog.trace.api.IntegrationsCollector;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.Map;
-
-import datadog.trace.api.IntegrationsCollector;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.method.MethodDescription;

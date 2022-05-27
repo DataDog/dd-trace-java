@@ -1,10 +1,10 @@
 package com.datadog.appsec.dependency;
 
-import java.net.URI;
+import java.net.URL;
 import java.util.Collection;
 
 public interface DependencyService {
   Collection<Dependency> determineNewDependencies();
 
-  void addURI(URI uri);
+  void addURL(URL uri);
 }

@@ -3,9 +3,8 @@ package datadog.telemetry;
 import datadog.telemetry.api.Dependency;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.Metric;
-import okhttp3.Request;
-
 import java.util.Map;
+import okhttp3.Request;
 
 public interface TelemetryService {
 

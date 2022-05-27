@@ -111,9 +111,7 @@ public class AppSecSystem {
             sco.okHttpClient,
             telemetryService,
             Arrays.asList(
-                new DependencyPeriodicAction(dependencyService),
-                new IntegrationPeriodicAction()
-                ));
+                new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
     TELEMETRY_THREAD =
         AgentThreadFactory.newAgentThread(
             AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);

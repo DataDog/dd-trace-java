@@ -1,10 +1,9 @@
 package datadog.telemetry;
 
+import datadog.trace.api.ConfigCollector;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
-
-import datadog.trace.api.ConfigCollector;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;

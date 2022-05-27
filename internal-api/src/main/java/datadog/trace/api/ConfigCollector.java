@@ -9,12 +9,7 @@ public class ConfigCollector extends LinkedHashMap<String, Object> {
 
   public static final Set<String> CONFIG_FILTER_LIST =
       new TreeSet<>(
-          Arrays.asList(
-              "DD_API_KEY",
-              "dd.api-key",
-              "dd.profiling.api-key",
-              "dd.profiling.apikey"
-              ));
+          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
   public static class Holder {
     public static final ConfigCollector INSTANCE = new ConfigCollector();
@@ -26,8 +21,7 @@ public class ConfigCollector extends LinkedHashMap<String, Object> {
 
   @Override
   public Object put(String key, Object value) {
-    if (CONFIG_FILTER_LIST.contains(key)
-    ) {
+    if (CONFIG_FILTER_LIST.contains(key)) {
       value = "<hidden>";
     }
     return super.put(key, value);

@@ -81,33 +81,33 @@ public final class Dependency {
       return null;
     }
 
-    Enumeration<JarEntry> entry = jar.entries();
-    while (entry.hasMoreElements()) {
-      JarEntry jarEntry = entry.nextElement();
-      String fineName = jarEntry.getName();
-      if (fineName.endsWith("pom.properties")) {
-        try {
-          InputStream is = jar.getInputStream(jarEntry);
-          if (is != null) {
-            Properties properties = new Properties();
-            properties.load(is);
-            String groupId = properties.getProperty("groupId");
-            String artifactId = properties.getProperty("artifactId");
-            String version = properties.getProperty("version");
-            String name = groupId + ":" + artifactId;
-
-            if (groupId == null || artifactId == null || version == null) {
-              log.debug(
-                  "'pom.properties' does not have all the required properties: "
-                      + "jar={} groupId={}, artifactId={}, version={}",
-                  jar.getName(),
-                  groupId,
-                  artifactId,
-                  version);
-              return null;
-            }
-            return new Dependency(name, version, (new File(jar.getName())).getName());
+    Enumeration<JarEntry> entries = jar.entries();
+    while (entries.hasMoreElements()) {
+      JarEntry jarEntry = entries.nextElement();
+      String filename = jarEntry.getName();
+      if (filename.endsWith("pom.properties")) {
+        try (InputStream is = jar.getInputStream(jarEntry)) {
+          if (is == null) {
+            return null;
           }
+          Properties properties = new Properties();
+          properties.load(is);
+          String groupId = properties.getProperty("groupId");
+          String artifactId = properties.getProperty("artifactId");
+          String version = properties.getProperty("version");
+          String name = groupId + ":" + artifactId;
+
+          if (groupId == null || artifactId == null || version == null) {
+            log.debug(
+                "'pom.properties' does not have all the required properties: "
+                    + "jar={} groupId={}, artifactId={}, version={}",
+                jar.getName(),
+                groupId,
+                artifactId,
+                version);
+            return null;
+          }
+          return new Dependency(name, version, (new File(jar.getName())).getName());
         } catch (IOException e) {
           log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
           return null;
