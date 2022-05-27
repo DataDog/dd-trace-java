@@ -1,4 +1,4 @@
-package com.datadog.profiling.auxiliary.async;
+package com.datadog.profiling.async;
 
 import java.util.Arrays;
 import java.util.EnumSet;

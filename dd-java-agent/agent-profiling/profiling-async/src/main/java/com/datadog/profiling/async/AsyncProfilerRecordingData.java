@@ -1,4 +1,4 @@
-package com.datadog.profiling.auxiliary.async;
+package com.datadog.profiling.async;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingInputStream;

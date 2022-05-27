@@ -2,9 +2,9 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.auxiliary.AuxiliaryProfiler;
 import com.datadog.profiling.auxiliary.AuxiliaryRecordingData;
-import com.datadog.profiling.auxiliary.ProfilingMode;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Duration;

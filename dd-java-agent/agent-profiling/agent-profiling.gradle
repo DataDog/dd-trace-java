@@ -16,11 +16,13 @@ dependencies {
   api deps.slf4j
   api project(':internal-api')
 
+  implementation project(path: ':dd-java-agent:agent-profiling:profiling-async', configuration: 'shadow')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation project(path: ':dd-java-agent:agent-profiling:profiling-auxiliary-async', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-auxiliary-async')
   api project(':dd-java-agent:agent-profiling:profiling-context')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-async')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
 }

@@ -1,4 +1,4 @@
-package com.datadog.profiling.auxiliary.async;
+package com.datadog.profiling.async;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 final class AsyncProfilerRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(AsyncProfilerRecording.class);
 
-  private final AuxiliaryAsyncProfiler profiler;
+  private final AsyncProfiler profiler;
   private volatile Path recordingFile;
   private final Instant started = Instant.now();
 
@@ -23,7 +23,7 @@ final class AsyncProfilerRecording implements OngoingRecording {
    * @param profiler the associated profiler
    * @throws IOException
    */
-  AsyncProfilerRecording(AuxiliaryAsyncProfiler profiler) throws IOException {
+  AsyncProfilerRecording(AsyncProfiler profiler) throws IOException {
     this.profiler = profiler;
     this.recordingFile = profiler.newRecording();
   }

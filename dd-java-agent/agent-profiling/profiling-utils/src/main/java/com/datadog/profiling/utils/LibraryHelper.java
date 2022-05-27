@@ -1,4 +1,4 @@
-package com.datadog.profiling.auxiliary;
+package com.datadog.profiling.utils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
