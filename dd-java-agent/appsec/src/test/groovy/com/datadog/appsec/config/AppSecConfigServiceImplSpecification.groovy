@@ -1,5 +1,6 @@
 package com.datadog.appsec.config
 
+import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.util.AbortStartupException
 import datadog.remoteconfig.ConfigurationChangesListener
 import datadog.remoteconfig.ConfigurationDeserializer
@@ -20,9 +21,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.close()
   }
 
-  void 'init subscribes to the configuration poller'() {
+  void 'maybeInitPoller subscribes to the configuration poller'() {
     when:
-    appSecConfigService.init()
+    appSecConfigService.maybeInitPoller()
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _)
@@ -87,7 +88,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     def initialWafConfig
 
     when:
+    AppSecSystem.ACTIVE = false
     appSecConfigService.init()
+    appSecConfigService.maybeInitPoller()
     initialWafConfig = appSecConfigService.addSubConfigListener("waf", subconfigListener)
 
     then:
@@ -115,6 +118,17 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']))
+    AppSecSystem.ACTIVE == true
+
+    when:
+    savedFeaturesListener.accept('config_key',
+      savedFeaturesDeserializer.deserialize('{"enabled": false}'.bytes))
+
+    then:
+    AppSecSystem.ACTIVE == false
+
+    cleanup:
+    AppSecSystem.ACTIVE = true
   }
 
   void 'error in one listener does not prevent others from running'() {
@@ -128,6 +142,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     } as AppSecConfigService.SubconfigListener)
     appSecConfigService.addSubConfigListener("foo", fooListener)
     appSecConfigService.init()
+    appSecConfigService.maybeInitPoller()
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _) >> {

@@ -63,6 +63,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.IntegrationsCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder"
 ]
+excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig',]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
