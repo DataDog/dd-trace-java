@@ -34,7 +34,7 @@ public class AsyncOngoingRecording implements OngoingRecording {
     log.debug("Creating new recording: {}", recordingName);
     recording = asyncProfiler.start();
     if (recording == null) {
-      throw new UnsupportedEnvironmentException("Failed to start auxiliary profiler for Async");
+      throw new UnsupportedEnvironmentException("Failed to start async profiler");
     }
     log.debug("Recording {} started", recordingName);
   }
