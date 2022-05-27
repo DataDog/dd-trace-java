@@ -67,6 +67,20 @@ class IntervalEncoderTest {
   }
 
   @Test
+  void testEncodeSequenceTruncated() {
+    IntervalEncoder.ThreadEncoder encoder = instance.startThread(1);
+    encoder.recordInterval(200, 300);
+    encoder.recordInterval(500, 600);
+    ByteBuffer data = encoder.finish().finish();
+    assertNotNull(data);
+    assertTrue(data.limit() > 0);
+
+    List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(data.array());
+    IntervalParser.Interval i1 = intervals.get(0);
+    assertEquals(now.toEpochMilli() * 1_000_000L + 200, i1.from);
+  }
+
+  @Test
   void testIntervalAfterFinish() {
     IntervalEncoder.ThreadEncoder encoder = instance.startThread(1);
     encoder.recordInterval(200, 300);

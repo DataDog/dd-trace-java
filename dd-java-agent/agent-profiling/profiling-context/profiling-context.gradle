@@ -26,6 +26,7 @@ dependencies {
   implementation deps.slf4j
   main_java11CompileOnly deps.slf4j
   implementation sourceSets.main_java11.output
+  implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
 
   testImplementation deps.junit5
   testImplementation deps.mockito

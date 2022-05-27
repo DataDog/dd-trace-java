@@ -97,6 +97,11 @@ public final class ProfilingConfig {
       "profiling.tracing_context.memory.type";
   public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT = "heap";
 
+  public static final String PROFILING_TRACING_CONTEXT_MAX_SIZE =
+      "profiling.tracing_context.max_size.bytes";
+  public static final int PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT =
+      20_000; // 20k bytes is the default
+
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
   public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;
