@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
@@ -50,8 +51,8 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(
-        isAnnotatedWith(named("javax.ws.rs.Path"))
-            .<TypeDescription>or(declaresMethod(isAnnotatedWith(named("javax.ws.rs.Path")))));
+        declaresAnnotation(named("javax.ws.rs.Path"))
+            .or(declaresMethod(isAnnotatedWith(named("javax.ws.rs.Path")))));
   }
 
   @Override
