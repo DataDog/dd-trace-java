@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.vertx_4_0.server;
 
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.impl.RouterImpl;
+import io.vertx.ext.web.impl.RouteImpl;
 import net.bytebuddy.asm.Advice;
 
 public class RouteHandlerWrapperAdvice {
@@ -13,7 +13,7 @@ public class RouteHandlerWrapperAdvice {
     // method this skips that. This prevents routers from creating a span during handling. In the
     // event a route is not found, without this code, a span would be created for the router when
     // it shouldn't
-    if (!handler.getClass().getName().startsWith(RouterImpl.class.getName())) {
+    if (!handler.getClass().getName().startsWith(RouteImpl.class.getName())) {
       handler = new RouteHandlerWrapper(handler);
     }
   }
