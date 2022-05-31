@@ -62,10 +62,15 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   private void updateRoutingContextWithRoute(RoutingContext routingContext) {
     final String method = routingContext.request().method().name();
     final String mountPoint = routingContext.mountPoint();
+
     String path = routingContext.currentRoute().getPath();
+
     if (mountPoint != null) {
-      path = mountPoint + path;
-      path = path.replaceAll("//", "/");
+      final String noBackslashhMountPoint =
+          mountPoint.endsWith("/")
+              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+              : mountPoint;
+      path = noBackslashhMountPoint + path;
     }
     if (method != null && path != null) {
       routingContext.put(ROUTE_CONTEXT_KEY, path);
