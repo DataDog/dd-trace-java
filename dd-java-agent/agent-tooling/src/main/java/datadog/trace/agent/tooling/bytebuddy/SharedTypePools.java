@@ -28,22 +28,20 @@ public final class SharedTypePools {
   /** Simple soft-cache for use during the build when testing or validating muzzle ranges. */
   public static Supplier simpleCache() {
     return new SharedTypePools.Supplier() {
-      private final WeakHashMap<ClassLoader, TypePool> typePools = new WeakHashMap<>();
+      private final WeakHashMap<ClassLoader, TypePool.CacheProvider> cacheProviders =
+          new WeakHashMap<>();
 
       @Override
       public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-        TypePool typePool = typePools.get(classLoader);
-        if (null == typePool) {
-          typePool =
-              new TypePool.Default.WithLazyResolution(
-                  TypePool.CacheProvider.Simple.withObjectType(),
-                  classFileLocator,
-                  TypePool.Default.ReaderMode.FAST);
-          synchronized (typePools) {
-            typePools.put(classLoader, typePool);
+        TypePool.CacheProvider cacheProvider = cacheProviders.get(classLoader);
+        if (null == cacheProvider) {
+          cacheProvider = TypePool.CacheProvider.Simple.withObjectType();
+          synchronized (cacheProviders) {
+            cacheProviders.put(classLoader, cacheProvider);
           }
         }
-        return typePool;
+        return new TypePool.Default.WithLazyResolution(
+            cacheProvider, classFileLocator, TypePool.Default.ReaderMode.FAST);
       }
     };
   }
