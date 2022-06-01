@@ -57,7 +57,7 @@ include ':dd-java-agent:agent-profiling:profiling-controller-oracle'
 include ':dd-java-agent:agent-profiling:profiling-testing'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
 
-include ':dd-java-agent:agent-debugger:debugger-scala'
+include ':dd-java-agent:agent-debugger:debugger-test-scala'
 
 include ':communication'
 
