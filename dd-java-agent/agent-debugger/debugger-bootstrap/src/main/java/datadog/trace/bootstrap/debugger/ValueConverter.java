@@ -12,6 +12,10 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Converts an object instance to a string representation that will be stored into
+ * a Snapshot's CapturedValue
+ */
 public class ValueConverter {
   private static final Logger log = LoggerFactory.getLogger(ValueConverter.class);
 

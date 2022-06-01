@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
+/**
+ * Stores information of a stacktrace's frame
+ */
 public class CapturedStackFrame {
   private final String fileName;
   private final String function;

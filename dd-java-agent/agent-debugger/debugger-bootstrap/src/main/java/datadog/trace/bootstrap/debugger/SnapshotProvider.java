@@ -3,6 +3,10 @@ package datadog.trace.bootstrap.debugger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Helper class used by debugger instrumentation to create a Snapshot
+ * Usage of this class is directly emitted as ByteCode in instrumented method
+ */
 public final class SnapshotProvider {
   private static final Logger LOG = LoggerFactory.getLogger(SnapshotProvider.class);
 

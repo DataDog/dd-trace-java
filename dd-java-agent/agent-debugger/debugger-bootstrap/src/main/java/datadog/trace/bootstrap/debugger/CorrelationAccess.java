@@ -8,10 +8,12 @@ import java.lang.invoke.MethodType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Gives access from instrumented code to collect current TraceId & SpanID
+ */
 public final class CorrelationAccess {
   private static final Logger log = LoggerFactory.getLogger(CorrelationAccess.class);
 
-  private static final ConfigProvider CONFIG_PROVIDER = ConfigProvider.createDefault();
   // replace is to trick the relocate process from shadow gradle plugin
   // see https://github.com/johnrengelman/shadow/issues/305
   private static final String CORRELATION_IDENTIFIER_CLASSNAME =
@@ -30,7 +32,7 @@ public final class CorrelationAccess {
     MethodHandle traceIdHandle = null;
     MethodHandle spanIdHandle = null;
     // ignore correlations if tracer is not enabled
-    if (CONFIG_PROVIDER.getBoolean(TraceInstrumentationConfig.TRACE_ENABLED, false)) {
+    if (ConfigProvider.getInstance().getBoolean(TraceInstrumentationConfig.TRACE_ENABLED, false)) {
       try {
         Class<?> clz =
             ClassLoader.getSystemClassLoader().loadClass(CORRELATION_IDENTIFIER_CLASSNAME);

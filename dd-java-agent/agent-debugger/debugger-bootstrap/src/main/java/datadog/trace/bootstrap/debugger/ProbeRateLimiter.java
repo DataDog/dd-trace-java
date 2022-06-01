@@ -6,6 +6,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * Rate limiter for sending snapshot to backend
+ * Use a global rate limiter and one per probe
+ */
 public final class ProbeRateLimiter {
   private static final Duration ONE_SECOND_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
   private static final Duration TEN_SECONDS_WINDOW = Duration.of(10, ChronoUnit.SECONDS);

@@ -17,6 +17,9 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Data class representing all data collected at a probe location
+ */
 public class Snapshot {
   private static final Logger LOG = LoggerFactory.getLogger(Snapshot.class);
   private static final String LANGUAGE = "java";
@@ -222,6 +225,9 @@ public class Snapshot {
     AFTER;
   }
 
+  /**
+   * Probe information associated with a snapshot
+   */
   public static class ProbeDetails {
     public static final String ITW_PROBE_ID = "instrument-the-world-probe";
     public static final ProbeDetails UNKNOWN = new ProbeDetails("UNKNOWN", ProbeLocation.UNKNOWN);
@@ -303,6 +309,9 @@ public class Snapshot {
     }
   }
 
+  /**
+   * Probe location information used in ProbeDetails class
+   */
   public static class ProbeLocation {
     public static final ProbeLocation UNKNOWN =
         new ProbeLocation("UNKNOWN", "UNKNOWN", "UNKNOWN", Collections.emptyList());
@@ -369,6 +378,9 @@ public class Snapshot {
     }
   }
 
+  /**
+   * Stores all collected data at different location (method entry/exit, lines, exceptions)
+   */
   public static class Captures {
     private CapturedContext entry;
     private Map<Integer, CapturedContext> lines;
@@ -446,6 +458,9 @@ public class Snapshot {
     }
   }
 
+  /**
+   * Stores different kind of data (arguments, locals, fields, exception) for a specific location
+   */
   public static class CapturedContext implements ValueReferenceResolver {
     private static final Pattern DOT_PATTERN = Pattern.compile("\\.");
     private final transient Map<String, Object> extensions = new HashMap<>();
@@ -674,6 +689,9 @@ public class Snapshot {
     }
   }
 
+  /**
+   * Stores a captured value
+   */
   public static class CapturedValue {
     private final transient String name;
     private final String type;
@@ -860,6 +878,9 @@ public class Snapshot {
     }
   }
 
+  /**
+   * Stores an captured exception
+   */
   public static class CapturedThrowable {
     private final String type;
     private final String message;
