@@ -1,5 +1,6 @@
 ext {
   enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -19,8 +20,8 @@ excludedClassesCoverage += [
   'com.datadog.debugger.el.InvalidValueException'
 ]
 
-sourceCompatibility = 8
-targetCompatibility = 8
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
