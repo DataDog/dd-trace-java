@@ -62,6 +62,8 @@ include ':dd-java-agent:agent-profiling:profiling-utils'
 
 include ':dd-java-agent:agent-debugger:debugger-bootstrap'
 
+include ':dd-java-agent:agent-debugger:debugger-test-scala'
+
 include ':communication'
 
 include ':dd-java-agent:appsec'
