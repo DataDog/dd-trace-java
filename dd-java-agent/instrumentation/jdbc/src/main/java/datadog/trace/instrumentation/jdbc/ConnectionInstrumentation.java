@@ -67,6 +67,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "net.sourceforge.jtds.jdbc.JtdsConnection",
     // SAP HANA in-memory DB
     "com.sap.db.jdbc.ConnectionSapDB",
+    // aws-mysql-jdbc
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
     // for testing purposes
     "test.TestConnection",
     // this won't match any class unless the property is set
