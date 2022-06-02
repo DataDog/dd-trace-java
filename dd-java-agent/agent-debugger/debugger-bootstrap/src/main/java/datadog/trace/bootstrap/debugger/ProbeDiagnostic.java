@@ -3,9 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Stores a collection of DiagnosticMessages related to a probe
- */
+/** Stores a collection of DiagnosticMessages related to a probe */
 public final class ProbeDiagnostic {
   private final String probeId;
   private final List<DiagnosticMessage> messages;

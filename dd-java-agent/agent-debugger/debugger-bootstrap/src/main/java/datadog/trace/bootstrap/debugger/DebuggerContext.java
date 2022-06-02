@@ -5,9 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Instrumented code helper class for calling back into Debugger Classloader
- * Keeps track of debugger service instances through interfaces implemented by class
- * loaded into debugger classloader, but accessible from instrumented code
+ * Instrumented code helper class for calling back into Debugger Classloader Keeps track of debugger
+ * service instances through interfaces implemented by class loaded into debugger classloader, but
+ * accessible from instrumented code
  */
 public class DebuggerContext {
 

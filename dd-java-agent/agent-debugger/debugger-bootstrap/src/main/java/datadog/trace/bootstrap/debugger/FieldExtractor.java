@@ -8,9 +8,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Extracts all fields of an instance to be added into a Snapshot as CapturedValue
- */
+/** Extracts all fields of an instance to be added into a Snapshot as CapturedValue */
 public class FieldExtractor {
   public static final int DEFAULT_FIELD_DEPTH = -1;
   public static final int DEFAULT_FIELD_COUNT = 20;

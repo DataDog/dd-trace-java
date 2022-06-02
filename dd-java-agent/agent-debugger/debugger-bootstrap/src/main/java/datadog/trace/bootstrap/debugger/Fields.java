@@ -6,9 +6,7 @@ import java.util.function.BiConsumer;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
 
-/**
- * Helper class for processing fields of an instance
- */
+/** Helper class for processing fields of an instance */
 public class Fields {
 
   public static void processFields(

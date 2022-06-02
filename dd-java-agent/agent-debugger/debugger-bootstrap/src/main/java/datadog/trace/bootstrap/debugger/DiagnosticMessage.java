@@ -3,9 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * Stores status information of a probe and instrumentation result
- */
+/** Stores status information of a probe and instrumentation result */
 public final class DiagnosticMessage {
   public enum Kind {
     INFO,

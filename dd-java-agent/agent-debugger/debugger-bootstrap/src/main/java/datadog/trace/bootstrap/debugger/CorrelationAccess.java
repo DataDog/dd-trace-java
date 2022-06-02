@@ -8,9 +8,7 @@ import java.lang.invoke.MethodType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Gives access from instrumented code to collect current TraceId & SpanID
- */
+/** Gives access from instrumented code to collect current TraceId & SpanID */
 public final class CorrelationAccess {
   private static final Logger log = LoggerFactory.getLogger(CorrelationAccess.class);
 
