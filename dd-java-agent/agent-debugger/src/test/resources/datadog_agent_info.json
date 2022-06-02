@@ -1,0 +1,57 @@
+{
+  "version": "0.99.0",
+  "git_commit": "fab047e10",
+  "build_date": "2020-12-04 15:57:06.74187 +0200 EET m=+0.029001792",
+  "endpoints": [
+    "/v0.3/traces",
+    "/v0.3/services",
+    "/v0.4/traces",
+    "/v0.4/services",
+    "/v0.5/traces",
+    "/v0.6/stats",
+    "/profiling/v1/input",
+    "/v0.6/config"
+  ],
+  "feature_flags": [
+    "feature_flag"
+  ],
+  "config": {
+    "default_env": "prod",
+    "bucket_interval": 1000000000,
+    "extra_aggregators": [
+      "agg:val"
+    ],
+    "extra_sample_rate": 2.4,
+    "target_tps": 11,
+    "max_eps": 12,
+    "receiver_port": 8111,
+    "receiver_socket": "/sock/path",
+    "connection_limit": 12,
+    "receiver_timeout": 100,
+    "max_request_bytes": 123,
+    "statsd_port": 123,
+    "max_memory": 1000000,
+    "max_cpu": 12345,
+    "analyzed_rate_by_service_legacy": {
+      "X": 1.2
+    },
+    "analyzed_spans_by_service": {
+      "X": {
+        "Y": 2.4
+      }
+    },
+    "obfuscation": {
+      "elastic_search": true,
+      "mongo": true,
+      "sql_exec_plan": true,
+      "sql_exec_plan_normalize": true,
+      "http": {
+        "remove_query_string": true,
+        "remove_path_digits": true
+      },
+      "remove_stack_traces": false,
+      "redis": true,
+      "memcached": false
+    }
+  }
+}

@@ -1,0 +1,20 @@
+^\[\{
+"ddsource":"dd_debugger",
+"debugger":\{
+"snapshot":\{
+"captures":\{\},
+"language":"java",
+"probe":\{"id":"12fd-8490-c111-4374-ffde","location":\{"method":"indexOf","type":"java.lang.String"\}\},
+"stack":\[\],
+"timestamp":\d+
+\}\},
+"duration":0,
+"logger.method":"indexOf",
+"logger.name":"java.lang.String",
+"logger.thread_id":\d+,
+"logger.thread_name":"Test worker",
+"logger.version":2,
+"message":"String.indexOf\(\)",
+"service":"service-name",
+"timestamp":\d+
+\}\]$
