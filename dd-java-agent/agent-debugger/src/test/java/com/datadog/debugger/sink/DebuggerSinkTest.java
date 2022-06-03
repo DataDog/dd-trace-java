@@ -44,7 +44,7 @@ public class DebuggerSinkTest {
       new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
   private static final String EXPECTED_SNAPSHOT_TAGS =
-      "^env:test,version:foo,debugger_version:0\\.\\d+\\.0-SNAPSHOT~[0-9a-f]{9},agent_version:null,host_name:"
+      "^env:test,version:foo,debugger_version:0\\.\\d+\\.0-SNAPSHOT~[0-9a-f]+,agent_version:null,host_name:"
           + Config.getHostName()
           + "$";
 
