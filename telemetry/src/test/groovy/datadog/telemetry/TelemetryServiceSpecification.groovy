@@ -7,7 +7,6 @@ import datadog.telemetry.api.Dependency
 import datadog.telemetry.api.DependencyType
 import datadog.telemetry.api.GenerateMetrics
 import datadog.telemetry.api.Integration
-import datadog.telemetry.api.KeyValue
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.time.TimeSource
@@ -43,8 +42,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
   void 'added configuration pairs are reported in app_start'() {
     when:
-    def value = new KeyValue(name: 'my name', value: 'my value')
-    telemetryService.addConfiguration(value)
+    telemetryService.addConfiguration('my name': 'my value')
     telemetryService.addStartedRequest()
 
     then:

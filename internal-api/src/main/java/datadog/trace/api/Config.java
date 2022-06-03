@@ -584,7 +584,7 @@ public class Config {
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(ConfigProvider.getInstance());
+    this(ConfigProvider.createDefault());
   }
 
   private Config(final ConfigProvider configProvider) {

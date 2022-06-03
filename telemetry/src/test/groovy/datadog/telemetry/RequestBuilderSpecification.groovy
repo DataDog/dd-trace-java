@@ -45,7 +45,7 @@ class RequestBuilderSpecification extends DDSpecification {
     req.header('Content-type') == 'application/json; charset=utf-8'
     req.header('DD-Telemetry-API-Version') == 'v1'
     req.header('DD-Telemetry-Request-Type') == 'app-started'
-    body['api_version'] == 'V1'
+    body['api_version'] == 'v1'
     with(body['application']) {
       language_name == 'jvm'
       language_version =~ /\d+/
@@ -62,12 +62,12 @@ class RequestBuilderSpecification extends DDSpecification {
       kernel_release != null
       kernel_version != null
     }
-    body['request_type'] == 'APP_STARTED'
+    body['request_type'] == 'app-started'
     body['runtime_id'] =~ /[\da-f]{8}-([\da-f]{4}-){3}[\da-f]{12}/
     body['seq_id'] > 0
     body['tracer_time'] > 0
     with(body['payload']) {
-      request_type == 'APP_STARTED'
+      request_type == 'app-started'
       with(configuration.first()) {
         name == 'name'
         value == 'value'
@@ -75,7 +75,7 @@ class RequestBuilderSpecification extends DDSpecification {
       with(dependencies.first()) {
         hash == 'hash'
         name == 'name'
-        type == 'SHAREDSYSTEMLIBRARY'
+        type == 'SharedSystemLibrary'
         version == '1.2.3'
       }
     }

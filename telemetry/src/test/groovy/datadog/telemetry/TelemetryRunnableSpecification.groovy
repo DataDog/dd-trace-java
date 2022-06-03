@@ -39,6 +39,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
     t.join()
 
     then:
+    1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.addStartedRequest()
 
     then:
@@ -65,11 +66,14 @@ class TelemetryRunnableSpecification extends DDSpecification {
     t.join()
 
     then:
+    1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.addStartedRequest()
 
     then:
     1 * periodicAction.doIteration(telemetryService)
     1 * telemetryService.prepareRequests() >> queue
+
+    then:
     1 * okHttpClient.newCall(REQUEST) >> call
     1 * call.execute() >> BAD_RESPONSE
     queue.size() == 1
