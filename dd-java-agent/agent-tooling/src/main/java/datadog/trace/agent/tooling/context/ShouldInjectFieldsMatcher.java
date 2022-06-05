@@ -1,18 +1,12 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.excludeInjectedField;
+import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.findInjectionTarget;
 
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
@@ -20,17 +14,6 @@ import org.slf4j.LoggerFactory;
 
 class ShouldInjectFieldsMatcher {
   private static final Logger log = LoggerFactory.getLogger(ShouldInjectFieldsMatcher.class);
-
-  // this map will contain as many entries as there are unique
-  // context store keys, so can't get very big
-  private static final ConcurrentHashMap<String, Boolean> KEY_TYPE_IS_CLASS =
-      new ConcurrentHashMap<>();
-
-  // this map will contain entries for any root type that we wanted to field-inject
-  // but were not able to - either because it was explicitly excluded, or because we
-  // failed to field-inject as the type was already loaded
-  private static final ConcurrentHashMap<String, BitSet> EXCLUDED_STORE_IDS_BY_TYPE =
-      new ConcurrentHashMap<String, BitSet>();
 
   private final String keyType;
   private final String valueType;
@@ -52,7 +35,7 @@ class ShouldInjectFieldsMatcher {
 
     // First check if we should skip injecting the field based on the key type
     if (skipType != null && ExcludeFilter.exclude(skipType, matchedType)) {
-      excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
+      excludeInjectedField(matchedType, keyType, valueType);
       if (log.isDebugEnabled()) {
         log.debug(
             "Skipping context-store field - instrumentation.target.class={} instrumentation.target.classloader={} instrumentation.target.context={}->{}",
@@ -85,7 +68,7 @@ class ShouldInjectFieldsMatcher {
       // interface or a class, but can be figured out as
       // we go along
       if (!keyType.equals(matchedType)) {
-        injectionTarget = getInjectionTarget(typeDescription);
+        injectionTarget = findInjectionTarget(typeDescription, keyType);
         shouldInject &= matchedType.equals(injectionTarget);
       }
     }
@@ -112,9 +95,9 @@ class ShouldInjectFieldsMatcher {
         // must be a redefine of a class that we weren't able to field-inject on startup
         // - make sure we'd have field-injected (if we'd had the chance) before tracking
         if (keyType.equals(matchedType)
-            || matchedType.equals(getInjectionTarget(typeDescription))) {
+            || matchedType.equals(findInjectionTarget(typeDescription, keyType))) {
 
-          excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
+          excludeInjectedField(matchedType, keyType, valueType);
 
           // Only log failed redefines where we would have injected this class
           log.debug(
@@ -127,131 +110,5 @@ class ShouldInjectFieldsMatcher {
       }
     }
     return shouldInject;
-  }
-
-  private String getInjectionTarget(TypeDescription typeDescription) {
-    // precondition: typeDescription must be a sub type of the key class
-    // verifying this isn't free so the caller (in the same package) is trusted
-
-    // The flag takes 3 values:
-    // true: the key type is a class, so should be the injection target
-    // false: the key type is an interface, so we need to find the class
-    // closest to java.lang.Object which implements the key type
-    // null: we don't know yet because we haven't seen the key type before
-    Boolean keyTypeIsClass = KEY_TYPE_IS_CLASS.get(keyType);
-    if (null != keyTypeIsClass && keyTypeIsClass) {
-      // if we already know the key type is a class,
-      // we must inject into that class.
-      return keyType;
-    }
-    // then we don't know it's a class so need to
-    // follow the type's ancestry to find out
-    TypeDefinition superClass = typeDescription.getSuperClass();
-    String implementingClass = typeDescription.getName();
-    Map<String, Boolean> visitedInterfaces = new HashMap<>();
-    while (null != superClass) {
-      String superClassName = superClass.asErasure().getTypeName();
-      if (null == keyTypeIsClass && keyType.equals(superClassName)) {
-        // short circuit the search with this key type next time
-        KEY_TYPE_IS_CLASS.put(keyType, true);
-        return keyType;
-      }
-      if (hasKeyInterface(superClass, visitedInterfaces)) {
-        // then the key type must be an interface
-        if (null == keyTypeIsClass) {
-          KEY_TYPE_IS_CLASS.put(keyType, false);
-          keyTypeIsClass = false;
-        }
-        implementingClass = superClassName;
-      }
-      superClass = superClass.getSuperClass();
-    }
-    return implementingClass;
-  }
-
-  private boolean hasKeyInterface(
-      final TypeDefinition typeDefinition, final Map<String, Boolean> visitedInterfaces) {
-    for (TypeDefinition iface : typeDefinition.getInterfaces()) {
-      String interfaceName = iface.asErasure().getTypeName();
-      if (keyType.equals(interfaceName)) {
-        return true;
-      }
-      Boolean foundKeyInterface = visitedInterfaces.get(interfaceName);
-      if (Boolean.TRUE.equals(foundKeyInterface)) {
-        return true; // already know this will lead to the key
-      }
-      if (null == foundKeyInterface) {
-        // avoid cycle issues by assuming we won't find the key
-        visitedInterfaces.put(interfaceName, false);
-        if (hasKeyInterface(iface, visitedInterfaces)) {
-          visitedInterfaces.put(interfaceName, true); // update assumption
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Keep track of which stores (per-type) were explicitly excluded or we failed to field-inject.
-   * This is used to decide when we can't apply certain store optimizations ahead of loading.
-   */
-  private static void excludeStoreForType(final String matchedType, final int storeId) {
-    BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(matchedType);
-    if (null == excludedStoreIdsForType) {
-      BitSet tempStoreIds = new BitSet();
-      tempStoreIds.set(storeId);
-      excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.putIfAbsent(matchedType, tempStoreIds);
-    }
-    // if we didn't get there first then add this store to the existing set
-    if (null != excludedStoreIdsForType) {
-      synchronized (excludedStoreIdsForType) {
-        excludedStoreIdsForType.set(storeId);
-      }
-    }
-  }
-
-  /**
-   * Scans the class hierarchy to see if it matches any known context-key types which implies it has
-   * an injected field somewhere. This avoids having to record successful field-injections which can
-   * add up to a lot of entries. Unfortunately we can't check for the marker interface because the
-   * type won't have that at this point.
-   *
-   * <p>At the same time we collect which context stores failed to be field-injected in the class
-   * hierarchy. This tells us when to redirect store requests to the weak-map vs delegating to the
-   * superclass.
-   *
-   * <p>Assumes the type has already been processed by ShouldInjectFieldsMatcher.
-   */
-  public static boolean hasInjectedField(TypeDefinition typeDefinition, BitSet excludedStoreIds) {
-    Set<String> visitedInterfaces = new HashSet<>();
-    while (null != typeDefinition) {
-      String className = typeDefinition.asErasure().getTypeName();
-      BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(className);
-      if (null != excludedStoreIdsForType) {
-        synchronized (excludedStoreIdsForType) {
-          excludedStoreIds.or(excludedStoreIdsForType);
-        }
-      } else if (KEY_TYPE_IS_CLASS.containsKey(className)
-          || impliesInjectedField(typeDefinition, visitedInterfaces)) {
-        return true;
-      }
-      typeDefinition = typeDefinition.getSuperClass();
-    }
-    return false;
-  }
-
-  /** Scans transitive interfaces to see if any match known context-key types. */
-  private static boolean impliesInjectedField(
-      final TypeDefinition typeDefinition, final Set<String> visitedInterfaces) {
-    for (TypeDefinition iface : typeDefinition.getInterfaces()) {
-      String interfaceName = iface.asErasure().getTypeName();
-      if (KEY_TYPE_IS_CLASS.containsKey(interfaceName)
-          || (visitedInterfaces.add(interfaceName)
-              && impliesInjectedField(iface, visitedInterfaces))) {
-        return true;
-      }
-    }
-    return false;
   }
 }
