@@ -87,8 +87,7 @@ public final class ClassLoaderMatchers {
    * @param classNames list of names to match. returns true if empty.
    * @return true if class is available as a resource and not the bootstrap classloader.
    */
-  public static ElementMatcher.Junction.AbstractBase<ClassLoader> hasClassesNamed(
-      final String... classNames) {
+  public static ElementMatcher.Junction<ClassLoader> hasClassesNamed(final String... classNames) {
     return new ClassLoaderHasClassesNamedMatcher(classNames);
   }
 
@@ -99,8 +98,7 @@ public final class ClassLoaderMatchers {
    * @param className the className to match.
    * @return true if class is available as a resource and not the bootstrap classloader.
    */
-  public static ElementMatcher.Junction.AbstractBase<ClassLoader> hasClassesNamed(
-      final String className) {
+  public static ElementMatcher.Junction<ClassLoader> hasClassesNamed(final String className) {
     return new ClassLoaderHasClassNamedMatcher(className);
   }
 

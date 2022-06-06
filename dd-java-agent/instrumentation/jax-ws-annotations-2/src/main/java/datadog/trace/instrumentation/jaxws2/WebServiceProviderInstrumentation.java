@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jaxws2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -39,7 +39,7 @@ public final class WebServiceProviderInstrumentation extends Instrumenter.Tracin
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(WEB_SERVICE_PROVIDER_INTERFACE_NAME))
-        .and(isAnnotatedWith(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
+        .and(declaresAnnotation(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
   }
 
   @Override
