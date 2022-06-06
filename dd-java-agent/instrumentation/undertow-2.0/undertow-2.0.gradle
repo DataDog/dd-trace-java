@@ -7,7 +7,7 @@ muzzle {
   pass {
     group = "io.undertow"
     module = "undertow-servlet"
-    versions = "[2.0.0.Final ,)"
+    versions = "[2.0.0.Final,2.3)"
     assertInverse = false
   }
 }
@@ -30,5 +30,5 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet', version: '+'
+  latestDepTestImplementation group: 'io.undertow', name: 'undertow-servlet', version: '2.2.+'
 }
