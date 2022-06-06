@@ -211,14 +211,14 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
               || Arrays.asList(classBeingRedefined.getInterfaces())
                   .contains(FieldBackedContextAccessor.class);
 
-      if (canInjectContextField && shouldInjectContextField.matches(typeDescription)) {
-        return true;
+      if (canInjectContextField) {
+        return shouldInjectContextField.matches(typeDescription);
       }
 
       if (log.isDebugEnabled()) {
-        if (!canInjectContextField && shouldInjectContextField.matches(typeDescription)) {
-          // must be a redefine of a class that we weren't able to field-inject on startup
-          // - make sure we'd have field-injected (if we'd had the chance) before tracking
+        // must be a redefine of a class that we weren't able to field-inject on startup
+        // - make sure we'd have field-injected (if we'd had the chance) before tracking
+        if (shouldInjectContextField.matches(typeDescription)) {
           log.debug(
               "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
               typeDescription.getName(),
