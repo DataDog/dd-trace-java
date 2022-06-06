@@ -46,6 +46,9 @@
 0 java.net.URL
 0 java.rmi.*
 0 java.util.concurrent.*
+1 java.util.concurrent.ConcurrentHashMap*
+1 java.util.concurrent.atomic.*
+1 java.util.concurrent.locks.*
 0 java.util.logging.*
 # Concurrent instrumentation modifies the structure of the Cleaner class incompatibly with java9+ modules.
 1 java.util.logging.LogManager$Cleaner
@@ -69,8 +72,8 @@
 1 org.eclipse.osgi.framework.internal.protocol.*
 1 sun.*
 0 sun.net.www.http.HttpClient
-0 sun.net.www.protocol.*
-1 sun.net.www.protocol.jrt.*
+0 sun.net.www.protocol.http.*
+0 sun.net.www.protocol.https.*
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
 
