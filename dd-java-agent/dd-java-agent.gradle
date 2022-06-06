@@ -168,6 +168,7 @@ dependencies {
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
+  sharedShadowInclude project(':telemetry')
 }
 
 tasks.withType(Test).configureEach {

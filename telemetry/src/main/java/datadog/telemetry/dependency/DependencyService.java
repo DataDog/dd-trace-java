@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency;
+package datadog.telemetry.dependency;
 
 import java.net.URL;
 import java.util.Collection;

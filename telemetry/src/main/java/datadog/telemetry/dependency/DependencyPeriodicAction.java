@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency;
+package datadog.telemetry.dependency;
 
 import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
@@ -6,9 +6,9 @@ import datadog.telemetry.api.DependencyType;
 import java.util.Collection;
 
 public class DependencyPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-  private final DependencyServiceImpl dependencyService;
+  private final DependencyService dependencyService;
 
-  public DependencyPeriodicAction(DependencyServiceImpl dependencyService) {
+  public DependencyPeriodicAction(DependencyService dependencyService) {
     this.dependencyService = dependencyService;
   }
 

@@ -15,15 +15,20 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl',
-    'datadog.telemetry.HostnameGuessing',
+    'datadog.telemetry.HostInfo',
+    'datadog.telemetry.HostInfo.Os',
     'datadog.telemetry.Uname',
     'datadog.telemetry.Uname.UtsNameMacOs',
     'datadog.telemetry.Uname.UtsNameLinux',
     'datadog.telemetry.Uname.EmptyUtsName',
+    'datadog.telemetry.dependency.LocationsCollectingTransformer',
+    'datadog.telemetry.TelemetrySystem'
   ]
   excludedClassesBranchCoverage = [
     'datadog.telemetry.PolymorphicAdapterFactory.1',
     'datadog.telemetry.Uname.UtsNameMapper',
+    'datadog.telemetry.HostInfo',
+    'datadog.telemetry.HostInfo.Os',
   ]
   excludedClassesInstructionCoverage = []
   minJavaVersionForTests = JavaVersion.VERSION_1_7
@@ -99,6 +104,9 @@ dependencies {
   generatedApisImplementation deps.moshi
 
   testImplementation project(':utils:test-utils')
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
+  testImplementation group: 'org.jboss', name: 'jboss-vfs', version: '3.2.16.Final'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
 }
 
 forbiddenApisGeneratedApis {

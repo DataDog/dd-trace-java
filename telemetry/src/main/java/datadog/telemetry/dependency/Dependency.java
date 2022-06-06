@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency;
+package datadog.telemetry.dependency;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,7 +10,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Enumeration;
 import java.util.Properties;
-import java.util.StringJoiner;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -68,12 +67,20 @@ public final class Dependency {
 
   @Override
   public String toString() {
-    return new StringJoiner(", ", Dependency.class.getSimpleName() + "[", "]")
-        .add("name='" + name + "'")
-        .add("version='" + version + "'")
-        .add("source='" + source + "'")
-        .add("hash='" + hash + "'")
-        .toString();
+    return "Dependency{"
+        + "name='"
+        + name
+        + '\''
+        + ", version='"
+        + version
+        + '\''
+        + ", source='"
+        + source
+        + '\''
+        + ", hash='"
+        + hash
+        + '\''
+        + '}';
   }
 
   public static Dependency fromMavenPom(JarFile jar) {

@@ -34,8 +34,6 @@ dependencies {
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
-  testImplementation group: 'org.jboss', name: 'jboss-vfs', version: '3.2.16.Final'
-  testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '2.6.7'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
@@ -135,7 +133,6 @@ ext {
     'com.datadog.appsec.util.AbortStartupException',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
-    'com.datadog.appsec.dependency.LocationsCollectingTransformer',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

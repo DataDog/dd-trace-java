@@ -71,7 +71,8 @@ public class Agent {
     APPSEC("dd.appsec.enabled", false),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
-    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false);
+    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
+    TELEMETRY("dd.instrumentation.telemetry.enabled", false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -113,6 +114,7 @@ public class Agent {
   private static boolean appSecEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean telemetryEnabled = true;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
@@ -146,6 +148,7 @@ public class Agent {
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
+    telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -384,6 +387,10 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(instrumentation, scoClass, sco);
+
+      if (telemetryEnabled) {
+        startTelemetry(instrumentation, scoClass, sco);
+      }
     }
   }
 
@@ -588,6 +595,18 @@ public class Agent {
       appSecInstallerMethod.invoke(null, inst, gw, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
+    }
+  }
+
+  private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
+    try {
+      final Class<?> telemetrySystem =
+          SHARED_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+      final Method startTelemetry =
+          telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
+      startTelemetry.invoke(null, inst, sco);
+    } catch (final Throwable ex) {
+      log.warn("Unable start telemetry: {}", ex);
     }
   }
 

@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency
+package datadog.telemetry.dependency
 
 import datadog.trace.test.util.DDSpecification
 import org.apache.tools.ant.taskdefs.Classloader
@@ -140,7 +140,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
     File junitJar = getJar('junit-4.12.jar')
 
     depService.addURL(new File(junitJar.getAbsolutePath()).toURL())
-    def set = depService.determineNewDependencies()
+    def set = depService.determineNewDependencies() as Set
 
     then:
     assertThat(set.size(), is(1))
@@ -187,7 +187,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
     org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
 
     when:
-    String zipPath = Classloader.classLoader.getResource('com/datadog/appsec/dependencies/spring-boot-app.jar').path
+    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
     URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
 
     Dependency dep = depService.identifyLibrary(uri)
@@ -260,7 +260,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
   }
 
   private static File getJar(String jarName) {
-    String path = ClassLoader.systemClassLoader.getResource("com/datadog/appsec/dependencies/$jarName").path
+    String path = ClassLoader.systemClassLoader.getResource("datadog/telemetry/dependencies/$jarName").path
     File jarFile = new File(path)
     assert jarFile.isFile()
     jarFile

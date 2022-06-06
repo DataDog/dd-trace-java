@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency;
+package datadog.telemetry.dependency;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,7 +33,7 @@ public class DependencyServiceImpl implements DependencyService {
 
   private static final String JAR_SUFFIX = ".jar";
 
-  private Set<URL> currentSet; // guarded by this
+  private Set<URI> currentSet; // guarded by this
   private volatile JbossVirtualFileHelper jbossVirtualFileHelper;
 
   public DependencyServiceImpl() {
@@ -51,20 +51,20 @@ public class DependencyServiceImpl implements DependencyService {
 
   @Override
   public Collection<Dependency> determineNewDependencies() {
-    Set<URL> currentSet;
+    Set<URI> currentSet;
     synchronized (this) {
       currentSet = this.currentSet;
       this.currentSet = new HashSet<>();
     }
 
     List<Dependency> deps = new ArrayList<>(currentSet.size());
-    for (URL url : currentSet) {
+    for (URI uri : currentSet) {
       if (Thread.interrupted()) {
         log.warn("Interrupted while processing dependencies");
         break;
       }
 
-      URI uri = convertToURI(url);
+      // URI uri = convertToURI(uri);
       if (uri == null) {
         continue;
       }
@@ -96,7 +96,7 @@ public class DependencyServiceImpl implements DependencyService {
     }
 
     synchronized (this) {
-      currentSet.add(url);
+      currentSet.add(convertToURI(url));
     }
   }
 

@@ -1,5 +1,7 @@
-package datadog.telemetry;
+package datadog.telemetry.integration;
 
+import datadog.telemetry.TelemetryRunnable;
+import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Integration;
 import datadog.trace.api.IntegrationsCollector;
 import java.util.Map;

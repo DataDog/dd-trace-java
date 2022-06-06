@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency;
+package datadog.telemetry.dependency;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.net.URL;
@@ -15,7 +15,7 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
 
   private final DependencyServiceImpl dependencyService;
   private final Set<ProtectionDomain> seenDomains =
-      Collections.newSetFromMap(new IdentityHashMap<>());
+      Collections.newSetFromMap(new IdentityHashMap<ProtectionDomain, Boolean>());
 
   public LocationsCollectingTransformer(DependencyServiceImpl dependencyService) {
     this.dependencyService = dependencyService;

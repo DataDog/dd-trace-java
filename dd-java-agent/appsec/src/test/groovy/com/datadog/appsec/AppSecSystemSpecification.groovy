@@ -1,6 +1,5 @@
 package com.datadog.appsec
 
-import com.datadog.appsec.dependency.LocationsCollectingTransformer
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.raw.events.AppSecEvent100
 import com.datadog.appsec.util.AbortStartupException
@@ -39,17 +38,6 @@ class AppSecSystemSpecification extends DDSpecification {
 
     then:
     'powerwaf' in AppSecSystem.startedModulesInfo
-  }
-
-  void 'installs dependencies transformer'() {
-    setup:
-    injectSysConfig('dd.appsec.dependencies', 'true')
-
-    when:
-    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
-
-    then:
-    1 * inst.addTransformer(_ as LocationsCollectingTransformer)
   }
 
   void 'throws if custom config does not exist'() {

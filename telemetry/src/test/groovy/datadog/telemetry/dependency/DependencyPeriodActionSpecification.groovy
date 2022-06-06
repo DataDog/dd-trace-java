@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency
+package datadog.telemetry.dependency
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.DependencyType

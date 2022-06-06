@@ -14,8 +14,6 @@ public final class AppSecConfig {
       "appsec.obfuscation.parameter_key_regexp";
   public static final String APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP =
       "appsec.obfuscation.parameter_value_regexp";
-  public static final String APPSEC_TELEMETRY = "appsec.telemetry";
-  public static final String APPSEC_DEPENDENCIES = "appsec.dependencies";
 
   private AppSecConfig() {}
 }

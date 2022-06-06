@@ -59,6 +59,8 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.api.IntegrationsCollector.Holder",
+  "datadog.trace.api.ConfigCollector.Holder"
 ]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'

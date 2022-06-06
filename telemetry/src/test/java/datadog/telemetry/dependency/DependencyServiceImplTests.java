@@ -1,4 +1,4 @@
-package com.datadog.appsec.dependency;
+package datadog.telemetry.dependency;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -50,13 +52,17 @@ public class DependencyServiceImplTests {
             Proxy.newProxyInstance(
                 DependencyServiceImplTests.class.getClassLoader(),
                 new Class<?>[] {Instrumentation.class},
-                (proxy, method, args) -> {
-                  if (method.getName().equals("addTransformer")) {
-                    t[0] = (ClassFileTransformer) args[0];
-                  } else {
-                    throw new UnsupportedOperationException();
+                new InvocationHandler() {
+                  @Override
+                  public Object invoke(Object proxy, Method method, Object[] args)
+                      throws Throwable {
+                    if (method.getName().equals("addTransformer")) {
+                      t[0] = (ClassFileTransformer) args[0];
+                    } else {
+                      throw new UnsupportedOperationException();
+                    }
+                    return null;
                   }
-                  return null;
                 });
 
     depService.installOn(instrumentation);
@@ -92,7 +98,7 @@ public class DependencyServiceImplTests {
     VirtualFile virtualDir =
         VFS.getChild(
             ClassLoader.getSystemClassLoader()
-                .getResource("com/datadog/appsec/dependencies/")
+                .getResource("datadog/telemetry/dependencies/")
                 .getPath());
     assembly.add("/groovy.jar", virtualDir.getChild("groovy-manifest.jar"));
 
@@ -114,7 +120,7 @@ public class DependencyServiceImplTests {
     VirtualFile zipFile =
         VFS.getChild(
             ClassLoader.getSystemClassLoader()
-                .getResource("com/datadog/appsec/dependencies/junit.zip")
+                .getResource("datadog/telemetry/dependencies/junit.zip")
                 .getPath());
     VirtualFile mountPoint = VFS.getChild("foo.zip");
     tempFileProvider = TempFileProvider.create("test", new ScheduledThreadPoolExecutor(2));

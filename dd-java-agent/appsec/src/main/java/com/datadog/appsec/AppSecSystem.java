@@ -1,8 +1,6 @@
 package com.datadog.appsec;
 
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
-import com.datadog.appsec.dependency.DependencyPeriodicAction;
-import com.datadog.appsec.dependency.DependencyServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
@@ -13,10 +11,6 @@ import datadog.communication.fleet.FleetService;
 import datadog.communication.fleet.FleetServiceImpl;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
-import datadog.telemetry.IntegrationPeriodicAction;
-import datadog.telemetry.RequestBuilder;
-import datadog.telemetry.TelemetryRunnable;
-import datadog.telemetry.TelemetryServiceImpl;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
@@ -30,14 +24,10 @@ import org.slf4j.LoggerFactory;
 
 public class AppSecSystem {
 
-  private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
-
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
   private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
-
-  private static Thread TELEMETRY_THREAD;
 
   public static void start(
       Instrumentation instrumentation, SubscriptionService gw, SharedCommunicationObjects sco) {
@@ -73,11 +63,6 @@ public class AppSecSystem {
 
     sco.createRemaining(config);
 
-    // TODO: Telemetry should be moved out of appsec
-    if (instrumentation != null && config.isAppSecDependencies()) {
-      startTelemetry(instrumentation, sco);
-    }
-
     EventDispatcher eventDispatcher = new EventDispatcher();
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
     GatewayBridge gatewayBridge =
@@ -95,27 +80,6 @@ public class AppSecSystem {
 
     String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
     log.info("AppSec has started with {}", startedAppSecModules);
-  }
-
-  private static void startTelemetry(
-      Instrumentation instrumentation, SharedCommunicationObjects sco) {
-    DependencyServiceImpl dependencyService = new DependencyServiceImpl();
-    dependencyService.installOn(instrumentation);
-
-    RequestBuilder requestBuilder = new RequestBuilder(sco.agentUrl);
-    TelemetryServiceImpl telemetryService =
-        new TelemetryServiceImpl(requestBuilder, SystemTimeSource.INSTANCE);
-
-    TelemetryRunnable telemetryRunnable =
-        new TelemetryRunnable(
-            sco.okHttpClient,
-            telemetryService,
-            Arrays.asList(
-                new DependencyPeriodicAction(dependencyService), new IntegrationPeriodicAction()));
-    TELEMETRY_THREAD =
-        AgentThreadFactory.newAgentThread(
-            AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
-    TELEMETRY_THREAD.start();
   }
 
   private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
@@ -136,17 +100,6 @@ public class AppSecSystem {
     }
 
     APP_SEC_CONFIG_SERVICE.close();
-    if (TELEMETRY_THREAD != null) {
-      TELEMETRY_THREAD.interrupt();
-      try {
-        TELEMETRY_THREAD.join(TELEMETRY_STOP_WAIT_MILLIS);
-      } catch (InterruptedException e) {
-        log.warn("Telemetry thread join was interrupted");
-      }
-      if (TELEMETRY_THREAD.isAlive()) {
-        log.warn("Telemetry thread join was not completed");
-      }
-    }
   }
 
   private static void loadModules(EventDispatcher eventDispatcher) {

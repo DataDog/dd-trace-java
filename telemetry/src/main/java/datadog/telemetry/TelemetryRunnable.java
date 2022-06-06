@@ -18,7 +18,7 @@ public class TelemetryRunnable implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
 
   private final OkHttpClient okHttpClient;
-  private final TelemetryServiceImpl telemetryService;
+  private final TelemetryService telemetryService;
   private final List<TelemetryPeriodicAction> actions;
   private final ThreadSleeper sleeper;
 
@@ -26,14 +26,14 @@ public class TelemetryRunnable implements Runnable {
 
   public TelemetryRunnable(
       OkHttpClient okHttpClient,
-      TelemetryServiceImpl telemetryService,
+      TelemetryService telemetryService,
       List<TelemetryPeriodicAction> actions) {
     this(okHttpClient, telemetryService, actions, new ThreadSleeperImpl());
   }
 
   TelemetryRunnable(
       OkHttpClient okHttpClient,
-      TelemetryServiceImpl telemetryService,
+      TelemetryService telemetryService,
       List<TelemetryPeriodicAction> actions,
       ThreadSleeper sleeper) {
     this.okHttpClient = okHttpClient;

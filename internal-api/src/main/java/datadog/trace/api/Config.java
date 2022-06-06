@@ -58,6 +58,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_IN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -78,7 +79,6 @@ import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_DEPENDENCIES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
@@ -108,35 +108,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE;
-import static datadog.trace.api.config.GeneralConfig.API_KEY;
-import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
-import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PATH;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
-import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
-import static datadog.trace.api.config.GeneralConfig.ENV;
-import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
-import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
-import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
-import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
-import static datadog.trace.api.config.GeneralConfig.SITE;
-import static datadog.trace.api.config.GeneralConfig.TAGS;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
-import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
-import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.GeneralConfig.*;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
@@ -488,7 +460,6 @@ public class Config {
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
-  private final boolean appSecDependencies;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -569,6 +540,8 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataStreamsEnabled;
+
+  private final boolean telemetryEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -997,6 +970,8 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
 
+    telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -1020,8 +995,6 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
     appSecObfuscationParameterValueRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
-
-    appSecDependencies = configProvider.getBoolean(APPSEC_DEPENDENCIES, false);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1613,6 +1586,10 @@ public class Config {
     return profilingLegacyTracingIntegrationEnabled;
   }
 
+  public boolean isTelemetryEnabled() {
+    return telemetryEnabled;
+  }
+
   public boolean isAppSecEnabled() {
     return appSecEnabled;
   }
@@ -1647,10 +1624,6 @@ public class Config {
 
   public String getAppSecObfuscationParameterValueRegexp() {
     return appSecObfuscationParameterValueRegexp;
-  }
-
-  public boolean isAppSecDependencies() {
-    return appSecDependencies;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -2063,7 +2036,6 @@ public class Config {
     /// The site name of the site instance in Azure where the traced application is running.
     String siteName = getEnv("WEBSITE_SITE_NAME");
     if (siteName != null) {
-      ConfigCollector.get().put("WEBSITE_SITE_NAME", siteName);
       aasTags.put("aas.site.name", siteName);
     }
 

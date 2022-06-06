@@ -85,7 +85,8 @@ public class TelemetryServiceImpl implements TelemetryService {
     return this.metrics.offer(metric);
   }
 
-  Queue<Request> prepareRequests() {
+  @Override
+  public Queue<Request> prepareRequests() {
     // New integrations
     if (!integrations.isEmpty()) {
       Payload payload = new AppIntegrationsChange().integrations(drainOrNull(integrations));
