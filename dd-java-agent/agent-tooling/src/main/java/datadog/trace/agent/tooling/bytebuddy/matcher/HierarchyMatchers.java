@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static net.bytebuddy.matcher.ElementMatchers.none;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.description.DeclaredByType;
@@ -62,6 +64,12 @@ public final class HierarchyMatchers {
     return SUPPLIER.get().hasSuperMethod(matcher);
   }
 
+  /** Matches classes that should have a field injected for the specified context-store. */
+  public static ElementMatcher.Junction<TypeDescription> declaresContextField(
+      String keyClassName, String contextClassName) {
+    return SUPPLIER.get().declaresContextField(keyClassName, contextClassName);
+  }
+
   @SuppressForbidden
   public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
       ElementMatcher.Junction<T> isAnnotatedWith(
@@ -97,6 +105,9 @@ public final class HierarchyMatchers {
 
     ElementMatcher.Junction<MethodDescription> hasSuperMethod(
         ElementMatcher.Junction<? super MethodDescription> matcher);
+
+    ElementMatcher.Junction<TypeDescription> declaresContextField(
+        String keyClassName, String contextClassName);
   }
 
   /** Simple hierarchy checks for use during the build when testing or validating muzzle ranges. */
@@ -157,6 +168,12 @@ public final class HierarchyMatchers {
           ElementMatcher.Junction<? super MethodDescription> matcher) {
         return ElementMatchers.isDeclaredBy(
             ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(matcher)));
+      }
+
+      @Override
+      public ElementMatcher.Junction<TypeDescription> declaresContextField(
+          String keyClassName, String contextClassName) {
+        return none(); // unused during build
       }
     };
   }

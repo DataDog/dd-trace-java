@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher.hasInjectedField;
+import static datadog.trace.agent.tooling.context.ShouldInjectFieldsState.hasInjectedField;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 

@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.field.FieldDescription;
@@ -66,6 +67,12 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
   public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
       ElementMatcher.Junction<? super MethodDescription> matcher) {
     return new HasSuperMethodMatcher<>(matcher);
+  }
+
+  @Override
+  public ElementMatcher.Junction<TypeDescription> declaresContextField(
+      String keyClassName, String contextClassName) {
+    return new ShouldInjectFieldsMatcher(keyClassName, contextClassName);
   }
 
   @SuppressForbidden
