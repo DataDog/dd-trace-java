@@ -302,16 +302,16 @@ public class Reference {
     public static class ReferenceCheckError extends Mismatch {
       private final Exception referenceCheckException;
       private final Reference referenceBeingChecked;
-      private final ClassLoader classLoaderBeingChecked;
+      private final String location;
 
       public ReferenceCheckError(
           final Exception referenceCheckException,
           final Reference referenceBeingChecked,
-          final ClassLoader classLoaderBeingChecked) {
+          final String location) {
         super(new String[0]);
         this.referenceCheckException = referenceCheckException;
         this.referenceBeingChecked = referenceBeingChecked;
-        this.classLoaderBeingChecked = classLoaderBeingChecked;
+        this.location = location;
       }
 
       @Override
@@ -319,8 +319,8 @@ public class Reference {
         final StringWriter sw = new StringWriter();
         sw.write("Failed to generate reference check for: ");
         sw.write(referenceBeingChecked.toString());
-        sw.write(" on classloader ");
-        sw.write(classLoaderBeingChecked.toString());
+        sw.write(" at ");
+        sw.write(location);
         sw.write("\n");
         // add exception message and stack trace
         final PrintWriter pw = new PrintWriter(sw);
@@ -430,6 +430,37 @@ public class Reference {
           interfaces.toArray(new String[interfaces.size()]),
           fields.toArray(new Field[fields.size()]),
           methods.toArray(new Method[methods.size()]));
+    }
+
+    /** Builds a reference that checks the next spec if the current spec doesn't match. */
+    public Builder or() {
+      return new OrBuilder(null, build());
+    }
+  }
+
+  static class OrBuilder extends Builder {
+    private final OrBuilder parent;
+    private final Reference either;
+
+    OrBuilder(OrBuilder parent, Reference either) {
+      super(either.className);
+      this.parent = parent;
+      this.either = either;
+    }
+
+    @Override
+    public Builder or() {
+      return new OrBuilder(this, super.build());
+    }
+
+    @Override
+    public Reference build() {
+      Reference or = new OrReference(either, super.build());
+      // nest references so 'either' is always a simple reference
+      for (OrBuilder p = parent; p != null; p = p.parent) {
+        or = new OrReference(p.either, or);
+      }
+      return or;
     }
   }
 

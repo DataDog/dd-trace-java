@@ -9,9 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -44,19 +42,18 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   // paramHashStringArray was only final for a few days. it doesn't seem to have made into a release
-  private static final ReferenceMatcher PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder("org.apache.tomcat.util.http.Parameters")
-              .withField(
-                  new String[0],
-                  Reference.EXPECTS_NON_FINAL,
-                  "paramHashStringArray",
-                  "Ljava/util/Hashtable;")
-              .build());
+  private static final Reference PARAM_HASH_STRING_ARRAY_REFERENCE =
+      new Reference.Builder("org.apache.tomcat.util.http.Parameters")
+          .withField(
+              new String[0],
+              Reference.EXPECTS_NON_FINAL,
+              "paramHashStringArray",
+              "Ljava/util/Hashtable;")
+          .build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, PARAM_HASH_STRING_ARRAY_REFERENCE_MATCHER);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {PARAM_HASH_STRING_ARRAY_REFERENCE};
   }
 
   @Override
