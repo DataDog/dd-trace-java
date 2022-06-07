@@ -1,11 +1,15 @@
 package datadog.trace.lambda;
 
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.core.propagation.LambdaContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -14,6 +18,12 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class communicates with the serverless extension on start invocation and on end invocation.
+ * The extension is responsible to parse the context and create the invocation span. The tracer will
+ * also create the span (to be dropped by the extension) so newly created spans will be parenting to
+ * the right span.
+ */
 public class LambdaHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaHandler.class);
@@ -46,7 +56,10 @@ public class LambdaHandler {
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
-  public static LambdaContext notifyStartInvocation(Object event) {
+  public static final UTF8BytesString INVOCATION_SPAN_NAME =
+      UTF8BytesString.create("dd-tracer-serverless-span");
+
+  public static AgentSpan.Context notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -59,21 +72,23 @@ public class LambdaHandler {
             .execute()) {
       if (response.isSuccessful()) {
         final String traceID = response.headers().get(DATADOG_TRACE_ID);
-        final String spanID = response.headers().get(DATADOG_SPAN_ID);
         final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
-        if (null != traceID && null != spanID) {
-          log.debug(
-              "notifyStartInvocation success, found traceID = {} and spanID = {}", traceID, spanID);
+        if (null != traceID && null != priority) {
           int samplingPriority = PrioritySampling.UNSET;
           try {
             samplingPriority = Integer.parseInt(priority);
           } catch (final NumberFormatException ignored) {
             log.warn("could not read the sampling priority, defaulting to UNSET");
           }
-          return new LambdaContext(traceID, spanID, samplingPriority);
+          log.debug(
+              "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
+              traceID,
+              samplingPriority);
+          return new ExtractedContext(
+              DDId.from(traceID), DDId.ZERO, samplingPriority, DEFAULT, null, 0, null, null);
         } else {
-          log.error(
-              "could not find traceID/spanID in notifyStartInvocation, not injecting the context");
+          log.debug(
+              "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");
         }
       }
     } catch (Throwable ignored) {
@@ -82,11 +97,20 @@ public class LambdaHandler {
     return null;
   }
 
-  public static boolean notifyEndInvocation(boolean isError) {
+  public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
+    if (null == span || null == span.getSamplingPriority()) {
+      log.error(
+          "could not notify the extension as the lambda span is null or no sampling priority has been found");
+      return false;
+    }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
     Request.Builder builder =
         new Request.Builder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
+            .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
+            .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
+            .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
             .addHeader(DATADOG_META_LANG, "java")
             .post(body);
     if (isError) {

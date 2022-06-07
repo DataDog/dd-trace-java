@@ -11,6 +11,7 @@ class LambdaHandlerInstrumentationTest extends AgentTestRunner {
     then:
     objTest.instrumentedType() == instrumentedType
     objTest.getMethodName() == methodName
+    environmentVariables.clear("_HANDLER")
 
     where:
     instrumentedType     | methodName        | handlerEnv

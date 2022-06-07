@@ -182,7 +182,7 @@ public class AgentTracer {
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
-    void notifyExtensionEnd(boolean isError);
+    void notifyExtensionEnd(AgentSpan span, boolean isError);
   }
 
   public interface SpanBuilder {
@@ -388,7 +388,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void notifyExtensionEnd(boolean isError) {}
+    public void notifyExtensionEnd(AgentSpan span, boolean isError) {}
   }
 
   public static final class NoopAgentSpan implements AgentSpan {

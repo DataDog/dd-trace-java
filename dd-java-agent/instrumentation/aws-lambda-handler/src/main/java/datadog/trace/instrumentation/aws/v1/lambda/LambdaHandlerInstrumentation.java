@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.lambda.LambdaHandler.INVOCATION_SPAN_NAME;
 import static net.bytebuddy.asm.Advice.Enter;
 import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
@@ -16,7 +17,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,8 +89,12 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final Object event,
         @Origin("#m") final String methodName) {
       AgentSpan.Context lambdaContext = AgentTracer.get().notifyExtensionStart(event);
-      AgentSpan span =
-          startSpan(UTF8BytesString.create("dd-tracer-serverless-span"), lambdaContext);
+      final AgentSpan span;
+      if (null == lambdaContext) {
+        span = startSpan(INVOCATION_SPAN_NAME);
+      } else {
+        span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
+      }
       final AgentScope scope = activateSpan(span);
       return scope;
     }
@@ -103,10 +107,11 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
       if (scope == null) {
         return;
       }
-      AgentTracer.get().notifyExtensionEnd(null != throwable);
+
       try {
         final AgentSpan span = scope.span();
         span.finish();
+        AgentTracer.get().notifyExtensionEnd(span, null != throwable);
       } finally {
         scope.close();
       }
