@@ -8,8 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
+import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
 public class RouteImplInstrumentation extends Instrumenter.AppSec
@@ -19,9 +18,9 @@ public class RouteImplInstrumentation extends Instrumenter.AppSec
     super("vertx", "vertx-4.0");
   }
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, VertxVersionMatcher.INSTANCE);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
   }
 
   @Override
