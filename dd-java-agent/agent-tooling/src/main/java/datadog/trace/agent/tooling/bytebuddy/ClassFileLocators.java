@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.WeakCache;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
+import java.net.URL;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.ClassFileLocator.Resolution;
 import net.bytebuddy.utility.StreamDrainer;
@@ -96,19 +97,36 @@ public final class ClassFileLocators {
     }
   }
 
-  static Resolution loadClassResource(ClassLoader classLoader, String resourceName)
-      throws IOException {
-    try {
-      try (InputStream in = classLoader.getResourceAsStream(resourceName)) {
-        if (null != in) {
-          return new Resolution.Explicit(StreamDrainer.DEFAULT.drain(in));
-        }
-        return null;
-      }
-    } catch (IllegalStateException ignored) {
-      return null;
-    }
+  static Resolution loadClassResource(ClassLoader classLoader, String resourceName) {
+    URL url = classLoader.getResource(resourceName);
+    return null != url ? new LazyResolution(url) : null;
   }
 
   private ClassFileLocators() {}
+
+  public static final class LazyResolution implements Resolution {
+    private final URL url;
+
+    LazyResolution(URL url) {
+      this.url = url;
+    }
+
+    public URL url() {
+      return url;
+    }
+
+    @Override
+    public boolean isResolved() {
+      return true;
+    }
+
+    @Override
+    public byte[] resolve() {
+      try (InputStream in = url.openStream()) {
+        return StreamDrainer.DEFAULT.drain(in);
+      } catch (IOException e) {
+        throw new IllegalStateException("Error while reading class file", e);
+      }
+    }
+  }
 }
