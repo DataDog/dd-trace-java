@@ -114,11 +114,14 @@ public final class ReferenceMatcher {
     if (checkMatch(typePool, reference, loader, mismatches)) {
       return true;
     }
-    if (reference instanceof OrReference
-        && checkReference(typePool, ((OrReference) reference).or, loader, mismatches)) {
-      // alternative spec matched, remove the original spec's mismatches
-      mismatches.subList(previousMismatchCount, mismatches.size()).clear();
-      return true;
+    if (reference instanceof OrReference) {
+      for (Reference or : ((OrReference) reference).ors) {
+        if (checkReference(typePool, or, loader, mismatches)) {
+          // alternative spec matched, remove the original spec's mismatches
+          mismatches.subList(previousMismatchCount, mismatches.size()).clear();
+          return true;
+        }
+      }
     }
     return false;
   }

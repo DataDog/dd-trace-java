@@ -308,14 +308,25 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           false);
 
       if (reference instanceof OrReference) {
-        writeReference(mv, ((OrReference) reference).or);
+        Reference[] ors = ((OrReference) reference).ors;
+
+        mv.visitLdcInsn(ors.length);
+        mv.visitTypeInsn(Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference");
+
+        int i = 0;
+        for (Reference or : ors) {
+          mv.visitInsn(Opcodes.DUP);
+          mv.visitLdcInsn(i++);
+          writeReference(mv, or);
+          mv.visitInsn(Opcodes.AASTORE);
+        }
 
         mv.visitMethodInsn(
             Opcodes.INVOKESPECIAL,
             "datadog/trace/agent/tooling/muzzle/OrReference",
             "<init>",
             "(Ldatadog/trace/agent/tooling/muzzle/Reference;"
-                + "Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
+                + "[Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
             false);
       }
     }

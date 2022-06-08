@@ -434,33 +434,30 @@ public class Reference {
 
     /** Builds a reference that checks the next spec if the current spec doesn't match. */
     public Builder or() {
-      return new OrBuilder(null, build());
+      return new OrBuilder(build());
     }
   }
 
   static class OrBuilder extends Builder {
-    private final OrBuilder parent;
     private final Reference either;
+    private final List<Reference> ors;
 
-    OrBuilder(OrBuilder parent, Reference either) {
+    OrBuilder(Reference either) {
       super(either.className);
-      this.parent = parent;
       this.either = either;
-    }
-
-    @Override
-    public Builder or() {
-      return new OrBuilder(this, super.build());
+      this.ors = new ArrayList<>();
     }
 
     @Override
     public Reference build() {
-      Reference or = new OrReference(either, super.build());
-      // nest references so 'either' is always a simple reference
-      for (OrBuilder p = parent; p != null; p = p.parent) {
-        or = new OrReference(p.either, or);
-      }
-      return or;
+      ors.add(super.build());
+      return new OrReference(either, ors.toArray(new Reference[ors.size()]));
+    }
+
+    @Override
+    public Builder or() {
+      ors.add(super.build());
+      return this;
     }
   }
 
