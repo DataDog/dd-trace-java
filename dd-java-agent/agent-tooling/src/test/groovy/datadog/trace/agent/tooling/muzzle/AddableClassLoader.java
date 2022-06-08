@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.util.Strings;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,7 +14,7 @@ import java.util.Set;
 public class AddableClassLoader extends SecureClassLoader {
 
   private final Set<String> toDelegate = new HashSet<>();
-  private final Map<String, byte[]> classBytes = new HashMap<>();
+  private final Map<String, URL> classResources = new HashMap<>();
 
   protected AddableClassLoader(Class<?>... inheritedClasses) {
     super(null); // delegate to bootstrap
@@ -37,18 +36,19 @@ public class AddableClassLoader extends SecureClassLoader {
   }
 
   @Override
-  public InputStream getResourceAsStream(String name) {
-    byte[] bytes = classBytes.get(name);
-    if (bytes == null) {
-      return super.getResourceAsStream(name);
+  public URL getResource(String name) {
+    URL classResource = classResources.get(name);
+    if (classResource == null) {
+      return super.getResource(name);
     }
-    return new ByteArrayInputStream(bytes);
+    return classResource;
   }
 
   public void addClass(Class<?> existingClass) throws IOException {
     String name = existingClass.getName();
     String resourceName = Strings.getResourceName(name);
     URL classResource = existingClass.getResource("/" + resourceName);
+    classResources.put(resourceName, classResource);
     InputStream classStream = classResource.openStream();
     assert classStream != null;
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream(classStream.available());
@@ -59,6 +59,5 @@ public class AddableClassLoader extends SecureClassLoader {
     }
     byte[] bytes = outputStream.toByteArray();
     defineClass(name, bytes, 0, bytes.length);
-    classBytes.put(resourceName, bytes);
   }
 }
