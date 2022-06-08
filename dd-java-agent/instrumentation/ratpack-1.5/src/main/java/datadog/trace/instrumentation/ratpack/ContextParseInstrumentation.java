@@ -6,9 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 
 @AutoService(Instrumenter.class)
 public class ContextParseInstrumentation extends Instrumenter.AppSec
@@ -19,11 +17,11 @@ public class ContextParseInstrumentation extends Instrumenter.AppSec
   }
 
   // so it doesn't apply to ratpack < 1.5
-  private static final ReferenceMatcher FILE_IO =
-      new ReferenceMatcher(new Reference.Builder("ratpack.file.FileIo").build());
+  private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(origMatcher, FILE_IO);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {FILE_IO};
   }
 
   @Override

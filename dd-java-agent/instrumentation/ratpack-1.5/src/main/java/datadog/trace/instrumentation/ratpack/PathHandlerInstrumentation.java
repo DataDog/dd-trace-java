@@ -7,9 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 
 @AutoService(Instrumenter.class)
 public class PathHandlerInstrumentation extends Instrumenter.AppSec
@@ -31,25 +29,21 @@ public class PathHandlerInstrumentation extends Instrumenter.AppSec
     };
   }
 
-  private static final ReferenceMatcher TOKEN_PATH_BINDER_TOKEN_NAMES =
-      new ReferenceMatcher(
-          new Reference.Builder("ratpack.path.internal.TokenPathBinder")
-              .withField(
-                  new String[0],
-                  Reference.EXPECTS_NON_STATIC,
-                  "tokenNames",
-                  "Lcom/google/common/collect/ImmutableList;")
-              .build());
+  private static final Reference TOKEN_PATH_BINDER_TOKEN_NAMES =
+      new Reference.Builder("ratpack.path.internal.TokenPathBinder")
+          .withField(
+              new String[0],
+              Reference.EXPECTS_NON_STATIC,
+              "tokenNames",
+              "Lcom/google/common/collect/ImmutableList;")
+          .build();
 
   // so it doesn't apply to ratpack < 1.5
-  private static final ReferenceMatcher FILE_IO =
-      new ReferenceMatcher(new Reference.Builder("ratpack.file.FileIo").build());
+  private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        new IReferenceMatcher.ConjunctionReferenceMatcher(
-            origMatcher, TOKEN_PATH_BINDER_TOKEN_NAMES),
-        FILE_IO);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {FILE_IO, TOKEN_PATH_BINDER_TOKEN_NAMES};
   }
 
   @Override
