@@ -20,6 +20,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.Mapper
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import spock.lang.Retry
@@ -282,7 +283,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       trace,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
   }
 
   def createMinimalTrace() {

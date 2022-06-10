@@ -9,6 +9,8 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.propagation.DatadogTags;
+import datadog.trace.core.propagation.DatadogTagsFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -30,11 +32,11 @@ public class LambdaHandler {
 
   // Note: this header is used to disable tracing for calls to the extension
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
-
   private static final String DATADOG_TRACE_ID = "x-datadog-trace-id";
   private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
   private static final String DATADOG_SAMPLING_PRIORITY = "x-datadog-sampling-priority";
   private static final String DATADOG_INVOCATION_ERROR = "x-datadog-invocation-error";
+  private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
@@ -59,7 +61,8 @@ public class LambdaHandler {
   public static final UTF8BytesString INVOCATION_SPAN_NAME =
       UTF8BytesString.create("dd-tracer-serverless-span");
 
-  public static AgentSpan.Context notifyStartInvocation(Object event) {
+  public static AgentSpan.Context notifyStartInvocation(
+      Object event, DatadogTagsFactory datadogTagsFactory) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
@@ -84,8 +87,18 @@ public class LambdaHandler {
               "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
               traceID,
               samplingPriority);
+          DatadogTags datadogTags =
+              datadogTagsFactory.fromHeaderValue(response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
-              DDId.from(traceID), DDId.ZERO, samplingPriority, DEFAULT, null, 0, null, null);
+              DDId.from(traceID),
+              DDId.ZERO,
+              samplingPriority,
+              DEFAULT,
+              null,
+              0,
+              null,
+              null,
+              datadogTags);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");

@@ -10,12 +10,12 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
-
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -417,7 +417,8 @@ class PendingTraceBufferTest extends DDSpecification {
       trace,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     return DDSpan.create(0, context)
   }
 
@@ -441,7 +442,8 @@ class PendingTraceBufferTest extends DDSpecification {
       trace,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     return DDSpan.create(0, context)
   }
 }

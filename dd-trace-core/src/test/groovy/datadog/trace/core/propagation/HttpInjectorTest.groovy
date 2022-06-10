@@ -46,7 +46,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
 
     final Map<String, String> carrier = Mock()
 
@@ -64,6 +65,9 @@ class HttpInjectorTest extends DDCoreSpecification {
       }
       if (origin) {
         1 * carrier.put(DatadogHttpCodec.ORIGIN_KEY, origin)
+      }
+      if (samplingPriority > 0 && styles.contains(DATADOG)) {
+        1 * carrier.put('x-datadog-tags', '_dd.p.dm=5462db6c6c-0')
       }
     }
     if (styles.contains(B3)) {
@@ -120,7 +124,8 @@ class HttpInjectorTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
 
     final Map<String, String> carrier = Mock()
 
@@ -138,6 +143,9 @@ class HttpInjectorTest extends DDCoreSpecification {
       }
       if (origin) {
         1 * carrier.put(DatadogHttpCodec.ORIGIN_KEY, origin)
+      }
+      if (samplingPriority > 0 && style == DATADOG) {
+        1 * carrier.put('x-datadog-tags', '_dd.p.dm=5462db6c6c-0')
       }
     } else if (style == B3) {
       1 * carrier.put(B3HttpCodec.TRACE_ID_KEY, traceId.toString())

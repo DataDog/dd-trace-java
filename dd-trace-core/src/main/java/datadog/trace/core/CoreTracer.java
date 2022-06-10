@@ -52,6 +52,8 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
+import datadog.trace.core.propagation.DatadogTags;
+import datadog.trace.core.propagation.DatadogTagsFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -172,6 +174,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final HttpCodec.Extractor extractor;
 
   private final InstrumentationGateway instrumentationGateway;
+
+  private final DatadogTagsFactory datadogTagsFactory;
+
+  DatadogTagsFactory getDatadogTagsFactory() {
+    return datadogTagsFactory;
+  }
 
   @Override
   public AgentScope.Continuation capture() {
@@ -555,6 +563,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
     StatusLogger.logStatus(config);
+
+    datadogTagsFactory = DatadogTags.factory(config);
   }
 
   @Override
@@ -798,7 +808,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan.Context notifyExtensionStart(Object event) {
-    return LambdaHandler.notifyStartInvocation(event);
+    return LambdaHandler.notifyStartInvocation(event, datadogTagsFactory);
   }
 
   @Override
@@ -1175,6 +1185,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final DDSpanContext context;
       final Object requestContextData;
       final PathwayContext pathwayContext;
+      final DatadogTags datadogTags;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -1213,6 +1224,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ddsc.getPathwayContext().isStarted()
                 ? ddsc.getPathwayContext()
                 : dataStreamsCheckpointer.newPathwayContext();
+        datadogTags = datadogTagsFactory.empty();
       } else {
         long endToEndStartTime;
 
@@ -1225,6 +1237,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
+          datadogTags = extractedContext.getDatadogTags();
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();
@@ -1233,6 +1246,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;
+          datadogTags = datadogTagsFactory.empty();
         }
 
         // Get header tags and set origin whether propagating or not.
@@ -1290,7 +1304,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentTrace,
               requestContextData,
               pathwayContext,
-              disableSamplingMechanismValidation);
+              disableSamplingMechanismValidation,
+              datadogTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

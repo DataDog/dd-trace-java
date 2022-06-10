@@ -12,8 +12,14 @@ import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class DDSpanContextTest extends DDCoreSpecification {
 
-  def writer = new ListWriter()
-  def tracer = tracerBuilder().writer(writer).build()
+  def writer
+  def tracer
+
+  def setup() {
+    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
+    writer = new ListWriter()
+    tracer = tracerBuilder().writer(writer).build()
+  }
 
   def cleanup() {
     tracer.close()
@@ -93,9 +99,9 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     then:
     assertTagmap(context.getTags(), [
-      (name)              : value,
-      (DDTags.THREAD_NAME): thread.name,
-      (DDTags.THREAD_ID)  : thread.id
+      (name)               : value,
+      (DDTags.THREAD_NAME) : thread.name,
+      (DDTags.THREAD_ID)   : thread.id
     ])
 
     where:
@@ -220,7 +226,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, DEFAULT, "789", 0, [:], [:]).withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, DEFAULT, "789", 0, [:], [:], tracer.getDatadogTagsFactory().empty()).withRequestContextData("dummy")
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
     def topC = (DDSpanContext) top.context()
     def topTS = top.getRequestContext().getTraceSegment()

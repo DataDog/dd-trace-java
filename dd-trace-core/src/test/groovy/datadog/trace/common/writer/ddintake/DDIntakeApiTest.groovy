@@ -15,6 +15,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -147,7 +148,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
            "parent_id":0L,
            "start":1000L,
            "duration":10L,
-           "meta": [:],
+           "meta": ["_dd.dm.service_hash": "5462db6c6c"],
            "metrics":[:]
          ])
        ])]
@@ -225,7 +226,8 @@ class DDIntakeApiTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

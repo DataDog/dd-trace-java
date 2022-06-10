@@ -60,8 +60,21 @@ public final class TracerConfig {
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
+
+  /**
+   * Disables validation that prevents invalid combinations of sampling priority and sampling
+   * mechanism on the set sampling priority calls. This check is enabled by default.
+   */
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
+
+  /** Enables service propagation. Enabled by default. */
+  public static final String TRACE_PROPAGATE_SERVICE = "trace.propagate.service";
+
+  /** Limit for x-datadog-tags. When exceeded it will stop propagating and log a warning. */
+  public static final String TRACE_X_DATADOG_TAGS_MAX_LENGTH = "trace.x-datadog-tags.max.length";
+
+  public static final int TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE = 512;
 
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 

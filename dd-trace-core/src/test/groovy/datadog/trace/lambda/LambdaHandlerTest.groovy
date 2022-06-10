@@ -1,5 +1,7 @@
 package datadog.trace.lambda
 
+import datadog.trace.api.Config
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
@@ -20,6 +22,10 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation success"() {
     given:
+    Config config = Mock(Config)
+    config.isServicePropagationEnabled() >> true
+    config.getDataDogTagsLimit() >> 512
+
     def server = httpServer {
       handlers {
         post("/lambda/start-invocation") {
@@ -34,7 +40,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
 
     then:
     objTest.getTraceId().toString() == traceId
@@ -50,6 +56,10 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation failure"() {
     given:
+    Config config = Mock(Config)
+    config.isServicePropagationEnabled() >> true
+    config.getDataDogTagsLimit() >> 512
+
     def server = httpServer {
       handlers {
         post("/lambda/start-invocation") {
@@ -62,7 +72,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, DatadogTags.factory(config))
 
     then:
     objTest == expected

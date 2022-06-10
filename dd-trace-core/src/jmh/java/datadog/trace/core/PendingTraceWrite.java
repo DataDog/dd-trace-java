@@ -59,7 +59,8 @@ public class PendingTraceWrite {
                 trace,
                 null,
                 NoopPathwayContext.INSTANCE,
-                false));
+                false,
+                null));
     span =
         DDSpan.create(
             System.currentTimeMillis() * 1000,
@@ -81,7 +82,8 @@ public class PendingTraceWrite {
                 trace,
                 null,
                 NoopPathwayContext.INSTANCE,
-                false));
+                false,
+                null));
   }
 
   @Threads(4)

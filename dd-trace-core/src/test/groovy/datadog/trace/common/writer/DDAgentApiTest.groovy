@@ -59,6 +59,13 @@ class DDAgentApiTest extends DDCoreSpecification {
     }
   }
 
+  def setup() {
+    //    injectSysConfig(TRACE_PROPAGATE_SERVICE, "true")
+    System.setProperty("DD_TRACE_PROPAGATE_SERVICE", "1")
+  }
+  //  def setup() {
+  //    System.setProperty(SDKGlobalConfiguration.SECRET_KEY_SYSTEM_PROPERTY, "my-secret-key")
+  //  }
 
   def "sending an empty list of traces returns no errors"() {
     setup:
@@ -106,6 +113,10 @@ class DDAgentApiTest extends DDCoreSpecification {
 
   def "content is sent as MSGPACK"() {
     setup:
+    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
+    //    injectSysConfig("dd.trace.propagate.service", "true")
+    //    injectEnvConfig("trace.propagate.service", "1")
+
     def agent = httpServer {
       handlers {
         put(agentVersion) {
@@ -139,7 +150,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(1L, "service.name", "my-service")]]     | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName()],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.dm": "-1"], //TODO how to enable service propagation from the test?
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
@@ -158,7 +169,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(100L, "resource.name", "my-resource")]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName()],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.dm": "-1"],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
@@ -422,7 +433,6 @@ class DDAgentApiTest extends DDCoreSpecification {
 
   DDSpan buildSpan(long timestamp, String tag, String value) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-
     def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
@@ -441,7 +451,8 @@ class DDAgentApiTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      null)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

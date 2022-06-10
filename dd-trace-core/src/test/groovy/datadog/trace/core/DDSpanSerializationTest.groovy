@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContex
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-
 import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
@@ -150,7 +149,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      null)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -220,7 +220,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      null)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -300,7 +301,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      null)
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }
