@@ -501,7 +501,7 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
               null,
               computeSVUID());
         } catch (final Exception e) {
-          log.debug("Failed to add serialVersionUID to {}", instrumentedType.getActualName(), e);
+          log.debug("Failed to add serialVersionUID to {}", instrumentedType.getName(), e);
         }
       }
     }

@@ -51,7 +51,7 @@ class ShouldInjectFieldsState {
     String implementingClass = typeDescription.getName();
     Map<String, Boolean> visitedInterfaces = new HashMap<>();
     while (null != superClass) {
-      String superClassName = superClass.asErasure().getTypeName();
+      String superClassName = superClass.asErasure().getName();
       if (null == keyTypeIsClass && keyType.equals(superClassName)) {
         // short circuit the search with this key type next time
         KEY_TYPE_IS_CLASS.put(keyType, true);
@@ -73,7 +73,7 @@ class ShouldInjectFieldsState {
   private static boolean hasKeyInterface(
       TypeDefinition typeDefinition, String keyType, Map<String, Boolean> visitedInterfaces) {
     for (TypeDefinition iface : typeDefinition.getInterfaces()) {
-      String interfaceName = iface.asErasure().getTypeName();
+      String interfaceName = iface.asErasure().getName();
       if (keyType.equals(interfaceName)) {
         return true;
       }
@@ -130,7 +130,7 @@ class ShouldInjectFieldsState {
   public static boolean hasInjectedField(TypeDefinition typeDefinition, BitSet excludedStoreIds) {
     Set<String> visitedInterfaces = new HashSet<>();
     while (null != typeDefinition) {
-      String className = typeDefinition.asErasure().getTypeName();
+      String className = typeDefinition.asErasure().getName();
       BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(className);
       if (null != excludedStoreIdsForType) {
         synchronized (excludedStoreIdsForType) {
@@ -149,7 +149,7 @@ class ShouldInjectFieldsState {
   private static boolean impliesInjectedField(
       final TypeDefinition typeDefinition, final Set<String> visitedInterfaces) {
     for (TypeDefinition iface : typeDefinition.getInterfaces()) {
-      String interfaceName = iface.asErasure().getTypeName();
+      String interfaceName = iface.asErasure().getName();
       if (KEY_TYPE_IS_CLASS.containsKey(interfaceName)
           || (visitedInterfaces.add(interfaceName)
               && impliesInjectedField(iface, visitedInterfaces))) {
