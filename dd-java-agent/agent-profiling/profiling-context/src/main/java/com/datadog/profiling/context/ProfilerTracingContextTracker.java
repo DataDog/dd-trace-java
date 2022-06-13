@@ -380,11 +380,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     int encodedDataLimit =
         (maxDataSize * 3) / 4; // encoded data is in base64, growing by 4/3 in size
     int totalSequenceBufferSize = 0;
-    int maxSequenceSize = 0;
     long[] threadIds = shuffleArray(threadSequences.keySetLong());
     for (LongSequence sequence : threadSequences.values()) {
-      maxSequenceSize = Math.max(maxSequenceSize, sequence.size());
-      totalSequenceBufferSize += sequence.size();
+      int size = sequence.captureSize();
+      totalSequenceBufferSize += size;
     }
 
     IntervalEncoder encoder =
@@ -399,6 +398,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       threadCount++;
       IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
       LongSequence rawIntervals = threadSequences.get(threadId);
+      int sequenceSize = rawIntervals.getCapturedSize();
+
       /*
       The only potential contention here will be between the tracked thread and the context summarization
       when the trace and span is being serialized. At that moment, however, the possibility of code related
@@ -408,7 +409,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
         int sequenceIndex = 0;
-        while (iterator.hasNext() && sequenceIndex++ < maxSequenceSize) {
+        while (iterator.hasNext() && sequenceIndex++ < sequenceSize) {
           long from = iterator.next();
           long maskedFrom = (from & TIMESTAMP_MASK);
           if (iterator.hasNext()) {
