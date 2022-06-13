@@ -238,12 +238,11 @@ final class LongSequence {
   }
 
   /**
-   * Get the last 'captured' size; if the size has not been captured yet capture and return it now
+   * Get the last 'captured' size
+   *
+   * @return the captured size or {@literal -1} if the size has not been captured yet
    */
   public int getCapturedSize() {
-    if (capturedSize == -1) {
-      capturedSize = size();
-    }
     return capturedSize;
   }
 
