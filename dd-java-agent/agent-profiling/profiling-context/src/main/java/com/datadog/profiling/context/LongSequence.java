@@ -76,6 +76,7 @@ final class LongSequence {
 
   private AtomicInteger state = new AtomicInteger(0);
   private final int limit;
+  private int capturedSize = -1;
 
   public LongSequence(Allocator allocator) {
     this(allocator, Integer.MAX_VALUE);
@@ -222,6 +223,27 @@ final class LongSequence {
 
   public int size() {
     return size;
+  }
+
+  /**
+   * Store and return the current sequence size - creating a kind of snapshot in time that could be
+   * used to make sure the subsequent iteration (eg. during persisting the data) will not overflow
+   * the limit deduced at the time of snapshotting.
+   *
+   * @return the sequence size
+   */
+  public int captureSize() {
+    capturedSize = size();
+    return capturedSize;
+  }
+
+  /**
+   * Get the last 'captured' size
+   *
+   * @return the captured size or {@literal -1} if the size has not been captured yet
+   */
+  public int getCapturedSize() {
+    return capturedSize;
   }
 
   public int sizeInBytes() {
