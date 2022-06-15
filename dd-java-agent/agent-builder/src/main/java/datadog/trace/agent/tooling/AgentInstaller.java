@@ -87,10 +87,11 @@ public class AgentInstaller {
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
-            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
-            .with(AgentStrategies.poolStrategy())
-            .with(new ClassLoadListener())
             .with(AgentStrategies.locationStrategy())
+            .with(AgentStrategies.matchingPoolStrategy())
+            .with(AgentStrategies.descriptionStrategy())
+            .with(AgentStrategies.typeBuilderStrategy())
+            .with(new ClassLoadListener())
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)

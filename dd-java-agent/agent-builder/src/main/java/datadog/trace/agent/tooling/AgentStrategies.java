@@ -1,16 +1,18 @@
 package datadog.trace.agent.tooling;
 
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
+import datadog.trace.agent.tooling.bytebuddy.DDDescriptionStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDMatchingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
-import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.DDTypeStrategy;
 import datadog.trace.api.Platform;
+import net.bytebuddy.agent.builder.AgentBuilder.DescriptionStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.DiscoveryStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.pool.TypePool;
+import net.bytebuddy.agent.builder.AgentBuilder.TypeStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,20 +43,9 @@ public class AgentStrategies {
   private static final TransformerDecorator TRANSFORMER_DECORATOR = loadTransformerDecorator();
   private static final DiscoveryStrategy REDISCOVERY_STRATEGY = new DDRediscoveryStrategy();
   private static final LocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-  private static final PoolStrategy POOL_STRATEGY =
-      new PoolStrategy() {
-        @Override
-        public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-          return SharedTypePools.typePool(classFileLocator, classLoader);
-        }
-
-        @Override
-        public TypePool typePool(
-            ClassFileLocator classFileLocator, ClassLoader classLoader, String name) {
-          // FIXME satisfy interface constraint that currently instrumented type is not cached
-          return SharedTypePools.typePool(classFileLocator, classLoader);
-        }
-      };
+  private static final PoolStrategy MATCHING_POOL_STRATEGY = new DDMatchingPoolStrategy();
+  private static final DescriptionStrategy DESCRIPTION_STRATEGY = new DDDescriptionStrategy();
+  private static final TypeStrategy TYPE_BUILDER_STRATEGY = new DDTypeStrategy();
 
   public static TransformerDecorator transformerDecorator() {
     return TRANSFORMER_DECORATOR;
@@ -68,7 +59,15 @@ public class AgentStrategies {
     return LOCATION_STRATEGY;
   }
 
-  public static PoolStrategy poolStrategy() {
-    return POOL_STRATEGY;
+  public static PoolStrategy matchingPoolStrategy() {
+    return MATCHING_POOL_STRATEGY;
+  }
+
+  public static DescriptionStrategy descriptionStrategy() {
+    return DESCRIPTION_STRATEGY;
+  }
+
+  public static TypeStrategy typeBuilderStrategy() {
+    return TYPE_BUILDER_STRATEGY;
   }
 }
