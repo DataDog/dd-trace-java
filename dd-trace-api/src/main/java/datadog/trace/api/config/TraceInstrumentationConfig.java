@@ -89,8 +89,10 @@ public final class TraceInstrumentationConfig {
 
   public static final String TEMP_JARS_CLEAN_ON_BOOT = "temp.jars.clean.on.boot";
 
-  public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
+  public static final String RESOLVER_OUTLINE_POOL_ENABLED = "resolver.outline.pool.enabled";
+  public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
   public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
+  public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
 
   private TraceInstrumentationConfig() {}
 }

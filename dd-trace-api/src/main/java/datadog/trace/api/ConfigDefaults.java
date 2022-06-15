@@ -105,6 +105,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
 
+  static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 1024;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 
   private ConfigDefaults() {}
