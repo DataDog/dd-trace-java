@@ -64,6 +64,8 @@ include ':dd-java-agent:agent-debugger:debugger-bootstrap'
 include ':dd-java-agent:agent-debugger:debugger-test-scala'
 include ':dd-java-agent:agent-debugger:debugger-el'
 
+include ':dd-java-agent:agent-crashreporting'
+
 include ':communication'
 
 include ':dd-java-agent:appsec'

@@ -1,0 +1,61 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+// Set properties before any plugins get loaded
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+// We do not publish separate jar, but having version file is useful
+apply from: "$rootDir/gradle/version.gradle"
+
+dependencies {
+  api deps.slf4j
+  api project(':internal-api')
+
+  implementation deps.okhttp
+
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+configurations {
+  // exclude bootstrap dependencies from shadowJar
+  runtime.exclude module: deps.slf4j
+  runtime.exclude group: 'org.slf4j'
+}
+
+shadowJar {
+  dependencies deps.sharedInverse
+  dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-java-agent:agent-logging'))
+    exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
+    exclude(project(':internal-api:internal-api-8'))
+    exclude(project(':utils:socket-utils'))
+    exclude(project(':utils:time-utils'))
+    exclude(dependency('org.slf4j::'))
+  }
+  exclude {
+    if (it.path.startsWith('org/jctools/')) {
+      def ret = true
+      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps')) {
+        ret = false
+      } else {
+        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') || it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap'))
+      }
+      return ret
+    }
+    return false
+  }
+}
+
+jar {
+  classifier = 'unbundled'
+}
