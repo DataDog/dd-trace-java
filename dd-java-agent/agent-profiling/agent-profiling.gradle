@@ -9,8 +9,6 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api deps.slf4j
@@ -44,8 +42,10 @@ shadowJar {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':internal-api:internal-api-8'))
+    exclude(project(':utils:process-utils'))
     exclude(project(':utils:socket-utils'))
     exclude(project(':utils:time-utils'))
+    exclude(project(':utils:version-utils'))
     exclude(dependency('org.slf4j::'))
   }
   exclude {

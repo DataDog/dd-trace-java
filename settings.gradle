@@ -75,10 +75,12 @@ include ':dd-java-agent:appsec:weblog:weblog-common'
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
 include ':utils:histograms'
+include ':utils:process-utils'
 include ':utils:socket-utils'
 include ':utils:test-agent-utils:decoder'
 include ':utils:test-utils'
 include ':utils:time-utils'
+include ':utils:version-utils'
 
 // smoke tests
 include ':dd-smoke-tests:cli'

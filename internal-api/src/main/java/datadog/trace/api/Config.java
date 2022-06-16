@@ -185,6 +185,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_URL;
+import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_TAGS;
+import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_AGENTLESS;
+import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
@@ -469,6 +473,10 @@ public class Config {
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
+  
+  private final boolean crashReportingAgentless;
+  @Deprecated private final String crashReportingUrl;
+  private final Map<String, String> crashReportingTags;
 
   private final boolean appSecEnabled;
   private final boolean appSecReportingInband;
@@ -984,6 +992,11 @@ public class Config {
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
+
+    crashReportingAgentless =
+        configProvider.getBoolean(CRASH_REPORTING_AGENTLESS, CRASH_REPORTING_AGENTLESS_DEFAULT);
+    crashReportingUrl = configProvider.getString(CRASH_REPORTING_URL);
+    crashReportingTags = configProvider.getMergedMap(CRASH_REPORTING_TAGS);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecReportingInband =
@@ -1592,6 +1605,10 @@ public class Config {
     return profilingLegacyTracingIntegrationEnabled;
   }
 
+  public boolean isCrashReportingAgentless() {
+    return crashReportingAgentless;
+  }
+
   public boolean isAppSecEnabled() {
     return appSecEnabled;
   }
@@ -1982,6 +1999,26 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public Map<String, String> getMergedCrashReportingTags() {
+    final Map<String, String> runtimeTags = getRuntimeTags();
+    final String host = getHostName();
+    final Map<String, String> result =
+        newHashMap(
+            getGlobalTags().size()
+                + crashReportingTags.size()
+                + runtimeTags.size()
+                + 3 /* for serviceName and host and language */);
+    result.put(HOST_TAG, host); // Host goes first to allow to override it
+    result.putAll(getGlobalTags());
+    result.putAll(crashReportingTags);
+    result.putAll(runtimeTags);
+    // service name set here instead of getRuntimeTags because apm already manages the service tag
+    // and may chose to override it.
+    result.put(SERVICE_TAG, serviceName);
+    result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    return Collections.unmodifiableMap(result);
+  }
+
   /**
    * Returns the sample rate for the specified instrumentation or {@link
    * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
@@ -2119,6 +2156,19 @@ public class Config {
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";
+    }
+  }
+
+  public String getFinalCrashReportingUrl() {
+    if (crashReportingUrl != null) {
+      // when crashReportingUrl is set we use it regardless of apiKey/agentless config
+      return crashReportingUrl;
+    } else if (crashReportingAgentless) {
+      // when agentless crashReporting is turned on we send directly to our intake
+      return "https://intake.profile." + site + "/api/v2/profile";
+    } else {
+      // when crashReportingUrl and agentless are not set we send to the dd trace agent running locally
+      return "http://" + agentHost + ":" + agentPort + "/crashReporting/v1/input";
     }
   }
 
@@ -2650,6 +2700,13 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", crashReportingUrl='"
+        + crashReportingUrl
+        + '\''
+        + ", crashReportingTags="
+        + crashReportingTags
+        + ", crashReportingAgentless="
+        + crashReportingAgentless
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="

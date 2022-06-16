@@ -9,12 +9,14 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api deps.slf4j
+  // api project(':dd-trace-api')
   api project(':internal-api')
+  api project(':utils:process-utils')
+  api project(':utils:socket-utils')
+  api project(':utils:version-utils')
 
   implementation deps.okhttp
 
@@ -38,8 +40,11 @@ shadowJar {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':internal-api:internal-api-8'))
+    exclude(project(':utils:container-utils'))
+    exclude(project(':utils:process-utils'))
     exclude(project(':utils:socket-utils'))
     exclude(project(':utils:time-utils'))
+    exclude(project(':utils:version-utils'))
     exclude(dependency('org.slf4j::'))
   }
   exclude {
@@ -59,3 +64,6 @@ shadowJar {
 jar {
   classifier = 'unbundled'
 }
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8

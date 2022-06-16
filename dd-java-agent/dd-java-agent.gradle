@@ -19,7 +19,7 @@ configurations {
 /*
  * 6 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
- * - 4 jars based on projects (instrumentation, jmxfetch, profiling, appsec)
+ * - 5 jars based on projects (instrumentation, jmxfetch, profiling, appsec, crashreporting)
  * - 1 based on the shared dependencies
  * This general config is shared by all of them
  */
@@ -84,6 +84,7 @@ def includeSubprojShadowJar(String projName, String jarname) {
 includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
+includeSubprojShadowJar ':dd-java-agent:agent-crashreporting', 'crashreporting'
 includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {

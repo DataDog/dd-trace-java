@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader.util;
+package datadog.common.process;
 
 import datadog.trace.api.Platform;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
