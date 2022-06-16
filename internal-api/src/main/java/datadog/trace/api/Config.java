@@ -270,6 +270,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
@@ -449,6 +450,7 @@ public class Config {
   private final Set<String> traceThreadPoolExecutorsExclude;
 
   private final boolean traceAnalyticsEnabled;
+  private final String traceClientIpHeader;
 
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
@@ -482,7 +484,6 @@ public class Config {
   private final String appSecRulesFile;
   private final int appSecReportMinTimeout;
   private final int appSecReportMaxTimeout;
-  private final String appSecIpAddrHeader;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
@@ -911,6 +912,15 @@ public class Config {
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
 
+    String traceClientIpHeader = configProvider.getString(TRACE_CLIENT_IP_HEADER);
+    if (traceClientIpHeader == null) {
+      traceClientIpHeader = configProvider.getString(APPSEC_IP_ADDR_HEADER);
+    }
+    if (traceClientIpHeader != null) {
+      traceClientIpHeader = traceClientIpHeader.toLowerCase(Locale.ROOT);
+    }
+    this.traceClientIpHeader = traceClientIpHeader;
+
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
@@ -1003,11 +1013,6 @@ public class Config {
     // Default AppSec report timeout min=5, max=60
     appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
     appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
-    String appSecIpAddrHeader = configProvider.getString(APPSEC_IP_ADDR_HEADER);
-    if (appSecIpAddrHeader != null) {
-      appSecIpAddrHeader = appSecIpAddrHeader.toLowerCase(Locale.ROOT);
-    }
-    this.appSecIpAddrHeader = appSecIpAddrHeader;
 
     appSecTraceRateLimit =
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
@@ -1517,6 +1522,10 @@ public class Config {
     return traceAnalyticsEnabled;
   }
 
+  public String getTraceClientIpHeader() {
+    return traceClientIpHeader;
+  }
+
   public Map<String, String> getTraceSamplingServiceRules() {
     return traceSamplingServiceRules;
   }
@@ -1619,10 +1628,6 @@ public class Config {
 
   public int getAppSecReportMinTimeout() {
     return appSecReportMinTimeout;
-  }
-
-  public String getAppSecIpAddrHeader() {
-    return appSecIpAddrHeader;
   }
 
   public int getAppSecReportMaxTimeout() {

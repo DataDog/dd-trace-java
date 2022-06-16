@@ -1,4 +1,4 @@
-package com.datadog.appsec.gateway;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.function.Function;
 import java.net.Inet4Address;
@@ -10,8 +10,13 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClientIpAddressResolver {
-  private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
+public class ClientIpResolver {
+  private static final Logger log = LoggerFactory.getLogger(ClientIpResolver.class);
+
+  private static final Function<String, InetAddress> plainIpAddressParser =
+      new ParsePlainIpAddress();
+  private static final Function<String, InetAddress> forwardedParser = new ParseForwarded();
+  private static final Function<String, InetAddress> viaParser = new ParseVia();
 
   /**
    * Infers the IP address of the client according to our specified procedure. This method doesn't
@@ -43,63 +48,61 @@ public class ClientIpAddressResolver {
       return tryHeader(
           ipAddrHeader,
           requestHeaders,
-          (s) -> {
-            InetAddress addr = parseForwarded(s);
-            if (addr != null) {
-              return addr;
+          new Function<String, InetAddress>() {
+            @Override
+            public InetAddress apply(String s) {
+              InetAddress addr = forwardedParser.apply(s);
+              if (addr != null) {
+                return addr;
+              }
+              return plainIpAddressParser.apply(s);
             }
-            return parsePlainIpAddress(s);
           });
     }
 
     // we don't have a set ip header to look exclusively at
     // the order of the headers is the order in the RFC
-    result =
-        tryHeader("x-forwarded-for", requestHeaders, ClientIpAddressResolver::parsePlainIpAddress);
+    result = tryHeader("x-forwarded-for", requestHeaders, plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("x-real-ip", requestHeaders, ClientIpAddressResolver::parsePlainIpAddress);
+    result = tryHeader("x-real-ip", requestHeaders, plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("client-ip", requestHeaders, ClientIpAddressResolver::parsePlainIpAddress);
+    result = tryHeader("client-ip", requestHeaders, plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("x-forwarded", requestHeaders, ClientIpAddressResolver::parseForwarded);
+    result = tryHeader("x-forwarded", requestHeaders, forwardedParser);
     if (result != null) {
       return result;
     }
 
-    result =
-        tryHeader(
-            "x-cluster-client-ip", requestHeaders, ClientIpAddressResolver::parsePlainIpAddress);
+    result = tryHeader("x-cluster-client-ip", requestHeaders, plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result =
-        tryHeader("forwarded-for", requestHeaders, ClientIpAddressResolver::parsePlainIpAddress);
+    result = tryHeader("forwarded-for", requestHeaders, plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("forwarded", requestHeaders, ClientIpAddressResolver::parseForwarded);
+    result = tryHeader("forwarded", requestHeaders, forwardedParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("via", requestHeaders, ClientIpAddressResolver::parseVia);
+    result = tryHeader("via", requestHeaders, viaParser);
     if (result != null) {
       return result;
     }
 
-    return tryHeader(
-        "true-client-ip", requestHeaders, ClientIpAddressResolver::parsePlainIpAddress);
+    return tryHeader("true-client-ip", requestHeaders, plainIpAddressParser);
   }
 
   private static InetAddress tryHeader(
@@ -121,166 +124,176 @@ public class ClientIpAddressResolver {
     return null;
   }
 
-  private static InetAddress parseVia(String str) {
-    int pos = 0;
-    int end = str.length();
-    InetAddress result = null;
-    do {
-      int posComma = str.indexOf(',', pos);
-      int endCur = posComma == -1 ? end : posComma;
+  private static class ParseVia implements Function<String, InetAddress> {
+    @Override
+    public InetAddress apply(String str) {
+      int pos = 0;
+      int end = str.length();
+      InetAddress result = null;
+      do {
+        int posComma = str.indexOf(',', pos);
+        int endCur = posComma == -1 ? end : posComma;
 
-      // skip initial whitespace, after a comma separating several
-      // values for instance
-      pos = skipWs(str, pos, endCur);
-      if (pos != endCur) {
-        // https://httpwg.org/specs/rfc7230.html#header.via
-        // skip over protocol/version
-        pos = skipNonWs(str, pos, endCur);
+        // skip initial whitespace, after a comma separating several
+        // values for instance
         pos = skipWs(str, pos, endCur);
         if (pos != endCur) {
-          // we can have a trailing comment, so try find next whitespace
-          endCur = skipNonWs(str, pos, endCur);
+          // https://httpwg.org/specs/rfc7230.html#header.via
+          // skip over protocol/version
+          pos = skipNonWs(str, pos, endCur);
+          pos = skipWs(str, pos, endCur);
+          if (pos != endCur) {
+            // we can have a trailing comment, so try find next whitespace
+            endCur = skipNonWs(str, pos, endCur);
 
-          result = parseIpAddressAndMaybePort(str.substring(pos, endCur));
-          if (result != null && isIpAddrPrivate(result)) {
-            result = null;
+            result = parseIpAddressAndMaybePort(str.substring(pos, endCur));
+            if (result != null && isIpAddrPrivate(result)) {
+              result = null;
+            }
           }
         }
-      }
-      pos = (posComma != -1 && posComma + 1 < end) ? (posComma + 1) : -1;
-    } while (result == null && pos != -1);
+        pos = (posComma != -1 && posComma + 1 < end) ? (posComma + 1) : -1;
+      } while (result == null && pos != -1);
 
-    return result;
-  }
-
-  private static int skipNonWs(String str, int pos, int endCur) {
-    for (; pos < endCur; pos++) {
-      char c = str.charAt(pos);
-      if (c == ' ' || c == '\t') {
-        break;
-      }
+      return result;
     }
-    return pos;
-  }
 
-  private static int skipWs(String str, int pos, int endCur) {
-    for (; pos < endCur; pos++) {
-      char c = str.charAt(pos);
-      if (c != ' ' && c != '\t') {
-        break;
+    private static int skipNonWs(String str, int pos, int endCur) {
+      for (; pos < endCur; pos++) {
+        char c = str.charAt(pos);
+        if (c == ' ' || c == '\t') {
+          break;
+        }
       }
+      return pos;
     }
-    return pos;
-  }
 
-  private static InetAddress parsePlainIpAddress(String str) {
-    InetAddress addr;
-    int pos = 0;
-    int end = str.length();
-    do {
-      for (; pos < end && str.charAt(pos) == ' '; pos++) {}
-      int posComma = str.indexOf(',', pos);
-      int endCur = posComma != -1 ? posComma : end;
-      addr = parseIpAddress(str.substring(pos, endCur));
-      if (addr != null && isIpAddrPrivate(addr)) {
-        addr = null;
+    private static int skipWs(String str, int pos, int endCur) {
+      for (; pos < endCur; pos++) {
+        char c = str.charAt(pos);
+        if (c != ' ' && c != '\t') {
+          break;
+        }
       }
-      pos = (posComma != -1 && posComma + 1 < end) ? (posComma + 1) : -1;
-    } while (addr == null && pos != -1);
-    return addr;
+      return pos;
+    }
   }
 
-  enum ForwardedParseState {
-    KEY,
-    BEFORE_VALUE,
-    VALUE_TOKEN,
-    VALUE_QUOTED,
-    BETWEEN,
+  private static class ParsePlainIpAddress implements Function<String, InetAddress> {
+    @Override
+    public InetAddress apply(String str) {
+      InetAddress addr;
+      int pos = 0;
+      int end = str.length();
+      do {
+        for (; pos < end && str.charAt(pos) == ' '; pos++) {}
+        int posComma = str.indexOf(',', pos);
+        int endCur = posComma != -1 ? posComma : end;
+        addr = parseIpAddress(str.substring(pos, endCur));
+        if (addr != null && isIpAddrPrivate(addr)) {
+          addr = null;
+        }
+        pos = (posComma != -1 && posComma + 1 < end) ? (posComma + 1) : -1;
+      } while (addr == null && pos != -1);
+      return addr;
+    }
   }
 
-  private static InetAddress parseForwarded(String headerValue) {
-    ForwardedParseState state = ForwardedParseState.BETWEEN;
+  private static class ParseForwarded implements Function<String, InetAddress> {
 
-    // https://datatracker.ietf.org/doc/html/rfc7239#section-4
-    int pos = 0;
-    int end = headerValue.length();
-    // compiler requires that these two be initialized:
-    int start = 0;
-    boolean considerValue = false;
-    while (pos < end) {
-      char c = headerValue.charAt(pos);
-      switch (state) {
-        case BETWEEN:
-          if (c == ' ' || c == ';' || c == ',') {
-            break;
-          }
-          start = pos;
-          state = ForwardedParseState.KEY;
-          break;
-        case KEY:
-          if (c != '=') {
-            break;
-          }
+    enum ForwardedParseState {
+      KEY,
+      BEFORE_VALUE,
+      VALUE_TOKEN,
+      VALUE_QUOTED,
+      BETWEEN,
+    }
 
-          state = ForwardedParseState.BEFORE_VALUE;
-          if (pos - start == 3) {
-            String key = headerValue.substring(start, pos);
-            considerValue = key.equalsIgnoreCase("for");
-          } else {
-            considerValue = false;
-          }
-          break;
-        case BEFORE_VALUE:
-          if (c == '"') {
-            start = pos + 1;
-            state = ForwardedParseState.VALUE_QUOTED;
-          } else if (c == ' ' || c == ';' || 'c' == ',') {
-            // empty value
-            state = ForwardedParseState.BETWEEN;
-          } else {
-            start = pos;
-            state = ForwardedParseState.VALUE_TOKEN;
-          }
-          break;
-        case VALUE_TOKEN:
-          {
-            int tokenEnd;
+    @Override
+    public InetAddress apply(String headerValue) {
+      ForwardedParseState state = ForwardedParseState.BETWEEN;
+
+      // https://datatracker.ietf.org/doc/html/rfc7239#section-4
+      int pos = 0;
+      int end = headerValue.length();
+      // compiler requires that these two be initialized:
+      int start = 0;
+      boolean considerValue = false;
+      while (pos < end) {
+        char c = headerValue.charAt(pos);
+        switch (state) {
+          case BETWEEN:
             if (c == ' ' || c == ';' || c == ',') {
-              tokenEnd = pos;
-            } else if (pos + 1 == end) {
-              tokenEnd = end;
-            } else {
+              break;
+            }
+            start = pos;
+            state = ForwardedParseState.KEY;
+            break;
+          case KEY:
+            if (c != '=') {
               break;
             }
 
-            if (considerValue) {
-              InetAddress ipAddr =
-                  parseIpAddressAndMaybePort(headerValue.substring(start, tokenEnd));
-              if (ipAddr != null && !isIpAddrPrivate(ipAddr)) {
-                return ipAddr;
-              }
+            state = ForwardedParseState.BEFORE_VALUE;
+            if (pos - start == 3) {
+              String key = headerValue.substring(start, pos);
+              considerValue = key.equalsIgnoreCase("for");
+            } else {
+              considerValue = false;
             }
-            state = ForwardedParseState.BETWEEN;
             break;
-          }
-        case VALUE_QUOTED:
-          if (c == '"') {
-            if (considerValue) {
-              InetAddress ipAddr = parseIpAddressAndMaybePort(headerValue.substring(start, pos));
-              if (ipAddr != null && !isIpAddrPrivate(ipAddr)) {
-                return ipAddr;
-              }
+          case BEFORE_VALUE:
+            if (c == '"') {
+              start = pos + 1;
+              state = ForwardedParseState.VALUE_QUOTED;
+            } else if (c == ' ' || c == ';' || c == ',') {
+              // empty value
+              state = ForwardedParseState.BETWEEN;
+            } else {
+              start = pos;
+              state = ForwardedParseState.VALUE_TOKEN;
             }
-            state = ForwardedParseState.BETWEEN;
-          } else if (c == '\\') {
-            pos++;
-          }
-          break;
-      }
-      pos++;
-    }
+            break;
+          case VALUE_TOKEN:
+            {
+              int tokenEnd;
+              if (c == ' ' || c == ';' || c == ',') {
+                tokenEnd = pos;
+              } else if (pos + 1 == end) {
+                tokenEnd = end;
+              } else {
+                break;
+              }
 
-    return null;
+              if (considerValue) {
+                InetAddress ipAddr =
+                    parseIpAddressAndMaybePort(headerValue.substring(start, tokenEnd));
+                if (ipAddr != null && !isIpAddrPrivate(ipAddr)) {
+                  return ipAddr;
+                }
+              }
+              state = ForwardedParseState.BETWEEN;
+              break;
+            }
+          case VALUE_QUOTED:
+            if (c == '"') {
+              if (considerValue) {
+                InetAddress ipAddr = parseIpAddressAndMaybePort(headerValue.substring(start, pos));
+                if (ipAddr != null && !isIpAddrPrivate(ipAddr)) {
+                  return ipAddr;
+                }
+              }
+              state = ForwardedParseState.BETWEEN;
+            } else if (c == '\\') {
+              pos++;
+            }
+            break;
+        }
+        pos++;
+      }
+
+      return null;
+    }
   }
 
   // flat array in groups of 4 + 4 bytes (base address of the range and mask)
@@ -295,15 +308,15 @@ public class ClientIpAddressResolver {
 
   private static final byte[] PRIVATE_IPV6_RANGES = {
     // spotless:off
-    // ::1/128
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-    (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF,
-    // fe80::/10
-    (byte)0xFE, (byte)0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    (byte)0xFF, (byte)0xC0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    // fc::/7
-    (byte)0xFC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    (byte)0xFE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      // ::1/128
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+      (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF,
+      // fe80::/10
+      (byte)0xFE, (byte)0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      (byte)0xFF, (byte)0xC0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      // fc::/7
+      (byte)0xFC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      (byte)0xFE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       //spotless:on
   };
   private static final int PRIVATE_IPV6_RANGES_SIZE = PRIVATE_IPV4_RANGES.length / (16 + 16);

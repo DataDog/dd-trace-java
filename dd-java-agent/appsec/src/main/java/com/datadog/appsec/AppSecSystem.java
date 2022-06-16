@@ -25,7 +25,7 @@ public class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
-  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
+  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
@@ -66,7 +66,6 @@ public class AppSecSystem {
             gw,
             eventDispatcher,
             rateLimiter,
-            config.getAppSecIpAddrHeader(),
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);

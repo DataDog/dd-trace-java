@@ -1,15 +1,14 @@
-package com.datadog.appsec.gateway
+package datadog.trace.bootstrap.instrumentation.decorator.http
 
 import spock.lang.Specification
 
-class ClientIpAddressResolverSpecification extends Specification {
-
+class ClientIpResolverSpecification extends Specification {
   private static final String HEADER = 'foo-bar'
 
   void 'test with configured header'() {
     expect:
     InetAddress resultInetAddr = result ? InetAddress.getByName(result) : null
-    ClientIpAddressResolver.resolve(HEADER, [(HEADER): [headerValue]]) == resultInetAddr
+    ClientIpResolver.resolve(HEADER, [(HEADER): [headerValue]]) == resultInetAddr
 
     where:
     headerValue | result
@@ -24,7 +23,7 @@ class ClientIpAddressResolverSpecification extends Specification {
   void 'test without configured header'() {
     expect:
     InetAddress resultInetAddr = result ? InetAddress.getByName(result) : null
-    ClientIpAddressResolver.resolve(null, [(header): [headerValue]]) == resultInetAddr
+    ClientIpResolver.resolve(null, [(header): [headerValue]]) == resultInetAddr
 
     where:
     header | headerValue | result

@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.*;
-import datadog.trace.api.function.Function;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -23,7 +22,11 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpResolver;
+import datadog.trace.bootstrap.instrumentation.decorator.http.HttpHeadersClassifier;
+import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -136,8 +139,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           String path = encoded ? url.rawPath() : url.path();
+          String httpUrl = URIUtils.buildURL(url.scheme(), url.host(), url.port(), path);
 
-          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
           if (context != null && context.getForwardedHost() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
           } else if (url.host() != null) {
@@ -149,7 +152,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            if (query != null) {
+              httpUrl = httpUrl + '?' + query;
+            }
           }
+
+          span.setTag(Tags.HTTP_URL, httpUrl);
+
           callIGCallbackURI(span, url, method);
           if (SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
@@ -192,15 +201,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
       }
 
-      AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
-      if (getter != null) {
-        ResponseHeaderTagClassifier tagger =
-            ResponseHeaderTagClassifier.create(span, Config.get().getResponseHeaderTags());
-        if (tagger != null) {
-          getter.forEachKey(response, tagger);
-        }
-      }
-
       callIGCallbackResponseAndHeaders(span, response, status);
     }
     return span;
@@ -240,27 +240,51 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return context;
   }
 
-  private void callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext<Object> requestContext = span.getRequestContext();
+  private void callIGCallbackRequestHeaders(final AgentSpan span, REQUEST_CARRIER carrier) {
+    final CallbackProvider cbp = tracer().instrumentationGateway();
+    final RequestContext<Object> requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (requestContext == null || cbp == null || getter == null) {
       return;
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.requestHeader()),
-            cbp.getCallback(EVENTS.requestHeaderDone()));
-    if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
-    }
+
+    HttpHeadersClassifier classifier =
+        new HttpHeadersClassifier() {
+          @Override
+          public boolean nextHeader(String name, String value) {
+            // Send IG event
+            cbp.getCallback(EVENTS.requestHeader()).accept(requestContext, name, value);
+            return true;
+          }
+
+          @Override
+          public void doneHeaders(Map<String, List<String>> headers) {
+            // Resolve User-Agent
+            List<String> userAgent = headers.get("user-agent");
+            if (userAgent != null && !userAgent.isEmpty()) {
+              span.setTag(Tags.HTTP_USER_AGENT, userAgent.get(0));
+            }
+
+            // Resolve Client IP
+            String clientIpHeader = Config.get().getTraceClientIpHeader();
+            InetAddress inferredAddr = ClientIpResolver.doResolve(clientIpHeader, headers);
+            if (inferredAddr != null) {
+              span.setTag(Tags.HTTP_CLIENT_IP, inferredAddr.getHostAddress());
+            }
+
+            // Send IG event
+            cbp.getCallback(EVENTS.requestHeaderDone()).apply(requestContext);
+          }
+        };
+
+    getter.forEachKey(carrier, classifier);
+    classifier.done();
   }
 
-  private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext<Object> requestContext = span.getRequestContext();
+  private void callIGCallbackResponseAndHeaders(
+      final AgentSpan span, RESPONSE carrier, int status) {
+    final CallbackProvider cbp = tracer().instrumentationGateway();
+    final RequestContext<Object> requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
       return;
     }
@@ -273,15 +297,31 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (getter == null) {
       return;
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.responseHeader()),
-            cbp.getCallback(EVENTS.responseHeaderDone()));
-    if (null != igKeyClassifier) {
-      getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
-    }
+
+    final Map<String, String> headerTags = Config.get().getResponseHeaderTags();
+    HttpHeadersClassifier classifier =
+        new HttpHeadersClassifier() {
+          @Override
+          public boolean nextHeader(String name, String value) {
+            String mappedKey = headerTags.get(name);
+            if (mappedKey != null) {
+              span.setTag(mappedKey, value);
+            }
+
+            // Send IG event
+            cbp.getCallback(EVENTS.responseHeader()).accept(requestContext, name, value);
+            return true;
+          }
+
+          @Override
+          public void doneHeaders(Map<String, List<String>> headers) {
+            // Send IG event
+            cbp.getCallback(EVENTS.responseHeaderDone()).apply(requestContext);
+          }
+        };
+
+    getter.forEachKey(carrier, classifier);
+    classifier.done();
   }
 
   private void callIGCallbackURI(
@@ -322,7 +362,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackSocketAddress(
-      @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
+      @Nonnull final AgentSpan span, final String ip, final int port) {
     CallbackProvider cbp = tracer().instrumentationGateway();
     if (cbp == null || (ip == null && port == UNSET_PORT)) {
       return Flow.ResultFlow.empty();
@@ -336,71 +376,5 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
     return Flow.ResultFlow.empty();
-  }
-
-  /** This passes the headers through to the InstrumentationGateway */
-  private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
-
-    private static IGKeyClassifier create(
-        RequestContext<Object> requestContext,
-        TriConsumer<RequestContext<Object>, String, String> headerCallback,
-        Function<RequestContext<Object>, Flow<Void>> doneCallback) {
-      if (null == requestContext || null == headerCallback) {
-        return null;
-      }
-      return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
-    }
-
-    private final RequestContext<Object> requestContext;
-    private final TriConsumer<RequestContext<Object>, String, String> headerCallback;
-    private final Function<RequestContext<Object>, Flow<Void>> doneCallback;
-
-    private IGKeyClassifier(
-        RequestContext<Object> requestContext,
-        TriConsumer<RequestContext<Object>, String, String> headerCallback,
-        Function<RequestContext<Object>, Flow<Void>> doneCallback) {
-      this.requestContext = requestContext;
-      this.headerCallback = headerCallback;
-      this.doneCallback = doneCallback;
-    }
-
-    @Override
-    public boolean accept(String key, String value) {
-      headerCallback.accept(requestContext, key, value);
-      return true;
-    }
-
-    public void done() {
-      if (null != doneCallback) {
-        doneCallback.apply(requestContext);
-      }
-    }
-  }
-
-  private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static final ResponseHeaderTagClassifier create(
-        AgentSpan span, Map<String, String> headerTags) {
-      if (span == null || headerTags == null || headerTags.isEmpty()) {
-        return null;
-      }
-      return new ResponseHeaderTagClassifier(span, headerTags);
-    }
-
-    private final AgentSpan span;
-    private final Map<String, String> headerTags;
-
-    public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
-      this.span = span;
-      this.headerTags = headerTags;
-    }
-
-    @Override
-    public boolean accept(String key, String value) {
-      String mappedKey = headerTags.get(key.toLowerCase());
-      if (mappedKey != null) {
-        span.setTag(mappedKey, value);
-      }
-      return true;
-    }
   }
 }

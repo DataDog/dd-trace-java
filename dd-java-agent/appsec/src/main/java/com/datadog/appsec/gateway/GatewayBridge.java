@@ -19,9 +19,9 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.Strings;
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -51,7 +51,6 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final String ipAddrHeader;
   private final RateLimiter rateLimiter;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
@@ -67,12 +66,10 @@ public class GatewayBridge {
       SubscriptionService subscriptionService,
       EventProducerService producerService,
       RateLimiter rateLimiter,
-      String appSecIpAddrHeader,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.rateLimiter = rateLimiter;
-    this.ipAddrHeader = appSecIpAddrHeader;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -121,10 +118,9 @@ public class GatewayBridge {
 
               Map<String, List<String>> requestHeaders = ctx.getRequestHeaders();
               Map<String, List<String>> responseHeaders = ctx.getResponseHeaders();
-              InetAddress inferredAddr =
-                  ClientIpAddressResolver.doResolve(this.ipAddrHeader, requestHeaders);
-              if (inferredAddr != null) {
-                traceSeg.setTagTop("actor.ip", inferredAddr.getHostAddress());
+              Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+              if (clientIp != null) {
+                traceSeg.setTagTop("actor.ip", clientIp.toString());
               }
 
               // Report AppSec events via "_dd.appsec.json" tag
