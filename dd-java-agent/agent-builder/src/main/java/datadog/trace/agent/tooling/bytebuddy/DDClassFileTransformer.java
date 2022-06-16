@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.canSkipClassLoaderByName;
 
+import datadog.trace.agent.tooling.bytebuddy.outline.OutlinePoolStrategy;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
@@ -40,7 +41,11 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       return null;
     }
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    try {
+      return classFileTransformer.transform(
+          classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    } finally {
+      OutlinePoolStrategy.endTransform();
+    }
   }
 }

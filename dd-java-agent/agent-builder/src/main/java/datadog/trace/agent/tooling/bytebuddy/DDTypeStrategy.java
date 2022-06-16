@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import datadog.trace.agent.tooling.bytebuddy.outline.OutlinePoolStrategy;
 import java.security.ProtectionDomain;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -20,6 +21,7 @@ public final class DDTypeStrategy implements AgentBuilder.TypeStrategy {
       ClassLoader classLoader,
       JavaModule module,
       ProtectionDomain protectionDomain) {
+    OutlinePoolStrategy.beginTransform();
     return AgentBuilder.TypeStrategy.Default.REDEFINE_FROZEN.builder(
         typeDescription,
         byteBuddy,

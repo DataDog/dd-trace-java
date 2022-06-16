@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
+import datadog.trace.agent.tooling.bytebuddy.outline.OutlinePoolStrategy;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -73,7 +74,11 @@ public class AgentInstaller {
     Utils.setInstrumentation(inst);
 
     FieldBackedContextProvider.resetContextMatchers();
-    DDCachingPoolStrategy.registerAsSupplier();
+    if (Config.get().isResolverOutlinePoolEnabled()) {
+      OutlinePoolStrategy.registerAsSupplier();
+    } else {
+      DDCachingPoolStrategy.registerAsSupplier();
+    }
     DDElementMatchers.registerAsSupplier();
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
@@ -155,7 +160,11 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    return transformerBuilder.installOn(inst);
+    try {
+      return transformerBuilder.installOn(inst);
+    } finally {
+      OutlinePoolStrategy.agentInstalled();
+    }
   }
 
   private static Set<Instrumenter.TargetSystem> getEnabledSystems() {

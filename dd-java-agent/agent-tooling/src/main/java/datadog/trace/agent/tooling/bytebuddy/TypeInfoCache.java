@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.bytebuddy.tiered;
+package datadog.trace.agent.tooling.bytebuddy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import datadog.trace.agent.tooling.WeakCaches;
