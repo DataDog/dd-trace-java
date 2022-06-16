@@ -23,6 +23,8 @@ dependencies {
   api deps.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
 
+  implementation group: 'com.google.re2j', name: 're2j', version: '1.6'
+
   testImplementation project(':dd-java-agent:testing')
 }
 

@@ -41,6 +41,7 @@ ext.generalShadowJarConfig = {
     relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
     // shadow things in internal API that has slf4j in the API and is accessed from core
     relocate 'datadog.trace.relocate', 'datadog.trace.agent.relocate'
+    relocate 'com.google.re2j', 'datadog.re2j'
   }
 }
 

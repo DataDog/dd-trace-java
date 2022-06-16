@@ -23,7 +23,8 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpResolver;
-import datadog.trace.bootstrap.instrumentation.decorator.http.HttpHeadersClassifier;
+import datadog.trace.bootstrap.instrumentation.decorator.http.HeadersClassifier;
+import datadog.trace.bootstrap.instrumentation.decorator.http.QueryObfuscator;
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.List;
@@ -150,9 +151,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           if (config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            span.setTag(DDTags.HTTP_QUERY, query);
-            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
-            if (query != null) {
+
+            if (query != null && !query.isEmpty()) {
+              query = QueryObfuscator.obfuscate(query, config.getObfuscationQueryRegexp());
+              span.setTag(DDTags.HTTP_QUERY, query);
+              span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
               httpUrl = httpUrl + '?' + query;
             }
           }
@@ -248,8 +251,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return;
     }
 
-    HttpHeadersClassifier classifier =
-        new HttpHeadersClassifier() {
+    HeadersClassifier classifier =
+        new HeadersClassifier() {
           @Override
           public boolean nextHeader(String name, String value) {
             // Send IG event
@@ -299,8 +302,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     final Map<String, String> headerTags = Config.get().getResponseHeaderTags();
-    HttpHeadersClassifier classifier =
-        new HttpHeadersClassifier() {
+    HeadersClassifier classifier =
+        new HeadersClassifier() {
           @Override
           public boolean nextHeader(String name, String value) {
             String mappedKey = headerTags.get(name);

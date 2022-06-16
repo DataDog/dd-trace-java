@@ -433,7 +433,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test forwarded request"() {
     setup:
     assumeTrue(testForwarded())
-    def request = request(FORWARDED, method, body).header("x-forwarded-for", FORWARDED.body).build()
+    def ip = FORWARDED.body
+    def request = request(FORWARDED, method, body).header("x-forwarded-for", ip).build()
     def response = client.newCall(request).execute()
 
     expect:
@@ -444,7 +445,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(FORWARDED)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, FORWARDED)
+        serverSpan(it, null, null, method, FORWARDED, null, ip)
         if (hasHandlerSpan()) {
           handlerSpan(it, FORWARDED)
         }
@@ -1092,7 +1093,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     BigInteger parentID = null,
     String method = "GET",
     ServerEndpoint endpoint = SUCCESS,
-    Map<String, Serializable> extraTags = null) {
+    Map<String, Serializable> extraTags = null,
+    String clientIp = null,
+    String userAgent = "okhttp/3.12.12") {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
@@ -1100,8 +1103,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     boolean hasForwardedIP = hasForwardedIP()
     def expectedExtraServerTags = expectedExtraServerTags(endpoint)
     def expectedStatus = expectedStatus(endpoint)
-    def expectedQueryTag = expectedQueryTag(endpoint)
-    def expectedUrl = expectedUrl(endpoint, address)
+    def expectedQueryTag = URIUtils.decode(expectedQueryTag(endpoint))
+    def queryStringIfExist = expectedQueryTag ? '?' + expectedQueryTag : ''
+    def expectedUrl = expectedUrl(endpoint, address) + queryStringIfExist
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -1127,6 +1131,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
+        "$Tags.HTTP_USER_AGENT" userAgent
+        "$Tags.HTTP_CLIENT_IP" clientIp
         if (endpoint == FORWARDED && hasForwardedIP) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

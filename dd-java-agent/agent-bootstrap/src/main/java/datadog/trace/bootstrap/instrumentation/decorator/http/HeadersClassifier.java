@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator.http;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.*;
 
-public abstract class HttpHeadersClassifier implements AgentPropagation.KeyClassifier {
+public abstract class HeadersClassifier implements AgentPropagation.KeyClassifier {
 
   private final Map<String, List<String>> headersCache = new LinkedHashMap<>();
 
