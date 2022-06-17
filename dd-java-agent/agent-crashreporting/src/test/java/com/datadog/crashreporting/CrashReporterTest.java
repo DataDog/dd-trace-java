@@ -1,3 +1,9 @@
 package com.datadog.crashreporting;
 
-public class CrashReporterTest {}
+import org.junit.jupiter.api.Test;
+
+public class CrashReporterTest {
+
+  @Test
+  public void testHappyPath() {}
+}

@@ -12,15 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   api deps.slf4j
-  // api project(':dd-trace-api')
-  api project(':internal-api')
-  api project(':utils:process-utils')
-  api project(':utils:socket-utils')
-  api project(':utils:version-utils')
-
-  implementation deps.okhttp
-
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+  api project(':dd-trace-ot')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
