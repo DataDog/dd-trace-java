@@ -54,6 +54,26 @@ public class HostInfo {
     return hostname;
   }
 
+  public static String getOsName() {
+    return System.getProperty("os.name");
+  }
+
+  public static String getOsVersion() {
+    return Os.getOsVersion();
+  }
+
+  public static String getKernelName() {
+    return Uname.UTS_NAME.sysname();
+  }
+
+  public static String getKernelRelease() {
+    return Uname.UTS_NAME.release();
+  }
+
+  public static String getKernelVersion() {
+    return Uname.UTS_NAME.version();
+  }
+
   private static String getHostNameFromLocalHost() throws UnknownHostException {
     return InetAddress.getLocalHost().getHostName();
   }
@@ -69,10 +89,6 @@ public class HostInfo {
       }
     }
     return content;
-  }
-
-  public static String getOsVersion() {
-    return Os.getOsVersion();
   }
 
   private static class Os {

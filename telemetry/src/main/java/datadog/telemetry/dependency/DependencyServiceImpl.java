@@ -64,7 +64,6 @@ public class DependencyServiceImpl implements DependencyService {
         break;
       }
 
-      // URI uri = convertToURI(uri);
       if (uri == null) {
         continue;
       }
@@ -142,7 +141,7 @@ public class DependencyServiceImpl implements DependencyService {
         dependency = getNestedDependency(uri);
       }
     } catch (RuntimeException rte) {
-      log.info("Failed to determine dependency for uri {}", uri, rte);
+      log.warn("Failed to determine dependency for uri {}", uri, rte);
     }
     // TODO : moving jboss vfs here is probably a idea
     // it might however require to do somme checks to make sure it's only applied to jboss
@@ -159,10 +158,10 @@ public class DependencyServiceImpl implements DependencyService {
    */
   private Dependency identifyLibrary(File jar) {
     if (!jar.exists()) {
-      log.warn("unable to find dependency %s", jar);
+      log.warn("unable to find dependency {}", jar);
       return null;
     } else if (!jar.getName().endsWith(JAR_SUFFIX)) {
-      log.debug("unsupported file dependency type : %s", jar);
+      log.debug("unsupported file dependency type : {}", jar);
       return null;
     }
 
@@ -200,7 +199,7 @@ public class DependencyServiceImpl implements DependencyService {
       String jarFileName = jarFile.getName();
       int posSep = jarFileName.indexOf("!/");
       if (posSep == -1) {
-        log.info("Unable to guess nested dependency for uri '{}': '!/' not found", uri);
+        log.warn("Unable to guess nested dependency for uri '{}': '!/' not found", uri);
         return null;
       }
       lastPart = jarFileName.substring(posSep + 1);
@@ -307,7 +306,7 @@ public class DependencyServiceImpl implements DependencyService {
     if (physicalFile.isFile() && physicalFile.getName().endsWith(".jar")) {
       return physicalFile.toURI();
     } else {
-      log.info("Physical file {} is not a jar", physicalFile);
+      log.warn("Physical file {} is not a jar", physicalFile);
     }
 
     // not sure what this is about, but it's what the old code used to do

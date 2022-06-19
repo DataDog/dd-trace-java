@@ -78,11 +78,11 @@ public class RequestBuilder {
     this.host =
         new Host()
             .hostname(HostInfo.getHostname())
-            .os(System.getProperty("os.name"))
+            .os(HostInfo.getOsName())
             .osVersion(HostInfo.getOsVersion())
-            .kernelName(Uname.UTS_NAME.sysname())
-            .kernelRelease(Uname.UTS_NAME.release())
-            .kernelVersion(Uname.UTS_NAME.version())
+            .kernelName(HostInfo.getKernelName())
+            .kernelRelease(HostInfo.getKernelRelease())
+            .kernelVersion(HostInfo.getKernelVersion())
             .containerId(containerInfo.getContainerId());
   }
 

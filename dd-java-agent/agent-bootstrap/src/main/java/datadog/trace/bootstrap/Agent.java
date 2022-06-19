@@ -114,7 +114,7 @@ public class Agent {
   private static boolean appSecEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
-  private static boolean telemetryEnabled = true;
+  private static boolean telemetryEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);

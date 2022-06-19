@@ -11,7 +11,7 @@ public class ConfigCollector extends LinkedHashMap<String, Object> {
       new TreeSet<>(
           Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
-  public static class Holder {
+  private static class Holder {
     public static final ConfigCollector INSTANCE = new ConfigCollector();
   }
 

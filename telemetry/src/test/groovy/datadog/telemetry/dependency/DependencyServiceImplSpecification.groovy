@@ -160,7 +160,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
 
     then:
     dep != null
-    dep.name == 'freemarker'
+    dep.name == 'freemarker-2.3.27-incubating.jar'
     dep.version == '2.3.27'
     dep.hash == '3F476E5A287F5CE4951E2F61F3287C122C558067'
     dep.source == 'freemarker-2.3.27-incubating.jar'
@@ -194,7 +194,7 @@ class DependencyServiceImplSpecification extends DDSpecification {
 
     then:
     dep != null
-    dep.name == 'opentracing-util'
+    dep.name == 'opentracing-util-0.33.0.jar'
     dep.version == '0.33.0'
     dep.hash == '132630F17E198A1748F23CE33597EFDF4A807FB9'
     dep.source == 'opentracing-util-0.33.0.jar'

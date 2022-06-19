@@ -26,6 +26,8 @@ public final class Dependency {
   private static final Pattern FILE_REGEX =
       Pattern.compile("(.+)-(\\d[^/-]+(?:-(?:\\w+))*)?\\.jar$");
 
+  private static final byte[] buf = new byte[8192];
+
   private final String name;
   private final String version;
   private final String source;
@@ -124,8 +126,8 @@ public final class Dependency {
     return null;
   }
 
-  public static Dependency guessFallbackNoPom(Manifest manifest, String source, InputStream is)
-      throws IOException {
+  public static synchronized Dependency guessFallbackNoPom(
+      Manifest manifest, String source, InputStream is) throws IOException {
     String artifactId;
     String version;
     String hash = null;
@@ -182,10 +184,11 @@ public final class Dependency {
         throw new UndeclaredThrowableException(e);
       }
       is = new DigestInputStream(is, md);
-      byte[] buf = new byte[8192];
       while (is.read(buf, 0, buf.length) > 0) {}
 
       hash = String.format("%040X", new BigInteger(1, md.digest()));
+
+      artifactId = source;
 
       if (implementationVersion != null) {
         version = implementationVersion;

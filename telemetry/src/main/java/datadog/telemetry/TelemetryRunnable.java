@@ -44,7 +44,7 @@ public class TelemetryRunnable implements Runnable {
 
   @Override
   public void run() {
-    log.info("Adding APP_STARTED telemetry event");
+    log.debug("Adding APP_STARTED telemetry event");
     this.telemetryService.addConfiguration(ConfigCollector.get());
     for (TelemetryPeriodicAction action : this.actions) {
       action.doIteration(this.telemetryService);
@@ -61,14 +61,14 @@ public class TelemetryRunnable implements Runnable {
           failureWait();
         }
       } catch (InterruptedException e) {
-        log.info("Interrupted; finishing telemetry thread");
+        log.debug("Interrupted; finishing telemetry thread");
         Thread.currentThread().interrupt();
       }
     }
 
-    log.info("Sending APP_CLOSING telemetry event");
+    log.debug("Sending APP_CLOSING telemetry event");
     sendRequest(this.telemetryService.appClosingRequest());
-    log.info("Telemetry thread finishing");
+    log.debug("Telemetry thread finishing");
   }
 
   private boolean mainLoopIteration() throws InterruptedException {
