@@ -185,10 +185,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
-import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_URL;
-import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_TAGS;
-import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_AGENTLESS;
-import static datadog.trace.api.config.CrashReportingConfig.CRASH_REPORTING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
@@ -474,9 +474,9 @@ public class Config {
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
   
-  private final boolean crashReportingAgentless;
-  @Deprecated private final String crashReportingUrl;
-  private final Map<String, String> crashReportingTags;
+  private final boolean crashTrackingAgentless;
+  @Deprecated private final String crashTrackingUrl;
+  private final Map<String, String> crashTrackingTags;
 
   private final boolean appSecEnabled;
   private final boolean appSecReportingInband;
@@ -993,10 +993,10 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
 
-    crashReportingAgentless =
-        configProvider.getBoolean(CRASH_REPORTING_AGENTLESS, CRASH_REPORTING_AGENTLESS_DEFAULT);
-    crashReportingUrl = configProvider.getString(CRASH_REPORTING_URL);
-    crashReportingTags = configProvider.getMergedMap(CRASH_REPORTING_TAGS);
+    crashTrackingAgentless =
+        configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
+    crashTrackingUrl = configProvider.getString(CRASH_TRACKING_URL);
+    crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecReportingInband =
@@ -1605,8 +1605,8 @@ public class Config {
     return profilingLegacyTracingIntegrationEnabled;
   }
 
-  public boolean isCrashReportingAgentless() {
-    return crashReportingAgentless;
+  public boolean isCrashTrackingAgentless() {
+    return crashTrackingAgentless;
   }
 
   public boolean isAppSecEnabled() {
@@ -1999,18 +1999,18 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
-  public Map<String, String> getMergedCrashReportingTags() {
+  public Map<String, String> getMergedCrashTrackingTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final String host = getHostName();
     final Map<String, String> result =
         newHashMap(
             getGlobalTags().size()
-                + crashReportingTags.size()
+                + crashTrackingTags.size()
                 + runtimeTags.size()
                 + 3 /* for serviceName and host and language */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
-    result.putAll(crashReportingTags);
+    result.putAll(crashTrackingTags);
     result.putAll(runtimeTags);
     // service name set here instead of getRuntimeTags because apm already manages the service tag
     // and may chose to override it.
@@ -2159,16 +2159,16 @@ public class Config {
     }
   }
 
-  public String getFinalCrashReportingUrl() {
-    if (crashReportingUrl != null) {
-      // when crashReportingUrl is set we use it regardless of apiKey/agentless config
-      return crashReportingUrl;
-    } else if (crashReportingAgentless) {
-      // when agentless crashReporting is turned on we send directly to our intake
+  public String getFinalCrashTrackingUrl() {
+    if (crashTrackingUrl != null) {
+      // when crashTrackingUrl is set we use it regardless of apiKey/agentless config
+      return crashTrackingUrl;
+    } else if (crashTrackingAgentless) {
+      // when agentless crashTracking is turned on we send directly to our intake
       return "https://intake.profile." + site + "/api/v2/profile";
     } else {
-      // when crashReportingUrl and agentless are not set we send to the dd trace agent running locally
-      return "http://" + agentHost + ":" + agentPort + "/crashReporting/v1/input";
+      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running locally
+      return "http://" + agentHost + ":" + agentPort + "/crashTracking/v1/input";
     }
   }
 
@@ -2700,13 +2700,13 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
-        + ", crashReportingUrl='"
-        + crashReportingUrl
+        + ", crashTrackingUrl='"
+        + crashTrackingUrl
         + '\''
-        + ", crashReportingTags="
-        + crashReportingTags
-        + ", crashReportingAgentless="
-        + crashReportingAgentless
+        + ", crashTrackingTags="
+        + crashTrackingTags
+        + ", crashTrackingAgentless="
+        + crashTrackingAgentless
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="

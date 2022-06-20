@@ -1,4 +1,4 @@
-package com.datadog.crashreporting;
+package com.datadog.crashtracking;
 
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -18,27 +18,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Crash Reporter implementation */
-public class CrashReporter {
+public class CrashUploader {
 
-  private static final Logger log = LoggerFactory.getLogger(CrashReporter.class);
+  private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
   private final Tracer tracer;
 
   /**
    * Main entry point into crash reporter. This gets invoked through -XX:OnError="java
-   * com.datadog.crashreporting.agent.CrashReporter ..."
+   * com.datadog.crashtracking.agent.CrashUploader ..."
    */
   public static void main(String[] args) throws IOException {
     final Tracer tracer = GlobalTracer.get();
 
-    new CrashReporter(tracer).upload(args);
+    new CrashUploader(tracer).upload(args);
   }
 
-  public CrashReporter() {
+  public CrashUploader() {
     this(GlobalTracer.get());
   }
 
-  CrashReporter(final Tracer tracer) {
+  CrashUploader(final Tracer tracer) {
     this.tracer = tracer;
   }
 
