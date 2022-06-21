@@ -12,7 +12,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -58,18 +57,16 @@ public final class ProfilerTracingContextTrackerFactory
   private void initializeInactiveTrackerCleanup(long inactivityCheckPeriodMs) {
     AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
         target -> {
-          Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(500);
+          int capacity = 500;
+          Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(capacity);
           int drained = 0;
           do {
-            drained = target.drainTo(timeouts);
+            drained = target.drainTo(timeouts, capacity);
             if (drained > 0) {
               log.debug("Drained {} inactive trackers", drained);
             }
-            Iterator<TracingContextTracker.DelayedTracker> iterator = timeouts.iterator();
-            while (iterator.hasNext()) {
-              iterator.next().cleanup();
-              iterator.remove();
-            }
+            timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
+            timeouts.clear();
           } while (drained > 0);
         },
         delayQueue,
