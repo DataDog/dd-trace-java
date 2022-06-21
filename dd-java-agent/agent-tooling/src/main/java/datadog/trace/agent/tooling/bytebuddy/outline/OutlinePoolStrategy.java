@@ -17,6 +17,12 @@ public final class OutlinePoolStrategy implements SharedTypePools.Supplier {
     SharedTypePools.registerIfAbsent(new OutlinePoolStrategy());
   }
 
+  public static void registerAnnotationForMatching(String name) {
+    if (enabled) {
+      OutlineTypeParser.registerAnnotationForMatching(name);
+    }
+  }
+
   public static void switchContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
     if (enabled) {
       factory.get().switchContext(classFileLocator, classLoader);

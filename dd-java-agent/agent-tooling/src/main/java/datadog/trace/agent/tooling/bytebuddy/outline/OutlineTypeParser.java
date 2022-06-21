@@ -6,6 +6,8 @@ import static net.bytebuddy.jar.asm.ClassReader.SKIP_DEBUG;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -19,6 +21,8 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 final class OutlineTypeParser implements TypeParser {
 
+  private static final Map<String, AnnotationDescription> annotationsForMatching = new HashMap<>();
+
   @Override
   public TypeDescription parse(byte[] bytecode) {
     ClassReader classReader = OpenedClassReader.of(bytecode);
@@ -27,8 +31,13 @@ final class OutlineTypeParser implements TypeParser {
     return typeExtractor.typeOutline;
   }
 
+  static void registerAnnotationForMatching(String name) {
+    String descriptor = 'L' + name.replace('.', '/') + ';';
+    annotationsForMatching.put(descriptor, new AnnotationOutline(descriptor));
+  }
+
   static AnnotationDescription annotationForMatching(String descriptor) {
-    return new AnnotationOutline(descriptor);
+    return annotationsForMatching.get(descriptor);
   }
 
   @Override
@@ -82,7 +91,7 @@ final class OutlineTypeParser implements TypeParser {
     return typeNames;
   }
 
-  static class OutlineTypeExtractor extends ClassVisitor {
+  static final class OutlineTypeExtractor extends ClassVisitor {
 
     private TypeOutline typeOutline;
     private FieldOutline fieldOutline;
