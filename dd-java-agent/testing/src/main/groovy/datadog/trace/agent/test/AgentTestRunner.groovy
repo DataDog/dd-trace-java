@@ -9,10 +9,10 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
-import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
+import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
@@ -20,8 +20,8 @@ import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.TracerConfig
-import datadog.trace.api.time.TimeSource
 import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener
@@ -133,6 +133,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   ClassFileTransformer activeTransformer
 
+  @Shared
+  boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
+
   private static void configureLoggingLevels() {
     final Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     if (!rootLogger.iteratorForAppenders().hasNext()) {
@@ -161,6 +164,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     Sink sink = new Sink() {
         void accept(int messageCount, ByteBuffer buffer) {}
+
         void register(EventListener listener) {}
       }
     DataStreamsCheckpointer dataStreamsCheckpointer = null
@@ -318,6 +322,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_ID = ListWriterAssert.SORT_TRACES_BY_ID
   protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_START = ListWriterAssert.SORT_TRACES_BY_START
+  protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_NAMES = ListWriterAssert.SORT_TRACES_BY_NAMES
 
   void assertTraces(
     final int size,
