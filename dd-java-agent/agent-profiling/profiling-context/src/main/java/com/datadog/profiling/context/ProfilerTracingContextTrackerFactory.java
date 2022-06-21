@@ -1,6 +1,7 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.Allocators;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -23,6 +24,7 @@ public final class ProfilerTracingContextTrackerFactory
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
 
   private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
+  private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
   public static void register(ConfigProvider configProvider) {
     if (configProvider.getBoolean(
@@ -61,6 +63,7 @@ public final class ProfilerTracingContextTrackerFactory
         target -> {
           int capacity = 500;
           Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(capacity);
+          int drainedAll = 0;
           int drained = 0;
           do {
             drained = target.drainTo(timeouts, capacity);
@@ -69,7 +72,11 @@ public final class ProfilerTracingContextTrackerFactory
             }
             timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
             timeouts.clear();
+            drainedAll += drained;
           } while (drained > 0);
+          if (drainedAll > 0) {
+            statsd.count("tracing.context.spans.drained_inactive", drainedAll);
+          }
         },
         delayQueue,
         refreshRateMs,
@@ -161,6 +168,7 @@ public final class ProfilerTracingContextTrackerFactory
         new ProfilerTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
     if (inactivityDelay > 0) {
+      statsd.incrementCounter("tracing.context.spans.tracked");
       delayQueue.offer(instance.asDelayed());
     }
     return instance;
