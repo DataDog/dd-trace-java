@@ -112,31 +112,50 @@ final class TypeFactory {
         }
       };
 
-  private boolean agentInstalled;
+  private static final ThreadLocal<MatchingContext> previousContext = new ThreadLocal<>();
 
-  private boolean createOutlines;
+  private boolean installing = false;
 
-  private ClassLoader classLoader;
+  private boolean createOutlines = true;
 
   private ClassFileLocator classFileLocator;
 
-  void beginMatching(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    this.createOutlines = true;
+  private ClassLoader classLoader;
+
+  void switchContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
+    if (installing
+        && this.classLoader != classLoader
+        && classFileLocator instanceof ClassFileLocator.Compound) {
+      previousContext.set(new MatchingContext(this.classFileLocator, this.classLoader));
+    }
     this.classFileLocator = classFileLocator;
     this.classLoader = classLoader;
   }
 
-  void agentInstalled() {
-    agentInstalled = true;
+  void beginInstall() {
+    installing = true;
+  }
+
+  void endInstall() {
+    installing = false;
+    previousContext.remove();
     clearReferences();
   }
 
   void beginTransform() {
-    this.createOutlines = false;
+    createOutlines = false;
   }
 
   void endTransform() {
-    if (agentInstalled) {
+    createOutlines = true;
+    if (installing) {
+      MatchingContext context = previousContext.get();
+      if (null != context) {
+        classFileLocator = context.classFileLocator;
+        classLoader = context.classLoader;
+        previousContext.remove();
+      }
+    } else {
       clearReferences();
     }
   }
@@ -223,7 +242,18 @@ final class TypeFactory {
     }
   }
 
-  private final class LazyType extends WithName {
+  static final class MatchingContext {
+    final ClassFileLocator classFileLocator;
+
+    final ClassLoader classLoader;
+
+    MatchingContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
+      this.classFileLocator = classFileLocator;
+      this.classLoader = classLoader;
+    }
+  }
+
+  final class LazyType extends WithName {
     TypeDescription delegate;
     boolean isOutline;
 
@@ -233,14 +263,36 @@ final class TypeFactory {
 
     @Override
     protected TypeDescription delegate() {
+      return doResolve(true);
+    }
+
+    TypeDescription doResolve(boolean throwIfMissing) {
       if (null == delegate || createOutlines != isOutline) {
         delegate = resolveType(name);
         isOutline = createOutlines;
-        if (null == delegate) {
+        if (throwIfMissing && null == delegate) {
           throw new TypePool.Resolution.NoSuchTypeException(name);
         }
       }
       return delegate;
+    }
+  }
+
+  static final class LazyResolution implements TypePool.Resolution {
+    private final LazyType type;
+
+    LazyResolution(LazyType type) {
+      this.type = type;
+    }
+
+    @Override
+    public boolean isResolved() {
+      return null != type.doResolve(false);
+    }
+
+    @Override
+    public TypeDescription resolve() {
+      return type;
     }
   }
 }

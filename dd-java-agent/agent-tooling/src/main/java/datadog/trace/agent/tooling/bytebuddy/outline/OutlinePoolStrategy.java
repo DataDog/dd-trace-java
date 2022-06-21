@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.api.Config;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 
@@ -16,15 +17,21 @@ public final class OutlinePoolStrategy implements SharedTypePools.Supplier {
     SharedTypePools.registerIfAbsent(new OutlinePoolStrategy());
   }
 
-  public static void beginMatching(ClassFileLocator classFileLocator, ClassLoader classLoader) {
+  public static void switchContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
     if (enabled) {
-      factory.get().beginMatching(classFileLocator, classLoader);
+      factory.get().switchContext(classFileLocator, classLoader);
     }
   }
 
-  public static void agentInstalled() {
+  public static void beginInstall() {
     if (enabled) {
-      factory.get().agentInstalled();
+      factory.get().beginInstall();
+    }
+  }
+
+  public static void endInstall() {
+    if (enabled) {
+      factory.get().endInstall();
     }
   }
 
@@ -40,17 +47,21 @@ public final class OutlinePoolStrategy implements SharedTypePools.Supplier {
     }
   }
 
-  private static final TypePool REDIRECTING_TYPE_POOL = new RedirectingTypePool();
+  private static final TypePool MATCHING_TYPE_POOL = new MatchingTypePool();
 
   @Override
   public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    return REDIRECTING_TYPE_POOL;
+    return MATCHING_TYPE_POOL;
   }
 
-  static class RedirectingTypePool implements TypePool {
+  static final class MatchingTypePool implements TypePool {
     @Override
     public Resolution describe(String name) {
-      return new Resolution.Simple(name.charAt(0) == '[' ? findDescriptor(name) : findType(name));
+      TypeDescription type = name.charAt(0) == '[' ? findDescriptor(name) : findType(name);
+      if (type instanceof TypeFactory.LazyType) {
+        return new TypeFactory.LazyResolution((TypeFactory.LazyType) type);
+      }
+      return new Resolution.Simple(type);
     }
 
     @Override
