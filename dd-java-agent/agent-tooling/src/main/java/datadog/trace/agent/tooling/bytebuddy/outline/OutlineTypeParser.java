@@ -23,14 +23,6 @@ final class OutlineTypeParser implements TypeParser {
 
   private static final Map<String, AnnotationDescription> annotationsForMatching = new HashMap<>();
 
-  @Override
-  public TypeDescription parse(byte[] bytecode) {
-    ClassReader classReader = OpenedClassReader.of(bytecode);
-    OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
-    classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
-    return typeExtractor.typeOutline;
-  }
-
   static void registerAnnotationForMatching(String name) {
     String descriptor = 'L' + name.replace('.', '/') + ';';
     annotationsForMatching.put(descriptor, new AnnotationOutline(descriptor));
@@ -41,13 +33,23 @@ final class OutlineTypeParser implements TypeParser {
   }
 
   @Override
+  public TypeDescription parse(byte[] bytecode) {
+    ClassReader classReader = OpenedClassReader.of(bytecode);
+    OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
+    classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
+    return typeExtractor.typeOutline;
+  }
+
+  @Override
   public TypeDescription parse(Class<?> loadedType) {
+    Class<?> superClass = loadedType.getSuperclass();
+
     TypeOutline typeOutline =
         new TypeOutline(
             ClassFileVersion.ofThisVm().getMinorMajorVersion(),
             loadedType.getModifiers(),
             loadedType.getName(),
-            loadedType.getSuperclass().getName(),
+            null != superClass ? superClass.getName() : null,
             extractTypeNames(loadedType.getInterfaces()));
 
     for (Annotation a : loadedType.getDeclaredAnnotations()) {

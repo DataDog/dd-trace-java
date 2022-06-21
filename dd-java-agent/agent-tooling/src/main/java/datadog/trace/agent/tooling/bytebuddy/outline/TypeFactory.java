@@ -218,10 +218,8 @@ final class TypeFactory {
       type = loadType(name, typeParser);
     }
 
-    // share newly parsed type description
-    if (null != type) {
-      types.share(name, classLoader, classFile, type);
-    }
+    // share result, whether we found it or not
+    types.share(name, classLoader, classFile, type);
 
     return type;
   }
