@@ -2566,6 +2566,10 @@ public class Config {
         + '\''
         + ", jmxFetchStatsdPort="
         + jmxFetchStatsdPort
+        + ", jmxFetchMultipleRuntimeServicesEnabled="
+        + jmxFetchMultipleRuntimeServicesEnabled
+        + ", jmxFetchMultipleRuntimeServicesLimit="
+        + jmxFetchMultipleRuntimeServicesLimit
         + ", healthMetricsEnabled="
         + healthMetricsEnabled
         + ", healthMetricsStatsdHost='"
