@@ -22,8 +22,6 @@ public final class ProfilerTracingContextTrackerFactory
   private static final Logger log =
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
 
-  private static final long DEFAULT_INACTIVITY_CHECK_PERIOD_MS = 5_000L; // 5 seconds
-
   private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
 
   public static void register(ConfigProvider configProvider) {
@@ -45,16 +43,20 @@ public final class ProfilerTracingContextTrackerFactory
               ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE,
               ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT);
 
+      int inactivityCheckPeriod =
+          configProvider.getInteger(
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK,
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT);
+
       TracingContextTrackerFactory.registerImplementation(
           new ProfilerTracingContextTrackerFactory(
-              inactivityDelayNs,
-              DEFAULT_INACTIVITY_CHECK_PERIOD_MS,
-              reservedMemorySize,
-              reservedMemoryType));
+              inactivityDelayNs, inactivityCheckPeriod, reservedMemorySize, reservedMemoryType));
     }
   }
 
-  private void initializeInactiveTrackerCleanup(long inactivityCheckPeriodMs) {
+  private void initializeInactiveTrackerCleanup(long checkPeriodMs) {
+    // the task should not run more often than once per 100ms
+    long refreshRateMs = Math.max(100, checkPeriodMs);
     AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
         target -> {
           int capacity = 500;
@@ -70,8 +72,8 @@ public final class ProfilerTracingContextTrackerFactory
           } while (drained > 0);
         },
         delayQueue,
-        inactivityCheckPeriodMs,
-        inactivityCheckPeriodMs,
+        refreshRateMs,
+        refreshRateMs,
         TimeUnit.MILLISECONDS);
   }
 
