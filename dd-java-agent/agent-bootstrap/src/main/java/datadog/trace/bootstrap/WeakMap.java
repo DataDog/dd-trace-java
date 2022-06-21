@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
 import datadog.trace.api.function.Function;
-import java.util.concurrent.atomic.AtomicReference;
 
 public interface WeakMap<K, V> {
   int size();
@@ -19,16 +18,18 @@ public interface WeakMap<K, V> {
   V remove(K key);
 
   abstract class Supplier {
-    private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
+    private static volatile Supplier SUPPLIER;
 
     protected abstract <K, V> WeakMap<K, V> get();
 
     public static <K, V> WeakMap<K, V> newWeakMap() {
-      return SUPPLIER.get().get();
+      return SUPPLIER.get();
     }
 
-    public static void registerIfAbsent(Supplier supplier) {
-      SUPPLIER.compareAndSet(null, supplier);
+    public static synchronized void registerIfAbsent(Supplier supplier) {
+      if (null == SUPPLIER) {
+        SUPPLIER = supplier;
+      }
     }
   }
 }
