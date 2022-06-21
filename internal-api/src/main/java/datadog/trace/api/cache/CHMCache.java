@@ -26,4 +26,9 @@ final class CHMCache<K, V> implements DDCache<K, V> {
     }
     return value;
   }
+
+  @Override
+  public void clear() {
+    chm.clear();
+  }
 }
