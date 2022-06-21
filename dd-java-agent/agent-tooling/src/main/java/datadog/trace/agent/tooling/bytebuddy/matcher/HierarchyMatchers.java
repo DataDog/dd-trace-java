@@ -17,7 +17,12 @@ public final class HierarchyMatchers {
   private static volatile Supplier SUPPLIER;
 
   public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-      ElementMatcher.Junction<? super NamedElement> matcher) {
+      NameMatchers.Named<? super NamedElement> matcher) {
+    return SUPPLIER.declaresAnnotation(matcher);
+  }
+
+  public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
+      NameMatchers.OneOf<? super NamedElement> matcher) {
     return SUPPLIER.declaresAnnotation(matcher);
   }
 
@@ -71,8 +76,13 @@ public final class HierarchyMatchers {
 
   @SuppressForbidden
   public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
-      ElementMatcher.Junction<T> isAnnotatedWith(
-          ElementMatcher.Junction<? super NamedElement> matcher) {
+      ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
+    return ElementMatchers.isAnnotatedWith(matcher);
+  }
+
+  @SuppressForbidden
+  public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
+      ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
