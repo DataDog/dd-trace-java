@@ -47,18 +47,18 @@ public final class ReferenceMatcher {
    * @return true if all references match the classpath of loader
    */
   public boolean matches(ClassLoader loader) {
-    if (loader == BOOTSTRAP_LOADER) {
-      loader = Utils.getBootstrapProxy();
-    }
-    return mismatchCache.computeIfAbsent(loader, DOES_MATCH);
+    return mismatchCache.computeIfAbsent(
+        // weak cache requires non-null keys; use proxy as alias for bootstrap loader
+        BOOTSTRAP_LOADER == loader ? Utils.getBootstrapProxy() : loader, DOES_MATCH);
   }
 
   // Can't use a function reference because of Java7 support
   private final Function<ClassLoader, Boolean> DOES_MATCH =
       new Function<ClassLoader, Boolean>() {
         @Override
-        public Boolean apply(ClassLoader key) {
-          return doesMatch(key);
+        public Boolean apply(ClassLoader loader) {
+          // map our bootstrap proxy alias back to the original bootstrap loader
+          return doesMatch(Utils.getBootstrapProxy() == loader ? BOOTSTRAP_LOADER : loader);
         }
       };
 
@@ -87,9 +87,6 @@ public final class ReferenceMatcher {
    * @return A list of all mismatches between this ReferenceMatcher and loader's classpath.
    */
   public List<Reference.Mismatch> getMismatchedReferenceSources(ClassLoader loader) {
-    if (loader == BOOTSTRAP_LOADER) {
-      loader = Utils.getBootstrapProxy();
-    }
     List<Mismatch> mismatches = new ArrayList<>();
     TypePool typePool = SharedTypePools.typePool(loader);
     for (Reference reference : references) {
@@ -145,7 +142,9 @@ public final class ReferenceMatcher {
         return false;
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
-        mismatches.add(new Mismatch.ReferenceCheckError(e, reference, loader.toString()));
+        mismatches.add(
+            new Mismatch.ReferenceCheckError(
+                e, reference, null != loader ? loader.toString() : "<bootstrap>"));
         return false;
       }
     }
