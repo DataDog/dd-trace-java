@@ -60,6 +60,9 @@ replay_pid*
 **/src/*/generated/*
 !dd-java-agent/benchmark/releases/*.jar
 
+lib-injection/dd-java-agent.jar
+lib-injection/dd-java-agent-init.tar
+
 # Magic for local JMC built
 /vendor/jmc-libs
 
