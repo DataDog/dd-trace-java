@@ -162,7 +162,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   String expectedQueryTag(ServerEndpoint endpoint) {
     def encoded = Config.get().isHttpServerRawQueryString() && supportsRaw()
     def query = encoded ? endpoint.rawQuery : endpoint.query
-    null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
+    def mayBeEncoded =
+      null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
+    return URIUtils.decode(mayBeEncoded)
   }
 
   Map<String, ?> expectedIGPathParams() {
@@ -1094,8 +1096,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     String method = "GET",
     ServerEndpoint endpoint = SUCCESS,
     Map<String, Serializable> extraTags = null,
-    String clientIp = null,
-    String userAgent = "okhttp/3.12.12") {
+    String clientIp = null) {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
@@ -1103,7 +1104,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     boolean hasForwardedIP = hasForwardedIP()
     def expectedExtraServerTags = expectedExtraServerTags(endpoint)
     def expectedStatus = expectedStatus(endpoint)
-    def expectedQueryTag = URIUtils.decode(expectedQueryTag(endpoint))
+    def expectedQueryTag = expectedQueryTag(endpoint)
     def queryStringIfExist = expectedQueryTag ? '?' + expectedQueryTag : ''
     def expectedUrl = expectedUrl(endpoint, address) + queryStringIfExist
     trace.span {
@@ -1131,7 +1132,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
-        "$Tags.HTTP_USER_AGENT" userAgent
+        "$Tags.HTTP_USER_AGENT" String
         "$Tags.HTTP_CLIENT_IP" clientIp
         if (endpoint == FORWARDED && hasForwardedIP) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body

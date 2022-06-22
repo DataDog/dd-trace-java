@@ -154,10 +154,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
             if (query != null && !query.isEmpty()) {
               query = QueryObfuscator.obfuscate(query, config.getObfuscationQueryRegexp());
-              span.setTag(DDTags.HTTP_QUERY, query);
-              span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
               httpUrl = httpUrl + '?' + query;
             }
+            span.setTag(DDTags.HTTP_QUERY, query);
+            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
 
           span.setTag(Tags.HTTP_URL, httpUrl);
@@ -251,12 +251,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return;
     }
 
+    final TriConsumer<RequestContext<Object>, String, String> reqHeaderCb =
+        cbp.getCallback(EVENTS.requestHeader());
+    final Function<RequestContext<Object>, Flow<Void>> reqHeaderDoneCb =
+        cbp.getCallback(EVENTS.requestHeaderDone());
+
     HeadersClassifier classifier =
         new HeadersClassifier() {
           @Override
           public boolean nextHeader(String name, String value) {
             // Send IG event
-            cbp.getCallback(EVENTS.requestHeader()).accept(requestContext, name, value);
+            if (reqHeaderCb != null) {
+              reqHeaderCb.accept(requestContext, name, value);
+            }
             return true;
           }
 
@@ -276,7 +283,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
 
             // Send IG event
-            cbp.getCallback(EVENTS.requestHeaderDone()).apply(requestContext);
+            if (reqHeaderDoneCb != null) {
+              reqHeaderDoneCb.apply(requestContext);
+            }
           }
         };
 
@@ -301,6 +310,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return;
     }
 
+    final TriConsumer<RequestContext<Object>, String, String> respHeaderCb =
+        cbp.getCallback(EVENTS.responseHeader());
+    final Function<RequestContext<Object>, Flow<Void>> respHeaderDoneCb =
+        cbp.getCallback(EVENTS.responseHeaderDone());
+
     final Map<String, String> headerTags = Config.get().getResponseHeaderTags();
     HeadersClassifier classifier =
         new HeadersClassifier() {
@@ -312,14 +326,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
 
             // Send IG event
-            cbp.getCallback(EVENTS.responseHeader()).accept(requestContext, name, value);
+            if (respHeaderCb != null) {
+              respHeaderCb.accept(requestContext, name, value);
+            }
             return true;
           }
 
           @Override
           public void doneHeaders(Map<String, List<String>> headers) {
             // Send IG event
-            cbp.getCallback(EVENTS.responseHeaderDone()).apply(requestContext);
+            if (respHeaderDoneCb != null) {
+              respHeaderDoneCb.apply(requestContext);
+            }
           }
         };
 

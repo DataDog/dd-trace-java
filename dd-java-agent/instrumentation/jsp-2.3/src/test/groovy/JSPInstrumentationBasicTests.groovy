@@ -1,4 +1,5 @@
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -107,7 +108,8 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
+            "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp?HELLO"
+            "$DDTags.HTTP_QUERY" "HELLO"
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200

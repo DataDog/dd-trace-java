@@ -19,7 +19,7 @@ public class QueryObfuscator {
     // if encoded
     query = URIUtils.decode(query);
     if (query.isEmpty()) {
-      return query;
+      return "/";
     }
 
     // Use default if regex is undefined
