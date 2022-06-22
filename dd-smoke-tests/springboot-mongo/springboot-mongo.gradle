@@ -24,7 +24,7 @@ shadowJar {
 dependencies {
   main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.1'
   main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
-  main_java8Implementation group: 'org.testcontainers', name: 'mongodb', version: '1.15.1'
+  main_java8Implementation group: 'org.testcontainers', name: 'mongodb', version: versions.testcontainers
   testImplementation project(':dd-smoke-tests')
 }
 
