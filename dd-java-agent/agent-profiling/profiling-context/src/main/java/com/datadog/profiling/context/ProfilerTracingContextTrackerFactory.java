@@ -65,15 +65,14 @@ public final class ProfilerTracingContextTrackerFactory
           Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(capacity);
           int drainedAll = 0;
           int drained = 0;
-          do {
-            drained = target.drainTo(timeouts, capacity);
-            if (drained > 0) {
+          while ((drained = target.drainTo(timeouts, capacity)) > 0) {
+            if (log.isDebugEnabled()) {
               log.debug("Drained {} inactive trackers", drained);
             }
             timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
             timeouts.clear();
             drainedAll += drained;
-          } while (drained > 0);
+          }
           if (drainedAll > 0) {
             statsd.count("tracing.context.spans.drained_inactive", drainedAll);
           }

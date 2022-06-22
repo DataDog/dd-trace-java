@@ -93,7 +93,6 @@ public final class DirectAllocator implements Allocator {
     this.capacity = alignedCapacity;
     this.bitmapSize = (int) Math.ceil(lockSectionSize / 8d);
     statsDClient = StatsDAccessor.getStatsdClient();
-    ;
   }
 
   @Override

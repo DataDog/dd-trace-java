@@ -103,7 +103,7 @@ public final class ProfilingConfig {
       20_000; // 20k bytes is the default
 
   public static final String PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK =
-      "profiling.tracing_context.trackerk.inactive_check.ms";
+      "profiling.tracing_context.span_inactivity_check.ms";
 
   public static final int PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT =
       5_000; // 5 secs default
