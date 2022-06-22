@@ -44,9 +44,17 @@ build: &build
     - if: '$POPULATE_CACHE'
       when: never
     - when: on_success
+#  script:
+#    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+#    - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
+  image: busybox
+  cache:
+    key: no-cache
+    policy: pull
   script:
-    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
-    - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
+    - mkdir -p workspace/dd-java-agent/build/libs/
+    - touch workspace/dd-java-agent/build/libs/dd-java-agent-0.103.0-SNAPSHOT.jar
+    - echo UPSTREAM_TRACER_VERSION=0.103.0-SNAPSHOT >> upstream.env
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
@@ -83,9 +91,8 @@ build_with_cache:
 test_lib_injection_docker_image:
   <<: *docker
   stage: test
-  needs:
-    - job: build_lib_injection_docker_image
-      artifacts: true
+  dependencies:
+    - build_lib_injection_docker_image
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -95,14 +102,13 @@ test_lib_injection_docker_image:
     - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
     - curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
     - echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+    - chmod +x ./kubectl
     - mv ./kubectl /usr/bin/kubectl
     - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.14.0/kind-linux-amd64
     - chmod +x ./kind
     - mv ./kind /usr/bin/kind
   script:
-    - docker --version
-    - kubectl --version
-    - kind --version
+    - ./lib-injection/start-kind.sh
 
 deploy_to_reliability_env:
   stage: deploy
@@ -164,9 +170,9 @@ deploy_to_sonatype:
 deploy_to_dockerhub:
   <<: *docker
   stage: deploy
-  needs:
-    - job: build_lib_injection_docker_image
-      artifacts: true
+  dependencies:
+    - build_lib_injection_docker_image
+    - test_lib_injection_docker_image
 #  rules:
 #    - if: '$CI_COMMIT_BRANCH == "master"'
 #      when: on_success
