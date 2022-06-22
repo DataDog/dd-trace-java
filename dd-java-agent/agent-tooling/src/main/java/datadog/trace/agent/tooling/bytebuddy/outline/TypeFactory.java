@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
+import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
 import static datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.UNKNOWN_CLASS_FILE;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
@@ -112,7 +113,7 @@ final class TypeFactory {
         }
       };
 
-  private static final ThreadLocal<MatchingContext> previousContext = new ThreadLocal<>();
+  private static final ThreadLocal<MatchingContext> originalContext = new ThreadLocal<>();
 
   private boolean installing = false;
 
@@ -123,13 +124,22 @@ final class TypeFactory {
   private ClassLoader classLoader;
 
   void switchContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    if (installing
-        && this.classLoader != classLoader
-        && classFileLocator instanceof ClassFileLocator.Compound) {
-      previousContext.set(new MatchingContext(this.classFileLocator, this.classLoader));
+    if (this.classFileLocator != classFileLocator) {
+      if (installing
+          && this.classLoader != classLoader
+          && classFileLocator instanceof ClassFileLocator.Compound) {
+        originalContext.set(new MatchingContext(this.classFileLocator, this.classLoader));
+      }
+      this.classFileLocator = classFileLocator;
+      this.classLoader = classLoader;
     }
-    this.classFileLocator = classFileLocator;
-    this.classLoader = classLoader;
+  }
+
+  void switchContext(ClassLoader classLoader) {
+    if (this.classLoader != classLoader) {
+      this.classFileLocator = classFileLocator(classLoader);
+      this.classLoader = classLoader;
+    }
   }
 
   void beginInstall() {
@@ -138,7 +148,7 @@ final class TypeFactory {
 
   void endInstall() {
     installing = false;
-    previousContext.remove();
+    originalContext.remove();
     clearReferences();
   }
 
@@ -149,11 +159,11 @@ final class TypeFactory {
   void endTransform() {
     createOutlines = true;
     if (installing) {
-      MatchingContext context = previousContext.get();
+      MatchingContext context = originalContext.get();
       if (null != context) {
         classFileLocator = context.classFileLocator;
         classLoader = context.classLoader;
-        previousContext.remove();
+        originalContext.remove();
       }
     } else {
       clearReferences();

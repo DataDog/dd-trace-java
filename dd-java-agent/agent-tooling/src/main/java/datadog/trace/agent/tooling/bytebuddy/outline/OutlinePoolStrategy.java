@@ -17,47 +17,43 @@ public final class OutlinePoolStrategy implements SharedTypePools.Supplier {
     SharedTypePools.registerIfAbsent(new OutlinePoolStrategy());
   }
 
-  public static void registerAnnotationForMatching(String name) {
-    if (enabled) {
-      OutlineTypeParser.registerAnnotationForMatching(name);
-    }
-  }
-
-  public static void switchContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    if (enabled) {
-      factory.get().switchContext(classFileLocator, classLoader);
-    }
-  }
-
-  public static void beginInstall() {
-    if (enabled) {
-      factory.get().beginInstall();
-    }
-  }
-
-  public static void endInstall() {
-    if (enabled) {
-      factory.get().endInstall();
-    }
-  }
-
-  public static void beginTransform() {
-    if (enabled) {
-      factory.get().beginTransform();
-    }
-  }
-
-  public static void endTransform() {
-    if (enabled) {
-      factory.get().endTransform();
-    }
-  }
-
   private static final TypePool MATCHING_TYPE_POOL = new MatchingTypePool();
 
   @Override
   public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
+    factory.get().switchContext(classFileLocator, classLoader);
     return MATCHING_TYPE_POOL;
+  }
+
+  @Override
+  public TypePool typePool(ClassLoader classLoader) {
+    factory.get().switchContext(classLoader);
+    return MATCHING_TYPE_POOL;
+  }
+
+  @Override
+  public void cacheAnnotationForMatching(String name) {
+    OutlineTypeParser.cacheAnnotationForMatching(name);
+  }
+
+  @Override
+  public void beginInstall() {
+    factory.get().beginInstall();
+  }
+
+  @Override
+  public void endInstall() {
+    factory.get().endInstall();
+  }
+
+  @Override
+  public void beginTransform() {
+    factory.get().beginTransform();
+  }
+
+  @Override
+  public void endTransform() {
+    factory.get().endTransform();
   }
 
   static final class MatchingTypePool implements TypePool {

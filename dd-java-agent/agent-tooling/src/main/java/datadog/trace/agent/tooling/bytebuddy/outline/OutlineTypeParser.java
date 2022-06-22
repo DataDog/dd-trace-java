@@ -23,7 +23,7 @@ final class OutlineTypeParser implements TypeParser {
 
   private static final Map<String, AnnotationDescription> annotationsForMatching = new HashMap<>();
 
-  static void registerAnnotationForMatching(String name) {
+  static void cacheAnnotationForMatching(String name) {
     String descriptor = 'L' + name.replace('.', '/') + ';';
     annotationsForMatching.put(descriptor, new AnnotationOutline(descriptor));
   }

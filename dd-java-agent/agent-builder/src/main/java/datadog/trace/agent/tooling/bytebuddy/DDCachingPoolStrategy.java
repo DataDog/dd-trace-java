@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
@@ -116,6 +117,26 @@ public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
     final int loaderHash = classLoader.hashCode();
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
   }
+
+  @Override
+  public TypePool typePool(ClassLoader classLoader) {
+    return typePool(classFileLocator(classLoader), classLoader);
+  }
+
+  @Override
+  public void cacheAnnotationForMatching(String name) {}
+
+  @Override
+  public void beginInstall() {}
+
+  @Override
+  public void endInstall() {}
+
+  @Override
+  public void beginTransform() {}
+
+  @Override
+  public void endTransform() {}
 
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {

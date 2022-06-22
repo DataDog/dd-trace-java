@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.OutlinePoolStrategy;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
@@ -160,11 +161,11 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    OutlinePoolStrategy.beginInstall();
+    SharedTypePools.beginInstall();
     try {
       return transformerBuilder.installOn(inst);
     } finally {
-      OutlinePoolStrategy.endInstall();
+      SharedTypePools.endInstall();
     }
   }
 
