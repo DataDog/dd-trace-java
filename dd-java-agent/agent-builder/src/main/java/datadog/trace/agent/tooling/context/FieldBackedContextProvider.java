@@ -116,14 +116,7 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
             final String contextClassName = entry.getValue();
 
             if (!installedContextMatchers.add(entry)) {
-              if (log.isDebugEnabled()) {
-                log.debug(
-                    "Skipping duplicate builder for matcher {} - instrumentation.class={} instrumentation.target.context={}->{}",
-                    classLoaderMatcher,
-                    instrumenterName,
-                    keyClassName,
-                    contextClassName);
-              }
+              // skip duplicate builder as we've already got one for this context store
               continue;
             }
 
