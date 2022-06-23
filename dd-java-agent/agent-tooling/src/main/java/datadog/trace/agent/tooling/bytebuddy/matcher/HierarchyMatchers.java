@@ -19,15 +19,13 @@ public final class HierarchyMatchers {
 
   public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
       NameMatchers.Named<? super NamedElement> matcher) {
-    SharedTypePools.cacheAnnotationForMatching(matcher.name);
+    SharedTypePools.annotationOfInterest(matcher.name);
     return SUPPLIER.declaresAnnotation(matcher);
   }
 
   public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
       NameMatchers.OneOf<? super NamedElement> matcher) {
-    for (String name : matcher.names) {
-      SharedTypePools.cacheAnnotationForMatching(name);
-    }
+    SharedTypePools.annotationsOfInterest(matcher.names);
     return SUPPLIER.declaresAnnotation(matcher);
   }
 
@@ -82,16 +80,14 @@ public final class HierarchyMatchers {
   @SuppressForbidden
   public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
-    SharedTypePools.cacheAnnotationForMatching(matcher.name);
+    SharedTypePools.annotationOfInterest(matcher.name);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
   @SuppressForbidden
   public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
-    for (String name : matcher.names) {
-      SharedTypePools.cacheAnnotationForMatching(name);
-    }
+    SharedTypePools.annotationsOfInterest(matcher.names);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 

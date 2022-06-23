@@ -113,74 +113,75 @@ final class TypeFactory {
         }
       };
 
-  private static final ThreadLocal<MatchingContext> originalContext = new ThreadLocal<>();
+  boolean createOutlines = true;
 
-  private boolean installing = false;
+  private boolean restoreAfterTransform;
 
-  private boolean createOutlines = true;
-
-  private ClassFileLocator classFileLocator;
+  private ClassLoader originalClassLoader;
 
   private ClassLoader classLoader;
 
-  void switchContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    if (this.classFileLocator != classFileLocator) {
-      if (installing
-          && this.classLoader != classLoader
-          && classFileLocator instanceof ClassFileLocator.Compound) {
-        originalContext.set(new MatchingContext(this.classFileLocator, this.classLoader));
-      }
-      this.classFileLocator = classFileLocator;
-      this.classLoader = classLoader;
+  private ClassFileLocator classFileLocator;
+
+  private String targetName;
+
+  private byte[] targetBytecode;
+
+  void beginTransform(String name, byte[] bytecode) {
+    targetName = name;
+    targetBytecode = bytecode;
+
+    if (null != classFileLocator) {
+      originalClassLoader = this.classLoader;
+      restoreAfterTransform = true;
     }
   }
 
   void switchContext(ClassLoader classLoader) {
-    if (this.classLoader != classLoader) {
-      this.classFileLocator = classFileLocator(classLoader);
+    if (this.classLoader != classLoader || null == classFileLocator) {
       this.classLoader = classLoader;
+      classFileLocator = classFileLocator(classLoader);
+      deferredTypes.clear();
     }
   }
 
-  void beginInstall() {
-    installing = true;
-  }
-
-  void endInstall() {
-    installing = false;
-    originalContext.remove();
-    clearReferences();
-  }
-
-  void beginTransform() {
+  void enableFullDescriptions() {
     createOutlines = false;
   }
 
   void endTransform() {
+    if (null == targetName) {
+      return;
+    }
+
+    targetName = null;
+    targetBytecode = null;
     createOutlines = true;
-    if (installing) {
-      MatchingContext context = originalContext.get();
-      if (null != context) {
-        classFileLocator = context.classFileLocator;
-        classLoader = context.classLoader;
-        originalContext.remove();
-      }
+
+    if (restoreAfterTransform) {
+      restoreAfterTransform = false;
+      switchContext(originalClassLoader);
+      originalClassLoader = null;
     } else {
       clearReferences();
     }
   }
 
+  void endInstall() {
+    clearReferences();
+  }
+
   private void clearReferences() {
-    deferredTypes.clear();
-    classFileLocator = null;
     classLoader = null;
+    classFileLocator = null;
+    deferredTypes.clear();
   }
 
   private TypeDescription deferTypeResolution(String name) {
     return deferredTypes.computeIfAbsent(name, deferType);
   }
 
-  private TypeDescription resolveType(String name) {
+  TypeDescription resolveType(String name) {
     if (null == classFileLocator) {
       return TypeDescription.UNDEFINED;
     }
@@ -200,6 +201,10 @@ final class TypeFactory {
     SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
     if (null != typeInfo && typeInfo.sameClassLoader(classLoader)) {
       return typeInfo.resolve();
+    }
+
+    if (name.equals(targetName)) {
+      return typeParser.parse(targetBytecode);
     }
 
     // try to find the class file resource

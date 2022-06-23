@@ -1,13 +1,14 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
-import datadog.trace.agent.tooling.bytebuddy.DDDescriptionStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
-import datadog.trace.agent.tooling.bytebuddy.DDMatchingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDOutlineTypeStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
-import datadog.trace.agent.tooling.bytebuddy.DDTypeStrategy;
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
-import net.bytebuddy.agent.builder.AgentBuilder.DescriptionStrategy;
+import net.bytebuddy.agent.builder.AgentBuilder.ClassFileBufferStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.DiscoveryStrategy;
@@ -43,9 +44,24 @@ public class AgentStrategies {
   private static final TransformerDecorator TRANSFORMER_DECORATOR = loadTransformerDecorator();
   private static final DiscoveryStrategy REDISCOVERY_STRATEGY = new DDRediscoveryStrategy();
   private static final LocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-  private static final PoolStrategy MATCHING_POOL_STRATEGY = new DDMatchingPoolStrategy();
-  private static final DescriptionStrategy DESCRIPTION_STRATEGY = new DDDescriptionStrategy();
-  private static final TypeStrategy TYPE_BUILDER_STRATEGY = new DDTypeStrategy();
+
+  private static final PoolStrategy POOL_STRATEGY;
+  private static final ClassFileBufferStrategy BUFFER_STRATEGY;
+  private static final TypeStrategy TYPE_STRATEGY;
+
+  static {
+    if (Config.get().isResolverOutlinePoolEnabled()) {
+      DDOutlinePoolStrategy.registerTypePoolFacade();
+      POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
+      BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
+      TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
+    } else {
+      DDCachingPoolStrategy.registerAsSupplier();
+      POOL_STRATEGY = DDCachingPoolStrategy.INSTANCE;
+      BUFFER_STRATEGY = ClassFileBufferStrategy.Default.RETAINING;
+      TYPE_STRATEGY = TypeStrategy.Default.REDEFINE_FROZEN;
+    }
+  }
 
   public static TransformerDecorator transformerDecorator() {
     return TRANSFORMER_DECORATOR;
@@ -59,15 +75,15 @@ public class AgentStrategies {
     return LOCATION_STRATEGY;
   }
 
-  public static PoolStrategy matchingPoolStrategy() {
-    return MATCHING_POOL_STRATEGY;
+  public static PoolStrategy poolStrategy() {
+    return POOL_STRATEGY;
   }
 
-  public static DescriptionStrategy descriptionStrategy() {
-    return DESCRIPTION_STRATEGY;
+  public static ClassFileBufferStrategy bufferStrategy() {
+    return BUFFER_STRATEGY;
   }
 
-  public static TypeStrategy typeBuilderStrategy() {
-    return TYPE_BUILDER_STRATEGY;
+  public static TypeStrategy typeStrategy() {
+    return TYPE_STRATEGY;
   }
 }

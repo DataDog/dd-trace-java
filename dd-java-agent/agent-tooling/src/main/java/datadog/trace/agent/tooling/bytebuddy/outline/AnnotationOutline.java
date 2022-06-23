@@ -3,6 +3,8 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.RetentionPolicy;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationValue;
@@ -12,7 +14,18 @@ import net.bytebuddy.description.type.TypeDescription;
 /** Annotation outline that just describes the type-name. */
 final class AnnotationOutline extends WithName implements AnnotationDescription {
 
-  AnnotationOutline(String descriptor) {
+  private static final Map<String, AnnotationDescription> annotationOutlines = new HashMap<>();
+
+  static void outlineAnnotation(String name) {
+    String descriptor = 'L' + name.replace('.', '/') + ';';
+    annotationOutlines.put(descriptor, new AnnotationOutline(descriptor));
+  }
+
+  static AnnotationDescription annotationOutline(String descriptor) {
+    return annotationOutlines.get(descriptor);
+  }
+
+  private AnnotationOutline(String descriptor) {
     super(descriptor.substring(1, descriptor.length() - 1).replace('/', '.'));
   }
 

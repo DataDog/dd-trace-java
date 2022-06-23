@@ -2,37 +2,36 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
 
-import net.bytebuddy.dynamic.ClassFileLocator;
+import java.lang.instrument.ClassFileTransformer;
 import net.bytebuddy.pool.TypePool;
 
 /** Pluggable {@link TypePool}s for use with instrumentation matching and muzzle checks. */
 public final class SharedTypePools {
   private static volatile Supplier SUPPLIER;
 
-  public static TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    return SUPPLIER.typePool(classFileLocator, classLoader);
-  }
-
+  /** Retrieves the shared type-pool for the given class-loader. */
   public static TypePool typePool(ClassLoader classLoader) {
     return SUPPLIER.typePool(classLoader);
   }
 
-  public static void cacheAnnotationForMatching(String name) {
-    SUPPLIER.cacheAnnotationForMatching(name);
+  /** Hints that the given annotation is of interest and should be proactively cached. */
+  public static void annotationOfInterest(String name) {
+    SUPPLIER.annotationOfInterest(name);
   }
 
-  public static void beginInstall() {
-    SUPPLIER.beginInstall();
+  /** Hints that the given annotations are of interest and should be proactively cached. */
+  public static void annotationsOfInterest(Iterable<String> names) {
+    for (String name : names) {
+      SUPPLIER.annotationOfInterest(name);
+    }
   }
 
+  /** Hints that the javaagent has finished installing as a {@link ClassFileTransformer}. */
   public static void endInstall() {
     SUPPLIER.endInstall();
   }
 
-  public static void beginTransform() {
-    SUPPLIER.beginTransform();
-  }
-
+  /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
   public static void endTransform() {
     SUPPLIER.endTransform();
   }
@@ -44,18 +43,16 @@ public final class SharedTypePools {
   }
 
   public interface Supplier {
-    TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader);
-
+    /** Retrieves the shared type-pool for the given class-loader. */
     TypePool typePool(ClassLoader classLoader);
 
-    void cacheAnnotationForMatching(String name);
+    /** Hints that the given annotation is of interest and should be proactively cached. */
+    void annotationOfInterest(String name);
 
-    void beginInstall();
-
+    /** Hints that the javaagent has finished installing as a {@link ClassFileTransformer}. */
     void endInstall();
 
-    void beginTransform();
-
+    /** Hints that the javaagent has finished calling {@link ClassFileTransformer#transform}. */
     void endTransform();
   }
 
@@ -63,26 +60,15 @@ public final class SharedTypePools {
   public static Supplier simpleCache() {
     return new SharedTypePools.Supplier() {
       @Override
-      public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader unused) {
-        return TypePool.Default.WithLazyResolution.of(classFileLocator);
-      }
-
-      @Override
       public TypePool typePool(ClassLoader classLoader) {
-        return typePool(classFileLocator(classLoader), classLoader);
+        return TypePool.Default.WithLazyResolution.of(classFileLocator(classLoader));
       }
 
       @Override
-      public void cacheAnnotationForMatching(String name) {}
-
-      @Override
-      public void beginInstall() {}
+      public void annotationOfInterest(String name) {}
 
       @Override
       public void endInstall() {}
-
-      @Override
-      public void beginTransform() {}
 
       @Override
       public void endTransform() {}

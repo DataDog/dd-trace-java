@@ -3,10 +3,8 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
-import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
-import datadog.trace.agent.tooling.bytebuddy.outline.OutlinePoolStrategy;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -75,11 +73,6 @@ public class AgentInstaller {
     Utils.setInstrumentation(inst);
 
     FieldBackedContextProvider.resetContextMatchers();
-    if (Config.get().isResolverOutlinePoolEnabled()) {
-      OutlinePoolStrategy.registerAsSupplier();
-    } else {
-      DDCachingPoolStrategy.registerAsSupplier();
-    }
     DDElementMatchers.registerAsSupplier();
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
@@ -94,9 +87,10 @@ public class AgentInstaller {
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
             .with(AgentStrategies.locationStrategy())
-            .with(AgentStrategies.matchingPoolStrategy())
-            .with(AgentStrategies.descriptionStrategy())
-            .with(AgentStrategies.typeBuilderStrategy())
+            .with(AgentStrategies.poolStrategy())
+            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
+            .with(AgentStrategies.bufferStrategy())
+            .with(AgentStrategies.typeStrategy())
             .with(new ClassLoadListener())
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
@@ -161,7 +155,6 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    SharedTypePools.beginInstall();
     try {
       return transformerBuilder.installOn(inst);
     } finally {

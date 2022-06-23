@@ -1,15 +1,13 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
+import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.annotationOutline;
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_CODE;
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_DEBUG;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.ClassFileVersion;
-import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -20,17 +18,6 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.utility.OpenedClassReader;
 
 final class OutlineTypeParser implements TypeParser {
-
-  private static final Map<String, AnnotationDescription> annotationsForMatching = new HashMap<>();
-
-  static void cacheAnnotationForMatching(String name) {
-    String descriptor = 'L' + name.replace('.', '/') + ';';
-    annotationsForMatching.put(descriptor, new AnnotationOutline(descriptor));
-  }
-
-  static AnnotationDescription annotationForMatching(String descriptor) {
-    return annotationsForMatching.get(descriptor);
-  }
 
   @Override
   public TypeDescription parse(byte[] bytecode) {
@@ -53,7 +40,7 @@ final class OutlineTypeParser implements TypeParser {
             extractTypeNames(loadedType.getInterfaces()));
 
     for (Annotation a : loadedType.getDeclaredAnnotations()) {
-      typeOutline.declare(annotationForMatching(Type.getDescriptor(a.annotationType())));
+      typeOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
     }
 
     for (Field field : loadedType.getDeclaredFields()) {
@@ -64,7 +51,7 @@ final class OutlineTypeParser implements TypeParser {
               field.getName(),
               Type.getDescriptor(field.getType()));
       for (Annotation a : field.getDeclaredAnnotations()) {
-        fieldOutline.declare(annotationForMatching(Type.getDescriptor(a.annotationType())));
+        fieldOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
       }
       typeOutline.declare(fieldOutline);
     }
@@ -77,7 +64,7 @@ final class OutlineTypeParser implements TypeParser {
               method.getName(),
               Type.getMethodDescriptor(method));
       for (Annotation a : method.getDeclaredAnnotations()) {
-        methodOutline.declare(annotationForMatching(Type.getDescriptor(a.annotationType())));
+        methodOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
       }
       typeOutline.declare(methodOutline);
     }
@@ -95,9 +82,9 @@ final class OutlineTypeParser implements TypeParser {
 
   static final class OutlineTypeExtractor extends ClassVisitor {
 
-    private TypeOutline typeOutline;
-    private FieldOutline fieldOutline;
-    private MethodOutline methodOutline;
+    TypeOutline typeOutline;
+    FieldOutline fieldOutline;
+    MethodOutline methodOutline;
 
     OutlineTypeExtractor() {
       super(OpenedClassReader.ASM_API);
@@ -116,7 +103,7 @@ final class OutlineTypeParser implements TypeParser {
 
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-      typeOutline.declare(annotationForMatching(descriptor));
+      typeOutline.declare(annotationOutline(descriptor));
       return null;
     }
 
@@ -140,7 +127,7 @@ final class OutlineTypeParser implements TypeParser {
         new FieldVisitor(OpenedClassReader.ASM_API) {
           @Override
           public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-            fieldOutline.declare(annotationForMatching(descriptor));
+            fieldOutline.declare(annotationOutline(descriptor));
             return null;
           }
         };
@@ -149,7 +136,7 @@ final class OutlineTypeParser implements TypeParser {
         new MethodVisitor(OpenedClassReader.ASM_API) {
           @Override
           public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-            methodOutline.declare(annotationForMatching(descriptor));
+            methodOutline.declare(annotationOutline(descriptor));
             return null;
           }
         };
