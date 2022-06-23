@@ -127,7 +127,7 @@ public class CrashUploader {
     // Comma separated tags string for V2.4 format
     String tags = String.join(",", tagsToList(tagsMap));
 
-    final Duration requestTimeout = Duration.ofSeconds(configProvider.getInt(CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
+    final Duration requestTimeout = Duration.ofSeconds(configProvider.getInteger(CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
 
     final OkHttpClient.Builder clientBuilder =
         new OkHttpClient.Builder()
@@ -156,7 +156,7 @@ public class CrashUploader {
           new Proxy(
               Proxy.Type.HTTP,
               new InetSocketAddress(
-                  configProvider.getString(CRASH_TRACKING_PROXY_HOST), configProvider.getInt(CRASH_TRACKING_PROXY_PORT)));
+                  configProvider.getString(CRASH_TRACKING_PROXY_HOST), configProvider.getInteger(CRASH_TRACKING_PROXY_PORT)));
       clientBuilder.proxy(proxy);
       if (configProvider.getString(CRASH_TRACKING_PROXY_USERNAME) != null) {
         // Empty password by default
@@ -196,7 +196,7 @@ public class CrashUploader {
     public InputStream stream() { return stream; }
   }
 
-  void upload(String[] files) {
+  void upload(String[] files) throws IOException {
     makeUploadRequest(
         Arrays.stream(files)
             .map(f -> {
@@ -211,7 +211,7 @@ public class CrashUploader {
             .collect(Collectors.toMap(FileStreamEntry::file, FileStreamEntry::stream)));
   }
 
-  private void makeUploadRequest(Map<String, InputStream> files) {
+  private void makeUploadRequest(Map<String, InputStream> files) throws IOException {
     final RequestBody requestBody = makeRequestBody(files);
 
     final Request.Builder requestBuilder =
