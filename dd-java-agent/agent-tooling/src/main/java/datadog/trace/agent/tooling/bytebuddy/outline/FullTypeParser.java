@@ -33,6 +33,7 @@ final class FullTypeParser extends TypePool.Default implements TypeParser {
 
   @Override
   public Resolution describe(String name) {
+    // describe elements as deferred types, lazily evaluated using the current context
     TypeDescription type = name.charAt(0) == '[' ? findDescriptor(name) : findType(name);
     if (type instanceof TypeFactory.LazyType) {
       return new TypeFactory.LazyResolution((TypeFactory.LazyType) type);

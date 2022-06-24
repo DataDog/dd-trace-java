@@ -21,8 +21,21 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
+/**
+ * Context-aware factory that provides different kinds of type descriptions:
+ *
+ * <ul>
+ *   <li>minimally parsed type outlines for matching purposes
+ *   <li>fully parsed types for the actual transformations
+ * </ul>
+ *
+ * It's expected that callers will set the appropriate class-loader context before using this
+ * type-factory. Outline types are returned for matching until full type parsing is explicitly
+ * enabled, once we know we're really transforming the type.
+ */
 final class TypeFactory {
 
+  /** Maintain a reusable type factory for each thread involved in class-loading. */
   static final ThreadLocal<TypeFactory> factory =
       new ThreadLocal<TypeFactory>() {
         @Override
@@ -77,6 +90,93 @@ final class TypeFactory {
   private static final TypeInfoCache<TypeDescription> fullTypes =
       new TypeInfoCache<>(Config.get().getResolverTypePoolSize());
 
+  /** Small local cache to help deduplicate lookups when matching/transforming. */
+  private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
+
+  private final Function<String, LazyType> deferType =
+      new Function<String, LazyType>() {
+        @Override
+        public LazyType apply(String input) {
+          return new LazyType(input);
+        }
+      };
+
+  boolean createOutlines = true;
+
+  private boolean restoreAfterTransform;
+
+  private ClassLoader originalClassLoader;
+
+  private ClassLoader classLoader;
+
+  private ClassFileLocator classFileLocator;
+
+  private String targetName;
+
+  private byte[] targetBytecode;
+
+  /** Sets the current class-loader context of this type-factory. */
+  void switchContext(ClassLoader classLoader) {
+    if (this.classLoader != classLoader || null == classFileLocator) {
+      this.classLoader = classLoader;
+      classFileLocator = classFileLocator(classLoader);
+      // clear local type cache whenever the class-loader context changes
+      deferredTypes.clear();
+    }
+  }
+
+  /**
+   * New transform request; begins with type matching that only requires outline descriptions.
+   *
+   * <p>Byte-buddy's circularity lock makes sure we won't have any nested transform calls, but we
+   * may be asked to transform support types while deciding which loaded types need re-transforming
+   * when first installing the agent. If that happens then we need to remember the original context
+   * used for matching and restore it afterwards.
+   */
+  void beginTransform(String name, byte[] bytecode) {
+    targetName = name;
+    targetBytecode = bytecode;
+
+    if (null != classFileLocator) {
+      originalClassLoader = this.classLoader;
+      restoreAfterTransform = true;
+    }
+  }
+
+  /** Once matching is complete we need full descriptions for the actual transformation. */
+  void enableFullDescriptions() {
+    createOutlines = false;
+  }
+
+  /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
+  void endTransform() {
+    if (null == targetName) {
+      return; // nothing to clean-up, byte-buddy filtered out this class before matching
+    }
+
+    targetName = null;
+    targetBytecode = null;
+    createOutlines = true;
+
+    if (restoreAfterTransform) {
+      restoreAfterTransform = false;
+      switchContext(originalClassLoader);
+      originalClassLoader = null;
+    } else {
+      clearReferences();
+    }
+  }
+
+  void endInstall() {
+    clearReferences();
+  }
+
+  private void clearReferences() {
+    classLoader = null;
+    classFileLocator = null;
+    deferredTypes.clear();
+  }
+
   static TypeDescription findDescriptor(String descriptor) {
     TypeDescription type;
     int arity = 0;
@@ -103,84 +203,11 @@ final class TypeFactory {
     return type;
   }
 
-  private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
-
-  private final Function<String, LazyType> deferType =
-      new Function<String, LazyType>() {
-        @Override
-        public LazyType apply(String input) {
-          return new LazyType(input);
-        }
-      };
-
-  boolean createOutlines = true;
-
-  private boolean restoreAfterTransform;
-
-  private ClassLoader originalClassLoader;
-
-  private ClassLoader classLoader;
-
-  private ClassFileLocator classFileLocator;
-
-  private String targetName;
-
-  private byte[] targetBytecode;
-
-  void beginTransform(String name, byte[] bytecode) {
-    targetName = name;
-    targetBytecode = bytecode;
-
-    if (null != classFileLocator) {
-      originalClassLoader = this.classLoader;
-      restoreAfterTransform = true;
-    }
-  }
-
-  void switchContext(ClassLoader classLoader) {
-    if (this.classLoader != classLoader || null == classFileLocator) {
-      this.classLoader = classLoader;
-      classFileLocator = classFileLocator(classLoader);
-      deferredTypes.clear();
-    }
-  }
-
-  void enableFullDescriptions() {
-    createOutlines = false;
-  }
-
-  void endTransform() {
-    if (null == targetName) {
-      return;
-    }
-
-    targetName = null;
-    targetBytecode = null;
-    createOutlines = true;
-
-    if (restoreAfterTransform) {
-      restoreAfterTransform = false;
-      switchContext(originalClassLoader);
-      originalClassLoader = null;
-    } else {
-      clearReferences();
-    }
-  }
-
-  void endInstall() {
-    clearReferences();
-  }
-
-  private void clearReferences() {
-    classLoader = null;
-    classFileLocator = null;
-    deferredTypes.clear();
-  }
-
   private TypeDescription deferTypeResolution(String name) {
     return deferredTypes.computeIfAbsent(name, deferType);
   }
 
+  /** Attempts to resolve the named type using the current context. */
   TypeDescription resolveType(String name) {
     if (null == classFileLocator) {
       return TypeDescription.UNDEFINED;
@@ -194,15 +221,17 @@ final class TypeFactory {
     return null != type ? new CachingType(type) : null;
   }
 
+  /** Looks up the type in the current context before falling back to parsing the class-file. */
   private TypeDescription lookupType(
       String name, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
 
     // existing info from same classloader?
     SharedTypeInfo<TypeDescription> typeInfo = types.find(name);
     if (null != typeInfo && typeInfo.sameClassLoader(classLoader)) {
-      return typeInfo.resolve();
+      return typeInfo.get();
     }
 
+    // are we looking up the target of this transformation?
     if (name.equals(targetName)) {
       TypeDescription type = typeParser.parse(targetBytecode);
       types.share(name, classLoader, UNKNOWN_CLASS_FILE, type);
@@ -224,7 +253,7 @@ final class TypeFactory {
 
     // existing info from same class file?
     if (null != typeInfo && typeInfo.sameClassFile(classFile)) {
-      return typeInfo.resolve();
+      return typeInfo.get();
     }
 
     TypeDescription type = null;
@@ -258,17 +287,7 @@ final class TypeFactory {
     }
   }
 
-  static final class MatchingContext {
-    final ClassFileLocator classFileLocator;
-
-    final ClassLoader classLoader;
-
-    MatchingContext(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-      this.classFileLocator = classFileLocator;
-      this.classLoader = classLoader;
-    }
-  }
-
+  /** Type description that begins with a name and provides more details on-demand. */
   final class LazyType extends WithName {
     TypeDescription delegate;
     boolean isOutline;
@@ -283,6 +302,7 @@ final class TypeFactory {
     }
 
     TypeDescription doResolve(boolean throwIfMissing) {
+      // re-resolve type when switching to full descriptions
       if (null == delegate || createOutlines != isOutline) {
         delegate = resolveType(name);
         isOutline = createOutlines;
@@ -294,6 +314,7 @@ final class TypeFactory {
     }
   }
 
+  /** Type resolution that provides more details on-demand. */
   static final class LazyResolution implements TypePool.Resolution {
     private final LazyType type;
 

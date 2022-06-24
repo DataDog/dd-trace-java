@@ -11,6 +11,10 @@ import net.bytebuddy.dynamic.scaffold.inline.MethodNameTransformer;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
+/**
+ * Custom type strategy that captures the target bytecode when matching starts and switches from
+ * outline types to full type parsing when the actual transformation begins.
+ */
 public final class DDOutlineTypeStrategy
     implements AgentBuilder.ClassFileBufferStrategy, AgentBuilder.TypeStrategy {
   public static final DDOutlineTypeStrategy INSTANCE = new DDOutlineTypeStrategy();

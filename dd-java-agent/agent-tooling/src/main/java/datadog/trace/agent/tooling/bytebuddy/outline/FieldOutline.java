@@ -9,6 +9,7 @@ import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.type.TypeDescription;
 
+/** Provides an outline of a field; its name, descriptor, and modifiers. */
 final class FieldOutline extends FieldDescription.InDefinedShape.AbstractBase {
   private static final int ALLOWED_FIELD_MODIFIERS = 0x0000ffff;
 

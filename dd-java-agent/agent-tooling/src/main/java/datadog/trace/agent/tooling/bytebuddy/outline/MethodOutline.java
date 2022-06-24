@@ -13,6 +13,7 @@ import net.bytebuddy.description.method.ParameterList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 
+/** Provides an outline of a method; its name, descriptor, and modifiers. */
 final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase {
   private static final int ALLOWED_METHOD_MODIFIERS = 0x0000ffff;
 
@@ -22,7 +23,7 @@ final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase 
   private final int modifiers;
   private final String name;
 
-  final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
+  private final List<AnnotationDescription> declaredAnnotations = new ArrayList<>();
 
   MethodOutline(TypeDescription declaringType, int access, String name, String descriptor) {
     this.declaringType = declaringType;

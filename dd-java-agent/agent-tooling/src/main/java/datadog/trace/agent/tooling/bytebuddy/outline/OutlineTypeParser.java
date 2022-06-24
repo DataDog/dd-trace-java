@@ -17,6 +17,7 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.utility.OpenedClassReader;
 
+/** Attempts a minimal parse of just the named elements we need for matching. */
 final class OutlineTypeParser implements TypeParser {
 
   @Override

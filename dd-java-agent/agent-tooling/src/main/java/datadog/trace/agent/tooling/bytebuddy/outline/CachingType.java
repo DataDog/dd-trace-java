@@ -8,6 +8,7 @@ import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 
+/** Type description that lazily caches expensive results. */
 final class CachingType extends WithName {
   private final TypeDescription delegate;
 

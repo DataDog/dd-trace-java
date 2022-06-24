@@ -14,6 +14,7 @@ import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 
+/** Provides an outline of a type; i.e. the named elements making up its structure. */
 final class TypeOutline extends WithName {
   private static final int ALLOWED_TYPE_MODIFIERS = 0x0000ffdf; // excludes ACC_SUPER
 

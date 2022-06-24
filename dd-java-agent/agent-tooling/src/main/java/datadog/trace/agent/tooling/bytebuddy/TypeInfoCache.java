@@ -103,7 +103,7 @@ public final class TypeInfoCache<T> {
           && sameClassFile(this.classFile, classFile);
     }
 
-    public T resolve() {
+    public T get() {
       return typeInfo;
     }
 
