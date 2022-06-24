@@ -204,7 +204,9 @@ final class TypeFactory {
     }
 
     if (name.equals(targetName)) {
-      return typeParser.parse(targetBytecode);
+      TypeDescription type = typeParser.parse(targetBytecode);
+      types.share(name, classLoader, UNKNOWN_CLASS_FILE, type);
+      return type;
     }
 
     // try to find the class file resource
@@ -214,6 +216,7 @@ final class TypeFactory {
     } catch (Throwable ignored) {
       return null;
     }
+
     URL classFile =
         classFileResolution instanceof ClassFileLocators.LazyResolution
             ? ((ClassFileLocators.LazyResolution) classFileResolution).url()
