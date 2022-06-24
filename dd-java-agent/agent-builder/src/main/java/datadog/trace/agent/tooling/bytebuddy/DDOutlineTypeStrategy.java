@@ -23,7 +23,7 @@ public final class DDOutlineTypeStrategy
       JavaModule module,
       ProtectionDomain protectionDomain) {
     TypePoolFacade.beginTransform(name, binaryRepresentation);
-    return ClassFileLocator.NoOp.INSTANCE;
+    return ClassFileLocator.Simple.of(name, binaryRepresentation);
   }
 
   @Override
