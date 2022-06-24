@@ -1,35 +1,27 @@
 package com.datadog.crashtracking;
 
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
+import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_HOST;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PASSWORD;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PORT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_USERNAME;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PASSWORD;
-import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
 
-import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import datadog.common.process.PidHelper;
-import datadog.common.version.VersionInfo;
-import datadog.common.socket.NamedPipeSocketFactory;
-import datadog.common.socket.UnixDomainSocketFactory;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
+import datadog.common.process.PidHelper;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
+import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentProxySelector;
-import datadog.trace.util.AgentThreadFactory;
 import java.io.File;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.io.InputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
@@ -38,26 +30,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
-import okhttp3.Dispatcher;
-import okhttp3.Headers;
 import okhttp3.MediaType;
-import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,15 +46,17 @@ public class CrashUploader {
 
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
+  private static final MediaType APPLICATION_JSON = MediaType.get("application/json");
+  private static final MediaType APPLICATION_OCTET_STREAM =
+      MediaType.parse("application/octet-stream");
+
   // V2.4 format
   static final String V4_CRASHUPLOAD_TAGS_PARAM = "tags_crashtracking";
   static final String V4_VERSION = "4";
   static final String V4_FAMILY = "java";
 
   static final String V4_EVENT_NAME = "event";
-  static final String V4_EVENT_FILENAME = V4_EVENT_NAME + ".json";
   static final String V4_ATTACHMENT_NAME = "main";
-  static final String V4_ATTACHMENT_FILENAME = V4_ATTACHMENT_NAME + ".jfr";
 
   // Header names and values
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
@@ -90,6 +72,7 @@ public class CrashUploader {
   private final String apiKey;
   private final String url;
   private final String containerId;
+  private final String tags;
 
   /**
    * Main entry point into crash reporter. This gets invoked through -XX:OnError="java
@@ -103,16 +86,11 @@ public class CrashUploader {
   }
 
   public CrashUploader(final Config config, final ConfigProvider configProvider) {
-    this(
-        config,
-        configProvider, 
-        ContainerInfo.get().getContainerId());
+    this(config, configProvider, ContainerInfo.get().getContainerId());
   }
 
   CrashUploader(
-      final Config config,
-      final ConfigProvider configProvider,
-      final String containerId) {
+      final Config config, final ConfigProvider configProvider, final String containerId) {
     url = config.getFinalCrashTrackingUrl();
     apiKey = config.getApiKey();
     agentless = config.isCrashTrackingAgentless();
@@ -125,9 +103,12 @@ public class CrashUploader {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
     }
     // Comma separated tags string for V2.4 format
-    String tags = String.join(",", tagsToList(tagsMap));
+    tags = String.join(",", tagsToList(tagsMap));
 
-    final Duration requestTimeout = Duration.ofSeconds(configProvider.getInteger(CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
+    final Duration requestTimeout =
+        Duration.ofSeconds(
+            configProvider.getInteger(
+                CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
 
     final OkHttpClient.Builder clientBuilder =
         new OkHttpClient.Builder()
@@ -156,16 +137,20 @@ public class CrashUploader {
           new Proxy(
               Proxy.Type.HTTP,
               new InetSocketAddress(
-                  configProvider.getString(CRASH_TRACKING_PROXY_HOST), configProvider.getInteger(CRASH_TRACKING_PROXY_PORT)));
+                  configProvider.getString(CRASH_TRACKING_PROXY_HOST),
+                  configProvider.getInteger(CRASH_TRACKING_PROXY_PORT)));
       clientBuilder.proxy(proxy);
       if (configProvider.getString(CRASH_TRACKING_PROXY_USERNAME) != null) {
         // Empty password by default
         final String password =
-            configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD) == null ? "" : configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD);
+            configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD) == null
+                ? ""
+                : configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD);
         clientBuilder.proxyAuthenticator(
             (route, response) -> {
               final String credential =
-                  Credentials.basic(configProvider.getString(CRASH_TRACKING_PROXY_USERNAME), password);
+                  Credentials.basic(
+                      configProvider.getString(CRASH_TRACKING_PROXY_USERNAME), password);
               return response
                   .request()
                   .newBuilder()
@@ -185,80 +170,85 @@ public class CrashUploader {
         .collect(Collectors.toList());
   }
 
-  private static final class FileStreamEntry {
-    private final String file;
+  private static final class FileEntry {
+    private final String name;
     private final InputStream stream;
-    public FileStreamEntry(String file, InputStream stream) {
-      this.file = file;
+
+    public FileEntry(String name, InputStream stream) {
+      this.name = name;
       this.stream = stream;
     }
-    public String file() { return file; }
-    public InputStream stream() { return stream; }
+
+    public String name() {
+      return name;
+    }
+
+    public InputStream stream() {
+      return stream;
+    }
   }
 
-  void upload(String[] files) throws IOException {
+  void upload(@Nonnull String[] files) throws IOException {
     makeUploadRequest(
         Arrays.stream(files)
-            .map(f -> {
-              try {
-                return new FileStreamEntry(f, new FileInputStream(f));
-              } catch (FileNotFoundException | SecurityException e) {
-                log.error("Failed to open {}", f, e);
-                return null;
-              }
-            })
+            .map(
+                f -> {
+                  try {
+                    return new FileEntry(f, new FileInputStream(f));
+                  } catch (FileNotFoundException | SecurityException e) {
+                    log.error("Failed to open {}", f, e);
+                    return null;
+                  }
+                })
             .filter(s -> s != null)
-            .collect(Collectors.toMap(FileStreamEntry::file, FileStreamEntry::stream)));
+            .collect(Collectors.toMap(FileEntry::name, FileEntry::stream)));
   }
 
-  private void makeUploadRequest(Map<String, InputStream> files) throws IOException {
+  private void makeUploadRequest(@Nonnull Map<String, InputStream> files) throws IOException {
     final RequestBody requestBody = makeRequestBody(files);
 
-    final Request.Builder requestBuilder =
-        new Request.Builder()
-            .url(url)
-            // Set chunked transfer
-            .addHeader("Transfer-Encoding", "chunked")
-            // Note: this header is used to disable tracing of profiling requests
-            .addHeader(DATADOG_META_LANG, JAVA_LANG)
-            .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_CRASHTRACKING_LIBRARY)
-            .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
-            .post(requestBody);
+    Buffer dbg = new Buffer();
+    requestBody.writeTo(dbg);
+    dbg.writeTo(System.out);
 
-    if (agentless && apiKey != null) {
-      // we only add the api key header if we know we're doing agentless profiling. No point in
-      // adding it to other agent-based requests since we know the datadog-agent isn't going to
-      // make use of it.
-      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-    }
-    if (containerId != null) {
-      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
-    }
+    // final Request.Builder requestBuilder =
+    //     new Request.Builder()
+    //         .url(url)
+    //         .addHeader(DATADOG_META_LANG, JAVA_LANG)
+    //         .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_CRASHTRACKING_LIBRARY)
+    //         .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
+    //         .post(requestBody);
 
-    client
-      .newCall(requestBuilder.build())
-      .execute();
+    // if (agentless && apiKey != null) {
+    //   // we only add the api key header if we know we're doing agentless profiling. No point in
+    //   // adding it to other agent-based requests since we know the datadog-agent isn't going to
+    //   // make use of it.
+    //   requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+    // }
+    // if (containerId != null) {
+    //   requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+    // }
+
+    // client.newCall(requestBuilder.build()).execute();
   }
 
-  // private byte[] createEvent(@Nonnull final String file) {
-  //   final StringBuilder os = new StringBuilder();
-  //   os.append("{");
-  //   os.append("\"attachments\":[\"" + file + "\"],");
-  //   os.append("\"" + V4_CRASHUPLOAD_TAGS_PARAM + "\":\"" + tags + "\",");
-  //   os.append("\"family\":\"" + V4_FAMILY + "\",");
-  //   os.append("\"version\":\"" + V4_VERSION + "\"");
-  //   os.append("}");
-  //   return os.toString().getBytes();
-  // }
+  private RequestBody makeRequestBody(@Nonnull Map<String, InputStream> files) throws IOException {
+    Buffer out = new Buffer();
+    try (JsonWriter writer = JsonWriter.of(out)) {
+      writer.beginObject();
+      writer.name("request_type").value("logs");
+      writer.name("payload");
+      writer.beginArray();
+      for (Map.Entry<String, InputStream> file : files.entrySet()) {
+        writer.beginObject();
+        writer.name("message").value(new Buffer().readFrom(file.getValue()));
+        writer.name("level").value("ERROR");
+        writer.endObject();
+      }
+      writer.endArray();
+      writer.endObject();
+    }
 
-  private RequestBody makeRequestBody(Map<String, InputStream> files) {
-    final MultipartBody.Builder bodyBuilder =
-        new MultipartBody.Builder().setType(MultipartBody.FORM);
-    
-    // final byte[] event = createEvent(data);
-    // final RequestBody eventBody = RequestBody.create(APPLICATION_JSON, event);
-    // bodyBuilder.addPart(EVENT_HEADER, eventBody);
-    // bodyBuilder.addPart(V4_DATA_HEADERS, body);
-    return bodyBuilder.build();
+    return RequestBody.create(APPLICATION_JSON, out.readByteString());
   }
 }

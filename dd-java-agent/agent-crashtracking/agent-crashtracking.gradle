@@ -9,21 +9,23 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
 
 // FIXME: Improve test coverage.
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
 
 dependencies {
-  api deps.slf4j
-  api project(':dd-trace-api')
-  api project(':internal-api')
-  api project(':utils:container-utils')
-  api project(':utils:process-utils')
-  api project(':utils:socket-utils')
-  api project(':utils:version-utils')
+  implementation deps.slf4j
+  implementation project(':dd-trace-api')
+  implementation project(':internal-api')
+  implementation project(':utils:container-utils')
+  implementation project(':utils:process-utils')
+  implementation project(':utils:socket-utils')
+  implementation project(':utils:version-utils')
 
   implementation deps.okhttp
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
 }
