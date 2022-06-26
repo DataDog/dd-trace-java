@@ -249,6 +249,7 @@ class SynapseTest extends AgentTestRunner {
         "$DDTags.HTTP_QUERY" query
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
+        "$Tags.HTTP_USER_AGENT" String
         defaultTags(distributedRootSpan)
       }
     }
@@ -275,6 +276,7 @@ class SynapseTest extends AgentTestRunner {
         "$Tags.HTTP_URL" "/services/StockQuoteProxy"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
+        "$Tags.HTTP_USER_AGENT" String
         defaultTags()
       }
     }

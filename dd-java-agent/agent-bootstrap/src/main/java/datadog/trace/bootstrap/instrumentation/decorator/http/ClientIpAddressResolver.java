@@ -1,17 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.function.Function;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClientIpResolver {
-  private static final Logger log = LoggerFactory.getLogger(ClientIpResolver.class);
+public class ClientIpAddressResolver {
+  private static final Logger log = LoggerFactory.getLogger(ClientIpAddressResolver.class);
 
   private static final Function<String, InetAddress> plainIpAddressParser =
       new ParsePlainIpAddress();
@@ -25,103 +24,86 @@ public class ClientIpResolver {
    * <p>In ideal circumstances, <code>ipAddrHeader</code> is specified so as to minimize the chances
    * that the ip address be spoofed.
    *
-   * @param ipAddrHeader the configured header to look at, if any. Lowercase.
-   * @param requestHeaders the request headers, if any; keys are lowercase
+   * @param context extracted context with http headers
    * @return the inferred IP address, if any
    */
-  public static InetAddress resolve(String ipAddrHeader, Map<String, List<String>> requestHeaders) {
+  public static InetAddress resolve(AgentSpan.Context.Extracted context) {
     try {
-      return doResolve(ipAddrHeader, requestHeaders);
+      return doResolve(context);
     } catch (RuntimeException rte) {
       log.warn("Unexpected exception (bug) inferring client IP address", rte);
       return null;
     }
   }
 
-  public static InetAddress doResolve(
-      String ipAddrHeader, Map<String, List<String>> requestHeaders) {
-    if (requestHeaders == null) {
+  public static InetAddress doResolve(AgentSpan.Context.Extracted context) {
+    if (context == null) {
       return null;
     }
     InetAddress result;
-    if (ipAddrHeader != null) {
-      return tryHeader(
-          ipAddrHeader,
-          requestHeaders,
-          new Function<String, InetAddress>() {
-            @Override
-            public InetAddress apply(String s) {
-              InetAddress addr = forwardedParser.apply(s);
-              if (addr != null) {
-                return addr;
-              }
-              return plainIpAddressParser.apply(s);
-            }
-          });
+
+    String customIpHeader = context.getCustomIpHeader();
+    result = tryHeader(customIpHeader, forwardedParser);
+    if (result != null) {
+      return result;
+    }
+    result = tryHeader(customIpHeader, plainIpAddressParser);
+    if (result != null) {
+      return result;
     }
 
     // we don't have a set ip header to look exclusively at
     // the order of the headers is the order in the RFC
-    result = tryHeader("x-forwarded-for", requestHeaders, plainIpAddressParser);
+
+    result = tryHeader(context.getXForwardedFor(), plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("x-real-ip", requestHeaders, plainIpAddressParser);
+    result = tryHeader(context.getXRealIp(), plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("client-ip", requestHeaders, plainIpAddressParser);
+    result = tryHeader(context.getClientIp(), plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("x-forwarded", requestHeaders, forwardedParser);
+    result = tryHeader(context.getXForwarded(), forwardedParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("x-cluster-client-ip", requestHeaders, plainIpAddressParser);
+    result = tryHeader(context.getXClusterClientIp(), plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("forwarded-for", requestHeaders, plainIpAddressParser);
+    result = tryHeader(context.getForwardedFor(), plainIpAddressParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("forwarded", requestHeaders, forwardedParser);
+    result = tryHeader(context.getForwarded(), forwardedParser);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader("via", requestHeaders, viaParser);
+    result = tryHeader(context.getVia(), viaParser);
     if (result != null) {
       return result;
     }
 
-    return tryHeader("true-client-ip", requestHeaders, plainIpAddressParser);
+    return tryHeader(context.getTrueClientIp(), plainIpAddressParser);
   }
 
-  private static InetAddress tryHeader(
-      String headerName,
-      Map<String, List<String>> requestHeaders,
-      Function<String, InetAddress> parseFun) {
-    List<String> headerValues = requestHeaders.get(headerName);
-    if (headerValues == null) {
+  private static InetAddress tryHeader(String headerValue, Function<String, InetAddress> parseFun) {
+    if (headerValue == null || headerValue.isEmpty()) {
       return null;
     }
 
-    for (String headerValue : headerValues) {
-      InetAddress result = parseFun.apply(headerValue);
-      if (result != null) {
-        return result;
-      }
-    }
-
-    return null;
+    return parseFun.apply(headerValue);
   }
 
   private static class ParseVia implements Function<String, InetAddress> {

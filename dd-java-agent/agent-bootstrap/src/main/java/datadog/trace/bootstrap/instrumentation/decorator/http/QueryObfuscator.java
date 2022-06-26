@@ -8,7 +8,10 @@ import datadog.trace.util.Strings;
 public class QueryObfuscator {
 
   private static final String DEFAULT_OBFUSCATION_PATTERN =
-      "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:\\s*=[^&]+|\"\\s*:\\s*\"[^\"]+\")|bearer\\s+[a-z0-9\\._\\-]|token:[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=-]+\\.ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*[a-z0-9\\/\\.+]{100,}";
+      "((?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|bearer(?:\\s|%20)+[a-z0-9\\._\\-]|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+\\/=-]|%3D|%2F|%2B)+)?|[\\-]{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY[\\-]{5}[^\\-]+[\\-]{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY|ssh-rsa(?:\\s|%20)*(?:[a-z0-9\\/\\.+]|%2F|%5C|%2B){100,})";
+
+  public static Pattern pattern;
+  public static String lastRegex;
 
   public static String obfuscate(String query, String regex) {
     // Empty regex - means obfuscation deactivated
@@ -27,7 +30,12 @@ public class QueryObfuscator {
       regex = DEFAULT_OBFUSCATION_PATTERN;
     }
 
-    Matcher matcher = Pattern.compile(regex).matcher(query);
+    if (!regex.equals(lastRegex)) {
+      pattern = Pattern.compile(regex);
+      lastRegex = regex;
+    }
+
+    Matcher matcher = pattern.matcher(query);
     while (matcher.find()) {
       query = Strings.replace(query, matcher.group(), "<redacted>");
     }

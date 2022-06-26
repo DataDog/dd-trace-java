@@ -78,6 +78,7 @@ class RatpackOtherTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
+            "$Tags.HTTP_USER_AGENT" String
             defaultTags()
           }
         }

@@ -1,14 +1,18 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import spock.lang.Specification
 
-class ClientIpResolverSpecification extends Specification {
-  private static final String HEADER = 'foo-bar'
+class ClientIpAddressResolverSpecification extends Specification {
 
-  void 'test with configured header'() {
+  void 'test with custom header'() {
+    setup:
+    def context = Mock(AgentSpan.Context.Extracted)
+    1 * context.getCustomIpHeader() >> headerValue
+
     expect:
     InetAddress resultInetAddr = result ? InetAddress.getByName(result) : null
-    ClientIpResolver.resolve(HEADER, [(HEADER): [headerValue]]) == resultInetAddr
+    ClientIpAddressResolver.resolve(context) == resultInetAddr
 
     where:
     headerValue | result
@@ -20,10 +24,19 @@ class ClientIpResolverSpecification extends Specification {
     '10.0.0.1' | null // peer address is ignored!
   }
 
-  void 'test without configured header'() {
+  private static String headerToCamelCase(String headerName) {
+    headerName.split('-').collect {it.capitalize()}.join()
+  }
+
+  void 'test with standard header'() {
+    setup:
+    def method = "get${headerToCamelCase(header)}"
+    def context = Mock(AgentSpan.Context.Extracted)
+    1 * context."$method"() >> headerValue
+
     expect:
     InetAddress resultInetAddr = result ? InetAddress.getByName(result) : null
-    ClientIpResolver.resolve(null, [(header): [headerValue]]) == resultInetAddr
+    ClientIpAddressResolver.resolve(context) == resultInetAddr
 
     where:
     header | headerValue | result

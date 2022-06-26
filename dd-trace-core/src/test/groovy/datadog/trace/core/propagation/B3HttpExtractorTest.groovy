@@ -228,7 +228,7 @@ class B3HttpExtractorTest extends DDSpecification {
 
     then:
     context != null
-    !(context instanceof ExtractedContext)
+    context instanceof ExtractedContext
     context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 

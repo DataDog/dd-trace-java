@@ -14,6 +14,7 @@
            "version" "99"
            "http.url" "http://localhost:57690/randomEndpoint"
            "http.hostname" "localhost"
+           "http.useragent" "okhttp/x.x.x"
            "component" "liberty-server"
            "error.msg" "SRVE0295E: Error reported: 404"
            "thread.name" "Default Executor-thread-13"

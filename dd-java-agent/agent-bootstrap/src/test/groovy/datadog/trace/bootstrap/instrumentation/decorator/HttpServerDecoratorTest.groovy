@@ -142,10 +142,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     _ * ctx.getForwarded() >> null
+    _ * ctx.getForwardedFor() >> null
     _ * ctx.getForwardedProto() >> null
     _ * ctx.getForwardedHost() >> null
     _ * ctx.getForwardedIp() >> null
     _ * ctx.getForwardedPort() >> null
+    _ * ctx.getXForwarded()
+    _ * ctx.getXForwardedFor() >> null
+    _ * ctx.getXClusterClientIp() >> null
+    _ * ctx.getXRealIp() >> null
+    _ * ctx.getClientIp() >> null
+    _ * ctx.getUserAgent() >> null
+    _ * ctx.getCustomIpHeader() >> null
+    _ * ctx.getTrueClientIp() >> null
+    _ * ctx.getVia() >> null
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
@@ -161,10 +171,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     _ * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
+    _ * ctx.getForwardedFor() >> null
     _ * ctx.getForwardedProto() >> "https"
     _ * ctx.getForwardedHost() >> "somehost"
     _ * ctx.getForwardedIp() >> (ipv4 ? "10.1.1.1, 192.168.1.1" : "0::1")
     _ * ctx.getForwardedPort() >> "123"
+    _ * ctx.getXForwarded()
+    _ * ctx.getXForwardedFor() >> null
+    _ * ctx.getXClusterClientIp() >> null
+    _ * ctx.getXRealIp() >> null
+    _ * ctx.getClientIp() >> null
+    _ * ctx.getUserAgent() >> "some-user-agent"
+    _ * ctx.getCustomIpHeader() >> null
+    _ * ctx.getTrueClientIp() >> null
+    _ * ctx.getVia() >> null
     1 * span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
     1 * span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
     1 * span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
@@ -181,6 +201,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
     }
+    1 * span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
     0 * _
 
     where:

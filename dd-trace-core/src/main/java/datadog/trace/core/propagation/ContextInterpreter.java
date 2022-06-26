@@ -1,10 +1,18 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.CLIENT_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
+import static datadog.trace.core.propagation.HttpCodec.TRUE_CLIENT_IP_KEY;
+import static datadog.trace.core.propagation.HttpCodec.USER_AGENT_KEY;
+import static datadog.trace.core.propagation.HttpCodec.VIA_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_CLUSTER_CLIENT_IP_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_FOR_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
+import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
@@ -40,6 +48,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String forwardedPort;
   protected boolean valid;
 
+  protected HttpHeaders httpHeaders;
+  protected boolean hasHttpHeaders;
+  protected String customIpHeaderName;
+
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
 
@@ -49,6 +61,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected ContextInterpreter(Map<String, String> taggedHeaders) {
     this.taggedHeaders = taggedHeaders;
+    this.customIpHeaderName = Config.get().getTraceClientIpHeader();
     reset();
   }
 
@@ -71,10 +84,17 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledForwarding(String key, String value) {
-    if (null != value && FORWARDED_KEY.equalsIgnoreCase(key)) {
-      forwarded = value;
-      hasForwarded = true;
-      return true;
+    if (null != value) {
+      if (FORWARDED_KEY.equalsIgnoreCase(key)) {
+        forwarded = value;
+        hasForwarded = true;
+        return true;
+      }
+      if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+        httpHeaders.forwardedFor = value;
+        hasHttpHeaders = true;
+        return true;
+      }
     }
     return false;
   }
@@ -94,11 +114,73 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       if (X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
         forwardedIp = value;
         hasForwarded = true;
+        httpHeaders.xForwardedFor = value;
+        hasHttpHeaders = true;
         return true;
       }
       if (X_FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
         forwardedPort = value;
         hasForwarded = true;
+        return true;
+      }
+      if (X_FORWARDED_KEY.equalsIgnoreCase(key)) {
+        httpHeaders.xForwarded = value;
+        hasHttpHeaders = true;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected final boolean handledUserAgent(String key, String value) {
+    if (null != value && USER_AGENT_KEY.equalsIgnoreCase(key)) {
+      httpHeaders.userAgent = value;
+      hasHttpHeaders = true;
+      return true;
+    }
+    return false;
+  }
+
+  protected final boolean handledIpHeaders(String key, String value) {
+    if (key == null || key.isEmpty()) {
+      return false;
+    }
+
+    if (null != value && customIpHeaderName != null && customIpHeaderName.equalsIgnoreCase(key)) {
+      httpHeaders.customIpHeader = value;
+      hasHttpHeaders = true;
+      return true;
+    }
+
+    if (null != value) {
+      // May be ends with 'ip' ?
+      char last = Character.toLowerCase(key.charAt(key.length() - 1));
+      if (last == 'p') {
+        if (X_CLUSTER_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+          httpHeaders.xClusterClientIp = value;
+          hasHttpHeaders = true;
+          return true;
+        }
+        if (X_REAL_IP_KEY.equalsIgnoreCase(key)) {
+          httpHeaders.xRealIp = value;
+          hasHttpHeaders = true;
+          return true;
+        }
+        if (CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+          httpHeaders.clientIp = value;
+          hasHttpHeaders = true;
+          return true;
+        }
+        if (TRUE_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
+          httpHeaders.trueClientIp = value;
+          hasHttpHeaders = true;
+          return true;
+        }
+      }
+
+      if (VIA_KEY.equalsIgnoreCase(key)) {
+        httpHeaders.via = value;
+        hasHttpHeaders = true;
         return true;
       }
     }
@@ -121,6 +203,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
+    httpHeaders = new HttpHeaders();
+    hasHttpHeaders = false;
     return this;
   }
 
@@ -143,7 +227,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   forwardedIp,
                   forwardedPort,
                   baggage,
-                  tags);
+                  tags,
+                  httpHeaders);
         } else {
           context =
               new ExtractedContext(
@@ -154,12 +239,40 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   origin,
                   endToEndStartTime,
                   baggage,
-                  tags);
+                  tags,
+                  httpHeaders);
         }
         return context;
+      } else if (hasForwarded && hasHttpHeaders) {
+        return new ForwardedExtractedContext(
+            traceId,
+            spanId,
+            samplingPriority,
+            samplingMechanism,
+            origin,
+            endToEndStartTime,
+            forwarded,
+            forwardedProto,
+            forwardedHost,
+            forwardedIp,
+            forwardedPort,
+            baggage,
+            tags,
+            httpHeaders);
       } else if (hasForwarded) {
         return new ForwardedTagContext(
             origin, forwarded, forwardedProto, forwardedHost, forwardedIp, forwardedPort, tags);
+      } else if (hasHttpHeaders) {
+        return new ExtractedContext(
+            traceId,
+            spanId,
+            samplingPriority,
+            samplingMechanism,
+            origin,
+            endToEndStartTime,
+            baggage,
+            tags,
+            httpHeaders);
       } else if (origin != null || !tags.isEmpty()) {
         return new TagContext(origin, tags);
       }

@@ -14,6 +14,7 @@
            "version" "99"
            "http.url" "http://localhost:57690/connect/0"
            "http.hostname" "localhost"
+           "http.useragent" "okhttp/x.x.x"
            "component" "liberty-server"
            "thread.name" "Default Executor-thread-2"
            "peer.ipv4" "127.0.0.1"
