@@ -42,10 +42,10 @@ final class TypeOutline extends WithName {
 
   @Override
   public Generic getSuperClass() {
-    if (null == superName) {
-      return null;
+    if (null != superName) {
+      return findType(superName.replace('/', '.')).asGenericType();
     }
-    return findType(superName.replace('/', '.')).asGenericType();
+    return null;
   }
 
   @Override

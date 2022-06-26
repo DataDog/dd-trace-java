@@ -20,6 +20,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Context-aware factory that provides different kinds of type descriptions:
@@ -34,6 +36,7 @@ import net.bytebuddy.pool.TypePool;
  * enabled, once we know we're really transforming the type.
  */
 final class TypeFactory {
+  private static final Logger log = LoggerFactory.getLogger(TypeFactory.class);
 
   /** Maintain a reusable type factory for each thread involved in class-loading. */
   static final ThreadLocal<TypeFactory> factory =
@@ -279,6 +282,10 @@ final class TypeFactory {
           BOOTSTRAP_LOADER == classLoader
               ? Class.forName(name, false, BOOTSTRAP_LOADER)
               : classLoader.loadClass(name);
+      log.debug(
+          "Direct loadClass type resolution of {} from class loader {} bypasses transformation",
+          name,
+          classLoader);
       return typeParser.parse(loadedType);
     } catch (Throwable ignored) {
       return null;
