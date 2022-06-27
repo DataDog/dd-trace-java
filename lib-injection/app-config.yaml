@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: my-app
+  name: my-app
+spec:
+  initContainers:
+    - image: localhost:5001/dd-java-agent-init:latest
+      command: ["sh", "copy-javaagent.sh", "/datadog"]
+      name: copy-sdk
+      volumeMounts:
+        - name: apm-sdk-volume
+          mountPath: /datadog
+  containers:
+    - image: docker.io/bdevinssureshatddog/k8s-lib-injection-app:latest
+      env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-javaagent:/datadog/dd-java-agent.jar"
+      name: my-app
+      livenessProbe:
+        failureThreshold: 3
+        initialDelaySeconds: 15
+        periodSeconds: 15
+        successThreshold: 1
+        tcpSocket:
+          port: 8080
+        timeoutSeconds: 5
+      ports:
+        - containerPort: 8080
+          hostPort: 8080
+          protocol: TCP
+      volumeMounts:
+        - name: apm-socket-path
+          mountPath: /var/run/datadog
+        - name: apm-sdk-volume
+          mountPath: /datadog
+  volumes:
+    - name: apm-sdk-volume
+      emptyDir: {}
+    - name: apm-socket-path
+      hostPath:
+        path: /var/run/datadog/

@@ -1,4 +1,4 @@
+Dockerfile
 README.md
 build.sh
-start-kind.sh
-dd-java-agent-init.tar
+*.yaml

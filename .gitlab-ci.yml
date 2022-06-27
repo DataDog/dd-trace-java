@@ -1,6 +1,5 @@
 stages:
   - build
-  - test
   - deploy
   - generate-signing-key
 
@@ -87,28 +86,6 @@ build_with_cache:
   cache:
     <<: *default_cache
     policy: push
-
-test_lib_injection_docker_image:
-  <<: *docker
-  stage: test
-  dependencies:
-    - build_lib_injection_docker_image
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
-  before_script:
-    - docker load --input lib-injection/dd-java-agent-init.tar
-    - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-    - curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
-    - echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
-    - chmod +x ./kubectl
-    - mv ./kubectl /usr/bin/kubectl
-    - curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.14.0/kind-linux-amd64
-    - chmod +x ./kind
-    - mv ./kind /usr/bin/kind
-  script:
-    - ./lib-injection/start-kind.sh
 
 deploy_to_reliability_env:
   stage: deploy
