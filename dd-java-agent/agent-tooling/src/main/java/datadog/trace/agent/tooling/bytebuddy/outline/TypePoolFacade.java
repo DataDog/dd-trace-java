@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
-import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.factory;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDescriptor;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
+import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.typeFactory;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,7 +23,7 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   /** Switches the active thread's context to use the given class-loader. */
   public static void switchContext(ClassLoader classLoader) {
-    factory.get().switchContext(classLoader);
+    typeFactory.get().switchContext(classLoader);
   }
 
   @Override
@@ -33,22 +33,22 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   @Override
   public void endInstall() {
-    factory.get().endInstall();
+    typeFactory.get().endInstall();
   }
 
   /** Record a new transform request for the named class-file. */
   public static void beginTransform(String name, byte[] bytecode) {
-    factory.get().beginTransform(name, bytecode);
+    typeFactory.get().beginTransform(name, bytecode);
   }
 
   /** Switch to full descriptions, needed for the actual class transformation. */
   public static void enableFullDescriptions() {
-    factory.get().enableFullDescriptions();
+    typeFactory.get().enableFullDescriptions();
   }
 
   @Override
   public void endTransform() {
-    factory.get().endTransform();
+    typeFactory.get().endTransform();
   }
 
   @Override

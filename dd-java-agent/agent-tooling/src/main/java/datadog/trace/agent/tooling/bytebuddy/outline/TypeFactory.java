@@ -39,7 +39,7 @@ final class TypeFactory {
   private static final Logger log = LoggerFactory.getLogger(TypeFactory.class);
 
   /** Maintain a reusable type factory for each thread involved in class-loading. */
-  static final ThreadLocal<TypeFactory> factory =
+  static final ThreadLocal<TypeFactory> typeFactory =
       new ThreadLocal<TypeFactory>() {
         @Override
         protected TypeFactory initialValue() {
@@ -201,7 +201,7 @@ final class TypeFactory {
   static TypeDescription findType(String name) {
     TypeDescription type = commonLoadedTypes.get(name);
     if (null == type) {
-      type = factory.get().deferTypeResolution(name);
+      type = typeFactory.get().deferTypeResolution(name);
     }
     return type;
   }
