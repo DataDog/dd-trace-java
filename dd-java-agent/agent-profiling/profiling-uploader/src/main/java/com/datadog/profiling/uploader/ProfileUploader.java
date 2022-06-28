@@ -243,6 +243,17 @@ public final class ProfileUploader {
    * @param type {@link RecordingType recording type}
    * @param data {@link RecordingData recording data}
    */
+  public void upload(final RecordingType type, final RecordingData data) {
+    upload(type, data, false);
+  }
+
+  /**
+   * Enqueue an upload request. Do not receive any notification when the upload has been completed.
+   *
+   * @param type {@link RecordingType recording type}
+   * @param data {@link RecordingData recording data}
+   * @param sync {@link boolean uploading synchronously}
+   */
   public void upload(final RecordingType type, final RecordingData data, final boolean sync) {
     upload(type, data, sync, () -> {});
   }
@@ -253,6 +264,23 @@ public final class ProfileUploader {
    *
    * @param type {@link RecordingType recording type}
    * @param data {@link RecordingData recording data}
+   * @param onCompletion call-back to execute once the request is completed (successfully or
+   *     failing)
+   */
+  public void upload(
+      final RecordingType type,
+      final RecordingData data,
+      @Nonnull final Runnable onCompletion) {
+    upload(type, data, false, onCompletion);
+  }
+
+  /**
+   * Enqueue an upload request and run the provided hook when that request is completed
+   * (successfully or failing).
+   *
+   * @param type {@link RecordingType recording type}
+   * @param data {@link RecordingData recording data}
+   * @param sync {@link boolean uploading synchronously}
    * @param onCompletion call-back to execute once the request is completed (successfully or
    *     failing)
    */
