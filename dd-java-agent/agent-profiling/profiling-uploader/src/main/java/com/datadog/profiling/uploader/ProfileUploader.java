@@ -268,9 +268,7 @@ public final class ProfileUploader {
    *     failing)
    */
   public void upload(
-      final RecordingType type,
-      final RecordingData data,
-      @Nonnull final Runnable onCompletion) {
+      final RecordingType type, final RecordingData data, @Nonnull final Runnable onCompletion) {
     upload(type, data, false, onCompletion);
   }
 
