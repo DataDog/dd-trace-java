@@ -16,6 +16,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.ORIGIN_KEY
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.THREAD_ID
 import static datadog.trace.api.DDTags.THREAD_NAME
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -69,6 +70,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (THREAD_NAME)     : Thread.currentThread().getName(),
       (THREAD_ID)       : Thread.currentThread().getId(),
       (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
+      (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
 
@@ -339,7 +341,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
-    span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
+    span.context().tags == tagContext.tags + [
+      (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
+      (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
       (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
@@ -360,6 +364,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (THREAD_NAME)     : Thread.currentThread().getName(),
       (THREAD_ID)       : Thread.currentThread().getId(),
       (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
+      (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
 

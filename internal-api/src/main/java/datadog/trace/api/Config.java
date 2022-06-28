@@ -72,6 +72,7 @@ import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
+import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
@@ -2015,7 +2016,10 @@ public class Config {
    * @return A map of tag-name -> tag-value
    */
   private Map<String, String> getRuntimeTags() {
-    return Collections.singletonMap(RUNTIME_ID_TAG, runtimeId);
+    Map<String, String> runtimeTags = new HashMap<>();
+    runtimeTags.put(RUNTIME_ID_TAG, runtimeId);
+    runtimeTags.put(RUNTIME_VERSION_TAG, System.getProperty("java.version", "unknown"));
+    return runtimeTags;
   }
 
   private Map<String, String> getAzureAppServicesTags() {

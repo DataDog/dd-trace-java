@@ -14,6 +14,7 @@ import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.IdGenerationStrategy.RANDOM
@@ -236,7 +237,7 @@ class ConfigTest extends DDSpecification {
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1:2"]
     config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
@@ -266,7 +267,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -394,7 +395,7 @@ class ConfigTest extends DDSpecification {
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
@@ -424,7 +425,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -644,7 +645,7 @@ class ConfigTest extends DDSpecification {
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
@@ -1422,11 +1423,11 @@ class ConfigTest extends DDSpecification {
     then:
     config.mergedSpanTags == [a: "1", b: "2", c: "3", (ENV): "eu-east", (VERSION): "43"]
     config.mergedJmxTags == [a               : "1", b: "2", d: "4", (ENV): "eu-east", (VERSION): "43",
-      (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+      (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
     config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (ENV): "eu-east", (VERSION): "43",
-      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
+      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"),
       (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
@@ -1444,10 +1445,10 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.mergedSpanTags == [a: "1", b: "2", c: "3"]
-    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "verify dd.tags merges with global tags in env variables"() {
@@ -1464,10 +1465,10 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.mergedSpanTags == [a: "1:2", b: "2", c: "3"]
-    config.mergedJmxTags == [a: "1:2", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedJmxTags == [a: "1:2", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1:2", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1:2", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "toString works when passwords are empty"() {
@@ -1624,7 +1625,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
+    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): 'dd-service-env-var',
       version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
@@ -1640,7 +1641,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
+    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): System.getProperty("java.version", "unknown"), (SERVICE_TAG): 'dd-service-env-var',
       version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
@@ -1703,7 +1704,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == DEFAULT_SERVICE_NAME
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (RUNTIME_VERSION_TAG) : System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 
@@ -1721,7 +1722,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (RUNTIME_VERSION_TAG) : System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 
@@ -1737,7 +1738,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (RUNTIME_VERSION_TAG) : System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 
@@ -1753,7 +1754,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (RUNTIME_VERSION_TAG) : System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 
@@ -1769,7 +1770,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (RUNTIME_VERSION_TAG) : System.getProperty("java.version", "unknown"), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 

@@ -41,6 +41,7 @@ class TagsAssert {
     assertedTags.add("thread.name")
     assertedTags.add("thread.id")
     assertedTags.add(DDTags.RUNTIME_ID_TAG)
+    assertedTags.add(DDTags.RUNTIME_VERSION_TAG)
     assertedTags.add(DDTags.LANGUAGE_TAG_KEY)
     assertedTags.add(RateByServiceSampler.SAMPLING_AGENT_RATE)
     assertedTags.add(TraceMapper.SAMPLING_PRIORITY_KEY.toString())
@@ -56,8 +57,10 @@ class TagsAssert {
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.
       assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
+      assert tags[DDTags.RUNTIME_VERSION_TAG] == System.getProperty("java.version", "unknown")
     } else {
       assert tags[DDTags.RUNTIME_ID_TAG] == null
+      assert tags[DDTags.RUNTIME_VERSION_TAG] == null
     }
 
     boolean isServer = (tags[Tags.SPAN_KIND] == Tags.SPAN_KIND_SERVER)
