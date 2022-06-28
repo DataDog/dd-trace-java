@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import datadog.trace.util.ClassNameTrie;
 import java.util.HashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +10,7 @@ public class AllowListHelper {
   private static final Logger log = LoggerFactory.getLogger(AllowListHelper.class);
 
   private final boolean allowAll;
-  private Trie packagePrefixTrie;
+  private ClassNameTrie packagePrefixTrie;
   private HashSet<String> classes;
 
   public AllowListHelper(Configuration.FilterList allowList) {
@@ -17,7 +18,9 @@ public class AllowListHelper {
         allowList == null
             || allowList.getClasses().isEmpty() && allowList.getPackagePrefixes().isEmpty();
     if (allowList != null) {
-      this.packagePrefixTrie = new Trie(allowList.getPackagePrefixes());
+      ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+      allowList.getPackagePrefixes().stream().forEach(s -> builder.put(s + "*", 1));
+      this.packagePrefixTrie = builder.buildTrie();
       this.classes = new HashSet<>(allowList.getClasses());
     }
     if (allowAll) {
@@ -34,7 +37,7 @@ public class AllowListHelper {
     if (allowAll) {
       return true;
     }
-    if (packagePrefixTrie.hasMatchingPrefix(typeName)) {
+    if (packagePrefixTrie.apply(typeName) > 0) {
       return true;
     }
     if (classes.contains(typeName)) {

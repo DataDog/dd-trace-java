@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.util.ClassNameTrie;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -14,7 +15,7 @@ public class DenyListHelper implements DebuggerContext.ClassFilter {
   private static final Collection<String> DENIED_CLASSES =
       Arrays.asList("java.lang.Object", "java.lang.String");
 
-  private Trie packagePrefixTrie;
+  private ClassNameTrie packagePrefixTrie;
   private HashSet<String> classes;
 
   public DenyListHelper(Configuration.FilterList denyList) {
@@ -24,7 +25,9 @@ public class DenyListHelper implements DebuggerContext.ClassFilter {
       packages.addAll(denyList.getPackagePrefixes());
       classes.addAll(denyList.getClasses());
     }
-    this.packagePrefixTrie = new Trie(packages);
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    packages.stream().forEach(s -> builder.put(s + "*", 1));
+    this.packagePrefixTrie = builder.buildTrie();
     this.classes = new HashSet<>(classes);
   }
 
@@ -39,7 +42,7 @@ public class DenyListHelper implements DebuggerContext.ClassFilter {
       return false;
     }
     String packageName = fullyQualifiedClassName.substring(0, idx);
-    if (packagePrefixTrie.hasMatchingPrefix(packageName)) {
+    if (packagePrefixTrie.apply(packageName) > 0) {
       return true;
     }
     return classes.contains(fullyQualifiedClassName);
