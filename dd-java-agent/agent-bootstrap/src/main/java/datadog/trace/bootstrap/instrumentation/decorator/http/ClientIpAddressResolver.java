@@ -43,13 +43,17 @@ public class ClientIpAddressResolver {
     InetAddress result;
 
     String customIpHeader = context.getCustomIpHeader();
-    result = tryHeader(customIpHeader, forwardedParser);
-    if (result != null) {
-      return result;
-    }
-    result = tryHeader(customIpHeader, plainIpAddressParser);
-    if (result != null) {
-      return result;
+    if (customIpHeader != null) {
+      result = tryHeader(customIpHeader, forwardedParser);
+      if (result != null) {
+        return result;
+      }
+      result = tryHeader(customIpHeader, plainIpAddressParser);
+      if (result != null) {
+        return result;
+      }
+      // If custom header is defined but not resolved - return null
+      return null;
     }
 
     // we don't have a set ip header to look exclusively at
@@ -398,7 +402,7 @@ public class ClientIpAddressResolver {
     }
   }
 
-  private static InetAddress parseIpAddress(String str) {
+  public static InetAddress parseIpAddress(String str) {
     if (str.length() == 0) {
       return null;
     }

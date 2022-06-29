@@ -51,6 +51,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected TagContext.HttpHeaders httpHeaders;
   protected boolean hasHttpHeaders;
   protected String customIpHeaderName;
+  private boolean customIpHeaderDisabled;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -61,7 +62,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected ContextInterpreter(Map<String, String> taggedHeaders) {
     this.taggedHeaders = taggedHeaders;
-    this.customIpHeaderName = Config.get().getTraceClientIpHeader();
+    Config config = Config.get();
+    this.customIpHeaderName = config.getTraceClientIpHeader();
+    this.customIpHeaderDisabled = config.isTraceClientIpHeaderDisabled();
     reset();
   }
 
@@ -146,7 +149,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       return false;
     }
 
-    if (null != value && customIpHeaderName != null && customIpHeaderName.equalsIgnoreCase(key)) {
+    if (null != value
+        && customIpHeaderName != null
+        && !customIpHeaderDisabled
+        && customIpHeaderName.equalsIgnoreCase(key)) {
       httpHeaders.customIpHeader = value;
       hasHttpHeaders = true;
       return true;

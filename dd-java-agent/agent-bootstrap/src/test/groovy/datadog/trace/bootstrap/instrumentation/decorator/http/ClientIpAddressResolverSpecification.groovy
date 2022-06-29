@@ -81,4 +81,59 @@ class ClientIpAddressResolverSpecification extends Specification {
 
     'true-client-ip' | '8.8.8.8' | '8.8.8.8'
   }
+
+  void 'test recognition strategy with custom header'() {
+    setup:
+    def context = Mock(AgentSpan.Context.Extracted)
+
+    when:
+    def ip = ClientIpAddressResolver.resolve(context)
+
+    then:
+    1 * context.getCustomIpHeader() >> '8.8.8.8'
+    0 * _
+
+    ip == InetAddress.getByName('8.8.8.8')
+  }
+
+  void 'test recognition strategy without custom header'() {
+    setup:
+    def context = Mock(AgentSpan.Context.Extracted)
+
+    when:
+    def ip = ClientIpAddressResolver.resolve(context)
+
+    then:
+    1 * context.getCustomIpHeader() >> null
+
+    then:
+    1 * context.getXForwardedFor() >> null
+
+    then:
+    1 * context.getXRealIp() >> null
+
+    then:
+    1 * context.getClientIp() >> null
+
+    then:
+    1 * context.getXForwarded() >> null
+
+    then:
+    1 * context.getXClusterClientIp() >> null
+
+    then:
+    1 * context.getForwardedFor() >> null
+
+    then:
+    1 * context.getForwarded() >> null
+
+    then:
+    1 * context.getVia() >> null
+
+    then:
+    1* context.getTrueClientIp() >> '8.8.8.8'
+    0 * _
+
+    ip == InetAddress.getByName('8.8.8.8')
+  }
 }
