@@ -27,6 +27,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 
@@ -291,11 +292,16 @@ class OpenTracing32Test extends AgentTestRunner {
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
-    textMap == [
+    def expectedTextMap = [
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
     ]
+    if (propagatedPriority > 0) {
+      def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
+      expectedTextMap.put("x-datadog-tags", "_dd.p.dm=-" + effectiveSamplingMechanism)
+    }
+    textMap == expectedTextMap
 
     when:
     def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)

@@ -20,6 +20,10 @@ import java.util.Map;
  */
 public abstract class DatadogTags {
 
+  public static DatadogTagsFactory factory() {
+    return factory(true, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
+  }
+
   public static DatadogTagsFactory factory(
       boolean isServicePropagationEnabled, int datadogTagsLimit) {
     return new DatadogTagsFactory(isServicePropagationEnabled, datadogTagsLimit);
@@ -27,10 +31,6 @@ public abstract class DatadogTags {
 
   public static DatadogTagsFactory factory(Config config) {
     return factory(config.isServicePropagationEnabled(), config.getDataDogTagsLimit());
-  }
-
-  public static DatadogTagsFactory factory() {
-    return factory(true, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
   }
 
   /** Called on the span context that made a sampling decision to keep the trace */

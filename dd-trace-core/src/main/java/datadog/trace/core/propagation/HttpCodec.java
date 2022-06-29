@@ -37,8 +37,7 @@ public class HttpCodec {
       DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter, PropagationStyle style) {
     switch (style) {
       case DATADOG:
-        DatadogHttpCodec.INJECTOR.inject(
-            context, carrier, setter); // TODO pass limit parameter into the injector for validation
+        DatadogHttpCodec.INJECTOR.inject(context, carrier, setter);
         break;
       case B3:
         B3HttpCodec.INJECTOR.inject(context, carrier, setter);
@@ -60,9 +59,7 @@ public class HttpCodec {
     for (final PropagationStyle style : config.getPropagationStylesToInject()) {
       switch (style) {
         case DATADOG:
-          injectors.add(
-              DatadogHttpCodec
-                  .INJECTOR); // TODO pass limit parameter into the injector for validation
+          injectors.add(DatadogHttpCodec.INJECTOR);
           break;
         case B3:
           injectors.add(B3HttpCodec.INJECTOR);
