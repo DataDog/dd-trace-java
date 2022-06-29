@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -149,6 +150,7 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.isProfilingUploadSummaryOn413Enabled()).thenReturn(true);
 
     uploader =
         new ProfileUploader(
@@ -520,6 +522,18 @@ public class ProfileUploaderTest {
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
 
     verify(recording).release();
+  }
+
+  @Test
+  public void test413Response() throws Exception {
+    final RecordingData recording = mockRecordingData();
+    uploadAndWait(RECORDING_TYPE, recording);
+
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+
+    verify(recording).release();
+    verify(ioLogger).error(eq("Failed to upload profile, it's too big. Dumping information about the profile"));
+    verify(ioLogger, times(10)).error(startsWith("Event: "));
   }
 
   @Test
