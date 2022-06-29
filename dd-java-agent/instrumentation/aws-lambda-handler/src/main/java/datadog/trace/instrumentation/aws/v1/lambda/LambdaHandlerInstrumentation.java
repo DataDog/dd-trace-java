@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.lambda.LambdaHandler.INVOCATION_SPAN_NAME;
 import static net.bytebuddy.asm.Advice.Enter;
 import static net.bytebuddy.asm.Advice.OnMethodEnter;
 import static net.bytebuddy.asm.Advice.OnMethodExit;
@@ -28,6 +27,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   private static final String HANDLER_ENV_NAME = "_HANDLER";
   private static final String HANDLER_SEPARATOR = "::";
   private static final String DEFAULT_METHOD_NAME = "handleRequest";
+  private static final String INVOCATION_SPAN_NAME = "dd-tracer-serverless-span";
   private static final Logger log = LoggerFactory.getLogger(LambdaHandlerInstrumentation.class);
 
   private String instrumentedType;
