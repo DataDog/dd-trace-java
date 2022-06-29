@@ -339,9 +339,7 @@ public class Config {
    */
   private final String runtimeId;
 
-  /**
-   * This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3
-   */
+  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
   private final String runtimeVersion;
 
   /**
