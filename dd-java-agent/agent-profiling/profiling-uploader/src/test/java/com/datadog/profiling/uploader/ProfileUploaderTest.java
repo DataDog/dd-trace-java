@@ -534,9 +534,15 @@ public class ProfileUploaderTest {
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
 
     verify(recording).release();
-    verify(ioLogger)
-        .error(eq("Failed to upload profile, it's too big. Dumping information about the profile"));
-    verify(ioLogger, times(10)).error(matches("Event: .*, size = [0-9]+, count = [0-9]+"));
+
+    if (Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"))) {
+      verify(ioLogger)
+          .error(
+              eq("Failed to upload profile, it's too big. Dumping information about the profile"));
+      verify(ioLogger, times(10)).error(matches("Event: .*, size = [0-9]+, count = [0-9]+"));
+    } else {
+      verify(ioLogger).error(eq("Failed to gather information on recording, can't find `jfr`"));
+    }
   }
 
   @Test
