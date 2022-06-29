@@ -7,7 +7,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
 import ratpack.error.ServerErrorHandler
@@ -233,7 +232,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           errorTags(Exception, EXCEPTION.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY"  URIUtils.decode(endpoint.rawQuery)
+          "$DDTags.HTTP_QUERY" endpoint.rawQuery
         }
         defaultTags()
       }

@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
-import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.util.Strings;
 
 public class QueryObfuscator {
@@ -19,8 +18,6 @@ public class QueryObfuscator {
       return query;
     }
 
-    // if encoded
-    query = URIUtils.decode(query);
     if (query.isEmpty()) {
       return "/";
     }

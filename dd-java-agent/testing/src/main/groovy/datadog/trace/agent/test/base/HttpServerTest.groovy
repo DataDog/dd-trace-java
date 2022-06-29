@@ -162,9 +162,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   String expectedQueryTag(ServerEndpoint endpoint) {
     def encoded = Config.get().isHttpServerRawQueryString() && supportsRaw()
     def query = encoded ? endpoint.rawQuery : endpoint.query
-    def mayBeEncoded =
-      null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
-    return URIUtils.decode(mayBeEncoded)
+    null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
   }
 
   Map<String, ?> expectedIGPathParams() {

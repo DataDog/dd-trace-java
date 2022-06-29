@@ -93,7 +93,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     false          | "http://host:99/path?query#fragment"                   | "http://host:99/path"        | ""                   | null                   | "/path"
     true           | null                                                   | null                         | null                 | null                   | "/"
     true           | ""                                                     | "/"                          | null                 | null                   | "/"
-    true           | "/path?encoded+%28query%29%3F?"                        | "/path?encoded+(query)??"    | "encoded+(query)??"  | null                   | "/path"
+    true           | "/path?encoded+%28query%29%3F?"                        | "/path?encoded+%28query%29%3F?"    | "encoded+%28query%29%3F?"  | null                   | "/path"
     true           | "https://host:0"                                       | "https://host/"              | null                 | null                   | "/"
     true           | "https://host/path"                                    | "https://host/path"          | null                 | null                   | "/path"
     true           | "http://host:99/path?query#enc+%28fragment%29%3F"      | "http://host:99/path?query"  | "query"              | "enc+(fragment)?"      | "/path"
@@ -123,11 +123,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    rawQuery | rawResource | url                             | expectedUrl                   | expectedQuery  | expectedResource
-    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath?query??"   | "query??"      | "/path"
-    false    | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath?query??" | "query??"      | "/p%20ath"
-    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath?query??"   | "query??"      | "/path"
-    true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath?query??" | "query??"      | "/p%20ath"
+    rawQuery | rawResource | url                             | expectedUrl                     | expectedQuery  | expectedResource
+    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath?query??"     | "query??"      | "/path"
+    false    | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath?query??"   | "query??"      | "/p%20ath"
+    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath?query%3F?"   | "query%3F?"    | "/path"
+    true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath?query%3F?" | "query%3F?"    | "/p%20ath"
 
     req = [url: url == null ? null : new URI(url)]
   }
