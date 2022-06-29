@@ -14,7 +14,6 @@ public class ExtractedContext extends TagContext {
   private final int samplingMechanism;
   private final long endToEndStartTime;
   private final Map<String, String> baggage;
-  private final HttpHeaders httpHeaders;
 
   public ExtractedContext(
       final DDId traceId,
@@ -26,14 +25,13 @@ public class ExtractedContext extends TagContext {
       final Map<String, String> baggage,
       final Map<String, String> tags,
       final HttpHeaders httpHeaders) {
-    super(origin, tags);
+    super(origin, tags, httpHeaders);
     this.traceId = traceId;
     this.spanId = spanId;
     this.samplingPriority = samplingPriority;
     this.samplingMechanism = samplingMechanism;
     this.endToEndStartTime = endToEndStartTime;
     this.baggage = baggage;
-    this.httpHeaders = httpHeaders;
   }
 
   public ExtractedContext(
@@ -45,16 +43,13 @@ public class ExtractedContext extends TagContext {
       final long endToEndStartTime,
       final Map<String, String> baggage,
       final Map<String, String> tags) {
-    this(
-        traceId,
-        spanId,
-        samplingPriority,
-        samplingMechanism,
-        origin,
-        endToEndStartTime,
-        baggage,
-        tags,
-        null);
+    super(origin, tags, HttpHeaders.NO_HEADERS);
+    this.traceId = traceId;
+    this.spanId = spanId;
+    this.samplingPriority = samplingPriority;
+    this.samplingMechanism = samplingMechanism;
+    this.endToEndStartTime = endToEndStartTime;
+    this.baggage = baggage;
   }
 
   @Override
@@ -86,55 +81,5 @@ public class ExtractedContext extends TagContext {
 
   public final Map<String, String> getBaggage() {
     return baggage;
-  }
-
-  @Override
-  public String getForwardedFor() {
-    return httpHeaders.forwardedFor;
-  }
-
-  @Override
-  public String getXForwarded() {
-    return httpHeaders.xForwarded;
-  }
-
-  @Override
-  public String getXForwardedFor() {
-    return httpHeaders.xForwardedFor;
-  }
-
-  @Override
-  public String getXClusterClientIp() {
-    return httpHeaders.xClusterClientIp;
-  }
-
-  @Override
-  public String getXRealIp() {
-    return httpHeaders.xRealIp;
-  }
-
-  @Override
-  public String getClientIp() {
-    return httpHeaders.clientIp;
-  }
-
-  @Override
-  public String getUserAgent() {
-    return httpHeaders.userAgent;
-  }
-
-  @Override
-  public String getVia() {
-    return httpHeaders.via;
-  }
-
-  @Override
-  public String getTrueClientIp() {
-    return httpHeaders.trueClientIp;
-  }
-
-  @Override
-  public String getCustomIpHeader() {
-    return httpHeaders.customIpHeader;
   }
 }

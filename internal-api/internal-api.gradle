@@ -37,6 +37,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
+  "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.ci.git.GitInfo",

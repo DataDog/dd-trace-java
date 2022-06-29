@@ -48,7 +48,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String forwardedPort;
   protected boolean valid;
 
-  protected HttpHeaders httpHeaders;
+  protected TagContext.HttpHeaders httpHeaders;
   protected boolean hasHttpHeaders;
   protected String customIpHeaderName;
 
@@ -203,7 +203,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
-    httpHeaders = new HttpHeaders();
+    httpHeaders = new TagContext.HttpHeaders();
     hasHttpHeaders = false;
     return this;
   }
@@ -243,38 +243,18 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   httpHeaders);
         }
         return context;
-      } else if (hasForwarded && hasHttpHeaders) {
-        return new ForwardedExtractedContext(
-            traceId,
-            spanId,
-            samplingPriority,
-            samplingMechanism,
+      } else if (hasForwarded) {
+        return new ForwardedTagContext(
             origin,
-            endToEndStartTime,
             forwarded,
             forwardedProto,
             forwardedHost,
             forwardedIp,
             forwardedPort,
-            baggage,
             tags,
             httpHeaders);
-      } else if (hasForwarded) {
-        return new ForwardedTagContext(
-            origin, forwarded, forwardedProto, forwardedHost, forwardedIp, forwardedPort, tags);
-      } else if (hasHttpHeaders) {
-        return new ExtractedContext(
-            traceId,
-            spanId,
-            samplingPriority,
-            samplingMechanism,
-            origin,
-            endToEndStartTime,
-            baggage,
-            tags,
-            httpHeaders);
-      } else if (origin != null || !tags.isEmpty()) {
-        return new TagContext(origin, tags);
+      } else if (origin != null || !tags.isEmpty() || hasHttpHeaders) {
+        return new TagContext(origin, tags, httpHeaders);
       }
     }
     return null;

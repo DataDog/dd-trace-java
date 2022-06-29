@@ -13,14 +13,20 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final String origin;
   private final Map<String, String> tags;
   private Object requestContextData;
+  private final HttpHeaders httpHeaders;
 
   public TagContext() {
     this(null, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
+    this(origin, tags, HttpHeaders.NO_HEADERS);
+  }
+
+  public TagContext(final String origin, final Map<String, String> tags, HttpHeaders httpHeaders) {
     this.origin = origin;
     this.tags = tags;
+    this.httpHeaders = httpHeaders;
   }
 
   public final String getOrigin() {
@@ -54,52 +60,52 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public String getForwardedFor() {
-    return null;
+    return httpHeaders.forwardedFor;
   }
 
   @Override
   public String getXForwarded() {
-    return null;
+    return httpHeaders.xForwarded;
   }
 
   @Override
   public String getXForwardedFor() {
-    return null;
+    return httpHeaders.xForwardedFor;
   }
 
   @Override
   public String getXClusterClientIp() {
-    return null;
+    return httpHeaders.xClusterClientIp;
   }
 
   @Override
   public String getXRealIp() {
-    return null;
+    return httpHeaders.xRealIp;
   }
 
   @Override
   public String getClientIp() {
-    return null;
+    return httpHeaders.clientIp;
   }
 
   @Override
   public String getUserAgent() {
-    return null;
+    return httpHeaders.userAgent;
   }
 
   @Override
   public String getVia() {
-    return null;
+    return httpHeaders.via;
   }
 
   @Override
   public String getTrueClientIp() {
-    return null;
+    return httpHeaders.trueClientIp;
   }
 
   @Override
   public String getCustomIpHeader() {
-    return null;
+    return httpHeaders.customIpHeader;
   }
 
   public final Map<String, String> getTags() {
@@ -138,5 +144,21 @@ public class TagContext implements AgentSpan.Context.Extracted {
   @Override
   public PathwayContext getPathwayContext() {
     return null;
+  }
+
+  public static class HttpHeaders {
+
+    public static final HttpHeaders NO_HEADERS = new HttpHeaders();
+
+    public String forwardedFor;
+    public String xForwarded;
+    public String xForwardedFor;
+    public String xClusterClientIp;
+    public String xRealIp;
+    public String clientIp;
+    public String userAgent;
+    public String via;
+    public String trueClientIp;
+    public String customIpHeader;
   }
 }
