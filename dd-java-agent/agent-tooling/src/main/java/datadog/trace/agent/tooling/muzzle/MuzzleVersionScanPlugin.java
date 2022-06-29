@@ -35,14 +35,13 @@ public class MuzzleVersionScanPlugin {
       final boolean assertPass)
       throws Exception {
     // muzzle validate all instrumenters
-    for (Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+    for (Instrumenter instrumenter : ServiceLoader.load(Instrumenter.class, userClassLoader)) {
       if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
         // TraceConfigInstrumentation doesn't do muzzle checks
         // check on TracerClassInstrumentation instead
         instrumenter =
             (Instrumenter)
-                instrumentationLoader
+                userClassLoader
                     .loadClass(instrumenter.getClass().getName() + "$TracerClassInstrumentation")
                     .getDeclaredConstructor()
                     .newInstance();
