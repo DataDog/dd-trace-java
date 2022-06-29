@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -526,6 +526,8 @@ public class ProfileUploaderTest {
 
   @Test
   public void test413Response() throws Exception {
+    server.enqueue(new MockResponse().setResponseCode(413));
+
     final RecordingData recording = mockRecordingData();
     uploadAndWait(RECORDING_TYPE, recording);
 
@@ -533,7 +535,7 @@ public class ProfileUploaderTest {
 
     verify(recording).release();
     verify(ioLogger).error(eq("Failed to upload profile, it's too big. Dumping information about the profile"));
-    verify(ioLogger, times(10)).error(startsWith("Event: "));
+    verify(ioLogger, times(10)).error(matches("Event: .*, size = [0-9]+, count = [0-9]+"));
   }
 
   @Test
