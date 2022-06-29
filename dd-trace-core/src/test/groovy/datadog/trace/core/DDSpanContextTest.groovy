@@ -256,7 +256,6 @@ class DDSpanContextTest extends DDCoreSpecification {
   static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {
     def sourceWithoutCommonTags = new HashMap(source)
     sourceWithoutCommonTags.remove("runtime-id")
-    sourceWithoutCommonTags.remove("runtime_version")
     sourceWithoutCommonTags.remove("language")
     sourceWithoutCommonTags.remove("_dd.agent_psr")
     sourceWithoutCommonTags.remove("_sample_rate")
