@@ -21,8 +21,8 @@ spec:
         env:
         - name: SNAPSHOT_CI
           value: "0"
-        - name: DD_APM_RECEIVER_SOCKET
-          value: /var/run/datadog/apm.socket
+        - name: PORT
+          value: "18126"
         image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -31,17 +31,14 @@ spec:
           periodSeconds: 15
           successThreshold: 1
           tcpSocket:
-            port: 8126
+            port: 18126
           timeoutSeconds: 5
         name: trace-agent
         ports:
-        - containerPort: 8126
-          hostPort: 8126
+        - containerPort: 18126
+          hostPort: 18126
           name: traceport
           protocol: TCP
-        volumeMounts:
-        - mountPath: /var/run/datadog
-          name: apmsocket
       dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/os: linux
@@ -50,15 +47,6 @@ spec:
       securityContext:
         runAsUser: 0
       terminationGracePeriodSeconds: 30
-      volumes:
-        - hostPath:
-            path: /var/run/datadog/
-            type: DirectoryOrCreate
-          name: dsdsocket
-        - hostPath:
-            path: /var/run/datadog/
-            type: DirectoryOrCreate
-          name: apmsocket
   updateStrategy:
     rollingUpdate:
       maxSurge: 0

@@ -5,8 +5,8 @@ nodes:
     # port forward 80 on the host to 80 on this node
     extraPortMappings:
       # agent port
-      - containerPort: 8126
-        hostPort: 8126
+      - containerPort: 18126
+        hostPort: 18126
         # optional: set the bind address on the host
         # 0.0.0.0 is the current default
         listenAddress: "127.0.0.1"
@@ -14,15 +14,11 @@ nodes:
         # TCP is the default
         protocol: TCP
       # app port
-      - containerPort: 8080
-        hostPort: 8080
+      - containerPort: 18080
+        hostPort: 18080
         # optional: set the bind address on the host
         # 0.0.0.0 is the current default
         listenAddress: "127.0.0.1"
         # optional: set the protocol to one of TCP, UDP, SCTP.
         # TCP is the default
         protocol: TCP
-containerdConfigPatches:
-  - |-
-    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5001"]
-      endpoint = ["http://kind-registry:5000"]

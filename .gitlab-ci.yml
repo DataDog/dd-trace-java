@@ -43,38 +43,13 @@ build: &build
     - if: '$POPULATE_CACHE'
       when: never
     - when: on_success
-#  script:
-#    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
-#    - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
-  image: busybox
-  cache:
-    key: no-cache
-    policy: pull
   script:
-    - mkdir -p workspace/dd-java-agent/build/libs/
-    - touch workspace/dd-java-agent/build/libs/dd-java-agent-0.103.0-SNAPSHOT.jar
-    - echo UPSTREAM_TRACER_VERSION=0.103.0-SNAPSHOT >> upstream.env
+    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+    - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'upstream.env'
-
-build_lib_injection_docker_image:
-  <<: *docker
-  stage: build
-  needs:
-    - job: build
-      artifacts: true
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
-  script:
-    - ./lib-injection/build.sh $CI_COMMIT_SHA
-  artifacts:
-    expire_in: 30 days
-    paths:
-      - 'lib-injection/dd-java-agent-init.tar'
 
 build_with_cache:
   <<: *build
@@ -147,18 +122,13 @@ deploy_to_sonatype:
 deploy_to_dockerhub:
   <<: *docker
   stage: deploy
-  dependencies:
-    - build_lib_injection_docker_image
-    - test_lib_injection_docker_image
-#  rules:
-#    - if: '$CI_COMMIT_BRANCH == "master"'
-#      when: on_success
-#    - if: '$CI_COMMIT_TAG =~ /^v.*/'
-#      when: on_success
-  before_script:
-    - docker load --input lib-injection/dd-java-agent-init.tar
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+      when: on_success
   script:
-    - docker images # TODO create and push new tags for above
+    - docker images # TODO copy images from ghcr to appropriate mirrors with tagged version
 
 create_key:
   stage: generate-signing-key
