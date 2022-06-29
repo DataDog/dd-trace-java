@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
+  // these must remain as String literals so they can be easily be shared (copied) with the nested advice classes
   private static final String HANDLER_ENV_NAME = "_HANDLER";
   private static final String HANDLER_SEPARATOR = "::";
   private static final String DEFAULT_METHOD_NAME = "handleRequest";
