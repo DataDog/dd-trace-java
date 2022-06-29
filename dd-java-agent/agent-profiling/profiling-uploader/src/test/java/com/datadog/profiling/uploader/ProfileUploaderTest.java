@@ -537,10 +537,44 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testConnectionRefusedSync() throws Exception {
+    server.shutdown();
+
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
+
+    verify(recording).release();
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(ioLogger).error(eq("Failed to upload profile to " + url), any(ConnectException.class));
+  }
+
+  @Test
   public void testNoReplyFromServer() throws Exception {
     server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
     final RecordingData recording = mockRecordingData();
     uploadAndWait(RECORDING_TYPE, recording);
+
+    // Wait longer than request timeout
+    assertNotNull(server.takeRequest(REQUEST_TIMEOUT.getSeconds() + 1, TimeUnit.SECONDS));
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(recording).release();
+    verify(ioLogger)
+        .error(
+            eq(
+                "Failed to upload profile, received empty reply from "
+                    + url
+                    + " after uploading profile"));
+  }
+
+  @Test
+  public void testNoReplyFromServerSync() throws Exception {
+    server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
 
     // Wait longer than request timeout
     assertNotNull(server.takeRequest(REQUEST_TIMEOUT.getSeconds() + 1, TimeUnit.SECONDS));
@@ -566,6 +600,29 @@ public class ProfileUploaderTest {
 
     final RecordingData recording = mockRecordingData();
     uploadAndWait(RECORDING_TYPE, recording);
+
+    // Wait longer than request timeout
+    assertNotNull(
+        server.takeRequest(REQUEST_IO_OPERATION_TIMEOUT.getSeconds() + 2, TimeUnit.SECONDS));
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(recording).release();
+    // This seems to be a weird behaviour on okHttp side: it considers request to be a success even
+    // if it didn't get headers before the timeout
+    verify(ioLogger).success(eq("Upload done"));
+  }
+
+  @Test
+  public void testTimeoutSync() throws Exception {
+    server.enqueue(
+        new MockResponse()
+            .setHeadersDelay(
+                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                TimeUnit.MILLISECONDS));
+
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
 
     // Wait longer than request timeout
     assertNotNull(
