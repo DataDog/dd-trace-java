@@ -27,6 +27,9 @@ class DatadogTagsTest extends DDCoreSpecification {
     null                                                                                                                         | null                                       | [:]
     ""                                                                                                                           | null                                       | [:]
     "_dd.p.dm=934086a686-4"                                                                                                      | "_dd.p.dm=934086a686-4"                    | ["_dd.p.dm": "934086a686-4"]
+    "_dd.p.dm=934086a686-10"                                                                                                     | "_dd.p.dm=934086a686-10"                   | ["_dd.p.dm": "934086a686-10"]
+    "_dd.p.dm=934086a686-102"                                                                                                    | "_dd.p.dm=934086a686-102"                  | ["_dd.p.dm": "934086a686-102"]
+    "_dd.p.dm=-1"                                                                                                                | "_dd.p.dm=-1"                              | ["_dd.p.dm": "-1"]
     "_dd.p.anytag=value"                                                                                                         | "_dd.p.anytag=value"                       | ["_dd.p.anytag": "value"]
     // drop _dd.p.upstream_services and any other but _dd.p.*
     "_dd.b.somekey=value"                                                                                                        | null                                       | [:]
@@ -54,6 +57,13 @@ class DatadogTagsTest extends DDCoreSpecification {
     "_dd.p.1ö2=value"                                                                                                            | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid tag key containing not allowed char
     "_dd.p.ab=1=2"                                                                                                               | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid tag value containing equality
     "_dd.p.ab=1ô2"                                                                                                               | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid tag value containing not allowed char
+    "_dd.p.dm=934086A686-4"                                                                                                      | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value contains invalid char
+    "_dd.p.dm=934086a66-4"                                                                                                       | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value shorter than 10 chars
+    "_dd.p.dm=934086a6653-4"                                                                                                     | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value longer than 10 chars
+    "_dd.p.dm=934086a66534"                                                                                                      | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value missing separator
+    "_dd.p.dm=934086a665-"                                                                                                       | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value missing sampling mechanism
+    "_dd.p.dm=934086a665-a"                                                                                                      | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value sampling mechanism contains invalid char
+    "_dd.p.dm=934086a665-12b"                                                                                                    | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value sampling mechanism contains invalid char
   }
 
   def updateTraceAndSpanSamplingPriorityOnlyWhenDatadogTagsEnabled() {

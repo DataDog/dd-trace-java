@@ -7,8 +7,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/** Captures configuration required for DatadogTags logic */
 public class DatadogTagsFactory {
+
+  private static final Logger log = LoggerFactory.getLogger(DatadogTagsFactory.class);
+
   private static final String ALLOWED_TAG_PREFIX = "_dd.p.";
   private static final String DECISION_MAKER_TAG = ALLOWED_TAG_PREFIX + "dm";
   private static final String UPSTREAM_SERVICES_DEPRECATED_TAG =
@@ -74,20 +80,24 @@ public class DatadogTagsFactory {
     while (tagPos < len) {
       int tagKeyEndsAt = value.indexOf(TAG_KEY_SEPARATOR, tagPos);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
-        // TODO: log error
-        // Cannot decode, because x-datadog-tags value didn’t respect the format
-        // Tag without value
+        log.warn(
+            "Invalid datadog tags header value: '{}' tag without a value at {}", value, tagPos);
         return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
       }
-      int tagValueStartsAt = tagKeyEndsAt + 1;
+      int tagValuePos = tagKeyEndsAt + 1;
       int tagValueEndsAt = value.indexOf(TAGS_SEPARATOR, tagKeyEndsAt);
       if (tagValueEndsAt < 0) {
         tagValueEndsAt = len;
       }
       String tagKey = value.substring(tagPos, tagKeyEndsAt);
-      String tagValue = value.substring(tagValueStartsAt, tagValueEndsAt);
-      if (!validateTag(tagKey, tagValue)) {
-        // TODO log error
+      String tagValue = value.substring(tagValuePos, tagValueEndsAt);
+      if (!validateTagKey(tagKey)) {
+        log.warn("Invalid datadog tags header value: '{}' invalid tag key at {}", value, tagPos);
+        return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
+      }
+      if (!validateTagValue(tagKey, tagValue)) {
+        log.warn(
+            "Invalid datadog tags header value: '{}' invalid tag value at {}", value, tagValuePos);
         return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
       }
       if (tagKey.startsWith(ALLOWED_TAG_PREFIX)
@@ -100,22 +110,26 @@ public class DatadogTagsFactory {
     return new ValidDatadogTags(tagPairs);
   }
 
-  private static boolean validateTag(String tagKey, String tagValue) {
+  private static boolean validateTagKey(String tagKey) {
     for (int i = 0; i < tagKey.length(); i++) {
       char c = tagKey.charAt(i);
       if (!isAllowedKeyChar(c)) {
-        // TODO log error
         return false;
       }
     }
+    return true;
+  }
+
+  private static boolean validateTagValue(String tagKey, String tagValue) {
     for (int i = 0; i < tagValue.length(); i++) {
       char c = tagValue.charAt(i);
       if (!isAllowedValueChar(c)) {
-        // TODO log error
         return false;
       }
     }
-    // TODO validate DD tag
+    if (tagKey.equals(DECISION_MAKER_TAG) && !validateDecisionMakerTag(tagValue)) {
+      return false;
+    }
     return true;
   }
 
@@ -126,6 +140,58 @@ public class DatadogTagsFactory {
 
   private static boolean isAllowedValueChar(char c) {
     return c >= MIN_ALLOWED_CHAR && c <= MAX_ALLOWED_CHAR && c != TAG_KEY_SEPARATOR;
+  }
+
+  /**
+   * Validates the _dd.p.dm tag format with next eBNF:
+   *
+   * <pre>
+   *   _dd.p.dm = [ service hash ], "-", sampling mechanism;
+   *
+   *   digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+   *   hexadecimal digit = digit | "a" | "b" | "c" | "d" | "e" | "f" ;
+   *
+   *   service hash = 10 * hexadecimal digit;
+   *   sampling mechanism = digit, { digit };
+   * </pre>
+   */
+  private static boolean validateDecisionMakerTag(String value) {
+    int sepPos = value.indexOf('-');
+    if (sepPos < 0) {
+      // missing separator
+      return false;
+    }
+    if (sepPos != 0 && sepPos != 10) {
+      // invalid service hash length
+      return false;
+    }
+    int samplingMechanismPos = sepPos + 1;
+    int len = value.length();
+    if (samplingMechanismPos == len) {
+      // missing sampling mechanism
+      return false;
+    }
+    for (int i = 0; i < sepPos; i++) {
+      if (!isHexDigit(value.charAt(i))) {
+        // invalid service hash char
+        return false;
+      }
+    }
+    for (int i = samplingMechanismPos; i < len; i++) {
+      if (!isDigit(value.charAt(i))) {
+        // invalid sampling mechanism
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isDigit(char c) {
+    return c >= '0' && c <= '9';
+  }
+
+  private static boolean isHexDigit(char c) {
+    return c >= 'a' && c <= 'f' || isDigit(c);
   }
 
   // This implementation is used for errors and doesn't allow any modifications
