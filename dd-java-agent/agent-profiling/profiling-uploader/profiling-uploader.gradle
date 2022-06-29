@@ -4,7 +4,7 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-minimumBranchCoverage = 0.78
+minimumBranchCoverage = 0.80
 
 excludedClassesCoverage += [
   // This is just a static declaration that is hard to test
