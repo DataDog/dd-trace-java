@@ -129,7 +129,7 @@ public class LambdaHandler {
       try {
         json = adapter.toJson(obj);
       } catch (Exception e) {
-        log.error("could not write the value into a string", e);
+        log.debug("could not write the value into a string", e);
       }
     }
     return json;
