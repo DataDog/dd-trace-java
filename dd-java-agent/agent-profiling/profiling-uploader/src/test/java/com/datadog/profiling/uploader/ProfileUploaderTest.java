@@ -219,6 +219,56 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testHappyPathSync() throws Exception {
+    // Given
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
+
+    // When
+    uploader = new ProfileUploader(config, configProvider);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    // upload synchronously
+    uploader.upload(RECORDING_TYPE, mockRecordingData(true), true);
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
+
+    final FileItem rawEvent = multiPartItems.get(0);
+    assertEquals(ProfileUploader.V4_EVENT_NAME, rawEvent.getFieldName());
+    assertEquals(ProfileUploader.V4_EVENT_FILENAME, rawEvent.getName());
+    assertEquals("application/json", rawEvent.getContentType());
+
+    final FileItem rawJfr = multiPartItems.get(1);
+    assertEquals(ProfileUploader.V4_ATTACHMENT_NAME, rawJfr.getFieldName());
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, rawJfr.getName());
+    assertEquals("application/octet-stream", rawJfr.getContentType());
+
+    final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(true));
+    assertArrayEquals(expectedBytes, rawJfr.get());
+
+    // Event checks
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(rawEvent.getString());
+
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, event.get("attachments").get(0).asText());
+    assertEquals(ProfileUploader.V4_FAMILY, event.get("family").asText());
+    assertEquals(ProfileUploader.V4_VERSION, event.get("version").asText());
+    assertEquals(
+        Instant.ofEpochSecond(PROFILE_START).toString(),
+        event.get(V4_PROFILE_START_PARAM).asText());
+    assertEquals(
+        Instant.ofEpochSecond(PROFILE_END).toString(), event.get(V4_PROFILE_END_PARAM).asText());
+    assertEquals(
+        EXPECTED_TAGS,
+        ProfilingTestUtils.parseTags(
+            Arrays.asList(event.get("tags_profiler").asText().split(","))));
+  }
+
+  @Test
   public void testZippedInput() throws Exception {
     when(config.getProfilingUploadCompression()).thenReturn("on");
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
