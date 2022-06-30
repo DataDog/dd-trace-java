@@ -20,13 +20,8 @@ import java.util.Map;
  */
 public abstract class DatadogTags {
 
-  public static DatadogTags.Factory factory() {
-    return factory(true, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
-  }
-
-  public static DatadogTags.Factory factory(boolean isServicePropagationEnabled) {
-    return new DatadogTagsFactory(
-        isServicePropagationEnabled, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
+  public static DatadogTags.Factory factory(Config config) {
+    return factory(config.isServicePropagationEnabled(), config.getDataDogTagsLimit());
   }
 
   public static DatadogTags.Factory factory(
@@ -34,8 +29,13 @@ public abstract class DatadogTags {
     return new DatadogTagsFactory(isServicePropagationEnabled, datadogTagsLimit);
   }
 
-  public static DatadogTags.Factory factory(Config config) {
-    return factory(config.isServicePropagationEnabled(), config.getDataDogTagsLimit());
+  public static DatadogTags.Factory factory(boolean isServicePropagationEnabled) {
+    return new DatadogTagsFactory(
+        isServicePropagationEnabled, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
+  }
+
+  public static DatadogTags.Factory factory() {
+    return factory(true, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
   }
 
   public interface Factory {
