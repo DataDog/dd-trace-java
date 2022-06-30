@@ -240,7 +240,7 @@ public class DatadogTagsFactory {
       propagatedTagsSize = calcTagsLength(tagPairs);
 
       // extract the decision maker tag
-      isDecisionMakerTagMissing = !tagPairs.contains(DECISION_MAKER_TAG);
+      isDecisionMakerTagMissing = !containsTag(tagPairs, DECISION_MAKER_TAG);
     }
 
     private int calcTagsLength(List<String> tagPairs) {
@@ -250,6 +250,15 @@ public class DatadogTagsFactory {
         size += 1; // tag or key separator
       }
       return size - 1; // exclude last separator
+    }
+
+    private boolean containsTag(List<String> tagPairs, String tagName) {
+      for (int i = 0; i < tagPairs.size(); i += 2) {
+        if (tagPairs.get(i).equals(tagName)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override

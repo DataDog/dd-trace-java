@@ -99,8 +99,9 @@ class DatadogTagsTest extends DDCoreSpecification {
     "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
     "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | USER_DROP    | MANUAL     | "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | ["_dd.p.atag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
     // add the dm tags
-    ""                                                          | SAMPLER_KEEP | DEFAULT    | "_dd.p.dm=266ff5f617-0"                                     | ["_dd.dm.service_hash": "266ff5f617", "_dd.p.dm": "266ff5f617-0"]
-    "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=266ff5f617-4"                  | ["_dd.dm.service_hash": "266ff5f617", "_dd.p.anytag": "value", "_dd.p.dm": "266ff5f617-4"]
+    ""                                                          | SAMPLER_KEEP | DEFAULT    | "_dd.p.dm=266ff5f617-0"                                     | ["_dd.p.dm": "266ff5f617-0", "_dd.dm.service_hash": "266ff5f617"]
+    "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=266ff5f617-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "266ff5f617-4", "_dd.dm.service_hash": "266ff5f617"]
+    "_dd.p.anytag=_dd.p.dm"                                     | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=_dd.p.dm,_dd.p.dm=266ff5f617-1"               | ["_dd.p.anytag": "_dd.p.dm", "_dd.p.dm": "266ff5f617-1", "_dd.dm.service_hash": "266ff5f617"]
     // drop the dm tag
     "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
