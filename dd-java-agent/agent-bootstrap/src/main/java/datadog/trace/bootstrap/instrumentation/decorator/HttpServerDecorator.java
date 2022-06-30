@@ -129,10 +129,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (userAgent != null) {
         span.setTag(Tags.HTTP_USER_AGENT, userAgent);
       }
-      InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
-      if (inferredAddress != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
-      }
     }
 
     if (request != null) {
@@ -180,8 +176,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
+    String ip = null;
     if (connection != null) {
-      final String ip = peerHostIP(connection);
+      ip = peerHostIP(connection);
       final int port = peerPort(connection);
       if (ip != null) {
         if (ip.indexOf(':') > 0) {
@@ -194,6 +191,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       // TODO: blocking
       callIGCallbackSocketAddress(span, ip, port);
     }
+
+    InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
+    // As a fallback, if no IP was resolved, the peer IP address should be checked
+    // to see if it is public and used as the resolved IP if it is.
+    // If no public IP address, then a private IP address should reported as a fall back.
+    if (inferredAddress == null && ip != null) {
+      inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
+    }
+    if (inferredAddress != null) {
+      span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
+    }
+
     return span;
   }
 
@@ -396,7 +405,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static final ResponseHeaderTagClassifier create(
+    static ResponseHeaderTagClassifier create(
         AgentSpan span, Map<String, String> headerTags) {
       if (span == null || headerTags == null || headerTags.isEmpty()) {
         return null;
