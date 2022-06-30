@@ -53,7 +53,6 @@ import datadog.trace.core.datastreams.DataStreamsCheckpointer;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.DatadogTags;
-import datadog.trace.core.propagation.DatadogTagsFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -175,9 +174,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final InstrumentationGateway instrumentationGateway;
 
-  private final DatadogTagsFactory datadogTagsFactory;
+  private final DatadogTags.Factory datadogTagsFactory;
 
-  DatadogTagsFactory getDatadogTagsFactory() {
+  DatadogTags.Factory getDatadogTagsFactory() {
     return datadogTagsFactory;
   }
 

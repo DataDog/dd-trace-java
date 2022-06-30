@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Captures configuration required for DatadogTags logic */
-public class DatadogTagsFactory {
+final class DatadogTagsFactory implements DatadogTags.Factory {
 
   private static final Logger log = LoggerFactory.getLogger(DatadogTagsFactory.class);
 

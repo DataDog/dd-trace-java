@@ -95,7 +95,7 @@ class DatadogHttpCodec {
     private static final int IGNORE = -1;
 
     private final boolean isAwsPropagationEnabled;
-    private final DatadogTagsFactory datadogTagsFactory;
+    private final DatadogTags.Factory datadogTagsFactory;
 
     private DatadogContextInterpreter(Map<String, String> taggedHeaders, Config config) {
       super(taggedHeaders);

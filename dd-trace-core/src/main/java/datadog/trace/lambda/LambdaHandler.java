@@ -10,7 +10,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.DatadogTags;
-import datadog.trace.core.propagation.DatadogTagsFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -62,7 +61,7 @@ public class LambdaHandler {
       UTF8BytesString.create("dd-tracer-serverless-span");
 
   public static AgentSpan.Context notifyStartInvocation(
-      Object event, DatadogTagsFactory datadogTagsFactory) {
+      Object event, DatadogTags.Factory datadogTagsFactory) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
         HTTP_CLIENT
