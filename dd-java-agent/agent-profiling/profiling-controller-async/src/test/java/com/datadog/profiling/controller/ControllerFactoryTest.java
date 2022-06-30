@@ -24,9 +24,8 @@ public class ControllerFactoryTest {
       throws UnsupportedEnvironmentException, ConfigurationException {
     // Enable test on OpenJ9 only
     final String javaVendor = System.getProperty("java.vendor");
-    final String javaRuntimeName = System.getProperty("java.runtime.name");
-    assumeTrue(
-        javaVendor.equals("IBM Corporation") && javaRuntimeName.startsWith("IBM Semeru Runtime"));
+    final String javaVmName = System.getProperty("java.vm.name");
+    assumeTrue(javaVendor.equals("IBM Corporation") && javaVmName.contains("J9"));
 
     Properties props = new Properties();
     props.put(PROFILING_ASYNC_ENABLED, Boolean.toString(true));

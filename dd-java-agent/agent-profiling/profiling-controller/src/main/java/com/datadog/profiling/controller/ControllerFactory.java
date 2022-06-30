@@ -76,7 +76,7 @@ public final class ControllerFactory {
     if (impl == Implementation.NONE) {
       boolean isOpenJ9 =
           System.getProperty("java.vendor").equals("IBM Corporation")
-              && System.getProperty("java.runtime.name").startsWith("IBM Semeru Runtime");
+              && System.getProperty("java.vm.name").contains("J9");
       if (configProvider.getBoolean(
               ProfilingConfig.PROFILING_ASYNC_ENABLED,
               ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
