@@ -36,10 +36,13 @@ import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.RequestBody;
 import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /** Crash Reporter implementation */
 public class CrashUploader {
@@ -196,29 +199,26 @@ public class CrashUploader {
   private void makeUploadRequest(@Nonnull Map<String, InputStream> files) throws IOException {
     final RequestBody requestBody = makeRequestBody(files);
 
-    Buffer dbg = new Buffer();
-    requestBody.writeTo(dbg);
-    dbg.writeTo(System.out);
+    final Request.Builder requestBuilder =
+        new Request.Builder()
+            .url(url)
+            .addHeader(DATADOG_META_LANG, JAVA_LANG)
+            .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_CRASHTRACKING_LIBRARY)
+            .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
+            .post(requestBody);
 
-    // final Request.Builder requestBuilder =
-    //     new Request.Builder()
-    //         .url(url)
-    //         .addHeader(DATADOG_META_LANG, JAVA_LANG)
-    //         .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_CRASHTRACKING_LIBRARY)
-    //         .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
-    //         .post(requestBody);
+    if (agentless && apiKey != null) {
+      // we only add the api key header if we know we're doing agentless profiling. No point in
+      // adding it to other agent-based requests since we know the datadog-agent isn't going to
+      // make use of it.
+      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+    }
+    if (containerId != null) {
+      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+    }
 
-    // if (agentless && apiKey != null) {
-    //   // we only add the api key header if we know we're doing agentless profiling. No point in
-    //   // adding it to other agent-based requests since we know the datadog-agent isn't going to
-    //   // make use of it.
-    //   requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-    // }
-    // if (containerId != null) {
-    //   requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
-    // }
-
-    // client.newCall(requestBuilder.build()).execute();
+    Request request = requestBuilder.build();
+    client.newCall(request).execute();
   }
 
   private RequestBody makeRequestBody(@Nonnull Map<String, InputStream> files) throws IOException {
@@ -230,7 +230,7 @@ public class CrashUploader {
       writer.beginArray();
       for (Map.Entry<String, InputStream> file : files.entrySet()) {
         writer.beginObject();
-        writer.name("message").value(new Buffer().readFrom(file.getValue()));
+        writer.name("message").value(readContent(file.getValue()));
         writer.name("level").value("ERROR");
         writer.endObject();
       }
@@ -239,5 +239,17 @@ public class CrashUploader {
     }
 
     return RequestBody.create(APPLICATION_JSON, out.readByteString());
+  }
+
+  private String readContent(InputStream file) throws IOException {
+    try (InputStreamReader reader = new InputStreamReader(file, StandardCharsets.UTF_8)) {
+      int read;
+      char[] buffer = new char[1<<14];
+      StringBuilder sb = new StringBuilder();
+      while ((read = reader.read(buffer, 0, buffer.length)) > 0) {
+        sb.append(buffer, 0, read);
+      }
+      return sb.toString();
+    }
   }
 }
