@@ -25,8 +25,7 @@ public class ControllerFactoryTest {
     // Enable test on OpenJ9 only
     final String javaVendor = System.getProperty("java.vendor");
     final String javaVmName = System.getProperty("java.vm.name");
-    assumeTrue(
-        javaVendor.equals("IBM Corporation") && javaVmName.contains("J9"));
+    assumeTrue(javaVendor.equals("IBM Corporation") && javaVmName.contains("J9"));
 
     Properties props = new Properties();
     props.put(PROFILING_ASYNC_ENABLED, Boolean.toString(true));
