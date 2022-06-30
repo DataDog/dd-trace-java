@@ -74,19 +74,8 @@ public class CrashUploader {
   private final String containerId;
   private final String tags;
 
-  /**
-   * Main entry point into crash reporter. This gets invoked through -XX:OnError="java
-   * com.datadog.crashtracking.agent.CrashUploader ..."
-   */
-  public static void main(String[] args) throws IOException {
-    final Config config = Config.get();
-    final ConfigProvider configProvider = ConfigProvider.getInstance();
-
-    new CrashUploader(config, configProvider).upload(args);
-  }
-
-  public CrashUploader(final Config config, final ConfigProvider configProvider) {
-    this(config, configProvider, ContainerInfo.get().getContainerId());
+  public CrashUploader() {
+    this(Config.get(), ConfigProvider.getInstance(), ContainerInfo.get().getContainerId());
   }
 
   CrashUploader(
@@ -188,7 +177,7 @@ public class CrashUploader {
     }
   }
 
-  void upload(@Nonnull String[] files) throws IOException {
+  public void upload(@Nonnull String[] files) throws IOException {
     makeUploadRequest(
         Arrays.stream(files)
             .map(

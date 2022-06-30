@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import com.datadog.crashtracking.CrashUploader;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -48,5 +49,9 @@ public final class AgentCLI {
         System.out.print("... completed " + numTraces + "/" + count + " traces\r");
       }
     }
+  }
+
+  public static void uploadCrash(final String[] args) throws Exception {
+    new CrashUploader().upload(args);
   }
 }

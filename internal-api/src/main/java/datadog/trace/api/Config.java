@@ -88,6 +88,10 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
@@ -185,10 +189,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
@@ -473,7 +473,7 @@ public class Config {
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
-  
+
   private final boolean crashTrackingAgentless;
   @Deprecated private final String crashTrackingUrl;
   private final Map<String, String> crashTrackingTags;
@@ -2167,7 +2167,8 @@ public class Config {
       // when agentless crashTracking is turned on we send directly to our intake
       return "https://intake.profile." + site + "/api/v2/profile";
     } else {
-      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running locally
+      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
+      // locally
       return "http://" + agentHost + ":" + agentPort + "/crashTracking/v1/input";
     }
   }

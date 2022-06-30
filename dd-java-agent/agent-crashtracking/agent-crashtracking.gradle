@@ -17,7 +17,7 @@ minimumInstructionCoverage = 0.0
 
 dependencies {
   implementation deps.slf4j
-  implementation project(':dd-trace-api')
+  // implementation project(':dd-trace-api')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:process-utils')
