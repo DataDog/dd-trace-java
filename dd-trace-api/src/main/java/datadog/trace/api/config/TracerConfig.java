@@ -68,8 +68,14 @@ public final class TracerConfig {
   public static final String SAMPLING_MECHANISM_VALIDATION_DISABLED =
       "trace.sampling.mechanism.validation.disabled";
 
-  /** Enables service propagation. Enabled by default. */
+  /**
+   * Enables service propagation.
+   *
+   * <p>As of 2022-06-30 only the decision mechanism is propagated.
+   */
   public static final String TRACE_PROPAGATE_SERVICE = "trace.propagate.service";
+
+  public static final boolean TRACE_PROPAGATE_SERVICE_DEFAULT_VALUE = false;
 
   /** Limit for x-datadog-tags. When exceeded it will stop propagating and log a warning. */
   public static final String TRACE_X_DATADOG_TAGS_MAX_LENGTH = "trace.x-datadog-tags.max.length";

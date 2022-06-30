@@ -22,7 +22,7 @@ public abstract class ServiceNameHashing {
   private static final Logger log = LoggerFactory.getLogger(ServiceNameHashing.class);
 
   private static final class CachedHashProviderHolder {
-    // TODO what would be a reasonable size for the cache?
+    // TODO what will be a reasonable size for this cache?
     private static final HashProvider INSTANCE = createCachedProvider(256);
   }
 

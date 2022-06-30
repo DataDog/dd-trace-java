@@ -14,8 +14,8 @@ import java.util.Map;
  *   - dropping non _dd.p.* tags
  *   - error handling and propagation
  *   - concurrent updates to the sampling priority
- *   - serialization to the x-datadog-tags header format
- *   - getting actual Datadog tags map
+ *   - producing the x-datadog-tags header value
+ *   - producing meta tags to be sent to the agent
  * </pre>
  */
 public abstract class DatadogTags {
@@ -33,15 +33,31 @@ public abstract class DatadogTags {
     return factory(config.isServicePropagationEnabled(), config.getDataDogTagsLimit());
   }
 
-  /** Called on the span context that made a sampling decision to keep the trace */
+  /**
+   * Updates the span-level priority decision if it hasn't already been made and _dd.p.dm tag
+   * doesn't exist. Called on the span context that made a sampling decision to keep the trace.
+   */
   public abstract void updateSpanSamplingPriority(int samplingPriority, String serviceName);
 
-  /** Called on the root span context */
+  /**
+   * Updates the trace-level sampling priority decision if it hasn't already been made and _dd.p.dm
+   * tag doesn't exist. Called on the root span context.
+   */
   public abstract void updateTraceSamplingPriority(
       int samplingPriority, int samplingMechanism, String serviceName);
 
+  /**
+   * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
+   * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
+   * exceeds a configured limit or empty.
+   */
   public abstract String headerValue();
 
+  /**
+   * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
+   * tags _dd.p.dm (root span only) and _dd.dm.service_hash (span made a sampling decision) based on
+   * the current state, or sets only an error tag if the header value exceeds a configured limit.
+   */
   public abstract void fillTagMap(Map<String, String> tagMap);
 
   public HashMap<String, String> createTagMap() {

@@ -588,9 +588,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       tags.put(DDTags.THREAD_ID, threadId);
       tags.put(DDTags.THREAD_NAME, threadName.toString());
       if (samplingDecision != SamplingDecision.UNSET_UNKNOWN) {
-        tags.put(
-            SAMPLE_RATE_KEY,
-            SamplingDecision.priority(samplingDecision)); // TODO why this missing in getTag?
+        // TODO why it's only presents here but missing in the getTag method?
+        tags.put(SAMPLE_RATE_KEY, SamplingDecision.priority(samplingDecision));
       }
       if (httpStatusCode != 0) {
         tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);

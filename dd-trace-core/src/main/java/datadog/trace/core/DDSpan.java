@@ -617,7 +617,6 @@ public class DDSpan
    */
   @Override
   public final DDSpan setSamplingPriority(final int newPriority, int samplingMechanism) {
-    // TODO if newPriority is > 0 add the service_hash span tag
     context.setSamplingPriority(newPriority, samplingMechanism);
     return this;
   }

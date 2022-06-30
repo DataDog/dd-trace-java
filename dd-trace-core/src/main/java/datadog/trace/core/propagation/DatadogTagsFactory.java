@@ -297,8 +297,7 @@ public class DatadogTagsFactory {
       int newSize = countTagSize(propagatedTagsSize, DECISION_MAKER_TAG, decisionMakerTagValue);
 
       if (newSize > datadogTagsLimit) {
-        // Outgoing x-datadog-tags value length exceeds the configured limit.
-        // Drop all the tags.
+        // Drop all the tags when the outgoing value length exceeds the configured limit
         return null;
       }
       // No encoding validation here because we don't allow arbitrary tag change
