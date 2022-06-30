@@ -1,0 +1,40 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    // not used yet
+    'datadog.remote_config.tuf.RemoteConfigRequest.ClientInfo.AgentInfo',
+    // only half the adapter interface used
+    'datadog.remote_config.tuf.InstantJsonAdapter',
+    // idem
+    'datadog.remote_config.tuf.RawJsonAdapter',
+    'datadog.remote_config.ExceptionHelper',
+  ]
+  excludedClassesBranchCoverage = [
+    'datadog.remote_config.tuf.FeaturesConfig',
+    'datadog.remote_config.PollerRequestFactory',
+  ]
+  excludedClassesInstructionCoverage = ['datadog.remote_config.ConfigurationChangesListener.PollingHinterNoop',]
+}
+
+
+dependencies {
+  implementation deps.slf4j
+  implementation deps.okhttp
+  implementation deps.moshi
+
+  implementation project(':internal-api')
+
+  testImplementation project(':utils:test-utils')
+}

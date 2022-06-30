@@ -1,10 +1,9 @@
 package com.datadog.appsec.test
 
 import com.datadog.appsec.config.AppSecConfig
+import com.datadog.appsec.config.AppSecConfigDeserializer
 import com.datadog.appsec.config.AppSecConfigService
-import com.datadog.appsec.config.AppSecConfigServiceImpl
 import com.datadog.appsec.config.TraceSegmentPostProcessor
-import okio.Okio
 
 class StubAppSecConfigService implements AppSecConfigService {
   Map<String, SubconfigListener> listeners = [:]
@@ -24,13 +23,14 @@ class StubAppSecConfigService implements AppSecConfigService {
   }
 
   @Override
-  void init(boolean initFleetService) {
+  void init() {
     if (hardcodedConfig) {
       lastConfig = hardcodedConfig
     } else {
       def loader = getClass().classLoader
       def stream = loader.getResourceAsStream(location)
-      lastConfig = AppSecConfigServiceImpl.deserializeConfig(Okio.buffer(Okio.source(stream)))
+      lastConfig = Collections.singletonMap('waf',
+        AppSecConfigDeserializer.INSTANCE.deserialize(stream))
     }
   }
 

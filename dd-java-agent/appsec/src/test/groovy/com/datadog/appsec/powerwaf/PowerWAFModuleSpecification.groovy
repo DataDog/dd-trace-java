@@ -45,7 +45,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   private void setupWithStubConfigService() {
     service = new StubAppSecConfigService()
-    service.init(false)
+    service.init()
     pwafModule.config(service)
     dataListener = pwafModule.dataSubscriptions.first()
     eventListener = pwafModule.eventSubscriptions.first()
@@ -314,7 +314,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     def cfgService = new StubAppSecConfigService([waf: null])
 
     when:
-    cfgService.init(false)
+    cfgService.init()
     pwafModule.config(cfgService)
 
     then:
@@ -361,7 +361,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ]))
 
     when:
-    cfgService.init(false)
+    cfgService.init()
     pwafModule.config(cfgService)
 
     then:
@@ -372,7 +372,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     def cfgService = new StubAppSecConfigService([waf: [:]])
 
     when:
-    cfgService.init(false)
+    cfgService.init()
     pwafModule.config(cfgService)
 
     then:
@@ -384,7 +384,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     def confService = new StubAppSecConfigService(waf: [])
 
     when:
-    confService.init(false)
+    confService.init()
     pwafModule.config(confService)
 
     then:
@@ -454,7 +454,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
   private Map<String, Object> getDefaultConfig() {
     def service = new StubAppSecConfigService()
-    service.init(false)
+    service.init()
     service.lastConfig
   }
 }

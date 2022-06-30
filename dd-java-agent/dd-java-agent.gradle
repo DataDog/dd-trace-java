@@ -165,6 +165,9 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude project(':remote-config'), {
+    transitive = false
+  }
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }

@@ -23,12 +23,16 @@ import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -70,6 +74,7 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     IAST("dd.iast.enabled", false),
+    REMOTE_CONFIG("dd.remote_config.enabled", true),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
@@ -114,6 +119,7 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
   private static boolean iastEnabled = false;
+  private static boolean remoteConfigEnabled = true;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = false;
@@ -136,6 +142,7 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
@@ -151,6 +158,7 @@ public class Agent {
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
 
@@ -408,6 +416,7 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
+      maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -429,6 +438,39 @@ public class Agent {
     public void execute() {
       startProfilingAgent(bootstrapURL, false);
     }
+  }
+
+  private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
+    try {
+      Method pollerMethod = scoClass.getMethod("configurationPoller", Config.class);
+      Object poller = pollerMethod.invoke(sco, Config.get());
+      if (poller == null) {
+        log.debug("Remote config is not enabled");
+        return;
+      }
+      Class<?> pollerCls =
+          SHARED_CLASSLOADER.loadClass("datadog.remote_config.ConfigurationPoller");
+      Method startMethod = pollerCls.getMethod("start");
+      log.info("Starting remote config poller");
+      startMethod.invoke(poller);
+    } catch (Exception e) {
+      log.error("Error starting remote config", e);
+    }
+  }
+
+  private static String getAgentVersion() throws IOException {
+    final StringBuilder sb = new StringBuilder(32);
+    ClassLoader cl = ClassLoader.getSystemClassLoader();
+    try (final BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(
+                cl.getResourceAsStream("dd-java-agent.version"), StandardCharsets.ISO_8859_1))) {
+      for (int c = reader.read(); c != -1; c = reader.read()) {
+        sb.append((char) c);
+      }
+    }
+
+    return sb.toString().trim();
   }
 
   private static synchronized void createSharedClassloader(final URL bootstrapURL) {
