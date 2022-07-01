@@ -41,6 +41,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import datadog.common.process.PidHelper;
+import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
