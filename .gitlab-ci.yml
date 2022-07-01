@@ -25,7 +25,7 @@ cache: &default_cache
 
 .gradle_build: &gradle_build
   <<: *common
-  image: datadog/dd-trace-java-docker-build:latest
+  image: datadog/dd-trace-java-docker-build:luhenry_upgrade-java
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
 
