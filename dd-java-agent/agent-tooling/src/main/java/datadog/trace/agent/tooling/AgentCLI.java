@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -13,8 +12,7 @@ public final class AgentCLI {
   /** Prints all known integrations in alphabetical order. */
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
-    for (Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, Instrumenter.class.getClassLoader())) {
+    for (Instrumenter instrumenter : Instrumenters.load(Instrumenter.class.getClassLoader())) {
       if (instrumenter instanceof Instrumenter.Default) {
         names.add(((Instrumenter.Default) instrumenter).name());
       }
