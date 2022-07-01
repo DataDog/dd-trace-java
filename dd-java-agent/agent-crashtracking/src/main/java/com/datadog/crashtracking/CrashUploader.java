@@ -243,16 +243,6 @@ public class CrashUploader {
     }
 
     Request request = requestBuilder.build();
-
-    System.out.println(request.toString());
-    request.headers().names().forEach(n -> System.out.printf("%s: %s\n", n, request.header(n)));
-    System.out.println();
-
-    Buffer dbg = new Buffer();
-    requestBody.writeTo(dbg);
-    dbg.writeTo(System.out);
-    System.out.println();
-
     return client.newCall(request);
   }
 
