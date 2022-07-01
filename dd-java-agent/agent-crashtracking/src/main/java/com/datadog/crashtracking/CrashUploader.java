@@ -68,8 +68,8 @@ public class CrashUploader {
   // Header names and values
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  static final String JAVA_LANG = "java";
   static final String HEADER_DATADOG_META_LANG = "Datadog-Meta-Lang";
+  static final String JAVA_LANG = "java";
   static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   static final String JAVA_CRASHTRACKING_LIBRARY = "dd-trace-java";
   static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
@@ -251,15 +251,17 @@ public class CrashUploader {
     try (JsonWriter writer = JsonWriter.of(out)) {
       writer.beginObject();
 
-      writer.name("debug").value(true);
       writer.name("api_version").value(API_VERSION);
       writer.name("request_type").value("logs");
       writer
           .name("runtime_id")
-          .value(
-              "5e5b1180-2a0b-41a6-bed2-bc341d19f853"); // randomly generated, https://xkcd.com/221/
+          // randomly generated, https://xkcd.com/221/
+          .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
       writer.name("tracer_time").value(Instant.now().getEpochSecond());
+      // writer.name("session_id").value("5e5b1180-2a0b-41a6-bed2-bc341d19f853"); // same as
+      // runtime_id
       writer.name("seq_id").value(1);
+      writer.name("debug").value(true);
       writer.name("payload");
       writer.beginArray();
       for (Map.Entry<String, InputStream> file : files.entrySet()) {
@@ -271,17 +273,20 @@ public class CrashUploader {
       writer.endArray();
       writer.name("application");
       writer.beginObject();
+      writer.name("env").value(config.getEnv());
       writer.name("language_name").value(JAVA_LANG);
       writer.name("language_version").value(System.getProperty("java.version", "unknown"));
       writer.name("service_name").value(config.getServiceName());
-      writer.name("tracer_version").value("0.103.0-SNAPSHOT~wip");
+      writer.name("service_version").value(config.getVersion());
+      writer.name("tracer_version").value(VersionInfo.VERSION);
       writer.endObject();
       writer.name("host");
       writer.beginObject();
-      writer.name("env").value(config.getEnv());
       if (containerId != null) {
         writer.name("container_id").value(containerId);
       }
+      writer.name("hostname").value(config.getHostName());
+      writer.name("env").value(config.getEnv());
       writer.endObject();
       writer.endObject();
     }
