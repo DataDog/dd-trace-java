@@ -48,6 +48,7 @@ public interface Instrumenter {
     TRACING,
     PROFILING,
     APPSEC,
+    IAST,
     CIVISIBILITY
   }
 
@@ -308,6 +309,18 @@ public interface Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.APPSEC);
+    }
+  }
+
+  /** Parent class for all IAST related instrumentations */
+  abstract class Iast extends Default {
+    public Iast(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.IAST);
     }
   }
 
