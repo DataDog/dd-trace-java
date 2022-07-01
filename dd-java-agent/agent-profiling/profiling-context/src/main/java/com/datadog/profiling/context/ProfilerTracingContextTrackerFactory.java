@@ -1,6 +1,7 @@
 package com.datadog.profiling.context;
 
 import com.datadog.profiling.context.allocator.Allocators;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -12,7 +13,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -23,9 +23,8 @@ public final class ProfilerTracingContextTrackerFactory
   private static final Logger log =
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
 
-  private static final long DEFAULT_INACTIVITY_CHECK_PERIOD_MS = 5_000L; // 5 seconds
-
   private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
+  private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
   public static void register(ConfigProvider configProvider) {
     if (configProvider.getBoolean(
@@ -46,35 +45,41 @@ public final class ProfilerTracingContextTrackerFactory
               ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE,
               ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT);
 
+      int inactivityCheckPeriod =
+          configProvider.getInteger(
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK,
+              ProfilingConfig.PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT);
+
       TracingContextTrackerFactory.registerImplementation(
           new ProfilerTracingContextTrackerFactory(
-              inactivityDelayNs,
-              DEFAULT_INACTIVITY_CHECK_PERIOD_MS,
-              reservedMemorySize,
-              reservedMemoryType));
+              inactivityDelayNs, inactivityCheckPeriod, reservedMemorySize, reservedMemoryType));
     }
   }
 
-  private void initializeInactiveTrackerCleanup(long inactivityCheckPeriodMs) {
+  private void initializeInactiveTrackerCleanup(long checkPeriodMs) {
+    // the task should not run more often than once per 100ms
+    long refreshRateMs = Math.max(100, checkPeriodMs);
     AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
         target -> {
-          Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(500);
+          int capacity = 500;
+          Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(capacity);
+          int drainedAll = 0;
           int drained = 0;
-          do {
-            drained = target.drainTo(timeouts);
-            if (drained > 0) {
+          while ((drained = target.drainTo(timeouts, capacity)) > 0) {
+            if (log.isDebugEnabled()) {
               log.debug("Drained {} inactive trackers", drained);
             }
-            Iterator<TracingContextTracker.DelayedTracker> iterator = timeouts.iterator();
-            while (iterator.hasNext()) {
-              iterator.next().cleanup();
-              iterator.remove();
-            }
-          } while (drained > 0);
+            timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
+            timeouts.clear();
+            drainedAll += drained;
+          }
+          if (drainedAll > 0) {
+            statsd.count("tracing.context.spans.drained_inactive", drainedAll);
+          }
         },
         delayQueue,
-        inactivityCheckPeriodMs,
-        inactivityCheckPeriodMs,
+        refreshRateMs,
+        refreshRateMs,
         TimeUnit.MILLISECONDS);
   }
 
@@ -162,6 +167,7 @@ public final class ProfilerTracingContextTrackerFactory
         new ProfilerTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
     if (inactivityDelay > 0) {
+      statsd.incrementCounter("tracing.context.spans.tracked");
       delayQueue.offer(instance.asDelayed());
     }
     return instance;

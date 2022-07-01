@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
@@ -61,7 +60,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(declaresMethod(isAnnotatedWith(methodTraceMatcher)));
+    return declaresMethod(isAnnotatedWith(methodTraceMatcher));
   }
 
   @Override

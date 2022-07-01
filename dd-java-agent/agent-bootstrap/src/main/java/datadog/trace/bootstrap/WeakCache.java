@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
 import datadog.trace.api.function.Function;
-import java.util.concurrent.atomic.AtomicReference;
 
 public interface WeakCache<K, V> {
   V getIfPresent(final K key);
@@ -11,16 +10,18 @@ public interface WeakCache<K, V> {
   void put(final K key, final V value);
 
   abstract class Supplier {
-    private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
+    private static volatile Supplier SUPPLIER;
 
     protected abstract <K, V> WeakCache<K, V> get(long maxSize);
 
     public static <K, V> WeakCache<K, V> newWeakCache(long maxSize) {
-      return SUPPLIER.get().get(maxSize);
+      return SUPPLIER.get(maxSize);
     }
 
-    public static void registerIfAbsent(Supplier supplier) {
-      SUPPLIER.compareAndSet(null, supplier);
+    public static synchronized void registerIfAbsent(Supplier supplier) {
+      if (null == SUPPLIER) {
+        SUPPLIER = supplier;
+      }
     }
   }
 }

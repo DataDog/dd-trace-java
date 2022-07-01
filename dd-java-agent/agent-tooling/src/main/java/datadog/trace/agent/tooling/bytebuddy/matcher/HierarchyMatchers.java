@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static net.bytebuddy.matcher.ElementMatchers.none;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.description.DeclaredByType;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
@@ -13,31 +14,31 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 /** Pluggable hierarchy matchers for use with instrumentation matching and muzzle checks. */
 public final class HierarchyMatchers {
-  private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
+  private static volatile Supplier SUPPLIER;
 
   public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
       ElementMatcher.Junction<? super NamedElement> matcher) {
-    return SUPPLIER.get().declaresAnnotation(matcher);
+    return SUPPLIER.declaresAnnotation(matcher);
   }
 
   public static ElementMatcher.Junction<TypeDescription> declaresField(
       ElementMatcher.Junction<? super FieldDescription> matcher) {
-    return SUPPLIER.get().declaresField(matcher);
+    return SUPPLIER.declaresField(matcher);
   }
 
   public static ElementMatcher.Junction<TypeDescription> declaresMethod(
       ElementMatcher.Junction<? super MethodDescription> matcher) {
-    return SUPPLIER.get().declaresMethod(matcher);
+    return SUPPLIER.declaresMethod(matcher);
   }
 
   public static ElementMatcher.Junction<TypeDescription> extendsClass(
       ElementMatcher.Junction<? super TypeDescription> matcher) {
-    return SUPPLIER.get().extendsClass(matcher);
+    return SUPPLIER.extendsClass(matcher);
   }
 
   public static ElementMatcher.Junction<TypeDescription> implementsInterface(
       ElementMatcher.Junction<? super TypeDescription> matcher) {
-    return SUPPLIER.get().implementsInterface(matcher);
+    return SUPPLIER.implementsInterface(matcher);
   }
 
   /**
@@ -47,19 +48,25 @@ public final class HierarchyMatchers {
    */
   public static ElementMatcher.Junction<TypeDescription> hasInterface(
       ElementMatcher.Junction<? super TypeDescription> matcher) {
-    return SUPPLIER.get().hasInterface(matcher);
+    return SUPPLIER.hasInterface(matcher);
   }
 
   /** Considers both interfaces and super-classes when matching the target type's hierarchy. */
   public static ElementMatcher.Junction<TypeDescription> hasSuperType(
       ElementMatcher.Junction<? super TypeDescription> matcher) {
-    return SUPPLIER.get().hasSuperType(matcher);
+    return SUPPLIER.hasSuperType(matcher);
   }
 
   /** Targets methods whose declaring class has a super-type that declares a matching method. */
   public static ElementMatcher.Junction<MethodDescription> hasSuperMethod(
       ElementMatcher.Junction<? super MethodDescription> matcher) {
-    return SUPPLIER.get().hasSuperMethod(matcher);
+    return SUPPLIER.hasSuperMethod(matcher);
+  }
+
+  /** Matches classes that should have a field injected for the specified context-store. */
+  public static ElementMatcher.Junction<TypeDescription> declaresContextField(
+      String keyClassName, String contextClassName) {
+    return SUPPLIER.declaresContextField(keyClassName, contextClassName);
   }
 
   @SuppressForbidden
@@ -69,8 +76,10 @@ public final class HierarchyMatchers {
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
-  public static void registerIfAbsent(Supplier supplier) {
-    SUPPLIER.compareAndSet(null, supplier);
+  public static synchronized void registerIfAbsent(Supplier supplier) {
+    if (null == SUPPLIER) {
+      SUPPLIER = supplier;
+    }
   }
 
   public interface Supplier {
@@ -97,6 +106,9 @@ public final class HierarchyMatchers {
 
     ElementMatcher.Junction<MethodDescription> hasSuperMethod(
         ElementMatcher.Junction<? super MethodDescription> matcher);
+
+    ElementMatcher.Junction<TypeDescription> declaresContextField(
+        String keyClassName, String contextClassName);
   }
 
   /** Simple hierarchy checks for use during the build when testing or validating muzzle ranges. */
@@ -157,6 +169,12 @@ public final class HierarchyMatchers {
           ElementMatcher.Junction<? super MethodDescription> matcher) {
         return ElementMatchers.isDeclaredBy(
             ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(matcher)));
+      }
+
+      @Override
+      public ElementMatcher.Junction<TypeDescription> declaresContextField(
+          String keyClassName, String contextClassName) {
+        return none(); // unused during build
       }
     };
   }

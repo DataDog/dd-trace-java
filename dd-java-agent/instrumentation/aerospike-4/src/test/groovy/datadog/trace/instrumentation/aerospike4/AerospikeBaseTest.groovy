@@ -34,7 +34,7 @@ abstract class AerospikeBaseTest extends AgentTestRunner {
      and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
-      aerospike = new GenericContainer('aerospike:latest')
+      aerospike = new GenericContainer('aerospike:5.5.0.9')
         .withExposedPorts(3000)
         .waitingFor(forLogMessage(".*heartbeat-received.*\\n", 1))
 

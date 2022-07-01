@@ -1,9 +1,6 @@
 package datadog.trace.agent.tooling.context
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.AbstractHierarchyMatcherTest
-import net.bytebuddy.utility.JavaModule
-
-import java.security.ProtectionDomain
 
 class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
 
@@ -12,15 +9,7 @@ class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
     def matcher = new ShouldInjectFieldsMatcher(keyType, "java.lang.String")
 
     when:
-    boolean matches = matcher.matches(
-      typePool.describe(klass).resolve(),
-      getClass().getClassLoader(),
-      Mock(JavaModule),
-      // need to transform the class to add a marker interface
-      // to be able to test the non-null case
-      null,
-      Mock(ProtectionDomain)
-      )
+    boolean matches = matcher.matches(typePool.describe(klass).resolve())
 
     then:
     ((klass == keyType) && matches) || ((klass != keyType) && !matches)
@@ -37,15 +26,7 @@ class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
     def matcher = new ShouldInjectFieldsMatcher(keyType, "java.lang.String")
 
     when:
-    boolean matches = matcher.matches(
-      typePool.describe(klass).resolve(),
-      getClass().getClassLoader(),
-      Mock(JavaModule),
-      // need to transform the class to add a marker interface
-      // to be able to test the non-null case
-      null,
-      Mock(ProtectionDomain)
-      )
+    boolean matches = matcher.matches(typePool.describe(klass).resolve())
 
     then:
     ((klass == expected) && matches) || ((klass != expected) && !matches)

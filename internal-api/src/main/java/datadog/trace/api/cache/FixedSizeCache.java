@@ -91,6 +91,11 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
     return value;
   }
 
+  @Override
+  public void clear() {
+    Arrays.fill(elements, null);
+  }
+
   abstract int hash(K key);
 
   abstract boolean equals(K key, Pair<K, V> current);

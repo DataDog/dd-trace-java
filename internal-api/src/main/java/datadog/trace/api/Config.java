@@ -72,6 +72,7 @@ import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
+import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
@@ -342,6 +343,9 @@ public class Config {
    */
   private final String runtimeId;
 
+  /** This is the version of the runtime, ex: 1.8.0_332, 11.0.15, 17.0.3 */
+  private final String runtimeVersion;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting.
@@ -592,6 +596,7 @@ public class Config {
             : configProvider.getBoolean(RUNTIME_ID_ENABLED, true)
                 ? UUID.randomUUID().toString()
                 : "";
+    runtimeVersion = System.getProperty("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -1187,6 +1192,10 @@ public class Config {
 
   public String getRuntimeId() {
     return runtimeId;
+  }
+
+  public String getRuntimeVersion() {
+    return runtimeVersion;
   }
 
   public String getApiKey() {
@@ -1991,7 +2000,7 @@ public class Config {
             getGlobalTags().size()
                 + profilingTags.size()
                 + runtimeTags.size()
-                + 3 /* for serviceName and host and language */);
+                + 4 /* for serviceName and host and language and runtime_version */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
     result.putAll(profilingTags);
@@ -2000,6 +2009,7 @@ public class Config {
     // and may chose to override it.
     result.put(SERVICE_TAG, serviceName);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    result.put(RUNTIME_VERSION_TAG, runtimeVersion);
     return Collections.unmodifiableMap(result);
   }
 
@@ -2454,6 +2464,8 @@ public class Config {
         + "runtimeId='"
         + runtimeId
         + '\''
+        + ", runtimeVersion='"
+        + runtimeVersion
         + ", apiKey="
         + (apiKey == null ? "null" : "****")
         + ", site='"
@@ -2587,6 +2599,10 @@ public class Config {
         + '\''
         + ", jmxFetchStatsdPort="
         + jmxFetchStatsdPort
+        + ", jmxFetchMultipleRuntimeServicesEnabled="
+        + jmxFetchMultipleRuntimeServicesEnabled
+        + ", jmxFetchMultipleRuntimeServicesLimit="
+        + jmxFetchMultipleRuntimeServicesLimit
         + ", healthMetricsEnabled="
         + healthMetricsEnabled
         + ", healthMetricsStatsdHost='"

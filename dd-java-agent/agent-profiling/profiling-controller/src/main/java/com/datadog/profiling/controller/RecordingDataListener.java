@@ -24,6 +24,7 @@ public interface RecordingDataListener {
    *
    * @param type type of the recording
    * @param data the new data available
+   * @param handleSynchronously whether to handle the data synchronously
    */
-  void onNewData(RecordingType type, RecordingData data);
+  void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously);
 }

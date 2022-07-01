@@ -11,6 +11,7 @@ ext {
     // jacoco does not allow per-method excludes so, here we go
     "com.datadog.profiling.context.ProfilerTracingContextTrackerFactory*",
     "com.datadog.profiling.context.ProfilerTracingContextTracker.TimeTicksProvider*",
+    "com.datadog.profiling.context.StatsDAccessor"
   ]
 }
 

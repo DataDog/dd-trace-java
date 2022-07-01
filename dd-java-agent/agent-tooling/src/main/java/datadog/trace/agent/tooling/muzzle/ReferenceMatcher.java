@@ -11,7 +11,6 @@ import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,18 +22,18 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
-public final class ReferenceMatcher implements IReferenceMatcher {
+public final class ReferenceMatcher {
   private final WeakCache<ClassLoader, Boolean> mismatchCache = WeakCaches.newWeakCache();
   private final Reference[] references;
-  private final Set<String> helperClassNames;
+
+  private ReferenceProvider referenceProvider;
 
   public ReferenceMatcher(final Reference... references) {
-    this(new String[0], references);
+    this.references = references;
   }
 
-  public ReferenceMatcher(final String[] helperClassNames, final Reference[] references) {
-    this.references = references;
-    this.helperClassNames = new HashSet<>(Arrays.asList(helperClassNames));
+  public void withReferenceProvider(ReferenceProvider referenceProvider) {
+    this.referenceProvider = referenceProvider;
   }
 
   public Reference[] getReferences() {
@@ -47,35 +46,37 @@ public final class ReferenceMatcher implements IReferenceMatcher {
    * @param loader Classloader to validate against (or null for bootstrap)
    * @return true if all references match the classpath of loader
    */
-  @Override
   public boolean matches(ClassLoader loader) {
-    if (loader == BOOTSTRAP_LOADER) {
-      loader = Utils.getBootstrapProxy();
-    }
-    return mismatchCache.computeIfAbsent(loader, DOES_MATCH);
+    return mismatchCache.computeIfAbsent(
+        // weak cache requires non-null keys; use proxy as alias for bootstrap loader
+        BOOTSTRAP_LOADER == loader ? Utils.getBootstrapProxy() : loader, DOES_MATCH);
   }
 
   // Can't use a function reference because of Java7 support
   private final Function<ClassLoader, Boolean> DOES_MATCH =
       new Function<ClassLoader, Boolean>() {
         @Override
-        public Boolean apply(ClassLoader key) {
-          return doesMatch(key);
+        public Boolean apply(ClassLoader loader) {
+          // map our bootstrap proxy alias back to the original bootstrap loader
+          return doesMatch(Utils.getBootstrapProxy() == loader ? BOOTSTRAP_LOADER : loader);
         }
       };
 
-  private boolean doesMatch(final ClassLoader loader) {
-    final List<Mismatch> mismatches = new ArrayList<>();
-    for (final Reference reference : references) {
-      // Don't reference-check helper classes.
-      // They will be injected by the instrumentation's HelperInjector.
-      if (!helperClassNames.contains(reference.className)) {
-        if (!checkMatch(reference, loader, mismatches)) {
+  private boolean doesMatch(ClassLoader loader) {
+    List<Mismatch> mismatches = new ArrayList<>();
+    TypePool typePool = SharedTypePools.typePool(loader);
+    for (Reference reference : references) {
+      if (!checkReference(typePool, reference, loader, mismatches)) {
+        return false;
+      }
+    }
+    if (null != referenceProvider) {
+      for (Reference reference : referenceProvider.buildReferences(typePool)) {
+        if (!checkReference(typePool, reference, loader, mismatches)) {
           return false;
         }
       }
     }
-
     return true;
   }
 
@@ -85,33 +86,46 @@ public final class ReferenceMatcher implements IReferenceMatcher {
    * @param loader Classloader to validate against (or null for bootstrap)
    * @return A list of all mismatches between this ReferenceMatcher and loader's classpath.
    */
-  @Override
   public List<Reference.Mismatch> getMismatchedReferenceSources(ClassLoader loader) {
-    if (loader == BOOTSTRAP_LOADER) {
-      loader = Utils.getBootstrapProxy();
-    }
     List<Mismatch> mismatches = new ArrayList<>();
-    for (final Reference reference : references) {
-      // Don't reference-check helper classes.
-      // They will be injected by the instrumentation's HelperInjector.
-      if (!helperClassNames.contains(reference.className)) {
-        checkMatch(reference, loader, mismatches);
+    TypePool typePool = SharedTypePools.typePool(loader);
+    for (Reference reference : references) {
+      checkReference(typePool, reference, loader, mismatches);
+    }
+    if (null != referenceProvider) {
+      for (Reference reference : referenceProvider.buildReferences(typePool)) {
+        checkReference(typePool, reference, loader, mismatches);
       }
     }
-
     return mismatches;
   }
 
   /**
    * Check a reference against a classloader's classpath.
    *
-   * @param loader
    * @return A list of mismatched sources. A list of size 0 means the reference matches the class.
    */
+  private static boolean checkReference(
+      TypePool typePool, Reference reference, ClassLoader loader, List<Mismatch> mismatches) {
+    int previousMismatchCount = mismatches.size();
+    if (checkMatch(typePool, reference, loader, mismatches)) {
+      return true;
+    }
+    if (reference instanceof OrReference) {
+      for (Reference or : ((OrReference) reference).ors) {
+        if (checkReference(typePool, or, loader, mismatches)) {
+          // alternative spec matched, remove the original spec's mismatches
+          mismatches.subList(previousMismatchCount, mismatches.size()).clear();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   @SuppressForbidden
   private static boolean checkMatch(
-      final Reference reference, final ClassLoader loader, final List<Mismatch> mismatches) {
-    final TypePool typePool = SharedTypePools.typePool(loader);
+      TypePool typePool, Reference reference, ClassLoader loader, List<Mismatch> mismatches) {
     try {
       final TypePool.Resolution resolution = typePool.describe(reference.className);
       if (!resolution.isResolved()) {
@@ -128,7 +142,9 @@ public final class ReferenceMatcher implements IReferenceMatcher {
         return false;
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
-        mismatches.add(new Mismatch.ReferenceCheckError(e, reference, loader));
+        mismatches.add(
+            new Mismatch.ReferenceCheckError(
+                e, reference, null != loader ? loader.toString() : "<bootstrap>"));
         return false;
       }
     }
@@ -138,6 +154,7 @@ public final class ReferenceMatcher implements IReferenceMatcher {
       final Reference reference,
       final TypeDescription typeOnClasspath,
       final List<Mismatch> mismatches) {
+    int previousMismatchCount = mismatches.size();
 
     if (!Reference.matches(reference.flags, typeOnClasspath.getModifiers())) {
       final String desc = reference.className;
@@ -188,7 +205,7 @@ public final class ReferenceMatcher implements IReferenceMatcher {
               missingMethod.methodType));
     }
 
-    return mismatches.isEmpty();
+    return previousMismatchCount == mismatches.size();
   }
 
   private static Map<Pair<String, String>, Reference.Field> indexFields(

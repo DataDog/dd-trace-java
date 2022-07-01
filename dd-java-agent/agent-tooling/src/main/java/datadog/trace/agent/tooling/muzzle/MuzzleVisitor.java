@@ -6,8 +6,12 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.ClassFileVersion;
@@ -30,7 +34,6 @@ import net.bytebuddy.pool.TypePool;
 public class MuzzleVisitor implements AsmVisitorWrapper {
   public static final String MUZZLE_FIELD_NAME = "instrumentationMuzzle";
   public static final String MUZZLE_METHOD_NAME = "getInstrumentationMuzzle";
-  public static final String POST_PROCESS_REFERENCE_MATCHER_METHOD = "postProcessReferenceMatcher";
 
   private final File targetDir;
 
@@ -125,7 +128,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           super.visitMethod(
               Opcodes.ACC_PROTECTED,
               MUZZLE_METHOD_NAME,
-              "()" + Type.getDescriptor(IReferenceMatcher.class),
+              "()" + Type.getDescriptor(ReferenceMatcher.class),
               null,
               null);
 
@@ -137,26 +140,20 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
           MUZZLE_FIELD_NAME,
           Type.getDescriptor(ReferenceMatcher.class));
 
-      boolean hasPostProcessReferenceMatcher = false;
-      try {
-        instrumenter
-            .getClass()
-            .getDeclaredMethod(POST_PROCESS_REFERENCE_MATCHER_METHOD, ReferenceMatcher.class);
-        hasPostProcessReferenceMatcher = true;
-      } catch (NoSuchMethodException e) {
-      }
-
-      if (hasPostProcessReferenceMatcher) {
+      if (null != instrumenter.runtimeMuzzleReferences()) {
+        mv.visitInsn(Opcodes.DUP);
         mv.visitIntInsn(Opcodes.ALOAD, 0);
-        mv.visitInsn(Opcodes.SWAP);
         mv.visitMethodInsn(
-            Opcodes.INVOKESPECIAL,
+            Opcodes.INVOKEVIRTUAL,
             instrumentationClassName,
-            POST_PROCESS_REFERENCE_MATCHER_METHOD,
-            "("
-                + Type.getDescriptor(ReferenceMatcher.class)
-                + ")"
-                + Type.getDescriptor(IReferenceMatcher.class),
+            "runtimeMuzzleReferences",
+            "()" + Type.getDescriptor(ReferenceProvider.class),
+            false);
+        mv.visitMethodInsn(
+            Opcodes.INVOKEVIRTUAL,
+            "datadog/trace/agent/tooling/muzzle/ReferenceMatcher",
+            "withReferenceProvider",
+            "(" + Type.getDescriptor(ReferenceProvider.class) + ")V",
             false);
       }
 
@@ -204,9 +201,6 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
      *
      * <pre>
      * static final ReferenceMatcher instrumentationMuzzle = new ReferenceMatcher(
-     *     new String[] {
-     *       // helper class names
-     *     },
      *     new Reference[] {
      *       // reference builders
      *     });
@@ -233,41 +227,29 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
         mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/ReferenceMatcher");
         mv.visitInsn(Opcodes.DUP);
 
-        writeStrings(mv, instrumenter.muzzleIgnoredClassNames());
+        Set<String> ignoredClassNames =
+            new HashSet<>(Arrays.asList(instrumenter.muzzleIgnoredClassNames()));
 
-        Reference[] references = generateReferences();
-        mv.visitLdcInsn(references.length);
+        List<Reference> references = new ArrayList<>();
+        for (Reference reference : generateReferences()) {
+          // ignore helper classes, they will be injected by the instrumentation's HelperInjector.
+          if (!ignoredClassNames.contains(reference.className)) {
+            references.add(reference);
+          }
+        }
+        Reference[] additionalReferences = instrumenter.additionalMuzzleReferences();
+        if (null != additionalReferences) {
+          Collections.addAll(references, additionalReferences);
+        }
+
+        mv.visitLdcInsn(references.size());
         mv.visitTypeInsn(Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference");
 
         int i = 0;
         for (Reference reference : references) {
           mv.visitInsn(Opcodes.DUP);
           mv.visitLdcInsn(i++);
-
-          mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/Reference");
-          mv.visitInsn(Opcodes.DUP);
-
-          writeStrings(mv, reference.sources);
-          mv.visitLdcInsn(reference.flags);
-          mv.visitLdcInsn(reference.className);
-          if (null != reference.superName) {
-            mv.visitLdcInsn(reference.superName);
-          } else {
-            mv.visitInsn(Opcodes.ACONST_NULL);
-          }
-          writeStrings(mv, reference.interfaces);
-          writeFields(mv, reference.fields);
-          writeMethods(mv, reference.methods);
-
-          mv.visitMethodInsn(
-              Opcodes.INVOKESPECIAL,
-              "datadog/trace/agent/tooling/muzzle/Reference",
-              "<init>",
-              "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;[Ljava/lang/String;"
-                  + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Field;"
-                  + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Method;)V",
-              false);
-
+          writeReference(mv, reference);
           mv.visitInsn(Opcodes.AASTORE);
         }
 
@@ -275,7 +257,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
             Opcodes.INVOKESPECIAL,
             "datadog/trace/agent/tooling/muzzle/ReferenceMatcher",
             "<init>",
-            "([Ljava/lang/String;[Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
+            "([Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
             false);
 
         mv.visitFieldInsn(
@@ -293,6 +275,60 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
       }
 
       return cw.toByteArray();
+    }
+
+    private void writeReference(MethodVisitor mv, Reference reference) {
+      if (reference instanceof OrReference) {
+        mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/OrReference");
+        mv.visitInsn(Opcodes.DUP);
+      }
+
+      mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/Reference");
+      mv.visitInsn(Opcodes.DUP);
+
+      writeStrings(mv, reference.sources);
+      mv.visitLdcInsn(reference.flags);
+      mv.visitLdcInsn(reference.className);
+      if (null != reference.superName) {
+        mv.visitLdcInsn(reference.superName);
+      } else {
+        mv.visitInsn(Opcodes.ACONST_NULL);
+      }
+      writeStrings(mv, reference.interfaces);
+      writeFields(mv, reference.fields);
+      writeMethods(mv, reference.methods);
+
+      mv.visitMethodInsn(
+          Opcodes.INVOKESPECIAL,
+          "datadog/trace/agent/tooling/muzzle/Reference",
+          "<init>",
+          "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;[Ljava/lang/String;"
+              + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Field;"
+              + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Method;)V",
+          false);
+
+      if (reference instanceof OrReference) {
+        Reference[] ors = ((OrReference) reference).ors;
+
+        mv.visitLdcInsn(ors.length);
+        mv.visitTypeInsn(Opcodes.ANEWARRAY, "datadog/trace/agent/tooling/muzzle/Reference");
+
+        int i = 0;
+        for (Reference or : ors) {
+          mv.visitInsn(Opcodes.DUP);
+          mv.visitLdcInsn(i++);
+          writeReference(mv, or);
+          mv.visitInsn(Opcodes.AASTORE);
+        }
+
+        mv.visitMethodInsn(
+            Opcodes.INVOKESPECIAL,
+            "datadog/trace/agent/tooling/muzzle/OrReference",
+            "<init>",
+            "(Ldatadog/trace/agent/tooling/muzzle/Reference;"
+                + "[Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
+            false);
+      }
     }
 
     private void writeStrings(MethodVisitor mv, String[] strings) {

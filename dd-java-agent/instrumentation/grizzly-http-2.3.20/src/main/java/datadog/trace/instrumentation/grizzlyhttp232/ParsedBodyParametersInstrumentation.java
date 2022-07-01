@@ -7,9 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.IReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -38,15 +36,14 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
     return "org.glassfish.grizzly.http.util.Parameters";
   }
 
-  private static final ReferenceMatcher PARAM_HASH_VALUES_HASH_MAP_REFERENCE_MATCHER =
-      new ReferenceMatcher(
-          new Reference.Builder("org.glassfish.grizzly.http.util.Parameters")
-              .withField(new String[0], 0, "paramHashValues", "Ljava/util/LinkedHashMap;")
-              .build());
+  private static final Reference PARAM_HASH_VALUES_HASH_MAP_REFERENCE =
+      new Reference.Builder("org.glassfish.grizzly.http.util.Parameters")
+          .withField(new String[0], 0, "paramHashValues", "Ljava/util/LinkedHashMap;")
+          .build();
 
-  private IReferenceMatcher postProcessReferenceMatcher(final ReferenceMatcher origMatcher) {
-    return new IReferenceMatcher.ConjunctionReferenceMatcher(
-        origMatcher, PARAM_HASH_VALUES_HASH_MAP_REFERENCE_MATCHER);
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {PARAM_HASH_VALUES_HASH_MAP_REFERENCE};
   }
 
   @Override

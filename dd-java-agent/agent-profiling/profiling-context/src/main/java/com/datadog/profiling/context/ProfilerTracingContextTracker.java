@@ -376,15 +376,20 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     }
   }
 
+  /**
+   * This method is assumed to be called from one thread at a time (eg. when a trace is being
+   * serialized) Any concurrent invocation will have unpredictable results.
+   *
+   * @return the {@linkplain ByteBuffer} instance containing the serialized data
+   */
   private ByteBuffer encodeIntervals() {
     int encodedDataLimit =
         (maxDataSize * 3) / 4; // encoded data is in base64, growing by 4/3 in size
     int totalSequenceBufferSize = 0;
-    int maxSequenceSize = 0;
     long[] threadIds = shuffleArray(threadSequences.keySetLong());
     for (LongSequence sequence : threadSequences.values()) {
-      maxSequenceSize = Math.max(maxSequenceSize, sequence.size());
-      totalSequenceBufferSize += sequence.size();
+      int size = sequence.captureSize();
+      totalSequenceBufferSize += size;
     }
 
     IntervalEncoder encoder =
@@ -399,6 +404,15 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       threadCount++;
       IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
       LongSequence rawIntervals = threadSequences.get(threadId);
+      int sequenceSize = rawIntervals.getCapturedSize();
+
+      if (sequenceSize == -1) {
+        // this should never happen given the assumption under which this method is executed
+        // but - just in case, log a warning and skip the sequence
+        log.warn("Context interval sequence for thread id {} was not captured", threadId);
+        continue;
+      }
+
       /*
       The only potential contention here will be between the tracked thread and the context summarization
       when the trace and span is being serialized. At that moment, however, the possibility of code related
@@ -408,7 +422,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
         int sequenceIndex = 0;
-        while (iterator.hasNext() && sequenceIndex++ < maxSequenceSize) {
+        while (iterator.hasNext() && sequenceIndex++ < sequenceSize) {
           long from = iterator.next();
           long maskedFrom = (from & TIMESTAMP_MASK);
           if (iterator.hasNext()) {
