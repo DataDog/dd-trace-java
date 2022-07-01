@@ -102,6 +102,12 @@ public final class ProfilingConfig {
   public static final int PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT =
       20_000; // 20k bytes is the default
 
+  public static final String PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK =
+      "profiling.tracing_context.span_inactivity_check.ms";
+
+  public static final int PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT =
+      5_000; // 5 secs default
+
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
   public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;

@@ -4,7 +4,7 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-minimumBranchCoverage = 0.78
+minimumBranchCoverage = 0.80
 
 excludedClassesCoverage += [
   // Large parts of this class are jvm specific which makes jacoco really confused since we run it only for 'default' jvm

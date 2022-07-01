@@ -258,6 +258,12 @@ public class Agent {
     }
   }
 
+  public static void shutdown(final boolean sync) {
+    if (profilingEnabled) {
+      shutdownProfilingAgent(sync);
+    }
+  }
+
   public static synchronized Class<?> installAgentCLI(final URL bootstrapURL) throws Exception {
     createSharedClassloader(bootstrapURL);
     if (null == AGENT_CLASSLOADER) {
@@ -687,6 +693,34 @@ public class Agent {
       log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
+  }
+
+  private static void shutdownProfilingAgent(final boolean sync) {
+    if (PROFILING_CLASSLOADER == null) {
+      // It wasn't started, so no need to shut it down
+      return;
+    }
+
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      final ClassLoader classLoader = PROFILING_CLASSLOADER;
+      Thread.currentThread().setContextClassLoader(classLoader);
+      final Class<?> profilingAgentClass =
+          classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
+      profilingInstallerMethod.invoke(null, sync);
+    } catch (final ClassFormatError e) {
+      /*
+      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
+      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
+      */
+      log.debug("Profiling requires OpenJDK 8 or above - skipping");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }

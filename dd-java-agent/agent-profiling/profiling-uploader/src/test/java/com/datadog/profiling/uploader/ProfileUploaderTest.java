@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -50,6 +51,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -149,6 +152,7 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.isProfilingUploadSummaryOn413Enabled()).thenReturn(true);
 
     uploader =
         new ProfileUploader(
@@ -178,6 +182,56 @@ public class ProfileUploaderTest {
     uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
+
+    final FileItem rawEvent = multiPartItems.get(0);
+    assertEquals(ProfileUploader.V4_EVENT_NAME, rawEvent.getFieldName());
+    assertEquals(ProfileUploader.V4_EVENT_FILENAME, rawEvent.getName());
+    assertEquals("application/json", rawEvent.getContentType());
+
+    final FileItem rawJfr = multiPartItems.get(1);
+    assertEquals(ProfileUploader.V4_ATTACHMENT_NAME, rawJfr.getFieldName());
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, rawJfr.getName());
+    assertEquals("application/octet-stream", rawJfr.getContentType());
+
+    final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(true));
+    assertArrayEquals(expectedBytes, rawJfr.get());
+
+    // Event checks
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(rawEvent.getString());
+
+    assertEquals(ProfileUploader.V4_ATTACHMENT_FILENAME, event.get("attachments").get(0).asText());
+    assertEquals(ProfileUploader.V4_FAMILY, event.get("family").asText());
+    assertEquals(ProfileUploader.V4_VERSION, event.get("version").asText());
+    assertEquals(
+        Instant.ofEpochSecond(PROFILE_START).toString(),
+        event.get(V4_PROFILE_START_PARAM).asText());
+    assertEquals(
+        Instant.ofEpochSecond(PROFILE_END).toString(), event.get(V4_PROFILE_END_PARAM).asText());
+    assertEquals(
+        EXPECTED_TAGS,
+        ProfilingTestUtils.parseTags(
+            Arrays.asList(event.get("tags_profiler").asText().split(","))));
+  }
+
+  @Test
+  public void testHappyPathSync() throws Exception {
+    // Given
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
+
+    // When
+    uploader = new ProfileUploader(config, configProvider);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    // upload synchronously
+    uploader.upload(RECORDING_TYPE, mockRecordingData(true), true);
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
     // Then
@@ -473,11 +527,46 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void test413Response() throws Exception {
+    server.enqueue(new MockResponse().setResponseCode(413));
+
+    final RecordingData recording = mockRecordingData();
+    uploadAndWait(RECORDING_TYPE, recording);
+
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+
+    verify(recording).release();
+
+    if (Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"))) {
+      verify(ioLogger)
+          .error(
+              eq("Failed to upload profile, it's too big. Dumping information about the profile"));
+      verify(ioLogger, times(10)).error(matches("Event: .*, size = [0-9]+, count = [0-9]+"));
+    } else {
+      verify(ioLogger).error(eq("Failed to gather information on recording, can't find `jfr`"));
+    }
+  }
+
+  @Test
   public void testConnectionRefused() throws Exception {
     server.shutdown();
 
     final RecordingData recording = mockRecordingData();
     uploadAndWait(RECORDING_TYPE, recording);
+
+    verify(recording).release();
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(ioLogger).error(eq("Failed to upload profile to " + url), any(ConnectException.class));
+  }
+
+  @Test
+  public void testConnectionRefusedSync() throws Exception {
+    server.shutdown();
+
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
 
     verify(recording).release();
 
@@ -507,6 +596,26 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testNoReplyFromServerSync() throws Exception {
+    server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
+
+    // Wait longer than request timeout
+    assertNotNull(server.takeRequest(REQUEST_TIMEOUT.getSeconds() + 1, TimeUnit.SECONDS));
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(recording).release();
+    verify(ioLogger)
+        .error(
+            eq(
+                "Failed to upload profile, received empty reply from "
+                    + url
+                    + " after uploading profile"));
+  }
+
+  @Test
   public void testTimeout() throws Exception {
     server.enqueue(
         new MockResponse()
@@ -516,6 +625,29 @@ public class ProfileUploaderTest {
 
     final RecordingData recording = mockRecordingData();
     uploadAndWait(RECORDING_TYPE, recording);
+
+    // Wait longer than request timeout
+    assertNotNull(
+        server.takeRequest(REQUEST_IO_OPERATION_TIMEOUT.getSeconds() + 2, TimeUnit.SECONDS));
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(recording).release();
+    // This seems to be a weird behaviour on okHttp side: it considers request to be a success even
+    // if it didn't get headers before the timeout
+    verify(ioLogger).success(eq("Upload done"));
+  }
+
+  @Test
+  public void testTimeoutSync() throws Exception {
+    server.enqueue(
+        new MockResponse()
+            .setHeadersDelay(
+                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                TimeUnit.MILLISECONDS));
+
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
 
     // Wait longer than request timeout
     assertNotNull(

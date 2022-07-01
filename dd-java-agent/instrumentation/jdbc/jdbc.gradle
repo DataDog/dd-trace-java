@@ -43,8 +43,8 @@ dependencies {
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testImplementation group: 'org.postgresql', name: 'postgresql', version: '[9.4,42.2.18]'
 
-  testImplementation "org.testcontainers:mysql:1.15.1"
-  testImplementation "org.testcontainers:postgresql:1.15.1"
+  testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
+  testImplementation "org.testcontainers:postgresql:${versions.testcontainers}"
 
   // Test pre jdk 1.6 H2
   oldH2TestImplementation(group: 'com.h2database', name: 'h2') {

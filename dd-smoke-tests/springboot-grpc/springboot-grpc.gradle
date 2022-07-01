@@ -14,11 +14,13 @@ description = 'SpringBoot/gRPC combined Smoke Tests.'
 
 protobuf {
   protoc {
-    artifact = "com.google.protobuf:protoc:3.12.0"
+    // First version with Mac M1 support
+    artifact = "com.google.protobuf:protoc:3.17.3"
   }
   plugins {
     grpc {
-      artifact = 'io.grpc:protoc-gen-grpc-java:1.31.1'
+      // First version with Mac M1 support
+      artifact = 'io.grpc:protoc-gen-grpc-java:1.42.2'
     }
   }
   generateProtoTasks {
@@ -42,9 +44,9 @@ shadowJar {
 
 dependencies {
   main_java8Implementation 'org.springframework.boot:spring-boot-starter-web:1.5.18.RELEASE'
-  main_java8Implementation 'io.grpc:grpc-netty-shaded:1.31.1'
-  main_java8Implementation 'io.grpc:grpc-protobuf:1.31.1'
-  main_java8Implementation 'io.grpc:grpc-stub:1.31.1'
+  main_java8Implementation 'io.grpc:grpc-netty-shaded:1.42.2'
+  main_java8Implementation 'io.grpc:grpc-protobuf:1.42.2'
+  main_java8Implementation 'io.grpc:grpc-stub:1.42.2'
   main_java8Implementation 'org.apache.tomcat:annotations-api:6.0.53'
   main_java8Implementation 'com.google.cloud:google-cloud-spanner:1.61.0'
 

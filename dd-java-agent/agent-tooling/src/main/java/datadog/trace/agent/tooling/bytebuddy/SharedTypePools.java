@@ -1,23 +1,24 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 
 /** Pluggable {@link TypePool}s for use with instrumentation matching and muzzle checks. */
 public final class SharedTypePools {
-  private static final AtomicReference<Supplier> SUPPLIER = new AtomicReference<>();
+  private static volatile Supplier SUPPLIER;
 
   public static TypePool typePool(ClassLoader classLoader) {
-    return SUPPLIER.get().typePool(ClassFileLocators.classFileLocator(classLoader), classLoader);
+    return SUPPLIER.typePool(ClassFileLocators.classFileLocator(classLoader), classLoader);
   }
 
   public static TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-    return SUPPLIER.get().typePool(classFileLocator, classLoader);
+    return SUPPLIER.typePool(classFileLocator, classLoader);
   }
 
-  public static void registerIfAbsent(Supplier supplier) {
-    SUPPLIER.compareAndSet(null, supplier);
+  public static synchronized void registerIfAbsent(Supplier supplier) {
+    if (null == SUPPLIER) {
+      SUPPLIER = supplier;
+    }
   }
 
   public interface Supplier {

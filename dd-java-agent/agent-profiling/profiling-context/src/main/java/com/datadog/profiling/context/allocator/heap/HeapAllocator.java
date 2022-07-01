@@ -1,12 +1,10 @@
 package com.datadog.profiling.context.allocator.heap;
 
 import com.datadog.profiling.context.Allocator;
+import com.datadog.profiling.context.StatsDAccessor;
 import com.datadog.profiling.context.allocator.AllocatedBuffer;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.Tracer;
 import datadog.trace.relocate.api.RatelimitedLogger;
-import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -32,28 +30,10 @@ public final class HeapAllocator implements Allocator {
     this.topMemory = numChunks * (long) chunkSize;
     this.remaining = new AtomicLong(topMemory);
 
-    StatsDClient statsd = getStatsdClient();
+    StatsDClient statsd = StatsDAccessor.getStatsdClient();
     statsDClient = statsd;
 
     log.info("HeapAllocator created with the limit of {} bytes", topMemory);
-  }
-
-  private static StatsDClient getStatsdClient() {
-    try {
-      Tracer tracer = GlobalTracer.get();
-      Field fld = tracer.getClass().getDeclaredField("statsDClient");
-      fld.setAccessible(true);
-      StatsDClient statsd = (StatsDClient) fld.get(tracer);
-      log.debug("Set up custom StatsD Client instance {}", statsd);
-      return statsd;
-    } catch (Throwable t) {
-      if (log.isDebugEnabled()) {
-        log.warn("Unable to obtain a StatsD client instance", t);
-      } else {
-        log.warn("Unable to obtain a StatsD client instance");
-      }
-      return StatsDClient.NO_OP;
-    }
   }
 
   @Override

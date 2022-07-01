@@ -17,6 +17,7 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +34,7 @@ public final class ProfilingSystem {
   private static final long TERMINATION_TIMEOUT = 10;
 
   private final AgentTaskScheduler scheduler;
+  private final ConfigProvider configProvider;
   private final Controller controller;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
@@ -42,6 +44,7 @@ public final class ProfilingSystem {
   private final boolean isStartingFirst;
 
   private OngoingRecording recording;
+  private SnapshotRecording snapshotRecording;
   private volatile boolean started = false;
 
   /**
@@ -56,6 +59,7 @@ public final class ProfilingSystem {
    * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
+      final ConfigProvider configProvider,
       final Controller controller,
       final RecordingDataListener dataListener,
       final Duration startupDelay,
@@ -64,6 +68,7 @@ public final class ProfilingSystem {
       final boolean isStartingFirst)
       throws ConfigurationException {
     this(
+        configProvider,
         controller,
         dataListener,
         startupDelay,
@@ -75,6 +80,7 @@ public final class ProfilingSystem {
   }
 
   ProfilingSystem(
+      final ConfigProvider configProvider,
       final Controller controller,
       final RecordingDataListener dataListener,
       final Duration baseStartupDelay,
@@ -84,6 +90,7 @@ public final class ProfilingSystem {
       final AgentTaskScheduler scheduler,
       final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
+    this.configProvider = configProvider;
     this.controller = controller;
     this.dataListener = dataListener;
     this.uploadPeriod = uploadPeriod;
@@ -136,7 +143,7 @@ public final class ProfilingSystem {
       recording = controller.createRecording(RECORDING_NAME);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
-          new SnapshotRecording(now),
+          snapshotRecording = createSnapshotRecording(now),
           uploadPeriod.toMillis(),
           uploadPeriod.toMillis(),
           TimeUnit.MILLISECONDS);
@@ -169,9 +176,25 @@ public final class ProfilingSystem {
     }
   }
 
+  // Used for mocking
+  SnapshotRecording createSnapshotRecording(Instant now) {
+    return new SnapshotRecording(now);
+  }
+
+  void shutdown() {
+    shutdown(false);
+  }
+
   /** Shuts down the profiling system. */
-  public final void shutdown() {
+  public final void shutdown(boolean snapshot) {
     scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+
+    if (snapshotRecording != null) {
+      if (snapshot) {
+        snapshotRecording.snapshot(true);
+      }
+      snapshotRecording = null;
+    }
 
     // Here we assume that all other threads have been shutdown and we can close running
     // recording
@@ -196,7 +219,7 @@ public final class ProfilingSystem {
     return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
-  private final class SnapshotRecording {
+  final class SnapshotRecording {
     private final Duration ONE_NANO = Duration.ofNanos(1);
 
     private Instant lastSnapshot;
@@ -206,6 +229,10 @@ public final class ProfilingSystem {
     }
 
     public void snapshot() {
+      snapshot(false);
+    }
+
+    public void snapshot(boolean sync) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
@@ -216,7 +243,7 @@ public final class ProfilingSystem {
           // JFR is filtering the stream it will only discard earlier chunks that have an end
           // time that is before (not before or equal to) the requested start time of the filter.
           lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
-          dataListener.onNewData(recordingType, recordingData);
+          dataListener.onNewData(recordingType, recordingData, sync);
         } else {
           lastSnapshot = Instant.now();
         }

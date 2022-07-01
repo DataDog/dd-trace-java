@@ -8,7 +8,6 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -55,9 +54,6 @@ public class LambdaHandler {
       new Moshi.Builder().build().adapter(Object.class);
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
-
-  public static final UTF8BytesString INVOCATION_SPAN_NAME =
-      UTF8BytesString.create("dd-tracer-serverless-span");
 
   public static AgentSpan.Context notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
@@ -133,7 +129,7 @@ public class LambdaHandler {
       try {
         json = adapter.toJson(obj);
       } catch (Exception e) {
-        log.error("could not write the value into a string", e);
+        log.debug("could not write the value into a string", e);
       }
     }
     return json;
