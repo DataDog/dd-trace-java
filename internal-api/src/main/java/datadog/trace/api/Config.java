@@ -2165,7 +2165,7 @@ public class Config {
       return crashTrackingUrl;
     } else if (crashTrackingAgentless) {
       // when agentless crashTracking is turned on we send directly to our intake
-      return "https://intake.profile." + site + "/api/v2/profile";
+      return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
     } else {
       // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
       // locally

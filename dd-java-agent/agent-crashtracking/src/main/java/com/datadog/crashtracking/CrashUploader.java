@@ -22,9 +22,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,24 +35,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import okhttp3.Call;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
 import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 
 /** Crash Reporter implementation */
 public class CrashUploader {
 
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
-  private static final MediaType APPLICATION_JSON = MediaType.get("application/json");
+  private static final MediaType APPLICATION_JSON =
+      MediaType.get("application/json; charset=utf-8");
   private static final MediaType APPLICATION_OCTET_STREAM =
       MediaType.parse("application/octet-stream");
 
@@ -65,16 +69,23 @@ public class CrashUploader {
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
   static final String JAVA_LANG = "java";
-  static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
+  static final String HEADER_DATADOG_META_LANG = "Datadog-Meta-Lang";
   static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   static final String JAVA_CRASHTRACKING_LIBRARY = "dd-trace-java";
   static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+  static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
+  static final String API_VERSION = "v1";
+  static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+  static final String REQUEST_TYPE = "logs";
+
+  private final Config config;
+  private final ConfigProvider configProvider;
+  private final String containerId;
 
   private final OkHttpClient client;
   private final boolean agentless;
   private final String apiKey;
   private final String url;
-  private final String containerId;
   private final String tags;
 
   public CrashUploader() {
@@ -83,10 +94,13 @@ public class CrashUploader {
 
   CrashUploader(
       final Config config, final ConfigProvider configProvider, final String containerId) {
+    this.config = config;
+    this.configProvider = configProvider;
+    this.containerId = containerId;
+
     url = config.getFinalCrashTrackingUrl();
     apiKey = config.getApiKey();
     agentless = config.isCrashTrackingAgentless();
-    this.containerId = containerId;
 
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
     tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
@@ -181,28 +195,39 @@ public class CrashUploader {
   }
 
   public void upload(@Nonnull String[] files) throws IOException {
-    makeUploadRequest(
-        Arrays.stream(files)
-            .map(
-                f -> {
-                  try {
-                    return new FileEntry(f, new FileInputStream(f));
-                  } catch (FileNotFoundException | SecurityException e) {
-                    log.error("Failed to open {}", f, e);
-                    return null;
-                  }
-                })
-            .filter(s -> s != null)
-            .collect(Collectors.toMap(FileEntry::name, FileEntry::stream)));
+    Call call =
+        makeUploadRequest(
+            Arrays.stream(files)
+                .map(
+                    f -> {
+                      try {
+                        return new FileEntry(f, new FileInputStream(f));
+                      } catch (FileNotFoundException | SecurityException e) {
+                        log.error("Failed to open {}", f, e);
+                        return null;
+                      }
+                    })
+                .filter(s -> s != null)
+                .collect(Collectors.toMap(FileEntry::name, FileEntry::stream)));
+
+    try {
+      handleSuccess(call, call.execute());
+    } catch (IOException e) {
+      handleFailure(call, e);
+    }
   }
 
-  private void makeUploadRequest(@Nonnull Map<String, InputStream> files) throws IOException {
+  private Call makeUploadRequest(@Nonnull Map<String, InputStream> files) throws IOException {
     final RequestBody requestBody = makeRequestBody(files);
 
     final Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
-            .addHeader(DATADOG_META_LANG, JAVA_LANG)
+            .addHeader("Content-Type", requestBody.contentType().toString())
+            .addHeader("Content-Length", Long.toString(requestBody.contentLength()))
+            .addHeader(HEADER_DD_TELEMETRY_API_VERSION, API_VERSION)
+            .addHeader(HEADER_DD_TELEMETRY_REQUEST_TYPE, REQUEST_TYPE)
+            .addHeader(HEADER_DATADOG_META_LANG, JAVA_LANG)
             .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_CRASHTRACKING_LIBRARY)
             .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
             .post(requestBody);
@@ -218,14 +243,33 @@ public class CrashUploader {
     }
 
     Request request = requestBuilder.build();
-    client.newCall(request).execute();
+
+    System.out.println(request.toString());
+    request.headers().names().forEach(n -> System.out.printf("%s: %s\n", n, request.header(n)));
+    System.out.println();
+
+    Buffer dbg = new Buffer();
+    requestBody.writeTo(dbg);
+    dbg.writeTo(System.out);
+    System.out.println();
+
+    return client.newCall(request);
   }
 
   private RequestBody makeRequestBody(@Nonnull Map<String, InputStream> files) throws IOException {
     Buffer out = new Buffer();
     try (JsonWriter writer = JsonWriter.of(out)) {
       writer.beginObject();
+
+      writer.name("debug").value(true);
+      writer.name("api_version").value(API_VERSION);
       writer.name("request_type").value("logs");
+      writer
+          .name("runtime_id")
+          .value(
+              "5e5b1180-2a0b-41a6-bed2-bc341d19f853"); // randomly generated, https://xkcd.com/221/
+      writer.name("tracer_time").value(Instant.now().getEpochSecond());
+      writer.name("seq_id").value(1);
       writer.name("payload");
       writer.beginArray();
       for (Map.Entry<String, InputStream> file : files.entrySet()) {
@@ -235,6 +279,20 @@ public class CrashUploader {
         writer.endObject();
       }
       writer.endArray();
+      writer.name("application");
+      writer.beginObject();
+      writer.name("language_name").value(JAVA_LANG);
+      writer.name("language_version").value(System.getProperty("java.version", "unknown"));
+      writer.name("service_name").value(config.getServiceName());
+      writer.name("tracer_version").value("0.103.0-SNAPSHOT~wip");
+      writer.endObject();
+      writer.name("host");
+      writer.beginObject();
+      writer.name("env").value(config.getEnv());
+      if (containerId != null) {
+        writer.name("container_id").value(containerId);
+      }
+      writer.endObject();
       writer.endObject();
     }
 
@@ -244,12 +302,31 @@ public class CrashUploader {
   private String readContent(InputStream file) throws IOException {
     try (InputStreamReader reader = new InputStreamReader(file, StandardCharsets.UTF_8)) {
       int read;
-      char[] buffer = new char[1<<14];
+      char[] buffer = new char[1 << 14];
       StringBuilder sb = new StringBuilder();
       while ((read = reader.read(buffer, 0, buffer.length)) > 0) {
         sb.append(buffer, 0, read);
       }
       return sb.toString();
     }
+  }
+
+  private void handleSuccess(final Call call, final Response response) throws IOException {
+    if (response.isSuccessful()) {
+      log.info(
+          "Successfully uploaded the crash files, code = {} \"{}\"",
+          response.code(),
+          response.message());
+    } else {
+      log.error(
+          "Failed to upload crash files, code = {} \"{}\", body = \"{}\"",
+          response.code(),
+          response.message(),
+          response.body() != null ? response.body().string().trim() : "<null>");
+    }
+  }
+
+  private void handleFailure(final Call call, final IOException exception) {
+    log.error("Failed to upload crash files, got exception: {}", exception.getMessage(), exception);
   }
 }

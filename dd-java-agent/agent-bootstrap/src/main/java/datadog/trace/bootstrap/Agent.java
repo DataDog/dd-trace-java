@@ -268,7 +268,8 @@ public class Agent {
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
   }
 
-  public static synchronized Object installAgentClassLoader(final URL bootstrapURL) throws Exception {
+  public static synchronized Object installAgentClassLoader(final URL bootstrapURL)
+      throws Exception {
     createSharedClassloader(bootstrapURL);
     if (null == AGENT_CLASSLOADER) {
       // in CLI mode we skip installation of instrumentation because we're not running as an agent
@@ -281,7 +282,7 @@ public class Agent {
   }
 
   public static synchronized void uninstallAgentClassLoader(final Object cookie) throws Exception {
-    Thread.currentThread().setContextClassLoader((ClassLoader)cookie);
+    Thread.currentThread().setContextClassLoader((ClassLoader) cookie);
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
