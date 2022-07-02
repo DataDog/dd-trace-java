@@ -3,7 +3,6 @@ package datadog.trace.common.writer
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
@@ -166,7 +165,6 @@ class DDIntakeWriterTest extends DDCoreSpecification{
       "",
       "",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       "",
       [:],
       false,

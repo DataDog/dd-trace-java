@@ -76,7 +76,7 @@ class DatadogTagsTest extends DDCoreSpecification {
 
     when:
     datadogTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
-    datadogTags.updateSpanSamplingPriority(priority, "service-1")
+    datadogTags.updateSpanSamplingPriority(priority, mechanism, "service-1")
 
     then:
     datadogTags.headerValue() == expectedHeaderValue
@@ -102,6 +102,8 @@ class DatadogTagsTest extends DDCoreSpecification {
     ""                                                          | SAMPLER_KEEP | DEFAULT    | "_dd.p.dm=266ff5f617-0"                                     | ["_dd.p.dm": "266ff5f617-0", "_dd.dm.service_hash": "266ff5f617"]
     "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=266ff5f617-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "266ff5f617-4", "_dd.dm.service_hash": "266ff5f617"]
     "_dd.p.anytag=_dd.p.dm"                                     | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=_dd.p.dm,_dd.p.dm=266ff5f617-1"               | ["_dd.p.anytag": "_dd.p.dm", "_dd.p.dm": "266ff5f617-1", "_dd.dm.service_hash": "266ff5f617"]
+    // do not set the dm tags when mechanism is UNKNOWN
+    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
     // drop the dm tag
     "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
@@ -116,7 +118,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     def datadogTags = datadogTagsFactory.fromHeaderValue(headerValue)
 
     when:
-    datadogTags.updateSpanSamplingPriority(priority, "service-1")
+    datadogTags.updateSpanSamplingPriority(priority, mechanism, "service-1")
 
     then:
     datadogTags.headerValue() == expectedHeaderValue
@@ -141,6 +143,8 @@ class DatadogTagsTest extends DDCoreSpecification {
     // add the dm.service_hash only
     ""                                                          | SAMPLER_KEEP | DEFAULT    | null                                                        | ["_dd.dm.service_hash": "266ff5f617"]
     "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value"                                        | ["_dd.dm.service_hash": "266ff5f617", "_dd.p.anytag": "value"]
+    // do not set the dm tags when mechanism is UNKNOWN
+    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
     // drop the dm tag
     "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
@@ -180,6 +184,8 @@ class DatadogTagsTest extends DDCoreSpecification {
     // add the dm tag
     ""                                                          | SAMPLER_KEEP | DEFAULT    | "_dd.p.dm=266ff5f617-0"                                     | ["_dd.p.dm": "266ff5f617-0"]
     "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=266ff5f617-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "266ff5f617-4"]
+    // do not set the dm tags when mechanism is UNKNOWN
+    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
     // drop the dm tag
     "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
     // invalid input
@@ -198,7 +204,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     when:
     datadogTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
     // this won't set "_dd.dm.service_hash"
-    datadogTags.updateSpanSamplingPriority(priority, "service-1")
+    datadogTags.updateSpanSamplingPriority(priority, mechanism, "service-1")
 
     then:
     datadogTags.headerValue() == expectedHeaderValue
@@ -225,6 +231,8 @@ class DatadogTagsTest extends DDCoreSpecification {
     ""                                                          | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=-1"                                               | ["_dd.p.dm": "-1"]
     "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=-4"                            | ["_dd.p.anytag": "value", "_dd.p.dm": "-4"]
     "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
+    // do not set the dm tags when mechanism is UNKNOWN
+    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
     // invalid input
     ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
   }

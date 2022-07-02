@@ -203,7 +203,8 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     }
 
     @Override
-    public void updateSpanSamplingPriority(int samplingPriority, String serviceName) {}
+    public void updateSpanSamplingPriority(
+        int samplingPriority, int samplingMechanism, String serviceName) {}
 
     @Override
     public void updateTraceSamplingPriority(
@@ -230,6 +231,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     private final boolean isDecisionMakerTagMissing;
     // extracted decision maker tag for easier updates
     private volatile String decisionMakerTagValue;
+    private volatile int traceSamplingMechanism;
 
     // extracted span service tag that changes sampling decision for easier updates
     private volatile String spanServiceHash;
@@ -262,10 +264,14 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     }
 
     @Override
-    public void updateSpanSamplingPriority(int samplingPriority, String serviceName) {
+    public void updateSpanSamplingPriority(
+        int samplingPriority, int samplingMechanism, String serviceName) {
       // this method keep track of the span priority change without modifying tags in place to
       // avoid synchronization
-      if (samplingPriority > 0 && isServicePropagationEnabled && isDecisionMakerTagMissing) {
+      if (samplingPriority > 0
+          && samplingMechanism >= 0
+          && isServicePropagationEnabled
+          && isDecisionMakerTagMissing) {
         this.spanServiceHash = getServiceHash(serviceName);
       }
     }

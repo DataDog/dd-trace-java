@@ -9,7 +9,6 @@ import datadog.trace.api.DDId
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
@@ -148,7 +147,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
            "parent_id":0L,
            "start":1000L,
            "duration":10L,
-           "meta": ["_dd.dm.service_hash": "5462db6c6c"],
+           "meta": [:],
            "metrics":[:]
          ])
        ])]
@@ -217,7 +216,6 @@ class DDIntakeApiTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.SAMPLER_KEEP,
-      SamplingMechanism.UNKNOWN,
       null,
       [:],
       false,

@@ -11,7 +11,6 @@ public class ExtractedContext extends TagContext {
   private final DDId traceId;
   private final DDId spanId;
   private final int samplingPriority;
-  private final int samplingMechanism;
   private final long endToEndStartTime;
   private final Map<String, String> baggage;
   private final DatadogTags datadogTags;
@@ -20,7 +19,6 @@ public class ExtractedContext extends TagContext {
       final DDId traceId,
       final DDId spanId,
       final int samplingPriority,
-      final int samplingMechanism,
       final String origin,
       final long endToEndStartTime,
       final Map<String, String> baggage,
@@ -30,7 +28,6 @@ public class ExtractedContext extends TagContext {
     this.traceId = traceId;
     this.spanId = spanId;
     this.samplingPriority = samplingPriority;
-    this.samplingMechanism = samplingMechanism;
     this.endToEndStartTime = endToEndStartTime;
     this.baggage = baggage;
     this.datadogTags = datadogTags;
@@ -53,10 +50,6 @@ public class ExtractedContext extends TagContext {
 
   public final int getSamplingPriority() {
     return samplingPriority;
-  }
-
-  public final int getSamplingMechanism() {
-    return samplingMechanism;
   }
 
   public final long getEndToEndStartTime() {

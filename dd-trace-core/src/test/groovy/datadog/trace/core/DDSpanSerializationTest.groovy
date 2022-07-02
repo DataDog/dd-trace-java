@@ -5,7 +5,6 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
@@ -140,7 +139,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       baggage,
       false,
@@ -211,7 +209,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       baggage,
       false,
@@ -292,7 +289,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       ["a-baggage": "value"],
       false,

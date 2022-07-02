@@ -30,7 +30,6 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
-      samplingMechanism,
       origin,
       ["k1" : "v1", "k2" : "v2"],
       false,
@@ -40,7 +39,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().empty())
+      DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))
 
     final Map<String, String> carrier = Mock()
 
@@ -52,13 +51,13 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(SPAN_ID_KEY, spanId.toString())
     if (samplingPriority != UNSET) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$samplingPriority")
-      1 * carrier.put(DATADOG_TAGS_KEY, "_dd.p.dm=5462db6c6c-0")
     }
     if (origin) {
       1 * carrier.put(ORIGIN_KEY, origin)
     }
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    1 * carrier.put(DATADOG_TAGS_KEY, "_dd.p.usr=123")
     0 * _
 
     cleanup:
@@ -86,7 +85,6 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       UNSET,
-      UNKNOWN,
       "fakeOrigin",
       ["k1" : "v1", "k2" : "v2"],
       false,
@@ -133,7 +131,6 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       UNSET,
-      UNKNOWN,
       "fakeOrigin",
       ["k1" : "v1", "k2" : "v2"],
       false,

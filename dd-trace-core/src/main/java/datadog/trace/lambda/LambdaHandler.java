@@ -1,6 +1,5 @@
 package datadog.trace.lambda;
 
-import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -86,15 +85,7 @@ public class LambdaHandler {
           DatadogTags datadogTags =
               datadogTagsFactory.fromHeaderValue(response.headers().get(DATADOG_TAGS_KEY));
           return new ExtractedContext(
-              DDId.from(traceID),
-              DDId.ZERO,
-              samplingPriority,
-              DEFAULT,
-              null,
-              0,
-              null,
-              null,
-              datadogTags);
+              DDId.from(traceID), DDId.ZERO, samplingPriority, null, 0, null, null, datadogTags);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");

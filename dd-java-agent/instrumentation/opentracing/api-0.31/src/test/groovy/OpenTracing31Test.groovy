@@ -44,7 +44,7 @@ class OpenTracing31Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, DEFAULT, null, 0, [:], [:], DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(2), SAMPLER_DROP, null, 0, [:], [:], DatadogTags.factory().empty())
       builder.addReference(addReference, tracer.tracer.converter.toSpanContext(ctx))
     }
     def result = builder.start()

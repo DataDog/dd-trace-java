@@ -48,7 +48,8 @@ public abstract class DatadogTags {
    * Updates the span-level priority decision if it hasn't already been made and _dd.p.dm tag
    * doesn't exist. Called on the span context that made a sampling decision to keep the trace.
    */
-  public abstract void updateSpanSamplingPriority(int samplingPriority, String serviceName);
+  public abstract void updateSpanSamplingPriority(
+      int samplingPriority, int samplingMechanism, String serviceName);
 
   /**
    * Updates the trace-level sampling priority decision if it hasn't already been made and _dd.p.dm

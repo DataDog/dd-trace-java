@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext;
 import java.util.Collections;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -50,7 +49,6 @@ public class PendingTraceWrite {
                 "operation",
                 "resource",
                 PrioritySampling.SAMPLER_KEEP,
-                SamplingMechanism.DEFAULT,
                 null,
                 Collections.<String, String>emptyMap(),
                 false,
@@ -73,7 +71,6 @@ public class PendingTraceWrite {
                 "operation",
                 "resource",
                 PrioritySampling.SAMPLER_KEEP,
-                SamplingMechanism.DEFAULT,
                 null,
                 Collections.<String, String>emptyMap(),
                 false,

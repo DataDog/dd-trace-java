@@ -29,7 +29,6 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -1176,7 +1175,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
-      final int samplingMechanism;
       final String origin;
       final Map<String, String> coreTags;
       final Map<String, ?> rootSpanTags;
@@ -1209,7 +1207,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         baggage = ddsc.getBaggageItems();
         parentTrace = ddsc.getTrace();
         samplingPriority = PrioritySampling.UNSET;
-        samplingMechanism = SamplingMechanism.UNKNOWN;
         origin = null;
         coreTags = null;
         rootSpanTags = null;
@@ -1233,7 +1230,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           traceId = extractedContext.getTraceId();
           parentSpanId = extractedContext.getSpanId();
           samplingPriority = extractedContext.getSamplingPriority();
-          samplingMechanism = extractedContext.getSamplingMechanism();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           baggage = extractedContext.getBaggage();
           datadogTags = extractedContext.getDatadogTags();
@@ -1242,7 +1238,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           traceId = IdGenerationStrategy.RANDOM.generate();
           parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
-          samplingMechanism = SamplingMechanism.UNKNOWN;
           endToEndStartTime = 0;
           baggage = null;
           datadogTags = datadogTagsFactory.empty();
@@ -1294,7 +1289,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               operationName,
               resourceName,
               samplingPriority,
-              samplingMechanism,
               origin,
               baggage,
               errorFlag,

@@ -135,11 +135,11 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:], DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, null, 0, [:], [:], DatadogTags.factory().empty())
       builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:], DatadogTags.factory().empty())
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, null, 0, [:], [:], DatadogTags.factory().empty())
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()

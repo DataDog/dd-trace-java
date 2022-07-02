@@ -3,7 +3,6 @@ package datadog.opentracing
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.CoreTracer
@@ -84,7 +83,6 @@ class TypeConverterTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       [:],
       false,

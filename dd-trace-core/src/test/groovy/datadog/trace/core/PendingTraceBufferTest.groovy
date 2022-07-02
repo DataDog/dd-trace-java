@@ -5,7 +5,6 @@ import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
@@ -155,8 +154,6 @@ class PendingTraceBufferTest extends DDSpecification {
     }
     0 *  _
     metadataChecker.hasSamplingPriority
-
-
   }
 
   def "buffer full yields immediate write"() {
@@ -408,7 +405,6 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
       false,
@@ -433,7 +429,6 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
       false,
