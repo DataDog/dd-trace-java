@@ -282,7 +282,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
 
       if (samplingPriority != PrioritySampling.UNSET && isDecisionMakerTagMissing) {
         if (samplingPriority > 0) {
-          // protected against possible SamplingMechanism.UNKNOWN (-1) that is not comply with the
+          // protected against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
           // format
           if (samplingMechanism >= 0) {
             decisionMakerTagValue = getServiceHash(serviceName) + '-' + samplingMechanism;

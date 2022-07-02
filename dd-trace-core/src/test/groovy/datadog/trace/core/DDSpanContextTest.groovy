@@ -16,7 +16,6 @@ class DDSpanContextTest extends DDCoreSpecification {
   def tracer
 
   def setup() {
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
     writer = new ListWriter()
     tracer = tracerBuilder().writer(writer).build()
   }
