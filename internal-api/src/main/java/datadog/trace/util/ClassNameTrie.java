@@ -205,6 +205,11 @@ public final class ClassNameTrie {
       return trieLength == 0;
     }
 
+    /** Allow querying while the class-name trie is being built. */
+    public int apply(String key) {
+      return ClassNameTrie.apply(trieData, longJumps, key);
+    }
+
     public ClassNameTrie buildTrie() {
       return new ClassNameTrie(
           Arrays.copyOfRange(trieData, 0, trieLength),
