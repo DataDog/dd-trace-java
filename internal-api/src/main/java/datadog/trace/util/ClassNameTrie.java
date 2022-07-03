@@ -336,7 +336,9 @@ public final class ClassNameTrie {
         char value = trieData[valueIndex];
 
         if ((value & (LEAF_MARKER | BUD_MARKER)) != 0 && keyIndex == keyLength) {
-          return; // ignore duplicate key
+          // duplicate key: overwrite existing value in the tree with the new value
+          trieData[valueIndex] = (char) ((value & ~MAX_NODE_VALUE) | valueToInsert);
+          return;
         }
 
         int branch = branchIndex - dataIndex;
@@ -419,6 +421,10 @@ public final class ClassNameTrie {
               trieData[valueIndex]--;
               jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
               break;
+            } else {
+              // duplicate key: overwrite existing value in the tree with the new value
+              trieData[dataIndex] = (char) ((value & ~MAX_NODE_VALUE) | valueToInsert);
+              return;
             }
           } else /* segment is followed by a node */ {
             if (keyIndex == keyLength) {
