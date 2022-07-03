@@ -228,6 +228,9 @@ public final class ClassNameTrie {
 
     /** Merges a new class-name mapping into the current builder */
     public void put(String className, int number) {
+      if (null == className || className.isEmpty()) {
+        throw new IllegalArgumentException("Null or empty class name");
+      }
       if (number < 0) {
         throw new IllegalArgumentException("Number for " + className + " is negative: " + number);
       }
