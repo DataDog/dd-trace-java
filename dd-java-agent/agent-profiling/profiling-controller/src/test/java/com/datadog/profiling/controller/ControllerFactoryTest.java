@@ -39,12 +39,10 @@ public class ControllerFactoryTest {
             + "; it requires ";
     if (javaVendor.equals("Azul Systems, Inc.")) {
       expected += "Zulu Java 8 (1.8.0_212+).";
-    } else if (javaVendor.equals("Oracle Corporation")
-        && !javaRuntimeName.startsWith("OpenJDK")) {
+    } else if (javaVendor.equals("Oracle Corporation") && !javaRuntimeName.startsWith("OpenJDK")) {
       // condition for Oracle JDK 8 (with proprietary JFR inside)
       expected += "Oracle JRE/JDK 8u40+";
-    } else if (javaVendor.equals("Oracle Corporation")
-        && javaRuntimeName.startsWith("OpenJDK")) {
+    } else if (javaVendor.equals("Oracle Corporation") && javaRuntimeName.startsWith("OpenJDK")) {
       // condition for Oracle OpenJDK 8 (with open JFR inside)
       expected += "1.8.0_272+ OpenJDK builds (upstream)";
     } else if (javaRuntimeName.startsWith("OpenJDK")) {
