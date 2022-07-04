@@ -34,3 +34,7 @@ configurations.testRuntimeClasspath {
     force group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
   }
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

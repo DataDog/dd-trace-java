@@ -23,13 +23,9 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   void beforeProcessBuilders() {
-    if ("true" == System.getenv("CI")) {
-      // CircleCI provides a mongo image
-    } else {
-      mongoDbContainer = new MongoDBContainer(DockerImageName.parse("mongo:4.0.10"))
-      mongoDbContainer.start()
-      mongoDbUri = mongoDbContainer.replicaSetUrl
-    }
+    mongoDbContainer = new MongoDBContainer(DockerImageName.parse("mongo:4.0.10"))
+    mongoDbContainer.start()
+    mongoDbUri = mongoDbContainer.replicaSetUrl
   }
 
   @Override
