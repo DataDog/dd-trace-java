@@ -24,7 +24,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
-import datadog.trace.bootstrap.instrumentation.decorator.http.QueryObfuscator;
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.Map;
@@ -143,8 +142,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           String path = encoded ? url.rawPath() : url.path();
-          String httpUrl = URIUtils.buildURL(url.scheme(), url.host(), url.port(), path);
 
+          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
           if (context != null && context.getForwardedHost() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, context.getForwardedHost());
           } else if (url.host() != null) {
@@ -154,16 +153,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           if (config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-
-            if (query != null && !query.isEmpty()) {
-              query = QueryObfuscator.obfuscate(query, config.getObfuscationQueryRegexp());
-              httpUrl = httpUrl + '?' + query;
-            }
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
-          span.setTag(Tags.HTTP_URL, httpUrl);
-
           callIGCallbackURI(span, url, method);
           if (SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
@@ -405,7 +397,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static ResponseHeaderTagClassifier create(
+    static final ResponseHeaderTagClassifier create(
         AgentSpan span, Map<String, String> headerTags) {
       if (span == null || headerTags == null || headerTags.isEmpty()) {
         return null;

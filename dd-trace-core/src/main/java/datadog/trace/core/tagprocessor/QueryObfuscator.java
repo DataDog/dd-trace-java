@@ -1,16 +1,20 @@
-package datadog.trace.bootstrap.instrumentation.decorator.http;
+package datadog.trace.core.tagprocessor;
 
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.Function;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class QueryObfuscator {
+public class QueryObfuscator implements TagsPostProcessor {
 
   private static final Logger log = LoggerFactory.getLogger(QueryObfuscator.class);
 
@@ -31,7 +35,7 @@ public class QueryObfuscator {
         }
       };
 
-  public static String obfuscate(String query, String regex) {
+  private static String obfuscate(String query, String regex) {
     // Empty regex - means obfuscation deactivated
     if (query == null || "".equals(regex)) {
       return query;
@@ -56,5 +60,22 @@ public class QueryObfuscator {
       query = Strings.replace(query, matcher.group(), "<redacted>");
     }
     return query;
+  }
+
+  @Override
+  public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
+    Object query = unsafeTags.get(DDTags.HTTP_QUERY);
+    if (query instanceof String) {
+      query = obfuscate((String) query, Config.get().getObfuscationQueryRegexp());
+
+      unsafeTags.put(DDTags.HTTP_QUERY, query);
+
+      Object url = unsafeTags.get(Tags.HTTP_URL);
+      if (url instanceof String) {
+        unsafeTags.put(Tags.HTTP_URL, url + "?" + query);
+      }
+    }
+
+    return unsafeTags;
   }
 }

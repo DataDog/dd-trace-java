@@ -1103,8 +1103,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedExtraServerTags = expectedExtraServerTags(endpoint)
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
-    def queryStringIfExist = expectedQueryTag ? '?' + expectedQueryTag : ''
-    def expectedUrl = expectedUrl(endpoint, address) + queryStringIfExist
+    def expectedUrl = expectedUrl(endpoint, address)
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -1125,13 +1124,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             "$Tags.PEER_PORT" Integer
           }
           "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+        } else {
+          "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
         "$Tags.HTTP_USER_AGENT" String
-        "$Tags.HTTP_CLIENT_IP" clientIp
         if (endpoint == FORWARDED && hasForwardedIP) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

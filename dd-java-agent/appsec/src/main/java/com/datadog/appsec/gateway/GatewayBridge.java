@@ -118,9 +118,10 @@ public class GatewayBridge {
 
               Map<String, List<String>> requestHeaders = ctx.getRequestHeaders();
               Map<String, List<String>> responseHeaders = ctx.getResponseHeaders();
+              // Reflect client_ip as actor.ip for backward compatibility
               Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
               if (clientIp != null) {
-                traceSeg.setTagTop("actor.ip", clientIp.toString());
+                traceSeg.setTagTop("actor.ip", clientIp);
               }
 
               // Report AppSec events via "_dd.appsec.json" tag
