@@ -15,7 +15,7 @@ def jarName = "demo-open-liberty-app.jar"
 // compile the Open liberty spring boot server
 tasks.register('mvnStage', Exec) {
   workingDir "$appDir"
-  commandLine './mvnw', 'package'
+  commandLine "$rootDir/mvnw", 'package'
 }
 
 tasks.named("compileTestGroovy").configure {
