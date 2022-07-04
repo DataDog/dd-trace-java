@@ -80,3 +80,7 @@ tasks.named("test").configure {
 tasks.named("latestDepJava11Test").configure {
   javaLauncher = getJavaLauncherFor(11)
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

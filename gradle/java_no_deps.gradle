@@ -8,6 +8,11 @@ apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 
+// Only run one testcontainers test at a time
+ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
+  maxParallelUsages = 1
+}
+
 // Task for tests that want to run forked in their own separate JVM
 tasks.register('forkedTest', Test) {
 }

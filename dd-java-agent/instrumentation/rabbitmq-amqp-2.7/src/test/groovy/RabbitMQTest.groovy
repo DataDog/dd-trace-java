@@ -8,6 +8,7 @@ import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -25,6 +26,7 @@ import spock.lang.Shared
 import java.time.Duration
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -35,10 +37,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 abstract class RabbitMQTestBase extends AgentTestRunner {
-  /*
-   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
-   */
   @Shared
   def rabbitMQContainer
   @Shared
@@ -64,14 +62,12 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 
   def setupSpec() {
-
-    /*
-     CI will provide us with rabbitmq container running along side our build.
-     When building locally, however, we need to take matters into our own hands
-     and we use 'testcontainers' for this.
-     */
+    // Please note that Testcontainers and forked runs seem to fail for this test
+    // intermittently, both locally and on CI, so that is why we have a rabbitmq
+    // container running along side our build on CI.
+    // When building locally, however, we need to use Testcontainers.
     if ("true" != System.getenv("CI")) {
-      rabbitMQContainer = new GenericContainer('rabbitmq:latest')
+      rabbitMQContainer = new GenericContainer('rabbitmq:3.9.20-alpine')
         .withExposedPorts(defaultRabbitMQPort)
         .withStartupTimeout(Duration.ofSeconds(120))
       rabbitMQContainer.start()
@@ -80,6 +76,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         rabbitMQContainer.getMappedPort(defaultRabbitMQPort)
         )
     }
+    PortUtils.waitForPortToOpen(rabbitmqAddress.hostString, rabbitmqAddress.port, 5, TimeUnit.SECONDS)
   }
 
   def cleanupSpec() {
@@ -90,8 +87,8 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
   def cleanup() {
     try {
-      channel.close()
-      conn.close()
+      channel?.close()
+      conn?.close()
     } catch (AlreadyClosedException e) {
       // Ignore
     }

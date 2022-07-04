@@ -25,3 +25,7 @@ dependencies {
 
   latestDepTestImplementation group: 'net.spy', name: 'spymemcached', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

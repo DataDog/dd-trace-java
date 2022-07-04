@@ -33,3 +33,7 @@ dependencies {
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

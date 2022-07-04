@@ -13,9 +13,8 @@ import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
 import static java.util.concurrent.TimeUnit.SECONDS
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides aerospike externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+// Do not run tests on Java7 since testcontainers are not compatible with Java7
+@Requires({ jvm.java8Compatible })
 abstract class AerospikeBaseTest extends AgentTestRunner {
 
   @Shared
@@ -28,20 +27,13 @@ abstract class AerospikeBaseTest extends AgentTestRunner {
   int aerospikePort = 3000
 
   def setup() throws Exception {
-    /*
-     CI will provide us with an aerospike container running alongside our build.
-     When building locally, however, we need to take matters into our own hands
-     and we use 'testcontainers' for this.
-     */
-    if ("true" != System.getenv("CI")) {
-      aerospike = new GenericContainer('aerospike:5.5.0.9')
-        .withExposedPorts(3000)
-        .waitingFor(forLogMessage(".*heartbeat-received.*\\n", 1))
+    aerospike = new GenericContainer('aerospike:5.5.0.9')
+      .withExposedPorts(3000)
+      .waitingFor(forLogMessage(".*heartbeat-received.*\\n", 1))
 
-      aerospike.start()
+    aerospike.start()
 
-      aerospikePort = aerospike.getMappedPort(3000)
-    }
+    aerospikePort = aerospike.getMappedPort(3000)
 
     waitForPortToOpen(aerospikePort, 10, SECONDS)
   }
