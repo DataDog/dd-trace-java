@@ -101,3 +101,15 @@ tasks.register('writeMuzzleTasksToFile') {
     .join('\n')
   }
 }
+
+tasks.register('writeInstrTestTasksToFile') {
+  doLast {
+    def taskName = project.rootProject.findProperty('instrTestTasksName')?.toString()
+    taskName = taskName != null ? taskName : 'test'
+    def instrTestFile = file("${buildDir}/instrTestTasks/${taskName}")
+    assert instrTestFile.parentFile.mkdirs() || instrTestFile.parentFile.directory
+    instrTestFile.text = project('dd-java-agent:instrumentation').subprojects.findAll { subproject -> subproject.tasks.findByPath(taskName) != null }
+    .collect { it.path + ":${taskName}" }
+    .join('\n')
+  }
+}
