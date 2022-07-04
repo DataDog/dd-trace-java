@@ -149,6 +149,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     rootLogger.setLevel(Level.WARN)
     ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG)
+    ((Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
   }
 
   @SuppressForbidden

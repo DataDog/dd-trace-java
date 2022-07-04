@@ -25,3 +25,7 @@ dependencies {
 
   latestDepTestImplementation group: 'com.aerospike', name: 'aerospike-client', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
