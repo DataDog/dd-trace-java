@@ -65,6 +65,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -141,6 +142,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -291,6 +293,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -344,6 +347,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 202
             "$Tags.HTTP_ROUTE" "/echo"
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -405,6 +409,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 500
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -481,6 +486,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 307
             "$Tags.HTTP_ROUTE" "/double-greet-redirect"
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -518,6 +524,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/double-greet"
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -572,6 +579,7 @@ class SpringWebfluxTest extends AgentTestRunner {
               "$Tags.HTTP_STATUS" 200
               "$Tags.HTTP_ROUTE" String
               "$Tags.HTTP_USER_AGENT" String
+              "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
               defaultTags()
             }
           }

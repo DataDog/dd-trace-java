@@ -62,6 +62,7 @@ class SparkJavaBasedTest extends AgentTestRunner {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" String
             "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }

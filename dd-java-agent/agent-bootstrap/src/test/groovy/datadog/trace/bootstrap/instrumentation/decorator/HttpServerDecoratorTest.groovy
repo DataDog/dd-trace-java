@@ -202,7 +202,9 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
-      1 * span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
+      if (conn.ip) {
+        1 * span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
+      }
     }
     1 * span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
     0 * _

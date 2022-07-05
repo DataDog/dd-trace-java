@@ -49,7 +49,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected boolean valid;
 
   protected TagContext.HttpHeaders httpHeaders;
-  protected boolean hasHttpHeaders;
+  protected static boolean hasHttpHeaders;
   protected String customIpHeaderName;
   private boolean customIpHeaderDisabled;
 

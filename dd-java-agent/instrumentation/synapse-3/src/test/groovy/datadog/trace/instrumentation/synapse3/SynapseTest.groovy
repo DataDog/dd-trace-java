@@ -239,17 +239,17 @@ class SynapseTest extends AgentTestRunner {
         childOf((DDSpan) parentSpan)
       }
       topLevel parentSpan == null || distributedRootSpan
-      def url = "/services/SimpleStockQuoteService" + (query ? '?' + query : '')
       tags {
         "$Tags.COMPONENT" "synapse-server"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" url
+        "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
         "$DDTags.HTTP_QUERY" query
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
         "$Tags.HTTP_USER_AGENT" String
+        "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
         defaultTags(distributedRootSpan)
       }
     }
@@ -277,6 +277,7 @@ class SynapseTest extends AgentTestRunner {
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
         "$Tags.HTTP_USER_AGENT" String
+        "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
         defaultTags()
       }
     }
