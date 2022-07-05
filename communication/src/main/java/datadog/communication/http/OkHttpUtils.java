@@ -1,24 +1,35 @@
 package datadog.communication.http;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
+import datadog.common.version.VersionInfo;
+import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import okhttp3.Authenticator;
+import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
+import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.Route;
 import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
@@ -35,12 +46,17 @@ public final class OkHttpUtils {
       "Datadog-Meta-Lang-Interpreter-Vendor";
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
 
+  private static final String DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
+  private static final String DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+
   private static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
   private static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");
   private static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");
 
+  private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
+
   public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
-    return buildHttpClient(url.scheme(), null, null, timeoutMillis);
+    return buildHttpClient(url, null, null, timeoutMillis);
   }
 
   public static OkHttpClient buildHttpClient(
@@ -48,36 +64,116 @@ public final class OkHttpUtils {
       final String unixDomainSocketPath,
       final String namedPipe,
       final long timeoutMillis) {
-    return buildHttpClient(url.scheme(), unixDomainSocketPath, namedPipe, timeoutMillis);
+    return buildHttpClient(
+        unixDomainSocketPath,
+        namedPipe,
+        null,
+        !url.scheme().equals("https"),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Duration.ofMillis(timeoutMillis));
   }
 
   public static OkHttpClient buildHttpClient(
-      final String scheme,
+      final Config config,
+      final Dispatcher dispatcher,
+      final HttpUrl url,
+      final boolean retryOnConnectionFailure,
+      final int maxRunningRequests,
+      final String proxyHost,
+      final Integer proxyPort,
+      final String proxyUsername,
+      final String proxyPassword,
+      final Duration timeout) {
+    return buildHttpClient(
+        discoverApmSocket(config),
+        config.getAgentNamedPipe(),
+        dispatcher,
+        !url.scheme().equals("https"),
+        retryOnConnectionFailure,
+        maxRunningRequests,
+        proxyHost,
+        proxyPort,
+        proxyUsername,
+        proxyPassword,
+        timeout);
+  }
+
+  private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
       final String namedPipe,
-      final long timeoutMillis) {
+      final Dispatcher dispatcher,
+      final boolean isHttp,
+      final Boolean retryOnConnectionFailure,
+      final Integer maxRunningRequests,
+      final String proxyHost,
+      final Integer proxyPort,
+      final String proxyUsername,
+      final String proxyPassword,
+      final Duration timeout) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+
+    builder
+        .connectTimeout(timeout)
+        .writeTimeout(timeout)
+        .readTimeout(timeout)
+        .proxySelector(AgentProxySelector.INSTANCE)
+        .dispatcher(
+            dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));
+
     if (unixDomainSocketPath != null) {
       builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
-      log.debug("Using UnixDomainSocket as trace transport");
+      log.debug("Using UnixDomainSocket as http transport");
     } else if (namedPipe != null) {
       builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
-      log.debug("Using NamedPipe as trace transport");
+      log.debug("Using NamedPipe as http transport");
     }
 
-    if (!"https".equals(scheme)) {
+    if (isHttp) {
       // force clear text when using http to avoid failures for JVMs without TLS
       builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
     }
 
-    builder
-        .connectTimeout(timeoutMillis, MILLISECONDS)
-        .writeTimeout(timeoutMillis, MILLISECONDS)
-        .readTimeout(timeoutMillis, MILLISECONDS)
-        .proxySelector(AgentProxySelector.INSTANCE)
-        .dispatcher(new Dispatcher(RejectingExecutorService.INSTANCE));
+    if (retryOnConnectionFailure != null) {
+      builder.retryOnConnectionFailure(retryOnConnectionFailure);
+    }
 
-    return builder.build();
+    if (maxRunningRequests != null) {
+      builder.connectionPool(new ConnectionPool(maxRunningRequests, 1, SECONDS));
+    }
+
+    if (proxyHost != null) {
+      builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
+      if (proxyUsername != null) {
+        builder.proxyAuthenticator(
+            new Authenticator() {
+              @Override
+              public Request authenticate(final Route route, final Response response) {
+                final String credential =
+                    Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+                return response
+                    .request()
+                    .newBuilder()
+                    .header("Proxy-Authorization", credential)
+                    .build();
+              }
+            });
+      }
+    }
+
+    OkHttpClient client = builder.build();
+
+    if (maxRunningRequests != null) {
+      client.dispatcher().setMaxRequests(maxRunningRequests);
+      // We are mainly talking to the same(ish) host so we need to raise this limit
+      client.dispatcher().setMaxRequestsPerHost(maxRunningRequests);
+    }
+
+    return client;
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
@@ -87,17 +183,20 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
             .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR)
+            .addHeader(DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY)
+            .addHeader(DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
+
+    final String containerId = ContainerInfo.get().getContainerId();
+    if (containerId != null) {
+      builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+    }
+
     for (Map.Entry<String, String> e : headers.entrySet()) {
       builder.addHeader(e.getKey(), e.getValue());
     }
 
-    final String containerId = ContainerInfo.get().getContainerId();
-    if (containerId == null) {
-      return builder;
-    } else {
-      return builder.addHeader(DATADOG_CONTAINER_ID, containerId);
-    }
+    return builder;
   }
 
   public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {

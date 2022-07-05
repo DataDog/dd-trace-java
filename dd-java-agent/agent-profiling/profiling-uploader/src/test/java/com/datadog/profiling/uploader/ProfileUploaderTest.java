@@ -41,6 +41,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
+import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
@@ -156,11 +157,7 @@ public class ProfileUploaderTest {
 
     uploader =
         new ProfileUploader(
-            config,
-            configProvider,
-            ioLogger,
-            "containerId",
-            (int) TERMINATION_TIMEOUT.getSeconds());
+            config, configProvider, ioLogger, (int) TERMINATION_TIMEOUT.getSeconds());
   }
 
   @AfterEach
@@ -353,18 +350,13 @@ public class ProfileUploaderTest {
   public void testRequestWithContainerId() throws Exception {
     uploader =
         new ProfileUploader(
-            config,
-            configProvider,
-            ioLogger,
-            "container-id",
-            (int) TERMINATION_TIMEOUT.getSeconds());
+            config, configProvider, ioLogger, (int) TERMINATION_TIMEOUT.getSeconds());
 
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertEquals(recordedRequest.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID), "container-id");
   }
 
   @Test
@@ -620,7 +612,7 @@ public class ProfileUploaderTest {
     server.enqueue(
         new MockResponse()
             .setHeadersDelay(
-                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofSeconds(1)).toMillis(),
                 TimeUnit.MILLISECONDS));
 
     final RecordingData recording = mockRecordingData();
@@ -643,7 +635,7 @@ public class ProfileUploaderTest {
     server.enqueue(
         new MockResponse()
             .setHeadersDelay(
-                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofSeconds(1)).toMillis(),
                 TimeUnit.MILLISECONDS));
 
     final RecordingData recording = mockRecordingData();
@@ -686,23 +678,6 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testHeaders() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(200));
-
-    uploadAndWait(RECORDING_TYPE, mockRecordingData());
-
-    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
-    assertEquals(
-        recordedRequest.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN),
-        ProfileUploader.JAVA_PROFILING_LIBRARY);
-    assertEquals(
-        recordedRequest.getHeader(ProfileUploader.HEADER_DD_EVP_ORIGIN_VERSION),
-        VersionInfo.VERSION);
-    assertEquals(
-        recordedRequest.getHeader(ProfileUploader.DATADOG_META_LANG), ProfileUploader.JAVA_LANG);
-  }
-
-  @Test
   public void testEnqueuedRequestsExecuted() throws Exception {
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -710,7 +685,7 @@ public class ProfileUploaderTest {
           new MockResponse()
               .setHeadersDelay(
                   // 1 second should be enough to schedule all requests and not hit timeout
-                  Duration.ofMillis(1000).toMillis(), TimeUnit.MILLISECONDS)
+                  Duration.ofSeconds(1).toMillis(), TimeUnit.MILLISECONDS)
               .setResponseCode(200));
     }
     server.enqueue(new MockResponse().setResponseCode(200));

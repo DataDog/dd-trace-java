@@ -6,6 +6,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  implementation project(':utils:version-utils')
 
   api deps.okhttp
   api group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'

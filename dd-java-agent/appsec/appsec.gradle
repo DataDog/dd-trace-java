@@ -47,6 +47,7 @@ shadowJar {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':utils:time-utils'))
+    exclude(project(':utils:version-utils'))
     exclude(project(':communication'))
     exclude(dependency('org.slf4j::'))
   }

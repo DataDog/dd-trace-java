@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader;
+package datadog.common.version;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
@@ -13,14 +13,15 @@ public class VersionInfo {
 
   private static final Logger log = LoggerFactory.getLogger(VersionInfo.class);
 
-  static final String PROFILER_VERSION_TAG = "profiler_version";
-  static final String VERSION;
+  public static final String LIBRARY_VERSION_TAG = "library_version";
+  public static final String PROFILER_VERSION_TAG = "profiler_version";
+  public static final String VERSION;
 
   static {
     String version = "unknown";
     try {
       final InputStream is =
-          VersionInfo.class.getClassLoader().getResourceAsStream("agent-profiling.version");
+          VersionInfo.class.getClassLoader().getResourceAsStream("version-utils.version");
       if (is != null) {
         final BufferedReader reader = new BufferedReader(new InputStreamReader(is));
         version = reader.lines().collect(Collectors.joining(System.lineSeparator())).trim();
