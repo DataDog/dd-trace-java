@@ -140,7 +140,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(1L, "service.name", "my-service", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]]          | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "e43fea3ed9-1", "_dd.dm.service_hash": "e43fea3ed9"],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
@@ -157,7 +157,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       "type"     : "fakeType"
     ])]]
     // service propagation disabled
-    [[buildSpan(100L, "resource.name", "my-resource", DatadogTags.factory(false).fromHeaderValue("_dd.p.usr=123"))]] | [[new TreeMap<>([
+    [[buildSpan(100L, "resource.name", "my-resource", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],

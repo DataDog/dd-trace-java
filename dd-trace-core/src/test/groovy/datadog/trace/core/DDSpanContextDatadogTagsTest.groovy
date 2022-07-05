@@ -18,38 +18,8 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "update span DatadogTags when Service Propagation enabled"() {
+  def "update span DatadogTags"() {
     setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
-    tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
-    def span = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
-      .start()
-    def dd = span.context().getDatadogTags()
-
-    when:
-    span.setSamplingPriority(newPriority, newMechanism)
-    span.getSamplingPriority() == newPriority
-
-    then:
-    dd.headerValue() == newHeader
-    dd.createTagMap() == tagMap
-
-    where:
-    priority     | header                                | newPriority  | newMechanism | newHeader                             | tagMap
-    UNSET        | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123,_dd.p.dm=9bf3439f2f-4" | ["_dd.p.dm": "9bf3439f2f-4", "_dd.dm.service_hash": "9bf3439f2f", "_dd.p.usr": "123"]
-    UNSET        | "_dd.p.usr=123"                       | SAMPLER_DROP | DEFAULT      | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
-    // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_KEEP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_DROP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
-  }
-
-  def "update span DatadogTags when Service Propagation disabled"() {
-    setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "0")
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
     def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
@@ -76,42 +46,8 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-  def "update trace DatadogTags when Service Propagation enabled"() {
+  def "update trace DatadogTags"() {
     setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
-    tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
-    def rootSpan = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
-      .start()
-    def ddRoot = rootSpan.context().getDatadogTags()
-    def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
-    def dd = span.context().getDatadogTags()
-
-    when:
-    span.setSamplingPriority(newPriority, newMechanism)
-    span.getSamplingPriority() == newPriority
-
-    then:
-    dd.headerValue() == null
-    dd.createTagMap() == spanTagMap
-    ddRoot.headerValue() == rootHeader
-    ddRoot.createTagMap() == rootTagMap
-
-    where:
-    priority     | header                                | newPriority  | newMechanism | rootHeader                            | spanTagMap                            | rootTagMap
-    UNSET        | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123,_dd.p.dm=9bf3439f2f-4" | ["_dd.dm.service_hash": "9bf3439f2f"] | ["_dd.p.dm": "9bf3439f2f-4", "_dd.p.usr": "123"]
-    UNSET        | "_dd.p.usr=123"                       | SAMPLER_DROP | DEFAULT      | "_dd.p.usr=123"                       | [:]                                   | ["_dd.p.usr": "123"]
-    // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_KEEP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | [:]                                   | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | USER_DROP    | MANUAL       | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | [:]                                   | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | [:]                                   | ["_dd.p.usr": "123"]
-  }
-
-  def "update trace DatadogTags when Service Propagation disabled"() {
-    setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "0")
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
     def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
@@ -142,36 +78,8 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | USER_KEEP    | MANUAL       | "_dd.p.usr=123"                       | [:]        | ["_dd.p.usr": "123"]
   }
 
-  def "forceKeep span DatadogTags when Service Propagation enabled"() {
+  def "forceKeep span DatadogTags"() {
     setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
-    tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
-    def span = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
-      .start()
-    def dd = span.context().getDatadogTags()
-
-    when:
-    span.context().forceKeep()
-    span.getSamplingPriority() == USER_KEEP
-
-    then:
-    dd.headerValue() == newHeader
-    dd.createTagMap() == tagMap
-
-    where:
-    priority     | header                                | newHeader                             | tagMap
-    UNSET        | "_dd.p.usr=123"                       | "_dd.p.usr=123,_dd.p.dm=9bf3439f2f-4" | ["_dd.dm.service_hash": "9bf3439f2f", "_dd.p.dm": "9bf3439f2f-4", "_dd.p.usr": "123"]
-    // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
-  }
-
-  def "forceKeep span DatadogTags when Service Propagation disabled"() {
-    setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "0")
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
     def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
@@ -196,41 +104,8 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
   }
 
-
-  def "forceKeep trace DatadogTags when Service Propagation enabled"() {
+  def "forceKeep trace DatadogTags"() {
     setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "1")
-    tracer = tracerBuilder().writer(writer).build()
-    def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
-    def rootSpan = (DDSpan) tracer.buildSpan("top")
-      .asChildOf((AgentSpan.Context) extracted)
-      .start()
-    def ddRoot = rootSpan.context().getDatadogTags()
-    def span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan).start()
-    def dd = span.context().getDatadogTags()
-
-    when:
-    span.context().forceKeep()
-    span.getSamplingPriority() == USER_KEEP
-
-    then:
-    dd.headerValue() == null
-    dd.createTagMap() == spanTagMap
-    ddRoot.headerValue() == rootHeader
-    ddRoot.createTagMap() == rootTagMap
-
-    where:
-    priority     | header                                | rootHeader                            | spanTagMap                            | rootTagMap
-    UNSET        | "_dd.p.usr=123"                       | "_dd.p.usr=123,_dd.p.dm=9bf3439f2f-4" | ["_dd.dm.service_hash": "9bf3439f2f"] | ["_dd.p.dm": "9bf3439f2f-4", "_dd.p.usr": "123"]
-    // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | [:]                                   | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | [:]                                   | ["_dd.p.usr": "123"]
-  }
-
-  def "forceKeep trace DatadogTags when Service Propagation disabled"() {
-    setup:
-    injectEnvConfig("DD_TRACE_PROPAGATE_SERVICE", "0")
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
     def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")

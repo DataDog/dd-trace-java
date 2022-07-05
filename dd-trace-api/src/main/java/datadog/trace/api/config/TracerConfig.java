@@ -69,16 +69,6 @@ public final class TracerConfig {
       "trace.sampling.mechanism.validation.disabled";
 
   /**
-   * When enabled, it sets the service hash in the _dd.p.dm tag and the _dd.dm tag is created on the
-   * span that made a sampling decision. When disabled, it will still parse and propagate Datadog
-   * tags as well as add the decision mechanism in the _dd.p.dm tag when the sampling priority
-   * changes.
-   */
-  public static final String TRACE_PROPAGATE_SERVICE = "trace.propagate.service";
-
-  public static final boolean TRACE_PROPAGATE_SERVICE_DEFAULT_VALUE = false;
-
-  /**
    * Limit for x-datadog-tags. When exceeded it will stop propagating Datadog tags and will log a
    * warning.
    */

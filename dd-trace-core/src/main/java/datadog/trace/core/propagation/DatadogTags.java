@@ -21,21 +21,15 @@ import java.util.Map;
 public abstract class DatadogTags {
 
   public static DatadogTags.Factory factory(Config config) {
-    return factory(config.isServicePropagationEnabled(), config.getDataDogTagsLimit());
+    return factory(config.getDataDogTagsLimit());
   }
 
-  public static DatadogTags.Factory factory(
-      boolean isServicePropagationEnabled, int datadogTagsLimit) {
-    return new DatadogTagsFactory(isServicePropagationEnabled, datadogTagsLimit);
-  }
-
-  public static DatadogTags.Factory factory(boolean isServicePropagationEnabled) {
-    return new DatadogTagsFactory(
-        isServicePropagationEnabled, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
+  public static DatadogTags.Factory factory(int datadogTagsLimit) {
+    return new DatadogTagsFactory(datadogTagsLimit);
   }
 
   public static DatadogTags.Factory factory() {
-    return factory(true, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
+    return factory(TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
   }
 
   public interface Factory {
@@ -43,13 +37,6 @@ public abstract class DatadogTags {
 
     DatadogTags fromHeaderValue(String value);
   }
-
-  /**
-   * Updates the span-level priority decision if it hasn't already been made and _dd.p.dm tag
-   * doesn't exist. Called on the span context that made a sampling decision to keep the trace.
-   */
-  public abstract void updateSpanSamplingPriority(
-      int samplingPriority, int samplingMechanism, String serviceName);
 
   /**
    * Updates the trace-level sampling priority decision if it hasn't already been made and _dd.p.dm
@@ -67,8 +54,8 @@ public abstract class DatadogTags {
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
-   * tags _dd.p.dm (root span only) and _dd.dm.service_hash (span made a sampling decision) based on
-   * the current state, or sets only an error tag if the header value exceeds a configured limit.
+   * tags _dd.p.dm (root span only) based on the current state, or sets only an error tag if the
+   * header value exceeds a configured limit.
    */
   public abstract void fillTagMap(Map<String, String> tagMap);
 

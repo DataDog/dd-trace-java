@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.core.util.ServiceNameHashing;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -19,7 +18,6 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
   private static final String DECISION_MAKER_TAG = ALLOWED_TAG_PREFIX + "dm";
   private static final String UPSTREAM_SERVICES_DEPRECATED_TAG =
       ALLOWED_TAG_PREFIX + "upstream_services";
-  public static final String SERVICE_HASH_TAG_KEY = "_dd.dm.service_hash";
 
   private static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
   private static final String PROPAGATION_ERROR_EXTRACT_MAX_SIZE = "extract_max_size";
@@ -33,14 +31,10 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
 
-  private final boolean isServicePropagationEnabled;
   private final int datadogTagsLimit;
-  private final ServiceNameHashing.HashProvider serviceHashProvider;
 
-  public DatadogTagsFactory(boolean isServicePropagationEnabled, int datadogTagsLimit) {
-    this.isServicePropagationEnabled = isServicePropagationEnabled;
+  DatadogTagsFactory(int datadogTagsLimit) {
     this.datadogTagsLimit = datadogTagsLimit;
-    this.serviceHashProvider = ServiceNameHashing.getHashProvider(isServicePropagationEnabled);
   }
 
   public DatadogTags empty() {
@@ -203,10 +197,6 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     }
 
     @Override
-    public void updateSpanSamplingPriority(
-        int samplingPriority, int samplingMechanism, String serviceName) {}
-
-    @Override
     public void updateTraceSamplingPriority(
         int samplingPriority, int samplingMechanism, String serviceName) {}
 
@@ -229,12 +219,9 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     private final int propagatedTagsSize;
 
     private final boolean isDecisionMakerTagMissing;
+
     // extracted decision maker tag for easier updates
     private volatile String decisionMakerTagValue;
-    private volatile int traceSamplingMechanism;
-
-    // extracted span service tag that changes sampling decision for easier updates
-    private volatile String spanServiceHash;
 
     private ValidDatadogTags(List<String> tagPairs) {
       assert tagPairs.size() % 2 == 0;
@@ -264,19 +251,6 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
     }
 
     @Override
-    public void updateSpanSamplingPriority(
-        int samplingPriority, int samplingMechanism, String serviceName) {
-      // this method keep track of the span priority change without modifying tags in place to
-      // avoid synchronization
-      if (samplingPriority > 0
-          && samplingMechanism >= 0
-          && isServicePropagationEnabled
-          && isDecisionMakerTagMissing) {
-        this.spanServiceHash = getServiceHash(serviceName);
-      }
-    }
-
-    @Override
     public void updateTraceSamplingPriority(
         int samplingPriority, int samplingMechanism, String serviceName) {
 
@@ -285,17 +259,13 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
           // protected against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
           // format
           if (samplingMechanism >= 0) {
-            decisionMakerTagValue = getServiceHash(serviceName) + '-' + samplingMechanism;
+            decisionMakerTagValue = "-" + samplingMechanism;
           }
         } else {
           // drop decision maker tag
           decisionMakerTagValue = null;
         }
       }
-    }
-
-    private String getServiceHash(String serviceName) {
-      return serviceName == null ? null : serviceHashProvider.hash(serviceName);
     }
 
     @Override
@@ -368,9 +338,6 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
       }
       if (isDecisionMakerTagMissing && decisionMakerTagValue != null) {
         tagMap.put(DECISION_MAKER_TAG, decisionMakerTagValue);
-      }
-      if (spanServiceHash != null) {
-        tagMap.put(SERVICE_HASH_TAG_KEY, spanServiceHash);
       }
     }
   }

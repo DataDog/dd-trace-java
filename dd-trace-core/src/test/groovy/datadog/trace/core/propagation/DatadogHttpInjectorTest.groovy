@@ -94,7 +94,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      DatadogTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))
+      DatadogTags.factory().fromHeaderValue("_dd.p.dm=-4,_dd.p.anytag=value"))
 
     mockedContext.beginEndToEnd()
 
@@ -110,7 +110,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "t0", "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
-    1 * carrier.put('x-datadog-tags', '_dd.p.dm=934086a686-4,_dd.p.anytag=value')
+    1 * carrier.put('x-datadog-tags', '_dd.p.dm=-4,_dd.p.anytag=value')
     0 * _
 
     cleanup:
@@ -156,7 +156,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     1 * carrier.put('x-datadog-sampling-priority', '2')
-    1 * carrier.put('x-datadog-tags', '_dd.p.dm=5462db6c6c-4')
+    1 * carrier.put('x-datadog-tags', '_dd.p.dm=-4')
     0 * _
 
     cleanup:

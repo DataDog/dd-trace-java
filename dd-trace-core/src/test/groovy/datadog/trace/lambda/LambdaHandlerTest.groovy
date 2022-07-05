@@ -23,7 +23,6 @@ class LambdaHandlerTest extends DDCoreSpecification {
   def "test start invocation success"() {
     given:
     Config config = Mock(Config)
-    config.isServicePropagationEnabled() >> true
     config.getDataDogTagsLimit() >> 512
 
     def server = httpServer {
@@ -57,7 +56,6 @@ class LambdaHandlerTest extends DDCoreSpecification {
   def "test start invocation failure"() {
     given:
     Config config = Mock(Config)
-    config.isServicePropagationEnabled() >> true
     config.getDataDogTagsLimit() >> 512
 
     def server = httpServer {

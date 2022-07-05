@@ -275,35 +275,24 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   public void forceKeep() {
     // set trace level sampling priority
-    if (getRootSpanContextOrThis().forceKeepThisSpan()) {
-      // call this only on the span level that made sampling decision
-      datadogTags.updateSpanSamplingPriority(
-          PrioritySampling.USER_KEEP, SamplingMechanism.MANUAL, serviceName);
-    }
+    getRootSpanContextOrThis().forceKeepThisSpan();
   }
 
-  private boolean forceKeepThisSpan() {
+  private void forceKeepThisSpan() {
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated
     if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
       datadogTags.updateTraceSamplingPriority(
           PrioritySampling.USER_KEEP, SamplingMechanism.MANUAL, serviceName);
-      return true;
     }
-    return false;
   }
 
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
     DDSpanContext spanContext = getRootSpanContextOrThis();
     // set trace level sampling priority
-    if (spanContext.setThisSpanSamplingPriority(newPriority, newMechanism)) {
-      // call this only on the span level that made sampling decision
-      datadogTags.updateSpanSamplingPriority(newPriority, newMechanism, serviceName);
-      return true;
-    }
-    return false;
+    return spanContext.setThisSpanSamplingPriority(newPriority, newMechanism);
   }
 
   private DDSpanContext getRootSpanContextOrThis() {

@@ -268,8 +268,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATE_SERVICE;
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATE_SERVICE_DEFAULT_VALUE;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
@@ -539,7 +537,6 @@ public class Config {
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
 
-  private final boolean servicePropagationEnabled;
   private final int dataDogTagsLimit;
 
   private final boolean tempJarsCleanOnBoot;
@@ -1129,8 +1126,6 @@ public class Config {
 
     servletPrincipalEnabled = configProvider.getBoolean(SERVLET_PRINCIPAL_ENABLED, false);
 
-    servicePropagationEnabled =
-        configProvider.getBoolean(TRACE_PROPAGATE_SERVICE, TRACE_PROPAGATE_SERVICE_DEFAULT_VALUE);
     dataDogTagsLimit =
         configProvider.getInteger(
             TRACE_X_DATADOG_TAGS_MAX_LENGTH, TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
@@ -1800,10 +1795,6 @@ public class Config {
 
   public boolean isServletPrincipalEnabled() {
     return servletPrincipalEnabled;
-  }
-
-  public boolean isServicePropagationEnabled() {
-    return servicePropagationEnabled;
   }
 
   public int getDataDogTagsLimit() {
@@ -2753,8 +2744,6 @@ public class Config {
         + servletPrincipalEnabled
         + ", servletAsyncTimeoutError="
         + servletAsyncTimeoutError
-        + ", servicePropagationEnabled="
-        + servicePropagationEnabled
         + ", datadogTagsLimit="
         + dataDogTagsLimit
         + ", tempJarsCleanOnBoot="

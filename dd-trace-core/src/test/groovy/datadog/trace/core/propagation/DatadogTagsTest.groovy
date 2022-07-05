@@ -11,7 +11,6 @@ class DatadogTagsTest extends DDCoreSpecification {
   def createDatadogTagsFromHeaderValue() {
     setup:
     def config = Mock(Config)
-    config.isServicePropagationEnabled() >> true
     config.getDataDogTagsLimit() >> 512
     def datadogTagsFactory = DatadogTags.factory(config)
 
@@ -66,145 +65,15 @@ class DatadogTagsTest extends DDCoreSpecification {
     "_dd.p.dm=934086a665-12b"                                                                                                    | null                                       | ["_dd.propagation_error": "decoding_error"] // invalid dm tag value sampling mechanism contains invalid char
   }
 
-  def updateTraceAndSpanSamplingPriorityOnlyWhenDatadogTagsEnabled() {
+  def updateDatadogTagsSamplingMechanism() {
     setup:
     def config = Mock(Config)
-    config.isServicePropagationEnabled() >> true
-    config.getDataDogTagsLimit() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
-    def datadogTags = datadogTagsFactory.fromHeaderValue(headerValue)
-
-    when:
-    datadogTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
-    datadogTags.updateSpanSamplingPriority(priority, mechanism, "service-1")
-
-    then:
-    datadogTags.headerValue() == expectedHeaderValue
-    datadogTags.createTagMap() == tags
-
-    where:
-    headerValue                                                 | priority     | mechanism  | expectedHeaderValue                                         | tags
-    // keep the existing dm tag as is
-    "_dd.p.dm=934086a686-4"                                     | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=934086a686-4"                                     | ["_dd.p.dm": "934086a686-4"]
-    "_dd.p.dm=934086a686-4"                                     | UNSET        | UNKNOWN    | "_dd.p.dm=934086a686-4"                                     | ["_dd.p.dm": "934086a686-4"]
-    "_dd.p.dm=93485302ab-2"                                     | SAMPLER_KEEP | APPSEC     | "_dd.p.dm=93485302ab-2"                                     | ["_dd.p.dm": "93485302ab-2"]
-    "_dd.p.dm=934086a686-4,_dd.p.anytag=value"                  | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=934086a686-4,_dd.p.anytag=value"                  | ["_dd.p.dm": "934086a686-4", "_dd.p.anytag": "value"]
-    "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | SAMPLER_KEEP | APPSEC     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    "_dd.p.anytag=value,_dd.p.dm=934086a686-4"                  | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=value,_dd.p.dm=934086a686-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "934086a686-4"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | SAMPLER_KEEP | APPSEC     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2"]
-    "_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value" | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value" | ["_dd.p.anytag": "value", "_dd.p.dm": "934086a686-4", "_dd.p.atag": "value"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value" | SAMPLER_KEEP | APPSEC     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value" | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.atag": "value"]
-    "_dd.p.dm=93485302ab-2"                                     | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2"                                     | ["_dd.p.dm": "93485302ab-2"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2"]
-    "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | USER_DROP    | MANUAL     | "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | ["_dd.p.atag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    // add the dm tags
-    ""                                                          | SAMPLER_KEEP | DEFAULT    | "_dd.p.dm=266ff5f617-0"                                     | ["_dd.p.dm": "266ff5f617-0", "_dd.dm.service_hash": "266ff5f617"]
-    "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=266ff5f617-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "266ff5f617-4", "_dd.dm.service_hash": "266ff5f617"]
-    "_dd.p.anytag=_dd.p.dm"                                     | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=_dd.p.dm,_dd.p.dm=266ff5f617-1"               | ["_dd.p.anytag": "_dd.p.dm", "_dd.p.dm": "266ff5f617-1", "_dd.dm.service_hash": "266ff5f617"]
-    // do not set the dm tags when mechanism is UNKNOWN
-    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
-    // drop the dm tag
-    "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
-    ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
-  }
-
-  def updateSpanSamplingPriorityOnlyWhenDatadogTagsEnabled() {
-    setup:
-    def config = Mock(Config)
-    config.isServicePropagationEnabled() >> true
-    config.getDataDogTagsLimit() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
-    def datadogTags = datadogTagsFactory.fromHeaderValue(headerValue)
-
-    when:
-    datadogTags.updateSpanSamplingPriority(priority, mechanism, "service-1")
-
-    then:
-    datadogTags.headerValue() == expectedHeaderValue
-    datadogTags.createTagMap() == tags
-
-    where:
-    headerValue                                                 | priority     | mechanism  | expectedHeaderValue                                         | tags
-    // keep the existing dm tag as is
-    "_dd.p.dm=934086a686-4"                                     | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=934086a686-4"                                     | ["_dd.p.dm": "934086a686-4"]
-    "_dd.p.dm=934086a686-4"                                     | UNSET        | UNKNOWN    | "_dd.p.dm=934086a686-4"                                     | ["_dd.p.dm": "934086a686-4"]
-    "_dd.p.dm=93485302ab-2"                                     | SAMPLER_KEEP | APPSEC     | "_dd.p.dm=93485302ab-2"                                     | ["_dd.p.dm": "93485302ab-2"]
-    "_dd.p.dm=934086a686-4,_dd.p.anytag=value"                  | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=934086a686-4,_dd.p.anytag=value"                  | ["_dd.p.dm": "934086a686-4", "_dd.p.anytag": "value"]
-    "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | SAMPLER_KEEP | APPSEC     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    "_dd.p.anytag=value,_dd.p.dm=934086a686-4"                  | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=value,_dd.p.dm=934086a686-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "934086a686-4"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | SAMPLER_KEEP | APPSEC     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2"]
-    "_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value" | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value" | ["_dd.p.anytag": "value", "_dd.p.dm": "934086a686-4", "_dd.p.atag": "value"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value" | SAMPLER_KEEP | APPSEC     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value" | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.atag": "value"]
-    "_dd.p.dm=93485302ab-2"                                     | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2"                                     | ["_dd.p.dm": "93485302ab-2"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2"]
-    "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | USER_DROP    | MANUAL     | "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | ["_dd.p.atag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    // add the dm.service_hash only
-    ""                                                          | SAMPLER_KEEP | DEFAULT    | null                                                        | ["_dd.dm.service_hash": "266ff5f617"]
-    "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value"                                        | ["_dd.dm.service_hash": "266ff5f617", "_dd.p.anytag": "value"]
-    // do not set the dm tags when mechanism is UNKNOWN
-    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
-    // drop the dm tag
-    "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
-    ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
-  }
-
-  def updateTraceSamplingPriorityOnlyWhenDatadogTagsEnabled() {
-    setup:
-    def config = Mock(Config)
-    config.isServicePropagationEnabled() >> true
-    config.getDataDogTagsLimit() >> 512
-    def datadogTagsFactory = DatadogTags.factory(config)
-    def datadogTags = datadogTagsFactory.fromHeaderValue(headerValue)
-
-    when:
-    datadogTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
-
-    then:
-    datadogTags.headerValue() == expectedHeaderValue
-    datadogTags.createTagMap() == tags
-
-    where:
-    headerValue                                                 | priority     | mechanism  | expectedHeaderValue                                         | tags
-    // keep the existing dm tag as is
-    "_dd.p.dm=934086a686-4"                                     | UNSET        | UNKNOWN    | "_dd.p.dm=934086a686-4"                                     | ["_dd.p.dm": "934086a686-4"]
-    "_dd.p.dm=934086a686-4"                                     | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=934086a686-4"                                     | ["_dd.p.dm": "934086a686-4"]
-    "_dd.p.dm=93485302ab-2"                                     | SAMPLER_KEEP | APPSEC     | "_dd.p.dm=93485302ab-2"                                     | ["_dd.p.dm": "93485302ab-2"]
-    "_dd.p.dm=934086a686-4,_dd.p.anytag=value"                  | SAMPLER_KEEP | AGENT_RATE | "_dd.p.dm=934086a686-4,_dd.p.anytag=value"                  | ["_dd.p.dm": "934086a686-4", "_dd.p.anytag": "value"]
-    "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | SAMPLER_KEEP | APPSEC     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    "_dd.p.anytag=value,_dd.p.dm=934086a686-4"                  | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=value,_dd.p.dm=934086a686-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "934086a686-4"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | SAMPLER_KEEP | APPSEC     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2"]
-    "_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value" | SAMPLER_KEEP | AGENT_RATE | "_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value" | ["_dd.p.anytag": "value", "_dd.p.dm": "934086a686-4", "_dd.p.atag": "value"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value" | SAMPLER_KEEP | APPSEC     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value" | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.atag": "value"]
-    "_dd.p.dm=93485302ab-2"                                     | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2"                                     | ["_dd.p.dm": "93485302ab-2"]
-    "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=93485302ab-2"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "93485302ab-2"]
-    "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | USER_DROP    | MANUAL     | "_dd.p.dm=93485302ab-2,_dd.p.anytag=value"                  | ["_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | USER_DROP    | MANUAL     | "_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value" | ["_dd.p.atag": "value", "_dd.p.dm": "93485302ab-2", "_dd.p.anytag": "value"]
-    // add the dm tag
-    ""                                                          | SAMPLER_KEEP | DEFAULT    | "_dd.p.dm=266ff5f617-0"                                     | ["_dd.p.dm": "266ff5f617-0"]
-    "_dd.p.anytag=value"                                        | USER_KEEP    | MANUAL     | "_dd.p.anytag=value,_dd.p.dm=266ff5f617-4"                  | ["_dd.p.anytag": "value", "_dd.p.dm": "266ff5f617-4"]
-    // do not set the dm tags when mechanism is UNKNOWN
-    "_dd.p.anytag=123"                                          | SAMPLER_KEEP | UNKNOWN    | "_dd.p.anytag=123"                                          | ["_dd.p.anytag": "123"]
-    // drop the dm tag
-    "_dd.p.anytag=value,_dd.p.atag=value"                       | SAMPLER_DROP | MANUAL     | "_dd.p.anytag=value,_dd.p.atag=value"                       | ["_dd.p.anytag": "value", "_dd.p.atag": "value"]
-    // invalid input
-    ",_dd.p.dm=Value"                                           | SAMPLER_KEEP | AGENT_RATE | null                                                        | ["_dd.propagation_error": "decoding_error"]
-  }
-
-
-  def updateDatadogTagsDisabled() {
-    setup:
-    def config = Mock(Config)
-    config.isServicePropagationEnabled() >> false
     config.getDataDogTagsLimit() >> 512
     def datadogTagsFactory = DatadogTags.factory(config)
     def datadogTags = datadogTagsFactory.fromHeaderValue(originalTagSet)
 
     when:
     datadogTags.updateTraceSamplingPriority(priority, mechanism, "service-1")
-    // this won't set "_dd.dm.service_hash"
-    datadogTags.updateSpanSamplingPriority(priority, mechanism, "service-1")
 
     then:
     datadogTags.headerValue() == expectedHeaderValue
@@ -241,7 +110,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     setup:
     def tags = "_dd.p.anytag=value"
     def limit = tags.length() - 1
-    def datadogTags = DatadogTags.factory(true, limit).fromHeaderValue(tags)
+    def datadogTags = DatadogTags.factory(limit).fromHeaderValue(tags)
 
     when:
     datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
@@ -255,7 +124,7 @@ class DatadogTagsTest extends DDCoreSpecification {
     setup:
     def tags = "_dd.p.anytag=value"
     def limit = tags.length()
-    def datadogTags = DatadogTags.factory(true, limit).fromHeaderValue(tags)
+    def datadogTags = DatadogTags.factory(limit).fromHeaderValue(tags)
 
     when:
     datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
@@ -267,7 +136,7 @@ class DatadogTagsTest extends DDCoreSpecification {
 
   def injectionLimitExceededLimit0() {
     setup:
-    def datadogTags = DatadogTags.factory(true, 0).fromHeaderValue("")
+    def datadogTags = DatadogTags.factory(0).fromHeaderValue("")
 
     when:
     datadogTags.updateTraceSamplingPriority(USER_KEEP, MANUAL, "service-name")
