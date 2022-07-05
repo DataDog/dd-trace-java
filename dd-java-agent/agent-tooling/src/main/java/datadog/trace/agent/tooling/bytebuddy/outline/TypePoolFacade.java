@@ -14,6 +14,7 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   public static void registerAsSupplier() {
     SharedTypePools.registerIfAbsent(INSTANCE);
+    typeFactory.get().beginInstall();
   }
 
   @Override

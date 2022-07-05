@@ -104,9 +104,9 @@ final class TypeFactory {
         }
       };
 
-  boolean createOutlines = true;
+  boolean installing = true;
 
-  private boolean restoreAfterTransform;
+  boolean createOutlines = true;
 
   private ClassLoader originalClassLoader;
 
@@ -128,6 +128,16 @@ final class TypeFactory {
     }
   }
 
+  void beginInstall() {
+    installing = true;
+  }
+
+  void endInstall() {
+    installing = false;
+    originalClassLoader = null;
+    clearReferences();
+  }
+
   /**
    * New transform request; begins with type matching that only requires outline descriptions.
    *
@@ -140,9 +150,8 @@ final class TypeFactory {
     targetName = name;
     targetBytecode = bytecode;
 
-    if (null != classFileLocator) {
-      originalClassLoader = this.classLoader;
-      restoreAfterTransform = true;
+    if (installing) {
+      originalClassLoader = classLoader;
     }
   }
 
@@ -153,31 +162,26 @@ final class TypeFactory {
 
   /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
-    if (null == targetName) {
-      return; // nothing to clean-up, byte-buddy filtered out this class before matching
+    if (installing) {
+      // was there a nested transform during install?
+      if (null != targetName) {
+        switchContext(originalClassLoader);
+      }
+    } else {
+      clearReferences();
     }
 
     targetName = null;
     targetBytecode = null;
     createOutlines = true;
-
-    if (restoreAfterTransform) {
-      restoreAfterTransform = false;
-      switchContext(originalClassLoader);
-      originalClassLoader = null;
-    } else {
-      clearReferences();
-    }
-  }
-
-  void endInstall() {
-    clearReferences();
   }
 
   private void clearReferences() {
-    classLoader = null;
-    classFileLocator = null;
-    deferredTypes.clear();
+    if (null != classFileLocator) {
+      classLoader = null;
+      classFileLocator = null;
+      deferredTypes.clear();
+    }
   }
 
   static TypeDescription findDescriptor(String descriptor) {

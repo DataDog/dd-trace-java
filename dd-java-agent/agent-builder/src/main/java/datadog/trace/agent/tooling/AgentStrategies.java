@@ -51,12 +51,10 @@ public class AgentStrategies {
 
   static {
     if (Config.get().isResolverOutlinePoolEnabled()) {
-      DDOutlinePoolStrategy.registerTypePoolFacade();
       POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
       BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
       TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
     } else {
-      DDCachingPoolStrategy.registerAsSupplier();
       POOL_STRATEGY = DDCachingPoolStrategy.INSTANCE;
       BUFFER_STRATEGY = ClassFileBufferStrategy.Default.RETAINING;
       TYPE_STRATEGY = TypeStrategy.Default.REDEFINE_FROZEN;

@@ -3,6 +3,8 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
@@ -73,6 +75,13 @@ public class AgentInstaller {
     Utils.setInstrumentation(inst);
 
     FieldBackedContextProvider.resetContextMatchers();
+
+    if (Config.get().isResolverOutlinePoolEnabled()) {
+      DDOutlinePoolStrategy.registerTypePoolFacade();
+    } else {
+      DDCachingPoolStrategy.registerAsSupplier();
+    }
+
     DDElementMatchers.registerAsSupplier();
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
