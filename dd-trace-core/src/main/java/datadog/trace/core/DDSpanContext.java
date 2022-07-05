@@ -594,8 +594,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             .append("/")
             .append(getOperationName())
             .append("/")
-            .append(getResourceName())
-            .append(" metrics=");
+            .append(getResourceName());
     if (errorFlag) {
       s.append(" *errored*");
     }

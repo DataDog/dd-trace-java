@@ -2,6 +2,7 @@ import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
@@ -17,6 +18,7 @@ import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -149,16 +151,17 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   }
 
   def setupSpec() {
-    if (System.getenv("CI") != "true") {
-      postgres = new PostgreSQLContainer("postgres:11.1")
-        .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
-      postgres.start()
-      jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
-      mysql = new MySQLContainer("mysql:8.0")
-        .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
-      mysql.start()
-      jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
-    }
+    postgres = new PostgreSQLContainer("postgres:11.1")
+      .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+    postgres.start()
+    PortUtils.waitForPortToOpen(postgres.getHost(), postgres.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT), 5, TimeUnit.SECONDS)
+    jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
+    mysql = new MySQLContainer("mysql:8.0")
+      .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+    mysql.start()
+    PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
+    jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
+
     prepareConnectionPoolDatasources()
   }
 
