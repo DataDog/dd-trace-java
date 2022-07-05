@@ -60,51 +60,81 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   @Override
   public String getForwardedFor() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.forwardedFor;
   }
 
   @Override
   public String getXForwarded() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.xForwarded;
   }
 
   @Override
   public String getXForwardedFor() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.xForwardedFor;
   }
 
   @Override
   public String getXClusterClientIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.xClusterClientIp;
   }
 
   @Override
   public String getXRealIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.xRealIp;
   }
 
   @Override
   public String getClientIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.clientIp;
   }
 
   @Override
   public String getUserAgent() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.userAgent;
   }
 
   @Override
   public String getVia() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.via;
   }
 
   @Override
   public String getTrueClientIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.trueClientIp;
   }
 
   @Override
   public String getCustomIpHeader() {
+    if (httpHeaders == null) {
+      return null;
+    }
     return httpHeaders.customIpHeader;
   }
 
