@@ -12,6 +12,7 @@ import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.AgentThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -72,7 +73,13 @@ public class ConfigurationPoller
       String containerId,
       String configUrl,
       OkHttpClient client) {
-    this(config, tracerVersion, containerId, configUrl, client, AgentTaskScheduler.INSTANCE);
+    this(
+        config,
+        tracerVersion,
+        containerId,
+        configUrl,
+        client,
+        new AgentTaskScheduler(AgentThreadFactory.AgentThread.REMOTE_CONFIG));
   }
 
   // for testing
