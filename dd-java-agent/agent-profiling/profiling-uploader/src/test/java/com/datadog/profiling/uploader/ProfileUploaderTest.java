@@ -118,7 +118,7 @@ public class ProfileUploaderTest {
           PidHelper.PID_TAG,
           PidHelper.PID.toString(),
           VersionInfo.PROFILER_VERSION_TAG,
-          "Stubbed-Test-Version");
+          VersionInfo.VERSION);
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int PROFILE_START = 1000;
