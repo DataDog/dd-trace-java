@@ -9,7 +9,7 @@ class LambdaHandlerInstrumentationTest extends AgentTestRunner {
     def objTest = new LambdaHandlerInstrumentation()
 
     then:
-    objTest.instrumentedType() == instrumentedType
+    objTest.configuredMatchingType() == instrumentedType
     objTest.getMethodName() == methodName
     environmentVariables.clear("_HANDLER")
 

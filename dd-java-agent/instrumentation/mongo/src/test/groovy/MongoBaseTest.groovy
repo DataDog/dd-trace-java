@@ -31,25 +31,16 @@ class MongoBaseTest extends AgentTestRunner {
   MongodProcess mongod
 
   def setupSpec() throws Exception {
-    /*
-     CI will provide us with a mongo container running alongside our build.
-     When building locally we need to take matters into our own hands and
-     start our own mongo server.
-     */
-    if ("true" != System.getenv("CI")) {
-      port = PortUtils.randomOpenPort()
+    port = PortUtils.randomOpenPort()
 
-      final IMongodConfig mongodConfig =
-        new MongodConfigBuilder()
-        .version(Version.Main.PRODUCTION)
-        .net(new Net("localhost", port, Network.localhostIsIPv6()))
-        .build()
+    final IMongodConfig mongodConfig =
+      new MongodConfigBuilder()
+      .version(Version.Main.PRODUCTION)
+      .net(new Net("localhost", port, Network.localhostIsIPv6()))
+      .build()
 
-      mongodExe = STARTER.prepare(mongodConfig)
-      mongod = mongodExe.start()
-    } else {
-      port = 27017 // default mongo port when running on CI
-    }
+    mongodExe = STARTER.prepare(mongodConfig)
+    mongod = mongodExe.start()
   }
 
   def cleanupSpec() throws Exception {

@@ -1,8 +1,10 @@
+import datadog.trace.agent.test.utils.PortUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.testcontainers.containers.MySQLContainer;
 
 public class TestDatabases implements Closeable {
@@ -17,27 +19,22 @@ public class TestDatabases implements Closeable {
 
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
-    if (!"true".equals(System.getenv("CI"))) {
-      mysql =
-          new MySQLContainer("mysql:8.0")
-              .withDatabaseName(dbName)
-              .withUsername("sa")
-              .withPassword("sa");
-      mysql.start();
-      TestDBInfo info =
-          new TestDBInfo(
-              mysql.getUsername(),
-              mysql.getPassword(),
-              mysql.getHost(),
-              mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
-              "mysql",
-              dbName);
-      infos.put("mysql", info);
-    } else {
-      mysql = null;
-      TestDBInfo info = new TestDBInfo("sa", "sa", "localhost", 3306, "mysql", dbName);
-      infos.put("mysql", info);
-    }
+    mysql =
+        new MySQLContainer("mysql:8.0")
+            .withDatabaseName(dbName)
+            .withUsername("sa")
+            .withPassword("sa");
+    mysql.start();
+    TestDBInfo info =
+        new TestDBInfo(
+            mysql.getUsername(),
+            mysql.getPassword(),
+            mysql.getHost(),
+            mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
+            "mysql",
+            dbName);
+    PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
+    infos.put("mysql", info);
     dbInfos = Collections.unmodifiableMap(infos);
   }
 

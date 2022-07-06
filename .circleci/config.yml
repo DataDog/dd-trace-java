@@ -80,6 +80,52 @@ commands:
       - attach_workspace:
           at: .
 
+  setup_testcontainers:
+    description: >-
+      Sets up remote docker and automatic port forwarding needed for docker on docker
+      version of Testcontainers.
+    steps:
+      - setup_remote_docker:
+          version: 20.10.14
+          docker_layer_caching: true
+
+      - run:
+          name: Show local ports
+          command: |
+            sudo sysctl net.ipv4.ip_local_port_range
+
+      - run:
+          name: Show remote Docker ports
+          command: |
+            ssh remote-docker 'sudo sysctl net.ipv4.ip_local_port_range'
+
+      - run:
+          name: Offset remote Docker ports to avoid tunnel collisions
+          command: |
+            ssh remote-docker 'sudo sysctl -w net.ipv4.ip_local_port_range="59095 60906"'
+
+      - run:
+          name: Restart remote Docker
+          command: |
+            ssh remote-docker 'sudo sh -c "systemctl daemon-reload; systemctl restart docker"'
+
+      - run:
+          name: Show remote Docker ports
+          command: |
+            ssh remote-docker 'sudo sysctl net.ipv4.ip_local_port_range'
+
+      - run:
+          name: Testcontainers environment variables
+          command: |
+            echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost" >> $BASH_ENV
+            echo "export TESTCONTAINERS_RYUK_DISABLED=true" >> $BASH_ENV
+
+      - run:
+          name: Testcontainers tunnels
+          background: true
+          command: |
+            .circleci/autoforward.py
+
   early_return_for_forked_pull_requests:
     description: >-
       If this build is from a fork, stop executing the current job and return success.
@@ -225,33 +271,20 @@ jobs:
 
     docker:
       - image: *default_container
-        # This is used by spymemcached instrumentation tests
-      - image: memcached
-        # This is used by rabbitmq instrumentation tests
-      - image: rabbitmq
-        # This is used by aerospike instrumentation tests
-      - image: aerospike:5.5.0.9
-        # This is used by mongodb instrumentation tests
-      - image: mongo
-        # This is used by jdbc and vert.x tests
-      - image: mysql
-        environment:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_USER: sa
-          MYSQL_PASSWORD: sa
-          MYSQL_DATABASE: jdbcUnitTest
-        # This is used by jdbc tests
-      - image: postgres
-        environment:
-          POSTGRES_USER: sa
-          POSTGRES_PASSWORD: sa
-          POSTGRES_DB: jdbcUnitTest
 
     steps:
       - setup_code
 
       - restore_cache:
           <<: *cache_keys
+
+      - setup_testcontainers
+
+      - run:
+          name: Start RabbitMQ (since the forked AmqpTests are having issues with Testcontainers)
+          background: true
+          command: |
+            docker run -p 5672:5672 rabbitmq:3.9.20-alpine
 
       - run:
           name: Run tests
@@ -295,16 +328,14 @@ jobs:
 
     docker:
       - image: *default_container
-        # This is used by rabbitmq smoke tests
-      - image: rabbitmq
-        # This is used by mongodb smoke tests
-      - image: mongo
 
     steps:
       - setup_code
 
       - restore_cache:
           <<: *cache_keys
+
+      - setup_testcontainers
 
       - run:
           name: Run Tests
@@ -394,7 +425,7 @@ jobs:
       - run:
           name: Test Published Dependencies
           command: |
-            mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+            mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3

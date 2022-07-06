@@ -19,6 +19,8 @@ function save_reports () {
     report_path=$REPORTS_DIR/$project_to_save
     mkdir -p $report_path
     cp -r workspace/$project_to_save/build/reports/* $report_path/
+    cp workspace/$project_to_save/build/hs_err_pid*.log $report_path/ || true
+    cp workspace/$project_to_save/build/javacore*.txt $report_path/ || true
 }
 
 shopt -s globstar
