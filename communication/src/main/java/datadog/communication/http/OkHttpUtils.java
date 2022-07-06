@@ -1,6 +1,7 @@
 package datadog.communication.http;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.container.ContainerInfo;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +75,7 @@ public final class OkHttpUtils {
         null,
         null,
         null,
-        Duration.ofMillis(timeoutMillis));
+        timeoutMillis);
   }
 
   public static OkHttpClient buildHttpClient(
@@ -88,7 +88,7 @@ public final class OkHttpUtils {
       final Integer proxyPort,
       final String proxyUsername,
       final String proxyPassword,
-      final Duration timeout) {
+      final long timeoutMillis) {
     return buildHttpClient(
         discoverApmSocket(config),
         config.getAgentNamedPipe(),
@@ -100,7 +100,7 @@ public final class OkHttpUtils {
         proxyPort,
         proxyUsername,
         proxyPassword,
-        timeout);
+        timeoutMillis);
   }
 
   private static OkHttpClient buildHttpClient(
@@ -114,13 +114,13 @@ public final class OkHttpUtils {
       final Integer proxyPort,
       final String proxyUsername,
       final String proxyPassword,
-      final Duration timeout) {
+      final long timeoutMillis) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     builder
-        .connectTimeout(timeout)
-        .writeTimeout(timeout)
-        .readTimeout(timeout)
+        .connectTimeout(timeoutMillis, MILLISECONDS)
+        .writeTimeout(timeoutMillis, MILLISECONDS)
+        .readTimeout(timeoutMillis, MILLISECONDS)
         .proxySelector(AgentProxySelector.INSTANCE)
         .dispatcher(
             dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));

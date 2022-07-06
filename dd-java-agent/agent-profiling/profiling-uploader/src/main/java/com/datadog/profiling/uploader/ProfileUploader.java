@@ -29,7 +29,6 @@ import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +162,7 @@ public final class ProfileUploader {
             config.getProfilingProxyPort(),
             config.getProfilingProxyUsername(),
             config.getProfilingProxyPassword(),
-            Duration.ofSeconds(config.getProfilingUploadTimeout()));
+            TimeUnit.SECONDS.toMillis(config.getProfilingUploadTimeout()));
 
     compressionType = CompressionType.of(config.getProfilingUploadCompression());
   }
