@@ -1,0 +1,97 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+// Set properties before any plugins get loaded
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+// We do not publish separate jar, but having version file is useful
+apply from: "$rootDir/gradle/version.gradle"
+
+minimumInstructionCoverage = 0.1
+minimumBranchCoverage = 0.6
+excludedClassesCoverage += [
+  'com.datadog.debugger.model.*Exception',
+  'com.datadog.debugger.parser.*Exception',
+  'com.datadog.debugger.agent.DebuggerTransformer.SafeClassWriter',
+  'com.datadog.debugger.agent.DebuggerProbe.When.Threshold',
+  'com.datadog.debugger.agent.DebuggerAgent.ShutdownHook',
+  // too old for this coverage (JDK 1.2)
+  'antlr.*'
+]
+
+dependencies {
+  // main dependencies
+  implementation project(':utils:container-utils')
+  implementation deps.slf4j
+  implementation deps.asm
+  implementation deps.asmcommons
+  implementation project(':internal-api')
+  implementation project(':communication')
+  implementation project(':dd-java-agent:agent-tooling')
+  implementation project(':dd-java-agent:agent-builder')
+  implementation project(':dd-java-agent:agent-debugger:debugger-el')
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  implementation deps.okhttp
+  implementation deps.dogstatsd
+
+  testImplementation deps.junit5
+  testImplementation group: 'org.ow2.asm', name: 'asm-util', version: versions.asm
+  testImplementation group: "org.junit.jupiter", name: "junit-jupiter-params", version: "${versions.junit5}"
+  testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.7.0")
+  testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${versions.junit5}")
+  testImplementation deps.mockito
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '2.3.5.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
+  testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
+  testImplementation group: 'org.jooq', name: 'joor-java-8', version: '0.9.13'
+  testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: "1.5.21"
+  testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'
+  testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  dependencies deps.sharedInverse
+  dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
+    exclude(project(':dd-java-agent:agent-logging'))
+    exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
+    exclude(project(':internal-api:internal-api-8'))
+    exclude(project(':utils:socket-utils'))
+    exclude(project(':utils:time-utils'))
+    exclude(dependency('org.slf4j::'))
+  }
+}
+
+jar {
+  classifier = 'unbundled'
+  from sourceSets.main.output
+}
+
+tasks.withType(Test).configureEach {
+  options {
+    // special property to skip some  parametrized DebuggerTransformerTest tests
+    // that generates a lot of tests
+    systemProperty "fast-tests", project.findProperty("fast-tests") ?: "false"
+  }
+  // DebuggerTransformerTest made some Reflective calls on java.lang package
+  // needs to open it since jdk16
+  def matcher = it.name =~ /testJava(\d+)Generated/
+  if (matcher) {
+    def javaVersion = matcher.group(1) as int
+    if (javaVersion >= 16) {
+      jvmArgs '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
+    }
+  }
+}

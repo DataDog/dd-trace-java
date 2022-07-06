@@ -1,0 +1,26 @@
+{
+  "included": [
+  ],
+  "data": {
+    "type": "debugger-configurations",
+    "id": "petclinic",
+    "attributes": {
+      "orgId": 2,
+      "allowList": {
+        "packagePrefixes": ["com.datadog", "org.apache"],
+        "classes": []
+      },
+      "denyList": {
+        "packagePrefixes": ["java.security", "sun.security"],
+        "classes": []
+      },
+      "opsConfig": {
+        "pollInterval": 20
+      }
+    },
+    "relationships": {
+      "snapshotProbes": {
+      }
+    }
+  }
+}
