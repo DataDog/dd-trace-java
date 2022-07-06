@@ -1,13 +1,14 @@
 package datadog.trace.bootstrap.debugger;
 
+import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.DenyListHelper;
-import datadog.trace.api.Platform;
 import java.time.Duration;
 import java.util.AbstractCollection;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -22,7 +23,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.crypto.EncryptedPrivateKeyInfo;
 import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,15 +57,19 @@ public class ValueConverterTest {
     Assert.assertEquals(obj.toString(), value);
     value = converter.convert(new java.security.spec.X509EncodedKeySpec("key".getBytes()));
     Assert.assertEquals("X509EncodedKeySpec(<DENIED>)", value);
-    value = converter.convert(new EncryptedPrivateKeyInfo("MD5", "foo".getBytes()));
-    if (Platform.isJavaVersionAtLeast(16)) {
-      Assert.assertEquals(
-          "EncryptedPrivateKeyInfo(algid=<NOT_CAPTURED>, keyAlg=<NOT_CAPTURED>, encryptedData=<NOT_CAPTURED>, encoded=<NOT_CAPTURED>)",
-          value);
-    } else {
-      System.out.println("denied EncryptedPrivateKeyInfo: " + value);
-      Assert.assertTrue(value.contains("algid=AlgorithmId(<DENIED>"));
-    }
+    Configuration.FilterList denyList =
+        new Configuration.FilterList(
+            Collections.emptyList(),
+            Collections.singletonList(
+                "datadog.trace.bootstrap.debugger.ValueConverterTest$DenyClass"));
+    DebuggerContext.initClassFilter(new DenyListHelper(denyList));
+    value = converter.convert(new DenyClass());
+    Assert.assertEquals(value, "DenyClass(<DENIED>)", value);
+  }
+
+  private static class DenyClass {
+    private int f1 = 42;
+    private String f2 = "foo";
   }
 
   @Test
