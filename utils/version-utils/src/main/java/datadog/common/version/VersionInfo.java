@@ -24,7 +24,13 @@ public class VersionInfo {
           VersionInfo.class.getClassLoader().getResourceAsStream("version-utils.version");
       if (is != null) {
         final BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-        version = reader.lines().collect(Collectors.joining(System.lineSeparator())).trim();
+        final StringBuilder sb = new StringBuilder();
+        final char[] buffer = new char[1<<8];
+        int read;
+        while ((read = reader.read(buffer, 0, buffer.length)) > 0) {
+          sb.append(buffer, 0, read);
+        }
+        version = sb.toString().trim();
       } else {
         log.error("No version file found");
       }
