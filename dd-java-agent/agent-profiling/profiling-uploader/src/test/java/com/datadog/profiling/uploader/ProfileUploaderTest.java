@@ -118,6 +118,8 @@ public class ProfileUploaderTest {
           PidHelper.PID_TAG,
           PidHelper.PID.toString(),
           VersionInfo.PROFILER_VERSION_TAG,
+          "Stubbed-Test-Version",
+          VersionInfo.LIBRARY_VERSION_TAG,
           "Stubbed-Test-Version");
 
   private static final int SEQUENCE_NUMBER = 123;
