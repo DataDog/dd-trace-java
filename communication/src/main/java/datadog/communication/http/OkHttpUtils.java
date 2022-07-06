@@ -143,6 +143,8 @@ public final class OkHttpUtils {
     }
 
     if (maxRunningRequests != null) {
+      // Reusing connections causes non daemon threads to be created which causes agent to prevent
+      // app from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
       builder.connectionPool(new ConnectionPool(maxRunningRequests, 1, SECONDS));
     }
 
