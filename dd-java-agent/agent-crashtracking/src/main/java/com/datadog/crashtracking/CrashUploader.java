@@ -169,11 +169,11 @@ public class CrashUploader {
     client = clientBuilder.build();
   }
 
-  private List<String> tagsToList(final Map<String, String> tags) {
+  private String tagsToString(final Map<String, String> tags) {
     return tags.entrySet().stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
-        .collect(Collectors.toList());
+        .collect(Collectors.joining(",");
   }
 
   private static final class FileEntry {
