@@ -10,15 +10,8 @@ import javax.net.SocketFactory;
 
 public class NamedPipeSocketFactory extends SocketFactory {
   private static final String NAMED_PIPE_PREFIX = "\\\\.\\pipe\\";
+  private static final Map<File, NamedPipeSocket> fileToSocket = new HashMap<>();
   private final File pipe;
-
-  // Use enum singleton pattern.
-  // This ensures there is at most one INSTANCE per jvm
-  private enum SingletonHolder {
-    INSTANCE;
-
-    final Map<File, NamedPipeSocket> fileToSocket = new HashMap<>();
-  }
 
   public NamedPipeSocketFactory(String pipeName) {
     String pipeNameWithPrefix =
@@ -29,12 +22,12 @@ public class NamedPipeSocketFactory extends SocketFactory {
   @Override
   public Socket createSocket() throws IOException {
     // Getting a new socket is rare enough that simple synchronization is sufficient
-    synchronized (SingletonHolder.INSTANCE.fileToSocket) {
-      NamedPipeSocket socket = SingletonHolder.INSTANCE.fileToSocket.get(pipe);
+    synchronized (fileToSocket) {
+      NamedPipeSocket socket = fileToSocket.get(pipe);
 
       if (socket == null || socket.isClosed()) {
         socket = new NamedPipeSocket(pipe);
-        SingletonHolder.INSTANCE.fileToSocket.put(pipe, socket);
+        fileToSocket.put(pipe, socket);
       }
 
       return socket;
