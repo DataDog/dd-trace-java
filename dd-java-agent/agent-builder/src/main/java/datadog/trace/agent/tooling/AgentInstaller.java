@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import net.bytebuddy.ByteBuddy;
@@ -109,14 +108,15 @@ public class AgentInstaller {
     for (final AgentBuilder.Listener listener : listeners) {
       agentBuilder = agentBuilder.with(listener);
     }
-    int numInstrumenters = 0;
-    ServiceLoader<Instrumenter> loader =
-        ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader());
+
+    Iterable<Instrumenter> instrumenters =
+        Instrumenters.load(AgentInstaller.class.getClassLoader());
+
     // This needs to be a separate loop through all the instrumenters before we start adding
-    // transfomers so that we can exclude field injection, since that will try to check exclusion
+    // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
     // instrumenters to control the load order.
-    for (final Instrumenter instrumenter : loader) {
+    for (Instrumenter instrumenter : instrumenters) {
       if (instrumenter instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
         ExcludeFilter.add(provider.excludedClasses());
@@ -130,8 +130,9 @@ public class AgentInstaller {
 
     AgentTransformerBuilder transformerBuilder = new AgentTransformerBuilder(agentBuilder);
 
+    int installedCount = 0;
     Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
-    for (final Instrumenter instrumenter : loader) {
+    for (Instrumenter instrumenter : instrumenters) {
       if (!instrumenter.isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
@@ -141,17 +142,16 @@ public class AgentInstaller {
       if (DEBUG) {
         log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
       }
-
       try {
         instrumenter.instrument(transformerBuilder);
-        numInstrumenters++;
-      } catch (final Exception | LinkageError e) {
+        installedCount++;
+      } catch (Exception | LinkageError e) {
         log.error(
             "Failed to load - instrumentation.class={}", instrumenter.getClass().getName(), e);
       }
     }
     if (DEBUG) {
-      log.debug("Installed {} instrumenter(s)", numInstrumenters);
+      log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
     return transformerBuilder.installOn(inst);
