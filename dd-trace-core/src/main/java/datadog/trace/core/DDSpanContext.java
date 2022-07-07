@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
@@ -67,7 +68,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   private volatile short httpStatusCode;
 
-  private static final TagsPostProcessor postProcessor = new QueryObfuscator();
+  private static final TagsPostProcessor postProcessor =
+      new QueryObfuscator(Config.get().getObfuscationQueryRegexp());
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.

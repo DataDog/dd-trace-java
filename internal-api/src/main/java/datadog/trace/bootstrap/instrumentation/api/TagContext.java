@@ -20,7 +20,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
-    this(origin, tags, HttpHeaders.NO_HEADERS);
+    this(origin, tags, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags, HttpHeaders httpHeaders) {
@@ -177,9 +177,6 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   public static class HttpHeaders {
-
-    public static final HttpHeaders NO_HEADERS = new HttpHeaders();
-
     public String forwardedFor;
     public String xForwarded;
     public String xForwardedFor;

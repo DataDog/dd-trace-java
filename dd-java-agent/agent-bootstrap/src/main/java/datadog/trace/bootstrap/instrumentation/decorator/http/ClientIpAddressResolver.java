@@ -12,10 +12,10 @@ import org.slf4j.LoggerFactory;
 public class ClientIpAddressResolver {
   private static final Logger log = LoggerFactory.getLogger(ClientIpAddressResolver.class);
 
-  private static final Function<String, InetAddress> plainIpAddressParser =
+  private static final Function<String, InetAddress> PLAIN_IP_ADDRESS_PARSER =
       new ParsePlainIpAddress();
-  private static final Function<String, InetAddress> forwardedParser = new ParseForwarded();
-  private static final Function<String, InetAddress> viaParser = new ParseVia();
+  private static final Function<String, InetAddress> FORWARDED_PARSER = new ParseForwarded();
+  private static final Function<String, InetAddress> VIA_PARSER = new ParseVia();
 
   /**
    * Infers the IP address of the client according to our specified procedure. This method doesn't
@@ -44,11 +44,11 @@ public class ClientIpAddressResolver {
 
     String customIpHeader = context.getCustomIpHeader();
     if (customIpHeader != null) {
-      result = tryHeader(customIpHeader, forwardedParser);
+      result = tryHeader(customIpHeader, FORWARDED_PARSER);
       if (result != null) {
         return result;
       }
-      result = tryHeader(customIpHeader, plainIpAddressParser);
+      result = tryHeader(customIpHeader, PLAIN_IP_ADDRESS_PARSER);
       if (result != null) {
         return result;
       }
@@ -59,47 +59,47 @@ public class ClientIpAddressResolver {
     // we don't have a set ip header to look exclusively at
     // the order of the headers is the order in the RFC
 
-    result = tryHeader(context.getXForwardedFor(), plainIpAddressParser);
+    result = tryHeader(context.getXForwardedFor(), PLAIN_IP_ADDRESS_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getXRealIp(), plainIpAddressParser);
+    result = tryHeader(context.getXRealIp(), PLAIN_IP_ADDRESS_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getClientIp(), plainIpAddressParser);
+    result = tryHeader(context.getClientIp(), PLAIN_IP_ADDRESS_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getXForwarded(), forwardedParser);
+    result = tryHeader(context.getXForwarded(), FORWARDED_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getXClusterClientIp(), plainIpAddressParser);
+    result = tryHeader(context.getXClusterClientIp(), PLAIN_IP_ADDRESS_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getForwardedFor(), plainIpAddressParser);
+    result = tryHeader(context.getForwardedFor(), PLAIN_IP_ADDRESS_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getForwarded(), forwardedParser);
+    result = tryHeader(context.getForwarded(), FORWARDED_PARSER);
     if (result != null) {
       return result;
     }
 
-    result = tryHeader(context.getVia(), viaParser);
+    result = tryHeader(context.getVia(), VIA_PARSER);
     if (result != null) {
       return result;
     }
 
-    return tryHeader(context.getTrueClientIp(), plainIpAddressParser);
+    return tryHeader(context.getTrueClientIp(), PLAIN_IP_ADDRESS_PARSER);
   }
 
   private static InetAddress tryHeader(String headerValue, Function<String, InetAddress> parseFun) {

@@ -14,7 +14,6 @@ public final class Constants {
    * datadog.trace.agent.test.SpockRunner#BOOTSTRAP_PACKAGE_PREFIXES_COPY
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES = {
-    "com.google.re2j",
     "datadog.slf4j",
     "datadog.trace.api",
     "datadog.trace.bootstrap",

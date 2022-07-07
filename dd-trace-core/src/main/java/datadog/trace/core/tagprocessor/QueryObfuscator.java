@@ -3,11 +3,7 @@ package datadog.trace.core.tagprocessor;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import java.util.Map;
@@ -21,43 +17,39 @@ public class QueryObfuscator implements TagsPostProcessor {
   private static final String DEFAULT_OBFUSCATION_PATTERN =
       "((?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|bearer(?:\\s|%20)+[a-z0-9\\._\\-]|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+\\/=-]|%3D|%2F|%2B)+)?|[\\-]{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY[\\-]{5}[^\\-]+[\\-]{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY|ssh-rsa(?:\\s|%20)*(?:[a-z0-9\\/\\.+]|%2F|%5C|%2B){100,})";
 
-  private static final DDCache<String, Pattern> cache = DDCaches.newFixedSizeCache(2);
-  private static final Function<String, Pattern> cacheFunction =
-      new Function<String, Pattern>() {
-        @Override
-        public Pattern apply(String regex) {
-          try {
-            return Pattern.compile(regex);
-          } catch (PatternSyntaxException e) {
-            log.warn("Could not compile given regex: {}", regex, e);
-            return null;
-          }
-        }
-      };
+  private final Pattern pattern;
 
-  private static String obfuscate(String query, String regex) {
-    // Empty regex - means obfuscation deactivated
-    if (query == null || "".equals(regex)) {
-      return query;
+  /**
+   * If regex is null - then used default regex pattern If regex is empty string - then disable
+   * regex
+   */
+  public QueryObfuscator(String regex) {
+    // empty string -> disabled query obfuscation
+    if ("".equals(regex)) {
+      this.pattern = null;
+      return;
     }
 
-    if (query.isEmpty()) {
-      return "/";
-    }
-
-    // Use default if regex is undefined
+    // null -> use default regex
     if (regex == null) {
       regex = DEFAULT_OBFUSCATION_PATTERN;
     }
 
-    Pattern pattern = cache.computeIfAbsent(regex, cacheFunction);
-    if (pattern == null) {
-      return query;
+    Pattern pattern = null;
+    try {
+      pattern = Pattern.compile(regex);
+    } catch (PatternSyntaxException e) {
+      log.error("Could not compile given query obfuscation regex: {}", regex, e);
     }
+    this.pattern = pattern;
+  }
 
-    Matcher matcher = pattern.matcher(query);
-    while (matcher.find()) {
-      query = Strings.replace(query, matcher.group(), "<redacted>");
+  private String obfuscate(String query) {
+    if (pattern != null) {
+      Matcher matcher = pattern.matcher(query);
+      while (matcher.find()) {
+        query = Strings.replace(query, matcher.group(), "<redacted>");
+      }
     }
     return query;
   }
@@ -66,7 +58,7 @@ public class QueryObfuscator implements TagsPostProcessor {
   public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
     Object query = unsafeTags.get(DDTags.HTTP_QUERY);
     if (query instanceof String) {
-      query = obfuscate((String) query, Config.get().getObfuscationQueryRegexp());
+      query = obfuscate((String) query);
 
       unsafeTags.put(DDTags.HTTP_QUERY, query);
 

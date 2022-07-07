@@ -43,7 +43,7 @@ public class ExtractedContext extends TagContext {
       final long endToEndStartTime,
       final Map<String, String> baggage,
       final Map<String, String> tags) {
-    super(origin, tags, HttpHeaders.NO_HEADERS);
+    super(origin, tags, null);
     this.traceId = traceId;
     this.spanId = spanId;
     this.samplingPriority = samplingPriority;
