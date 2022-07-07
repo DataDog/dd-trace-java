@@ -31,13 +31,23 @@ dependencies {
   implementation deps.asm
   implementation deps.asmcommons
   implementation project(':internal-api')
-  implementation project(':communication')
-  implementation project(':dd-java-agent:agent-tooling')
-  implementation project(':dd-java-agent:agent-builder')
+  implementation project(':communication'), {
+    transitive = false
+  }
+  implementation project(':dd-java-agent:agent-tooling'), {
+    transitive = false
+  }
+  implementation project(':dd-java-agent:agent-builder'), {
+    transitive = false
+  }
+  implementation project(':dd-trace-core'), {
+    transitive = false
+  }
   implementation project(':dd-java-agent:agent-debugger:debugger-el')
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
   implementation deps.okhttp
   implementation deps.dogstatsd
+  implementation deps.moshi
 
   testImplementation deps.junit5
   testImplementation group: 'org.ow2.asm', name: 'asm-util', version: versions.asm

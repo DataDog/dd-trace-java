@@ -1,7 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.*;
-import static datadog.trace.bootstrap.ExceptionLogger.LOGGER;
 
 import com.datadog.debugger.agent.MetricProbe;
 import com.datadog.debugger.agent.ProbeDefinition;
@@ -30,9 +29,12 @@ import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Handles generating instrumentation for metric probes */
 public class MetricInstrumentor extends Instrumentor {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MetricInstrumentor.class);
   private static final InsnList EMPTY_INSN_LIST = new InsnList();
   private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
 
