@@ -5,6 +5,3 @@ apply from: "$rootDir/gradle/version.gradle"
 dependencies {
   implementation deps.slf4j
 }
-
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
