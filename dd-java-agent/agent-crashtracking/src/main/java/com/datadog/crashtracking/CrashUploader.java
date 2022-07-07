@@ -57,26 +57,18 @@ public class CrashUploader {
   private static final MediaType APPLICATION_OCTET_STREAM =
       MediaType.parse("application/octet-stream");
 
-  // V2.4 format
-  static final String V4_CRASHUPLOAD_TAGS_PARAM = "tags_crashtracking";
-  static final String V4_VERSION = "4";
-  static final String V4_FAMILY = "java";
-
-  static final String V4_EVENT_NAME = "event";
-  static final String V4_ATTACHMENT_NAME = "main";
-
   // Header names and values
-  static final String HEADER_DD_API_KEY = "DD-API-KEY";
-  static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  static final String HEADER_DATADOG_META_LANG = "Datadog-Meta-Lang";
-  static final String JAVA_LANG = "java";
-  static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
-  static final String JAVA_CRASHTRACKING_LIBRARY = "dd-trace-java";
-  static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
-  static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
-  static final String API_VERSION = "v1";
-  static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-  static final String REQUEST_TYPE = "logs";
+  private static final String HEADER_DD_API_KEY = "DD-API-KEY";
+  private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
+  private static final String HEADER_DATADOG_META_LANG = "Datadog-Meta-Lang";
+  private static final String JAVA_LANG = "java";
+  private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
+  private static final String JAVA_CRASHTRACKING_LIBRARY = "dd-trace-java";
+  private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+  private static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
+  private static final String API_VERSION = "v1";
+  private static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+  private static final String REQUEST_TYPE = "logs";
 
   private final Config config;
   private final ConfigProvider configProvider;
@@ -109,7 +101,7 @@ public class CrashUploader {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
     }
     // Comma separated tags string for V2.4 format
-    tags = String.join(",", tagsToList(tagsMap));
+    tags = tagsToString(tagsMap);
 
     final Duration requestTimeout =
         Duration.ofSeconds(
@@ -173,7 +165,7 @@ public class CrashUploader {
     return tags.entrySet().stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
-        .collect(Collectors.joining(",");
+        .collect(Collectors.joining(","));
   }
 
   private static final class FileEntry {
@@ -258,8 +250,6 @@ public class CrashUploader {
           // randomly generated, https://xkcd.com/221/
           .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
       writer.name("tracer_time").value(Instant.now().getEpochSecond());
-      // writer.name("session_id").value("5e5b1180-2a0b-41a6-bed2-bc341d19f853"); // same as
-      // runtime_id
       writer.name("seq_id").value(1);
       writer.name("debug").value(true);
       writer.name("payload");
