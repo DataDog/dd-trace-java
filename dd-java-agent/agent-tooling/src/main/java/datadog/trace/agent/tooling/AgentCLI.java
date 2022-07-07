@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -9,6 +11,10 @@ import java.util.TreeSet;
 
 /** CLI methods, used when running the agent as a sample application with -jar. */
 public final class AgentCLI {
+  static {
+    SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
+    HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
+  }
 
   /** Prints all known integrations in alphabetical order. */
   public static void printIntegrationNames() {
