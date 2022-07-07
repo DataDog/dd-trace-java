@@ -37,14 +37,15 @@ public class ControllerFactoryTest {
             + ", runtimeName="
             + javaRuntimeName
             + "; it requires ";
-    if ("Azul Systems, Inc.".equals(javaVendor)) {
+    if (javaVendor.equals("Azul Systems, Inc.")) {
       expected += "Zulu Java 8 (1.8.0_212+).";
-    } else if ("Java(TM) SE Runtime Environment".equals(javaRuntimeName)
-        && "Oracle Corporation".equals(javaVendor)
-        && javaVersion.startsWith("1.8")) {
-      // condition for OracleJRE8 (with proprietary JFR inside)
+    } else if (javaVendor.equals("Oracle Corporation") && !javaRuntimeName.startsWith("OpenJDK")) {
+      // condition for Oracle JDK 8 (with proprietary JFR inside)
       expected += "Oracle JRE/JDK 8u40+";
-    } else if ("OpenJDK Runtime Environment".equals(javaRuntimeName)) {
+    } else if (javaVendor.equals("Oracle Corporation") && javaRuntimeName.startsWith("OpenJDK")) {
+      // condition for Oracle OpenJDK 8 (with open JFR inside)
+      expected += "1.8.0_272+ OpenJDK builds (upstream)";
+    } else if (javaRuntimeName.startsWith("OpenJDK")) {
       expected +=
           "1.8.0_272+ OpenJDK builds from the following vendors: AdoptOpenJDK, Eclipse Temurin, Amazon Corretto, Azul Zulu, BellSoft Liberica.";
     } else {

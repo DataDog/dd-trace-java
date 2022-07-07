@@ -56,6 +56,11 @@ public interface Instrumenter {
     String instrumentedType();
   }
 
+  /** Instrumentation that matches a type configured at runtime. */
+  interface ForConfiguredType {
+    String configuredMatchingType();
+  }
+
   /** Instrumentation that can match a series of named types. */
   interface ForKnownTypes {
     String[] knownMatchingTypes();

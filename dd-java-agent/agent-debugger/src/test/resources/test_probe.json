@@ -1,0 +1,33 @@
+{
+  "id": "petclinic",
+  "orgId": 2,
+  "allowList": {
+    "packagePrefixes": ["com.datadog", "org.apache"],
+    "classes": []
+  },
+  "denyList": {
+    "packagePrefixes": ["java.security", "sun.security"],
+    "classes": []
+  },
+  "snapshotProbes": [{
+    "id": "123356536",
+    "language": "java",
+    "created": 1606407800.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()",
+      "lines": [
+        "12-25",
+        "42-45"
+      ]
+    },
+    "when": {
+      "dsl": "@duration > 5000000",
+      "json": {
+        "gt": ["@duration", 5000000]
+      }
+    },
+    "tags": ["version:v123", "env:staging"]
+  }]
+}

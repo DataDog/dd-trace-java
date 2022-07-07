@@ -1,0 +1,119 @@
+{
+  "id": "petclinic",
+  "orgId": 2,
+  "allowList": {
+    "packagePrefixes": ["com.datadog", "org.apache"],
+    "classes": []
+  },
+  "denyList": {
+    "packagePrefixes": ["java.security", "sun.security"],
+    "classes": []
+  },
+  "snapshotProbes": [{
+    "id": "123356536",
+    "language": "java",
+    "created": 1606407800.445507000,
+    "where": {
+      "typeName": "java.lang.Object",
+      "methodName": "toString",
+      "signature": "java.lang.String ()",
+      "lines": [
+        "12-25",
+        "42-45"
+      ]
+    },
+    "when": {
+      "dsl": "hasAny(filter(#tags, { len(@it) > 4 }), { @it == 'hello' }) && (.field == 10 || .field < 11 || .field <= 10 || .field > 0 || .field >= 10 || .field != 0 || !(.field == 0) || hasAll(.field, { @it == 10 }) || isEmpty(.field2))",
+      "json": {
+        "and": [
+          {
+            "hasAny": [
+              {
+                "filter": [
+                  "#tags",
+                  {
+                    "gt": [
+                      {
+                        "len": "@it"
+                      },
+                      4
+                    ]
+                  }
+                ]
+              },
+              {
+                "eq": [
+                  "@it",
+                  "hello"
+                ]
+              }
+            ]
+          },
+          {
+            "or": [
+              {
+                "eq": [
+                  ".field",
+                  10
+                ]
+              },
+              {
+                "<": [
+                  ".field",
+                  11
+                ]
+              },
+              {
+                "<=": [
+                  ".field",
+                  10
+                ]
+              },
+              {
+                ">": [
+                  ".field",
+                  0
+                ]
+              },
+              {
+                ">=": [
+                  ".field",
+                  10
+                ]
+              },
+              {
+                "!=": [
+                  ".field",
+                  0
+                ]
+              },
+              {
+                "not": {
+                  "==": [
+                    ".field",
+                    0
+                  ]
+                }
+              },
+              {
+                "hasAll": [
+                  ".field",
+                  {
+                    "eq": [
+                      "@it",
+                      10
+                    ]
+                  }
+                ]
+              },
+              {
+                "isEmpty": ".field2"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "tags": ["version:v123", "env:staging"]
+  }]
+}

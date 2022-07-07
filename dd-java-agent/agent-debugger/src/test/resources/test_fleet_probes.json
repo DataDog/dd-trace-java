@@ -1,0 +1,116 @@
+[
+  {
+    "id": "service1",
+    "orgId": 2,
+    "probes":
+    [
+      {
+        "version": 0,
+        "language": "java",
+        "probeId": "probe1",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.String",
+          "methodName": "indexOf",
+          "signature": "(String)"
+        },
+        "capture":
+        {
+          "maxReferenceDepth": 1,
+          "maxCollectionSize": 100,
+          "maxLength": 255,
+          "maxFieldDepth": -1
+        },
+        "sampling":
+        {
+          "snapshotsPerSecond": 1.0
+        },
+        "tagMap":
+        {}
+      },
+      {
+        "version": 0,
+        "language": "java",
+        "probeId": "probe2",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.Object",
+          "methodName": "toString",
+          "signature": "String ()"
+        },
+        "capture":
+        {
+          "maxReferenceDepth": 1,
+          "maxCollectionSize": 100,
+          "maxLength": 255,
+          "maxFieldDepth": -1
+        },
+        "sampling":
+        {
+          "snapshotsPerSecond": 1.0
+        },
+        "tagMap":
+        {}
+      }
+    ]
+  },
+  {
+    "id": "service2",
+    "orgId": 2,
+    "probes":
+    [
+      {
+        "version": 0,
+        "language": "java",
+        "probeId": "probe3",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.String",
+          "methodName": "concat",
+          "signature": "String (String)"
+        },
+        "capture":
+        {
+          "maxReferenceDepth": 1,
+          "maxCollectionSize": 100,
+          "maxLength": 255,
+          "maxFieldDepth": -1
+        },
+        "sampling":
+        {
+          "snapshotsPerSecond": 1.0
+        },
+        "tagMap":
+        {}
+      },
+      {
+        "version": 0,
+        "language": "java",
+        "probeId": "probe4",
+        "active": true,
+        "where":
+        {
+          "typeName": "java.lang.String",
+          "methodName": "toUpperCase",
+          "signature": "String ()"
+        },
+        "capture":
+        {
+          "maxReferenceDepth": 1,
+          "maxCollectionSize": 100,
+          "maxLength": 255,
+          "maxFieldDepth": -1
+        },
+        "sampling":
+        {
+          "snapshotsPerSecond": 1.0
+        },
+        "tagMap":
+        {}
+      }
+    ]
+  }
+]

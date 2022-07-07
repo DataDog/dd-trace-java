@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForConfiguredType {
 
   // these must remain as String literals so they can be easily be shared (copied) with the nested
   // advice classes
@@ -57,7 +57,7 @@ public class LambdaHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public String instrumentedType() {
+  public String configuredMatchingType() {
     return this.instrumentedType;
   }
 

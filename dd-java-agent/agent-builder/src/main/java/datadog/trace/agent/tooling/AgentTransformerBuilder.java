@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
+import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
@@ -124,13 +125,15 @@ public class AgentTransformerBuilder
   private AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     if (instrumenter instanceof Instrumenter.ForSingleType) {
-      typeMatcher =
-          new SingleTypeMatcher(((Instrumenter.ForSingleType) instrumenter).instrumentedType());
+      String name = ((Instrumenter.ForSingleType) instrumenter).instrumentedType();
+      typeMatcher = new SingleTypeMatcher(name);
     } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
-      typeMatcher =
-          new KnownTypesMatcher(((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes());
+      String[] names = ((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes();
+      typeMatcher = new KnownTypesMatcher(names);
     } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
       typeMatcher = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher();
+    } else if (instrumenter instanceof Instrumenter.ForConfiguredType) {
+      typeMatcher = none(); // handle below, just like when it's combined with other matchers
     } else {
       return AgentBuilder.RawMatcher.Trivial.NON_MATCHING;
     }
@@ -141,6 +144,15 @@ public class AgentTransformerBuilder
       typeMatcher =
           new ElementMatcher.Junction.Disjunction(
               typeMatcher, ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher());
+    }
+
+    if (instrumenter instanceof Instrumenter.ForConfiguredType) {
+      String name = ((Instrumenter.ForConfiguredType) instrumenter).configuredMatchingType();
+      // only add this optional matcher when it's been configured
+      if (null != name && !name.isEmpty()) {
+        typeMatcher =
+            new ElementMatcher.Junction.Disjunction(typeMatcher, new SingleTypeMatcher(name));
+      }
     }
 
     if (instrumenter instanceof Instrumenter.WithTypeStructure) {
