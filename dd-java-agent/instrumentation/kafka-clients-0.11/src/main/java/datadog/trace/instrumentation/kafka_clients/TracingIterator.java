@@ -13,7 +13,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.Iterator;
@@ -65,6 +64,13 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
+          if (spanContext != null) {
+            PathwayContext pc = spanContext.getPathwayContext();
+            if (pc != null) {
+              // todo[piochelepiotr] Add edge tags even if there is no service before this one.
+              pc.setQueueTags("kafka", group, val.topic());
+            }
+          }
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
             span = startSpan(operationName, spanContext);
@@ -79,10 +85,6 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
-
-          PathwayContext pathwayContext = propagate().extractPathwayContext(val.headers(), GETTER);
-          span.mergePathwayContext(pathwayContext);
-          AgentTracer.get().setDataStreamCheckpoint(span, "kafka", group, val.topic());
         } else {
           span = startSpan(operationName, null);
         }

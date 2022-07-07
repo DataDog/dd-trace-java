@@ -9,8 +9,8 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Requires
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
+import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 @Requires({
   jvm.isJava8Compatible()
@@ -34,45 +34,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     assert point.edgeLatencyNano == 0
   }
 
-  def "StatsPoint emitted when start called"() {
-    given:
-    def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
-
-    when:
-    timeSource.advance(50)
-    context.start(pointConsumer)
-
-    then:
-    context.isStarted()
-    pointConsumer.points.size() == 1
-    verifyFirstPoint(pointConsumer.points[0])
-  }
-
-  def "StatsPoint not emitted when start called more than once"() {
-    given:
-    def timeSource = new ControllableTimeSource()
-    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
-
-    when:
-    timeSource.advance(50)
-    context.start(pointConsumer)
-
-    then:
-    context.isStarted()
-    pointConsumer.points.size() == 1
-
-    when:
-    timeSource.advance(50)
-    context.start(pointConsumer)
-
-    then:
-    context.isStarted()
-    pointConsumer.points.size() == 1
-    verifyFirstPoint(pointConsumer.points[0])
-  }
-
-  def "Checkpoint converted to start on unstarted context"() {
+  def "First Set checkpoint starts the context."() {
     given:
     def timeSource = new ControllableTimeSource()
     def context = new DefaultPathwayContext(timeSource, wellKnownTags)
@@ -94,7 +56,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.start(pointConsumer)
+    context.setCheckpoint(null, null, null, pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint("kafka", "group", "topic", pointConsumer)
 
@@ -119,7 +81,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.start(pointConsumer)
+    context.setCheckpoint(null, null, null, pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint("kafka", "group", "topic", pointConsumer)
     timeSource.advance(30)
@@ -167,10 +129,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.start(pointConsumer)
-    def encoded = context.encode()
+    context.setCheckpoint(null, null, null, pointConsumer)
+    def encoded = context.strEncode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def decodedContext = DefaultPathwayContext.decode(timeSource, wellKnownTags, encoded)
+    def decodedContext = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     decodedContext.setCheckpoint("kafka", "group", "topic", pointConsumer)
 
@@ -196,11 +158,11 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.start(pointConsumer)
+    context.setCheckpoint(null, null, null, pointConsumer)
 
-    def encoded = context.encode()
+    def encoded = context.strEncode()
     timeSource.advance(MILLISECONDS.toNanos(1))
-    def decodedContext = DefaultPathwayContext.decode(timeSource, wellKnownTags, encoded)
+    def decodedContext = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
     decodedContext.setCheckpoint("kafka", "group", "topic", pointConsumer)
 
@@ -217,9 +179,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
 
     when:
-    def secondEncode = decodedContext.encode()
+    def secondEncode = decodedContext.strEncode()
     timeSource.advance(MILLISECONDS.toNanos(2))
-    def secondDecode = DefaultPathwayContext.decode(timeSource, wellKnownTags, secondEncode)
+    def secondDecode = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
     secondDecode.setCheckpoint("kafka", "group", "topicB", pointConsumer)
 
@@ -245,10 +207,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.start(pointConsumer)
+    context.setCheckpoint(null, null, null, pointConsumer)
 
-    def encoded = context.encode()
-    Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded, "someotherkey": new byte[0]]
+    def encoded = context.strEncode()
+    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
@@ -267,7 +229,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
 
     when:
-    def secondEncode = decodedContext.encode()
+    def secondEncode = decodedContext.strEncode()
     carrier = [(PathwayContext.PROPAGATION_KEY): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
@@ -294,7 +256,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.start(pointConsumer)
+    context.setCheckpoint(null, null, null, pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint(type, group, topic, pointConsumer)
 
@@ -329,12 +291,12 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     def firstContext = new DefaultPathwayContext(timeSource, wellKnownTags)
     timeSource.advance(50)
-    firstContext.start(pointConsumer)
+    firstContext.setCheckpoint(null, null, null, pointConsumer)
 
     injectSysConfig(PRIMARY_TAG, "region-2")
     def secondContext = new DefaultPathwayContext(timeSource, wellKnownTags)
     timeSource.advance(25)
-    secondContext.start(pointConsumer)
+    secondContext.setCheckpoint(null, null, null, pointConsumer)
 
     then:
     pointConsumer.points.size() == 2
@@ -343,10 +305,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     pointConsumer.points[0].hash != pointConsumer.points[1].hash
   }
 
-  class MapContextVisitor implements AgentPropagation.BinaryContextVisitor<Map<String, byte[]>> {
+  class MapContextVisitor implements AgentPropagation.ContextVisitor<Map<String, String>> {
     @Override
-    void forEachKey(Map<String, byte[]> carrier, AgentPropagation.BinaryKeyClassifier classifier) {
-      for (Map.Entry<String, byte[]> entry : carrier.entrySet()) {
+    void forEachKey(Map<String, String> carrier, AgentPropagation.KeyClassifier classifier) {
+      for (Map.Entry<String, String> entry : carrier.entrySet()) {
         classifier.accept(entry.key, entry.value)
       }
     }

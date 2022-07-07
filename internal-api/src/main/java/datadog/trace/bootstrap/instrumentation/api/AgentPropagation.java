@@ -12,9 +12,6 @@ public interface AgentPropagation {
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style);
 
-  <C> void injectPathwayContext(
-      AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter);
-
   interface Setter<C> {
     void set(C carrier, String key, String value);
   }
@@ -24,8 +21,6 @@ public interface AgentPropagation {
   }
 
   <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
-
-  <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter);
 
   interface KeyClassifier {
 
@@ -38,9 +33,5 @@ public interface AgentPropagation {
 
   interface ContextVisitor<C> {
     void forEachKey(C carrier, KeyClassifier classifier);
-  }
-
-  interface BinaryContextVisitor<C> {
-    void forEachKey(C carrier, BinaryKeyClassifier classifier);
   }
 }

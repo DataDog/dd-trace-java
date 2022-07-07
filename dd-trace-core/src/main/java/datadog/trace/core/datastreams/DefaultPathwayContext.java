@@ -1,5 +1,7 @@
 package datadog.trace.core.datastreams;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
@@ -10,6 +12,8 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
+import datadog.trace.core.Base64Decoder;
+import datadog.trace.core.Base64Encoder;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
-  private static final String INITIALIZATION_TOPIC = "";
   private final Lock lock = new ReentrantLock();
   private final WellKnownTags wellKnownTags;
   private final TimeSource timeSource;
@@ -37,6 +40,11 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
+
+  // type, topic & group of the next time setCheckpoint is called
+  private String type;
+  private String topic;
+  private String group;
 
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
@@ -65,23 +73,27 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void start(Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(null, null, INITIALIZATION_TOPIC, pointConsumer);
-  }
-
-  @Override
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
+
+    if (this.type != null) {
+      type = this.type;
+      this.type = null;
+    }
+    if (this.group != null) {
+      group = this.group;
+      this.group = null;
+    }
+    if (this.topic != null) {
+      topic = this.topic;
+      this.topic = null;
+    }
 
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
 
     lock.lock();
     try {
-      if (INITIALIZATION_TOPIC.equals(topic) && started) {
-        return;
-      }
-
       List<String> edgeTags = new ArrayList<>();
 
       if (started) {
@@ -154,6 +166,23 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
+  @Override
+  public String strEncode() throws IOException {
+    byte[] bytes = encode();
+    if (bytes == null) {
+      return null;
+    }
+    return new String(Base64Encoder.INSTANCE.encode(bytes), UTF_8);
+  }
+
+  @Override
+  public void setQueueTags(String type, String group, String topic) {
+    this.type = type;
+    this.group = group;
+    this.topic = topic;
+  }
+
+  @Override
   public String toString() {
     lock.lock();
     try {
@@ -189,7 +218,7 @@ public class DefaultPathwayContext implements PathwayContext {
     return Long.toString(quot) + rem;
   }
 
-  private static class PathwayContextExtractor implements AgentPropagation.BinaryKeyClassifier {
+  private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
     private final TimeSource timeSource;
     private final WellKnownTags wellKnownTags;
     private DefaultPathwayContext extractedContext;
@@ -200,10 +229,10 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     @Override
-    public boolean accept(String key, byte[] value) {
+    public boolean accept(String key, String value) {
       if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(timeSource, wellKnownTags, value);
+          extractedContext = strDecode(timeSource, wellKnownTags, value);
         } catch (IOException e) {
           return false;
         }
@@ -214,20 +243,24 @@ public class DefaultPathwayContext implements PathwayContext {
 
   public static <C> DefaultPathwayContext extract(
       C carrier,
-      AgentPropagation.BinaryContextVisitor<C> getter,
+      AgentPropagation.ContextVisitor<C> getter,
       TimeSource timeSource,
       WellKnownTags wellKnownTags) {
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
-
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
     } else {
       log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
     }
-
     return pathwayContextExtractor.extractedContext;
+  }
+
+  public static DefaultPathwayContext strDecode(
+      TimeSource timeSource, WellKnownTags wellKnownTags, String data) throws IOException {
+    byte[] byteValue = Base64Decoder.INSTANCE.decode(data.getBytes(UTF_8));
+    return decode(timeSource, wellKnownTags, byteValue);
   }
 
   public static DefaultPathwayContext decode(

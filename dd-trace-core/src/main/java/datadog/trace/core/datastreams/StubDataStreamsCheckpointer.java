@@ -19,7 +19,7 @@ public class StubDataStreamsCheckpointer implements DataStreamsCheckpointer {
 
   @Override
   public <C> PathwayContext extractPathwayContext(
-      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+      C carrier, AgentPropagation.ContextVisitor<C> getter) {
     return AgentTracer.NoopPathwayContext.INSTANCE;
   }
 

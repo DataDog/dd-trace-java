@@ -10,8 +10,7 @@ public interface DataStreamsCheckpointer extends Consumer<StatsPoint>, AutoClose
 
   PathwayContext newPathwayContext();
 
-  <C> PathwayContext extractPathwayContext(
-      C carrier, AgentPropagation.BinaryContextVisitor<C> getter);
+  <C> PathwayContext extractPathwayContext(C carrier, AgentPropagation.ContextVisitor<C> getter);
 
   @Override
   void close();
