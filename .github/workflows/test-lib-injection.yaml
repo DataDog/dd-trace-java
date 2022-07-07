@@ -1,6 +1,5 @@
 name: "Lib Injection Test"
-
-on: push
+on: [push, pull_request]
 
 jobs:
   lib-injection-test:
@@ -48,7 +47,7 @@ jobs:
       - name: Build injection image
         run: |
           export BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
-          ./lib-injection/build.sh ghcr.io/datadog/dd-trace-java/dd-java-agent-k8s-init ${GITHUB_SHA}
+          ./lib-injection/build.sh ghcr.io/datadog/dd-trace-java/dd-java-agent-init ${GITHUB_SHA}
 
       - name: Deploy pre-modified pod
         run: |
