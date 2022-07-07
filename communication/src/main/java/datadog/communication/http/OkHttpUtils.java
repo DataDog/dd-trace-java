@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
-import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
