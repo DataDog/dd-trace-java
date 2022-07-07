@@ -46,14 +46,9 @@ public final class OkHttpUtils {
       "Datadog-Meta-Lang-Interpreter-Vendor";
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
 
-  private static final String DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
-  private static final String DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
-
   private static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
   private static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");
   private static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");
-
-  private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
 
   public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
     return buildHttpClient(url, null, null, timeoutMillis);
@@ -185,9 +180,7 @@ public final class OkHttpUtils {
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
             .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR)
-            .addHeader(DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY)
-            .addHeader(DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
+            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId != null) {

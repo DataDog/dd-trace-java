@@ -77,6 +77,10 @@ public final class ProfileUploader {
 
   // Header names and values
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
+  private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
+  private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+
+  private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
 
   private static final Headers EVENT_HEADER =
       Headers.of(
@@ -365,6 +369,8 @@ public final class ProfileUploader {
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
     headers.put("Transfer-Encoding", "chunked");
+    headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
+    headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
 
     final Request.Builder requestBuilder =
         OkHttpUtils.prepareRequest(url, headers).post(requestBody);
