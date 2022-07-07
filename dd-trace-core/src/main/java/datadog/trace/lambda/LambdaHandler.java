@@ -51,7 +51,12 @@ public class LambdaHandler {
 
   private static final MediaType jsonMediaType = MediaType.parse("application/json");
   private static final JsonAdapter<Object> adapter =
-      new Moshi.Builder().build().adapter(Object.class);
+      new Moshi.Builder()
+          // we need to bypass those classes as moshi fails to marshal this into JSON
+          .add(NoOpAdapter.newFactory("org.joda.time.Chronology"))
+          .add(NoOpAdapter.newFactory("java.nio.ByteBuffer"))
+          .build()
+          .adapter(Object.class);
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 

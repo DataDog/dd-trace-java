@@ -3,6 +3,12 @@ package datadog.trace.lambda
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
+import com.amazonaws.services.lambda.runtime.events.SQSEvent
+import com.amazonaws.services.lambda.runtime.events.SNSEvent
+import com.amazonaws.services.lambda.runtime.events.S3Event
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
+import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification
+
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class LambdaHandlerTest extends DDCoreSpecification {
@@ -145,4 +151,71 @@ class LambdaHandlerTest extends DDCoreSpecification {
     false     | "true"          | true
     false     | null            | false
   }
+
+  def "test moshi toJson SNSEvent"() {
+    given:
+    def myEvent = new SQSEvent()
+    List<SQSEvent.SQSMessage> records = new ArrayList<>()
+    SQSEvent.SQSMessage message = new SQSEvent.SQSMessage()
+    message.setMessageId("myId")
+    message.setAwsRegion("myRegion")
+    records.add(message)
+    myEvent.setRecords(records)
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"records\":[{\"awsRegion\":\"myRegion\",\"messageId\":\"myId\"}]}"
+  }
+
+  def "test moshi toJson S3Event"() {
+    given:
+    List<S3EventNotification.S3EventNotificationRecord> list = new ArrayList<>()
+    S3EventNotification.S3EventNotificationRecord item0 = new S3EventNotification.S3EventNotificationRecord(
+      "region", "eventName", "mySource", null, "3.4",
+      null, null, null, null)
+    list.add(item0)
+    def myEvent = new S3Event(list)
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"records\":[{\"awsRegion\":\"region\",\"eventName\":\"eventName\",\"eventSource\":\"mySource\",\"eventVersion\":\"3.4\"}]}"
+  }
+
+  def "test moshi toJson SNSEvent"() {
+    given:
+    def myEvent = new SNSEvent()
+    List<SNSEvent.SNSRecord> records = new ArrayList<>()
+    SNSEvent.SNSRecord message = new SNSEvent.SNSRecord()
+    message.setEventSource("mySource")
+    message.setEventVersion("myVersion")
+    records.add(message)
+    myEvent.setRecords(records)
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}"
+  }
+
+  def "test moshi toJson APIGatewayProxyRequestEvent"() {
+    given:
+    def myEvent = new APIGatewayProxyRequestEvent()
+    myEvent.setBody("bababango")
+    myEvent.setHttpMethod("POST")
+
+    when:
+    def result = LambdaHandler.writeValueAsString(myEvent)
+
+    then:
+    result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
+  }
 }
+
+
+
+
