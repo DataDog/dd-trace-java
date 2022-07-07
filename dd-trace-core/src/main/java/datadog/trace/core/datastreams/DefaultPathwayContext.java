@@ -75,7 +75,9 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
-
+    long startNanos = timeSource.getCurrentTimeNanos();
+    long nanoTicks = timeSource.getNanoTicks();
+    lock.lock();
     if (this.type != null) {
       type = this.type;
       this.type = null;
@@ -88,11 +90,6 @@ public class DefaultPathwayContext implements PathwayContext {
       topic = this.topic;
       this.topic = null;
     }
-
-    long startNanos = timeSource.getCurrentTimeNanos();
-    long nanoTicks = timeSource.getNanoTicks();
-
-    lock.lock();
     try {
       List<String> edgeTags = new ArrayList<>();
 
@@ -177,9 +174,11 @@ public class DefaultPathwayContext implements PathwayContext {
 
   @Override
   public void setQueueTags(String type, String group, String topic) {
+    lock.lock();
     this.type = type;
     this.group = group;
     this.topic = topic;
+    lock.unlock();
   }
 
   @Override
