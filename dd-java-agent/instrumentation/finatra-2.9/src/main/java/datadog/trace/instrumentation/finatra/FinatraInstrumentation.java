@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.finatra;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -22,14 +22,14 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
 
 @AutoService(Instrumenter.class)
-public class FinatraInstrumentation extends Instrumenter.Tracing {
+public class FinatraInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public FinatraInstrumentation() {
     super("finatra");
   }
@@ -46,7 +46,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("com.twitter.finatra.")
         .<TypeDescription>and(
             extendsClass(named("com.twitter.finatra.http.internal.routing.Route")));
@@ -67,8 +67,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
     public static AgentScope nameSpan(
         @Advice.Argument(0) final Request request,
         @Advice.FieldValue("path") final String path,
-        @Advice.FieldValue("clazz") final Class clazz,
-        @Advice.Origin final Method method) {
+        @Advice.FieldValue("clazz") final Class clazz) {
 
       // Update the parent "netty.request"
       final AgentSpan parent = activeSpan();

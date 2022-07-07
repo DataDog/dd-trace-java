@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jakarta3;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -20,7 +20,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tracing {
+public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public JakartaRsAsyncResponseInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-annotations");
@@ -42,7 +43,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("jakarta.ws.rs.container.AsyncResponse"));
   }
 

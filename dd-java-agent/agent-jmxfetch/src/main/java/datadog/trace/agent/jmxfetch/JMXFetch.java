@@ -61,8 +61,19 @@ public class JMXFetch {
 
     String host = config.getJmxFetchStatsdHost();
     Integer port = config.getJmxFetchStatsdPort();
+    String namedPipe = config.getDogStatsDNamedPipe();
 
     if (log.isDebugEnabled()) {
+      String statsDConnectionString;
+      if (namedPipe == null) {
+        statsDConnectionString =
+            "statsd:"
+                + (null != host ? host : "<auto-detect>")
+                + (null != port && port > 0 ? ":" + port : "");
+      } else {
+        statsDConnectionString = "statsd:" + namedPipe;
+      }
+
       log.debug(
           "JMXFetch config: {} {} {} {} {} {} {} {} {}",
           jmxFetchConfigDir,
@@ -73,12 +84,10 @@ public class JMXFetch {
           initialRefreshBeansPeriod,
           refreshBeansPeriod,
           globalTags,
-          "statsd:"
-              + (null != host ? host : "<auto-detect>")
-              + (null != port && port > 0 ? ":" + port : ""));
+          statsDConnectionString);
     }
 
-    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, null, null);
+    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()

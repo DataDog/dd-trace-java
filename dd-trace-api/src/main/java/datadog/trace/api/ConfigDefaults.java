@@ -6,12 +6,18 @@ public final class ConfigDefaults {
 
   static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES;
   static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_SERVER_ERROR_STATUSES;
+  static final BitSet DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 
   static {
     DEFAULT_HTTP_SERVER_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES.set(400, 500);
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_SERVER_ERROR_STATUSES.set(2, 17);
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_GRPC_CLIENT_ERROR_STATUSES.set(1, 17);
   }
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
@@ -50,6 +56,9 @@ public final class ConfigDefaults {
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
+
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
@@ -61,26 +70,25 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
-  static final boolean DEFAULT_PROFILING_ENABLED = false;
-  static final boolean DEFAULT_PROFILING_ALLOCATION_ENABLED = false;
-  static final boolean DEFAULT_PROFILING_HEAP_ENABLED = false;
-  static final int DEFAULT_PROFILING_START_DELAY = 10;
-  static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
-  static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
-  static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
-  static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
-  static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
-  static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
-  static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
-  static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
-  static final boolean DEFAULT_PROFILING_AGENTLESS = false;
-  static final boolean DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION = true;
-  static final boolean DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413 = false;
-
   static final boolean DEFAULT_APPSEC_ENABLED = false;
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
+  static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
+  static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
+  static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
+
+  static final boolean DEFAULT_DEBUGGER_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
+  static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
+  static final boolean DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_POLL_INTERVAL = 1; // seconds
+  static final int DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
+  static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
+  static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
+  static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
+  static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -94,6 +102,10 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
+
+  static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+
+  static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
 
   private ConfigDefaults() {}
 }

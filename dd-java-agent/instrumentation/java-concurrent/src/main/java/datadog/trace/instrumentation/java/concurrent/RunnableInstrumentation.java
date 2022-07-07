@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -24,21 +24,22 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument {@link Runnable} */
 @AutoService(Instrumenter.class)
-public final class RunnableInstrumentation extends Instrumenter.Tracing {
+public final class RunnableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RunnableInstrumentation() {
     super(AbstractExecutorInstrumentation.EXEC_NAME, "runnable");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE)
         .and(implementsInterface(named(Runnable.class.getName())))
         .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 

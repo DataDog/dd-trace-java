@@ -1,20 +1,16 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
-import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.NamedElement;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.utility.JavaModule;
 
 public final class NameMatchers<T extends NamedElement>
-    extends ElementMatcher.Junction.AbstractBase<T> implements AgentBuilder.RawMatcher, FailSafe {
+    extends ElementMatcher.Junction.ForNonNullValues<T> {
 
   private static final int NAMED = 0;
   private static final int NAME_STARTS_WITH = 1;
@@ -39,7 +35,7 @@ public final class NameMatchers<T extends NamedElement>
     assert mode < NAMED_ONE_OF : "do not call with sets";
     // TODO use computeIfAbsent when baselining on JDK8
     ConcurrentHashMap<String, NameMatchers<?>> deduplicator = DEDUPLICATORS[mode];
-    NameMatchers<T> matcher = (NameMatchers<T>) DEDUPLICATORS[mode].get(data);
+    NameMatchers<T> matcher = (NameMatchers<T>) DEDUPLICATORS[mode].get(key);
     if (null == matcher) {
       matcher = new NameMatchers<>(mode, data);
       NameMatchers<T> predecessor = (NameMatchers<T>) deduplicator.putIfAbsent(key, matcher);
@@ -145,7 +141,7 @@ public final class NameMatchers<T extends NamedElement>
   }
 
   @Override
-  public boolean matches(T target) {
+  protected boolean doMatch(T target) {
     return match(target.getActualName());
   }
 
@@ -175,15 +171,5 @@ public final class NameMatchers<T extends NamedElement>
 
   private static Set<String> toSet(String... strings) {
     return new HashSet<>(Arrays.asList(strings));
-  }
-
-  @Override
-  public boolean matches(
-      TypeDescription typeDescription,
-      ClassLoader classLoader,
-      JavaModule module,
-      Class<?> classBeingRedefined,
-      ProtectionDomain protectionDomain) {
-    return match(typeDescription.getName());
   }
 }

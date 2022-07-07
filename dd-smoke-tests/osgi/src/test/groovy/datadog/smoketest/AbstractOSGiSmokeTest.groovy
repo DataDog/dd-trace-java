@@ -44,11 +44,11 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
     checkLog {
       // check for additional OSGi class-loader issues
       if (it.contains("Cannot resolve type description") ||
-      it.contains("Instrumentation muzzled")) {
+        it.contains("Instrumentation muzzled")) {
         println it
         logHasErrors = true
       }
-      if (it.contains("Transformed datadog.smoketest.osgi.client.MessageClient")) {
+      if (it.contains("Transformed - instrumentation.target.class=datadog.smoketest.osgi.client.MessageClient")) {
         println it
         instrumentedMessageClient = true
       }

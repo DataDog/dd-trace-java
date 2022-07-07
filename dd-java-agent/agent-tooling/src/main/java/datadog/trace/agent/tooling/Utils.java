@@ -1,68 +1,36 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
-import java.lang.reflect.Method;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDefinition;
+import java.lang.instrument.Instrumentation;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Utils {
 
-  // This is used in HelperInjectionTest.groovy
-  private static Method findLoadedClassMethod = null;
-
-  private static final BootstrapClassLoaderProxy unitTestBootstrapProxy =
-      new BootstrapClassLoaderProxy();
-
-  static {
-    try {
-      findLoadedClassMethod = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-    } catch (final NoSuchMethodException | SecurityException e) {
-      throw new IllegalStateException(e);
-    }
-  }
+  private static final ClassLoader bootstrapProxy =
+      getAgentClassLoader() instanceof DatadogClassLoader
+          ? ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy()
+          : new BootstrapClassLoaderProxy(); // only used during unit tests
 
   /** Return the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
-    return AgentInstaller.class.getClassLoader();
+    return Instrumenter.class.getClassLoader();
   }
 
   /** Return a classloader which can be used to look up bootstrap resources. */
   public static ClassLoader getBootstrapProxy() {
-    if (getAgentClassLoader() instanceof DatadogClassLoader) {
-      return ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy();
-    } else {
-      // in a unit test
-      return unitTestBootstrapProxy;
-    }
+    return bootstrapProxy;
   }
 
-  /**
-   * Get method definition for given {@link TypeDefinition} and method name.
-   *
-   * @param type type
-   * @param methodName method name
-   * @return {@link MethodDescription} for given method
-   * @throws IllegalStateException if more then one method matches (i.e. in case of overloaded
-   *     methods) or if no method found
-   */
-  public static MethodDescription getMethodDefinition(
-      final TypeDefinition type, final String methodName) {
-    return type.getDeclaredMethods().filter(named(methodName)).getOnly();
+  private static final AtomicReference<Instrumentation> instrumentationRef =
+      new AtomicReference<>();
+
+  public static void setInstrumentation(Instrumentation instrumentation) {
+    instrumentationRef.compareAndSet(null, instrumentation);
   }
 
-  /** @return The current stack trace with multiple entries on new lines. */
-  public static String getStackTraceAsString() {
-    final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-    final StringBuilder stringBuilder = new StringBuilder();
-    final String lineSeparator = System.getProperty("line.separator");
-    for (final StackTraceElement element : stackTrace) {
-      stringBuilder.append(element.toString());
-      stringBuilder.append(lineSeparator);
-    }
-    return stringBuilder.toString();
+  public static Instrumentation getInstrumentation() {
+    return instrumentationRef.get();
   }
 
   private Utils() {}

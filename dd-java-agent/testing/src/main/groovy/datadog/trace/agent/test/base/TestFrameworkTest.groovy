@@ -3,6 +3,7 @@ package datadog.trace.agent.test.base
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import spock.lang.Shared
@@ -17,7 +18,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
     injectSysConfig("dd.civisibility.enabled", "true")
   }
 
-  void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null) {
+  void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null, final boolean emptyDuration = false) {
     def testFramework = expectedTestFramework()
     def testFrameworkVersion = expectedTestFrameworkVersion()
 
@@ -27,6 +28,11 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       resourceName "$testSuite.$testName"
       spanType DDSpanTypes.TEST
       errored exception != null
+      if(emptyDuration) {
+        duration({it == 1L})
+      } else {
+        duration({it > 1L})
+      }
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST
@@ -56,6 +62,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.RUNTIME_VENDOR" String
         "$Tags.RUNTIME_NAME" String
         "$Tags.RUNTIME_VERSION" String
+        "$DDTags.LIBRARY_VERSION_TAG_KEY" String
 
         defaultTags()
       }

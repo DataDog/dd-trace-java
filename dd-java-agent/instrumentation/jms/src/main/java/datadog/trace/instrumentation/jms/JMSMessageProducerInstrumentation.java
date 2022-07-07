@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -31,7 +31,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracing {
+public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageProducerInstrumentation() {
     super("jms", "jms-1", "jms-2");
@@ -44,18 +45,13 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.jms.MessageProducer"));
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1",
-      packageName + ".MessageInjectAdapter"
-    };
+    return new String[] {packageName + ".JMSDecorator", packageName + ".MessageInjectAdapter"};
   }
 
   @Override

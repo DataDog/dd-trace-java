@@ -11,11 +11,10 @@ import com.ibm.wsspi.webcontainer.servlet.IExtendedRequest;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ResponseFinishInstrumentation extends Instrumenter.Tracing {
+public class ResponseFinishInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ResponseFinishInstrumentation() {
     super("liberty");
@@ -24,15 +23,17 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RequestExtractAdapter",
+      packageName + ".HttpServletExtractAdapter",
+      packageName + ".HttpServletExtractAdapter$Request",
+      packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
       packageName + ".RequestURIDataAdapter",
     };
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.ibm.ws.webcontainer.srt.SRTServletResponse");
+  public String instrumentedType() {
+    return "com.ibm.ws.webcontainer.srt.SRTServletResponse";
   }
 
   @Override

@@ -1,12 +1,10 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Arrays;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -18,19 +16,19 @@ import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
-public class RequestImplInstrumentation extends Instrumenter.Tracing {
+public class RequestImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.redis.client.impl.RequestImpl");
+  public String instrumentedType() {
+    return "io.vertx.redis.client.impl.RequestImpl";
   }
 
   @Override
@@ -40,10 +38,10 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public AgentBuilder.Transformer transformer() {
+  public AdviceTransformer transformer() {
     // This Transformer will add the Cloneable interface to RequestImpl, as well as a clone method
     // that calls the protected shallow clone method in Object
-    return new AgentBuilder.Transformer() {
+    return new AdviceTransformer() {
       @Override
       public DynamicType.Builder<?> transform(
           DynamicType.Builder<?> builder,

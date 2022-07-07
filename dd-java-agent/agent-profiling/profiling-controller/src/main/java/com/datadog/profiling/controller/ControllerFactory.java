@@ -15,12 +15,37 @@
  */
 package com.datadog.profiling.controller;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Factory used to get a {@link Controller}. */
 public final class ControllerFactory {
+  private static final Logger log = LoggerFactory.getLogger(ControllerFactory.class);
+
+  private static enum Implementation {
+    NONE(),
+    ORACLE("com.datadog.profiling.controller.oracle.OracleJdkController"),
+    OPENJDK("com.datadog.profiling.controller.openjdk.OpenJdkController"),
+    ASYNC("com.datadog.profiling.controller.async.AsyncController");
+
+    private final String className;
+
+    Implementation() {
+      this.className = null;
+    }
+
+    Implementation(String className) {
+      this.className = className;
+    }
+
+    String className() {
+      return className;
+    }
+  }
 
   /**
    * Returns the created controller.
@@ -31,77 +56,107 @@ public final class ControllerFactory {
    * @throws ConfigurationException if profiler cannot start due to configuration problems
    */
   @SuppressForbidden
-  public static Controller createController(final Config config)
+  public static Controller createController(final ConfigProvider configProvider)
       throws UnsupportedEnvironmentException, ConfigurationException {
-    boolean isOracleJfr = false;
-    boolean isOpenJdkJfr = false;
+    Implementation impl = Implementation.NONE;
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
-      isOracleJfr = true;
+      impl = Implementation.ORACLE;
     } catch (ClassNotFoundException ignored) {
-      // expected
+      log.debug("Failed to load oracle profiler", ignored);
     }
-    if (!isOracleJfr) {
+    if (impl == Implementation.NONE) {
       try {
         Class.forName("jdk.jfr.Event");
-        isOpenJdkJfr = true;
+        impl = Implementation.OPENJDK;
       } catch (ClassNotFoundException ignored) {
-        // expected
+        log.debug("Failed to load openjdk profiler", ignored);
       }
     }
-    if (isOracleJfr || isOpenJdkJfr) {
-      try {
-
-        final Class<? extends Controller> controller =
-            Class.forName(
-                    isOracleJfr
-                        ? "com.datadog.profiling.controller.oracle.OracleJdkController"
-                        : "com.datadog.profiling.controller.openjdk.OpenJdkController")
-                .asSubclass(Controller.class);
-        return controller.getDeclaredConstructor(Config.class).newInstance(config);
-      } catch (final ClassNotFoundException
-          | NoSuchMethodException
-          | InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException e) {
-        if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
-          throw (ConfigurationException) e.getCause();
+    if (impl == Implementation.NONE) {
+      boolean isOpenJ9 =
+          System.getProperty("java.vendor").equals("IBM Corporation")
+              && System.getProperty("java.vm.name").contains("J9");
+      if (configProvider.getBoolean(
+              ProfilingConfig.PROFILING_ASYNC_ENABLED,
+              ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
+          || isOpenJ9) {
+        try {
+          Class<?> asyncProfilerClass = Class.forName("com.datadog.profiling.async.AsyncProfiler");
+          if ((boolean)
+              asyncProfilerClass
+                  .getMethod("isAvailable")
+                  .invoke(asyncProfilerClass.getMethod("getInstance").invoke(null))) {
+            impl = Implementation.ASYNC;
+          } else {
+            log.debug("Failed to load async profiler, it is not available");
+          }
+        } catch (final ClassNotFoundException
+            | NoSuchMethodException
+            | IllegalAccessException
+            | InvocationTargetException ignored) {
+          log.debug("Failed to load async profiler", ignored);
         }
-        final String message = "Not enabling profiling" + getFixProposalMessage();
-        throw new UnsupportedEnvironmentException(message, e);
       }
     }
-    throw new UnsupportedEnvironmentException("Not enabling profiling" + getFixProposalMessage());
+    if (impl == Implementation.NONE) {
+      throw new UnsupportedEnvironmentException(getFixProposalMessage());
+    }
+
+    try {
+      log.debug("Trying to load " + impl.className());
+      return Class.forName(impl.className())
+          .asSubclass(Controller.class)
+          .getDeclaredConstructor(ConfigProvider.class)
+          .newInstance(configProvider);
+    } catch (final ClassNotFoundException
+        | NoSuchMethodException
+        | InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException e) {
+      if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
+        throw (ConfigurationException) e.getCause();
+      }
+      throw new UnsupportedEnvironmentException(getFixProposalMessage(), e);
+    }
   }
 
   private static String getFixProposalMessage() {
+    final String javaVendor = System.getProperty("java.vendor");
+    final String javaVersion = System.getProperty("java.version");
+    final String javaRuntimeName = System.getProperty("java.runtime.name");
+    final String message =
+        "Not enabling profiling for vendor="
+            + javaVendor
+            + ", version="
+            + javaVersion
+            + ", runtimeName="
+            + javaRuntimeName;
     try {
-      final String javaVersion = System.getProperty("java.version");
       if (javaVersion == null) {
-        return "";
+        return message;
       }
-      final String javaVendor = System.getProperty("java.vendor", "");
       if (javaVersion.startsWith("1.8")) {
         if (javaVendor.startsWith("Azul Systems")) {
-          return "; it requires Zulu Java 8 (1.8.0_212+).";
+          return message + "; it requires Zulu Java 8 (1.8.0_212+).";
         }
-        final String javaRuntimeName = System.getProperty("java.runtime.name", "");
         if (javaVendor.startsWith("Oracle")) {
           if (javaRuntimeName.startsWith("OpenJDK")) {
             // this is a upstream build from openjdk docker repository for example
-            return "; it requires 1.8.0_272+ OpenJDK builds (upstream)";
+            return message + "; it requires 1.8.0_272+ OpenJDK builds (upstream)";
           } else {
             // this is a proprietary Oracle JRE/JDK 8
-            return "; it requires Oracle JRE/JDK 8u40+";
+            return message + "; it requires Oracle JRE/JDK 8u40+";
           }
         }
         if (javaRuntimeName.startsWith("OpenJDK")) {
-          return "; it requires 1.8.0_272+ OpenJDK builds from the following vendors: AdoptOpenJDK, Amazon Corretto, Azul Zulu, BellSoft Liberica";
+          return message
+              + "; it requires 1.8.0_272+ OpenJDK builds from the following vendors: AdoptOpenJDK, Eclipse Temurin, Amazon Corretto, Azul Zulu, BellSoft Liberica.";
         }
       }
-      return "; it requires OpenJDK 11+, Oracle Java 11+, or Zulu Java 8 (1.8.0_212+).";
+      return message + "; it requires OpenJDK 11+, Oracle Java 11+, or Zulu Java 8 (1.8.0_212+).";
     } catch (final Exception ex) {
-      return "";
+      return message;
     }
   }
 }

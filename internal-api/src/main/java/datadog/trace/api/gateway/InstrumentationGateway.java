@@ -2,10 +2,11 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.*;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,6 +104,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               }
             };
       case REQUEST_HEADER_DONE_ID:
+      case RESPONSE_HEADER_DONE_ID:
         return (C)
             new Function<RequestContext, Flow<Void>>() {
               @Override
@@ -121,6 +123,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               }
             };
       case REQUEST_HEADER_ID:
+      case RESPONSE_HEADER_ID:
         return (C)
             new TriConsumer<RequestContext, String, String>() {
               @Override
@@ -146,6 +149,25 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                   return ((TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>)
                           callback)
                       .apply(ctx, method, adapter);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+              // Make testing easier by delegating equals
+              @Override
+              public boolean equals(Object obj) {
+                return callback.equals(obj);
+              }
+            };
+      case REQUEST_PATH_PARAMS_ID:
+        return (C)
+            new BiFunction<RequestContext, Map<String, Object>, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, Map<String, Object> map) {
+                try {
+                  return ((BiFunction<RequestContext, Map<String, Object>, Flow<Void>>) callback)
+                      .apply(ctx, map);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
@@ -198,6 +220,21 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                 try {
                   return ((BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>) callback)
                       .apply(ctx, storedBodySupplier);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case GRPC_SERVER_REQUEST_MESSAGE_ID:
+      case REQUEST_BODY_CONVERTED_ID:
+        return (C)
+            new BiFunction<RequestContext, Object, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, Object obj) {
+                try {
+                  return ((BiFunction<RequestContext, Object, Flow<Void>>) callback)
+                      .apply(ctx, obj);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();

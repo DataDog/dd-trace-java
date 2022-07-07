@@ -12,17 +12,25 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.profiling.TracingContextTracker;
+import datadog.trace.api.profiling.TracingContextTrackerFactory;
+import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.core.util.Clock;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -34,7 +42,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
+public class DDSpan
+    implements AgentSpan, CoreSpan<DDSpan>, TransientProfilingContextHolder, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   public static final String CHECKPOINTED_TAG = "checkpointed";
@@ -48,6 +57,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
+    span.tracingContextTracker = TracingContextTrackerFactory.instance(span);
     return span;
   }
 
@@ -85,6 +95,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   private volatile EndpointTracker endpointTracker;
 
+  // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
+  private volatile Object wrapper;
+  private static final AtomicReferenceFieldUpdater<DDSpan, Object> WRAPPER_FIELD_UPDATER =
+      AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, Object.class, "wrapper");
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -95,19 +110,41 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     this(timestampMicro, context, true);
   }
 
+  private volatile TracingContextTracker tracingContextTracker;
+  // custom function to persist tracing context in the span tag with minimum number of extra
+  // allocations
+  private final ToIntFunction<ByteBuffer> tracingContextPersistor =
+      new ToIntFunction<ByteBuffer>() {
+        @Override
+        public int applyAsInt(ByteBuffer byteBuffer) {
+          String contextTagName = "_dd_tracing_context_" + tracingContextTracker.getVersion();
+          UTF8BytesString encodedString =
+              UTF8BytesString.create(Base64Encoder.INSTANCE.encode(byteBuffer));
+          if (log.isTraceEnabled()) {
+            log.trace(
+                "Tracing context data for s_id:{}, tag:{}={}",
+                getSpanId(),
+                contextTagName,
+                encodedString);
+          }
+          context.setTag(contextTagName, encodedString);
+          return encodedString.encodedLength();
+        }
+      };
+
   private DDSpan(
       final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
     this.context = context;
     this.withCheckpoints = emitLocalCheckpoints;
 
     if (timestampMicro <= 0L) {
-      // capture internal time
+      // note: getting internal time from the trace implicitly 'touches' it
       startTimeNano = context.getTrace().getCurrentTimeNano();
       externalClock = false;
     } else {
       startTimeNano = MICROSECONDS.toNanos(timestampMicro);
       externalClock = true;
-      context.getTrace().touch(); // Update lastReferenced
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
   }
 
@@ -119,6 +156,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     // ensure a min duration of 1
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       context.getTrace().onFinish(this);
+      tracingContextTracker.deactivateContext();
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -132,21 +170,34 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
     } else {
-      finish(Clock.currentMicroTime());
+      finish(context.getTrace().getTimeSource().getCurrentTimeMicros());
     }
   }
 
   @Override
   public final void finish(final long stopTimeMicros) {
-    context.getTrace().touch(); // Update timestamp
-    long adjustedStartTimeNano;
+    long durationNano;
     if (!externalClock) {
-      // remove tick precision part of our internal time to better match external clock
-      adjustedStartTimeNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(startTimeNano));
+      // first capture wall-clock offset from 'now' to external stop time
+      long externalOffsetMicros =
+          stopTimeMicros - context.getTrace().getTimeSource().getCurrentTimeMicros();
+      // immediately afterwards calculate internal duration of span to 'now'
+      // note: getting internal time from the trace implicitly 'touches' it
+      durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
+      // drop nanosecond precision part of internal duration (expected behaviour)
+      durationNano = MILLISECONDS.toNanos(NANOSECONDS.toMillis(durationNano));
+      // add wall-clock offset to get total duration to external stop time
+      durationNano += MICROSECONDS.toNanos(externalOffsetMicros);
     } else {
-      adjustedStartTimeNano = startTimeNano;
+      durationNano = MICROSECONDS.toNanos(stopTimeMicros) - startTimeNano;
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
-    finishAndAddToTrace(MICROSECONDS.toNanos(stopTimeMicros) - adjustedStartTimeNano);
+    finishAndAddToTrace(durationNano);
+  }
+
+  @Override
+  public final void finishWithDuration(final long durationNano) {
+    finishAndAddToTrace(durationNano);
   }
 
   private static final boolean legacyEndToEndEnabled =
@@ -192,9 +243,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public final boolean phasedFinish() {
     long durationNano;
     if (!externalClock) {
+      // note: getting internal time from the trace implicitly 'touches' it
       durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
     } else {
-      durationNano = MICROSECONDS.toNanos(Clock.currentMicroTime()) - startTimeNano;
+      durationNano = context.getTrace().getTimeSource().getCurrentTimeNanos() - startTimeNano;
+      context.getTrace().touch(); // external clock: explicitly update lastReferenced
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
@@ -219,6 +272,17 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Published span ({}): {}", publishState, this);
     }
+  }
+
+  public int storeContextToTag() {
+    try {
+      return tracingContextTracker.persist(tracingContextPersistor);
+    } catch (Throwable t) {
+      log.error("", t);
+    } finally {
+      tracingContextTracker.release();
+    }
+    return -1;
   }
 
   @Override
@@ -328,7 +392,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public DDSpan addThrowable(final Throwable error) {
     if (null != error) {
       String message = error.getMessage();
-      if (!"broken pipe".equalsIgnoreCase(message)) {
+      if (!"broken pipe".equalsIgnoreCase(message)
+          && (error.getCause() == null
+              || !"broken pipe".equalsIgnoreCase(error.getCause().getMessage()))) {
         // broken pipes happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
@@ -505,6 +571,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void startThreadMigration() {
+    tracingContextTracker.maybeDeactivateContext();
     if (hasCheckpoints()) {
       context.getTracer().onStartThreadMigration(this);
     }
@@ -512,6 +579,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void finishThreadMigration() {
+    tracingContextTracker.activateContext();
     if (hasCheckpoints()) {
       context.getTracer().onFinishThreadMigration(this);
     }
@@ -519,6 +587,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void finishWork() {
+    tracingContextTracker.deactivateContext();
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }
@@ -527,6 +596,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public RequestContext<Object> getRequestContext() {
     return context.getRequestContext();
+  }
+
+  @Override
+  public void mergePathwayContext(PathwayContext pathwayContext) {
+    context.mergePathwayContext(pathwayContext);
   }
 
   @Deprecated
@@ -742,5 +816,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public String toString() {
     return context.toString() + ", duration_ns=" + durationNano;
+  }
+
+  @Override
+  public void attachWrapper(Object wrapper) {
+    WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
+  }
+
+  @Override
+  public Object getWrapper() {
+    return WRAPPER_FIELD_UPDATER.get(this);
   }
 }

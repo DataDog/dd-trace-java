@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
@@ -12,7 +12,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tracing {
+public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public Servlet2ResponseStatusInstrumentation() {
     super("servlet", "servlet-2");
   }
@@ -24,8 +25,8 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("javax.servlet.http.HttpServletResponse"));
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named("javax.servlet.http.HttpServletResponse"));
   }
 
   @Override

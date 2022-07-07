@@ -16,6 +16,13 @@ variables:
 .common: &common
   tags: [ "runner:main", "size:large" ]
 
+.docker: &docker
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:20.10.13
+  cache:
+    key: no-cache
+    policy: pull
+
 cache: &default_cache
   key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
   paths:
@@ -62,7 +69,7 @@ deploy_to_reliability_env:
       when: never
     - when: on_success
   trigger:
-    project: DataDog/datadog-reliability-env
+    project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
   variables:
     UPSTREAM_PACKAGE_JOB: build
@@ -111,6 +118,17 @@ deploy_to_sonatype:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
+
+deploy_to_dockerhub:
+  <<: *docker
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+      when: on_success
+  script:
+    - docker images # TODO copy images from ghcr to appropriate mirrors with tagged version
 
 create_key:
   stage: generate-signing-key

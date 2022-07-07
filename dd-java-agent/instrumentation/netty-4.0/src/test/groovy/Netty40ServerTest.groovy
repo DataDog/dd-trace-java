@@ -93,6 +93,7 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
                         break
                     }
                     response.headers().set(CONTENT_TYPE, "text/plain")
+                    response.headers().set(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
                     if (content) {
                       response.headers().set(CONTENT_LENGTH, content.readableBytes())
                     }

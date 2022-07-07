@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.ratpack;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -17,7 +17,8 @@ import ratpack.func.Block;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class ContinuationInstrumentation extends Instrumenter.Tracing {
+public final class ContinuationInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ContinuationInstrumentation() {
     super("ratpack");
@@ -30,7 +31,7 @@ public final class ContinuationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("ratpack.exec.")
         .<TypeDescription>and(implementsInterface(named("ratpack.exec.internal.Continuation")));
   }

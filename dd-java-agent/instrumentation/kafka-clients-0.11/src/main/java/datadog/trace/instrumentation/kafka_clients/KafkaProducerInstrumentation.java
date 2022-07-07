@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
@@ -19,23 +20,22 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
-public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
+public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public KafkaProducerInstrumentation() {
     super("kafka");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.kafka.clients.producer.KafkaProducer");
+  public String instrumentedType() {
+    return "org.apache.kafka.clients.producer.KafkaProducer";
   }
 
   @Override
@@ -88,6 +88,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         try {
           propagate().inject(span, record.headers(), SETTER);
+          propagate().injectPathwayContext(span, "kafka", "", record.headers(), SETTER);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -100,6 +101,10 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
+          propagate().injectPathwayContext(span, "kafka", "", record.headers(), SETTER);
+        }
+        if (!KAFKA_LEGACY_TRACING) {
+          SETTER.injectTimeInQueue(record.headers());
         }
       }
 

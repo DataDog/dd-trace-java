@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.elasticsearch;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
@@ -16,8 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.elasticsearch.action.support.ThreadedActionListener;
 
 /**
@@ -25,15 +22,16 @@ import org.elasticsearch.action.support.ThreadedActionListener;
  * actions.
  */
 @AutoService(Instrumenter.class)
-public final class ThreadedActionListenerInstrumentation extends Instrumenter.Tracing {
+public final class ThreadedActionListenerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ThreadedActionListenerInstrumentation() {
     super("elasticsearch", "elasticsearch-transport");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.elasticsearch.action.support.ThreadedActionListener");
+  public String instrumentedType() {
+    return "org.elasticsearch.action.support.ThreadedActionListener";
   }
 
   @Override

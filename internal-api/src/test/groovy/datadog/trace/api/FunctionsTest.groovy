@@ -3,6 +3,7 @@ package datadog.trace.api
 import constructors.InaccessibleConstructor
 import constructors.NoDefaultConstructor
 import constructors.ThrowingConstructor
+import datadog.trace.api.function.Function
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 

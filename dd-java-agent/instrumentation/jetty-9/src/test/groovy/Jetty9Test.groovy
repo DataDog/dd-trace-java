@@ -10,6 +10,7 @@ import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -90,6 +91,11 @@ class Jetty9Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }
@@ -98,6 +104,7 @@ class Jetty9Test extends HttpServerTest<Server> {
     ServerEndpoint endpoint = ServerEndpoint.forPath(request.requestURI)
     controller(endpoint) {
       response.contentType = "text/plain"
+      response.addHeader(IG_RESPONSE_HEADER, IG_RESPONSE_HEADER_VALUE)
       switch (endpoint) {
         case SUCCESS:
           response.status = endpoint.status
@@ -106,6 +113,13 @@ class Jetty9Test extends HttpServerTest<Server> {
         case FORWARDED:
           response.status = endpoint.status
           response.writer.print(request.getHeader("x-forwarded-for"))
+          break
+        case BODY_URLENCODED:
+          response.status = endpoint.status
+          response.writer.print(
+            request.parameterMap.findAll {
+              it.key != 'ignore'}
+            .collectEntries {[it.key, it.value as List]} as String)
           break
         case QUERY_ENCODED_BOTH:
         case QUERY_ENCODED_QUERY:

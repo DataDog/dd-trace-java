@@ -10,6 +10,7 @@ import javax.servlet.Servlet
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -20,6 +21,11 @@ import static org.junit.Assume.assumeTrue
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
   @Override
   boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testRequestBodyISVariant() {
     true
   }
 
@@ -90,15 +96,19 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   protected void setupServlets(CONTEXT context) {
     def servlet = servlet()
-    ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
-      addServlet(context, it.path, servlet)
-    }
+    ServerEndpoint.values()
+      .findAll { !(it in [NOT_FOUND, UNKNOWN, MATRIX_PARAM]) }
+      .each {
+        addServlet(context, it.path, servlet)
+      }
   }
 
   protected void setupDispatchServlets(CONTEXT context, Class<Servlet> dispatchServlet) {
-    ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
-      addServlet(context, "/dispatch" + it.path, dispatchServlet)
-    }
+    ServerEndpoint.values()
+      .findAll { !(it in [NOT_FOUND, UNKNOWN, MATRIX_PARAM]) }
+      .each {
+        addServlet(context, "/dispatch" + it.path, dispatchServlet)
+      }
 
     // NOT_FOUND will hit on the initial URL, but be dispatched to a missing url
     addServlet(context, "/dispatch" + NOT_FOUND.path, dispatchServlet)

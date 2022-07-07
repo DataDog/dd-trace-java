@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.jetty76;
 
-import static datadog.trace.instrumentation.jetty76.RequestExtractAdapter.GETTER;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -33,7 +31,12 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
 
   @Override
   protected AgentPropagation.ContextVisitor<Request> getter() {
-    return GETTER;
+    return ExtractAdapter.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+    return ExtractAdapter.Response.GETTER;
   }
 
   @Override

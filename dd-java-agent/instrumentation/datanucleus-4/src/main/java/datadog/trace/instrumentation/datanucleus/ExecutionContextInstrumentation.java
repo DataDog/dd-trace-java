@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.datanucleus;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -22,7 +22,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 @AutoService(Instrumenter.class)
-public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
+public class ExecutionContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
   public ExecutionContextInstrumentation() {
     super("datanucleus");
   }
@@ -36,13 +37,19 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.datanucleus.ExecutionContextImpl", "org.datanucleus.ExecutionContextThreadedImpl");
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(false);
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.datanucleus.ExecutionContextImpl", "org.datanucleus.ExecutionContextThreadedImpl"
+    };
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.datanucleus.ExecutionContext"));
   }
 

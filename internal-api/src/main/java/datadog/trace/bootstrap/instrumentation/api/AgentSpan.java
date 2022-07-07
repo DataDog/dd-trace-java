@@ -89,6 +89,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void finish(long finishMicros);
 
+  void finishWithDuration(long durationNanos);
+
   /** Marks the start of a message pipeline where we want to track end-to-end processing time. */
   void beginEndToEnd();
 
@@ -149,6 +151,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** RequestContext for the Instrumentation Gateway */
   RequestContext<Object> getRequestContext();
 
+  void mergePathwayContext(PathwayContext pathwayContext);
+
   interface Context {
     DDId getTraceId();
 
@@ -157,6 +161,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     AgentTrace getTrace();
 
     Iterable<Map.Entry<String, String>> baggageItems();
+
+    PathwayContext getPathwayContext();
 
     interface Extracted extends Context {
       String getForwarded();

@@ -4,6 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
@@ -103,9 +104,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * discovery.discover()
-    1 * discovery.getTraceEndpoint() >> agentVersion
-    1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> DDAgentApi.Response.success(200)
+    2 * discovery.getTraceEndpoint() >> agentVersion
+    1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> RemoteApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -136,9 +136,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * discovery.discover()
-    1 * discovery.getTraceEndpoint() >> agentVersion
-    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> DDAgentApi.Response.success(200)
+    2 * discovery.getTraceEndpoint() >> agentVersion
+    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> RemoteApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -173,10 +172,9 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-    1 * discovery.getTraceEndpoint() >> agentVersion
-    1 * discovery.discover()
+    2 * discovery.getTraceEndpoint() >> agentVersion
     1 * healthMetrics.onSerialize(_)
-    1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> RemoteApi.Response.success(200)
     _ * healthMetrics.onPublish(_, _)
     1 * healthMetrics.onSend(_, _, _) >> {
       phaser.arrive()
@@ -215,10 +213,9 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * discovery.getTraceEndpoint() >> agentVersion
-    1 * discovery.discover()
-    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
-    1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> DDAgentApi.Response.success(200)
+    2 * discovery.getTraceEndpoint() >> agentVersion
+    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> RemoteApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> RemoteApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -284,6 +281,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       0,
       trace,
       null,
+      NoopPathwayContext.INSTANCE,
       false)
   }
 
@@ -418,7 +416,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def api = Mock(DDAgentApi) {
       it.sendSerializedTraces(_) >> {
         // simulating a communication failure to a server
-        return DDAgentApi.Response.failed(new IOException("comm error"))
+        return RemoteApi.Response.failed(new IOException("comm error"))
       }
     }
 
@@ -700,7 +698,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def minimalTrace = createMinimalTrace()
 
     def api = apiWithVersion(agentVersion)
-    api.sendSerializedTraces(_) >> DDAgentApi.Response.failed(new IOException("comm error"))
+    api.sendSerializedTraces(_) >> RemoteApi.Response.failed(new IOException("comm error"))
 
     def statsd = Stub(StatsDClient)
     statsd.incrementCounter("api.requests.total") >> { stat ->

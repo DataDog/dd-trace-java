@@ -23,18 +23,27 @@ class ProcessSupervisorTest extends DDSpecification {
 
     then:
     conditions.eventually {
-      processSupervisor.currentProcess != null
-      processSupervisor.currentProcess.isAlive()
+      def process = processSupervisor.currentProcess
+      process != null
+      process.isAlive()
     }
 
     when:
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
+    // code coverage: make sure that the supervisor thread loops around once
+    processSupervisor.supervisorThread.interrupt()
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
     def oldProcess = processSupervisor.currentProcess
     processSupervisor.close()
 
     then:
+    oldProcess != null
     conditions.eventually {
       !oldProcess.isAlive()
-      processSupervisor.currentProcess == null || !processSupervisor.currentProcess.isAlive()
+      def process = processSupervisor.currentProcess
+      process == null || !process.isAlive()
     }
   }
 
@@ -48,23 +57,39 @@ class ProcessSupervisorTest extends DDSpecification {
 
     then:
     conditions.eventually {
-      processSupervisor.currentProcess != null
-      processSupervisor.currentProcess.isAlive()
+      def process = processSupervisor.currentProcess
+      process != null
+      process.isAlive()
     }
 
     when:
-    def oldProcess = processSupervisor.currentProcess
-    oldProcess.destroyForcibly()
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
+    def firstProcess = processSupervisor.currentProcess
+    firstProcess.destroyForcibly()
 
     then:
+    firstProcess != null
     conditions.eventually {
-      !oldProcess.isAlive()
-      processSupervisor.currentProcess != null
-      processSupervisor.currentProcess != oldProcess
-      processSupervisor.currentProcess.isAlive()
+      !firstProcess.isAlive()
+      def process = processSupervisor.currentProcess
+      process != null
+      process != firstProcess
+      process.isAlive()
     }
 
-    cleanup:
+    when:
+    // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit code
+    Thread.sleep(1000)
+    def secondProcess = processSupervisor.currentProcess
     processSupervisor.close()
+
+    then:
+    secondProcess != null
+    conditions.eventually {
+      !secondProcess.isAlive()
+      def process = processSupervisor.currentProcess
+      process == null || !process.isAlive()
+    }
   }
 }

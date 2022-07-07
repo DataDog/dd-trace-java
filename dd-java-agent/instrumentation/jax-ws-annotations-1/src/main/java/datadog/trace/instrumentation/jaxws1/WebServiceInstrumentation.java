@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.jaxws1;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxws1.WebServiceDecorator.DECORATE;
 import static datadog.trace.instrumentation.jaxws1.WebServiceDecorator.JAX_WS_REQUEST;
-import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -25,7 +25,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class WebServiceInstrumentation extends Instrumenter.Tracing {
+public final class WebServiceInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   private static final String WEB_SERVICE_ANNOTATION_NAME = "javax.jws.WebService";
 
   public WebServiceInstrumentation() {
@@ -38,8 +39,8 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return safeHasSuperType(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME)));
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return hasSuperType(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME)));
   }
 
   @Override
@@ -55,7 +56,9 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing {
         isMethod()
             .and(isPublic())
             .and(not(isStatic()))
-            .and(hasSuperMethod(isDeclaredBy(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME))))),
+            .and(
+                hasSuperMethod(
+                    isDeclaredBy(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME))))),
         getClass().getName() + "$InvokeAdvice");
   }
 

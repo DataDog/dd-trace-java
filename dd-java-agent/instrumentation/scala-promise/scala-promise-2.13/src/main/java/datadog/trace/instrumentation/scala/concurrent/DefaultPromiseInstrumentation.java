@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static scala.concurrent.impl.Promise.Transformation;
 
 import com.google.auto.service.AutoService;
@@ -15,8 +15,6 @@ import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import scala.util.Try;
 
 /**
@@ -26,15 +24,16 @@ import scala.util.Try;
  * from the {@code resolve} method.
  */
 @AutoService(Instrumenter.class)
-public class DefaultPromiseInstrumentation extends Instrumenter.Tracing {
+public class DefaultPromiseInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public DefaultPromiseInstrumentation() {
     super("scala_promise_complete", "scala_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("scala.concurrent.impl.Promise$DefaultPromise");
+  public String instrumentedType() {
+    return "scala.concurrent.impl.Promise$DefaultPromise";
   }
 
   @Override

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.netty40;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -25,7 +25,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Tracing {
+public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public NettyChannelHandlerContextInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
@@ -38,7 +39,7 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("io.netty.channel.ChannelHandlerContext"));
   }
 
@@ -47,6 +48,7 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
     return new String[] {
       packageName + ".AttributeKeys",
       packageName + ".client.NettyHttpClientDecorator",
+      packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",
     };
   }

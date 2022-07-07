@@ -2,6 +2,9 @@ package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.Instrumenters;
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -9,7 +12,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
@@ -22,15 +24,19 @@ import net.bytebuddy.dynamic.ClassFileLocator;
  * <p>Additionally, after a successful muzzle validation run each instrumenter's helper injector.
  */
 public class MuzzleVersionScanPlugin {
+  static {
+    SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
+    HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
+  }
 
   public static void assertInstrumentationMuzzled(
       final ClassLoader instrumentationLoader,
       final ClassLoader userClassLoader,
       final boolean assertPass)
       throws Exception {
+    Iterable<Instrumenter> instrumenters = Instrumenters.load(instrumentationLoader);
     // muzzle validate all instrumenters
-    for (Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+    for (Instrumenter instrumenter : instrumenters) {
       if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
         // TraceConfigInstrumentation doesn't do muzzle checks
         // check on TracerClassInstrumentation instead
@@ -84,8 +90,7 @@ public class MuzzleVersionScanPlugin {
     }
     // run helper injector on all instrumenters
     if (assertPass) {
-      for (Instrumenter instrumenter :
-          ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+      for (Instrumenter instrumenter : instrumenters) {
         if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
           // TraceConfigInstrumentation doesn't do muzzle checks
           // check on TracerClassInstrumentation instead
@@ -151,8 +156,7 @@ public class MuzzleVersionScanPlugin {
   }
 
   public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
-    for (final Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+    for (final Instrumenter instrumenter : Instrumenters.load(instrumentationLoader)) {
       if (instrumenter instanceof Instrumenter.Default) {
         try {
           final Method getMuzzleMethod =

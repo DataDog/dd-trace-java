@@ -430,9 +430,15 @@ class TestHttpServer implements AutoCloseable {
     class ResponseApi {
       private static final String DEFAULT_TYPE = "text/plain;charset=utf-8"
       private int status = 200
+      private Map<String, String> headers = new HashMap<String, String>()
 
       ResponseApi status(int status) {
         this.status = status
+        return this
+      }
+
+      ResponseApi addHeader(String headerName, String headerValue) {
+        this.headers.put(headerName, headerValue)
         return this
       }
 
@@ -442,10 +448,12 @@ class TestHttpServer implements AutoCloseable {
 
       void sendWithType(String contentType) {
         assert contentType != null
-
         assert !req.orig.handled
         req.orig.contentType = contentType
         resp.status = status
+        headers.each {
+          resp.addHeader(it.key, it.value)
+        }
         req.orig.handled = true
       }
 

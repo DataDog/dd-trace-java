@@ -1,7 +1,7 @@
 package datadog.trace.api.cache;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
+import datadog.trace.api.function.Function;
 import java.util.Arrays;
 
 /**
@@ -89,6 +89,11 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
       h = rehash(h);
     }
     return value;
+  }
+
+  @Override
+  public void clear() {
+    Arrays.fill(elements, null);
   }
 
   abstract int hash(K key);

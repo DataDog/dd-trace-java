@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.dropwizard.view;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -22,10 +21,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class DropwizardViewInstrumentation extends Instrumenter.Tracing {
+public final class DropwizardViewInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public DropwizardViewInstrumentation() {
-    super(true, "dropwizard", "dropwizard-view");
+    super("dropwizard", "dropwizard-view");
   }
 
   @Override
@@ -35,10 +35,16 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "io.dropwizard.views.freemarker.FreemarkerViewRenderer",
-        "io.dropwizard.views.mustache.MustacheViewRenderer");
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(true);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "io.dropwizard.views.freemarker.FreemarkerViewRenderer",
+      "io.dropwizard.views.mustache.MustacheViewRenderer"
+    };
   }
 
   @Override

@@ -1,15 +1,14 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
-import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
+import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
 public class RateByServiceSampler<T extends CoreSpan<T>>
-    implements Sampler<T>, PrioritySampler<T>, DDAgentResponseListener {
+    implements Sampler<T>, PrioritySampler<T>, RemoteResponseListener {
 
   private static final Logger log = LoggerFactory.getLogger(RateByServiceSampler.class);
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
@@ -165,7 +164,10 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
 
     @Override
     public int hashCode() {
-      return Objects.hash(env, service);
+      int hash = 1;
+      hash = 31 * hash + env.hashCode();
+      hash = 31 * hash + service.hashCode();
+      return hash;
     }
   }
 }

@@ -21,29 +21,29 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.catalina.connector.CoyoteAdapter;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 @AutoService(Instrumenter.class)
 public final class TomcatServerInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public TomcatServerInstrumentation() {
     super("tomcat");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.catalina.connector.CoyoteAdapter");
+  public String instrumentedType() {
+    return "org.apache.catalina.connector.CoyoteAdapter";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RequestExtractAdapter",
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".TomcatDecorator",
       packageName + ".RequestURIDataAdapter",
     };

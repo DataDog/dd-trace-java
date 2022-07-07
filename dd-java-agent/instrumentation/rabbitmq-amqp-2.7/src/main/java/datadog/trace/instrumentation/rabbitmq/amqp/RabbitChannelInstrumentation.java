@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -44,7 +44,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
+public class RabbitChannelInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public RabbitChannelInstrumentation() {
     super("amqp", "rabbitmq");
@@ -57,7 +58,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("com.rabbitmq.client.Channel"));
   }
 
@@ -66,8 +67,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
     return new String[] {
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer",
-      "datadog.trace.core.util.Clock"
+      packageName + ".TracedDelegatingConsumer"
     };
   }
 

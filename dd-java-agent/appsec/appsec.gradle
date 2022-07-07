@@ -23,7 +23,7 @@ dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '3.0.3'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '4.2.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
@@ -46,6 +46,7 @@ shadowJar {
     exclude(project(':dd-java-agent:agent-logging'))
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
+    exclude(project(':utils:time-utils'))
     exclude(project(':communication'))
     exclude(dependency('org.slf4j::'))
   }
@@ -134,6 +135,7 @@ ext {
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
     'com.datadog.appsec.event.data.Address',
+    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
     'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFEventsCallback',
     // assert never fails
     'com.datadog.appsec.util.StandardizedLogging',

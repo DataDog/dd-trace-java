@@ -20,6 +20,7 @@ shadowJar {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':internal-api:internal-api-8'))
+    exclude(project(':utils:time-utils'))
     exclude(project(':utils:socket-utils'))
     exclude(dependency('org.slf4j::'))
   }
@@ -43,19 +44,18 @@ tasks.register("submodulesUpdate", Exec) {
 tasks.register("copyMetricConfigs", Exec) {
   group 'Build Setup'
   description 'Copy metrics.yaml files from integrations-core into resources'
-  commandLine './copy-metric-configs.sh', 'integrations-core', sourceSets.main.output.resourcesDir
+  def outDir = file("$buildDir/integrations-core-resources")
+  commandLine './copy-metric-configs.sh', 'integrations-core', outDir
   inputs.dir file("$projectDir/integrations-core")
-  outputs.dir sourceSets.main.output.resourcesDir
+  outputs.dir outDir
   doFirst {
     // Ensure the resources directory is available.
-    file(sourceSets.main.output.resourcesDir).mkdirs()
+    outDir.mkdirs()
   }
   dependsOn "submodulesUpdate"
-  // In CI, there seems to be a race condition where processResources overwrites the copied metric config files.
-  // Ensure that task runs last to avoid this problem.
-  mustRunAfter "processResources"
 }
 
-tasks.named("processResources").configure {
-  finalizedBy copyMetricConfigs
+processResources {
+  dependsOn 'copyMetricConfigs'
+  from("$buildDir/integrations-core-resources")
 }

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.slick;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
@@ -21,7 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instruments runnables from the slick framework, which are excluded elsewhere. */
 @AutoService(Instrumenter.class)
-public final class SlickRunnableInstrumentation extends Instrumenter.Tracing {
+public final class SlickRunnableInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public SlickRunnableInstrumentation() {
     super("slick");
   }
@@ -32,9 +33,9 @@ public final class SlickRunnableInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.<TypeDescription>nameStartsWith("slick.")
-        .and(hasInterface(named(Runnable.class.getName())));
+        .and(implementsInterface(named(Runnable.class.getName())));
   }
 
   @Override

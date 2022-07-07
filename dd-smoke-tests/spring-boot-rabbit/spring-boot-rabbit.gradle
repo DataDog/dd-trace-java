@@ -27,11 +27,13 @@ dependencies {
   main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.5.4'
 
   testImplementation project(':dd-smoke-tests')
-  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: '1.15.2'
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
 }
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
+
+  usesService(testcontainersLimit)
 }

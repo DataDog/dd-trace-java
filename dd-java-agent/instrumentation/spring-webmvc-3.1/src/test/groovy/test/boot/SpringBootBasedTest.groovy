@@ -5,6 +5,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import okhttp3.FormBody
@@ -17,6 +18,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
@@ -33,6 +35,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Shared
   EmbeddedWebApplicationContext context
+
+  Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
     return new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
@@ -101,6 +105,16 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
+    true
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:
@@ -115,7 +129,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"]
+    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"] +
+    extraServerTags
   }
 
   @Override
@@ -145,6 +160,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   def "test character encoding of #testPassword"() {
     setup:
     def authProvider = context.getBean(SavingAuthenticationProvider)
+    extraServerTags = ['request.body.converted': [username: ['test'], password: [testPassword]] as String]
 
     RequestBody formBody = new FormBody.Builder()
       .add("username", "test")
@@ -193,6 +209,36 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     where:
     method = "GET"
     body = null
+  }
+
+  def 'template var is pushed to IG'() {
+    setup:
+    def request = request(PATH_PARAM, 'GET', null).header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span').build()
+
+    when:
+    def response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(2)
+    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+
+    then:
+    response.code() == PATH_PARAM.status
+    span.getTag(IG_PATH_PARAMS_TAG) == [id: '123']
+  }
+
+  def 'matrix var is pushed to IG'() {
+    setup:
+    def request = request(MATRIX_PARAM, 'GET', null)
+      .header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span').build()
+
+    when:
+    def response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(2)
+    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+
+    then:
+    response.code() == MATRIX_PARAM.status
+    response.body().string() == MATRIX_PARAM.body
+    span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {

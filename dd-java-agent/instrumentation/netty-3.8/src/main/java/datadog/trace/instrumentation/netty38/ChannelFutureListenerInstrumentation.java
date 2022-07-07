@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.netty38;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -25,7 +25,8 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(Instrumenter.class)
-public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
+public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ChannelFutureListenerInstrumentation() {
     super(
@@ -40,7 +41,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.jboss.netty.channel.ChannelFutureListener"));
   }
 
@@ -50,6 +51,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
       packageName + ".AbstractNettyAdvice",
       packageName + ".ChannelTraceContext",
       packageName + ".ChannelTraceContext$Factory",
+      packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator"
     };
   }

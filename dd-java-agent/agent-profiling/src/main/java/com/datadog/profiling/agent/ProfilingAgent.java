@@ -1,7 +1,11 @@
 package com.datadog.profiling.agent;
 
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import com.datadog.profiling.context.JfrTimestampPatch;
+import com.datadog.profiling.context.ProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
@@ -9,6 +13,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -27,16 +32,23 @@ public class ProfilingAgent {
       Pattern.compile("^[0-9a-fA-F]{32}$").asPredicate();
 
   private static volatile ProfilingSystem profiler;
+  private static volatile ProfileUploader uploader;
 
   /**
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(final boolean isStartingFirst)
+  public static synchronized void run(final boolean isStartingFirst, ClassLoader agentClasLoader)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
-      if (isStartingFirst && !config.isProfilingStartForceFirst()) {
+      final ConfigProvider configProvider = ConfigProvider.getInstance();
+
+      final boolean startForceFirst =
+          configProvider.getBoolean(
+              PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+
+      if (isStartingFirst && !startForceFirst) {
         log.debug("Profiling: not starting first");
         // early startup is disabled;
         return;
@@ -50,12 +62,16 @@ public class ProfilingAgent {
             "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
         return;
       }
+      if (Platform.isJavaVersionAtLeast(9)) {
+        JfrTimestampPatch.execute(agentClasLoader);
+      }
 
       try {
-        final Controller controller = ControllerFactory.createController(config);
-        final ConfigProvider configProvider = ConfigProvider.getInstance();
+        final Controller controller = ControllerFactory.createController(configProvider);
 
-        final ProfileUploader uploader = new ProfileUploader(config, configProvider);
+        ProfilerTracingContextTrackerFactory.register(configProvider);
+
+        uploader = new ProfileUploader(config, configProvider);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
@@ -66,12 +82,13 @@ public class ProfilingAgent {
 
         profiler =
             new ProfilingSystem(
+                configProvider,
                 controller,
                 uploader::upload,
                 startupDelay,
                 startupDelayRandomRange,
                 uploadPeriod,
-                config.isProfilingStartForceFirst());
+                startForceFirst);
         profiler.start();
         log.debug("Profiling has started");
 
@@ -96,6 +113,25 @@ public class ProfilingAgent {
     }
   }
 
+  public static void shutdown() {
+    shutdown(profiler, uploader, false);
+  }
+
+  public static void shutdown(boolean snapshot) {
+    shutdown(profiler, uploader, snapshot);
+  }
+
+  private static void shutdown(
+      ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
+    if (profiler != null) {
+      profiler.shutdown(snapshot);
+    }
+
+    if (uploader != null) {
+      uploader.shutdown();
+    }
+  }
+
   private static class ShutdownHook extends Thread {
 
     private final WeakReference<ProfilingSystem> profilerRef;
@@ -109,15 +145,7 @@ public class ProfilingAgent {
 
     @Override
     public void run() {
-      final ProfilingSystem profiler = profilerRef.get();
-      if (profiler != null) {
-        profiler.shutdown();
-      }
-
-      final ProfileUploader uploader = uploaderRef.get();
-      if (uploader != null) {
-        uploader.shutdown();
-      }
+      shutdown(profilerRef.get(), uploaderRef.get(), false);
     }
   }
 }

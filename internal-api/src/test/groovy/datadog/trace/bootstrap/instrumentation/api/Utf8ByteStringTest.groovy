@@ -67,7 +67,8 @@ class Utf8ByteStringTest extends DDSpecification {
       0x72,
       0x69,
       0x6e,
-      0x67] as byte[]
+      0x67
+    ] as byte[]
   }
 
   def "behave like a proper CharSequence"() {
@@ -91,5 +92,43 @@ class Utf8ByteStringTest extends DDSpecification {
     new StringBuffer("bar")                                       | _
     new StringBuffer("someotherlongstring")                       | _
     UTF8BytesString.create("utf8string")                          | _
+  }
+
+  def "wrap byte buffer and produce the right String and bytes"() {
+    when:
+    final utf8String = UTF8BytesString.create(bytes != null ? ByteBuffer.wrap(bytes) : (ByteBuffer)null)
+
+    then:
+    if (utf8String != null) {
+      utf8String.toString() == str
+      utf8String.hashCode() == str.hashCode()
+      def utf8Bytes = ByteBuffer.allocate(bytes.length)
+      utf8String.transferTo(utf8Bytes)
+      utf8Bytes.array() == bytes
+      !utf8String.equals(null)
+      utf8String != str
+      utf8String != UTF8BytesString.create("somethingcompletelydifferent")
+    }
+
+    where:
+    str             | bytes
+    null            | null
+    "foo"           | [0x66, 0x6f, 0x6f] as byte[]
+    "bar"           | [0x62, 0x61, 0x72] as byte[]
+    "alongerstring" | [
+      0x61,
+      0x6c,
+      0x6f,
+      0x6e,
+      0x67,
+      0x65,
+      0x72,
+      0x73,
+      0x74,
+      0x72,
+      0x69,
+      0x6e,
+      0x67
+    ] as byte[]
   }
 }

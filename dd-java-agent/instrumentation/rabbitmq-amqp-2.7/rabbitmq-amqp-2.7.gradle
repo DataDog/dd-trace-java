@@ -29,8 +29,12 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '+'
 }
 
-configurations.testRuntime {
+configurations.testRuntimeClasspath {
   resolutionStrategy {
     force group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
   }
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
 }

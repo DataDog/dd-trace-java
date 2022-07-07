@@ -17,7 +17,7 @@ public class AsynchronousGreeter implements AutoCloseable {
     this.impl = GreeterGrpc.newStub(channel);
   }
 
-  public String greet() {
+  public String greet(String message) {
     final AtomicReference<String> response = new AtomicReference<>();
     final CountDownLatch latch = new CountDownLatch(1);
     StreamObserver<Response> observer =
@@ -37,7 +37,7 @@ public class AsynchronousGreeter implements AutoCloseable {
             latch.countDown();
           }
         };
-    impl.hello(Request.newBuilder().setMessage("hello").build(), observer);
+    impl.hello(Request.newBuilder().setMessage(message).build(), observer);
     try {
       latch.await(30, TimeUnit.SECONDS);
       return response.get();

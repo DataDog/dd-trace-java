@@ -1,7 +1,5 @@
 package datadog.trace.agent.test
 
-
-import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.HelperInjector
 import datadog.trace.agent.tooling.Utils
 import datadog.trace.test.util.DDSpecification
@@ -15,7 +13,7 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.utils.ClasspathUtils.isClassLoaded
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.BOOTSTRAP_CLASSLOADER
 import static datadog.trace.test.util.GCUtils.awaitGC
 
 class HelperInjectionTest extends DDSpecification {
@@ -53,8 +51,7 @@ class HelperInjectionTest extends DDSpecification {
 
   def "helpers injected on bootstrap classloader"() {
     setup:
-    ByteBuddyAgent.install()
-    AgentInstaller.installBytebuddyAgent(ByteBuddyAgent.getInstrumentation())
+    Utils.setInstrumentation(ByteBuddyAgent.install())
     String helperClassName = HelperInjectionTest.getPackage().getName() + '.HelperClass'
     HelperInjector injector = new HelperInjector("test", helperClassName)
     URLClassLoader bootstrapChild = new URLClassLoader(new URL[0], (ClassLoader) null)

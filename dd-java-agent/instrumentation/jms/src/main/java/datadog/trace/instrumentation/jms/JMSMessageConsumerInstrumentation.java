@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
@@ -36,7 +36,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracing {
+public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageConsumerInstrumentation() {
     super("jms", "jms-1", "jms-2");
@@ -49,7 +50,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.jms.MessageConsumer"));
   }
 
@@ -59,7 +60,6 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       packageName + ".JMSDecorator",
       packageName + ".MessageExtractAdapter",
       packageName + ".MessageExtractAdapter$1",
-      packageName + ".MessageInjectAdapter",
       packageName + ".DatadogMessageListener"
     };
   }
@@ -135,7 +135,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
         if (null == timeInQueue) {
           timeInQueue =
-              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis), false);
           BROKER_DECORATE.afterStart(timeInQueue);
           BROKER_DECORATE.onTimeInQueue(
               timeInQueue,

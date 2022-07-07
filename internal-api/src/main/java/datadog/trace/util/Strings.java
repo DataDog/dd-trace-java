@@ -1,5 +1,8 @@
 package datadog.trace.util;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 import java.util.Locale;
 import javax.annotation.Nonnull;
@@ -189,7 +192,37 @@ public final class Strings {
     return "dd." + setting;
   }
 
+  @Nonnull
+  public static String trim(final String string) {
+    return null == string ? "" : string.trim();
+  }
+
   private static String hex(char ch) {
     return Integer.toHexString(ch).toUpperCase(Locale.ENGLISH);
+  }
+
+  public static String sha256(String input) throws NoSuchAlgorithmException {
+    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+    StringBuilder hexString = new StringBuilder(2 * hash.length);
+    for (int i = 0; i < hash.length; i++) {
+      String hex = Integer.toHexString(0xFF & hash[i]);
+      if (hex.length() == 1) {
+        hexString.append('0');
+      }
+      hexString.append(hex);
+    }
+    return hexString.toString();
+  }
+
+  public static String truncate(String input, int limit) {
+    return (String) truncate((CharSequence) input, limit);
+  }
+
+  public static CharSequence truncate(CharSequence input, int limit) {
+    if (input == null || input.length() <= limit) {
+      return input;
+    }
+    return input.subSequence(0, limit);
   }
 }

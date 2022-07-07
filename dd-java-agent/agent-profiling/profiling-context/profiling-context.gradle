@@ -1,0 +1,56 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    // simple DTO
+    "com.datadog.profiling.context.PositionDecoder.*",
+    "com.datadog.profiling.context.JfrTimestampPatch",
+    // jacoco does not allow per-method excludes so, here we go
+    "com.datadog.profiling.context.ProfilerTracingContextTrackerFactory*",
+    "com.datadog.profiling.context.ProfilerTracingContextTracker.TimeTicksProvider*",
+    "com.datadog.profiling.context.StatsDAccessor"
+  ]
+}
+
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+
+dependencies {
+  api project(':internal-api')
+
+  implementation deps.slf4j
+  main_java11CompileOnly deps.slf4j
+  implementation sourceSets.main_java11.output
+  implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+compileMain_java11Java.doFirst {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+jar {
+  from sourceSets.main_java11.output
+}
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

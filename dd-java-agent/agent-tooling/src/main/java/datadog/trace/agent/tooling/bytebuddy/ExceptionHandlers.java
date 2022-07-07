@@ -33,7 +33,6 @@ public class ExceptionHandlers {
             @Override
             public Size apply(final MethodVisitor mv, final Implementation.Context context) {
               final String name = context.getInstrumentedType().getName();
-              final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
               final boolean exitOnFailure = Config.get().isInternalExitOnFailure();
               final String logMethod = exitOnFailure ? "error" : "debug";
 
@@ -75,11 +74,7 @@ public class ExceptionHandlers {
                   "(Ljava/lang/Class;)L" + LOGGER_NAME + ";",
                   false);
               mv.visitInsn(Opcodes.SWAP); // stack: (top) throwable,logger
-              mv.visitLdcInsn(
-                  "Failed to handle exception in instrumentation for "
-                      + name
-                      + " on "
-                      + classLoader);
+              mv.visitLdcInsn("Failed to handle exception in instrumentation for " + name);
               mv.visitInsn(Opcodes.SWAP); // stack: (top) throwable,string,logger
               mv.visitMethodInsn(
                   Opcodes.INVOKEINTERFACE,

@@ -1,6 +1,8 @@
 // Set properties before any plugins get loaded
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
+  // TODO Java 17: This version of vertx-web doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -20,6 +22,17 @@ testSets {
   latestDepTest {
     dirName = 'test'
   }
+
+  latestDepForkedTest {
+    extendsFrom latestDepTest
+    dirName = 'test'
+  }
+}
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
 }
 
 configurations {

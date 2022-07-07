@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.hibernate.core.v3_3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -13,7 +12,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -31,16 +29,17 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return namedOneOf(
-        "org.hibernate.engine.transaction.spi.CMTTransaction",
-        "org.hibernate.transaction.CMTTransaction",
-        "org.hibernate.transaction.JDBCTransaction",
-        "org.hibernate.transaction.JTATransaction");
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.hibernate.engine.transaction.spi.CMTTransaction",
+      "org.hibernate.transaction.CMTTransaction",
+      "org.hibernate.transaction.JDBCTransaction",
+      "org.hibernate.transaction.JTATransaction"
+    };
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.Transaction"));
   }
 
@@ -54,14 +53,13 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   public static class TransactionCommitAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static SessionState startCommit(
-        @Advice.This final Transaction transaction, @Advice.Origin final Method origin) {
+    public static SessionState startCommit(@Advice.This final Transaction transaction) {
 
       final ContextStore<Transaction, SessionState> contextStore =
           InstrumentationContext.get(Transaction.class, SessionState.class);
 
       return SessionMethodUtils.startScopeFrom(
-          contextStore, transaction, origin, "hibernate.transaction.commit", null, true);
+          contextStore, transaction, "hibernate.transaction.commit", null, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

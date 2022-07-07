@@ -11,15 +11,14 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import net.spy.memcached.MemcachedClient;
 import net.spy.memcached.internal.BulkFuture;
 import net.spy.memcached.internal.GetFuture;
 import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(Instrumenter.class)
-public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
+public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   private static final String MEMCACHED_PACKAGE = "net.spy.memcached";
 
@@ -28,8 +27,8 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named(MEMCACHED_PACKAGE + ".MemcachedClient");
+  public String instrumentedType() {
+    return MEMCACHED_PACKAGE + ".MemcachedClient";
   }
 
   @Override

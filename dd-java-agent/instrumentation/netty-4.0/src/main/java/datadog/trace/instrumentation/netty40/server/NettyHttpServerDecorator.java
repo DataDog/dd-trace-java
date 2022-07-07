@@ -39,6 +39,11 @@ public class NettyHttpServerDecorator
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+    return ResponseExtractAdapter.GETTER;
+  }
+
+  @Override
   public CharSequence spanName() {
     return NETTY_REQUEST;
   }

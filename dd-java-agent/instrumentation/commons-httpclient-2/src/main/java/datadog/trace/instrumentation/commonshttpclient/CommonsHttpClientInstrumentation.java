@@ -17,21 +17,20 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 
 @AutoService(Instrumenter.class)
-public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing {
+public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public CommonsHttpClientInstrumentation() {
     super("commons-http-client");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.commons.httpclient.HttpClient");
+  public String instrumentedType() {
+    return "org.apache.commons.httpclient.HttpClient";
   }
 
   @Override

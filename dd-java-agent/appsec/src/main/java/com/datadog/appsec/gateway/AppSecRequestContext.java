@@ -2,12 +2,14 @@ package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
-import com.datadog.appsec.event.data.StringKVPair;
+import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.events.AppSecEvent100;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.http.StoredBodySupplier;
 import io.sqreen.powerwaf.Additive;
+import io.sqreen.powerwaf.PowerwafContext;
+import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +34,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "forwarded-for",
               "forwarded",
               "via",
+              "client-ip",
               "true-client-ip",
               "content-length",
               "content-type",
@@ -52,8 +55,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String savedRawURI;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
-  private List<StringKVPair> collectedCookies = new ArrayList<>(4);
-  private boolean finishedHeaders;
+  private Map<String, List<String>> collectedCookies;
+  private boolean finishedRequestHeaders;
+  private boolean finishedResponseHeaders;
   private String peerAddress;
   private int peerPort;
 
@@ -62,7 +66,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private int responseStatus;
   private boolean blocked;
 
+  private boolean reqDataPublished;
+  private boolean rawReqBodyPublished;
+  private boolean convertedReqBodyPublished;
+  private boolean respDataPublished;
+
+  // should be guarded by this
   private Additive additive;
+  // set after additive is set
+  private volatile PowerwafMetrics wafMetrics;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -74,7 +86,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         continue;
       }
       Object prev = persistentData.putIfAbsent(address, value);
-      if (prev != null) {
+      if (prev == value) {
+        continue;
+      } else if (prev != null) {
         log.warn("Illegal attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
@@ -83,12 +97,38 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public Additive getAdditive() {
-    return additive;
+  public PowerwafMetrics getWafMetrics() {
+    return wafMetrics;
   }
 
-  public void setAdditive(Additive additive) {
-    this.additive = additive;
+  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {
+    Additive curAdditive;
+    synchronized (this) {
+      curAdditive = this.additive;
+      if (curAdditive != null) {
+        return curAdditive;
+      }
+      curAdditive = ctx.openAdditive();
+      this.additive = curAdditive;
+    }
+
+    // new additive was created
+    if (createMetrics) {
+      this.wafMetrics = ctx.createMetrics();
+    }
+    return curAdditive;
+  }
+
+  public void closeAdditive() {
+    synchronized (this) {
+      if (additive != null) {
+        try {
+          additive.close();
+        } finally {
+          additive = null;
+        }
+      }
+    }
   }
 
   /* Implementation of DataBundle */
@@ -109,6 +149,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T get(Address<T> addr) {
     return (T) persistentData.get(addr);
   }
@@ -141,15 +182,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null) {
-      throw new IllegalStateException("Raw URI set already");
+    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
+      throw new IllegalStateException(
+          "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
   }
 
   void addRequestHeader(String name, String value) {
-    if (finishedHeaders) {
-      throw new IllegalStateException("Headers were said to be finished before");
+    if (finishedRequestHeaders) {
+      throw new IllegalStateException("Request headers were said to be finished before");
     }
 
     if (name == null || value == null) {
@@ -161,7 +203,23 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     strings.add(value);
   }
 
+  void finishRequestHeaders() {
+    this.finishedRequestHeaders = true;
+  }
+
+  boolean isFinishedRequestHeaders() {
+    return finishedRequestHeaders;
+  }
+
+  Map<String, List<String>> getRequestHeaders() {
+    return requestHeaders;
+  }
+
   void addResponseHeader(String name, String value) {
+    if (finishedResponseHeaders) {
+      throw new IllegalStateException("Response headers were said to be finished before");
+    }
+
     if (name == null || value == null) {
       return;
     }
@@ -171,31 +229,31 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     strings.add(value);
   }
 
-  void addCookie(StringKVPair cookie) {
-    if (finishedHeaders) {
-      throw new IllegalStateException("Headers were said to be finished before");
-    }
-    collectedCookies.add(cookie);
+  public void finishResponseHeaders() {
+    this.finishedResponseHeaders = true;
   }
 
-  void finishHeaders() {
-    this.finishedHeaders = true;
-  }
-
-  boolean isFinishedHeaders() {
-    return finishedHeaders;
-  }
-
-  Map<String, List<String>> getRequestHeaders() {
-    return requestHeaders;
+  public boolean isFinishedResponseHeaders() {
+    return finishedResponseHeaders;
   }
 
   Map<String, List<String>> getResponseHeaders() {
     return responseHeaders;
   }
 
-  List<StringKVPair> getCollectedCookies() {
-    return collectedCookies;
+  void addCookies(Map<String, List<String>> cookies) {
+    if (finishedRequestHeaders) {
+      throw new IllegalStateException("Request headers were said to be finished before");
+    }
+    if (collectedCookies == null) {
+      collectedCookies = cookies;
+    } else {
+      collectedCookies.putAll(cookies);
+    }
+  }
+
+  Map<String, ? extends Collection<String>> getCookies() {
+    return collectedCookies != null ? collectedCookies : Collections.emptyMap();
   }
 
   String getPeerAddress() {
@@ -234,9 +292,52 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.blocked = blocked;
   }
 
+  public boolean isReqDataPublished() {
+    return reqDataPublished;
+  }
+
+  public void setReqDataPublished(boolean reqDataPublished) {
+    this.reqDataPublished = reqDataPublished;
+  }
+
+  public boolean isPathParamsPublished() {
+    return persistentData.containsKey(KnownAddresses.REQUEST_PATH_PARAMS);
+  }
+
+  public boolean isRawReqBodyPublished() {
+    return rawReqBodyPublished;
+  }
+
+  public void setRawReqBodyPublished(boolean rawReqBodyPublished) {
+    this.rawReqBodyPublished = rawReqBodyPublished;
+  }
+
+  public boolean isConvertedReqBodyPublished() {
+    return convertedReqBodyPublished;
+  }
+
+  public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
+    this.convertedReqBodyPublished = convertedReqBodyPublished;
+  }
+
+  public boolean isRespDataPublished() {
+    return respDataPublished;
+  }
+
+  public void setRespDataPublished(boolean respDataPublished) {
+    this.respDataPublished = respDataPublished;
+  }
+
   @Override
   public void close() {
-    // currently no-op
+    synchronized (this) {
+      if (additive == null) {
+        return;
+      }
+    }
+
+    log.warn("WAF object had not been closed (probably missed request-end event)");
+    closeAdditive();
   }
 
   /* end interface for GatewayBridge */

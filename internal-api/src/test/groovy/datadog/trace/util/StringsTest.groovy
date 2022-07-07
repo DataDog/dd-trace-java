@@ -98,4 +98,33 @@ class StringsTest extends DDSpecification {
     "\u000b"|"\\u000B"
     "a"|"a"
   }
+
+  def "test sha256"() {
+    when:
+    String sha256 = Strings.sha256(input)
+
+    then:
+    sha256 == expected
+
+    where:
+    input | expected
+    'the quick brown fox jumps over the lazy dog'    | '05c6e08f1d9fdafa03147fcb8f82f124c76d2f70e3d989dc8aadb5e7d7450bec'
+    'det kommer bli bättre, du kommer andas lättare' | '9e6215a16fc8968bf3ba29d81f028f7d4bbf22ccc59ae87a0e36a8085f1c2968'
+  }
+
+  def "test truncate"() {
+    when:
+    String truncated = Strings.truncate(input, limit)
+
+    then:
+    truncated == expected
+
+    where:
+    input | limit | expected
+    null | 4 | null
+    "" | 4 | ""
+    "hi" | 4 | "hi"
+    "hélló" |5| "hélló"
+    "hélló wórld" |5|"hélló"
+  }
 }

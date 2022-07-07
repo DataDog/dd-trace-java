@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.classloading;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -30,13 +30,19 @@ import net.bytebuddy.matcher.ElementMatcher;
  * for the classes that we have put in the bootstrap class loader.
  */
 @AutoService(Instrumenter.class)
-public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
+public final class ClassloadingInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
   public ClassloadingInstrumentation() {
     super("classloading");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  protected boolean defaultEnabled() {
+    return true;
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // just an optimization to exclude common class loaders that are known to delegate to the
     // bootstrap loader (or happen to _be_ the bootstrap loader)
     return namedNoneOf("java.lang.ClassLoader", "com.ibm.oti.vm.BootstrapClassLoader")

@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static datadog.trace.instrumentation.synapse3.HttpRequestExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Request;
+import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Response;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
@@ -19,7 +21,8 @@ public final class SynapseServerDecorator
     extends HttpServerDecorator<HttpRequest, NHttpConnection, HttpResponse, HttpRequest> {
   public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();
 
-  public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
+  public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create("synapse.request");
+  public static final CharSequence LEGACY_SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence SYNAPSE_SERVER = UTF8BytesString.create("synapse-server");
 
   public static final String SYNAPSE_SPAN_KEY = "dd.trace.synapse.span";
@@ -37,11 +40,19 @@ public final class SynapseServerDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
-    return GETTER;
+    return Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+    return Response.GETTER;
   }
 
   @Override
   public CharSequence spanName() {
+    if (Config.get().isIntegrationSynapseLegacyOperationName()) {
+      return LEGACY_SYNAPSE_REQUEST;
+    }
     return SYNAPSE_REQUEST;
   }
 

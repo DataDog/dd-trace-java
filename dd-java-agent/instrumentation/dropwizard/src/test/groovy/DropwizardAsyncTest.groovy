@@ -41,6 +41,7 @@ class DropwizardAsyncTest extends DropwizardTest {
     @Override
     void run(Configuration configuration, Environment environment) {
       environment.jersey().register(AsyncServiceResource)
+      environment.jersey().register(DropwizardTest.ResponseHeaderFilter)
     }
   }
 

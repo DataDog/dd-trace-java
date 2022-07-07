@@ -6,10 +6,10 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.api.IntFunction;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
-import datadog.trace.common.writer.ddagent.DDAgentApi;
+import datadog.trace.api.function.IntFunction;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
@@ -157,17 +157,17 @@ public class HealthMetrics implements AutoCloseable {
   }
 
   public void onSend(
-      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
   }
 
   public void onFailedSend(
-      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
   }
 
   private void onSendAttempt(
-      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     statsd.incrementCounter("api.requests.total", NO_TAGS);
     statsd.count("flush.traces.total", traceCount, NO_TAGS);
     // TODO: missing queue.spans (# of spans being sent)

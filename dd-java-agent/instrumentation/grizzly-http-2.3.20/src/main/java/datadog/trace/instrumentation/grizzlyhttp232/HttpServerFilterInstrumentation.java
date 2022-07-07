@@ -6,19 +6,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpServerFilterInstrumentation extends Instrumenter.Tracing {
+public class HttpServerFilterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public HttpServerFilterInstrumentation() {
     super("grizzly-filterchain");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.HttpServerFilter");
+  public String instrumentedType() {
+    return "org.glassfish.grizzly.http.HttpServerFilter";
   }
 
   @Override

@@ -43,8 +43,8 @@ dependencies {
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testImplementation group: 'org.postgresql', name: 'postgresql', version: '[9.4,42.2.18]'
 
-  testImplementation "org.testcontainers:mysql:1.15.1"
-  testImplementation "org.testcontainers:postgresql:1.15.1"
+  testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
+  testImplementation "org.testcontainers:postgresql:${versions.testcontainers}"
 
   // Test pre jdk 1.6 H2
   oldH2TestImplementation(group: 'com.h2database', name: 'h2') {
@@ -78,10 +78,9 @@ tasks.named("test").configure {
 }
 
 tasks.named("latestDepJava11Test").configure {
-  doFirst {
-    if (!System.env.JAVA_11_HOME) {
-      throw new GradleException('JAVA_11_HOME must be set for latestDepJava11Test')
-    }
-    executable = file("${System.env.JAVA_11_HOME}/bin/java")
-  }
+  javaLauncher = getJavaLauncherFor(11)
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
 }

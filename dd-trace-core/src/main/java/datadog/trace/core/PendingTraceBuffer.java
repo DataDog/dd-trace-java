@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jctools.queues.MessagePassingQueue;
@@ -22,6 +23,15 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     void write();
 
     DDSpan getRootSpan();
+
+    /**
+     * Set or clear if the {@code Element} is enqueued. Needs to be atomic.
+     *
+     * @param enqueued true if the enqueued state should be set or false if it should be cleared
+     * @return true iff the enqueued value was changed from another value to the new value, false
+     *     otherwise
+     */
+    boolean setEnqueued(boolean enqueued);
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
@@ -31,6 +41,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private final MpscBlockingConsumerArrayQueue<Element> queue;
     private final Thread worker;
+    private final TimeSource timeSource;
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
@@ -38,9 +49,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     /** if the queue is full, pendingTrace trace will be written immediately. */
     @Override
     public void enqueue(Element pendingTrace) {
-      if (!queue.offer(pendingTrace)) {
-        // Queue is full, so we can't buffer this trace, write it out directly instead.
-        pendingTrace.write();
+      if (pendingTrace.setEnqueued(true)) {
+        if (!queue.offer(pendingTrace)) {
+          // Mark it as not in the queue
+          pendingTrace.setEnqueued(false);
+          // Queue is full, so we can't buffer this trace, write it out directly instead.
+          pendingTrace.write();
+        }
       }
     }
 
@@ -118,6 +133,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       public DDSpan getRootSpan() {
         return null;
       }
+
+      @Override
+      public boolean setEnqueued(boolean enqueued) {
+        return true;
+      }
     }
 
     private final class Worker implements Runnable {
@@ -136,10 +156,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               continue;
             }
 
+            // The element is no longer in the queue
+            pendingTrace.setEnqueued(false);
+
             long oldestFinishedTime = pendingTrace.oldestFinishedTime();
 
             long finishTimestampMillis = TimeUnit.NANOSECONDS.toMillis(oldestFinishedTime);
-            if (finishTimestampMillis <= System.currentTimeMillis() - FORCE_SEND_DELAY_MS) {
+            if (finishTimestampMillis <= timeSource.getCurrentTimeMillis() - FORCE_SEND_DELAY_MS) {
               // Root span is getting old. Send the trace to avoid being discarded by agent.
               pendingTrace.write();
               continue;
@@ -160,9 +183,10 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
-    public DelayingPendingTraceBuffer(int bufferSize) {
+    public DelayingPendingTraceBuffer(int bufferSize, TimeSource timeSource) {
       this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
+      this.timeSource = timeSource;
     }
   }
 
@@ -185,8 +209,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
   }
 
-  public static PendingTraceBuffer delaying() {
-    return new DelayingPendingTraceBuffer(BUFFER_SIZE);
+  public static PendingTraceBuffer delaying(TimeSource timeSource) {
+    return new DelayingPendingTraceBuffer(BUFFER_SIZE, timeSource);
   }
 
   public static PendingTraceBuffer discarding() {

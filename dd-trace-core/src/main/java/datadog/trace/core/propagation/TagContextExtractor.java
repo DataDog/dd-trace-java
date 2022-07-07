@@ -6,8 +6,7 @@ import java.util.Map;
 
 public class TagContextExtractor implements HttpCodec.Extractor {
 
-  // here to keep a legacy test happy
-  private final Map<String, String> taggedHeaders;
+  protected final Map<String, String> taggedHeaders;
   private final ThreadLocal<ContextInterpreter> ctxInterpreter;
 
   public TagContextExtractor(

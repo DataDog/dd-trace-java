@@ -4,11 +4,12 @@ muzzle {
     module = "commons-httpclient"
     versions = "[,4.0)"
     skipVersions += '3.1-jenkins-1'
+    skipVersions += '2.0-final' // broken metadata on maven central
   }
   pass {
     group = "org.apache.httpcomponents"
     module = "httpclient"
-    versions = "[4.0,)"
+    versions = "[4.0,5)"
     assertInverse = true
   }
   pass {

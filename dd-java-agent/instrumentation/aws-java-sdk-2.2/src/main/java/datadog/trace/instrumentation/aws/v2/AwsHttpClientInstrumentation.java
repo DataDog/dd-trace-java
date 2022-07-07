@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -22,7 +22,8 @@ import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRe
  * for execution for Sync clients.
  */
 @AutoService(Instrumenter.class)
-public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrumentation {
+public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrumentation
+    implements Instrumenter.ForTypeHierarchy {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
@@ -32,7 +33,7 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("software.amazon.awssdk.")
         .and(
             extendsClass(

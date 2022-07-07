@@ -1,0 +1,82 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+ext {
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+def osName = System.getProperty('os.name', '').toLowerCase()
+// currently, only linux binaries are included
+minimumInstructionCoverage = osName.contains("linux") ? 0.5 : 0
+minimumBranchCoverage = osName.contains("linux") ? 0.4 : 0
+
+excludedClassesCoverage += [
+  // enums with no additional functionality
+  'com.datadog.profiling.controller.async.Arch',
+  'com.datadog.profiling.controller.async.OperatingSystem',
+  // --
+  'com.datadog.profiling.async.AsyncProfiler.Singleton',
+  // although it is quite well covered jacoco complains about branch coverage due to exception handlers
+  'com.datadog.profiling.async.AsyncProfilerRecording',
+  'com.datadog.profiling.async.AsyncProfilerRecordingData',
+]
+
+dependencies {
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-utils')
+  implementation project.hasProperty('ap.tools.jar') ? files(project.getProperty('ap.tools.jar')) : deps.asyncprofiler
+
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
+
+  implementation deps.slf4j
+
+  testImplementation deps.jmc
+  testImplementation deps.junit5
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  classifier ""
+  include {
+    def rslt = false
+    rslt |= it.path == "com" || it.path == "com/datadog" || it.path.startsWith("com/datadog/")
+    rslt |= it.path == "one" || it.path == "one/profiler" || it.path.startsWith("one/profiler/")
+    rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
+    // TODO: modify the filter to include other OS/arch combinations once the overhead is evaluated
+    rslt |= it.path == "native-libs" || it.path.startsWith("native-libs/linux-x64") || it.path.startsWith("native-libs/linux-musl-x64")
+    rslt |= (it.path.contains("ap-tools") && it.path.endsWith(".jar"))
+    return rslt
+  }
+}
+
+build.dependsOn shadowJar
+
+configurations.all {
+  resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it).configureEach {
+    setJavaVersion(it, 11)
+    // Disable '-processing' because some annotations are not claimed.
+    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+    // Disable '-path' because we do not have some of the paths seem to be missing.
+    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
+  }
+}
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

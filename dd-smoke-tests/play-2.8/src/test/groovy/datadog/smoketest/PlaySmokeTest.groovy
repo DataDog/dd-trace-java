@@ -13,7 +13,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 abstract class PlaySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  File playDirectory = new File("${buildDirectory}/target/universal/stage")
+  File playDirectory = new File("${buildDirectory}/stage/main")
 
   @Shared
   @AutoCleanup
@@ -35,12 +35,12 @@ abstract class PlaySmokeTest extends AbstractServerSmokeTest {
   ProcessBuilder createProcessBuilder() {
     // If the server is not shut down correctly, this file can be left there and will block
     // the start of a new test
-    def runningPid = new File("RUNNING_PID", playDirectory)
+    def runningPid = new File(playDirectory.getPath(), "RUNNING_PID")
     if (runningPid.exists()) {
       runningPid.delete()
     }
     ProcessBuilder processBuilder =
-      new ProcessBuilder("${playDirectory}/bin/play-28-smoke-test")
+      new ProcessBuilder("${playDirectory}/bin/main")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -20,7 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * DefaultRequestContextInstrumentation</code>
  */
 @AutoService(Instrumenter.class)
-public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing {
+public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public ContainerRequestFilterInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-filter");
@@ -33,7 +34,7 @@ public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.ws.rs.container.ContainerRequestFilter"));
   }
 

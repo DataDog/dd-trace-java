@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isJavaVersionBetween;
+import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -19,6 +19,7 @@ import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -57,6 +58,11 @@ public class Agent {
 
   private static final Logger log;
 
+  private static final String AGENT_INSTALLER_CLASS_NAME =
+      "false".equalsIgnoreCase(ddGetProperty("dd.legacy.agent.enabled"))
+          ? "datadog.trace.agent.installer.AgentInstaller"
+          : "datadog.trace.agent.tooling.AgentInstaller";
+
   private enum AgentFeature {
     TRACING("dd.tracing.enabled", true),
     JMXFETCH("dd.jmxfetch.enabled", true),
@@ -64,7 +70,8 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     CWS("dd.cws.enabled", false),
-    CIVISIBILITY("dd.civisibility.enabled", false);
+    CIVISIBILITY("dd.civisibility.enabled", false),
+    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -128,6 +135,11 @@ public class Agent {
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
       setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
+
+      boolean ciVisibilityAgentlessEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY_AGENTLESS);
+      if (ciVisibilityAgentlessEnabled) {
+        setSystemPropertyDefault("dd.writer.type", WriterConstants.DD_INTAKE_WRITER_TYPE);
+      }
     }
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
@@ -246,6 +258,12 @@ public class Agent {
     }
   }
 
+  public static void shutdown(final boolean sync) {
+    if (profilingEnabled) {
+      shutdownProfilingAgent(sync);
+    }
+  }
+
   public static synchronized Class<?> installAgentCLI(final URL bootstrapURL) throws Exception {
     createSharedClassloader(bootstrapURL);
     if (null == AGENT_CLASSLOADER) {
@@ -256,16 +274,9 @@ public class Agent {
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
   }
 
-  private static boolean isOracleJDK8() {
-    return isJavaVersionBetween(8, 9)
-        && System.getProperty("java.vendor").contains("Oracle")
-        && !System.getProperty("java.runtime.name").contains("OpenJDK");
-  }
-
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
     try {
-      final Class<?> agentInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+      final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "java.util.logging.LogManager", callback);
@@ -276,8 +287,7 @@ public class Agent {
 
   private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
     try {
-      final Class<?> agentInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+      final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "javax.management.MBeanServerBuilder", callback);
@@ -420,8 +430,7 @@ public class Agent {
         final ClassLoader agentClassLoader =
             createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
-        final Class<?> agentInstallerClass =
-            agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+        final Class<?> agentInstallerClass = agentClassLoader.loadClass(AGENT_INSTALLER_CLASS_NAME);
         final Method agentInstallerMethod =
             agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
         agentInstallerMethod.invoke(null, inst);
@@ -514,7 +523,9 @@ public class Agent {
   /** Enable JMX based system access provider once it is safe to touch JMX */
   private static synchronized void initializeJmxSystemAccessProvider(
       final ClassLoader classLoader) {
-    log.debug("Initializing JMX system access provider for " + classLoader.toString());
+    if (log.isDebugEnabled()) {
+      log.debug("Initializing JMX system access provider for " + classLoader.toString());
+    }
     try {
       final Class<?> tracerInstallerClass =
           classLoader.loadClass("datadog.trace.core.util.SystemAccess");
@@ -608,8 +619,9 @@ public class Agent {
       Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-      final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
-      profilingInstallerMethod.invoke(null, isStartingFirst);
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
+      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
@@ -664,6 +676,34 @@ public class Agent {
       log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
+  }
+
+  private static void shutdownProfilingAgent(final boolean sync) {
+    if (PROFILING_CLASSLOADER == null) {
+      // It wasn't started, so no need to shut it down
+      return;
+    }
+
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      final ClassLoader classLoader = PROFILING_CLASSLOADER;
+      Thread.currentThread().setContextClassLoader(classLoader);
+      final Class<?> profilingAgentClass =
+          classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod("shutdown", Boolean.TYPE);
+      profilingInstallerMethod.invoke(null, sync);
+    } catch (final ClassFormatError e) {
+      /*
+      Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
+      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
+      */
+      log.debug("Profiling requires OpenJDK 8 or above - skipping");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while shutting down profiling agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
@@ -775,10 +815,10 @@ public class Agent {
 
     if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
-      return !"false".equalsIgnoreCase(featureEnabled);
+      return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
       // false unless it's explicitly set to "true"
-      return "true".equalsIgnoreCase(featureEnabled);
+      return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
   }
 

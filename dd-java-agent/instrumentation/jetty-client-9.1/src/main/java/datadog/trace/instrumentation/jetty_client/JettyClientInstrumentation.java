@@ -23,21 +23,19 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 @AutoService(Instrumenter.class)
 public class JettyClientInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
   public JettyClientInstrumentation() {
     super("jetty-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.client.HttpClient");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.client.HttpClient";
   }
 
   @Override

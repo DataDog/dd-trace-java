@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.grizzly.client;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -23,10 +23,10 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tracing {
+public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public AsyncCompletionHandlerInstrumentation() {
     super("grizzly-client", "ning");
@@ -48,8 +48,8 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return hasSuperClass(named("com.ning.http.client.AsyncCompletionHandler"));
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named("com.ning.http.client.AsyncCompletionHandler"));
   }
 
   @Override
@@ -61,9 +61,7 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         namedOneOf("onBodyPartReceived", "onHeadersReceived")
-            .and(
-                ElementMatchers.takesArgument(
-                    0, named("com.ning.http.client.HttpResponseBodyPart"))),
+            .and(takesArgument(0, named("com.ning.http.client.HttpResponseBodyPart"))),
         getClass().getName() + "$OnActivity");
     transformation.applyAdvice(
         named("onCompleted")

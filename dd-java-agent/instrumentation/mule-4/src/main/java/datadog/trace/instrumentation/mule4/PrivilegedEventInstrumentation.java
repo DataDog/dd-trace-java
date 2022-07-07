@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.mule4;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * The {@code PrivilegedEvent} has a method that is called to set which {@code Event} is currently
@@ -15,7 +13,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * Event} via its {@code EventContext}.
  */
 @AutoService(Instrumenter.class)
-public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing {
+public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public PrivilegedEventInstrumentation() {
     super("mule");
@@ -27,8 +26,8 @@ public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.mule.runtime.core.privileged.event.PrivilegedEvent");
+  public String instrumentedType() {
+    return "org.mule.runtime.core.privileged.event.PrivilegedEvent";
   }
 
   @Override

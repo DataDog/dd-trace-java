@@ -1,0 +1,22 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+    environment "_HANDLER", "Handler"
+  }
+}
+
+test {
+  environment "_HANDLER", "Handler"
+}
+
+dependencies {
+  testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
+}

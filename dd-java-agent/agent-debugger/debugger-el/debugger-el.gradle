@@ -1,0 +1,33 @@
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+// We do not publish separate jar, but having version file is useful
+apply from: "$rootDir/gradle/version.gradle"
+
+minimumInstructionCoverage = 0.1
+minimumBranchCoverage = 0.6
+
+excludedClassesCoverage += [
+  'com.datadog.debugger.el.Values',
+  // empty class
+  'com.datadog.debugger.el.DSL',
+  'com.datadog.debugger.el.Script*',
+  'com.datadog.debugger.el.ValueScript*',
+  'com.datadog.debugger.el.values.CollectionValue*',
+  'com.datadog.debugger.el.InvalidValueException'
+]
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+dependencies {
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+
+  implementation deps.slf4j
+  implementation deps.moshi
+  testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.0")
+  testImplementation deps.mockito
+}

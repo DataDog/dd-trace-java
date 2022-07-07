@@ -8,8 +8,8 @@ package datadog.trace.api.config;
  */
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
+  public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
-  public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = false;
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
   @Deprecated // Use dd.site instead
@@ -26,6 +26,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_TEMPLATE_DEFAULT = "default";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
+  public static final int PROFILING_START_DELAY_DEFAULT = 10;
   // DANGEROUS! May lead on sigsegv on JVMs before 14
   // Not intended for production use
   public static final String PROFILING_START_FORCE_FIRST =
@@ -41,6 +42,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_UPLOAD_COMPRESSION_DEFAULT = "on";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
+  public static final int PROFILING_PROXY_PORT_DEFAULT = 8080;
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
@@ -57,6 +59,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_AUXILIARY_TYPE = "profiling.auxiliary";
   public static final String PROFILING_AUXILIARY_TYPE_DEFAULT = "none";
 
+  public static final String PROFILING_ASYNC_ENABLED = "profiling.async.enabled";
+  public static final boolean PROFILING_ASYNC_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_LIBPATH = "profiling.async.lib";
   public static final String PROFILING_ASYNC_ALLOC_ENABLED = "profiling.async.alloc.enabled";
   public static final boolean PROFILING_ASYNC_ALLOC_ENABLED_DEFAULT = false;
@@ -70,10 +74,39 @@ public final class ProfilingConfig {
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
   public static final String PROFILING_ASYNC_CPU_STACKDEPTH = "profiling.async.cpu.stackdepth";
   public static final int PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT = 512;
+  public static final String PROFILING_ASYNC_CPU_SAFEMODE = "profiling.async.cpu.safemode";
+  public static final int PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
-  public static final int PROFILING_ASYNC_MEMLEAK_INTERVAL_DEFAULT = 256 * 1024;
+  public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
+  public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
+
+  public static final String PROFILING_TRACING_CONTEXT_ENABLED =
+      "profiling.tracing_context.enabled";
+  public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
+  public static final String PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC =
+      "profiling.tracing_context.tracker.inactive.seconds";
+  public static final int PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT = 90;
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE =
+      "profiling.tracing_context.memory.bytes";
+  public static final int PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE_DEFAULT =
+      32 * 1024 * 1024; // 32MB
+
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE =
+      "profiling.tracing_context.memory.type";
+  public static final String PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_TYPE_DEFAULT = "heap";
+
+  public static final String PROFILING_TRACING_CONTEXT_MAX_SIZE =
+      "profiling.tracing_context.max_size.bytes";
+  public static final int PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT =
+      20_000; // 20k bytes is the default
+
+  public static final String PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK =
+      "profiling.tracing_context.span_inactivity_check.ms";
+
+  public static final int PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT =
+      5_000; // 5 secs default
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
@@ -97,13 +130,12 @@ public final class ProfilingConfig {
   public static final int PROFILING_JFR_REPOSITORY_MAXSIZE_DEFAULT =
       64 * 1024 * 1024; // 64MB default
 
+  public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
+  public static final boolean PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT = false;
+
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
-
-  public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
-  public static final String PROFILING_FORMAT_V2_4_ENABLED = "profiling.format.v4.enabled";
-
-  public static final boolean DEFAULT_PROFILING_FORMAT_V2_4_ENABLED = false;
+  public static final boolean PROFILING_AGENTLESS_DEFAULT = false;
 
   private ProfilingConfig() {}
 }

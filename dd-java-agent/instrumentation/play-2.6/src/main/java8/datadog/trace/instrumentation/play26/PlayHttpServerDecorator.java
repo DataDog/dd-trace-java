@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-import static datadog.trace.instrumentation.play26.PlayHeaders.GETTER;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -67,7 +66,12 @@ public class PlayHttpServerDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<Headers> getter() {
-    return GETTER;
+    return PlayHeaders.Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Result> responseGetter() {
+    return PlayHeaders.Result.GETTER;
   }
 
   @Override

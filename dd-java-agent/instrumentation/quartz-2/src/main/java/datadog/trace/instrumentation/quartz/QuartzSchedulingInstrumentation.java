@@ -1,13 +1,15 @@
 package datadog.trace.instrumentation.quartz;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.quartz.QuartzDecorator.DECORATE;
 import static datadog.trace.instrumentation.quartz.QuartzDecorator.SCHEDULED_CALL;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,7 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.quartz.JobExecutionContext;
 
 @AutoService(Instrumenter.class)
-public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing {
+public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public QuartzSchedulingInstrumentation() {
     super("quartz");
@@ -31,7 +34,7 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.quartz.Job"));
   }
 

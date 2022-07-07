@@ -17,26 +17,27 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class LibertyServerInstrumentation extends Instrumenter.Tracing {
+public final class LibertyServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public LibertyServerInstrumentation() {
     super("liberty");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.ibm.ws.webcontainer.webapp.WebApp");
+  public String instrumentedType() {
+    return "com.ibm.ws.webcontainer.webapp.WebApp";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".HttpServletExtractAdapter",
+      packageName + ".HttpServletExtractAdapter$Request",
+      packageName + ".HttpServletExtractAdapter$Response",
       packageName + ".LibertyDecorator",
-      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }

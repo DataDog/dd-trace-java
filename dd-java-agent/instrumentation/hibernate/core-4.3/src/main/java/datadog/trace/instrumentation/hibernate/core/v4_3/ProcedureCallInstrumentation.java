@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.hibernate.core.v4_3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -19,10 +18,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
-public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
+public class ProcedureCallInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   public ProcedureCallInstrumentation() {
-    super(true, "hibernate", "hibernate-core");
+    super("hibernate", "hibernate-core");
   }
 
   @Override
@@ -46,8 +46,13 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> shortCutMatcher() {
-    return named("org.hibernate.procedure.internal.ProcedureCallImpl");
+  public boolean onlyMatchKnownTypes() {
+    return isShortcutMatchingEnabled(true);
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return new String[] {"org.hibernate.procedure.internal.ProcedureCallImpl"};
   }
 
   @Override
@@ -67,15 +72,14 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
         @Advice.This final ProcedureCall call,
-        @Advice.Origin("hibernate.procedure.#m") final String operationName,
-        @Advice.Origin final Method origin) {
+        @Advice.Origin("hibernate.procedure.#m") final String operationName) {
 
       final ContextStore<ProcedureCall, SessionState> contextStore =
           InstrumentationContext.get(ProcedureCall.class, SessionState.class);
 
       final SessionState state =
           SessionMethodUtils.startScopeFrom(
-              contextStore, call, origin, operationName, call.getProcedureName(), true);
+              contextStore, call, operationName, call.getProcedureName(), true);
       return state;
     }
 

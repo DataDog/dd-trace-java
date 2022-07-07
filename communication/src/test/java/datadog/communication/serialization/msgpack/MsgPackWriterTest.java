@@ -12,6 +12,7 @@ import datadog.communication.serialization.StreamingBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
@@ -372,6 +373,35 @@ public class MsgPackWriterTest {
           @Override
           public void map(Boolean x, Writable w) {
             w.writeBoolean(x);
+          }
+        });
+    messageFormatter.flush();
+  }
+
+  @Test
+  public void testWriteGenericNumber() {
+    final BigDecimal data = BigDecimal.valueOf(47.11);
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                25,
+                new ByteBufferConsumer() {
+                  @Override
+                  public void accept(int messageCount, ByteBuffer buffy) {
+                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+                    try {
+                      assertEquals(data.doubleValue(), unpacker.unpackDouble(), 0);
+                    } catch (IOException e) {
+                      Assert.fail(e.getMessage());
+                    }
+                  }
+                }));
+    messageFormatter.format(
+        data,
+        new Mapper<Number>() {
+          @Override
+          public void map(Number x, Writable w) {
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();

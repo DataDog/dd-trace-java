@@ -3,10 +3,10 @@ package datadog.trace.api.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.TraceSegment;
 import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -132,6 +132,8 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestMethodUriRaw(), callback);
     assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(flow);
+    gateway.registerCallback(events.requestPathParams(), callback);
+    assertThat(gateway.getCallback(events.requestPathParams()).apply(null, null)).isEqualTo(flow);
     gateway.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
     assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(flow);
@@ -140,8 +142,18 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.requestBodyProcessed(), callback);
+    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.grpcServerRequestMessage(), callback);
+    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), callback);
     gateway.getCallback(events.responseStarted()).apply(null, null);
+    gateway.registerCallback(events.responseHeader(), callback);
+    gateway.getCallback(events.responseHeader()).accept(null, null, null);
+    gateway.registerCallback(events.responseHeaderDone(), callback);
+    gateway.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -163,6 +175,9 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestMethodUriRaw(), throwback);
     assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
+    gateway.registerCallback(events.requestPathParams(), throwback);
+    assertThat(gateway.getCallback(events.requestPathParams()).apply(null, null))
+        .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(
         events.requestClientSocketAddress(), throwback.asClientSocketAddress());
     assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
@@ -172,8 +187,18 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(events.requestBodyDone(), throwback.asRequestBodyDone());
     assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.requestBodyProcessed(), throwback);
+    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    gateway.registerCallback(events.grpcServerRequestMessage(), throwback);
+    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     gateway.registerCallback(events.responseStarted(), throwback);
     gateway.getCallback(events.responseStarted()).apply(null, null);
+    gateway.registerCallback(events.responseHeader(), throwback);
+    gateway.getCallback(events.responseHeader()).accept(null, null, null);
+    gateway.registerCallback(events.responseHeaderDone(), throwback);
+    gateway.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 

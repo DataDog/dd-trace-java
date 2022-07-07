@@ -15,8 +15,6 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.grizzly.Buffer;
 import org.glassfish.grizzly.attributes.AttributeHolder;
 import org.glassfish.grizzly.http.HttpHeader;
@@ -25,14 +23,15 @@ import org.glassfish.grizzly.http.io.NIOInputStream;
 import org.glassfish.grizzly.utils.Charsets;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
+public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public GrizzlyByteBodyInstrumentation() {
-    super("grizzly-byte-body");
+    super("grizzly");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.server.NIOInputStreamImpl");
+  public String instrumentedType() {
+    return "org.glassfish.grizzly.http.server.NIOInputStreamImpl";
   }
 
   @Override

@@ -13,6 +13,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +106,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   private final boolean disableSamplingMechanismValidation;
 
+  private volatile PathwayContext pathwayContext;
+
   /** Aims to pack sampling priority and sampling mechanism into one value */
   protected static class SamplingDecision {
 
@@ -142,6 +146,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final int tagsSize,
       final PendingTrace trace,
       final Object requestContextData,
+      final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation) {
 
     assert trace != null;
@@ -162,6 +167,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     }
 
     this.requestContextData = requestContextData;
+
+    assert pathwayContext != null;
+    this.pathwayContext = pathwayContext;
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
@@ -428,6 +436,29 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     return null == requestContextData ? null : this;
   }
 
+  @Override
+  public PathwayContext getPathwayContext() {
+    return pathwayContext;
+  }
+
+  public void mergePathwayContext(PathwayContext pathwayContext) {
+    if (pathwayContext == null) {
+      return;
+    }
+
+    // This is purposely not thread safe
+    // The code randomly chooses between the two PathwayContexts.
+    // If there is a race, then that's okay
+    if (this.pathwayContext.isStarted()) {
+      // Randomly select between keeping the current context (0) or replacing (1)
+      if (ThreadLocalRandom.current().nextInt(2) == 1) {
+        this.pathwayContext = pathwayContext;
+      }
+    } else {
+      this.pathwayContext = pathwayContext;
+    }
+  }
+
   public CoreTracer getTracer() {
     return trace.getTracer();
   }
@@ -537,7 +568,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
               threadName,
               unsafeTags,
               baggageItems,
-              SamplingDecision.priority(samplingDecision),
+              (samplingDecision != SamplingDecision.UNSET_UNKNOWN
+                  ? SamplingDecision.priority(samplingDecision)
+                  : getSamplingPriority()),
               // TODO do we also need to pass samplingMechanism in there? @YG
               measured,
               topLevel,
@@ -561,8 +594,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
             .append("/")
             .append(getOperationName())
             .append("/")
-            .append(getResourceName())
-            .append(" metrics=");
+            .append(getResourceName());
     if (errorFlag) {
       s.append(" *errored*");
     }

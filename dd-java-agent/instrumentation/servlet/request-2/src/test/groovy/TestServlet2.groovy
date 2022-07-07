@@ -23,6 +23,7 @@ class TestServlet2 {
       HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(req.servletPath)
       HttpServerTest.controller(endpoint) {
         resp.contentType = "text/plain"
+        resp.addHeader(HttpServerTest.IG_RESPONSE_HEADER, HttpServerTest.IG_RESPONSE_HEADER_VALUE)
         switch (endpoint) {
           case SUCCESS:
             resp.status = endpoint.status

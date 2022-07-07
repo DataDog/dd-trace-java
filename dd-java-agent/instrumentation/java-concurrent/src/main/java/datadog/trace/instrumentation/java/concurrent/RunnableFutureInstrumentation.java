@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
@@ -34,13 +35,13 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
   public RunnableFutureInstrumentation() {
     super("java_concurrent", "runnable-future");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return NameMatchers.<TypeDescription>notExcludedByName(RUNNABLE_FUTURE)
         .and(
             extendsClass(
@@ -52,7 +53,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<String, String> contextStoreForAll() {
+  public Map<String, String> contextStore() {
     return singletonMap("java.util.concurrent.RunnableFuture", State.class.getName());
   }
 
@@ -74,7 +75,9 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
         getClass().getName() + "$Construct");
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    transformation.applyAdvice(
+        isMethod().and(namedOneOf("cancel", "set", "setException")),
+        getClass().getName() + "$Cancel");
   }
 
   @Override

@@ -1,3 +1,7 @@
+plugins {
+  id 'com.google.protobuf' version '0.8.18'
+}
+
 muzzle {
   pass {
     group = "io.grpc"
@@ -6,26 +10,19 @@ muzzle {
   }
 }
 
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-  dependencies {
-    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.10'
-  }
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
-apply plugin: 'com.google.protobuf'
 
-def grpcVersion = '1.5.0'
+// First version with Mac M1 support
+def grpcVersion = '1.42.2'
 protobuf {
   protoc {
     // Download compiler rather than using locally installed version:
-    artifact = 'com.google.protobuf:protoc:3.3.0'
+    // First version with Mac M1 support
+    artifact = 'com.google.protobuf:protoc:3.17.3'
   }
   plugins {
+    // First version with aarch support
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {

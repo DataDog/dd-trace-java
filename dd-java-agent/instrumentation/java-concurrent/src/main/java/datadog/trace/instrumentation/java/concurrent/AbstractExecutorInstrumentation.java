@@ -1,14 +1,11 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -17,7 +14,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractExecutorInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractExecutorInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.CanShortcutTypeMatching {
 
   private static final Logger log = LoggerFactory.getLogger(AbstractExecutorInstrumentation.class);
 
@@ -29,14 +27,14 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
    * Only apply executor instrumentation to whitelisted executors. To apply to all executors, use
    * override setting above.
    */
-  private final Collection<String> PERMITTED_EXECUTORS;
+  private final String[] PERMITTED_EXECUTORS;
 
   public AbstractExecutorInstrumentation(final String... additionalNames) {
     super(EXEC_NAME, additionalNames);
 
     if (TRACE_ALL_EXECUTORS) {
       log.warn("Tracing all executors enabled. This is not a recommended setting.");
-      PERMITTED_EXECUTORS = Collections.emptyList();
+      PERMITTED_EXECUTORS = new String[0];
     } else {
       final String[] whitelist = {
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
@@ -48,16 +46,22 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
       final Set<String> executors = new HashSet<>(Config.get().getTraceExecutors());
       executors.addAll(Arrays.asList(whitelist));
 
-      PERMITTED_EXECUTORS = Collections.unmodifiableSet(executors);
+      PERMITTED_EXECUTORS = executors.toArray(new String[0]);
     }
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    if (TRACE_ALL_EXECUTORS) {
-      return implementsInterface(named(Executor.class.getName()));
-    } else {
-      return namedOneOf(PERMITTED_EXECUTORS);
-    }
+  public boolean onlyMatchKnownTypes() {
+    return !TRACE_ALL_EXECUTORS;
+  }
+
+  @Override
+  public String[] knownMatchingTypes() {
+    return PERMITTED_EXECUTORS;
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(Executor.class.getName()));
   }
 }

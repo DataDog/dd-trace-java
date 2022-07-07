@@ -20,12 +20,11 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(Instrumenter.class)
-public class CategoryInstrumentation extends Instrumenter.Tracing {
+public class CategoryInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public CategoryInstrumentation() {
     super("log4j", "log4j-1");
   }
@@ -36,8 +35,8 @@ public class CategoryInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.log4j.Category");
+  public String instrumentedType() {
+    return "org.apache.log4j.Category";
   }
 
   @Override

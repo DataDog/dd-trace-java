@@ -139,6 +139,11 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<Object> responseGetter() {
+    return null;
+  }
+
+  @Override
   public CharSequence spanName() {
     return AXWAY_REQUEST;
   }

@@ -13,22 +13,21 @@ import java.nio.CharBuffer;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.grizzly.attributes.AttributeHolder;
 import org.glassfish.grizzly.http.HttpHeader;
 import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOReader;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
+public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
+    implements Instrumenter.ForSingleType {
   public GrizzlyCharBodyInstrumentation() {
-    super("grizzly-char-body");
+    super("grizzly");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.server.NIOReaderImpl");
+  public String instrumentedType() {
+    return "org.glassfish.grizzly.http.server.NIOReaderImpl";
   }
 
   @Override

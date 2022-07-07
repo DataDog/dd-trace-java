@@ -6,13 +6,13 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.trace.common.writer.ddagent.DDAgentResponseListener
-import datadog.trace.common.writer.ddagent.Payload
+
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
@@ -188,7 +188,7 @@ class DDAgentApiTest extends DDCoreSpecification {
   def "Api ResponseListeners see 200 responses"() {
     setup:
     def agentResponse = new AtomicReference<Map>(null)
-    DDAgentResponseListener responseListener = { String endpoint, Map responseJson ->
+    RemoteResponseListener responseListener = { String endpoint, Map responseJson ->
       agentResponse.set(responseJson)
     }
     def agent = httpServer {
@@ -440,6 +440,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
+      NoopPathwayContext.INSTANCE,
       false)
 
     def span = DDSpan.create(timestamp, context)

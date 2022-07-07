@@ -13,5 +13,7 @@ public interface AppSecConfigService extends Closeable {
     void onNewSubconfig(AppSecConfig newConfig) throws AppSecModule.AppSecModuleActivationException;
   }
 
+  void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor);
+
   void close();
 }

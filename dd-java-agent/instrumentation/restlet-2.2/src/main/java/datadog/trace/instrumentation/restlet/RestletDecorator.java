@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.restlet;
 
-import static datadog.trace.instrumentation.restlet.RestletExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.restlet.RestletExtractAdapter.Request;
+import static datadog.trace.instrumentation.restlet.RestletExtractAdapter.Response;
 
 import com.sun.net.httpserver.HttpExchange;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -27,7 +28,12 @@ public class RestletDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpExchange> getter() {
-    return GETTER;
+    return Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpExchange> responseGetter() {
+    return Response.GETTER;
   }
 
   @Override

@@ -1,27 +1,37 @@
 plugins {
-  id 'play'
+  id 'org.gradle.playframework'
 }
 
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
+  // TODO Java 17: This version of play doesn't support Java 17
+  maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
-def playVersion = "2.5.19"
-def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.11")
+apply from: "$rootDir/gradle/java.gradle"
 
-model {
-  components {
-    play {
-      platform play: playVersion, scala: scalaVersion, java: '1.8'
-      injectedRoutesGenerator = true
-    }
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+def playVer = "2.5.19"
+def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")
+
+play {
+  platform {
+    playVersion = playVer
+    scalaVersion = scalaVer
+    javaVersion = JavaVersion.VERSION_1_8
   }
-  distributions {
-    playBinary {
-      contents {
-        from("conf") {
-          into "conf"
-        }
+  injectedRoutesGenerator = true
+}
+
+distributions {
+  main {
+    contents {
+      from("conf") {
+        into "conf"
       }
     }
   }
@@ -29,7 +39,7 @@ model {
 
 repositories {
   mavenCentral()
-  jcenter()
+  gradlePluginPortal()
   maven {
     name "lightbend-maven-releases"
     url "https://repo.lightbend.com/lightbend/maven-release"
@@ -41,28 +51,37 @@ repositories {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 description = 'Play 2.5 Integration Tests.'
 
 dependencies {
-  play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
-  play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
-  play "com.typesafe.play:play-java-ws_$scalaVersion:$playVersion"
+  implementation "com.typesafe.play:play-logback_$scalaVer:$playVer"
+  implementation "com.typesafe.play:filters-helpers_$scalaVer:$playVer"
+  implementation "com.typesafe.play:play-java-ws_$scalaVer:$playVer"
   // jaxb is not there anymore in java11+
-  play "javax.xml.bind:jaxb-api:2.3.1"
+  implementation "javax.xml.bind:jaxb-api:2.3.1"
 
-  play project(':dd-trace-api')
-  play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
-  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  implementation project(':dd-trace-api')
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   testImplementation project(':dd-smoke-tests')
 }
 
+configurations.testImplementation {
+  exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
+}
+
 tasks.named("compileTestGroovy").configure {
-  dependsOn 'stagePlayBinaryDist'
+  dependsOn 'stageMainDist'
   outputs.upToDateWhen {
-    !stagePlayBinaryDist.didWork
+    !stageMainDist.didWork
+  }
+}
+
+tasks.withType(AbstractCopyTask).each {
+  // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
+  it.configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
 }
 

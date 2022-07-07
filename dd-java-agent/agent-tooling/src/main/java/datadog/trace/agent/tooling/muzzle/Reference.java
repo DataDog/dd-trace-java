@@ -73,6 +73,7 @@ public class Reference {
   public static final int EXPECTS_NON_STATIC = 16;
   public static final int EXPECTS_INTERFACE = 32;
   public static final int EXPECTS_NON_INTERFACE = 64;
+  public static final int EXPECTS_NON_FINAL = 128;
 
   public static boolean matches(int flags, int modifiers) {
     if ((flags & EXPECTS_PUBLIC) != 0 && (modifiers & Opcodes.ACC_PUBLIC) == 0) {
@@ -89,6 +90,8 @@ public class Reference {
     } else if ((flags & EXPECTS_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) == 0) {
       return false;
     } else if ((flags & EXPECTS_NON_INTERFACE) != 0 && (modifiers & Opcodes.ACC_INTERFACE) != 0) {
+      return false;
+    } else if ((flags & EXPECTS_NON_FINAL) != 0 && (modifiers & Opcodes.ACC_FINAL) != 0) {
       return false;
     }
     return true;
@@ -276,16 +279,22 @@ public class Reference {
     public static class MissingMethod extends Mismatch {
       private final String className;
       private final String method;
+      private final String methodType;
 
-      public MissingMethod(final String[] sources, final String className, final String method) {
+      public MissingMethod(
+          final String[] sources,
+          final String className,
+          final String method,
+          final String methodType) {
         super(sources);
         this.className = className;
         this.method = method;
+        this.methodType = methodType;
       }
 
       @Override
       String getMismatchDetails() {
-        return "Missing method " + className + "#" + method;
+        return "Missing method " + className + "#" + method + methodType;
       }
     }
 
@@ -293,16 +302,16 @@ public class Reference {
     public static class ReferenceCheckError extends Mismatch {
       private final Exception referenceCheckException;
       private final Reference referenceBeingChecked;
-      private final ClassLoader classLoaderBeingChecked;
+      private final String location;
 
       public ReferenceCheckError(
           final Exception referenceCheckException,
           final Reference referenceBeingChecked,
-          final ClassLoader classLoaderBeingChecked) {
+          final String location) {
         super(new String[0]);
         this.referenceCheckException = referenceCheckException;
         this.referenceBeingChecked = referenceBeingChecked;
-        this.classLoaderBeingChecked = classLoaderBeingChecked;
+        this.location = location;
       }
 
       @Override
@@ -310,8 +319,8 @@ public class Reference {
         final StringWriter sw = new StringWriter();
         sw.write("Failed to generate reference check for: ");
         sw.write(referenceBeingChecked.toString());
-        sw.write(" on classloader ");
-        sw.write(classLoaderBeingChecked.toString());
+        sw.write(" at ");
+        sw.write(location);
         sw.write("\n");
         // add exception message and stack trace
         final PrintWriter pw = new PrintWriter(sw);
@@ -421,6 +430,34 @@ public class Reference {
           interfaces.toArray(new String[interfaces.size()]),
           fields.toArray(new Field[fields.size()]),
           methods.toArray(new Method[methods.size()]));
+    }
+
+    /** Builds a reference that checks the next spec if the current spec doesn't match. */
+    public Builder or() {
+      return new OrBuilder(build());
+    }
+  }
+
+  static class OrBuilder extends Builder {
+    private final Reference either;
+    private final List<Reference> ors;
+
+    OrBuilder(Reference either) {
+      super(either.className);
+      this.either = either;
+      this.ors = new ArrayList<>();
+    }
+
+    @Override
+    public Reference build() {
+      ors.add(super.build());
+      return new OrReference(either, ors.toArray(new Reference[ors.size()]));
+    }
+
+    @Override
+    public Builder or() {
+      ors.add(super.build());
+      return this;
     }
   }
 

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.java.completablefuture.CompletableFutureUniCompletionInstrumentation.*;
@@ -16,14 +16,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Described in {@link CompletableFutureUniCompletionInstrumentation} */
 @AutoService(Instrumenter.class)
-public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Tracing {
+public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Tracing
+    implements ForTypeHierarchy {
 
   public CompletableFutureUniCompletionSubclassInstrumentation() {
     super("java_completablefuture", "java_concurrent");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith(COMPLETABLE_FUTURE).and(extendsClass(named(UNI_COMPLETION)));
   }
 

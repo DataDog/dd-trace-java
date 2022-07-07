@@ -9,28 +9,29 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.catalina.connector.CoyoteAdapter;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 @AutoService(Instrumenter.class)
-public final class ResponseInstrumentation extends Instrumenter.Tracing {
+public final class ResponseInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ResponseInstrumentation() {
     super("tomcat");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.apache.catalina.connector.Response");
+  public String instrumentedType() {
+    return "org.apache.catalina.connector.Response";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RequestExtractAdapter",
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".TomcatDecorator",
       packageName + ".RequestURIDataAdapter",
     };

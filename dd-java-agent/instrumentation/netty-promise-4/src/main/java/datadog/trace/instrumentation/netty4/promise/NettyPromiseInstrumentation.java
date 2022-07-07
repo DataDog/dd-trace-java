@@ -8,11 +8,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
+public class NettyPromiseInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public NettyPromiseInstrumentation() {
     super("netty-promise");
@@ -24,8 +23,8 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.netty.util.concurrent.DefaultPromise");
+  public String instrumentedType() {
+    return "io.netty.util.concurrent.DefaultPromise";
   }
 
   @Override

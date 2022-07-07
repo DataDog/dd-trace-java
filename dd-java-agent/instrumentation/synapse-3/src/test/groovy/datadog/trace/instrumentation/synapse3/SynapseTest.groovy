@@ -122,6 +122,26 @@ class SynapseTest extends AgentTestRunner {
     statusCode == 200
   }
 
+  def "test plain request is traced with legacy operation name"() {
+    setup:
+    injectSysConfig("integration.synapse.legacy-operation-name", "true")
+    def request = new Request.Builder()
+      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService?wsdl")
+      .get()
+      .build()
+
+    when:
+    int statusCode = client.newCall(request).execute().code()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        serverSpan(it, 0, 'GET', statusCode, null, false, true)
+      }
+    }
+    statusCode == 200
+  }
+
   def "test passthru request is traced"() {
     setup:
     def request = new Request.Builder()
@@ -203,10 +223,10 @@ class SynapseTest extends AgentTestRunner {
     statusCode == 200
   }
 
-  def serverSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null, boolean distributedRootSpan = false) {
+  def serverSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null, boolean distributedRootSpan = false, boolean legacyOperationName = false) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "http.request"
+      operationName legacyOperationName ? "http.request" : "synapse.request"
       resourceName "${method} /services/SimpleStockQuoteService"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
@@ -232,7 +252,7 @@ class SynapseTest extends AgentTestRunner {
   def proxySpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
     trace.span {
       serviceName expectedServiceName()
-      operationName "http.request"
+      operationName "synapse.request"
       resourceName "${method} /services/StockQuoteProxy"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500

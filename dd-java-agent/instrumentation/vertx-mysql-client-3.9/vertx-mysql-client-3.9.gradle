@@ -25,6 +25,17 @@ testSets {
   latestDepTest {
     dirName = 'test'
   }
+
+  latestDepForkedTest {
+    extendsFrom latestDepTest
+    dirName = 'test'
+  }
+}
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
 }
 
 dependencies {
@@ -34,7 +45,11 @@ dependencies {
 
   // This is needed for the test container to start
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
-  testImplementation "org.testcontainers:mysql:1.15.1"
+  testImplementation "org.testcontainers:mysql:${versions.testcontainers}"
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '3.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
 }

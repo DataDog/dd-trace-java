@@ -21,15 +21,21 @@ subprojects { Project subProj ->
   apply plugin: 'instrument'
   apply plugin: 'muzzle'
 
+  configurations {
+    // classpath used by the instrumentation muzzle plugin
+    instrumentationMuzzle {
+      visible = false
+      canBeConsumed = false
+      canBeResolved = true
+    }
+  }
+
   instrument.plugins = [
     'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
     'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin'
   ]
 
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
-
-  // needs fetching this project's configurations.instrumentationMuzzle
-  evaluationDependsOn ':dd-java-agent:agent-tooling'
 
   subProj.afterEvaluate {
     String jdkCompile = null
@@ -62,6 +68,8 @@ subprojects { Project subProj ->
       testImplementation project(':dd-java-agent:testing')
       testAnnotationProcessor deps.autoserviceProcessor
       testCompileOnly deps.autoserviceAnnotation
+
+      instrumentationMuzzle project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentationMuzzle')
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->
@@ -72,6 +80,10 @@ subprojects { Project subProj ->
         parent_project.tasks.named(subTask.name).configure {
           dependsOn(subTask)
         }
+      }
+
+      if (subTask.name == 'latestDepTest') {
+        subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }
     }
   }
@@ -85,6 +97,8 @@ dependencies {
   implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
+  implementation project(':dd-java-agent:agent-builder')
+  implementation project(':dd-java-agent:agent-installer')
 }
 
 tasks.named('shadowJar').configure {
@@ -96,6 +110,7 @@ tasks.named('shadowJar').configure {
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(project(':internal-api:internal-api-8'))
+    exclude(project(':utils:time-utils'))
     exclude(project(':utils:socket-utils'))
     exclude(dependency('org.slf4j::'))
   }

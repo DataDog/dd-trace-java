@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.liberty20;
 
-import static datadog.trace.instrumentation.liberty20.RequestExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.liberty20.HttpServletExtractAdapter.Request;
+import static datadog.trace.instrumentation.liberty20.HttpServletExtractAdapter.Response;
 
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
@@ -38,7 +39,12 @@ public class LibertyDecorator
 
   @Override
   protected AgentPropagation.ContextVisitor<HttpServletRequest> getter() {
-    return GETTER;
+    return Request.GETTER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpServletResponse> responseGetter() {
+    return Response.GETTER;
   }
 
   @Override

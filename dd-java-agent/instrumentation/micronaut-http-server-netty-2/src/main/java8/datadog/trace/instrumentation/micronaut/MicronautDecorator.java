@@ -35,6 +35,11 @@ public class MicronautDecorator
   }
 
   @Override
+  protected AgentPropagation.ContextVisitor<MutableHttpResponse> responseGetter() {
+    return null;
+  }
+
+  @Override
   public CharSequence spanName() {
     return MICRONAUT_CONTROLLER;
   }

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
@@ -28,7 +29,6 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Instrument {@link ForkJoinTask}.
@@ -38,7 +38,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  */
 @AutoService(Instrumenter.class)
 public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public AkkaForkJoinTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
@@ -50,9 +50,9 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
-        .and(ElementMatchers.<TypeDescription>declaresMethod(namedOneOf("exec", "fork", "cancel")))
+        .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
         .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));
   }
 

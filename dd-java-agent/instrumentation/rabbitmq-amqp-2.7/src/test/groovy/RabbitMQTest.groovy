@@ -8,6 +8,7 @@ import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -25,6 +26,7 @@ import spock.lang.Shared
 import java.time.Duration
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -35,10 +37,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 abstract class RabbitMQTestBase extends AgentTestRunner {
-  /*
-   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
-   */
   @Shared
   def rabbitMQContainer
   @Shared
@@ -64,14 +62,12 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 
   def setupSpec() {
-
-    /*
-     CI will provide us with rabbitmq container running along side our build.
-     When building locally, however, we need to take matters into our own hands
-     and we use 'testcontainers' for this.
-     */
+    // Please note that Testcontainers and forked runs seem to fail for this test
+    // intermittently, both locally and on CI, so that is why we have a rabbitmq
+    // container running along side our build on CI.
+    // When building locally, however, we need to use Testcontainers.
     if ("true" != System.getenv("CI")) {
-      rabbitMQContainer = new GenericContainer('rabbitmq:latest')
+      rabbitMQContainer = new GenericContainer('rabbitmq:3.9.20-alpine')
         .withExposedPorts(defaultRabbitMQPort)
         .withStartupTimeout(Duration.ofSeconds(120))
       rabbitMQContainer.start()
@@ -80,6 +76,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
         rabbitMQContainer.getMappedPort(defaultRabbitMQPort)
         )
     }
+    PortUtils.waitForPortToOpen(rabbitmqAddress.hostString, rabbitmqAddress.port, 5, TimeUnit.SECONDS)
   }
 
   def cleanupSpec() {
@@ -90,8 +87,8 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
   def cleanup() {
     try {
-      channel.close()
-      conn.close()
+      channel?.close()
+      conn?.close()
     } catch (AlreadyClosedException e) {
       // Ignore
     }
@@ -100,6 +97,8 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   abstract String expectedServiceName()
 
   abstract boolean hasQueueSpan()
+
+  abstract boolean splitByDestination()
 
   def "test rabbit publish/get"() {
     setup:
@@ -110,22 +109,16 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
       return channel.basicGet(queueName, true)
     }
-    def expectedTraces = hasQueueSpan() ? 2 : 1
-    def expectedSpans = hasQueueSpan() ? 5 : 6
 
     expect:
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(expectedTraces) {
-      def getParentSpan = null
-      trace(expectedSpans, true) {
-        def parentSpan = span(expectedSpans - 1)
-        if (!hasQueueSpan()) {
-          rabbitSpan(it, "basic.get <generated>", false, parentSpan)
-        } else {
-          getParentSpan = span(0)
-        }
+    assertTraces(2, SORT_TRACES_BY_ID) {
+      def publishSpan = null
+      trace(5, true) {
+        publishSpan = span(0)
+        def parentSpan = span(4)
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, parentSpan)
         rabbitSpan(it, "exchange.declare", false, parentSpan)
         rabbitSpan(it, "queue.bind", false, parentSpan)
@@ -135,7 +128,11 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       if (hasQueueSpan()) {
         trace(2, true) {
           rabbitSpan(it, "basic.get <generated>", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver <generated>", true, getParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
+        }
+      } else {
+        trace(1) {
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
         }
       }
     }
@@ -155,23 +152,23 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(3) {
-      def getParentSpan = null
+    assertTraces(3, SORT_TRACES_BY_ID) {
+      def publishSpan = null
       trace(1) {
         rabbitSpan(it, "queue.declare")
       }
       trace(1) {
-        getParentSpan = span(0)
+        publishSpan = span(0)
         rabbitSpan(it, "basic.publish <default> -> <generated>")
       }
       if (hasQueueSpan()) {
         trace(2, true) {
           rabbitSpan(it, "basic.get <generated>", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver <generated>", true, getParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver <generated>", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get <generated>", true, getParentSpan)
+          rabbitSpan(it, "basic.get <generated>", true, publishSpan)
         }
       }
     }
@@ -215,7 +212,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     def resourceQueueName = messageCount % 2 == 0 ? "<generated>" : queueName
 
     expect:
-    assertTraces(4 + (messageCount * 2)) {
+    assertTraces(4 + (messageCount * 2), SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, "exchange.declare")
       }
@@ -292,7 +289,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     phaser.arriveAndAwaitAdvance()
 
     expect:
-    assertTraces(6) {
+    assertTraces(6, SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, "exchange.declare")
       }
@@ -338,7 +335,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
 
-    assertTraces(1) {
+    assertTraces(1, SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, command, false, null, throwable, errorMsg)
       }
@@ -371,23 +368,23 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     message == "foo"
 
     and:
-    assertTraces(3) {
+    assertTraces(3, SORT_TRACES_BY_ID) {
       trace(1) {
         rabbitSpan(it, "queue.declare")
       }
-      def getParentSpan = null
+      def publishSpan = null
       trace(1) {
-        getParentSpan = span(0)
+        publishSpan = span(0)
         rabbitSpan(it, "basic.publish <default> -> some-routing-queue")
       }
       if (hasQueueSpan()) {
         trace(2, true) {
           rabbitSpan(it, "basic.get ${queue.name}", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver ${queue.name}", true, getParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver ${queue.name}", true, publishSpan)
         }
       } else {
         trace(1) {
-          rabbitSpan(it, "basic.get ${queue.name}", !hasQueueSpan(), getParentSpan)
+          rabbitSpan(it, "basic.get ${queue.name}", true, publishSpan)
         }
       }
     }
@@ -426,10 +423,10 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     body == "Hello, world!"
 
     and:
-    assertTraces(expectedTraces) {
-      def typeParentSpan = null
+    assertTraces(expectedTraces, SORT_TRACES_BY_ID) {
+      def publishSpan = null
       trace(5) {
-        typeParentSpan = span(1)
+        publishSpan = span(1)
         basicSpan(it, "parent")
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
@@ -444,15 +441,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       if (hasQueueSpan() && !noParent) {
         trace(2) {
           rabbitSpan(it, "basic.$type $queueName", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver $queueName", true, typeParentSpan)
-          typeParentSpan = span(0)
+          rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
             rabbitSpan(it, "basic.$type $queueName")
           } else {
-            rabbitSpan(it, "basic.$type $queueName", !hasQueueSpan(), typeParentSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
           }
         }
       }
@@ -501,10 +497,10 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     body == "Hello, world!"
 
     and:
-    assertTraces(expectedTraces) {
-      def typeParentSpan = null
+    assertTraces(expectedTraces, SORT_TRACES_BY_ID) {
+      def publishSpan = null
       trace(5) {
-        typeParentSpan = span(1)
+        publishSpan = span(1)
         basicSpan(it, "parent")
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
@@ -519,14 +515,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       if (hasQueueSpan() && !noParent) {
         trace(2, true) {
           rabbitSpan(it, "basic.$type $queueName", false, span(1))
-          rabbitQueueSpan(it, "amqp.deliver $queueName", true, typeParentSpan)
+          rabbitQueueSpan(it, "amqp.deliver $queueName", true, publishSpan)
         }
       } else {
         trace(1) {
           if (noParent) {
             rabbitSpan(it, "basic.$type $queueName")
           } else {
-            rabbitSpan(it, "basic.$type $queueName", !hasQueueSpan(), typeParentSpan)
+            rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
           }
         }
       }
@@ -575,7 +571,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   ) {
     internalRabbitSpan(
       trace,
-      "rabbitmq",
+      splitByDestination() ? resource.replace("amqp.deliver ", "") : "rabbitmq",
       "amqp.deliver",
       resource,
       distributedRootSpan,
@@ -724,6 +720,37 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   boolean hasQueueSpan() {
     return true
   }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+}
+
+@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "RabbitMQTest")
+    injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
+    injectSysConfig("dd.message.broker.split-by-destination", "true")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "RabbitMQTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return true
+  }
 }
 
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
@@ -741,6 +768,11 @@ class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
 
   @Override
   boolean hasQueueSpan() {
+    return false
+  }
+
+  @Override
+  boolean splitByDestination() {
     return false
   }
 }

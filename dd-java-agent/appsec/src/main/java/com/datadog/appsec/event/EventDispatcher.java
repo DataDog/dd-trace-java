@@ -187,7 +187,7 @@ public class EventDispatcher implements EventProducerService {
     ChangeableFlow flow = new ChangeableFlow();
     for (int idx : ((DataSubscriberInfoImpl) subscribers).listenerIndices) {
       try {
-        dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData);
+        dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData, isTransient);
       } catch (RuntimeException rte) {
         log.warn("AppSec callback exception", rte);
       }

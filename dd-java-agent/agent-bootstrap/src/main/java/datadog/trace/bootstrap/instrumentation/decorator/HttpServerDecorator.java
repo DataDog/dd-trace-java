@@ -7,8 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
+import datadog.trace.api.function.Function;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -24,11 +24,12 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.BitSet;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER>
+public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER>
     extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
@@ -48,7 +49,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
-  protected abstract AgentPropagation.ContextVisitor<CARRIER> getter();
+  protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
+
+  protected abstract AgentPropagation.ContextVisitor<RESPONSE> responseGetter();
 
   public abstract CharSequence spanName();
 
@@ -77,18 +80,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
     return AgentTracer.get();
   }
 
-  public AgentSpan.Context.Extracted extract(CARRIER carrier) {
-    AgentPropagation.ContextVisitor<CARRIER> getter = getter();
+  public AgentSpan.Context.Extracted extract(REQUEST_CARRIER carrier) {
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
       return null;
     }
     return tracer().propagate().extract(carrier, getter);
   }
 
-  public AgentSpan startSpan(CARRIER carrier, AgentSpan.Context.Extracted context) {
+  public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
     AgentSpan span =
         tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
-    callIGCallbackHeaders(span, carrier);
+    callIGCallbackRequestHeaders(span, carrier);
     return span;
   }
 
@@ -189,17 +192,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
         span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
       }
 
-      CallbackProvider cbp = tracer().instrumentationGateway();
-      if (null != cbp) {
-        RequestContext<Object> ctx = span.getRequestContext();
-        if (ctx != null) {
-          BiFunction<RequestContext<Object>, Integer, Flow<Void>> addrCallback =
-              cbp.getCallback(EVENTS.responseStarted());
-          if (null != addrCallback) {
-            addrCallback.apply(ctx, status);
-          }
+      AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
+      if (getter != null) {
+        ResponseHeaderTagClassifier tagger =
+            ResponseHeaderTagClassifier.create(span, Config.get().getResponseHeaderTags());
+        if (tagger != null) {
+          getter.forEachKey(response, tagger);
         }
       }
+
+      callIGCallbackResponseAndHeaders(span, response, status);
     }
     return span;
   }
@@ -238,10 +240,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
     return context;
   }
 
-  private void callIGCallbackHeaders(AgentSpan span, CARRIER carrier) {
+  private void callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
     CallbackProvider cbp = tracer().instrumentationGateway();
     RequestContext<Object> requestContext = span.getRequestContext();
-    AgentPropagation.ContextVisitor<CARRIER> getter = getter();
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (requestContext == null || cbp == null || getter == null) {
       return;
     }
@@ -250,6 +252,32 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
             requestContext,
             cbp.getCallback(EVENTS.requestHeader()),
             cbp.getCallback(EVENTS.requestHeaderDone()));
+    if (null != igKeyClassifier) {
+      getter.forEachKey(carrier, igKeyClassifier);
+      igKeyClassifier.done();
+    }
+  }
+
+  private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
+    CallbackProvider cbp = tracer().instrumentationGateway();
+    RequestContext<Object> requestContext = span.getRequestContext();
+    if (cbp == null || requestContext == null) {
+      return;
+    }
+    BiFunction<RequestContext<Object>, Integer, Flow<Void>> addrCallback =
+        cbp.getCallback(EVENTS.responseStarted());
+    if (null != addrCallback) {
+      addrCallback.apply(requestContext, status);
+    }
+    AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
+    if (getter == null) {
+      return;
+    }
+    IGKeyClassifier igKeyClassifier =
+        IGKeyClassifier.create(
+            requestContext,
+            cbp.getCallback(EVENTS.responseHeader()),
+            cbp.getCallback(EVENTS.responseHeaderDone()));
     if (null != igKeyClassifier) {
       getter.forEachKey(carrier, igKeyClassifier);
       igKeyClassifier.done();
@@ -346,6 +374,33 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
       if (null != doneCallback) {
         doneCallback.apply(requestContext);
       }
+    }
+  }
+
+  private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
+    static final ResponseHeaderTagClassifier create(
+        AgentSpan span, Map<String, String> headerTags) {
+      if (span == null || headerTags == null || headerTags.isEmpty()) {
+        return null;
+      }
+      return new ResponseHeaderTagClassifier(span, headerTags);
+    }
+
+    private final AgentSpan span;
+    private final Map<String, String> headerTags;
+
+    public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
+      this.span = span;
+      this.headerTags = headerTags;
+    }
+
+    @Override
+    public boolean accept(String key, String value) {
+      String mappedKey = headerTags.get(key.toLowerCase());
+      if (mappedKey != null) {
+        span.setTag(mappedKey, value);
+      }
+      return true;
     }
   }
 }

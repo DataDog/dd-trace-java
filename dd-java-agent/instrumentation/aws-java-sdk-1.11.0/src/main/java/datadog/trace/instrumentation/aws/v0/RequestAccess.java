@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v0;
 
-import datadog.trace.api.Function;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.function.Function;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;

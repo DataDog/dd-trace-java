@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
@@ -16,7 +17,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet2Instrumentation extends Instrumenter.Tracing {
+public final class Servlet2Instrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public Servlet2Instrumentation() {
     super("servlet", "servlet-2");
@@ -34,9 +36,9 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(
-        namedOneOf("javax.servlet.FilterChain", "javax.servlet.http.HttpServlet"));
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named("javax.servlet.http.HttpServlet"))
+        .or(implementsInterface(named("javax.servlet.FilterChain")));
   }
 
   @Override

@@ -23,7 +23,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   private final Handler<RoutingContext> actual;
 
   public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
-    log.info("Wrapping {}", handler.getClass().getName());
     actual = handler;
   }
 
@@ -62,9 +61,15 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
   private void updateRoutingContextWithRoute(RoutingContext routingContext) {
     final String method = routingContext.request().rawMethod();
-    final String mountPoint = routingContext.mountPoint();
+    String mountPoint = routingContext.mountPoint();
     String path = routingContext.currentRoute().getPath();
-    if (mountPoint != null) {
+    if (mountPoint != null && !mountPoint.isEmpty()) {
+      if (mountPoint.charAt(mountPoint.length() - 1) == '/'
+          && path != null
+          && !path.isEmpty()
+          && path.charAt(0) == '/') {
+        mountPoint = mountPoint.substring(0, mountPoint.length() - 1);
+      }
       path = mountPoint + path;
     }
     if (method != null && path != null) {

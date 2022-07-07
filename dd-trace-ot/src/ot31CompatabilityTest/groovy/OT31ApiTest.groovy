@@ -81,16 +81,17 @@ class OT31ApiTest extends DDSpecification {
 
     when:
     def span = customTracer.buildSpan("some name").start()
-    def scope = customTracer.scopeManager().activate(span)
+    def scope = customTracer.scopeManager().activate(span, false)
 
     then:
-    customTracer.activeSpan().delegate == span.delegate
+    customTracer.scopeManager().active().span().delegate == span.delegate
     coreTracer.activeScope().span() == span.delegate
     coreTracer.activeSpan() == span.delegate
 
     cleanup:
     scope.close()
     span.finish()
+    customTracer.close()
   }
 
   def "test inject extract"() {

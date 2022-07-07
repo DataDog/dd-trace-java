@@ -1,0 +1,23 @@
+// Set properties before any plugins get loaded
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+// We do not publish separate jar, but having version file is useful
+apply from: "$rootDir/gradle/version.gradle"
+
+// Most of the classes are just object model
+// Those which needs test coverage, test classes are in agent-debugger project
+// to avoid pull dependencies
+minimumInstructionCoverage = 0.0
+minimumBranchCoverage = 0.0
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+dependencies {
+  implementation deps.slf4j
+  implementation project(':internal-api:internal-api-8')
+}

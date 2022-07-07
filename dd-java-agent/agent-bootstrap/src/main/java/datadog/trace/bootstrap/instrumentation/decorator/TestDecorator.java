@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
@@ -85,7 +85,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
   @Override
   protected CharSequence spanType() {
-    return DDSpanTypes.TEST;
+    return InternalSpanTypes.TEST;
   }
 
   @Override

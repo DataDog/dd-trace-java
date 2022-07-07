@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
@@ -23,8 +22,6 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Instruments classes used internally by {@code CompletableFuture} which are double instrumented as
@@ -34,7 +31,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(Instrumenter.class)
 public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForKnownTypes, ExcludeFilterProvider {
 
   private static final String[] CLASS_NAMES = {
     "java.util.concurrent.CompletableFuture$AsyncSupply",
@@ -46,8 +43,8 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(CLASS_NAMES);
+  public String[] knownMatchingTypes() {
+    return CLASS_NAMES;
   }
 
   @Override

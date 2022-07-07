@@ -117,7 +117,7 @@ class IntervalValidator extends AbstractValidator {
       }
       if (it.state != IntervalState.INACTIVE) {
         if ((it.startTick <= interval.startTick && it.endTick >= interval.startTick && it.endTick <= tick) ||
-        (it.endTick >= tick && it.startTick >= interval.startTick && it.startTick <= tick)) {
+          (it.endTick >= tick && it.startTick >= interval.startTick && it.startTick <= tick)) {
           return Result.FAILED.withMessage("Overlapping spans: ${spanId}, ${it.spanId}")
         }
       }

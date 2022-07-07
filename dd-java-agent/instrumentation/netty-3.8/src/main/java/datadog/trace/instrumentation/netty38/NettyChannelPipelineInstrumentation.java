@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.netty38;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -21,7 +21,8 @@ import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
+public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   static final String INSTRUMENTATION_NAME = "netty";
   static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-3.8"};
@@ -37,7 +38,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.jboss.netty.channel.ChannelPipeline"));
   }
 
@@ -57,6 +58,7 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
       packageName + ".client.HttpClientResponseTracingHandler",
       packageName + ".client.HttpClientTracingHandler",
       // server helpers
+      packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",

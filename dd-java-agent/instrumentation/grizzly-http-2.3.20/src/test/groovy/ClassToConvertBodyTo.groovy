@@ -1,0 +1,3 @@
+class ClassToConvertBodyTo {
+  String a
+}

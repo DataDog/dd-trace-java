@@ -32,9 +32,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides memcached externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+// Do not run tests on Java7 since testcontainers are not compatible with Java7
+@Requires({ jvm.java8Compatible })
 class SpymemcachedTest extends AgentTestRunner {
 
   @Shared
@@ -48,10 +47,6 @@ class SpymemcachedTest extends AgentTestRunner {
   @Shared
   def timingOutMemcachedOpTimeout = 1000
 
-  /*
-   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
-   */
   @Shared
   def memcachedContainer
   @Shared
@@ -66,22 +61,14 @@ class SpymemcachedTest extends AgentTestRunner {
   }
 
   def setupSpec() {
-
-    /*
-     CI will provide us with memcached container running along side our build.
-     When building locally, however, we need to take matters into our own hands
-     and we use 'testcontainers' for this.
-     */
-    if ("true" != System.getenv("CI")) {
-      memcachedContainer = new GenericContainer('memcached:latest')
-        .withExposedPorts(defaultMemcachedPort)
-        .withStartupTimeout(Duration.ofSeconds(120))
-      memcachedContainer.start()
-      memcachedAddress = new InetSocketAddress(
-        memcachedContainer.containerIpAddress,
-        memcachedContainer.getMappedPort(defaultMemcachedPort)
-        )
-    }
+    memcachedContainer = new GenericContainer('memcached:1.6.14-alpine')
+      .withExposedPorts(defaultMemcachedPort)
+      .withStartupTimeout(Duration.ofSeconds(120))
+    memcachedContainer.start()
+    memcachedAddress = new InetSocketAddress(
+      memcachedContainer.getHost(),
+      memcachedContainer.getMappedPort(defaultMemcachedPort)
+      )
   }
 
   def cleanupSpec() {

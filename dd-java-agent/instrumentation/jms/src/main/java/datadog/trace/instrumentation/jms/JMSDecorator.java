@@ -3,12 +3,11 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.Function;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -33,6 +32,9 @@ public final class JMSDecorator extends MessagingClientDecorator {
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
   public static final boolean JMS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "jms");
+
+  public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
+  public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
@@ -73,8 +75,8 @@ public final class JMSDecorator extends MessagingClientDecorator {
       new JMSDecorator(
           "",
           Tags.SPAN_KIND_BROKER,
-          DDSpanTypes.MESSAGE_BROKER,
-          null /* will be set per-queue or topic */);
+          InternalSpanTypes.MESSAGE_BROKER,
+          null /* service name will be set later on */);
 
   public JMSDecorator(
       String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {

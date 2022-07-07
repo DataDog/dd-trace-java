@@ -10,19 +10,18 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import javax.ws.rs.ProcessingException;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.jersey.client.ClientRequest;
 
 @AutoService(Instrumenter.class)
-public class ClientRuntimeInstrumentation extends Instrumenter.Tracing {
+public class ClientRuntimeInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public ClientRuntimeInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.jersey.client.ClientRuntime");
+  public String instrumentedType() {
+    return "org.glassfish.jersey.client.ClientRuntime";
   }
 
   @Override

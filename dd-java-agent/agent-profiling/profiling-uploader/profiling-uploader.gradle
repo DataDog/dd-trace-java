@@ -30,7 +30,7 @@ dependencies {
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
   implementation deps.okhttp
-  implementation group: 'com.github.jnr', name: 'jnr-posix', version: '3.0.52'
+  implementation group: 'com.github.jnr', name: 'jnr-posix', version: '3.1.15'
   implementation group: 'org.lz4', name: 'lz4-java', version: '1.7.1'
 
   testImplementation deps.junit5

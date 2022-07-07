@@ -325,7 +325,16 @@ public class MsgPackWriter implements WritableFormatter {
 
   @Override
   public void writeLong(long value) {
-    if (value < 0) {
+    writeLongInternal(value, false);
+  }
+
+  @Override
+  public void writeUnsignedLong(long value) {
+    writeLongInternal(value, true);
+  }
+
+  public void writeLongInternal(long value, boolean forceUnsigned) {
+    if (value < 0 && !forceUnsigned) {
       switch (Long.numberOfLeadingZeros(~value)) {
         case 0:
         case 1:

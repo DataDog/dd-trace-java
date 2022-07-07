@@ -15,12 +15,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.grizzly.http.server.Request;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
+public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public GrizzlyHttpHandlerInstrumentation() {
     super("grizzly");
@@ -32,15 +31,17 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.server.HttpHandler");
+  public String instrumentedType() {
+    return "org.glassfish.grizzly.http.server.HttpHandler";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".GrizzlyDecorator",
-      packageName + ".GrizzlyRequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
       packageName + ".SpanClosingListener"
     };

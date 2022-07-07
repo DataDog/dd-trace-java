@@ -16,10 +16,13 @@ dependencies {
   api deps.slf4j
   api project(':internal-api')
 
+  implementation project(path: ':dd-java-agent:agent-profiling:profiling-async', configuration: 'shadow')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation project(path: ':dd-java-agent:agent-profiling:profiling-auxiliary-async', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-auxiliary-async')
+  api project(':dd-java-agent:agent-profiling:profiling-context')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-async')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
 }
@@ -42,7 +45,20 @@ shadowJar {
     exclude(project(':internal-api'))
     exclude(project(':internal-api:internal-api-8'))
     exclude(project(':utils:socket-utils'))
+    exclude(project(':utils:time-utils'))
     exclude(dependency('org.slf4j::'))
+  }
+  exclude {
+    if (it.path.startsWith('org/jctools/')) {
+      def ret = true
+      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps')) {
+        ret = false
+      } else {
+        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') || it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap'))
+      }
+      return ret
+    }
+    return false
   }
 }
 

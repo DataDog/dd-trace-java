@@ -19,15 +19,15 @@ gradlePlugin {
 
 repositories {
   mavenLocal()
-  jcenter()
   mavenCentral()
+  gradlePluginPortal()
 }
 
 dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.12.0")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.12.12")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -37,8 +37,8 @@ dependencies {
   implementation("org.ow2.asm", "asm", "9.0")
   implementation("org.ow2.asm", "asm-tree", "9.0")
 
-  testImplementation("org.spockframework", "spock-core", "2.0-M4-groovy-2.5")
-  testImplementation("org.codehaus.groovy", "groovy-all", "2.5.13")
+  testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
+  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.9")
 }
 
 tasks.test {

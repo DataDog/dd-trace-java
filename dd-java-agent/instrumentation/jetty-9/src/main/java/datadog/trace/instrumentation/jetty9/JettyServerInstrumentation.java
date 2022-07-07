@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.jetty9;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
-import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -23,29 +23,30 @@ import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
-    implements ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public JettyServerInstrumentation() {
     super("jetty");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.server.HttpChannel");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.server.HttpChannel";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
-      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }
@@ -62,9 +63,9 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
                         // (without the risk of double instrumenting).
                         named("run")
                             .and(
-                                new ElementMatcher.Junction.AbstractBase<MethodDescription>() {
+                                new ElementMatcher.Junction.ForNonNullValues<MethodDescription>() {
                                   @Override
-                                  public boolean matches(MethodDescription target) {
+                                  protected boolean doMatch(MethodDescription target) {
                                     // TODO this could probably be made into a nicer matcher.
                                     return !declaresMethod(named("handle"))
                                         .matches(target.getDeclaringType().asErasure());

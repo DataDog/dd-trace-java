@@ -1,5 +1,6 @@
 package server
 
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -9,14 +10,19 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
 import ratpack.error.ServerErrorHandler
+import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.Context
+import ratpack.handling.HandlerDecorator
 import ratpack.test.embed.EmbeddedApp
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -34,6 +40,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
       }
       bindings {
         bind TestErrorHandler
+        multiBindInstance(HandlerDecorator, HandlerDecorator.prepend(new ResponseHeaderDecorator()))
       }
       handlers {
         prefix(SUCCESS.relativeRawPath()) {
@@ -49,6 +56,31 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
               request.body.then { typedData ->
                 response.status(CREATED.status)
                   .send('text/plain', "${CREATED.body}: ${typedData.text}")
+              }
+            }
+          }
+        }
+        get('path/:id/param') {
+          controller(PATH_PARAM) {
+            context.response.status(PATH_PARAM.status).send('text/plain', context.pathTokens['id'])
+          }
+        }
+        prefix(BODY_URLENCODED.relativeRawPath()) {
+          all {
+            controller(BODY_URLENCODED) {
+              context.parse(Form).then { form ->
+                def text = form.findAll { it.key != 'ignore'}
+                .collectEntries {[it.key, it.value as List]} as String
+                response.status(BODY_URLENCODED.status).send('text/plain', text)
+              }
+            }
+          }
+        }
+        prefix(BODY_JSON.relativeRawPath()) {
+          all {
+            controller(BODY_JSON) {
+              context.parse(Map).then { map ->
+                response.status(BODY_JSON.status).send('text/plain', "{\"a\":\"${map['a']}\"}")
               }
             }
           }
@@ -124,12 +156,41 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint == PATH_PARAM) {
+      'GET /path/:id/param'
+    } else {
+      super.expectedResourceName(endpoint, method, address)
+    }
+  }
+
+  @Override
+  Map<String, ?> expectedIGPathParams() {
+    [id: '123']
+  }
+
+  @Override
   boolean hasHandlerSpan() {
     true
   }
 
   @Override
   boolean testRequestBody() {
+    true
+  }
+
+  @Override
+  boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyJson() {
+    true
+  }
+
+  @Override
+  String testPathParam() {
     true
   }
 

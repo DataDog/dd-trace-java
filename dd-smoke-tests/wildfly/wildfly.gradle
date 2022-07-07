@@ -23,17 +23,24 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Wildfly Smoke Tests.'
 
+configurations {
+  serverFile {
+    extendsFrom implementation
+    canBeResolved = true
+  }
+}
+
 dependencies {
   // uses the ivy repository url to download the wildfly servlet zip
   // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
-  compile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
+  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
 
   testImplementation project(':dd-smoke-tests')
 }
 
 tasks.register("unzip", Copy) {
   def zipFileNamePrefix = "servlet"
-  def zipPath = project.configurations.compile.find {
+  def zipPath = project.configurations.serverFile.find {
     it.name.startsWith(zipFileNamePrefix)
   }
   if (zipPath != null) {

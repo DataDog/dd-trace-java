@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
-import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_REQUEST;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -15,27 +14,29 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(Instrumenter.class)
-public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
+public final class SynapseServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public SynapseServerInstrumentation() {
     super("synapse3-server", "synapse3");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.synapse.transport.passthru.SourceHandler");
+  public String instrumentedType() {
+    return "org.apache.synapse.transport.passthru.SourceHandler";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpRequestExtractAdapter", packageName + ".SynapseServerDecorator",
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
+      packageName + ".SynapseServerDecorator",
     };
   }
 
@@ -71,7 +72,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
       if (null != extractedContext) {
         span = DECORATE.startSpan(request, extractedContext);
       } else {
-        span = startSpan(SYNAPSE_REQUEST);
+        span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
       }
       DECORATE.afterStart(span);

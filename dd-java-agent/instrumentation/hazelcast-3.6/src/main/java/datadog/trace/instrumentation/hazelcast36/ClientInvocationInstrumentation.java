@@ -14,11 +14,10 @@ import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
+public class ClientInvocationInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public ClientInvocationInstrumentation() {
     super("hazelcast_legacy");
@@ -39,8 +38,8 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.hazelcast.client.spi.impl.ClientInvocation");
+  public String instrumentedType() {
+    return "com.hazelcast.client.spi.impl.ClientInvocation";
   }
 
   @Override

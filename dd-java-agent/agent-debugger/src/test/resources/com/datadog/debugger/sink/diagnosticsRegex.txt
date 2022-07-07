@@ -1,0 +1,11 @@
+\[\{
+"ddsource":"dd_debugger",
+"debugger":\{
+"diagnostics":\{
+"probeId":"\d",
+"status":"RECEIVED"
+\}
+\},
+"message":"Received probe \d.",
+"service":"service-name"
+\}\]

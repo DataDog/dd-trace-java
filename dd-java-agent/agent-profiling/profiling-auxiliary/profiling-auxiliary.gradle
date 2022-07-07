@@ -4,19 +4,19 @@ apply from: "$rootDir/gradle/java.gradle"
 //minimumInstructionCoverage = 0.8
 minimumBranchCoverage = 0.7
 
-excludedClassesCoverage += [// an enum with no additional functionality
-  'com.datadog.profiling.auxiliary.ProfilingMode']
+excludedClassesCoverage += []
 
 dependencies {
   api deps.slf4j
   api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-utils')
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
   testImplementation deps.junit5
   testImplementation deps.mockito
-  testCompile deps.autoserviceAnnotation
+  testImplementation deps.autoserviceAnnotation
   testAnnotationProcessor deps.autoserviceProcessor
 }
 

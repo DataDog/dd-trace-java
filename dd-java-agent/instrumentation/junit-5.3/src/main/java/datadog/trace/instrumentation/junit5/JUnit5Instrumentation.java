@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -18,14 +18,15 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.junit.platform.launcher.Launcher;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
+public class JUnit5Instrumentation extends Instrumenter.CiVisibility
+    implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5Instrumentation() {
     super("junit", "junit-5");
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.junit.platform.launcher.Launcher"))
         .and(not(named("org.junit.platform.launcher.core.DefaultLauncherSession$ClosedLauncher")));
   }

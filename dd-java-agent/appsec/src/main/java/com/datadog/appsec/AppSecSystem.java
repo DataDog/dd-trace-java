@@ -1,21 +1,22 @@
 package com.datadog.appsec;
 
-import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.gateway.GatewayBridge;
+import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.fleet.FleetService;
 import datadog.communication.fleet.FleetServiceImpl;
+import datadog.communication.monitor.Counter;
+import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.ServiceLoader;
+import datadog.trace.util.Strings;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +25,8 @@ public class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
-  private static final List<String> STARTED_MODULE_NAMES = new ArrayList<>();
-  private static AppSecConfigService APP_SEC_CONFIG_SERVICE;
+  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
+  private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -44,7 +45,7 @@ public class AppSecSystem {
       log.debug("AppSec: disabled");
       return;
     }
-    log.info("AppSec has started");
+    log.debug("AppSec has started");
 
     //  TODO: FleetService should be shared with other components
     FleetService fleetService =
@@ -59,12 +60,34 @@ public class AppSecSystem {
 
     EventDispatcher eventDispatcher = new EventDispatcher();
     sco.createRemaining(config);
-    GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher);
+    RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
+    GatewayBridge gatewayBridge =
+        new GatewayBridge(
+            gw,
+            eventDispatcher,
+            rateLimiter,
+            config.getAppSecIpAddrHeader(),
+            APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);
     gatewayBridge.init();
 
     STARTED.set(true);
+
+    String startedAppSecModules = Strings.join(", ", STARTED_MODULES_INFO.values());
+    log.info("AppSec has started with {}", startedAppSecModules);
+  }
+
+  private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
+    RateLimiter rateLimiter = null;
+    int appSecTraceRateLimit = config.getAppSecTraceRateLimit();
+    if (appSecTraceRateLimit > 0) {
+      Counter counter = monitoring.newCounter("_dd.java.appsec.rate_limit.dropped_traces");
+      rateLimiter =
+          new RateLimiter(
+              appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
+    }
+    return rateLimiter;
   }
 
   public static void stop() {
@@ -84,7 +107,7 @@ public class AppSecSystem {
     ServiceLoader<AppSecModule> modules =
         ServiceLoader.load(AppSecModule.class, AppSecSystem.class.getClassLoader());
     for (AppSecModule module : modules) {
-      log.info("Starting appsec module {}", module.getName());
+      log.debug("Starting appsec module {}", module.getName());
       try {
         module.config(APP_SEC_CONFIG_SERVICE);
       } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
@@ -92,6 +115,8 @@ public class AppSecSystem {
         continue;
       }
 
+      // TODO: the set needs to be updated upon runtime module reconfiguration (when supported)
+      //       (and the subscription caches invalidated)
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
         eventSubscriptionSet.addSubscription(sub.eventType, sub);
       }
@@ -100,7 +125,7 @@ public class AppSecSystem {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
 
-      STARTED_MODULE_NAMES.add(module.getName());
+      STARTED_MODULES_INFO.put(module.getName(), module.getInfo());
     }
 
     eventDispatcher.subscribeEvents(eventSubscriptionSet);
@@ -111,11 +136,11 @@ public class AppSecSystem {
     return STARTED.get();
   }
 
-  public static List<String> getStartedModuleNames() {
+  public static Set<String> getStartedModulesInfo() {
     if (isStarted()) {
-      return Collections.unmodifiableList(STARTED_MODULE_NAMES);
+      return Collections.unmodifiableSet(STARTED_MODULES_INFO.keySet());
     } else {
-      return Collections.emptyList();
+      return Collections.emptySet();
     }
   }
 }

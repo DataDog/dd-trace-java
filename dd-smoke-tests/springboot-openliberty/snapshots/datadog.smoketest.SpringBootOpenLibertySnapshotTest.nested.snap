@@ -66,6 +66,7 @@
                    "http.method" "GET"
                    "peer.hostname" "localhost"}
             "metrics" {"_dd.measured" 1
+                       "_sampling_priority_v1" 1
                       "peer.port" 57690
                       "thread.id" 58}}
               {"name" "servlet.request"
@@ -114,4 +115,5 @@
                            "component" "spring-web-controller"
                            "span.kind" "server"}
                    "metrics" {"_dd.measured" 1
+                              "_sampling_priority_v1" 1
                               "thread.id" 47}}]]

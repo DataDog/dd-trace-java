@@ -17,30 +17,31 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.http.Generator;
 import org.eclipse.jetty.server.AbstractHttpConnection;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 @AutoService(Instrumenter.class)
-public final class JettyServerInstrumentation extends Instrumenter.Tracing {
+public final class JettyServerInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
 
   public JettyServerInstrumentation() {
     super("jetty");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.server.AbstractHttpConnection");
+  public String instrumentedType() {
+    return "org.eclipse.jetty.server.AbstractHttpConnection";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
-      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }

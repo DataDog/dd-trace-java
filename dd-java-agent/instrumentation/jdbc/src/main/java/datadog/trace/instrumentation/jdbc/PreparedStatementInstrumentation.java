@@ -1,16 +1,12 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class PreparedStatementInstrumentation
-    extends AbstractPreparedStatementInstrumentation {
+public final class PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
+    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift
@@ -97,24 +93,39 @@ public final class PreparedStatementInstrumentation
     "org.sqlite.PrepStmt",
     // covers snowflake
     "net.snowflake.client.jdbc.SnowflakePreparedStatementV1",
+    // vertica
+    "com.vertica.jdbc.common.SPreparedStatement",
+    // this covers apache calcite/drill plus the drill-all uber-jar
+    "org.apache.calcite.avatica.AvaticaPreparedStatement",
+    "oadd.org.apache.calcite.avatica.AvaticaPreparedStatement",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",
     // SAP HANA in-memory DB
     "com.sap.db.jdbc.PreparedStatementSapDB",
     "com.sap.db.jdbc.CallableStatementSapDB",
+    // aws-mysql-jdbc
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.CallableStatement",
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ClientPreparedStatement",
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.PreparedStatement",
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ServerPreparedStatement",
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.JdbcCallableStatement",
     // for testing purposes
-    "test.TestPreparedStatement",
-    // this won't match any classes unless set
-    Config.get().getJdbcPreparedStatementClassName()
+    "test.TestPreparedStatement"
   };
+
+  @Override
+  public String configuredMatchingType() {
+    // this won't match any class unless the property is set
+    return Config.get().getJdbcPreparedStatementClassName();
+  }
 
   public PreparedStatementInstrumentation() {
     super("jdbc");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(CONCRETE_TYPES);
+  public String[] knownMatchingTypes() {
+    return CONCRETE_TYPES;
   }
 }

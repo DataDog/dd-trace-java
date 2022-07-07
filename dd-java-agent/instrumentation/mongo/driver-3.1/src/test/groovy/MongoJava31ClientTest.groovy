@@ -4,6 +4,10 @@ import com.mongodb.MongoTimeoutException
 import com.mongodb.ServerAddress
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.event.CommandFailedEvent
+import com.mongodb.event.CommandListener
+import com.mongodb.event.CommandStartedEvent
+import com.mongodb.event.CommandSucceededEvent
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -16,6 +20,7 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class MongoJava31ClientTest extends MongoBaseTest {
 
@@ -26,6 +31,17 @@ class MongoJava31ClientTest extends MongoBaseTest {
     client = new MongoClient(new ServerAddress("localhost", port),
       MongoClientOptions.builder()
       .description("some-description")
+      .addCommandListener(new CommandListener() {
+        @Override
+        void commandStarted(CommandStartedEvent event) {
+        }
+        @Override
+        void commandSucceeded(CommandSucceededEvent event) {
+        }
+        @Override
+        void commandFailed(CommandFailedEvent event) {
+        }
+      })
       .build())
   }
 
@@ -93,12 +109,14 @@ class MongoJava31ClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -121,14 +139,16 @@ class MongoJava31ClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       def coll = db.getCollection(collectionName)
       coll.insertOne(new Document("password", "OLDPW"))
       return coll
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -154,14 +174,16 @@ class MongoJava31ClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       def coll = db.getCollection(collectionName)
       coll.insertOne(new Document("password", "SECRET"))
       return coll
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:
@@ -185,12 +207,14 @@ class MongoJava31ClientTest extends MongoBaseTest {
 
   def "test error"() {
     setup:
+    DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitUntilReported(setupSpan)
     TEST_WRITER.clear()
 
     when:

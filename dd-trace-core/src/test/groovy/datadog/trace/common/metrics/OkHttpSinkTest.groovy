@@ -13,7 +13,6 @@ import spock.lang.Requires
 import java.nio.ByteBuffer
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
@@ -34,7 +33,7 @@ class OkHttpSinkTest extends DDSpecification {
     String path = V6_METRICS_ENDPOINT
     EventListener listener = Mock(EventListener)
     OkHttpClient client = Mock(OkHttpClient)
-    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true)
+    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
     sink.register(listener)
 
     when:
@@ -68,8 +67,7 @@ class OkHttpSinkTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(2)
     EventListener listener = new BlockingListener(latch)
     OkHttpClient client = Mock(OkHttpClient)
-    OkHttpSink sink = new OkHttpSink(client, agentUrl, path,
-      TimeUnit.MILLISECONDS.toNanos(100), true)
+    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
     sink.register(listener)
     AtomicBoolean first = new AtomicBoolean(true)
 
@@ -80,7 +78,7 @@ class OkHttpSinkTest extends DDSpecification {
     then: "the second request degrades to async mode"
     2 * client.newCall(_) >> { Request request ->
       if (first.compareAndSet(true, false)) {
-        Thread.sleep(101)
+        Thread.sleep(1001)
       } else {
         assert sink.isInDegradedMode()
       }

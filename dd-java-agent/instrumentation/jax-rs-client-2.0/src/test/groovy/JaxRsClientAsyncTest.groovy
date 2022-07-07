@@ -7,6 +7,7 @@ import org.glassfish.jersey.client.ClientConfig
 import org.glassfish.jersey.client.ClientProperties
 import org.glassfish.jersey.client.JerseyClientBuilder
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
+import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
 import javax.ws.rs.client.AsyncInvoker
@@ -49,7 +50,13 @@ abstract class JaxRsClientAsyncTest extends HttpClientTest {
       }).get()
 
     latch.await()
-    return response.status
+    def status = response.status
+    // Sometimes tests fail with one extra span, that is a duplicate of the server
+    // span, and there seems to be an issue with intermittent _double_ requests, and
+    // closing the response is a fix according to this:
+    // https://github.com/folkol/intermittent-duplicate-requests-from-jersey-client
+    response.close()
+    return status
   }
 
   @Override
@@ -97,6 +104,11 @@ class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
 }
 
 @Timeout(5)
+@IgnoreIf({
+  // TODO Java 17: This version of apache-cxf doesn't work on Java 17
+  //  exception in org.apache.cxf.common.util.ReflectionUtil
+  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+})
 class CxfClientAsyncTest extends JaxRsClientAsyncTest {
 
   @Override

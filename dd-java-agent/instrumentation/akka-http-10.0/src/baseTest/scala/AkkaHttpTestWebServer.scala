@@ -4,6 +4,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.settings.ServerSettings
@@ -166,47 +167,52 @@ object AkkaHttpTestWebServer {
     )
   }
 
+  private val defaultHeader =
+    RawHeader(HttpServerTest.getIG_RESPONSE_HEADER, HttpServerTest.getIG_RESPONSE_HEADER_VALUE)
+
   def route(implicit ec: ExecutionContext): Route = withController {
-    get {
-      path(SUCCESS.relativePath) {
-        complete(
-          HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
-        )
-      } ~ path(FORWARDED.relativePath) {
-        headerValueByName("x-forwarded-for") { address =>
+    respondWithDefaultHeader(defaultHeader) {
+      get {
+        path(SUCCESS.relativePath) {
           complete(
-            HttpResponse(status = FORWARDED.getStatus, entity = address)
+            HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
           )
-        }
-      } ~ path(
-        QUERY_PARAM.relativePath | QUERY_ENCODED_BOTH.relativePath | QUERY_ENCODED_QUERY.relativePath
-      ) {
-        parameter("some") { query =>
-          complete(
-            HttpResponse(
-              status = QUERY_PARAM.getStatus,
-              entity = s"some=$query"
+        } ~ path(FORWARDED.relativePath) {
+          headerValueByName("x-forwarded-for") { address =>
+            complete(
+              HttpResponse(status = FORWARDED.getStatus, entity = address)
             )
-          )
-        }
-      } ~ path(REDIRECT.relativePath) {
-        redirect(Uri(REDIRECT.getBody), StatusCodes.Found)
-      } ~ path(ERROR.relativePath) {
-        complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
-      } ~ path(EXCEPTION.relativePath) {
-        throw new Exception(EXCEPTION.getBody)
-      } ~ pathPrefix("injected-id") {
-        path("ping" / IntNumber) { id =>
-          val traceId = AgentTracer.activeSpan().getTraceId
-          complete(s"pong $id -> $traceId")
-        } ~ path("fing" / IntNumber) { id =>
-          // force the response to happen on another thread or in another context
-          onSuccess(Future {
-            Thread.sleep(10);
-            id
-          }) { fid =>
+          }
+        } ~ path(
+          QUERY_PARAM.relativePath | QUERY_ENCODED_BOTH.relativePath | QUERY_ENCODED_QUERY.relativePath
+        ) {
+          parameter("some") { query =>
+            complete(
+              HttpResponse(
+                status = QUERY_PARAM.getStatus,
+                entity = s"some=$query"
+              )
+            )
+          }
+        } ~ path(REDIRECT.relativePath) {
+          redirect(Uri(REDIRECT.getBody), StatusCodes.Found)
+        } ~ path(ERROR.relativePath) {
+          complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
+        } ~ path(EXCEPTION.relativePath) {
+          throw new Exception(EXCEPTION.getBody)
+        } ~ pathPrefix("injected-id") {
+          path("ping" / IntNumber) { id =>
             val traceId = AgentTracer.activeSpan().getTraceId
-            complete(s"fong $fid -> $traceId")
+            complete(s"pong $id -> $traceId")
+          } ~ path("fing" / IntNumber) { id =>
+            // force the response to happen on another thread or in another context
+            onSuccess(Future {
+              Thread.sleep(10);
+              id
+            }) { fid =>
+              val traceId = AgentTracer.activeSpan().getTraceId
+              complete(s"fong $fid -> $traceId")
+            }
           }
         }
       }
@@ -220,41 +226,43 @@ object AkkaHttpTestWebServer {
     case HttpRequest(GET, uri: Uri, _, _, _) => {
       val path     = uri.path.toString()
       val endpoint = HttpServerTest.ServerEndpoint.forPath(path)
-      HttpServerTest.controller(
-        endpoint,
-        new Closure[HttpResponse](()) {
-          def doCall(): HttpResponse = {
-            val resp = HttpResponse(status = endpoint.getStatus)
-            endpoint match {
-              case SUCCESS   => resp.withEntity(endpoint.getBody)
-              case FORWARDED => resp.withEntity(endpoint.getBody) // cheating
-              case QUERY_PARAM | QUERY_ENCODED_BOTH | QUERY_ENCODED_QUERY =>
-                resp.withEntity(uri.queryString().orNull)
-              case REDIRECT =>
-                resp.withHeaders(headers.Location(endpoint.getBody))
-              case ERROR     => resp.withEntity(endpoint.getBody)
-              case EXCEPTION => throw new Exception(endpoint.getBody)
-              case _ =>
-                if (path.startsWith("/injected-id/")) {
-                  val groups = path.split('/')
-                  if (groups.size == 4) { // The path starts with a / and has 3 segments
-                    val traceId = AgentTracer.activeSpan().getTraceId
-                    val id      = groups(3).toInt
-                    groups(2) match {
-                      case "ping" =>
-                        return HttpResponse(entity = s"pong $id -> $traceId")
-                      case "fing" =>
-                        return HttpResponse(entity = s"fong $id -> $traceId")
-                      case _ =>
+      HttpServerTest
+        .controller(
+          endpoint,
+          new Closure[HttpResponse](()) {
+            def doCall(): HttpResponse = {
+              val resp = HttpResponse(status = endpoint.getStatus)
+              endpoint match {
+                case SUCCESS   => resp.withEntity(endpoint.getBody)
+                case FORWARDED => resp.withEntity(endpoint.getBody) // cheating
+                case QUERY_PARAM | QUERY_ENCODED_BOTH | QUERY_ENCODED_QUERY =>
+                  resp.withEntity(uri.queryString().orNull)
+                case REDIRECT =>
+                  resp.withHeaders(headers.Location(endpoint.getBody))
+                case ERROR     => resp.withEntity(endpoint.getBody)
+                case EXCEPTION => throw new Exception(endpoint.getBody)
+                case _ =>
+                  if (path.startsWith("/injected-id/")) {
+                    val groups = path.split('/')
+                    if (groups.size == 4) { // The path starts with a / and has 3 segments
+                      val traceId = AgentTracer.activeSpan().getTraceId
+                      val id      = groups(3).toInt
+                      groups(2) match {
+                        case "ping" =>
+                          return HttpResponse(entity = s"pong $id -> $traceId")
+                        case "fing" =>
+                          return HttpResponse(entity = s"fong $id -> $traceId")
+                        case _ =>
+                      }
                     }
                   }
-                }
-                HttpResponse(status = NOT_FOUND.getStatus)
-                  .withEntity(NOT_FOUND.getBody)
+                  HttpResponse(status = NOT_FOUND.getStatus)
+                    .withEntity(NOT_FOUND.getBody)
+              }
             }
           }
-        }
-      )
+        )
+        .withDefaultHeaders(defaultHeader)
     }
   }
 

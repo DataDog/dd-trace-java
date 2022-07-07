@@ -5,6 +5,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.sampling.SamplingMechanism
@@ -217,7 +218,8 @@ class DDSpanTest extends DDCoreSpecification {
     Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.startTime) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
     span.durationNano >= TimeUnit.MILLISECONDS.toNanos(betweenDur)
     span.durationNano <= TimeUnit.MILLISECONDS.toNanos(total)
-    span.durationNano % mod == 0
+    // true span duration can be <1ms if clock was about to tick over, so allow for that
+    (span.durationNano % mod == 0) || (span.durationNano == 1)
   }
 
   def "stopping with a timestamp before start time yields a min duration of 1"() {
@@ -312,6 +314,30 @@ class DDSpanTest extends DDCoreSpecification {
     new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
   }
 
+  def 'publishing of root span closes the request context data'() {
+    setup:
+    def reqContextData = Mock(Closeable)
+    def context = new TagContext().withRequestContextData(reqContextData)
+    def root = tracer.buildSpan("root").asChildOf(context).start()
+    def child = tracer.buildSpan("child").asChildOf(root).start()
+
+    expect:
+    root.requestContext.data.is(reqContextData)
+    child.requestContext.data.is(reqContextData)
+
+    when:
+    child.finish()
+
+    then:
+    0 * reqContextData.close()
+
+    when:
+    root.finish()
+
+    then:
+    1 * reqContextData.close()
+  }
+
   def "infer top level from parent service name"() {
     when:
     DDSpanContext context =
@@ -332,6 +358,7 @@ class DDSpanTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      NoopPathwayContext.INSTANCE,
       false)
     then:
     context.isTopLevel() == expectTopLevel
@@ -368,6 +395,7 @@ class DDSpanTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      NoopPathwayContext.INSTANCE,
       false)
 
     def span = null
@@ -406,6 +434,16 @@ class DDSpanTest extends DDCoreSpecification {
     !span.isError()
     span.getTag(DDTags.ERROR_STACK) == null
     span.getTag(DDTags.ERROR_MSG) == "Broken pipe"
+  }
+
+  def "wrapped broken pipe exception does not create error span"() {
+    when:
+    def span = tracer.buildSpan("root").start()
+    span.addThrowable(new RuntimeException(new IOException("Broken pipe")))
+    then:
+    !span.isError()
+    span.getTag(DDTags.ERROR_STACK) == null
+    span.getTag(DDTags.ERROR_MSG) == "java.io.IOException: Broken pipe"
   }
 
   def "null exception safe to add"() {

@@ -1,10 +1,10 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
@@ -17,19 +17,6 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-
-  public static final byte[] SERVICE = "service".getBytes(ISO_8859_1);
-  public static final byte[] NAME = "name".getBytes(ISO_8859_1);
-  public static final byte[] RESOURCE = "resource".getBytes(ISO_8859_1);
-  public static final byte[] TRACE_ID = "trace_id".getBytes(ISO_8859_1);
-  public static final byte[] SPAN_ID = "span_id".getBytes(ISO_8859_1);
-  public static final byte[] PARENT_ID = "parent_id".getBytes(ISO_8859_1);
-  public static final byte[] START = "start".getBytes(ISO_8859_1);
-  public static final byte[] DURATION = "duration".getBytes(ISO_8859_1);
-  public static final byte[] TYPE = "type".getBytes(ISO_8859_1);
-  public static final byte[] ERROR = "error".getBytes(ISO_8859_1);
-  public static final byte[] METRICS = "metrics".getBytes(ISO_8859_1);
-  public static final byte[] META = "meta".getBytes(ISO_8859_1);
 
   private final int size;
 
@@ -44,9 +31,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private static final class MetaWriter extends MetadataConsumer {
 
     private Writable writable;
+    private boolean writeSamplingPriority;
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;
+      return this;
+    }
+
+    MetaWriter withWriteSamplingPriority(final boolean writeSamplingPriority) {
+      this.writeSamplingPriority = writeSamplingPriority;
       return this;
     }
 
@@ -59,7 +52,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
               + (null == metadata.getOrigin() ? 0 : 1)
               + 1;
       int metricsSize =
-          (metadata.hasSamplingPriority() ? 1 : 0)
+          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
               + (metadata.topLevel() ? 1 : 0)
               + 1;
@@ -71,7 +64,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(METRICS);
       writable.startMap(metricsSize);
-      if (metadata.hasSamplingPriority()) {
+      if (writeSamplingPriority && metadata.hasSamplingPriority()) {
         writable.writeUTF8(SAMPLING_PRIORITY_KEY);
         writable.writeInt(metadata.samplingPriority());
       }
@@ -125,7 +118,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
   @Override
   public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (CoreSpan<?> span : trace) {
+    for (int i = 0; i < trace.size(); i++) {
+      final CoreSpan<?> span = trace.get(i);
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
@@ -158,7 +152,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 11, 12 */
-      span.processTagsAndBaggage(metaWriter.withWritable(writable));
+      span.processTagsAndBaggage(
+          metaWriter
+              .withWritable(writable)
+              .withWriteSamplingPriority(i == 0 || i == trace.size() - 1));
     }
   }
 
@@ -188,7 +185,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    protected void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(WritableByteChannel channel) throws IOException {
       ByteBuffer header = msgpackArrayHeader(traceCount());
       while (header.hasRemaining()) {
         channel.write(header);
@@ -199,7 +196,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    protected RequestBody toRequest() {
+    public RequestBody toRequest() {
       return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
     }
   }

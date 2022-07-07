@@ -5,7 +5,7 @@ and discuss your ideas or propose the changes you wish to make. After a resoluti
 
 ## Requirements
 
-To build the full project from the command line you need to have JDK versions for 7,8,11, and 14 installed on your machine, as well as the following environment variables set up: `JAVA_7_HOME, JAVA_8_HOME, JAVA_11_HOME, JAVA_14_HOME`, pointing to the respective JDK.
+To build the full project from the command line you need to have JDK versions for 8 and 11 installed on your machine, as well as the following environment variables set up: `JAVA_8_HOME, JAVA_11_HOME`, pointing to the respective JDK.
 
 In contrast to the [IntelliJ IDEA setup](#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
 
@@ -186,3 +186,13 @@ Suggested plugins and settings:
 * IntelliJ Gradle fails to import the project with `JAVA_11_HOME must be set to build Java 11 code`
   * A workaround is to run IntelliJ from terminal with `JAVA_11_HOME`
   * In order to verify what's visible from IntelliJ use `Add Configuration` bar and go to `Add New` -> `Gradle` -> `Environmental Variables`
+
+## Running tests on another JVM
+
+To run tests on a different JVM than the one used for doing the build, you need two things:
+
+1) An environment variable pointing to the JVM to use on the form `JAVA_[JDKNAME]_HOME`, i.e. `JAVA_ZULU15_HOME`
+
+2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`, i.e. `-PtestJvm=ZULU15`
+
+Please note that the JDK name needs to end with the JDK version, i.e. `11`, `ZULU15`, `ORACLE8`, et.c.

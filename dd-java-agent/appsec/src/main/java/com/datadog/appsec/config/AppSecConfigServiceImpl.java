@@ -13,7 +13,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import okio.BufferedSource;
@@ -38,6 +43,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
+  private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private volatile FleetService.FleetSubscription fleetSubscription;
 
   public AppSecConfigServiceImpl(Config tracerConfig, FleetService fleetService) {
@@ -106,8 +112,17 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     return Optional.ofNullable(lastConfig.get(key));
   }
 
-  private static Map<String, AppSecConfig> deserializeConfig(BufferedSource src)
-      throws IOException {
+  @Override
+  public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
+    this.traceSegmentPostProcessors.add(interceptor);
+  }
+
+  public List<TraceSegmentPostProcessor> getTraceSegmentPostProcessors() {
+    return traceSegmentPostProcessors;
+  }
+
+  // public for testing only
+  public static Map<String, AppSecConfig> deserializeConfig(BufferedSource src) throws IOException {
     Map<String, Object> rawConfig = ADAPTER.fromJson(src);
     if (rawConfig == null) {
       throw new IOException("Unable deserialize Json config");

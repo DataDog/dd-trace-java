@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
@@ -13,14 +14,30 @@ import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.IdGenerationStrategy.RANDOM
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_URL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
-import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
+import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
@@ -74,6 +91,8 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
@@ -135,11 +154,11 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(AGENT_PORT_LEGACY, "456")
     prop.setProperty(PRIORITY_SAMPLING, "false")
     prop.setProperty(TRACE_RESOLVER_ENABLED, "false")
-    prop.setProperty(SERVICE_MAPPING, "a:1")
+    prop.setProperty(SERVICE_MAPPING, "a:1:2")
     prop.setProperty(GLOBAL_TAGS, "b:2")
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
-    prop.setProperty(HEADER_TAGS, "e:5")
+    prop.setProperty(HEADER_TAGS, "e:five")
     prop.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     prop.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -183,6 +202,22 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     prop.setProperty(PROFILING_AGENTLESS, "true")
 
+    prop.setProperty(DEBUGGER_ENABLED, "true")
+    prop.setProperty(DEBUGGER_SNAPSHOT_URL, "snapshot url")
+    prop.setProperty(DEBUGGER_PROBE_URL, "probe url")
+    prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
+    prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
+    prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    prop.setProperty(DEBUGGER_MAX_PAYLOAD_SIZE, "2")
+    prop.setProperty(DEBUGGER_METRICS_ENABLED, "false")
+    prop.setProperty(DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
+    prop.setProperty(DEBUGGER_POLL_INTERVAL, "10")
+    prop.setProperty(DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
+    prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
+    prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
+    prop.setProperty(DEBUGGER_EXCLUDE_FILE, "exclude file")
+
     when:
     Config config = Config.get(prop)
 
@@ -200,10 +235,10 @@ class ConfigTest extends DDSpecification {
     config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
-    config.serviceMapping == [a: "1"]
+    config.serviceMapping == [a: "1:2"]
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [e: "5"]
+    config.requestHeaderTags == [e: "five"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -232,7 +267,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(),  (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -247,6 +282,22 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
     config.profilingAgentless == true
+
+    config.debuggerEnabled == true
+    config.getFinalDebuggerProbeUrl() == "probe url"
+    config.getFinalDebuggerSnapshotUrl() == "snapshot url"
+    config.debuggerProbeFileLocation == "file location"
+    config.debuggerUploadTimeout == 10
+    config.debuggerUploadFlushInterval == 1000
+    config.debuggerUploadBatchSize == 200
+    config.debuggerMaxPayloadSize == 2048
+    config.debuggerMetricsEnabled == false
+    config.debuggerClassFileDumpEnabled == true
+    config.debuggerPollInterval == 10
+    config.debuggerDiagnosticsInterval == 60
+    config.debuggerVerifyByteCode == true
+    config.debuggerInstrumentTheWorld == true
+    config.debuggerExcludeFile == "exclude file"
   }
 
   def "specify overrides via system properties"() {
@@ -267,7 +318,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + GLOBAL_TAGS, "b:2")
     System.setProperty(PREFIX + SPAN_TAGS, "c:3")
     System.setProperty(PREFIX + JMX_TAGS, "d:4")
-    System.setProperty(PREFIX + HEADER_TAGS, "e:5")
+    System.setProperty(PREFIX + HEADER_TAGS, "e:five")
     System.setProperty(PREFIX + HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "111")
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -311,6 +362,22 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
     System.setProperty(PREFIX + PROFILING_AGENTLESS, "true")
 
+    System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
+    System.setProperty(PREFIX + DEBUGGER_SNAPSHOT_URL, "snapshot url")
+    System.setProperty(PREFIX + DEBUGGER_PROBE_URL, "probe url")
+    System.setProperty(PREFIX + DEBUGGER_PROBE_FILE_LOCATION, "file location")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_TIMEOUT, "10")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
+    System.setProperty(PREFIX + DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    System.setProperty(PREFIX + DEBUGGER_MAX_PAYLOAD_SIZE, "2")
+    System.setProperty(PREFIX + DEBUGGER_METRICS_ENABLED, "false")
+    System.setProperty(PREFIX + DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
+    System.setProperty(PREFIX + DEBUGGER_POLL_INTERVAL, "10")
+    System.setProperty(PREFIX + DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
+    System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
+    System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
+    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILE, "exclude file")
+
     when:
     Config config = new Config()
 
@@ -329,7 +396,7 @@ class ConfigTest extends DDSpecification {
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [e: "5"]
+    config.requestHeaderTags == [e: "five"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -358,7 +425,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -373,6 +440,22 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
     config.profilingAgentless == true
+
+    config.debuggerEnabled == true
+    config.getFinalDebuggerProbeUrl() == "probe url"
+    config.getFinalDebuggerSnapshotUrl() == "snapshot url"
+    config.debuggerProbeFileLocation == "file location"
+    config.debuggerUploadTimeout == 10
+    config.debuggerUploadFlushInterval == 1000
+    config.debuggerUploadBatchSize == 200
+    config.debuggerMaxPayloadSize == 2048
+    config.debuggerMetricsEnabled == false
+    config.debuggerClassFileDumpEnabled == true
+    config.debuggerPollInterval == 10
+    config.debuggerDiagnosticsInterval == 60
+    config.debuggerVerifyByteCode == true
+    config.debuggerInstrumentTheWorld == true
+    config.debuggerExcludeFile == "exclude file"
   }
 
   def "specify overrides via env vars"() {
@@ -460,7 +543,7 @@ class ConfigTest extends DDSpecification {
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]
-    config.headerTags == [:]
+    config.requestHeaderTags == [:]
     config.httpServerErrorStatuses == toBitSet((500..599))
     config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
@@ -532,7 +615,7 @@ class ConfigTest extends DDSpecification {
     properties.setProperty(GLOBAL_TAGS, "b:2")
     properties.setProperty(SPAN_TAGS, "c:3")
     properties.setProperty(JMX_TAGS, "d:4")
-    properties.setProperty(HEADER_TAGS, "e:5")
+    properties.setProperty(HEADER_TAGS, "e:five")
     properties.setProperty(HTTP_SERVER_ERROR_STATUSES, "123-456,457,124-125,122")
     properties.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     properties.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
@@ -563,7 +646,7 @@ class ConfigTest extends DDSpecification {
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [e: "5"]
+    config.requestHeaderTags == [e: "five"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -886,13 +969,19 @@ class ConfigTest extends DDSpecification {
 
   def "verify mapping configs on tracer for #mapString"() {
     setup:
+    System.setProperty(PREFIX + HEADER_TAGS + ".legacy.parsing.enabled", "true")
     System.setProperty(PREFIX + SERVICE_MAPPING, mapString)
     System.setProperty(PREFIX + SPAN_TAGS, mapString)
     System.setProperty(PREFIX + HEADER_TAGS, mapString)
+    System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
+    System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
     def props = new Properties()
+    props.setProperty(HEADER_TAGS + ".legacy.parsing.enabled", "true")
     props.setProperty(SERVICE_MAPPING, mapString)
     props.setProperty(SPAN_TAGS, mapString)
     props.setProperty(HEADER_TAGS, mapString)
+    props.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
+    props.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
 
     when:
     def config = new Config()
@@ -901,10 +990,12 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceMapping == map
     config.spanTags == map
-    config.headerTags == map
+    config.requestHeaderTags == map
+    config.responseHeaderTags == [:]
     propConfig.serviceMapping == map
     propConfig.spanTags == map
-    propConfig.headerTags == map
+    propConfig.requestHeaderTags == map
+    propConfig.responseHeaderTags == [:]
 
     where:
     // spotless:off
@@ -924,26 +1015,89 @@ class ConfigTest extends DDSpecification {
     "key 1!:va|ue_1,"                                             | ["key 1!": "va|ue_1"]
     "key 1!:va|ue_1 "                                             | ["key 1!": "va|ue_1"]
     " key1 :value1 ,\t key2:  value2"                             | [key1: "value1", key2: "value2"]
-    // allowing this feels inconsistent
-    "a:b,c,d"                                                     | [a: "b,c,d"]
-    // see above
+    "a:b,c,d"                                                     | [:]
     "a:b,c,d,k:v"                                                 | [:]
     "key1 :value1  \t key2:  value2"                              | [key1: "value1", key2: "value2"]
     "dyno:web.1 dynotype:web buildpackversion:dev appname:******" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "******"]
+    "is:val:id"                                                   | [is: "val:id"]
+    "a:b,is:val:id,x:y"                                           | [a: "b", is: "val:id", x: "y"]
+    "a:b:c:d"                                                     | [a: "b:c:d"]
     // Invalid strings:
     ""                                                            | [:]
     "1"                                                           | [:]
     "a"                                                           | [:]
     "a,1"                                                         | [:]
-    "in:val:id"                                                   | [:]
-    "a:b,in:val:id,x:y"                                           | [:]
-    "a:b:c:d"                                                     | [:]
     "!a"                                                          | [:]
     "    "                                                        | [:]
     ",,,,"                                                        | [:]
     ":,:,:,:,"                                                    | [:]
     ": : : : "                                                    | [:]
     "::::"                                                        | [:]
+    // spotless:on
+  }
+
+  def "verify mapping header tags on tracer for #mapString"() {
+    setup:
+    Map<String, String> rqMap = map.clone()
+    rqMap.put("rqh1", "http.request.headers.rqh1")
+    System.setProperty(PREFIX + HEADER_TAGS, mapString)
+    System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1")
+    System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1")
+    Map<String, String> rsMap = map.collectEntries { k, v -> [k, v.replace("http.request.headers", "http.response.headers")] }
+    rsMap.put("rsh1", "http.response.headers.rsh1")
+    def props = new Properties()
+    props.setProperty(HEADER_TAGS, mapString)
+    props.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rQh1")
+    props.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsH1")
+
+    when:
+    def config = new Config()
+    def propConfig = Config.get(props)
+
+    then:
+    config.requestHeaderTags == rqMap
+    propConfig.requestHeaderTags == rqMap
+    config.responseHeaderTags == rsMap
+    propConfig.responseHeaderTags == rsMap
+
+    where:
+    // spotless:off
+    mapString                                                     | map
+    "a:one, a:two, a:three"                                       | [a: "three"]
+    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
+    // space separated
+    "a:one  a:two  a:three"                                       | [a: "three"]
+    "a:b c:d e:"                                                  | [a: "b", c: "d"]
+    // More different string variants:
+    "a:"                                                          | [:]
+    "a:a;"                                                        | [a: "a;"]
+    "a:one, a:two, a:three"                                       | [a: "three"]
+    "a:one  a:two  a:three"                                       | [a: "three"]
+    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
+    "a:b c:d e:"                                                  | [a: "b", c: "d"]
+    "key=1!:va|ue_1,"                                             | ["key=1!": "va|ue_1"]
+    "key=1!:va|ue_1 "                                             | ["key=1!": "va|ue_1"]
+    " kEy1 :vaLue1 ,\t keY2:  valUe2"                             | [key1: "vaLue1", key2: "valUe2"]
+    "a:b,c,D"                                                     | [a: "b", c: "http.request.headers.c", d: "http.request.headers.d"]
+    "a:b,C,d,k:v"                                                 | [a: "b", c: "http.request.headers.c", d: "http.request.headers.d", k: "v"]
+    "a b c:d "                                                    | [a: "http.request.headers.a", b: "http.request.headers.b", c: "d"]
+    "dyno:web.1 dynotype:web buildpackversion:dev appname:n*****" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "n*****"]
+    "A.1,B.1"                                                     | ["a.1": "http.request.headers.a_1", "b.1": "http.request.headers.b_1"]
+    "is:val:id"                                                   | [is: "val:id"]
+    "a:b,is:val:id,x:y"                                           | [a: "b", is: "val:id", x: "y"]
+    "a:b:c:d"                                                     | [a: "b:c:d"]
+    // Invalid strings:
+    ""                                                            | [:]
+    "1"                                                           | [:]
+    "a:1"                                                         | [:]
+    "a,1"                                                         | [:]
+    "!a"                                                          | [:]
+    "    "                                                        | [:]
+    ",,,,"                                                        | [:]
+    ":,:,:,:,"                                                    | [:]
+    ": : : : "                                                    | [:]
+    "::::"                                                        | [:]
+    "kEy1 :value1  \t keY2:  value2"                              | [:]
     // spotless:on
   }
 
@@ -1000,7 +1154,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceMapping == map
     config.spanTags == map
-    config.headerTags == map
+    config.requestHeaderTags == map
 
     where:
     mapString | map
@@ -1258,7 +1412,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(GLOBAL_TAGS, "b:2")
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
-    prop.setProperty(HEADER_TAGS, "e:5")
+    prop.setProperty(HEADER_TAGS, "e:five")
     prop.setProperty(PROFILING_TAGS, "f:6")
     prop.setProperty(ENV, "eu-east")
     prop.setProperty(VERSION, "43")
@@ -1270,10 +1424,10 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [a: "1", b: "2", c: "3", (ENV): "eu-east", (VERSION): "43"]
     config.mergedJmxTags == [a               : "1", b: "2", d: "4", (ENV): "eu-east", (VERSION): "43",
       (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [e: "5"]
+    config.requestHeaderTags == [e: "five"]
 
     config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (ENV): "eu-east", (VERSION): "43",
-      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
+      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(),
       (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
@@ -1283,7 +1437,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + GLOBAL_TAGS, "b:2")
     System.setProperty(PREFIX + SPAN_TAGS, "c:3")
     System.setProperty(PREFIX + JMX_TAGS, "d:4")
-    System.setProperty(PREFIX + HEADER_TAGS, "e:5")
+    System.setProperty(PREFIX + HEADER_TAGS, "e:five")
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6")
 
     when:
@@ -1292,29 +1446,29 @@ class ConfigTest extends DDSpecification {
     then:
     config.mergedSpanTags == [a: "1", b: "2", c: "3"]
     config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [e: "5"]
+    config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "verify dd.tags merges with global tags in env variables"() {
     setup:
-    environmentVariables.set(DD_TAGS_ENV, "a:1")
+    environmentVariables.set(DD_TAGS_ENV, "a:1:2")
     environmentVariables.set(DD_GLOBAL_TAGS_ENV, "b:2")
     environmentVariables.set(DD_SPAN_TAGS_ENV, "c:3")
     environmentVariables.set(DD_JMX_TAGS_ENV, "d:4")
-    environmentVariables.set(DD_HEADER_TAGS_ENV, "e:5")
+    environmentVariables.set(DD_HEADER_TAGS_ENV, "e:five")
     environmentVariables.set(DD_PROFILING_TAGS_ENV, "f:6")
 
     when:
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == [a: "1", b: "2", c: "3"]
-    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [e: "5"]
+    config.mergedSpanTags == [a: "1:2", b: "2", c: "3"]
+    config.mergedJmxTags == [a: "1:2", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.requestHeaderTags == [e: "five"]
 
-    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1:2", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "toString works when passwords are empty"() {
@@ -1353,7 +1507,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/v1/input"
+    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/api/v2/profile"
   }
 
   def "custom datadog site without agentless profiling"() {
@@ -1632,7 +1786,7 @@ class ConfigTest extends DDSpecification {
     assert config.isServiceNameSetByUser()
 
     where:
-    [serviceProperty, serviceName]<< [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
+    [serviceProperty, serviceName] << [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
   }
 
   def "detect if agent is configured using default values"() {
@@ -1849,7 +2003,7 @@ class ConfigTest extends DDSpecification {
     // spotless:on
   }
 
-  def "test get ignored resource names"(){
+  def "test get ignored resource names"() {
     setup:
     System.setProperty(PREFIX + TRACER_METRICS_IGNORED_RESOURCES, "GET /healthcheck,SELECT foo from bar")
 

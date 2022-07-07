@@ -4,6 +4,8 @@ package datadog.trace.api.config;
 public final class CiVisibilityConfig {
 
   public static final String CIVISIBILITY_ENABLED = "civisibility.enabled";
+  public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
+  public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
 
   private CiVisibilityConfig() {}
 }

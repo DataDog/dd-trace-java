@@ -17,10 +17,7 @@ class Java9ModulesSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(imageDir + "/bin/java")
     command.addAll(defaultJavaProperties)
-    command.addAll((String[]) [
-      "-m",
-      "datadog.smoketest.moduleapp/datadog.smoketest.moduleapp.ModuleApplication"
-    ])
+    command.addAll((String[]) ["-m", "datadog.smoketest.moduleapp/datadog.smoketest.moduleapp.ModuleApplication"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
   }

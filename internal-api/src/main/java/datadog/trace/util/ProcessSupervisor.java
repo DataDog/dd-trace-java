@@ -17,7 +17,7 @@ public class ProcessSupervisor implements Closeable {
   private final Thread supervisorThread;
 
   private long nextRestartTime = 0;
-  private Process currentProcess;
+  private volatile Process currentProcess;
   private volatile boolean stopped = false;
 
   /**
@@ -44,7 +44,7 @@ public class ProcessSupervisor implements Closeable {
                 continue;
               }
 
-              log.debug("Starting process: {}", name);
+              log.debug("Starting process: [{}]", name);
               nextRestartTime = System.currentTimeMillis() + MIN_RESTART_INTERVAL_MS;
               currentProcess = processBuilder.start();
             }
@@ -57,7 +57,7 @@ public class ProcessSupervisor implements Closeable {
             currentProcess = null;
           } catch (InterruptedException ignored) {
           } catch (IOException e) {
-            log.error("Exception starting process: {}", name, e);
+            log.error("Exception starting process: [{}]", name, e);
           }
         }
       } finally {
@@ -73,5 +73,10 @@ public class ProcessSupervisor implements Closeable {
   public void close() {
     stopped = true;
     supervisorThread.interrupt();
+  }
+
+  // Package reachable for testing
+  Process getCurrentProcess() {
+    return currentProcess;
   }
 }

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.play23;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -12,7 +12,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class PlayInstrumentation extends Instrumenter.Tracing {
+public final class PlayInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   public PlayInstrumentation() {
     super("play", "play-action");
@@ -25,16 +26,18 @@ public final class PlayInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("play.api.mvc.Action"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".PlayHeaders",
+      packageName + ".PlayHeaders$Request",
+      packageName + ".PlayHeaders$Result",
       packageName + ".PlayHttpServerDecorator",
       packageName + ".RequestCompleteCallback",
-      packageName + ".PlayHeaders",
       packageName + ".RequestURIDataAdapter"
     };
   }

@@ -9,11 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CursorImplInstrumentation extends Instrumenter.Tracing {
+public class CursorImplInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
   public CursorImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -31,8 +30,8 @@ public class CursorImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("io.vertx.sqlclient.impl.CursorImpl");
+  public String instrumentedType() {
+    return "io.vertx.sqlclient.impl.CursorImpl";
   }
 
   @Override

@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.ignite.v2.cache;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -20,7 +20,7 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   public static final IgniteCacheDecorator DECORATE = new IgniteCacheDecorator();
 
   private static final String SERVICE_NAME = "ignite";
-  private static final String SPAN_TYPE = DDSpanTypes.CACHE;
+  private static final CharSequence SPAN_TYPE = InternalSpanTypes.CACHE;
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("ignite-cache");
 
   private final boolean includeKeys;

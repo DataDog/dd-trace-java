@@ -8,15 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class DispatcherHandlerInstrumentation extends AbstractWebfluxInstrumentation {
+public final class DispatcherHandlerInstrumentation extends AbstractWebfluxInstrumentation
+    implements Instrumenter.ForSingleType {
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.springframework.web.reactive.DispatcherHandler");
+  public String instrumentedType() {
+    return "org.springframework.web.reactive.DispatcherHandler";
   }
 
   @Override

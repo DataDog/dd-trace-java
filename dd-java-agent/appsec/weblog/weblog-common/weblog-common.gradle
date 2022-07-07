@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-sourceCompatibility = 1.6
-targetCompatibility = 1.6
+sourceCompatibility = JavaVersion.VERSION_1_6
+targetCompatibility = JavaVersion.VERSION_1_6
 
 dependencies {
   api 'javax.servlet:servlet-api:2.4'

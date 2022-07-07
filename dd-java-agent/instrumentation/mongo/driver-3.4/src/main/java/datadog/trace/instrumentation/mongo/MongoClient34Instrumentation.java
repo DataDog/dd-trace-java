@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.mongo;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -17,10 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 import org.bson.BsonDocument;
 import org.bson.BsonWriter;
 import org.bson.ByteBuf;
@@ -37,19 +35,25 @@ import org.bson.ByteBuf;
  * effectively overriding the previous instrumentation when necessary.
  */
 @AutoService(Instrumenter.class)
-public final class MongoClient34Instrumentation extends Instrumenter.Tracing {
+public final class MongoClient34Instrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
 
   public MongoClient34Instrumentation() {
     super("mongo", "mongo-3.4");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(
-            "com.mongodb.MongoClientOptions$Builder",
-            "com.mongodb.async.client.MongoClientSettings$Builder",
-            "com.mongodb.MongoClientSettings$Builder")
-        .and(declaresField(named("commandListeners")));
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "com.mongodb.MongoClientOptions$Builder",
+      "com.mongodb.async.client.MongoClientSettings$Builder",
+      "com.mongodb.MongoClientSettings$Builder"
+    };
+  }
+
+  @Override
+  public ElementMatcher<? extends ByteCodeElement> structureMatcher() {
+    return declaresField(named("commandListeners"));
   }
 
   @Override
@@ -82,19 +86,14 @@ public final class MongoClient34Instrumentation extends Instrumenter.Tracing {
             .and(isPublic())
             .and(named("build"))
             .and(takesArguments(0))
-            .and(
-                ElementMatchers.<MethodDescription>isDeclaredBy(
-                    ElementMatchers.declaresField(named("applicationName")))),
+            .and(isDeclaredBy(declaresField(named("applicationName")))),
         MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceAppName");
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("build"))
             .and(takesArguments(0))
-            .and(
-                not(
-                    ElementMatchers.<MethodDescription>isDeclaredBy(
-                        ElementMatchers.declaresField(named("applicationName"))))),
+            .and(not(isDeclaredBy(declaresField(named("applicationName"))))),
         MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceNoAppName");
   }
 
@@ -133,7 +132,7 @@ public final class MongoClient34Instrumentation extends Instrumenter.Tracing {
         @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
       MongoCommandListener.tryRegister(
           new MongoCommandListener(
-              1,
+              2,
               MongoDecorator34.INSTANCE,
               InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
               InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),

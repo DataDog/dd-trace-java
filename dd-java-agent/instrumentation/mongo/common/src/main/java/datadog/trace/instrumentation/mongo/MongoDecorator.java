@@ -5,9 +5,9 @@ import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
 import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import javax.annotation.Nonnull;
@@ -42,7 +42,7 @@ public abstract class MongoDecorator
 
   @Override
   protected final CharSequence spanType() {
-    return DDSpanTypes.MONGO;
+    return InternalSpanTypes.MONGO;
   }
 
   @Override

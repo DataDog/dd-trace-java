@@ -28,6 +28,10 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
     return task;
   }
 
+  public static Runnable unwrap(Runnable task) {
+    return task instanceof Wrapper ? ((Wrapper<?>) task).unwrap() : task;
+  }
+
   protected final T delegate;
   private final AgentScope.Continuation continuation;
 

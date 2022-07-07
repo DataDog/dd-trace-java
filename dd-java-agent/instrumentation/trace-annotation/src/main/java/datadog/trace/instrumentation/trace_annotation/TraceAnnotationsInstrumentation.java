@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.trace_annotation;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,7 +17,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing {
+public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   static final String CONFIG_FORMAT = "(?:\\s*[\\w.$]+\\s*;)*\\s*[\\w.$]+\\s*;?\\s*";
 
@@ -59,8 +59,8 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(declaresMethod(isAnnotatedWith(methodTraceMatcher)));
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return declaresMethod(isAnnotatedWith(methodTraceMatcher));
   }
 
   @Override

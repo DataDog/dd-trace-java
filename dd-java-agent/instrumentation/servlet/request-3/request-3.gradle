@@ -9,6 +9,7 @@ muzzle {
     group = "javax.servlet"
     module = 'servlet-api'
     versions = "[,]"
+    skipVersions += '0' // broken version on jcenter
   }
 }
 
