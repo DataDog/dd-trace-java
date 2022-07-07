@@ -150,6 +150,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       Map<String, Object> ret = new HashMap<>();
       ret.put("path", path);
       ret.put("matrixParameters", matrixParameters);
+      return ret;
     }
     return orig.toString();
   }
@@ -190,7 +191,10 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       }
       String route = buildRoutePath(classPath, methodPath);
       methodDetails = new MethodDetails(httpMethod, route, findPathParameters(method));
-      classMap.put(method, methodDetails);
+      MethodDetails storedMethodDetails = classMap.putIfAbsent(method, methodDetails);
+      if (storedMethodDetails != null) {
+        methodDetails = storedMethodDetails;
+      }
     }
 
     return methodDetails;
