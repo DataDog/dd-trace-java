@@ -2,6 +2,7 @@ package datadog.trace.agent.installer;
 
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.Instrumenters;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.agent.tooling.WeakMaps;
@@ -12,7 +13,6 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -114,14 +114,14 @@ public class AgentInstaller {
   }
 
   private static void installInstrumenters() {
-    ServiceLoader<Instrumenter> loader =
-        ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader());
+    Iterable<Instrumenter> instrumenters =
+        Instrumenters.load(AgentInstaller.class.getClassLoader());
 
     // This needs to be a separate loop through all the instrumenters before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
     // instrumenters to control the load order.
-    for (Instrumenter instrumenter : loader) {
+    for (Instrumenter instrumenter : instrumenters) {
       if (instrumenter instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
         ExcludeFilter.add(provider.excludedClasses());
@@ -134,9 +134,8 @@ public class AgentInstaller {
     }
 
     int installedCount = 0;
-
     Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
-    for (Instrumenter instrumenter : loader) {
+    for (Instrumenter instrumenter : instrumenters) {
       if (!instrumenter.isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
@@ -146,7 +145,6 @@ public class AgentInstaller {
       if (DEBUG) {
         log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
       }
-
       try {
         instrumenter.instrument(
             new Instrumenter.TransformerBuilder() {
@@ -161,7 +159,6 @@ public class AgentInstaller {
             "Failed to load - instrumentation.class={}", instrumenter.getClass().getName(), e);
       }
     }
-
     if (DEBUG) {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
