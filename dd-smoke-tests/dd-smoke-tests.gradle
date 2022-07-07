@@ -19,6 +19,7 @@ subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
+  subProj.evaluationDependsOn ':dd-java-agent'
   subProj.tasks.withType(Test).configureEach { subTask ->
     dependsOn project(':dd-java-agent').tasks.named("shadowJar")
 
