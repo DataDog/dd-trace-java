@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.description.DeclaredByType;
 import net.bytebuddy.description.NamedElement;
@@ -18,11 +19,13 @@ public final class HierarchyMatchers {
 
   public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
       NameMatchers.Named<? super NamedElement> matcher) {
+    SharedTypePools.annotationOfInterest(matcher.name);
     return SUPPLIER.declaresAnnotation(matcher);
   }
 
   public static ElementMatcher.Junction<TypeDescription> declaresAnnotation(
       NameMatchers.OneOf<? super NamedElement> matcher) {
+    SharedTypePools.annotationsOfInterest(matcher.names);
     return SUPPLIER.declaresAnnotation(matcher);
   }
 
@@ -77,12 +80,14 @@ public final class HierarchyMatchers {
   @SuppressForbidden
   public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
+    SharedTypePools.annotationOfInterest(matcher.name);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
   @SuppressForbidden
   public static <T extends AnnotationSource & DeclaredByType.WithMandatoryDeclaration>
       ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
+    SharedTypePools.annotationsOfInterest(matcher.names);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 

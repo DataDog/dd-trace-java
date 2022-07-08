@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileLocator;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
@@ -9,6 +10,7 @@ import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
+import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.MethodList;
@@ -42,7 +44,8 @@ import org.slf4j.LoggerFactory;
  * <p>Eviction is handled almost entirely through a size restriction; however, softValues are still
  * used as a further safeguard.
  */
-public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
+public final class DDCachingPoolStrategy
+    implements AgentBuilder.PoolStrategy, SharedTypePools.Supplier {
   private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
@@ -105,8 +108,8 @@ public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
             BOOTSTRAP_HASH, null, sharedResolutionCache, fallBackToLoadClass);
   }
 
-  public final TypePool typePool(
-      final ClassFileLocator classFileLocator, final ClassLoader classLoader) {
+  @Override
+  public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
     if (classLoader == null) {
       return createCachingTypePool(bootstrapCacheProvider, classFileLocator);
     }
@@ -116,6 +119,27 @@ public class DDCachingPoolStrategy implements SharedTypePools.Supplier {
     final int loaderHash = classLoader.hashCode();
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
   }
+
+  @Override
+  public TypePool typePool(
+      ClassFileLocator classFileLocator, ClassLoader classLoader, String name) {
+    // FIXME satisfy interface constraint that currently instrumented type is not cached
+    return typePool(classFileLocator, classLoader);
+  }
+
+  @Override
+  public TypePool typePool(ClassLoader classLoader) {
+    return typePool(classFileLocator(classLoader), classLoader);
+  }
+
+  @Override
+  public void annotationOfInterest(String name) {}
+
+  @Override
+  public void endInstall() {}
+
+  @Override
+  public void endTransform() {}
 
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {

@@ -40,7 +40,11 @@ public final class DDClassFileTransformer extends ResettableClassFileTransformer
       return null;
     }
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    try {
+      return classFileTransformer.transform(
+          classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    } finally {
+      SharedTypePools.endTransform();
+    }
   }
 }

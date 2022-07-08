@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
@@ -73,7 +75,13 @@ public class AgentInstaller {
     Utils.setInstrumentation(inst);
 
     FieldBackedContextProvider.resetContextMatchers();
-    DDCachingPoolStrategy.registerAsSupplier();
+
+    if (Config.get().isResolverOutlinePoolEnabled()) {
+      DDOutlinePoolStrategy.registerTypePoolFacade();
+    } else {
+      DDCachingPoolStrategy.registerAsSupplier();
+    }
+
     DDElementMatchers.registerAsSupplier();
 
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
@@ -87,10 +95,12 @@ public class AgentInstaller {
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
-            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
-            .with(AgentStrategies.poolStrategy())
-            .with(new ClassLoadListener())
             .with(AgentStrategies.locationStrategy())
+            .with(AgentStrategies.poolStrategy())
+            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
+            .with(AgentStrategies.bufferStrategy())
+            .with(AgentStrategies.typeStrategy())
+            .with(new ClassLoadListener())
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
@@ -154,7 +164,11 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
-    return transformerBuilder.installOn(inst);
+    try {
+      return transformerBuilder.installOn(inst);
+    } finally {
+      SharedTypePools.endInstall();
+    }
   }
 
   private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
