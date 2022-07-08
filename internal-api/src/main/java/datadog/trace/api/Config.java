@@ -38,6 +38,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASHING_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
@@ -86,6 +87,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IAST_WEAK_HASHING_ALGORITHMS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
@@ -608,6 +610,8 @@ public class Config {
 
   private final Set<String> weakHashingAlgorithms;
 
+  private final Set<String> weakCipherAlgorithms;
+
   private final boolean telemetryEnabled;
 
   private final boolean azureAppServices;
@@ -988,6 +992,11 @@ public class Config {
             configProvider.getSet(
                 APPSEC_IAST_WEAK_HASHING_ALGORITHMS, DEFAULT_IAST_WEAK_HASHING_ALGORITHMS));
 
+    weakCipherAlgorithms =
+        tryMakeImmutableSet(
+            configProvider.getSet(
+                APPSEC_IAST_WEAK_CIPHER_ALGORITHMS, DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS));
+
     if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile = configProvider.getString(PROFILING_API_KEY_FILE_OLD);
       tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
@@ -1363,6 +1372,10 @@ public class Config {
 
   public Set<String> getWeakHashingAlgorithms() {
     return weakHashingAlgorithms;
+  }
+
+  public Set<String> getWeakCipherAlgorithms() {
+    return weakCipherAlgorithms;
   }
 
   public Map<String, String> getServiceMapping() {

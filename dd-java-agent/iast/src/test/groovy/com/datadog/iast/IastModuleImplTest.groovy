@@ -15,14 +15,14 @@ class IastModuleImplTest extends DDSpecification {
 
 
     when:
-    module.onCipherAlgorithm("MD5")
+    module.onCipherAlgorithm("DES")
     module.onCipherAlgorithm("SHA-256")
     module.onHashingAlgorithm("MD5")
-    module.onHashingAlgorithm("SHS-256")
+    module.onHashingAlgorithm("SHA-256")
 
 
     then:
-    1* mockAgentSpan.getRequestContext()
+    2* mockAgentSpan.getRequestContext()
 
     cleanup:
     AgentTracer.forceRegister(AgentTracer.NOOP_TRACER)

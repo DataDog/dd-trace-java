@@ -17,6 +17,8 @@ public final class AppSecConfig {
 
   public static final String APPSEC_IAST_WEAK_HASHING_ALGORITHMS =
       "appsec.iast.weak_hashing_algorithms";
+  public static final String APPSEC_IAST_WEAK_CIPHER_ALGORITHMS =
+      "appsec.iast.weak_cipher_algorithms";
 
   private AppSecConfig() {}
 }
