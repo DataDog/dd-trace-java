@@ -215,7 +215,3 @@ class LambdaHandlerTest extends DDCoreSpecification {
     result == "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}"
   }
 }
-
-
-
-
