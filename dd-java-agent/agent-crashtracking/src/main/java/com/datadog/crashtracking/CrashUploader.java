@@ -1,6 +1,5 @@
 package com.datadog.crashtracking;
 
-import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_HOST;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PASSWORD;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PORT;
@@ -11,35 +10,27 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
 import datadog.common.process.PidHelper;
-import datadog.common.socket.NamedPipeSocketFactory;
-import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.common.version.VersionInfo;
+import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.util.AgentProxySelector;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import okhttp3.Call;
-import okhttp3.ConnectionSpec;
-import okhttp3.Credentials;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.Buffer;
@@ -62,7 +53,7 @@ public class CrashUploader {
   private static final String HEADER_DATADOG_META_LANG = "Datadog-Meta-Lang";
   private static final String JAVA_LANG = "java";
   private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
-  private static final String JAVA_CRASHTRACKING_LIBRARY = "dd-trace-java";
+  private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
   private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
   private static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
   private static final String API_VERSION = "v1";
@@ -71,26 +62,21 @@ public class CrashUploader {
 
   private final Config config;
   private final ConfigProvider configProvider;
-  private final String containerId;
 
   private final OkHttpClient client;
   private final boolean agentless;
-  private final String apiKey;
-  private final String url;
+  private final HttpUrl url;
   private final String tags;
 
   public CrashUploader() {
-    this(Config.get(), ConfigProvider.getInstance(), ContainerInfo.get().getContainerId());
+    this(Config.get(), ConfigProvider.getInstance());
   }
 
-  CrashUploader(
-      final Config config, final ConfigProvider configProvider, final String containerId) {
+  CrashUploader(final Config config, final ConfigProvider configProvider) {
     this.config = config;
     this.configProvider = configProvider;
-    this.containerId = containerId;
 
-    url = config.getFinalCrashTrackingUrl();
-    apiKey = config.getApiKey();
+    url = HttpUrl.get(config.getFinalCrashTrackingUrl());
     agentless = config.isCrashTrackingAgentless();
 
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
@@ -102,62 +88,20 @@ public class CrashUploader {
     // Comma separated tags string for V2.4 format
     tags = tagsToString(tagsMap);
 
-    final Duration requestTimeout =
-        Duration.ofSeconds(
-            configProvider.getInteger(
-                CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
-
-    final OkHttpClient.Builder clientBuilder =
-        new OkHttpClient.Builder()
-            .retryOnConnectionFailure(true)
-            .connectTimeout(requestTimeout)
-            .writeTimeout(requestTimeout)
-            .readTimeout(requestTimeout)
-            .callTimeout(requestTimeout)
-            .proxySelector(AgentProxySelector.INSTANCE);
-
-    final String apmSocketPath = discoverApmSocket(config);
-    if (apmSocketPath != null) {
-      clientBuilder.socketFactory(new UnixDomainSocketFactory(new File(apmSocketPath)));
-    } else if (config.getAgentNamedPipe() != null) {
-      clientBuilder.socketFactory(new NamedPipeSocketFactory(config.getAgentNamedPipe()));
-    }
-
-    if (url.startsWith("http://")) {
-      // force clear text when using http to avoid failures for JVMs without TLS
-      // see: https://github.com/DataDog/dd-trace-java/pull/1582
-      clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
-    }
-
-    if (configProvider.getString(CRASH_TRACKING_PROXY_HOST) != null) {
-      final Proxy proxy =
-          new Proxy(
-              Proxy.Type.HTTP,
-              new InetSocketAddress(
-                  configProvider.getString(CRASH_TRACKING_PROXY_HOST),
-                  configProvider.getInteger(CRASH_TRACKING_PROXY_PORT)));
-      clientBuilder.proxy(proxy);
-      if (configProvider.getString(CRASH_TRACKING_PROXY_USERNAME) != null) {
-        // Empty password by default
-        final String password =
-            configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD) == null
-                ? ""
-                : configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD);
-        clientBuilder.proxyAuthenticator(
-            (route, response) -> {
-              final String credential =
-                  Credentials.basic(
-                      configProvider.getString(CRASH_TRACKING_PROXY_USERNAME), password);
-              return response
-                  .request()
-                  .newBuilder()
-                  .header("Proxy-Authorization", credential)
-                  .build();
-            });
-      }
-    }
-
-    client = clientBuilder.build();
+    client =
+        OkHttpUtils.buildHttpClient(
+            config,
+            null, /* dispatcher */
+            url,
+            true, /* retryOnConnectionFailure */
+            null, /* maxRunningRequests */
+            configProvider.getString(CRASH_TRACKING_PROXY_HOST),
+            configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
+            configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
+            configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD),
+            TimeUnit.SECONDS.toMillis(
+                configProvider.getInteger(
+                    CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT)));
   }
 
   private String tagsToString(final Map<String, String> tags) {
@@ -187,7 +131,7 @@ public class CrashUploader {
 
   public void upload(@Nonnull String[] files) throws IOException {
     Call call =
-        makeUploadRequest(
+        makeRequest(
             Arrays.stream(files)
                 .map(
                     f -> {
@@ -208,33 +152,21 @@ public class CrashUploader {
     }
   }
 
-  private Call makeUploadRequest(@Nonnull Map<String, InputStream> files) throws IOException {
+  private Call makeRequest(@Nonnull Map<String, InputStream> files) throws IOException {
     final RequestBody requestBody = makeRequestBody(files);
 
-    final Request.Builder requestBuilder =
-        new Request.Builder()
-            .url(url)
-            .addHeader("Content-Type", requestBody.contentType().toString())
-            .addHeader("Content-Length", Long.toString(requestBody.contentLength()))
-            .addHeader(HEADER_DD_TELEMETRY_API_VERSION, API_VERSION)
-            .addHeader(HEADER_DD_TELEMETRY_REQUEST_TYPE, REQUEST_TYPE)
-            .addHeader(HEADER_DATADOG_META_LANG, JAVA_LANG)
-            .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_CRASHTRACKING_LIBRARY)
-            .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
-            .post(requestBody);
+    final Map<String, String> headers = new HashMap<>();
+    // Set chunked transfer
+    headers.put("Content-Type", requestBody.contentType().toString());
+    headers.put("Content-Length", Long.toString(requestBody.contentLength()));
+    headers.put("Transfer-Encoding", "chunked");
+    headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
+    headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
+    headers.put(HEADER_DD_TELEMETRY_API_VERSION, API_VERSION);
+    headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, REQUEST_TYPE);
 
-    if (agentless && apiKey != null) {
-      // we only add the api key header if we know we're doing agentless profiling. No point in
-      // adding it to other agent-based requests since we know the datadog-agent isn't going to
-      // make use of it.
-      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-    }
-    if (containerId != null) {
-      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
-    }
-
-    Request request = requestBuilder.build();
-    return client.newCall(request);
+    return client.newCall(
+        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
   }
 
   private RequestBody makeRequestBody(@Nonnull Map<String, InputStream> files) throws IOException {
@@ -271,8 +203,8 @@ public class CrashUploader {
       writer.endObject();
       writer.name("host");
       writer.beginObject();
-      if (containerId != null) {
-        writer.name("container_id").value(containerId);
+      if (ContainerInfo.get().getContainerId() != null) {
+        writer.name("container_id").value(ContainerInfo.get().getContainerId());
       }
       writer.name("hostname").value(config.getHostName());
       writer.name("env").value(config.getEnv());
