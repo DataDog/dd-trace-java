@@ -31,7 +31,9 @@ public final class NoOpAdapter<T> extends JsonAdapter<T> {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
-        if (!type.equals(requestedType.getTypeName())) return null;
+        if (!requestedType.toString().endsWith(type)) {
+          return null;
+        }
         JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
         return new NoOpAdapter<>(delegate);
       }
