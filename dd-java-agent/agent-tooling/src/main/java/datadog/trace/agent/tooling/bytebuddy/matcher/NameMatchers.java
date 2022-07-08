@@ -1,76 +1,29 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
+
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public final class NameMatchers<T extends NamedElement>
-    extends ElementMatcher.Junction.ForNonNullValues<T> {
-
-  private static final int NAMED = 0;
-  private static final int NAME_STARTS_WITH = 1;
-  private static final int NAME_ENDS_WITH = 2;
-  private static final int NOT_EXCLUDED_BY_NAME = 3;
-  private static final int NAMED_ONE_OF = 4;
-  private static final int NAMED_NONE_OF = 5;
-
-  @SuppressWarnings("unchecked")
-  private static final ConcurrentHashMap<String, NameMatchers<?>>[] DEDUPLICATORS =
-      new ConcurrentHashMap[NAMED_ONE_OF];
-
-  static {
-    DEDUPLICATORS[NAMED] = new ConcurrentHashMap<>();
-    DEDUPLICATORS[NAME_STARTS_WITH] = new ConcurrentHashMap<>();
-    DEDUPLICATORS[NAME_ENDS_WITH] = new ConcurrentHashMap<>();
-    DEDUPLICATORS[NOT_EXCLUDED_BY_NAME] = new ConcurrentHashMap<>();
-  }
-
-  @SuppressWarnings("unchecked")
-  static <T extends NamedElement> NameMatchers<T> deduplicate(int mode, String key, Object data) {
-    assert mode < NAMED_ONE_OF : "do not call with sets";
-    // TODO use computeIfAbsent when baselining on JDK8
-    ConcurrentHashMap<String, NameMatchers<?>> deduplicator = DEDUPLICATORS[mode];
-    NameMatchers<T> matcher = (NameMatchers<T>) DEDUPLICATORS[mode].get(key);
-    if (null == matcher) {
-      matcher = new NameMatchers<>(mode, data);
-      NameMatchers<T> predecessor = (NameMatchers<T>) deduplicator.putIfAbsent(key, matcher);
-      if (null != predecessor) {
-        matcher = predecessor;
-      }
-    }
-    return matcher;
-  }
-
-  static <T extends NamedElement> NameMatchers<T> deduplicate(int mode, String data) {
-    return deduplicate(mode, data, data);
-  }
-
-  private final int mode;
-  private final Object data;
-
-  public NameMatchers(int mode, Object data) {
-    assert data instanceof Set
-        || data instanceof String
-        || data instanceof ExcludeFilter.ExcludeType;
-    this.mode = mode;
-    this.data = data;
-  }
+public final class NameMatchers {
 
   /**
-   * Matches a {@link NamedElement} for its name not being in an exclusion set.
+   * Matches a {@link NamedElement} for its exact name.
    *
-   * @param type The type of exclusion to apply
+   * @param name The expected name.
    * @param <T> The type of the matched object.
-   * @return An element matcher checking if an element's exact name is a member of a set.
+   * @return An element matcher for a named element's exact name.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> notExcludedByName(
-      ExcludeFilter.ExcludeType type) {
-    return deduplicate(NOT_EXCLUDED_BY_NAME, type.name(), type);
+  @SuppressWarnings("unchecked")
+  public static <T extends NamedElement> Named<T> named(String name) {
+    return namedCache.computeIfAbsent(name, newNamedMatcher);
   }
 
   /**
@@ -80,8 +33,8 @@ public final class NameMatchers<T extends NamedElement>
    * @param <T> The type of the matched object.
    * @return An element matcher checking if an element's exact name is a member of a set.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> namedOneOf(String... names) {
-    return new NameMatchers<>(NAMED_ONE_OF, toSet(names));
+  public static <T extends NamedElement> OneOf<T> namedOneOf(String... names) {
+    return namedOneOf(Arrays.asList(names));
   }
 
   /**
@@ -91,9 +44,8 @@ public final class NameMatchers<T extends NamedElement>
    * @param <T> The type of the matched object.
    * @return An element matcher checking if an element's exact name is a member of a set.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> namedOneOf(
-      Collection<String> names) {
-    return new NameMatchers<>(NAMED_ONE_OF, new HashSet<>(names));
+  public static <T extends NamedElement> OneOf<T> namedOneOf(Collection<String> names) {
+    return new OneOf<>(tryMakeImmutableSet(names));
   }
 
   /**
@@ -103,8 +55,8 @@ public final class NameMatchers<T extends NamedElement>
    * @param <T> The type of the matched object.
    * @return An element matcher checking if an element's exact name is absent from a set.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> namedNoneOf(String... names) {
-    return new NameMatchers<>(NAMED_NONE_OF, toSet(names));
+  public static <T extends NamedElement> NoneOf<T> namedNoneOf(String... names) {
+    return new NoneOf<>(tryMakeImmutableSet(Arrays.asList(names)));
   }
 
   /**
@@ -114,8 +66,8 @@ public final class NameMatchers<T extends NamedElement>
    * @param <T> The type of the matched object.
    * @return An element matcher for a named element's name's prefix.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> nameStartsWith(String prefix) {
-    return deduplicate(NAME_STARTS_WITH, prefix);
+  public static <T extends NamedElement> StartsWith<T> nameStartsWith(String prefix) {
+    return new StartsWith<>(prefix);
   }
 
   /**
@@ -125,51 +77,115 @@ public final class NameMatchers<T extends NamedElement>
    * @param <T> The type of the matched object.
    * @return An element matcher for a named element's name's suffix.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> nameEndsWith(String suffix) {
-    return deduplicate(NAME_ENDS_WITH, suffix);
+  public static <T extends NamedElement> EndsWith<T> nameEndsWith(String suffix) {
+    return new EndsWith<>(suffix);
   }
 
   /**
-   * Matches a {@link NamedElement} for its exact name.
+   * Matches a {@link NamedElement} for its name not being in an exclusion set.
    *
-   * @param name The expected name.
+   * @param type The type of exclusion to apply
    * @param <T> The type of the matched object.
-   * @return An element matcher for a named element's exact name.
+   * @return An element matcher checking if an element's exact name is a member of a set.
    */
-  public static <T extends NamedElement> ElementMatcher.Junction<T> named(String name) {
-    return deduplicate(NAMED, name);
+  public static <T extends NamedElement> NotExcluded<T> notExcludedByName(
+      ExcludeFilter.ExcludeType type) {
+    return new NotExcluded<T>(type);
   }
 
-  @Override
-  protected boolean doMatch(T target) {
-    return match(target.getActualName());
-  }
+  @SuppressWarnings("rawtypes")
+  private static final DDCache<String, Named> namedCache = DDCaches.newFixedSizeCache(256);
 
-  private boolean match(String name) {
-    switch (mode) {
-      case NAMED:
-        return name.equals(data);
-      case NAME_STARTS_WITH:
-        return name.startsWith((String) data);
-      case NAME_ENDS_WITH:
-        return name.endsWith((String) data);
-      case NOT_EXCLUDED_BY_NAME:
-        return !ExcludeFilter.exclude((ExcludeFilter.ExcludeType) data, name);
-      case NAMED_ONE_OF:
-        return namedOneOf(name);
-      case NAMED_NONE_OF:
-        return !namedOneOf(name);
-      default:
-        return false;
+  @SuppressWarnings("rawtypes")
+  private static final Function<String, Named> newNamedMatcher =
+      new Function<String, Named>() {
+        @Override
+        public Named apply(String input) {
+          return new Named(input);
+        }
+      };
+
+  public static final class Named<T extends NamedElement>
+      extends ElementMatcher.Junction.ForNonNullValues<T> {
+    final String name;
+
+    Named(String name) {
+      this.name = name;
+    }
+
+    @Override
+    protected boolean doMatch(NamedElement target) {
+      return name.equals(target.getActualName());
     }
   }
 
-  @SuppressWarnings("unchecked")
-  private boolean namedOneOf(String name) {
-    return ((Set<String>) data).contains(name);
+  public static final class StartsWith<T extends NamedElement>
+      extends ElementMatcher.Junction.ForNonNullValues<T> {
+    private final String name;
+
+    StartsWith(String name) {
+      this.name = name;
+    }
+
+    @Override
+    protected boolean doMatch(NamedElement target) {
+      return target.getActualName().startsWith(name);
+    }
   }
 
-  private static Set<String> toSet(String... strings) {
-    return new HashSet<>(Arrays.asList(strings));
+  public static final class EndsWith<T extends NamedElement>
+      extends ElementMatcher.Junction.ForNonNullValues<T> {
+    private final String name;
+
+    EndsWith(String name) {
+      this.name = name;
+    }
+
+    @Override
+    protected boolean doMatch(NamedElement target) {
+      return target.getActualName().endsWith(name);
+    }
+  }
+
+  public static final class OneOf<T extends NamedElement>
+      extends ElementMatcher.Junction.ForNonNullValues<T> {
+    final Set<String> names;
+
+    OneOf(Set<String> names) {
+      this.names = names;
+    }
+
+    @Override
+    protected boolean doMatch(NamedElement target) {
+      return names.contains(target.getActualName());
+    }
+  }
+
+  public static final class NoneOf<T extends NamedElement>
+      extends ElementMatcher.Junction.ForNonNullValues<T> {
+    private final Set<String> names;
+
+    NoneOf(Set<String> names) {
+      this.names = names;
+    }
+
+    @Override
+    protected boolean doMatch(NamedElement target) {
+      return !names.contains(target.getActualName());
+    }
+  }
+
+  public static final class NotExcluded<T extends NamedElement>
+      extends ElementMatcher.Junction.ForNonNullValues<T> {
+    private final ExcludeFilter.ExcludeType excludeType;
+
+    NotExcluded(ExcludeFilter.ExcludeType excludeType) {
+      this.excludeType = excludeType;
+    }
+
+    @Override
+    protected boolean doMatch(NamedElement target) {
+      return !ExcludeFilter.exclude(excludeType, target.getActualName());
+    }
   }
 }
