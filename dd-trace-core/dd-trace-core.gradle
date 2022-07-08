@@ -57,7 +57,7 @@ dependencies {
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoserviceProcessor
   testCompileOnly deps.autoserviceAnnotation
-  
+
   testImplementation project(":dd-java-agent:testing")
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
