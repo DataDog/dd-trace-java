@@ -442,7 +442,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   }
 
   public void mergePathwayContext(PathwayContext pathwayContext) {
-    if (pathwayContext == null) {
+    // If the other pathway is pruned, always keep the current pathway.
+    if (pathwayContext == null || pathwayContext.isPruned()) {
       return;
     }
 

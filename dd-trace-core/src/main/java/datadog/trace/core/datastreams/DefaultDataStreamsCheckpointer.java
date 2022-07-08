@@ -135,7 +135,12 @@ public class DefaultDataStreamsCheckpointer
   @Override
   public <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
-    return DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
+    PathwayContext extractedContext = DefaultPathwayContext.extract(carrier, getter, timeSource, wellKnownTags);
+    if (extractedContext == null) {
+      // Try seeing if it's a pruned context.
+      extractedContext = PrunedPathwayContext.extract(carrier, getter);
+    }
+    return extractedContext;
   }
 
   @Override

@@ -5,8 +5,11 @@ import java.io.IOException;
 
 public interface PathwayContext {
   String PROPAGATION_KEY = "dd-pathway-ctx";
+  String PROPAGATION_KEY_PRUNED = "dd-pathway-pruned";
 
   boolean isStarted();
+
+  boolean isPruned();
 
   void start(Consumer<StatsPoint> pointConsumer);
 

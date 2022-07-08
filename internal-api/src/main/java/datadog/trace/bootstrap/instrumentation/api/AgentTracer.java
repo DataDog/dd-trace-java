@@ -851,6 +851,9 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean isPruned() { return false; }
+
+    @Override
     public void start(Consumer<StatsPoint> pointConsumer) {}
 
     @Override

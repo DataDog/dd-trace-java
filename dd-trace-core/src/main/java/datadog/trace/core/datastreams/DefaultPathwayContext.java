@@ -65,6 +65,9 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
+  public boolean isPruned() { return false; }
+
+  @Override
   public void start(Consumer<StatsPoint> pointConsumer) {
     setCheckpoint(null, null, INITIALIZATION_TOPIC, pointConsumer);
   }

@@ -50,6 +50,8 @@ import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
+import datadog.trace.core.datastreams.InjectionSampler;
+import datadog.trace.core.datastreams.PrunedPathwayContext;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -753,11 +755,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pathwayContext.start(dataStreamsCheckpointer);
 
     try {
-      byte[] encodedContext = span.context().getPathwayContext().encode();
+      if (pathwayContext.isPruned()) {
+        log.debug("Injecting pathway context pruned flat {}", pathwayContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_PRUNED, new byte[]{});
+      } else {
+        byte[] encodedContext = span.context().getPathwayContext().encode();
 
-      if (encodedContext != null) {
-        log.debug("Injecting pathway context {}", pathwayContext);
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+        if (encodedContext != null) {
+          log.debug("Injecting pathway context {}", pathwayContext);
+          setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+        }
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -1006,7 +1013,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static DataStreamsCheckpointer createDataStreamsCheckpointer(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, TimeSource timeSource) {
 
+    log.info("[HKT113] createDataStreamsCheckpointer");
+    log.info("[HKT113] config.isDataStreamsEnabled(): " + config.isDataStreamsEnabled());
+    log.info("[HKT113] Platform.isJavaVersionAtLeast(8): " + Platform.isJavaVersionAtLeast(8));
     if (config.isDataStreamsEnabled() && Platform.isJavaVersionAtLeast(8)) {
+      log.info("[HKT113] Try loading DataStreamsCheckpointer");
       try {
         // Use reflection to load the class because it should only be loaded on Java 8+
 
@@ -1019,11 +1030,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           | NoSuchMethodException
           | IllegalAccessException
           | ClassNotFoundException e) {
-        log.error("Failed to instantiate data streams checkpointer", e);
+        log.error("[HKT113] Failed to instantiate data streams checkpointer", e);
         return new StubDataStreamsCheckpointer();
       }
     } else {
-      log.debug("Data streams monitoring not enabled.");
+      log.debug("[HKT113] Data streams monitoring not enabled.");
       return new StubDataStreamsCheckpointer();
     }
   }
@@ -1154,6 +1165,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    private PathwayContext createNewPathwayContext(DDId spanId) {
+      InjectionSampler sampler = InjectionSampler.INJECTION_SAMPLER;
+      if (sampler.sample(spanId)) {
+        return dataStreamsCheckpointer.newPathwayContext();
+      } else {
+        return PrunedPathwayContext.INSTANCE;
+      }
+    }
+
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
@@ -1212,7 +1232,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         pathwayContext =
             ddsc.getPathwayContext().isStarted()
                 ? ddsc.getPathwayContext()
-                : dataStreamsCheckpointer.newPathwayContext();
+                : createNewPathwayContext(spanId);
       } else {
         long endToEndStartTime;
 
@@ -1255,7 +1275,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentTrace.beginEndToEnd(endToEndStartTime);
         }
 
-        pathwayContext = dataStreamsCheckpointer.newPathwayContext();
+        pathwayContext = createNewPathwayContext(spanId);
       }
 
       if (serviceName == null) {
