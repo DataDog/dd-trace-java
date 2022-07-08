@@ -24,6 +24,7 @@ ext {
   excludedClassesCoverage = [
     'datadog.communication.ddagent.ExternalAgentLauncher',
     'datadog.communication.http.OkHttpUtils',
+    'datadog.communication.http.OkHttpUtils.1',
     'datadog.communication.http.OkHttpUtils.ByteBufferRequestBody',
     'datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody',
     'datadog.communication.monitor.DDAgentStatsDConnection',
