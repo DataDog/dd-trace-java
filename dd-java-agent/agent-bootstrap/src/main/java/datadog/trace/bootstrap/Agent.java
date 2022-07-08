@@ -441,6 +441,9 @@ public class Agent {
   }
 
   private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
+    if (!remoteConfigEnabled) {
+      return;
+    }
     try {
       Method pollerMethod = scoClass.getMethod("configurationPoller", Config.class);
       Object poller = pollerMethod.invoke(sco, Config.get());

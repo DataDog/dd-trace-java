@@ -80,6 +80,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
+  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
+  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
+
   static final boolean DEFAULT_DEBUGGER_ENABLED = false;
   static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
   static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
@@ -88,11 +92,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL = 60 * 60; // seconds
   static final boolean DEFAULT_DEBUGGER_METRICS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE = 100;
-
-  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
-  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
-  static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
-
+  static final int DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DEBUGGER_VERIFY_BYTECODE = false;
   static final boolean DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD = false;
 
