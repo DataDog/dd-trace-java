@@ -8,9 +8,12 @@ import com.amazonaws.services.lambda.runtime.events.SNSEvent
 import com.amazonaws.services.lambda.runtime.events.S3Event
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification
+import spock.lang.Requires
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
+// Java8 is the lowest supported version by AWS Lambda
+@Requires({ jvm.java8Compatible })
 class LambdaHandlerTest extends DDCoreSpecification {
 
   class TestObject {
