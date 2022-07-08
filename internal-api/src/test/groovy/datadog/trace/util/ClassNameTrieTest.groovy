@@ -156,4 +156,26 @@ class ClassNameTrieTest extends DDSpecification {
     ['aaaabbbb', 'aaacccbb']             | '\001\141\002\141\141\002\141\143\004\004\005\142\142\142\142\u8001\143\143\142\142\u8001'
     // spotless:on
   }
+
+  def 'trie builder allows overwriting'() {
+    setup:
+    def mapping = (0..128).collectEntries({
+      [UUID.randomUUID().toString().replace('-', '.'), it]
+    }) as TreeMap<String, Integer>
+    when:
+    def builder = new ClassNameTrie.Builder()
+    // initial values
+    mapping.each { className, number ->
+      builder.put(className, number)
+    }
+    // update values
+    mapping.each { className, number ->
+      builder.put(className, (0x1000 | number))
+    }
+    def trie = builder.buildTrie()
+    then:
+    mapping.each({
+      assert trie.apply(it.key) == (0x1000 | it.value)
+    })
+  }
 }

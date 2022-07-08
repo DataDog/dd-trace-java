@@ -1,0 +1,28 @@
+{
+  "signed": {
+    "_type": "targets",
+    "expires": "2021-10-27T17:02:53Z",
+    "spec_version": "1.0",
+    "targets": {
+      "2/LIVE_DEBUGGING/config": {
+        "hashes": {
+          "sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        },
+        "length": 5
+      },
+      "2/LIVE_DEBUGGING/config2": {
+        "hashes": {
+          "sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        },
+        "length": 5
+      }
+    },
+    "version": 2
+  },
+  "signatures": [
+    {
+      "keyid": "dcd7f52c3cd8911a14d3134cd9a6ade886789bda442509a35e99aa08b0e3fa8c",
+      "sig": "59a6478aba87d171261e6995faaa8e36c95c3e75436c4e82f11ac625220e13b703ce9b912ee0731415121b5a47aa2abdb398a60656b7701b15e606c6327c880e"
+    }
+  ]
+}

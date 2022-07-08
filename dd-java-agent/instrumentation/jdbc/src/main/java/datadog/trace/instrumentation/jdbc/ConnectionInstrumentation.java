@@ -6,7 +6,7 @@ import datadog.trace.api.Config;
 
 @AutoService(Instrumenter.class)
 public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift
@@ -70,10 +70,14 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     // aws-mysql-jdbc
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
     // for testing purposes
-    "test.TestConnection",
-    // this won't match any class unless the property is set
-    Config.get().getJdbcConnectionClassName()
+    "test.TestConnection"
   };
+
+  @Override
+  public String configuredMatchingType() {
+    // this won't match any class unless the property is set
+    return Config.get().getJdbcConnectionClassName();
+  }
 
   public ConnectionInstrumentation() {
     super("jdbc");

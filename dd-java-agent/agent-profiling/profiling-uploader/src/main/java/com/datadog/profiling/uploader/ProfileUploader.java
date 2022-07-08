@@ -15,29 +15,20 @@
  */
 package com.datadog.profiling.uploader;
 
-import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
-import datadog.common.container.ContainerInfo;
 import datadog.common.process.PidHelper;
-import datadog.common.socket.NamedPipeSocketFactory;
-import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.common.version.VersionInfo;
+import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
-import datadog.trace.util.AgentProxySelector;
 import datadog.trace.util.AgentThreadFactory;
-import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.time.Duration;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,11 +40,9 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.ConnectionPool;
-import okhttp3.ConnectionSpec;
-import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.Headers;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -88,12 +77,10 @@ public final class ProfileUploader {
 
   // Header names and values
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
-  static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  static final String JAVA_LANG = "java";
-  static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
-  static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
-  static final String JAVA_PROFILING_LIBRARY = "dd-trace-java";
-  static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+  private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
+  private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+
+  private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
 
   private static final Headers EVENT_HEADER =
       Headers.of(
@@ -115,19 +102,13 @@ public final class ProfileUploader {
   private final boolean agentless;
   private final boolean summaryOn413;
   private final String apiKey;
-  private final String url;
-  private final String containerId;
+  private final HttpUrl url;
   private final int terminationTimeout;
   private final CompressionType compressionType;
   private final String tags;
 
   public ProfileUploader(final Config config, final ConfigProvider configProvider) {
-    this(
-        config,
-        configProvider,
-        new IOLogger(log),
-        ContainerInfo.get().getContainerId(),
-        TERMINATION_TIMEOUT_SEC);
+    this(config, configProvider, new IOLogger(log), TERMINATION_TIMEOUT_SEC);
   }
 
   /**
@@ -138,14 +119,12 @@ public final class ProfileUploader {
       final Config config,
       final ConfigProvider configProvider,
       final IOLogger ioLogger,
-      final String containerId,
       final int terminationTimeout) {
-    url = config.getFinalProfilingUrl();
+    url = HttpUrl.get(config.getFinalProfilingUrl());
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
     this.ioLogger = ioLogger;
-    this.containerId = containerId;
     this.terminationTimeout = terminationTimeout;
 
     log.debug("Started ProfileUploader with target url {}", url);
@@ -176,65 +155,19 @@ public final class ProfileUploader {
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
             new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
-    // Reusing connections causes non daemon threads to be created which causes agent to prevent app
-    // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
-    final ConnectionPool connectionPool =
-        new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
 
-    // Use same timeout everywhere for simplicity
-    final Duration requestTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
-    final OkHttpClient.Builder clientBuilder =
-        new OkHttpClient.Builder()
-            .retryOnConnectionFailure(true)
-            .connectTimeout(requestTimeout)
-            .writeTimeout(requestTimeout)
-            .readTimeout(requestTimeout)
-            .callTimeout(requestTimeout)
-            .proxySelector(AgentProxySelector.INSTANCE)
-            .dispatcher(new Dispatcher(okHttpExecutorService))
-            .connectionPool(connectionPool);
-
-    final String apmSocketPath = discoverApmSocket(config);
-    if (apmSocketPath != null) {
-      clientBuilder.socketFactory(new UnixDomainSocketFactory(new File(apmSocketPath)));
-    } else if (config.getAgentNamedPipe() != null) {
-      clientBuilder.socketFactory(new NamedPipeSocketFactory(config.getAgentNamedPipe()));
-    }
-
-    if (url.startsWith("http://")) {
-      // force clear text when using http to avoid failures for JVMs without TLS
-      // see: https://github.com/DataDog/dd-trace-java/pull/1582
-      clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
-    }
-
-    if (config.getProfilingProxyHost() != null) {
-      final Proxy proxy =
-          new Proxy(
-              Proxy.Type.HTTP,
-              new InetSocketAddress(
-                  config.getProfilingProxyHost(), config.getProfilingProxyPort()));
-      clientBuilder.proxy(proxy);
-      if (config.getProfilingProxyUsername() != null) {
-        // Empty password by default
-        final String password =
-            config.getProfilingProxyPassword() == null ? "" : config.getProfilingProxyPassword();
-        clientBuilder.proxyAuthenticator(
-            (route, response) -> {
-              final String credential =
-                  Credentials.basic(config.getProfilingProxyUsername(), password);
-              return response
-                  .request()
-                  .newBuilder()
-                  .header("Proxy-Authorization", credential)
-                  .build();
-            });
-      }
-    }
-
-    client = clientBuilder.build();
-    client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
-    // We are mainly talking to the same(ish) host so we need to raise this limit
-    client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
+    client =
+        OkHttpUtils.buildHttpClient(
+            config,
+            new Dispatcher(okHttpExecutorService),
+            url,
+            true,
+            MAX_RUNNING_REQUESTS,
+            config.getProfilingProxyHost(),
+            config.getProfilingProxyPort(),
+            config.getProfilingProxyUsername(),
+            config.getProfilingProxyPassword(),
+            TimeUnit.SECONDS.toMillis(config.getProfilingUploadTimeout()));
 
     compressionType = CompressionType.of(config.getProfilingUploadCompression());
   }
@@ -434,25 +367,20 @@ public final class ProfileUploader {
         new CompressingRequestBody(compressionType, data::getStream);
     final RequestBody requestBody = makeRequestBody(data, body);
 
+    final Map<String, String> headers = new HashMap<>();
+    // Set chunked transfer
+    headers.put("Transfer-Encoding", "chunked");
+    headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
+    headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
+
     final Request.Builder requestBuilder =
-        new Request.Builder()
-            .url(url)
-            // Set chunked transfer
-            .addHeader("Transfer-Encoding", "chunked")
-            // Note: this header is used to disable tracing of profiling requests
-            .addHeader(DATADOG_META_LANG, JAVA_LANG)
-            .addHeader(HEADER_DD_EVP_ORIGIN, JAVA_PROFILING_LIBRARY)
-            .addHeader(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION)
-            .post(requestBody);
+        OkHttpUtils.prepareRequest(url, headers).post(requestBody);
 
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless profiling. No point in
       // adding it to other agent-based requests since we know the datadog-agent isn't going to
       // make use of it.
       requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-    }
-    if (containerId != null) {
-      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
     }
     return client.newCall(requestBuilder.build());
   }

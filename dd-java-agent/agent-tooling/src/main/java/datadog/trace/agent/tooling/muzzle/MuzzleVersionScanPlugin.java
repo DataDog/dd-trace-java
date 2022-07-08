@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.Instrumenters;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.IOException;
@@ -11,7 +12,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
@@ -34,9 +34,9 @@ public class MuzzleVersionScanPlugin {
       final ClassLoader userClassLoader,
       final boolean assertPass)
       throws Exception {
+    Iterable<Instrumenter> instrumenters = Instrumenters.load(instrumentationLoader);
     // muzzle validate all instrumenters
-    for (Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+    for (Instrumenter instrumenter : instrumenters) {
       if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
         // TraceConfigInstrumentation doesn't do muzzle checks
         // check on TracerClassInstrumentation instead
@@ -90,8 +90,7 @@ public class MuzzleVersionScanPlugin {
     }
     // run helper injector on all instrumenters
     if (assertPass) {
-      for (Instrumenter instrumenter :
-          ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+      for (Instrumenter instrumenter : instrumenters) {
         if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
           // TraceConfigInstrumentation doesn't do muzzle checks
           // check on TracerClassInstrumentation instead
@@ -157,8 +156,7 @@ public class MuzzleVersionScanPlugin {
   }
 
   public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
-    for (final Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, instrumentationLoader)) {
+    for (final Instrumenter instrumenter : Instrumenters.load(instrumentationLoader)) {
       if (instrumenter instanceof Instrumenter.Default) {
         try {
           final Method getMuzzleMethod =

@@ -4,10 +4,4 @@ apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   implementation deps.slf4j
-  implementation project(':internal-api')
-
-  testImplementation deps.junit5
 }
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8

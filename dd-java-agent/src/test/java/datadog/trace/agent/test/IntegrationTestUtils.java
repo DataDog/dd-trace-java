@@ -146,6 +146,10 @@ public class IntegrationTestUtils {
     throw new RuntimeException("Agent jar not found");
   }
 
+  private static String getAgentJarLocation() {
+    return getAgentArgument().replace("-javaagent:", "");
+  }
+
   public static int runOnSeparateJvm(
       final String mainClassName,
       final String[] jvmArgs,
@@ -207,7 +211,11 @@ public class IntegrationTestUtils {
 
     final List<String> vmArgsList = new ArrayList<>(Arrays.asList(jvmArgs));
 
-    vmArgsList.add(getAgentArgument());
+    boolean runAsJar = "datadog.trace.bootstrap.AgentJar".equals(mainClassName);
+
+    if (!runAsJar) {
+      vmArgsList.add(getAgentArgument());
+    }
     vmArgsList.add(getMaxMemoryArgumentForFork());
     vmArgsList.add(getMinMemoryArgumentForFork());
     vmArgsList.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
@@ -215,9 +223,14 @@ public class IntegrationTestUtils {
     final List<String> commands = new ArrayList<>();
     commands.add(path);
     commands.addAll(vmArgsList);
-    commands.add("-cp");
-    commands.add(classpath);
-    commands.add(mainClassName);
+    if (runAsJar) {
+      commands.add("-jar");
+      commands.add(getAgentJarLocation());
+    } else {
+      commands.add("-cp");
+      commands.add(classpath);
+      commands.add(mainClassName);
+    }
     commands.addAll(Arrays.asList(mainMethodArgs));
     final ProcessBuilder processBuilder = new ProcessBuilder(commands.toArray(new String[0]));
     processBuilder.environment().putAll(envVars);

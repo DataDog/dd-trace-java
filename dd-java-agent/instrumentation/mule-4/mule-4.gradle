@@ -108,7 +108,7 @@ tasks.register('extractMuleServices', Sync) {
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
   workingDir "$appDir"
-  commandLine 'mvn', "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
+  commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")
   inputs.file("$appDir/pom.xml")
