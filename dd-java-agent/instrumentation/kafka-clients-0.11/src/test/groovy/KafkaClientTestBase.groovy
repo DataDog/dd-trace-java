@@ -36,9 +36,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class KafkaClientTestBase extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
-  static {
-    isDataStreamsEnabled = true
-  }
 
   @Rule
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC)
@@ -56,6 +53,10 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
   abstract boolean hasQueueSpan()
 
   abstract boolean splitByDestination()
+
+  KafkaClientTestBase() {
+    isDataStreamsEnabled = true
+  }
 
   def "test kafka produce and consume"() {
     setup:

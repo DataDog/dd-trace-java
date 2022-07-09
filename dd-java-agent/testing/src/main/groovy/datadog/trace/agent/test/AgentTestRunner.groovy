@@ -78,7 +78,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10)
 
   protected static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation()
-  static boolean isDataStreamsEnabled = false
+  protected boolean isDataStreamsEnabled
 
   static {
     configureLoggingLevels()
@@ -130,6 +130,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
+
+  AgentTestRunner() {
+    isDataStreamsEnabled = false
+  }
 
   private static void configureLoggingLevels() {
     final Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
