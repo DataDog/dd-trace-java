@@ -54,8 +54,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   abstract boolean splitByDestination()
 
-  KafkaClientTestBase() {
-    isDataStreamsEnabled = true
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
   }
 
   def "test kafka produce and consume"() {
