@@ -11,9 +11,11 @@ import java.util.Set;
 
 public final class NoOpAdapter<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
+  private final String typeToSkip;
 
-  private NoOpAdapter(JsonAdapter<T> delegate) {
+  private NoOpAdapter(JsonAdapter<T> delegate, String type) {
     this.delegate = delegate;
+    this.typeToSkip = type;
   }
 
   @Override
@@ -23,6 +25,11 @@ public final class NoOpAdapter<T> extends JsonAdapter<T> {
 
   @Override
   public void toJson(JsonWriter writer, T value) throws IOException {
+    if (null != value && value.getClass().getName().equals(typeToSkip)) {
+      writer.beginObject();
+      writer.endObject();
+      return;
+    }
     delegate.toJson(writer, value);
   }
 
@@ -31,11 +38,11 @@ public final class NoOpAdapter<T> extends JsonAdapter<T> {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
-        if (null != requestedType && !requestedType.toString().endsWith(type)) {
-          return null;
+        if (null != requestedType && requestedType.toString().endsWith(type)) {
+          JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
+          return new NoOpAdapter<>(delegate, type);
         }
-        JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
-        return new NoOpAdapter<>(delegate);
+        return null;
       }
     };
   }
