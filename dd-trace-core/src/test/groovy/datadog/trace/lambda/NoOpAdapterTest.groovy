@@ -3,8 +3,6 @@ package datadog.trace.lambda
 import datadog.trace.core.test.DDCoreSpecification
 import com.squareup.moshi.Moshi
 
-import java.lang.annotation.Annotation
-
 class NoOpAdapterTest extends DDCoreSpecification {
 
   static class TestJsonObject {
@@ -34,7 +32,7 @@ class NoOpAdapterTest extends DDCoreSpecification {
     def adapter = new Moshi.Builder()
       .add(NoOpAdapter.newFactory("java.lang.String"))
       .build()
-      .adapter(Object.class)
+      .adapter(Object)
 
     when:
     def result = adapter.toJson(new TestJsonObject())

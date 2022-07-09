@@ -13,9 +13,9 @@ public final class NoOpAdapter<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
   private final String typeToSkip;
 
-  private NoOpAdapter(JsonAdapter<T> delegate, String type) {
+  private NoOpAdapter(JsonAdapter<T> delegate, String typeToSkip) {
     this.delegate = delegate;
-    this.typeToSkip = type;
+    this.typeToSkip = typeToSkip;
   }
 
   @Override
