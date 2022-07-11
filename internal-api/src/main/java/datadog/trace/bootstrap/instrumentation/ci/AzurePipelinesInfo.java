@@ -8,6 +8,8 @@ class AzurePipelinesInfo extends CIProviderInfo {
 
   // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops
   public static final String AZURE = "TF_BUILD";
+  public static final String AZURE_BUILD_PREFIX = "BUILD_";
+  public static final String AZURE_SYSTEM_PREFIX = "SYSTEM_";
   public static final String AZURE_PROVIDER_NAME = "azurepipelines";
   public static final String AZURE_PIPELINE_NAME = "BUILD_DEFINITIONNAME";
   public static final String AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI =
@@ -63,6 +65,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
         .ciJobName(System.getenv(AZURE_SYSTEM_JOBDISPLAYNAME))
         .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
         .ciWorkspace(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
+        .ciEnvVars(getFilteredEnvVars(AZURE_BUILD_PREFIX), getFilteredEnvVars(AZURE_SYSTEM_PREFIX))
         .build();
   }
 

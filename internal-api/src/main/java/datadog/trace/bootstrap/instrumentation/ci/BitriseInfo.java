@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 class BitriseInfo extends CIProviderInfo {
 
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
+  public static final String BITRISE_PREFIX = "BITRISE_";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";
   public static final String BITRISE_PIPELINE_ID = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PIPELINE_NAME = "BITRISE_TRIGGERED_WORKFLOW_ID";
@@ -43,6 +44,7 @@ class BitriseInfo extends CIProviderInfo {
         .ciPipelineNumber(System.getenv(BITRISE_PIPELINE_NUMBER))
         .ciPipelineUrl(System.getenv(BITRISE_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(BITRISE_WORKSPACE_PATH)))
+        .ciEnvVars(getFilteredEnvVars(BITRISE_PREFIX))
         .build();
   }
 

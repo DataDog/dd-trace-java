@@ -127,4 +127,20 @@ class StringsTest extends DDSpecification {
     "hélló" |5| "hélló"
     "hélló wórld" |5|"hélló"
   }
+
+  def "test toJson"() {
+    when:
+    String json = Strings.toJson(input)
+
+    then:
+    json == expected
+
+    where:
+    input|expected
+    null|"{}"
+    new HashMap<>()|"{}"
+    ['key1':'value1'] |"{\"key1\":\"value1\"}"
+    ['key1':'value1', 'key2':'value2'] |"{\"key1\":\"value1\",\"key2\":\"value2\"}"
+    ['key1':'va"lu"e1', 'ke"y2':'value2'] |"{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}"
+  }
 }

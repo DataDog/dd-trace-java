@@ -11,6 +11,7 @@ class GitLabInfo extends CIProviderInfo {
 
   // https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
   public static final String GITLAB = "GITLAB_CI";
+  public static final String GITLAB_PREFIX = "CI_";
   public static final String GITLAB_PROVIDER_NAME = "gitlab";
   public static final String GITLAB_PIPELINE_ID = "CI_PIPELINE_ID";
   public static final String GITLAB_PIPELINE_NAME = "CI_PROJECT_PATH";
@@ -53,6 +54,7 @@ class GitLabInfo extends CIProviderInfo {
         .ciJobName(System.getenv(GITLAB_JOB_NAME))
         .ciJobUrl(System.getenv(GITLAB_JOB_URL))
         .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
+        .ciEnvVars(getFilteredEnvVars(GITLAB_PREFIX))
         .build();
   }
 

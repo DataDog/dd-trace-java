@@ -7,6 +7,7 @@ class GithubActionsInfo extends CIProviderInfo {
 
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
   public static final String GHACTIONS = "GITHUB_ACTION";
+  public static final String GHACTIONS_PREFIX = "GITHUB_";
   public static final String GHACTIONS_PROVIDER_NAME = "github";
   public static final String GHACTIONS_PIPELINE_ID = "GITHUB_RUN_ID";
   public static final String GHACTIONS_PIPELINE_NAME = "GITHUB_WORKFLOW";
@@ -50,6 +51,7 @@ class GithubActionsInfo extends CIProviderInfo {
         .ciPipelineUrl(pipelineUrl)
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
+        .ciEnvVars(getFilteredEnvVars(GHACTIONS_PREFIX))
         .build();
   }
 

@@ -21,6 +21,7 @@ import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_COMM
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_COMMIT_SHA;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_REPOSITORY_URL;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_TAG;
+import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
@@ -32,6 +33,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 
 @SuppressForbidden
@@ -56,6 +58,7 @@ public abstract class CIProviderInfo {
             .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
             .withCiJorUrl(ciInfo.getCiJobUrl())
             .withCiWorkspacePath(ciInfo.getCiWorkspace())
+            .withCiEnvVars(ciInfo.getCiEnvVars())
             .withGitRepositoryUrl(userSuppliedGitInfo, ciGitInfo, localGitInfo)
             .withGitCommit(userSuppliedGitInfo, ciGitInfo, localGitInfo)
             .withGitBranch(userSuppliedGitInfo, ciGitInfo, localGitInfo)
@@ -76,6 +79,21 @@ public abstract class CIProviderInfo {
 
   protected String getGitFolderName() {
     return ".git";
+  }
+
+  protected Map<String, String> getFilteredEnvVars(final String prefix) {
+    final Map<String, String> envVars = new HashMap<>();
+    for (Entry<String, String> entryEnvVar : System.getenv().entrySet()) {
+      final String key = entryEnvVar.getKey();
+      if (key.startsWith(prefix)
+          && !key.contains("PASS")
+          && !key.contains("TOKEN")
+          && !key.contains("SECRET")
+          && !key.contains("KEY")) {
+        envVars.put(key, entryEnvVar.getValue());
+      }
+    }
+    return envVars;
   }
 
   private GitInfo buildCILocalGitInfo(CIInfo ciInfo) {
@@ -221,6 +239,10 @@ public abstract class CIProviderInfo {
 
     public CITagsBuilder withCiWorkspacePath(final String ciWorkspacePath) {
       return this.putTagValue(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
+    }
+
+    public CITagsBuilder withCiEnvVars(final Map<String, String> ciEnvVars) {
+      return this.putTagValue(Tags.CI_ENV_VARS, toJson(ciEnvVars));
     }
 
     public CITagsBuilder withGitRepositoryUrl(
@@ -410,6 +432,7 @@ public abstract class CIProviderInfo {
       private String ciPipelineUrl;
       private String ciJobUrl;
       private String ciWorkspace;
+      private Map<String, String> ciEnvVars;
 
       public Builder ciProviderName(String ciProviderName) {
         this.ciProviderName = ciProviderName;
@@ -456,6 +479,14 @@ public abstract class CIProviderInfo {
         return this;
       }
 
+      public Builder ciEnvVars(Map<String, String>... ciEnvVarsArray) {
+        this.ciEnvVars = new HashMap<>();
+        for (Map<String, String> ciEnvVarsEntry : ciEnvVarsArray) {
+          ciEnvVars.putAll(ciEnvVarsEntry);
+        }
+        return this;
+      }
+
       public CIInfo build() {
         return new CIInfo(
             ciProviderName,
@@ -466,7 +497,8 @@ public abstract class CIProviderInfo {
             ciPipelineNumber,
             ciPipelineUrl,
             ciJobUrl,
-            ciWorkspace);
+            ciWorkspace,
+            ciEnvVars);
       }
     }
 
@@ -479,9 +511,10 @@ public abstract class CIProviderInfo {
     private final String ciPipelineUrl;
     private final String ciJobUrl;
     private final String ciWorkspace;
+    private final Map<String, String> ciEnvVars;
 
     public CIInfo() {
-      this(null, null, null, null, null, null, null, null, null);
+      this(null, null, null, null, null, null, null, null, null, null);
     }
 
     public CIInfo(
@@ -493,7 +526,8 @@ public abstract class CIProviderInfo {
         String ciPipelineNumber,
         String ciPipelineUrl,
         String ciJobUrl,
-        String ciWorkspace) {
+        String ciWorkspace,
+        Map<String, String> ciEnvVars) {
       this.ciProviderName = ciProviderName;
       this.ciPipelineId = ciPipelineId;
       this.ciPipelineName = ciPipelineName;
@@ -503,6 +537,7 @@ public abstract class CIProviderInfo {
       this.ciPipelineUrl = ciPipelineUrl;
       this.ciJobUrl = ciJobUrl;
       this.ciWorkspace = ciWorkspace;
+      this.ciEnvVars = ciEnvVars;
     }
 
     public String getCiProviderName() {
@@ -541,6 +576,10 @@ public abstract class CIProviderInfo {
       return ciWorkspace;
     }
 
+    public Map<String, String> getCiEnvVars() {
+      return ciEnvVars;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
@@ -554,7 +593,8 @@ public abstract class CIProviderInfo {
           && Objects.equals(ciPipelineNumber, ciInfo.ciPipelineNumber)
           && Objects.equals(ciPipelineUrl, ciInfo.ciPipelineUrl)
           && Objects.equals(ciJobUrl, ciInfo.ciJobUrl)
-          && Objects.equals(ciWorkspace, ciInfo.ciWorkspace);
+          && Objects.equals(ciWorkspace, ciInfo.ciWorkspace)
+          && Objects.equals(ciEnvVars, ciInfo.ciEnvVars);
     }
 
     @Override
@@ -569,6 +609,7 @@ public abstract class CIProviderInfo {
       hash = 31 * hash + (ciPipelineUrl == null ? 0 : ciPipelineUrl.hashCode());
       hash = 31 * hash + (ciJobUrl == null ? 0 : ciJobUrl.hashCode());
       hash = 31 * hash + (ciWorkspace == null ? 0 : ciWorkspace.hashCode());
+      hash = 31 * hash + (ciEnvVars == null ? 0 : ciEnvVars.hashCode());
       return hash;
     }
 
@@ -601,6 +642,9 @@ public abstract class CIProviderInfo {
           + '\''
           + ", ciWorkspace='"
           + ciWorkspace
+          + '\''
+          + ", ciEnvVars='"
+          + ciEnvVars
           + '\''
           + '}';
     }

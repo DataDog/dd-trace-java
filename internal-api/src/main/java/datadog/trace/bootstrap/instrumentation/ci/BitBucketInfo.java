@@ -8,6 +8,7 @@ class BitBucketInfo extends CIProviderInfo {
 
   // https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/
   public static final String BITBUCKET = "BITBUCKET_BUILD_NUMBER";
+  public static final String BITBUCKET_PREFIX = "BITBUCKET_";
   public static final String BITBUCKET_PROVIDER_NAME = "bitbucket";
   public static final String BITBUCKET_PIPELINE_ID = "BITBUCKET_PIPELINE_UUID";
   public static final String BITBUCKET_REPO_FULL_NAME = "BITBUCKET_REPO_FULL_NAME";
@@ -41,6 +42,7 @@ class BitBucketInfo extends CIProviderInfo {
         .ciPipelineUrl(url)
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
+        .ciEnvVars(getFilteredEnvVars(BITBUCKET_PREFIX))
         .build();
   }
 

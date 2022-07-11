@@ -11,6 +11,7 @@ class JenkinsInfo extends CIProviderInfo {
 
   // https://wiki.jenkins.io/display/JENKINS/Building+a+software+project
   public static final String JENKINS = "JENKINS_URL";
+  public static final String JENKINS_PREFIX = "DD_";
   public static final String JENKINS_PROVIDER_NAME = "jenkins";
   public static final String JENKINS_PIPELINE_ID = "BUILD_TAG";
   public static final String JENKINS_PIPELINE_NUMBER = "BUILD_NUMBER";
@@ -43,6 +44,7 @@ class JenkinsInfo extends CIProviderInfo {
         .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
         .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+        .ciEnvVars(getFilteredEnvVars(JENKINS_PREFIX))
         .build();
   }
 
