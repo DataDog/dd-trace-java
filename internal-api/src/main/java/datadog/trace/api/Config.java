@@ -273,6 +273,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
@@ -454,6 +455,7 @@ public class Config {
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
   private final boolean traceClientIpHeaderDisabled;
+  private final boolean traceClientIpResolverEnabled;
 
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
@@ -927,6 +929,9 @@ public class Config {
 
     this.traceClientIpHeaderDisabled =
         configProvider.getBoolean(TRACE_CLIENT_IP_HEADER_DISABLED, false);
+
+    this.traceClientIpResolverEnabled =
+        configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
@@ -1537,6 +1542,10 @@ public class Config {
 
   public boolean isTraceClientIpHeaderDisabled() {
     return traceClientIpHeaderDisabled;
+  }
+
+  public boolean isTraceClientIpResolverEnabled() {
+    return traceClientIpResolverEnabled;
   }
 
   public Map<String, String> getTraceSamplingServiceRules() {

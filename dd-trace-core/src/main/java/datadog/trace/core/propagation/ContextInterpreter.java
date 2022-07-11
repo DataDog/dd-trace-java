@@ -49,8 +49,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected boolean valid;
 
   private TagContext.HttpHeaders httpHeaders;
-  protected String customIpHeaderName;
-  private boolean customIpHeaderDisabled;
+  private final String customIpHeaderName;
+  private final boolean customIpHeaderDisabled;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -93,10 +93,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         return true;
       }
       if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
-        if (httpHeaders == null) {
-          httpHeaders = new TagContext.HttpHeaders();
-        }
-        httpHeaders.forwardedFor = value;
+        getHeaders().forwardedFor = value;
         return true;
       }
     }
@@ -118,10 +115,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       if (X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
         forwardedIp = value;
         hasForwarded = true;
-        if (httpHeaders == null) {
-          httpHeaders = new TagContext.HttpHeaders();
-        }
-        httpHeaders.xForwardedFor = value;
+        getHeaders().xForwardedFor = value;
         return true;
       }
       if (X_FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
@@ -130,10 +124,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         return true;
       }
       if (X_FORWARDED_KEY.equalsIgnoreCase(key)) {
-        if (httpHeaders == null) {
-          httpHeaders = new TagContext.HttpHeaders();
-        }
-        httpHeaders.xForwarded = value;
+        getHeaders().xForwarded = value;
         return true;
       }
     }
@@ -142,10 +133,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected final boolean handledUserAgent(String key, String value) {
     if (null != value && USER_AGENT_KEY.equalsIgnoreCase(key)) {
-      if (httpHeaders == null) {
-        httpHeaders = new TagContext.HttpHeaders();
-      }
-      httpHeaders.userAgent = value;
+      getHeaders().userAgent = value;
       return true;
     }
     return false;
@@ -160,10 +148,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         && customIpHeaderName != null
         && !customIpHeaderDisabled
         && customIpHeaderName.equalsIgnoreCase(key)) {
-      if (httpHeaders == null) {
-        httpHeaders = new TagContext.HttpHeaders();
-      }
-      httpHeaders.customIpHeader = value;
+      getHeaders().customIpHeader = value;
       return true;
     }
 
@@ -172,40 +157,25 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       char last = Character.toLowerCase(key.charAt(key.length() - 1));
       if (last == 'p') {
         if (X_CLUSTER_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
-          if (httpHeaders == null) {
-            httpHeaders = new TagContext.HttpHeaders();
-          }
-          httpHeaders.xClusterClientIp = value;
+          getHeaders().xClusterClientIp = value;
           return true;
         }
         if (X_REAL_IP_KEY.equalsIgnoreCase(key)) {
-          if (httpHeaders == null) {
-            httpHeaders = new TagContext.HttpHeaders();
-          }
-          httpHeaders.xRealIp = value;
+          getHeaders().xRealIp = value;
           return true;
         }
         if (CLIENT_IP_KEY.equalsIgnoreCase(key)) {
-          if (httpHeaders == null) {
-            httpHeaders = new TagContext.HttpHeaders();
-          }
-          httpHeaders.clientIp = value;
+          getHeaders().clientIp = value;
           return true;
         }
         if (TRUE_CLIENT_IP_KEY.equalsIgnoreCase(key)) {
-          if (httpHeaders == null) {
-            httpHeaders = new TagContext.HttpHeaders();
-          }
-          httpHeaders.trueClientIp = value;
+          getHeaders().trueClientIp = value;
           return true;
         }
       }
 
       if (VIA_KEY.equalsIgnoreCase(key)) {
-        if (httpHeaders == null) {
-          httpHeaders = new TagContext.HttpHeaders();
-        }
-        httpHeaders.via = value;
+        getHeaders().via = value;
         return true;
       }
     }
@@ -294,5 +264,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected int defaultSamplingMechanism() {
     return SamplingMechanism.UNKNOWN;
+  }
+
+  private final TagContext.HttpHeaders getHeaders() {
+    if (httpHeaders == null) {
+      httpHeaders = new TagContext.HttpHeaders();
+    }
+    return httpHeaders;
   }
 }

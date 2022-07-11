@@ -102,6 +102,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final CONNECTION connection,
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
+    Config config = Config.get();
 
     if (context != null) {
       String forwarded = context.getForwarded();
@@ -138,7 +139,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-          Config config = Config.get();
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           String path = encoded ? url.rawPath() : url.path();
@@ -184,15 +184,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       callIGCallbackSocketAddress(span, ip, port);
     }
 
-    InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
-    // As a fallback, if no IP was resolved, the peer IP address should be checked
-    // to see if it is public and used as the resolved IP if it is.
-    // If no public IP address, then a private IP address should reported as a fall back.
-    if (inferredAddress == null && ip != null) {
-      inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
-    }
-    if (inferredAddress != null) {
-      span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
+    if (config.isTraceClientIpResolverEnabled()) {
+      InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
+      // As a fallback, if no IP was resolved, the peer IP address should be checked
+      // to see if it is public and used as the resolved IP if it is.
+      // If no public IP address, then a private IP address should reported as a fall back.
+      if (inferredAddress == null && ip != null) {
+        inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
+      }
+      if (inferredAddress != null) {
+        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
+      }
     }
 
     return span;
