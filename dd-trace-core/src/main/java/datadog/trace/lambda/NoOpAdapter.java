@@ -33,14 +33,15 @@ public final class NoOpAdapter<T> extends JsonAdapter<T> {
     delegate.toJson(writer, value);
   }
 
-  public static <T> Factory newFactory(final String type) {
+  public static <T> Factory newFactory(final String typeToSkip) {
     return new Factory() {
       @Override
       public JsonAdapter<?> create(
           Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
-        if (null != requestedType && requestedType.toString().endsWith(type)) {
+        if (requestedType instanceof Class<?>
+            && ((Class<?>) requestedType).getName().equals(typeToSkip)) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
-          return new NoOpAdapter<>(delegate, type);
+          return new NoOpAdapter<>(delegate, typeToSkip);
         }
         return null;
       }
