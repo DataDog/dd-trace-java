@@ -3,7 +3,11 @@ package datadog.trace.core.propagation
 
 import datadog.trace.core.datastreams.DefaultPathwayContext
 import datadog.trace.core.test.DDCoreSpecification
+import spock.lang.Requires
 
+@Requires({
+  jvm.isJava8Compatible()
+})
 class ExtractedPathwayContextTest extends DDCoreSpecification {
   def "extract pathway context"() {
     setup:
