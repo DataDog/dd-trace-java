@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.http.utils.IPAddressUtil;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -411,7 +412,11 @@ public class ClientIpAddressResolver {
       return null; // probably a name instead
     }
     try {
-      return InetAddress.getByName(str);
+      byte[] addr = IPAddressUtil.textToNumericFormatV4(str);
+      if (addr == null) {
+        addr = IPAddressUtil.textToNumericFormatV6(str);
+      }
+      return InetAddress.getByAddress(str, addr);
     } catch (UnknownHostException e) {
       return null; // should not happen
     }
