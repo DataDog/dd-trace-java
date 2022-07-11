@@ -35,6 +35,11 @@ class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
 
   @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
@@ -924,9 +929,9 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
 
     where:
-    value                                                    | expected
-    "false"                                                  | false
-    "true"                                                   | true
+    value   | expected
+    "false" | false
+    "true"  | true
   }
 
 
