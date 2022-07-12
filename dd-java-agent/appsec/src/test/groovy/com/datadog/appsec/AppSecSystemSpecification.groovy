@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 import okhttp3.OkHttpClient
 
-import java.lang.instrument.Instrumentation
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -26,7 +25,6 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class AppSecSystemSpecification extends DDSpecification {
   SubscriptionService subService = Mock()
   Tracer tracer = Mock()
-  Instrumentation inst = Mock()
 
   def cleanup() {
     AppSecSystem.stop()
@@ -34,7 +32,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'registers powerwaf module'() {
     when:
-    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     'powerwaf' in AppSecSystem.startedModulesInfo
@@ -45,7 +43,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
 
     when:
-    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException
@@ -62,7 +60,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.ipheader', 'foo-bar')
 
     when:
-    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects())
     requestEndedCB.apply(requestContext, Mock(AgentSpan))
 
     then:
@@ -87,7 +85,7 @@ class AppSecSystemSpecification extends DDSpecification {
     injectSysConfig('dd.appsec.trace.rate.limit', '5')
 
     when:
-    AppSecSystem.start(inst, subService, sco)
+    AppSecSystem.start(subService, sco)
     7.times { requestEndedCB.apply(requestContext, Mock(AgentSpan)) }
 
     then:
@@ -111,7 +109,7 @@ class AppSecSystemSpecification extends DDSpecification {
     rebuildConfig()
 
     when:
-    AppSecSystem.start(inst, subService, sharedCommunicationObjects())
+    AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
     thrown AbortStartupException

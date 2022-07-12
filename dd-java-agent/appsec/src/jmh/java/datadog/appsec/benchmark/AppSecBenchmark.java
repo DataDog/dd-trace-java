@@ -65,7 +65,7 @@ public class AppSecBenchmark {
     sharedCommunicationObjects.featuresDiscovery =
         new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.okHttpClient);
 
-    AppSecSystem.start(null, gw, sharedCommunicationObjects);
+    AppSecSystem.start(gw, sharedCommunicationObjects);
     uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));
   }
 

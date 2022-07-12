@@ -386,7 +386,7 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      maybeStartAppSec(instrumentation, scoClass, sco);
+      maybeStartAppSec(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -575,24 +575,22 @@ public class Agent {
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void maybeStartAppSec(Instrumentation inst, Class<?> scoClass, Object o) {
+  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
       return;
     }
 
     InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
-    startAppSec(inst, gw, scoClass, o);
+    startAppSec(gw, scoClass, o);
   }
 
-  private static void startAppSec(
-      Instrumentation inst, InstrumentationGateway gw, Class<?> scoClass, Object sco) {
+  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
-          appSecSysClass.getMethod(
-              "start", Instrumentation.class, SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, inst, gw, sco);
+          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
+      appSecInstallerMethod.invoke(null, gw, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }

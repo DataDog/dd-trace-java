@@ -16,7 +16,6 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.Strings;
-import java.lang.instrument.Instrumentation;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -29,10 +28,9 @@ public class AppSecSystem {
   private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
-  public static void start(
-      Instrumentation instrumentation, SubscriptionService gw, SharedCommunicationObjects sco) {
+  public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
-      doStart(instrumentation, gw, sco);
+      doStart(gw, sco);
     } catch (AbortStartupException ase) {
       throw ase;
     } catch (RuntimeException | Error e) {
@@ -41,8 +39,7 @@ public class AppSecSystem {
     }
   }
 
-  private static void doStart(
-      Instrumentation instrumentation, SubscriptionService gw, SharedCommunicationObjects sco) {
+  private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
     final Config config = Config.get();
     if (!config.isAppSecEnabled()) {
       log.debug("AppSec: disabled");
