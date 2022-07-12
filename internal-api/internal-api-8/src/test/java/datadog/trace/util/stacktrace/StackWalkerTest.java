@@ -1,13 +1,12 @@
 package datadog.trace.util.stacktrace;
 
-import com.foo.Foo;
-import org.junit.jupiter.api.Test;
-
-import java.util.stream.Stream;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.foo.Foo;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 
 public class StackWalkerTest {
 
