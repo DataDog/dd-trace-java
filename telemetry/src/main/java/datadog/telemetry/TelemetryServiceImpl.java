@@ -47,9 +47,9 @@ public class TelemetryServiceImpl implements TelemetryService {
   public void addStartedRequest() {
     Payload payload =
         new AppStarted()
-            ._configuration(drainOrNull(configurations))
-            .integrations(drainOrNull(integrations))
-            .dependencies(drainOrNull(dependencies))
+            ._configuration(drainOrNull(configurations)) // absent if nothing
+            .integrations(drainOrEmpty(integrations)) // empty list if nothing
+            .dependencies(drainOrEmpty(dependencies)) // empty list if nothing
             .requestType(RequestType.APP_STARTED);
 
     queue.offer(requestBuilder.build(RequestType.APP_STARTED, payload));
@@ -89,7 +89,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   public Queue<Request> prepareRequests() {
     // New integrations
     if (!integrations.isEmpty()) {
-      Payload payload = new AppIntegrationsChange().integrations(drainOrNull(integrations));
+      Payload payload = new AppIntegrationsChange().integrations(drainOrEmpty(integrations));
       Request request =
           requestBuilder.build(
               RequestType.APP_INTEGRATIONS_CHANGE,
@@ -99,7 +99,7 @@ public class TelemetryServiceImpl implements TelemetryService {
 
     // New dependencies
     if (!dependencies.isEmpty()) {
-      Payload payload = new AppDependenciesLoaded().dependencies(drainOrNull(dependencies));
+      Payload payload = new AppDependenciesLoaded().dependencies(drainOrEmpty(dependencies));
       Request request =
           requestBuilder.build(
               RequestType.APP_DEPENDENCIES_LOADED,
@@ -114,7 +114,7 @@ public class TelemetryServiceImpl implements TelemetryService {
               .namespace("appsec")
               .libLanguage("java")
               .libVersion("0.0.0")
-              .series(drainOrNull(metrics));
+              .series(drainOrEmpty(metrics));
       Request request =
           requestBuilder.build(
               RequestType.GENERATE_METRICS, payload.requestType(RequestType.GENERATE_METRICS));
@@ -136,11 +136,19 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {
+    return drainOrDefault(srcQueue, null);
+  }
+
+  private static <T> List<T> drainOrEmpty(BlockingQueue<T> srcQueue) {
+    return drainOrDefault(srcQueue, Collections.<T>emptyList());
+  }
+
+  private static <T> List<T> drainOrDefault(BlockingQueue<T> srcQueue, List<T> defaultList) {
     List<T> list = new LinkedList<>();
     int drained = srcQueue.drainTo(list);
     if (drained > 0) {
       return list;
     }
-    return null;
+    return defaultList;
   }
 }
