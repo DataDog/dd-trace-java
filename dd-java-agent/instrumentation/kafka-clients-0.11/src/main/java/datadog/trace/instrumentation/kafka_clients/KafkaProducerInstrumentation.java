@@ -19,11 +19,14 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.core.datastreams.DefaultPathwayContext;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.RecordBatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
@@ -59,6 +62,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
   }
 
   public static class ProducerAdvice {
+    private static final Logger log = LoggerFactory.getLogger(ProducerAdvice.class);
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
@@ -87,6 +91,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         try {
+          log.info("Injecting into Kafka headers");
           propagate().inject(span, record.headers(), SETTER);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.

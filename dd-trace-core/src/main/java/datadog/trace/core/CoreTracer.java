@@ -751,6 +751,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private <C> void inject(
       AgentSpan.Context context, C carrier, Setter<C> setter, PropagationStyle style) {
+    log.info("[HKT113] inject");
     if (!(context instanceof DDSpanContext)) {
       return;
     }
@@ -768,7 +769,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     try {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
+        log.info("[HKT113] inject context: " + encodedContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+      } else {
+        log.info("[HKT113] inject context failed, encodedContext null");
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -791,6 +795,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
+    log.info("[HKT113] setDataStreamCheckpoint, span: " + span + ", type: " + type + ", group: " + group + ", topic: " + topic);
     span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
   }
 

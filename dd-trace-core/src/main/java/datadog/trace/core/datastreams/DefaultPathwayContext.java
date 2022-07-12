@@ -75,6 +75,7 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
+    log.info("[HKT113] DefaultPathwayContext.setCheckpoint");
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -129,6 +130,7 @@ public class DefaultPathwayContext implements PathwayContext {
               pathwayLatencyNano,
               edgeLatencyNano);
       edgeStartNanoTicks = nanoTicks;
+      log.info("[HKT113] setCheckpoint, oldHash: " + hash + ", newHash: " + newHash);
       hash = newHash;
 
       pointConsumer.accept(point);
@@ -179,6 +181,7 @@ public class DefaultPathwayContext implements PathwayContext {
     this.group = group;
     this.topic = topic;
     lock.unlock();
+    log.info("[HKT113] setQueueTags, type: " + type + ", group: " + group + ", topic: " + topic);
   }
 
   @Override
