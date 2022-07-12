@@ -53,8 +53,8 @@ public class LambdaHandler {
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder()
           // we need to bypass those classes as moshi fails to marshal this into JSON
-          .add(NoOpAdapter.newFactory("org.joda.time.Chronology"))
-          .add(NoOpAdapter.newFactory("java.nio.ByteBuffer"))
+          .add(SkipTypeJsonSerializer.newFactory("org.joda.time.Chronology"))
+          .add(SkipTypeJsonSerializer.newFactory("java.nio.ByteBuffer"))
           .build()
           .adapter(Object.class);
 

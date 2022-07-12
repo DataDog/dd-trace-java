@@ -3,7 +3,7 @@ package datadog.trace.lambda
 import datadog.trace.core.test.DDCoreSpecification
 import com.squareup.moshi.Moshi
 
-class NoOpAdapterTest extends DDCoreSpecification {
+class SkipTypeJsonSerializerTest extends DDCoreSpecification {
 
   static class TestJsonObject {
 
@@ -30,7 +30,7 @@ class NoOpAdapterTest extends DDCoreSpecification {
   def "test skip String serialization"() {
     given:
     def adapter = new Moshi.Builder()
-      .add(NoOpAdapter.newFactory("java.lang.String"))
+      .add(SkipTypeJsonSerializer.newFactory("java.lang.String"))
       .build()
       .adapter(Object)
 

@@ -9,11 +9,11 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.Set;
 
-public final class NoOpAdapter<T> extends JsonAdapter<T> {
+public final class SkipTypeJsonSerializer<T> extends JsonAdapter<T> {
   private final JsonAdapter<T> delegate;
   private final String typeToSkip;
 
-  private NoOpAdapter(JsonAdapter<T> delegate, String typeToSkip) {
+  private SkipTypeJsonSerializer(JsonAdapter<T> delegate, String typeToSkip) {
     this.delegate = delegate;
     this.typeToSkip = typeToSkip;
   }
@@ -41,7 +41,7 @@ public final class NoOpAdapter<T> extends JsonAdapter<T> {
         if (requestedType instanceof Class<?>
             && ((Class<?>) requestedType).getName().equals(typeToSkip)) {
           JsonAdapter<T> delegate = moshi.nextAdapter(this, Object.class, annotations);
-          return new NoOpAdapter<>(delegate, typeToSkip);
+          return new SkipTypeJsonSerializer<>(delegate, typeToSkip);
         }
         return null;
       }
