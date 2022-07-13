@@ -32,10 +32,9 @@ ext {
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',
   ]
-  excludedClassesBranchCoverage = [
-    'datadog.communication.ddagent.TracerVersion',
-  ]
-  excludedClassesInstructionCoverage = [// can't reach the error condition now
+  excludedClassesBranchCoverage = ['datadog.communication.ddagent.TracerVersion',]
+  excludedClassesInstructionCoverage = [
+    // can't reach the error condition now
     'datadog.communication.fleet.FleetServiceImpl',
     'datadog.communication.ddagent.SharedCommunicationObjects'
   ]

@@ -23,16 +23,12 @@ import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -459,21 +455,6 @@ public class Agent {
     } catch (Exception e) {
       log.error("Error starting remote config", e);
     }
-  }
-
-  private static String getAgentVersion() throws IOException {
-    final StringBuilder sb = new StringBuilder(32);
-    ClassLoader cl = ClassLoader.getSystemClassLoader();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                cl.getResourceAsStream("dd-java-agent.version"), StandardCharsets.ISO_8859_1))) {
-      for (int c = reader.read(); c != -1; c = reader.read()) {
-        sb.append((char) c);
-      }
-    }
-
-    return sb.toString().trim();
   }
 
   private static synchronized void createSharedClassloader(final URL bootstrapURL) {

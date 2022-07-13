@@ -5,10 +5,6 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
 import datadog.remote_config.ConfigurationPoller;
 import datadog.trace.api.Config;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -48,7 +44,8 @@ public class SharedCommunicationObjects {
       String remoteConfigUrl = config.getFinalRemoteConfigUrl();
       if (remoteConfigUrl != null) {
         configurationPoller =
-            new ConfigurationPoller(config, getTracerVersion(), remoteConfigUrl, okHttpClient);
+            new ConfigurationPoller(
+                config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
       } else {
         createRemaining(config);
         DDAgentFeaturesDiscovery fd = featuresDiscovery(config);
@@ -56,7 +53,8 @@ public class SharedCommunicationObjects {
         if (configEndpoint != null) {
           remoteConfigUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
           configurationPoller =
-              new ConfigurationPoller(config, getTracerVersion(), remoteConfigUrl, okHttpClient);
+              new ConfigurationPoller(
+                  config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
         }
       }
     }
@@ -82,22 +80,5 @@ public class SharedCommunicationObjects {
       featuresDiscovery.discover();
     }
     return featuresDiscovery;
-  }
-
-  private static String getTracerVersion() {
-    final StringBuilder sb = new StringBuilder(32);
-    ClassLoader cl = ClassLoader.getSystemClassLoader();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                cl.getResourceAsStream("dd-java-agent.version"), StandardCharsets.ISO_8859_1))) {
-      for (int c = reader.read(); c != -1; c = reader.read()) {
-        sb.append((char) c);
-      }
-    } catch (IOException e) {
-      return "0.0.0";
-    }
-
-    return sb.toString().trim();
   }
 }
