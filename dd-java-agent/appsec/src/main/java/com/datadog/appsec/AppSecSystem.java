@@ -66,7 +66,6 @@ public class AppSecSystem {
             gw,
             eventDispatcher,
             rateLimiter,
-            config.getAppSecIpAddrHeader(),
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);

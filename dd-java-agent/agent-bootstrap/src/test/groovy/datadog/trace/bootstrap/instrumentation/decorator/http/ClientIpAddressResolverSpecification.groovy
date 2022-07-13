@@ -1,15 +1,18 @@
-package com.datadog.appsec.gateway
+package datadog.trace.bootstrap.instrumentation.decorator.http
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import spock.lang.Specification
 
 class ClientIpAddressResolverSpecification extends Specification {
 
-  private static final String HEADER = 'foo-bar'
+  void 'test with custom header'() {
+    setup:
+    def context = Mock(AgentSpan.Context.Extracted)
+    1 * context.getCustomIpHeader() >> headerValue
 
-  void 'test with configured header'() {
     expect:
     InetAddress resultInetAddr = result ? InetAddress.getByName(result) : null
-    ClientIpAddressResolver.resolve(HEADER, [(HEADER): [headerValue]]) == resultInetAddr
+    ClientIpAddressResolver.resolve(context) == resultInetAddr
 
     where:
     headerValue | result
@@ -21,10 +24,19 @@ class ClientIpAddressResolverSpecification extends Specification {
     '10.0.0.1' | null // peer address is ignored!
   }
 
-  void 'test without configured header'() {
+  private static String headerToCamelCase(String headerName) {
+    headerName.split('-').collect {it.capitalize()}.join()
+  }
+
+  void 'test with standard header'() {
+    setup:
+    def method = "get${headerToCamelCase(header)}"
+    def context = Mock(AgentSpan.Context.Extracted)
+    1 * context."$method"() >> headerValue
+
     expect:
     InetAddress resultInetAddr = result ? InetAddress.getByName(result) : null
-    ClientIpAddressResolver.resolve(null, [(header): [headerValue]]) == resultInetAddr
+    ClientIpAddressResolver.resolve(context) == resultInetAddr
 
     where:
     header | headerValue | result
@@ -68,5 +80,60 @@ class ClientIpAddressResolverSpecification extends Specification {
     'via' | ",,8.8.8.8  127.0.0.1 6.6.6.6, 1.0\t  1.1.1.1\tcomment," | '1.1.1.1'
 
     'true-client-ip' | '8.8.8.8' | '8.8.8.8'
+  }
+
+  void 'test recognition strategy with custom header'() {
+    setup:
+    def context = Mock(AgentSpan.Context.Extracted)
+
+    when:
+    def ip = ClientIpAddressResolver.resolve(context)
+
+    then:
+    1 * context.getCustomIpHeader() >> '8.8.8.8'
+    0 * _
+
+    ip == InetAddress.getByName('8.8.8.8')
+  }
+
+  void 'test recognition strategy without custom header'() {
+    setup:
+    def context = Mock(AgentSpan.Context.Extracted)
+
+    when:
+    def ip = ClientIpAddressResolver.resolve(context)
+
+    then:
+    1 * context.getCustomIpHeader() >> null
+
+    then:
+    1 * context.getXForwardedFor() >> null
+
+    then:
+    1 * context.getXRealIp() >> null
+
+    then:
+    1 * context.getClientIp() >> null
+
+    then:
+    1 * context.getXForwarded() >> null
+
+    then:
+    1 * context.getXClusterClientIp() >> null
+
+    then:
+    1 * context.getForwardedFor() >> null
+
+    then:
+    1 * context.getForwarded() >> null
+
+    then:
+    1 * context.getVia() >> null
+
+    then:
+    1* context.getTrueClientIp() >> '8.8.8.8'
+    0 * _
+
+    ip == InetAddress.getByName('8.8.8.8')
   }
 }

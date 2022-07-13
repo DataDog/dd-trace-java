@@ -141,8 +141,18 @@ class XRayHttpCodec {
               return true;
             }
             break;
+          case 'u':
+            if (handledUserAgent(key, value)) {
+              return true;
+            }
+            break;
           default:
         }
+
+        if (handledIpHeaders(key, value)) {
+          return true;
+        }
+
         if (!taggedHeaders.isEmpty()) {
           String mappedKey = taggedHeaders.get(toLowerCase(key));
           if (null != mappedKey) {

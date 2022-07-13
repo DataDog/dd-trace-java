@@ -23,8 +23,27 @@ public class ExtractedContext extends TagContext {
       final String origin,
       final long endToEndStartTime,
       final Map<String, String> baggage,
+      final Map<String, String> tags,
+      final HttpHeaders httpHeaders) {
+    super(origin, tags, httpHeaders);
+    this.traceId = traceId;
+    this.spanId = spanId;
+    this.samplingPriority = samplingPriority;
+    this.samplingMechanism = samplingMechanism;
+    this.endToEndStartTime = endToEndStartTime;
+    this.baggage = baggage;
+  }
+
+  public ExtractedContext(
+      final DDId traceId,
+      final DDId spanId,
+      final int samplingPriority,
+      final int samplingMechanism,
+      final String origin,
+      final long endToEndStartTime,
+      final Map<String, String> baggage,
       final Map<String, String> tags) {
-    super(origin, tags);
+    super(origin, tags, null);
     this.traceId = traceId;
     this.spanId = spanId;
     this.samplingPriority = samplingPriority;
