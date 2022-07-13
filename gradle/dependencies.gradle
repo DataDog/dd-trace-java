@@ -88,7 +88,7 @@ final class CachedData {
       "org.openjdk.jmc:flightrecorder:${versions.jmc}"
     ],
 
-    // Shared between appsec, agent tooling, instrumentation, JMXFetch, and profiling
+    // Shared between appsec, agent tooling, iast, instrumentation, JMXFetch, and profiling
     shared               : [
       "com.squareup.okhttp3:okhttp:${versions.okhttp}",
       // Force specific version of okio required by com.squareup.moshi:moshi

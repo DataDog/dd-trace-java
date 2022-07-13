@@ -23,8 +23,8 @@ public final class Events<D> {
   private static final EventType REQUEST_STARTED = new ET<>("request.started", REQUEST_STARTED_ID);
   /** A request started */
   @SuppressWarnings("unchecked")
-  public EventType<Supplier<Flow<D>>> requestStarted() {
-    return (EventType<Supplier<Flow<D>>>) REQUEST_STARTED;
+  public EventType<Supplier<Flow<RequestContext<Object>>>> requestStarted() {
+    return REQUEST_STARTED;
   }
 
   static final int REQUEST_ENDED_ID = 1;
@@ -33,8 +33,8 @@ public final class Events<D> {
   private static final EventType REQUEST_ENDED = new ET<>("request.ended", REQUEST_ENDED_ID);
   /** A request ended */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext<D>, IGSpanInfo, Flow<Void>>> requestEnded() {
-    return (EventType<BiFunction<RequestContext<D>, IGSpanInfo, Flow<Void>>>) REQUEST_ENDED;
+  public EventType<BiFunction<RequestContext<Object>, IGSpanInfo, Flow<Void>>> requestEnded() {
+    return REQUEST_ENDED;
   }
 
   static final int REQUEST_HEADER_ID = 2;

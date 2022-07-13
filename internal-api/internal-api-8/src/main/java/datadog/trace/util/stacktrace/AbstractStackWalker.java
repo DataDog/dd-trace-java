@@ -9,7 +9,7 @@ public abstract class AbstractStackWalker implements StackWalker {
   private static final Predicate<StackTraceElement> NOT_DD_TRACE_STACK_ELEMENT =
       (stackTraceElement) ->
           !stackTraceElement.getClassName().startsWith("datadog.trace.")
-              && !stackTraceElement.getClassName().startsWith("com.datadog.appsec.");
+              && !stackTraceElement.getClassName().startsWith("com.datadog.iast.");
 
   @Override
   public <T> T walk(Function<Stream<StackTraceElement>, T> consumer) {

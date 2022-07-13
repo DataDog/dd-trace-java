@@ -1193,6 +1193,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final DDSpanContext context;
       final Object requestContextData;
+      final Object iastContext;
       final PathwayContext pathwayContext;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
@@ -1228,6 +1229,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext<Object> requestContext = ddsc.getRequestContext();
         requestContextData = null == requestContext ? null : requestContext.getData();
+        iastContext = null == requestContext ? null : requestContext.getIastContext();
         pathwayContext =
             ddsc.getPathwayContext().isStarted()
                 ? ddsc.getPathwayContext()
@@ -1265,6 +1267,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           origin = null;
           requestContextData = null;
         }
+
+        iastContext = null;
 
         rootSpanTags = localRootSpanTags;
 
@@ -1308,6 +1312,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               tagsSize,
               parentTrace,
               requestContextData,
+              iastContext,
               pathwayContext,
               disableSamplingMechanismValidation);
 

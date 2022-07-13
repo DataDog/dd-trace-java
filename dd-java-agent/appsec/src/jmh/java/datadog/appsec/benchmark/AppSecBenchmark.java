@@ -223,6 +223,11 @@ public class AppSecBenchmark {
     }
 
     @Override
+    public Object getIastContext() {
+      return null;
+    }
+
+    @Override
     public TraceSegment getTraceSegment() {
       return TraceSegment.NoOp.INSTANCE;
     }

@@ -110,6 +110,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   /** RequestContext data for the InstrumentationGateway */
   private final Object requestContextData;
 
+  private final Object iastContextData;
+
   private final boolean disableSamplingMechanismValidation;
 
   private volatile PathwayContext pathwayContext;
@@ -152,6 +154,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final int tagsSize,
       final PendingTrace trace,
       final Object requestContextData,
+      final Object iastContextData,
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation) {
 
@@ -173,6 +176,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     }
 
     this.requestContextData = requestContextData;
+    this.iastContextData = iastContextData;
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
@@ -618,6 +622,11 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   @Override
   public Object getData() {
     return requestContextData;
+  }
+
+  @Override
+  public Object getIastContext() {
+    return iastContextData;
   }
 
   @Override

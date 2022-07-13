@@ -9,5 +9,7 @@ import datadog.trace.api.TraceSegment;
 public interface RequestContext<D> {
   D getData();
 
+  Object getIastContext();
+
   TraceSegment getTraceSegment();
 }
