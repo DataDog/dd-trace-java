@@ -8,7 +8,8 @@ import java.util.stream.Stream;
 
 public class DefaultStackWalker implements StackWalker {
 
-  DefaultStackWalker() {}
+  DefaultStackWalker() {
+  }
 
   protected static Set<String> filteredPackages =
       Stream.of("datadog.trace.", "com.datadog.appsec.")
@@ -28,6 +29,12 @@ public class DefaultStackWalker implements StackWalker {
     return filteredPackages.stream().noneMatch(className::startsWith);
   }
 
+  /**
+   * This method can be overriden by subclasses to get the original stacktrace,
+   * according to the implementation used to improve performance. for example:
+   * JDK9+( <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/StackWalker.html">StackWalker</a>)
+   * JDK8 with HotSpot (<a href="https://github.com/openjdk/jdk/blob/jdk8-b120/jdk/src/share/classes/sun/misc/JavaLangAccess.java">JavaLangAccess</a>)
+   */
   protected Stream<StackTraceElement> doGetStack() {
     return Arrays.stream(new Throwable().getStackTrace());
   }
