@@ -59,6 +59,10 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  //Next 3 are covered by tests in internal-api-8
+  "datadog.trace.util.stacktrace.DefaultStackWalker",
+  "datadog.trace.util.stacktrace.StackWalker",
+  "datadog.trace.util.stacktrace.StackWalkerFactory",
 ]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
