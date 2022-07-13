@@ -62,7 +62,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
               // Simply ignore the error as the class will not be even attempted to get loaded on Java 7
               break
             }
-            if (info.getName().startsWith("datadog.trace.util.stacktrace")) {
+            if (info.getName().startsWith("datadog.trace.util.stacktrace.")) {
               //It is known that support for Java 7 is going to be discontinued
               //so we have decided to implement everything related to IAST in java8
               break
