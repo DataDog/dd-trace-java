@@ -25,7 +25,7 @@ public class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
-  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<String, String>();
+  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
@@ -45,7 +45,7 @@ public class AppSecSystem {
       log.debug("AppSec: disabled");
       return;
     }
-    log.debug("AppSec has started");
+    log.debug("AppSec is starting");
 
     //  TODO: FleetService should be shared with other components
     FleetService fleetService =
@@ -53,20 +53,20 @@ public class AppSecSystem {
             sco, new AgentThreadFactory(AgentThreadFactory.AgentThread.FLEET_MANAGEMENT_POLLER));
     // do not start its thread, support not merged in agent yet
     //    fleetService.init();
-    // may throw and abort starup
+    // may throw and abort startup
     APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService);
     // no point initializing fleet service, as it will receive no notifications
     APP_SEC_CONFIG_SERVICE.init(false);
 
-    EventDispatcher eventDispatcher = new EventDispatcher();
     sco.createRemaining(config);
+
+    EventDispatcher eventDispatcher = new EventDispatcher();
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
             eventDispatcher,
             rateLimiter,
-            config.getAppSecIpAddrHeader(),
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);

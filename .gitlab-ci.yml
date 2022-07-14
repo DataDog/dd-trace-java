@@ -119,16 +119,25 @@ deploy_to_sonatype:
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
 
-deploy_to_dockerhub:
-  <<: *docker
+deploy_to_docker_registries:
   stage: deploy
   rules:
+    - if: '$POPULATE_CACHE'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     - if: '$CI_COMMIT_TAG =~ /^v.*/'
       when: on_success
-  script:
-    - docker images # TODO copy images from ghcr to appropriate mirrors with tagged version
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: ghcr.io/datadog/dd-trace-java/dd-java-agent-init:$CI_COMMIT_SHA
+    IMG_DESTINATIONS: dd-java-agent-init:$CI_COMMIT_TAG
+    IMG_SIGNING: "false"
 
 create_key:
   stage: generate-signing-key

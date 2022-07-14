@@ -5,6 +5,7 @@ plugins {
 ext {
   // Need to exclude OpenJ9 and Oracle JDK 8 since it doesn't support JFR fully
   excludeJdk = ['IBM8', 'ORACLE8']
+  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"

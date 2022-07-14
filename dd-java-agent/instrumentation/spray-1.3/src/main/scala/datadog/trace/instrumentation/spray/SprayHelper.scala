@@ -11,10 +11,11 @@ import scala.util.control.NonFatal
 object SprayHelper {
   def wrapRequestContext(
       ctx: RequestContext,
-      span: AgentSpan
+      span: AgentSpan,
+      extracted: AgentSpan.Context.Extracted
   ): RequestContext = {
     ctx.withRouteResponseMapped(message => {
-      DECORATE.onRequest(span, ctx, ctx.request, null)
+      DECORATE.onRequest(span, ctx, ctx.request, extracted)
       message match {
         case response: HttpResponse => DECORATE.onResponse(span, response)
         case throwable: Throwable   => DECORATE.onError(span, throwable)

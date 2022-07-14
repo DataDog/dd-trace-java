@@ -1,0 +1,377 @@
+openapi: 3.0.3
+info:
+  title: Datadog Telemetry API
+  version: 1.0.0
+paths:
+  /api/v2/apmtelemetry:
+    summary: Main intake
+    description: Telemetry intake
+    servers:
+      - url: https://instrumentation-telemetry-intake.datadoghq.com
+      - url: https://all-http-intake.logs.datad0g.com
+    post:
+      summary: Send telemetry
+      description: record telemetry payload
+      requestBody:
+        $ref: '#/components/requestBodies/Telemetry'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+    parameters:
+      - name: DD-API-KEY
+        description: Datadog API key
+        in: header
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/APIVersion'
+      - $ref: '#/components/parameters/RequestType'
+  /telemetry/proxy/api/v2/apmtelemetry:
+    summary: Call main intake via agent
+    description: Telemetry agent proxy
+    servers:
+      - url: http://localhost:8126
+    post:
+      summary: Send telemetry via trace agent
+      description: record telemetry payload through trace agent proxy
+      requestBody:
+        $ref: '#/components/requestBodies/Telemetry'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+    parameters:
+      - $ref: '#/components/parameters/APIVersion'
+      - $ref: '#/components/parameters/RequestType'
+components:
+  requestBodies:
+    Telemetry:
+      required: true
+      description: Body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Telemetry'
+  parameters:
+    APIVersion:
+      name: DD-Telemetry-API-Version
+      description: Requested API Version
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/ApiVersion'
+    RequestType:
+      name: DD-Telemetry-Request-Type
+      description: Requested API function
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/RequestType'
+
+
+  schemas:
+    ApiVersion:
+      type: string
+      enum:
+        - v1
+      example: v1
+    AppDependenciesLoaded:
+      allOf:
+        - $ref: '#/components/schemas/Payload'
+        - type: object
+          properties:
+            dependencies:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dependency'
+          required:
+            - dependencies
+    AppIntegrationsChange:
+      allOf:
+        - $ref: '#/components/schemas/Payload'
+        - type: object
+          properties:
+            integrations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Integration'
+          required:
+            - integrations
+    AppStarted:
+      allOf:
+        - $ref: '#/components/schemas/Payload'
+        - type: object
+          properties:
+            configuration:
+              type: array
+              items:
+                $ref: '#/components/schemas/KeyValue'
+            dependencies:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dependency'
+            integrations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Integration'
+          required:
+            - integrations
+            - dependencies
+    Application:
+      type: object
+      properties:
+        env:
+          nullable: true
+          type: string
+        language_name:
+          type: string
+        language_version:
+          type: string
+        runtime_name:
+          nullable: true
+          type: string
+        runtime_patches:
+          nullable: true
+          type: string
+        runtime_version:
+          nullable: true
+          type: string
+        service_name:
+          type: string
+        service_version:
+          nullable: true
+          type: string
+        tracer_version:
+          type: string
+      required:
+        - service_name
+        - env
+        - tracer_version
+        - language_name
+        - language_version
+    Dependency:
+      type: object
+      properties:
+        hash:
+          nullable: true
+          type: string
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/DependencyType'
+        version:
+          nullable: true
+          type: string
+      required:
+        - name
+        - type
+    DependencyType:
+      type: string
+      enum:
+        - SharedSystemLibrary
+        - PlatformStandard
+      example: SharedSystemLibrary
+    GenerateMetrics:
+      allOf:
+        - $ref: '#/components/schemas/Payload'
+        - type: object
+          properties:
+            lib_language:
+              type: string
+            lib_version:
+              type: string
+            namespace:
+              type: string
+            series:
+              type: array
+              items:
+                $ref: '#/components/schemas/Metric'
+          required:
+            - namespace
+            - lib_language
+            - lib_version
+            - series
+    Host:
+      type: object
+      properties:
+        container_id:
+          nullable: true
+          type: string
+        hostname:
+          type: string
+        kernel_name:
+          nullable: true
+          type: string
+        kernel_release:
+          nullable: true
+          type: string
+        kernel_version:
+          nullable: true
+          type: string
+        os:
+          nullable: true
+          type: string
+        os_version:
+          nullable: true
+          type: string
+      required:
+        - hostname
+        - os
+        - os_version
+    Integration:
+      type: object
+      properties:
+        auto_enabled:
+          nullable: true
+          type: boolean
+        compatible:
+          nullable: true
+          type: boolean
+        enabled:
+          nullable: true
+          type: boolean
+        name:
+          type: string
+        version:
+          nullable: true
+          type: string
+      required:
+        - name
+    Metric:
+      type: object
+      properties:
+        common:
+          type: boolean
+        metric:
+          type: string
+        points:
+          type: array
+          items:
+            type: array
+            items:
+              oneOf:
+                - type: integer
+                  format: uint64
+                - type: number
+                  format: double
+        tags:
+          type: array
+          items:
+            type: string
+        type:
+          description: Metric type variant
+          type: string
+          enum:
+            - gauge
+          example: gauge
+      required:
+        - metric
+        - points
+        - tags
+        - common
+        - type
+    KeyValue:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          oneOf:
+            - type: number
+            - type: boolean
+            - type: string
+          nullable: true
+      required:
+        - name
+    Payload:
+      type: object
+      properties:
+        request_type:
+          $ref: '#/components/schemas/RequestType'
+      discriminator:
+        propertyName: request_type
+        mapping:
+          app-started: AppStarted
+          app-dependencies-loaded: AppDependenciesLoaded
+          app-integrations-change: AppIntegrationsChange
+          # app-closing:
+          # app-heartbeat:
+          generate-metrics: GenerateMetrics
+      example:
+        configuration: [
+          { name: "DD_TRACE_DEBUG", value: "true" },
+          { name: "DD_TRACE_AGENT_URL", value: "http://localhost:9126" },
+          { name: "foo", value: "bar" }
+        ]
+        "dependencies": [
+          {
+            "name": "express",
+            "version": "4.17.1"
+          },
+          {
+            "name": "body-parser",
+            "version": "1.19.0"
+          }
+        ]
+        "integrations": [
+          {
+            "name": "express",
+            "version": "4.17.1",
+            "enabled": true,
+            "auto_enabled": true
+          },
+          {
+            "name": "body-parser",
+            "version": "1.19.0",
+            "enabled": false,
+            "auto_enabled": true,
+            "error": "Integration failed at ..."
+          }
+        ]
+
+    Telemetry:
+      properties:
+        api_version:
+          $ref: '#/components/schemas/ApiVersion'
+        application:
+          $ref: '#/components/schemas/Application'
+        host:
+          $ref: '#/components/schemas/Host'
+        runtime_id:
+          type: string
+        seq_id:
+          type: integer
+          format: uint64
+        tracer_time:
+          type: integer
+          format: uint64
+        request_type:
+          $ref: '#/components/schemas/RequestType'
+        payload:
+          $ref: '#/components/schemas/Payload'
+      required:
+        - api_version
+        - tracer_time
+        - runtime_id
+        - seq_id
+        - application
+        - host
+
+    RequestType:
+      description: Payload type variant
+      type: string
+      enum:
+        - app-started
+        - app-dependencies-loaded
+        - app-integrations-change
+        - app-heartbeat
+        - app-closing
+        - generate-metrics
+      example: app-started

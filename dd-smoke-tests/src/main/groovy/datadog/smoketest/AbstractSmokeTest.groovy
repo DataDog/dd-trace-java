@@ -88,6 +88,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
     "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
     "-Ddd.profiling.url=${getProfilingUrl()}",
+    "-Ddd.profiling.async.enabled=false",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
   ]

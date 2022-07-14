@@ -18,8 +18,9 @@ public final class ForwardedTagContext extends TagContext {
       final String forwardedHost,
       final String forwardedIp,
       final String forwardedPort,
-      final Map<String, String> tags) {
-    super(origin, tags);
+      final Map<String, String> tags,
+      final HttpHeaders httpHeaders) {
+    super(origin, tags, httpHeaders);
     this.forwarded = forwarded;
     this.forwardedProto = forwardedProto;
     this.forwardedHost = forwardedHost;
