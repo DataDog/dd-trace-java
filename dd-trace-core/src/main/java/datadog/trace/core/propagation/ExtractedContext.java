@@ -23,8 +23,9 @@ public class ExtractedContext extends TagContext {
       final long endToEndStartTime,
       final Map<String, String> baggage,
       final Map<String, String> tags,
+      final HttpHeaders httpHeaders,
       final DatadogTags datadogTags) {
-    super(origin, tags);
+    super(origin, tags, httpHeaders);
     this.traceId = traceId;
     this.spanId = spanId;
     this.samplingPriority = samplingPriority;

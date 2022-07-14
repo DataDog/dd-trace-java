@@ -78,9 +78,8 @@ public final class ControllerFactory {
           System.getProperty("java.vendor").equals("IBM Corporation")
               && System.getProperty("java.vm.name").contains("J9");
       if (configProvider.getBoolean(
-              ProfilingConfig.PROFILING_ASYNC_ENABLED,
-              ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
-          || isOpenJ9) {
+          ProfilingConfig.PROFILING_ASYNC_ENABLED,
+          ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT || isOpenJ9)) {
         try {
           Class<?> asyncProfilerClass = Class.forName("com.datadog.profiling.async.AsyncProfiler");
           if ((boolean)

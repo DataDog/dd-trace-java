@@ -269,9 +269,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                                               | _
-    new TagContext("some-origin", [:])                                                                                                                             | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], datadogTagsFactory.empty()) | _
+    extractedContext                                                                                                                          | _
+    new TagContext("some-origin", [:])                                                                                                        | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -288,9 +288,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                                               | isTraceRootSpan
-    null                                                                                                                                                           | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], datadogTagsFactory.empty()) | false
+    extractedContext                                                                                                                          | isTraceRootSpan
+    null                                                                                                                                      | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -310,9 +310,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                                               | isTraceRootSpan
-    null                                                                                                                                                           | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], datadogTagsFactory.empty()) | false
+    extractedContext                                                                                                                          | isTraceRootSpan
+    null                                                                                                                                      | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {

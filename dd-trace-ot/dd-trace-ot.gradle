@@ -83,7 +83,8 @@ def bundledProjects = [
   ':utils:container-utils',
   ':utils:histograms',
   ':utils:socket-utils',
-  ':utils:time-utils'
+  ':utils:time-utils',
+  ':utils:version-utils'
 ]
 
 shadowJar {

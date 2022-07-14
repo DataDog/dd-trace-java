@@ -22,7 +22,7 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], null, datadogTags).withRequestContextData("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
@@ -50,7 +50,7 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], null, datadogTags).withRequestContextData("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
@@ -82,7 +82,7 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], null, datadogTags).withRequestContextData("dummy")
     def span = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()
@@ -108,7 +108,7 @@ class DDSpanContextDatadogTagsTest extends DDCoreSpecification {
     setup:
     tracer = tracerBuilder().writer(writer).build()
     def datadogTags = tracer.datadogTagsFactory.fromHeaderValue(header)
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], datadogTags).withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), priority, "789", 0, [:], [:], null, datadogTags).withRequestContextData("dummy")
     def rootSpan = (DDSpan) tracer.buildSpan("top")
       .asChildOf((AgentSpan.Context) extracted)
       .start()

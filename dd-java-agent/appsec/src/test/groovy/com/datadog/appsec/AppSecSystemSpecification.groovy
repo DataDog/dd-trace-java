@@ -11,6 +11,7 @@ import datadog.trace.api.TraceSegment
 import datadog.trace.api.Tracer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -55,15 +56,17 @@ class AppSecSystemSpecification extends DDSpecification {
     RequestContext requestContext = Mock()
     TraceSegment traceSegment = Mock()
     AppSecRequestContext appSecReqCtx = Mock()
+    IGSpanInfo span = Mock(AgentSpan)
 
     setup:
     injectSysConfig('dd.appsec.ipheader', 'foo-bar')
 
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
-    requestEndedCB.apply(requestContext, Mock(AgentSpan))
+    requestEndedCB.apply(requestContext, span)
 
     then:
+    1 * span.getTags() >> ['http.client_ip':'1.1.1.1']
     1 * subService.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     1 * requestContext.data >> appSecReqCtx
     1 * requestContext.traceSegment >> traceSegment
@@ -80,15 +83,17 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecRequestContext appSecReqCtx = Mock()
     def sco = sharedCommunicationObjects()
     Counter throttledCounter = Mock()
+    IGSpanInfo span = Mock(AgentSpan)
 
     setup:
     injectSysConfig('dd.appsec.trace.rate.limit', '5')
 
     when:
     AppSecSystem.start(subService, sco)
-    7.times { requestEndedCB.apply(requestContext, Mock(AgentSpan)) }
+    7.times { requestEndedCB.apply(requestContext, span) }
 
     then:
+    span.getTags() >> ['http.client_ip':'1.1.1.1']
     1 * sco.monitoring.newCounter('_dd.java.appsec.rate_limit.dropped_traces') >> throttledCounter
     1 * subService.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     7 * requestContext.data >> appSecReqCtx

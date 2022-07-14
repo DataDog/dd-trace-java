@@ -15,5 +15,8 @@ net.bytebuddy.matcher.ElementMatchers#hasSuperClass(net.bytebuddy.matcher.Elemen
 net.bytebuddy.matcher.ElementMatchers#hasSuperType(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#declaresField(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#declaresMethod(net.bytebuddy.matcher.ElementMatcher)
+net.bytebuddy.matcher.ElementMatchers#declaresAnnotation(net.bytebuddy.matcher.ElementMatcher)
 net.bytebuddy.matcher.ElementMatchers#isAnnotatedWith(net.bytebuddy.matcher.ElementMatcher)
+net.bytebuddy.matcher.ElementMatchers#inheritsAnnotation(net.bytebuddy.matcher.ElementMatcher)
+net.bytebuddy.matcher.ElementMatchers#hasAnnotation(net.bytebuddy.matcher.ElementMatcher)
 

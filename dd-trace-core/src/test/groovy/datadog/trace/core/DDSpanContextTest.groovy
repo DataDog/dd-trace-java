@@ -173,7 +173,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set TraceSegment tags and data on correct span"() {
     setup:
-    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, "789", 0, [:], [:], tracer.getDatadogTagsFactory().empty()).withRequestContextData("dummy")
+    def extracted = new ExtractedContext(DDId.from(123), DDId.from(456), SAMPLER_KEEP, "789", 0, [:], [:], null, tracer.getDatadogTagsFactory().empty()).withRequestContextData("dummy")
     def top = tracer.buildSpan("top").asChildOf((AgentSpan.Context) extracted).start()
     def topC = (DDSpanContext) top.context()
     def topTS = top.getRequestContext().getTraceSegment()

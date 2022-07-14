@@ -205,6 +205,11 @@ public final class ClassNameTrie {
       return trieLength == 0;
     }
 
+    /** Allow querying while the class-name trie is being built. */
+    public int apply(String key) {
+      return ClassNameTrie.apply(trieData, longJumps, key);
+    }
+
     public ClassNameTrie buildTrie() {
       return new ClassNameTrie(
           Arrays.copyOfRange(trieData, 0, trieLength),
@@ -223,6 +228,9 @@ public final class ClassNameTrie {
 
     /** Merges a new class-name mapping into the current builder */
     public void put(String className, int number) {
+      if (null == className || className.isEmpty()) {
+        throw new IllegalArgumentException("Null or empty class name");
+      }
       if (number < 0) {
         throw new IllegalArgumentException("Number for " + className + " is negative: " + number);
       }
@@ -331,7 +339,9 @@ public final class ClassNameTrie {
         char value = trieData[valueIndex];
 
         if ((value & (LEAF_MARKER | BUD_MARKER)) != 0 && keyIndex == keyLength) {
-          return; // ignore duplicate key
+          // duplicate key: overwrite existing value in the tree with the new value
+          trieData[valueIndex] = (char) ((value & ~MAX_NODE_VALUE) | valueToInsert);
+          return;
         }
 
         int branch = branchIndex - dataIndex;
@@ -414,6 +424,10 @@ public final class ClassNameTrie {
               trieData[valueIndex]--;
               jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
               break;
+            } else {
+              // duplicate key: overwrite existing value in the tree with the new value
+              trieData[dataIndex] = (char) ((value & ~MAX_NODE_VALUE) | valueToInsert);
+              return;
             }
           } else /* segment is followed by a node */ {
             if (keyIndex == keyLength) {
