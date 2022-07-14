@@ -14,7 +14,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.util.Strings;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +49,8 @@ public class AppSecSystem {
     }
     log.debug("AppSec is starting");
 
+    ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
     // may throw and abort startup
-    ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, configurationPoller);
     APP_SEC_CONFIG_SERVICE.init();
 

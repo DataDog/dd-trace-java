@@ -437,9 +437,10 @@ public class Agent {
   }
 
   private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
-    if (!remoteConfigEnabled) {
+    if (!remoteConfigEnabled || !isJavaVersionAtLeast(8)) {
       return;
     }
+
     try {
       Method pollerMethod = scoClass.getMethod("configurationPoller", Config.class);
       Object poller = pollerMethod.invoke(sco, Config.get());

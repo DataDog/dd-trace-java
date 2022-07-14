@@ -10,6 +10,8 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+
   minimumBranchCoverage = 0.6
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [

@@ -5,11 +5,20 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import org.junit.Assume
 
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
   void 'nothing populated'() {
+    def exc
+    try {
+      Class.forName('java.util.Optional')
+    } catch (Throwable t) {
+      exc = t
+    }
+    Assume.assumeNoException(exc)
+
     Config config = Mock()
 
     when:
