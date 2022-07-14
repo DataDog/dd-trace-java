@@ -62,4 +62,54 @@ public class ExtractedPathwayContext implements AgentSpan.Context.Extracted {
   public String getForwardedPort() {
     return null;
   }
+
+  @Override
+  public String getForwardedFor() {
+    return null;
+  }
+
+  @Override
+  public String getXForwarded() {
+    return null;
+  }
+
+  @Override
+  public String getXForwardedFor() {
+    return null;
+  }
+
+  @Override
+  public String getXClusterClientIp() {
+    return null;
+  }
+
+  @Override
+  public String getXRealIp() {
+    return null;
+  }
+
+  @Override
+  public String getClientIp() {
+    return null;
+  }
+
+  @Override
+  public String getUserAgent() {
+    return null;
+  }
+
+  @Override
+  public String getVia() {
+    return null;
+  }
+
+  @Override
+  public String getTrueClientIp() {
+    return null;
+  }
+
+  @Override
+  public String getCustomIpHeader() {
+    return null;
+  }
 }
