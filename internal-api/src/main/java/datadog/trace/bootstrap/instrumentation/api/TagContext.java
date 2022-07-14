@@ -88,7 +88,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return this;
   }
 
-  public final TagContext withPathwayContext(PathwayContext pathwayContext) {
+  public final TagContext setPathwayContext(PathwayContext pathwayContext) {
     this.pathwayContext = pathwayContext;
     return this;
   }

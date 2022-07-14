@@ -785,7 +785,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (spanContext == null) {
       return new ExtractedPathwayContext(pathwayContext);
     }
-    spanContext.withPathwayContext(pathwayContext);
+    spanContext.setPathwayContext(pathwayContext);
     return spanContext;
   }
 
