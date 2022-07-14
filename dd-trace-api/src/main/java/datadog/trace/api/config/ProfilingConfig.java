@@ -83,6 +83,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_ASYNC_TRACING_CONTEXT_ENABLED =
+      "profiling.async.tracing_context.enabled";
+  public static final boolean PROFILING_ASYNC_TRACING_CONTEXT_ENABLED_DEFAULT = false;
 
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";

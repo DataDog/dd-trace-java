@@ -4,6 +4,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIR
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import com.datadog.profiling.context.AsyncProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.context.JfrTimestampPatch;
 import com.datadog.profiling.context.ProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.controller.ConfigurationException;
@@ -70,6 +71,7 @@ public class ProfilingAgent {
         final Controller controller = ControllerFactory.createController(configProvider);
 
         ProfilerTracingContextTrackerFactory.register(configProvider);
+        AsyncProfilerTracingContextTrackerFactory.register(configProvider);
 
         uploader = new ProfileUploader(config, configProvider);
 

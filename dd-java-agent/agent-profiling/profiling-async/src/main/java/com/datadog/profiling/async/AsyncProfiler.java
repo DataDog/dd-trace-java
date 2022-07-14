@@ -327,4 +327,12 @@ public final class AsyncProfiler {
   private int clamp(int min, int max, int value) {
     return Math.max(min, Math.min(max, value));
   }
+
+  public void setContext(long spanId, long rootSpanId) {
+    asyncProfiler.setContext(spanId, rootSpanId);
+  }
+
+  public void clearContext() {
+    asyncProfiler.clearContext();
+  }
 }
