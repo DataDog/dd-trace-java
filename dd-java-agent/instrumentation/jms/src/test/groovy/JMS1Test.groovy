@@ -366,6 +366,32 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
+  def "sending to a null MessageListener on #jmsResourceName generates only producer spans"() {
+    setup:
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
+    consumer.setMessageListener(null)
+
+    producer.send(message1)
+
+    expect:
+    assertTraces(1) {
+      producerTrace(it, jmsResourceName)
+    }
+
+    cleanup:
+    producer.close()
+    consumer.receiveNoWait()
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
   def "failing to receive message with receiveNoWait on #jmsResourceName works"() {
     setup:
     def consumer = session.createConsumer(destination)
