@@ -69,6 +69,7 @@ public class Agent {
     STARTUP_LOGS("dd.trace.startup.logs", true),
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
+    IAST("dd.iast.enabled", false),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
@@ -112,6 +113,7 @@ public class Agent {
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
+  private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = false;
@@ -133,6 +135,7 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
@@ -147,6 +150,7 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
+    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
 
