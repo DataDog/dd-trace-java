@@ -175,10 +175,13 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setQueueTags(String type, String group, String topic) {
     lock.lock();
+try {
     this.type = type;
     this.group = group;
     this.topic = topic;
+} finally {
     lock.unlock();
+}
   }
 
   @Override
