@@ -232,17 +232,15 @@ public final class AsyncProfiler {
     StringBuilder cmd = new StringBuilder("start,jfr=7");
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel());
+    cmd.append(",jstackdepth=").append(getStackDepth());
+    cmd.append(",safemode=").append(getSafeMode());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled.
-      cmd.append(",event=")
-          .append(getCpuMode())
-          .append(",interval=")
-          .append(getCpuInterval())
-          .append('m')
-          .append(",jstackdepth=")
-          .append(getStackDepth())
-          .append(",safemode=")
-          .append(getSafeMode());
+      cmd.append(",cpu=").append(getCpuInterval()).append('m');
+    }
+    if (profilingModes.contains(ProfilingMode.WALL)) {
+      // wall profiling is enabled.
+      cmd.append(",wall=").append(getWallInterval()).append('m');
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
@@ -274,21 +272,22 @@ public final class AsyncProfiler {
         ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL_DEFAULT);
   }
 
+  public int getWallInterval() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL,
+        ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL_DEFAULT);
+  }
+
   private int getStackDepth() {
     return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH,
-        ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_STACKDEPTH,
+        ProfilingConfig.PROFILING_ASYNC_STACKDEPTH_DEFAULT);
   }
 
   private int getSafeMode() {
     return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_CPU_SAFEMODE,
-        ProfilingConfig.PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT);
-  }
-
-  private String getCpuMode() {
-    return configProvider.getString(
-        ProfilingConfig.PROFILING_ASYNC_CPU_MODE, ProfilingConfig.PROFILING_ASYNC_CPU_MODE_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_SAFEMODE,
+        ProfilingConfig.PROFILING_ASYNC_SAFEMODE_DEFAULT);
   }
 
   public long getMemleakInterval() {

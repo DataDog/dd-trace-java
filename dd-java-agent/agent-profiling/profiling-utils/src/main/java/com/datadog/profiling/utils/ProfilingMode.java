@@ -5,7 +5,7 @@ import java.util.Set;
 /** Various profiling modes that can be supported by async-profiler */
 public enum ProfilingMode {
   CPU(1 << 0),
-  WALLCLOCK(1 << 1),
+  WALL(1 << 1),
   ALLOCATION(1 << 2),
   MEMLEAK(1 << 3);
 
