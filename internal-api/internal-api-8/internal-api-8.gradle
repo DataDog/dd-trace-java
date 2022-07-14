@@ -15,7 +15,10 @@ targetCompatibility = JavaVersion.VERSION_1_8
 minimumBranchCoverage = 0.8
 minimumInstructionCoverage = 0.8
 
-excludedClassesCoverage += ["datadog.trace.api.sampling.ConstantSampler",]
+excludedClassesCoverage += [
+  "datadog.trace.api.sampling.ConstantSampler",
+  "datadog.trace.util.stacktrace.StackWalkerFactory"
+]
 
 dependencies {
   api project(':internal-api')
