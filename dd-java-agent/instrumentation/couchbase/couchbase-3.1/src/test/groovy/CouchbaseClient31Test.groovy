@@ -126,13 +126,15 @@ class CouchbaseClient31Test extends AgentTestRunner {
         name = name.substring("cb.".length())
       }
     }
+    def opName = parentSpan != null ? 'couchbase.internal' : 'couchbase.call'
+    def isMeasured = parentSpan == null
     trace.span {
       serviceName "couchbase"
       resourceName name
-      operationName "couchbase.call"
+      operationName opName
       spanType DDSpanTypes.COUCHBASE
       errored false
-      measured true
+      measured isMeasured
       if (parentSpan == null) {
         parent()
       } else {

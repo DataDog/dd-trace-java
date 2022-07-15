@@ -72,6 +72,7 @@ public class DatadogRequestSpan implements RequestSpan {
 
   @Override
   public void end() {
+    CouchbaseClientDecorator.DECORATE.beforeFinish(span);
     span.finish();
   }
 

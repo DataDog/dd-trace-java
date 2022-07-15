@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.couchbase_32.client;
 
+import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.COUCHBASE_CLIENT;
+
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.cnc.RequestTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.time.Duration;
 import reactor.core.publisher.Mono;
 
 public class DatadogRequestTracer implements RequestTracer {
   private static final CharSequence COUCHBASE_CALL = UTF8BytesString.create("couchbase.call");
+  private static final CharSequence COUCHBASE_INTERNAL =
+      UTF8BytesString.create("couchbase.internal");
 
   private final AgentTracer.TracerAPI tracer;
 
@@ -19,17 +24,26 @@ public class DatadogRequestTracer implements RequestTracer {
 
   @Override
   public RequestSpan requestSpan(String requestName, RequestSpan requestParent) {
-    AgentTracer.SpanBuilder builder = tracer.buildSpan(COUCHBASE_CALL);
+    CharSequence spanName = COUCHBASE_CALL;
+    boolean measured = true;
+
     AgentSpan parent = DatadogRequestSpan.unwrap(requestParent);
-    if (parent == null) {
+    if (null == parent) {
       parent = tracer.activeSpan();
     }
-    if (parent != null) {
+    if (null != parent && COUCHBASE_CLIENT.equals(parent.getTag(Tags.COMPONENT))) {
+      spanName = COUCHBASE_INTERNAL;
+      measured = false;
+    }
+
+    AgentTracer.SpanBuilder builder = tracer.buildSpan(spanName);
+    if (null != parent) {
       builder.asChildOf(parent.context());
     }
     AgentSpan span = builder.start();
     CouchbaseClientDecorator.DECORATE.afterStart(span);
     span.setResourceName(requestName);
+    span.setMeasured(measured);
     return DatadogRequestSpan.wrap(span);
   }
 

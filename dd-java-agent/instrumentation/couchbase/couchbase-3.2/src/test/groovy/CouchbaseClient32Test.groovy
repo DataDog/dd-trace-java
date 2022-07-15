@@ -122,13 +122,15 @@ class CouchbaseClient32Test extends AgentTestRunner {
 
 
   void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan = null) {
+    def opName = parentSpan != null ? 'couchbase.internal' : 'couchbase.call'
+    def isMeasured = parentSpan == null
     trace.span {
       serviceName "couchbase"
       resourceName name
-      operationName "couchbase.call"
+      operationName opName
       spanType DDSpanTypes.COUCHBASE
       errored false
-      measured true
+      measured isMeasured
       if (parentSpan == null) {
         parent()
       } else {
