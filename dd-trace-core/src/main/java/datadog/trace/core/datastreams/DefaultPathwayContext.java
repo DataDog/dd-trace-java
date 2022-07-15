@@ -75,6 +75,8 @@ public class DefaultPathwayContext implements PathwayContext {
   @Override
   public void setCheckpoint(
       String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
+    log.info("[HKT113] setCheckpoint");
+    new Exception().printStackTrace();
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
@@ -132,7 +134,7 @@ public class DefaultPathwayContext implements PathwayContext {
       hash = newHash;
 
       pointConsumer.accept(point);
-      log.debug("Checkpoint set {}", this);
+      log.info("[HKT113] Checkpoint set {}", this);
     } finally {
       lock.unlock();
     }
