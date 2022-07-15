@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
  * notifies its listeners as the data becomes available. Because of this it is possible for the
  * metadata events to come 'out-of-band' (although not very probable) and it is up to the caller to
  * deal with that eventuality. <br>
- * This class is not thread-safe and is intended to be used from a single thread only.
  */
 public final class StreamingChunkParser {
   private static final Logger log = LoggerFactory.getLogger(StreamingChunkParser.class);
