@@ -1,0 +1,30 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_9
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+sourceCompatibility = JavaVersion.VERSION_1_9
+targetCompatibility = JavaVersion.VERSION_1_9
+
+minimumBranchCoverage = 0.8
+minimumInstructionCoverage = 0.8
+
+dependencies {
+  api project(':internal-api:internal-api-8')
+
+  testImplementation deps.junit5
+  testImplementation deps.slf4j
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
