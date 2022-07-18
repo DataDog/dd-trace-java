@@ -1,30 +1,33 @@
 package datadog.trace.api.iast;
 
-import java.util.Iterator;
-import java.util.ServiceLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class InstrumentationBridge {
 
-  static final IASTModule MODULE = initializeModule();
+  private static final Logger LOG = LoggerFactory.getLogger(InstrumentationBridge.class);
+
+  static IASTModule MODULE;
 
   private InstrumentationBridge() {}
 
   public static void onCipher(final String algorithm) {
-    if (MODULE != null) {
-      MODULE.onCipher(algorithm);
+    try {
+      if (MODULE != null) {
+        MODULE.onCipher(algorithm);
+      }
+    } catch (Throwable t) {
+      LOG.warn("Callback for onCipher threw.", t);
     }
   }
 
   public static void onHash(final String algorithm) {
-    if (MODULE != null) {
-      MODULE.onHash(algorithm);
+    try {
+      if (MODULE != null) {
+        MODULE.onHash(algorithm);
+      }
+    } catch (Throwable t) {
+      LOG.warn("Callback for onHash threw.", t);
     }
-  }
-
-  private static IASTModule initializeModule() {
-    Iterator<IASTModule> loader =
-        ServiceLoader.load(IASTModule.class, InstrumentationBridge.class.getClassLoader())
-            .iterator();
-    return loader.hasNext() ? loader.next() : null;
   }
 }
