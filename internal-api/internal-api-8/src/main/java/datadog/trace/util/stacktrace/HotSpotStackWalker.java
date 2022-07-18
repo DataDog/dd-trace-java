@@ -7,7 +7,19 @@ import java.util.stream.StreamSupport;
 
 public class HotSpotStackWalker extends AbstractStackWalker {
 
-  private final sun.misc.JavaLangAccess access = sun.misc.SharedSecrets.getJavaLangAccess();
+  private static sun.misc.JavaLangAccess access;
+
+  private static sun.misc.JavaLangAccess get() {
+    return sun.misc.SharedSecrets.getJavaLangAccess();
+  }
+
+  static {
+    try {
+      access = get();
+    } catch (Throwable e) {
+      // Not hotspot available
+    }
+  }
 
   @Override
   public boolean isEnabled() {
