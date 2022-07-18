@@ -25,7 +25,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Map;
 import javax.annotation.Nonnull;
