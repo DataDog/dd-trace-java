@@ -13,22 +13,28 @@ public enum AgentClassLoading {
   /** Injecting helper classes into class-loaders. */
   INJECTING_HELPERS;
 
-  private static final ThreadLocal<AgentClassLoading> REQUEST = new ThreadLocal<>();
+  private static final ThreadLocal<AgentClassLoading[]> REQUEST =
+      new ThreadLocal<AgentClassLoading[]>() {
+        @Override
+        protected AgentClassLoading[] initialValue() {
+          return new AgentClassLoading[1];
+        }
+      };
 
   /**
    * Gets the current agent class-loading request type; {@code null} if there's no agent request.
    */
   public static AgentClassLoading type() {
-    return REQUEST.get();
+    return REQUEST.get()[0];
   }
 
   /** Records that this agent class-loading request has begun. */
   public final void begin() {
-    REQUEST.set(this);
+    REQUEST.get()[0] = this;
   }
 
   /** Records that this agent class-loading request has ended. */
   public final void end() {
-    REQUEST.remove();
+    REQUEST.get()[0] = null;
   }
 }
