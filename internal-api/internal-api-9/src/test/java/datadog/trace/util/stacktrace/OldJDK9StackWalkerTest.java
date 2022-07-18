@@ -1,11 +1,13 @@
 package datadog.trace.util.stacktrace;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class JDK9StackWalkerTest {
+public class OldJDK9StackWalkerTest {
 
   private static final JDK9StackWalker stackWalker = new JDK9StackWalker();
 

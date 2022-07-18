@@ -1,7 +1,3 @@
-plugins {
-  id 'me.champeau.jmh'
-}
-
 ext {
   enableJunitPlatform = true
   minJavaVersionForTests = JavaVersion.VERSION_1_9
