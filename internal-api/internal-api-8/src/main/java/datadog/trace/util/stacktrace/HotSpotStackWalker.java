@@ -1,5 +1,6 @@
 package datadog.trace.util.stacktrace;
 
+import datadog.trace.api.Platform;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.stream.Stream;
@@ -17,21 +18,15 @@ public class HotSpotStackWalker extends AbstractStackWalker {
     try {
       access = get();
     } catch (Throwable e) {
-      // Not hotspot available
     }
   }
 
   @Override
   public boolean isEnabled() {
     try {
-      String str = System.getProperty("java.version");
-      if (str.length() > 3
-          && str.startsWith("1.")
-          && Integer.parseInt(Character.toString(str.charAt(2))) >= 7) {
-        if (access != null) {
-          access.getStackTraceElement(new Throwable(), 0);
-          return true;
-        }
+      if (Platform.isJavaVersion(8) && access != null) {
+        access.getStackTraceElement(new Throwable(), 0);
+        return true;
       }
     } catch (Throwable localThrowable) {
     }
