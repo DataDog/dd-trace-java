@@ -1,10 +1,9 @@
 package datadog.trace.util.stacktrace;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 public class JDK9StackWalkerTest {
 

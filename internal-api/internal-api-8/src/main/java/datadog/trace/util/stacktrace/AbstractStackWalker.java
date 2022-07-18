@@ -8,8 +8,7 @@ public abstract class AbstractStackWalker implements StackWalker {
 
   protected static final Predicate<String> NOT_DD_TRACE_CLASS =
       (className) ->
-          !className.startsWith("datadog.trace.")
-              && !className.startsWith("com.datadog.appsec.");
+          !className.startsWith("datadog.trace.") && !className.startsWith("com.datadog.appsec.");
 
   protected static final Predicate<StackTraceElement> NOT_DD_TRACE_STACKELEMENT =
       (stackElement) -> NOT_DD_TRACE_CLASS.test(stackElement.getClassName());
