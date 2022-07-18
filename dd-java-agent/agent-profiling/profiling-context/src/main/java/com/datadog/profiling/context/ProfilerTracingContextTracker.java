@@ -1,5 +1,6 @@
 package com.datadog.profiling.context;
 
+import com.datadog.profiling.async.AsyncProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.profiling.TracingContextTracker;
@@ -18,11 +19,12 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 public final class ProfilerTracingContextTracker implements TracingContextTracker {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
 
   private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
+
+  private static final AsyncProfiler ASYNC_PROFILER = AsyncProfiler.getInstance();
 
   static final int TRANSITION_STARTED = 0;
   static final int TRANSITION_MAYBE_FINISHED = 1;
@@ -146,6 +148,9 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private volatile DelayedTrackerImpl delayedTrackerRef = null;
 
+  private final long spanId;
+  private final long rootSpanId;
+
   static {
     SPAN_ACTIVATION_DATA_LIMIT =
         ConfigProvider.getInstance()
@@ -196,6 +201,9 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
     this.maxDataSize = maxDataSize;
+
+    this.spanId = span != null ? span.getSpanId().toLong() : -1;
+    this.rootSpanId = span != null ? span.getLocalRootSpan() != null ? span.getLocalRootSpan().getSpanId().toLong() : -1 : -1;
   }
 
   @Override
@@ -212,6 +220,9 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     long tsDiff = timestamp - startTimestampTicks;
     long masked = maskActivation(tsDiff);
     store(threadId, masked, true);
+
+    System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+    ASYNC_PROFILER.setContext(spanId, rootSpanId);
   }
 
   private long accessTimestamp() {
@@ -249,6 +260,9 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     long masked = maskDeactivation(tsDiff, maybe);
     // store the transition even if it would cross the limit - for the sake of interval completeness
     store(threadId, masked, false);
+
+    System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+    ASYNC_PROFILER.clearContext();
   }
 
   @Override
