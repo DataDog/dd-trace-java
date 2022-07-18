@@ -74,6 +74,11 @@ public final class AsyncProfiler {
         ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED_DEFAULT)) {
       profilingModes.add(ProfilingMode.CPU);
     }
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED,
+        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED_DEFAULT)) {
+      profilingModes.add(ProfilingMode.WALL);
+    }
     try {
       // sanity test - force load async profiler to catch it not being available early
       asyncProfiler.execute("status");
