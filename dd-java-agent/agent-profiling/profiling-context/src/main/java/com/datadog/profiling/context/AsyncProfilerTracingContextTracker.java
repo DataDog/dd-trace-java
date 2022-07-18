@@ -31,24 +31,24 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
   AsyncProfilerTracingContextTracker(AgentSpan span) {
     this.spanId = span != null ? span.getSpanId().toLong() : -1;
     this.rootSpanId = span != null ? span.getLocalRootSpan() != null ? span.getLocalRootSpan().getSpanId().toLong() : -1 : -1;
-    System.err.printf("Create context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+    System.out.printf("Create context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
   }
 
   @Override
   public void activateContext() {
-    System.err.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+    System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
     asyncProfiler.setContext(spanId, rootSpanId);
   }
 
   @Override
   public void deactivateContext() {
-    System.err.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+    System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
     asyncProfiler.clearContext();
   }
 
   @Override
   public void maybeDeactivateContext() {
-    System.err.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+    System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
     //FIXME: need to get rid of this _maybe_
     asyncProfiler.clearContext();
   }
