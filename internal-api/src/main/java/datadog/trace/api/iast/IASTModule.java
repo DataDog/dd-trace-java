@@ -2,7 +2,7 @@ package datadog.trace.api.iast;
 
 public interface IASTModule {
 
-  void onCipher(final String algorithm);
+  void onCipher(String algorithm);
 
-  void onHash(final String algorithm);
+  void onHash(String algorithm);
 }

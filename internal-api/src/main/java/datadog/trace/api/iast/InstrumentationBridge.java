@@ -1,28 +1,30 @@
 package datadog.trace.api.iast;
 
-import datadog.trace.api.function.Supplier;
+import java.util.Iterator;
+import java.util.ServiceLoader;
 
 public abstract class InstrumentationBridge {
 
-  static Supplier<IASTModule> MODULE = initializeModule();
+  static final IASTModule MODULE = initializeModule();
 
   private InstrumentationBridge() {}
 
   public static void onCipher(final String algorithm) {
-    MODULE.get().onCipher(algorithm);
+    if (MODULE != null) {
+      MODULE.onCipher(algorithm);
+    }
   }
 
   public static void onHash(final String algorithm) {
-    MODULE.get().onHash(algorithm);
+    if (MODULE != null) {
+      MODULE.onHash(algorithm);
+    }
   }
 
-  private static Supplier<IASTModule> initializeModule() {
-    return new Supplier<IASTModule>() {
-      @Override
-      public IASTModule get() {
-        // TODO fetch module from current context
-        throw new UnsupportedOperationException("not yet implemented");
-      }
-    };
+  private static IASTModule initializeModule() {
+    Iterator<IASTModule> loader =
+        ServiceLoader.load(IASTModule.class, InstrumentationBridge.class.getClassLoader())
+            .iterator();
+    return loader.hasNext() ? loader.next() : null;
   }
 }

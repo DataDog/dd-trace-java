@@ -1,49 +1,35 @@
 package datadog.trace.api.iast
 
-import datadog.trace.api.function.Supplier
+
 import datadog.trace.test.util.DDSpecification
 
 class InstrumentationBridgeTest extends DDSpecification {
 
-  private Supplier<IASTModule> defaultModule
+  private MockIASTModule module
 
   def setup() {
-    defaultModule = InstrumentationBridge.MODULE
-  }
-
-  def cleanup() {
-    InstrumentationBridge.MODULE = defaultModule
+    module = InstrumentationBridge.MODULE as MockIASTModule
   }
 
   def "bridge calls module when a new hash is detected"() {
     setup:
-    final module = Mock(IASTModule)
-    InstrumentationBridge.MODULE = { module }
+    module.mock = Mock(IASTModule)
 
     when:
     InstrumentationBridge.onHash('SHA-1')
 
     then:
-    1 * module.onHash('SHA-1')
+    1 * module.mock.onHash('SHA-1')
   }
 
   def "bridge calls module when a new cipher is detected"() {
     setup:
-    final module = Mock(IASTModule)
-    InstrumentationBridge.MODULE = { module }
+    module.mock = Mock(IASTModule)
 
     when:
     InstrumentationBridge.onCipher('AES')
 
     then:
-    1 * module.onCipher('AES')
-  }
-
-  def "current module supplier is not yet implemented"() {
-    when:
-    InstrumentationBridge.onCipher('AES')
-
-    then:
-    thrown UnsupportedOperationException
+    1 * module.mock.onCipher('AES')
   }
 }
