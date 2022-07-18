@@ -41,11 +41,6 @@ public class DefaultPathwayContext implements PathwayContext {
   private long hash;
   private boolean started;
 
-  // type, topic & group of the next time setCheckpoint is called
-  private String type;
-  private String topic;
-  private String group;
-
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
     this.wellKnownTags = wellKnownTags;
@@ -73,41 +68,16 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void setCheckpoint(
-      String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {
-    log.info("[HKT113] setCheckpoint");
-    new Exception().printStackTrace();
+  public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
-    if (this.type != null) {
-      type = this.type;
-      this.type = null;
-    }
-    if (this.group != null) {
-      group = this.group;
-      this.group = null;
-    }
-    if (this.topic != null) {
-      topic = this.topic;
-      this.topic = null;
-    }
     try {
       List<String> edgeTags = new ArrayList<>();
 
-      if (started) {
+      if (started && tags != null) {
         // Only create edge tags if there's a parent (ie context has started)
-        if (type != null && !type.isEmpty()) {
-          edgeTags.add("type:" + type);
-        }
-
-        if (topic != null && !topic.isEmpty()) {
-          edgeTags.add("topic:" + topic);
-        }
-
-        if (group != null && !group.isEmpty()) {
-          edgeTags.add("group:" + group);
-        }
+        edgeTags.addAll(tags);
       } else {
         pathwayStartNanos = startNanos;
         pathwayStartNanoTicks = nanoTicks;
@@ -134,7 +104,7 @@ public class DefaultPathwayContext implements PathwayContext {
       hash = newHash;
 
       pointConsumer.accept(point);
-      log.info("[HKT113] Checkpoint set {}", this);
+      log.debug("Checkpoint set {}", this);
     } finally {
       lock.unlock();
     }
@@ -172,18 +142,6 @@ public class DefaultPathwayContext implements PathwayContext {
       return null;
     }
     return new String(Base64Encoder.INSTANCE.encode(bytes), UTF_8);
-  }
-
-  @Override
-  public void setQueueTags(String type, String group, String topic) {
-    lock.lock();
-    try {
-      this.type = type;
-      this.group = group;
-      this.topic = topic;
-    } finally {
-      lock.unlock();
-    }
   }
 
   @Override

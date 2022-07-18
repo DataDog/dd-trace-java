@@ -34,6 +34,7 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import javax.annotation.Nonnull;
@@ -59,6 +60,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
 
     Context spanContext = propagate().extract(headers, GETTER);
+    if (spanContext != null) {
+      AgentTracer.get().setDataStreamCheckpoint(spanContext, Arrays.asList("type:grpc"));
+    }
 
     CallbackProvider cbp = tracer().instrumentationGateway();
     if (cbp != null) {

@@ -69,6 +69,7 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -225,7 +226,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void onRootSpanStarted(AgentSpan root) {
     spanCheckpointer.onRootSpanStarted(root);
-    setDataStreamCheckpoint(root, null, null, null);
   }
 
   public static class CoreTracerBuilder {
@@ -765,6 +765,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       HttpCodec.inject(ddSpanContext, carrier, setter, style);
     }
     PathwayContext pathwayContext = ddSpanContext.getPathwayContext();
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
     try {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
@@ -790,8 +791,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
-    span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
+  public void setDataStreamCheckpoint(AgentSpan.Context spanContext, List<String> tags) {
+    spanContext.getPathwayContext().setCheckpoint(tags, dataStreamsCheckpointer);
   }
 
   @Override

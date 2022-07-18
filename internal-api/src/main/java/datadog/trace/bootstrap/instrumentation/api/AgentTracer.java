@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.ScopeListener;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class AgentTracer {
@@ -178,7 +179,7 @@ public class AgentTracer {
 
     InstrumentationGateway instrumentationGateway();
 
-    void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic);
+    void setDataStreamCheckpoint(AgentSpan.Context spanContext, List<String> tags);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -371,7 +372,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {}
+    public void setDataStreamCheckpoint(AgentSpan.Context spanContext, List<String> tags) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -884,8 +885,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setCheckpoint(
-        String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {}
+    public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {}
 
     @Override
     public byte[] encode() throws IOException {
@@ -896,8 +896,5 @@ public class AgentTracer {
     public String strEncode() throws IOException {
       return null;
     }
-
-    @Override
-    public void setQueueTags(String type, String group, String topic) {}
   }
 }

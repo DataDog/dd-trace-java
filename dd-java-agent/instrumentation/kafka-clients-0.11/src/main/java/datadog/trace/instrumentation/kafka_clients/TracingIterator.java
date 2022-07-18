@@ -13,8 +13,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -65,11 +68,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
           if (spanContext != null) {
-            PathwayContext pc = spanContext.getPathwayContext();
-            if (pc != null) {
-              // todo[piochelepiotr] Add edge tags even if there is no service before this one.
-              pc.setQueueTags("kafka", group, val.topic());
-            }
+            AgentTracer.get().setDataStreamCheckpoint(
+                spanContext, Arrays.asList("type:kafka", "group:" + group, "topic:" + val.topic()));
           }
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
