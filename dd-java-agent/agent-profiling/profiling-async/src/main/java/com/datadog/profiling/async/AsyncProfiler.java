@@ -245,7 +245,7 @@ public final class AsyncProfiler {
     }
     if (profilingModes.contains(ProfilingMode.WALL)) {
       // wall profiling is enabled.
-      cmd.append(",wall=").append(getWallInterval()).append('m');
+      cmd.append(",wall=").append(getWallInterval()).append('m').append(",context");
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
