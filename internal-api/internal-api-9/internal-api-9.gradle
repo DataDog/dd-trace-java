@@ -1,5 +1,4 @@
 ext {
-  enableJunitPlatform = true
   minJavaVersionForTests = JavaVersion.VERSION_1_9
 }
 
@@ -15,7 +14,7 @@ minimumInstructionCoverage = 0.8
 dependencies {
   api project(':internal-api:internal-api-8')
 
-  testImplementation deps.junit5
+  testImplementation project(':dd-java-agent:testing')
   testImplementation deps.slf4j
 }
 

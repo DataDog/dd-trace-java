@@ -1,5 +1,6 @@
 package datadog.trace.util.stacktrace;
 
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JDK9StackWalker extends AbstractStackWalker {
@@ -22,9 +23,12 @@ public class JDK9StackWalker extends AbstractStackWalker {
 
   @Override
   public Stream<StackTraceElement> walk() {
-    return walker.walk(
-        (sfs ->
-            sfs.filter((e) -> NOT_DD_TRACE_CLASS.test(e.getClassName()))
-                .map(java.lang.StackWalker.StackFrame::toStackTraceElement)));
+    return walker
+        .walk(
+            (s ->
+                s.filter((e) -> NOT_DD_TRACE_CLASS.test(e.getClassName()))
+                    .map(java.lang.StackWalker.StackFrame::toStackTraceElement)
+                    .collect(Collectors.toList())))
+        .stream();
   }
 }

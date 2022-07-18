@@ -1,15 +1,41 @@
 package datadog.trace.util.stacktrace
 
+import datadog.trace.test.util.DDSpecification
 
-import spock.lang.Specification
+import java.util.stream.Stream
 
-class JDK9StackWalkerTest extends Specification {
+class JDK9StackWalkerTest extends DDSpecification {
 
   def "stack walker enabled"() {
-    when:
+    given:
     def walker = new JDK9StackWalker()
+    when:
+    boolean enabled = walker.isEnabled()
 
     then:
-    walker.isEnabled()
+    enabled
+  }
+
+  def "walk retrieves stackTraceElements"() {
+    given:
+    def walker = new JDK9StackWalker()
+
+    when:
+    Stream<StackTraceElement> stream = walker.walk()
+
+    then:
+    stream.count() != 0
+  }
+
+
+  def "walk retrieves no datadog stack elements"() {
+    given:
+    def walker = new JDK9StackWalker()
+
+    when:
+    Stream<StackTraceElement> stream = walker.walk()
+
+    then:
+    stream.filter({ e -> e.getClassName().startsWith("datadog") }).count() == 0
   }
 }
