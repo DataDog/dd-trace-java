@@ -18,7 +18,7 @@ public abstract class AbstractStackWalker implements StackWalker {
   }
 
   Stream<StackTraceElement> doFilterStack(Stream<StackTraceElement> stream) {
-    return stream.filter(NOT_DD_TRACE_CLASS);
+    return stream.filter(NOT_DD_TRACE_STACKELEMENT);
   }
 
   abstract Stream<StackTraceElement> doGetStack();
