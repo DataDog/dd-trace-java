@@ -31,4 +31,14 @@ public class JDK9StackWalker extends AbstractStackWalker {
                     .collect(Collectors.toList())))
         .stream();
   }
+
+  @Override
+  Stream<StackTraceElement> doGetStack() {
+    return walker
+        .walk(
+            (s ->
+                s.map(java.lang.StackWalker.StackFrame::toStackTraceElement)
+                    .collect(Collectors.toList())))
+        .stream();
+  }
 }

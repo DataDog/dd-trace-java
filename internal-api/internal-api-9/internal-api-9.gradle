@@ -5,8 +5,23 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
-sourceCompatibility = JavaVersion.VERSION_1_9
-targetCompatibility = JavaVersion.VERSION_1_9
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+// Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
+sourceSets {
+  "main_java11" {
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.compileClasspath
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+
+compileMain_java11Java.configure {
+  sourceCompatibility = JavaVersion.VERSION_1_9
+  targetCompatibility = JavaVersion.VERSION_1_8
+  setJavaVersion(it, 11)
+}
 
 minimumBranchCoverage = 0.8
 minimumInstructionCoverage = 0.8
