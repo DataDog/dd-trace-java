@@ -69,7 +69,6 @@ public class DefaultPathwayContext implements PathwayContext {
 
   @Override
   public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {
-    System.out.println("[HKT113] SetCheckpoint, tags: " + tags);
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
