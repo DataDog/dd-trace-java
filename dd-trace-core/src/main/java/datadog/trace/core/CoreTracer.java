@@ -50,11 +50,9 @@ import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.datastreams.DataStreamsCheckpointer;
-import datadog.trace.core.datastreams.DefaultPathwayContext;
 import datadog.trace.core.datastreams.StubDataStreamsCheckpointer;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
-import datadog.trace.core.propagation.ExtractedPathwayContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
@@ -1262,24 +1260,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           coreTags = tc.getTags();
           origin = tc.getOrigin();
           requestContextData = tc.getRequestContextData();
-          pathwayContext =
-              tc.getPathwayContext().isStarted()
-                  ? tc.getPathwayContext()
-                  : dataStreamsCheckpointer.newPathwayContext();
-        } else if (parentContext instanceof ExtractedPathwayContext) {
-          ExtractedPathwayContext pc = (ExtractedPathwayContext) parentContext;
-          coreTags = null;
-          origin = null;
-          requestContextData = null;
-          pathwayContext =
-              pc.getPathwayContext().isStarted()
-                  ? pc.getPathwayContext()
-                  : dataStreamsCheckpointer.newPathwayContext();
         } else {
           coreTags = null;
           origin = null;
           requestContextData = null;
-          pathwayContext = dataStreamsCheckpointer.newPathwayContext();
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1289,6 +1273,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (endToEndStartTime > 0) {
           parentTrace.beginEndToEnd(endToEndStartTime);
         }
+
+        pathwayContext = dataStreamsCheckpointer.newPathwayContext();
       }
 
       if (serviceName == null) {

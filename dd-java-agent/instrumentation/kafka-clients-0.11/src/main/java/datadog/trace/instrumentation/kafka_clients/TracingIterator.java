@@ -81,12 +81,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
-          if (spanContext != null) {
-            PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(val.headers(), GETTER);
-            span.mergePathwayContext(pathwayContext);
-            AgentTracer.get().setDataStreamCheckpoint(
-                span, Arrays.asList("type:kafka", "group:" + group, "topic:" + val.topic()));
-          }
+          PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(val.headers(), GETTER);
+          span.mergePathwayContext(pathwayContext);
+          AgentTracer.get().setDataStreamCheckpoint(
+              span, Arrays.asList("type:kafka", "group:" + group, "topic:" + val.topic()));
         } else {
           span = startSpan(operationName, null);
         }

@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class TextMapExtractAdapter
     implements AgentPropagation.ContextVisitor<Headers>,
-    AgentPropagation.BinaryContextVisitor<Headers> {
+        AgentPropagation.BinaryContextVisitor<Headers> {
 
   private static final Logger log = LoggerFactory.getLogger(TextMapExtractAdapter.class);
 
