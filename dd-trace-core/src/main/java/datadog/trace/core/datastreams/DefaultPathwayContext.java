@@ -77,7 +77,6 @@ public class DefaultPathwayContext implements PathwayContext {
       List<String> edgeTags = new ArrayList<>();
 
       if (!started) {
-        System.out.println("[HKT113] not started, tags: " + tags);
         pathwayStartNanos = startNanos;
         pathwayStartNanoTicks = nanoTicks;
         edgeStartNanoTicks = nanoTicks;
@@ -86,7 +85,6 @@ public class DefaultPathwayContext implements PathwayContext {
         log.debug("Started {}", this);
       }
       if (tags != null) {
-        System.out.println("[HKT113] add edge tags, tags: " + tags);
         // Only create edge tags if there's a parent (ie context has started)
         edgeTags.addAll(tags);
       }
