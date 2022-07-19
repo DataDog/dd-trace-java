@@ -69,22 +69,26 @@ public class DefaultPathwayContext implements PathwayContext {
 
   @Override
   public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {
+    System.out.println("[HKT113] SetCheckpoint, tags: " + tags);
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
     try {
       List<String> edgeTags = new ArrayList<>();
 
-      if (started && tags != null) {
-        // Only create edge tags if there's a parent (ie context has started)
-        edgeTags.addAll(tags);
-      } else {
+      if (!started) {
+        System.out.println("[HKT113] not started, tags: " + tags);
         pathwayStartNanos = startNanos;
         pathwayStartNanoTicks = nanoTicks;
         edgeStartNanoTicks = nanoTicks;
         hash = 0;
         started = true;
         log.debug("Started {}", this);
+      }
+      if (tags != null) {
+        System.out.println("[HKT113] add edge tags, tags: " + tags);
+        // Only create edge tags if there's a parent (ie context has started)
+        edgeTags.addAll(tags);
       }
 
       long newHash = generatePathwayHash(edgeTags, hash);

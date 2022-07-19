@@ -164,7 +164,8 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.isEmpty()
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -284,7 +285,8 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.isEmpty()
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -861,7 +863,8 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.isEmpty()
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
