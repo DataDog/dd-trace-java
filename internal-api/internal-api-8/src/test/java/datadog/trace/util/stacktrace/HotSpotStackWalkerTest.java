@@ -1,41 +1,57 @@
 package datadog.trace.util.stacktrace;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static datadog.trace.util.stacktrace.StackWalkerTestUtil.isRunningJDK8WithHotSpot;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import datadog.trace.api.Platform;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import sun.misc.JavaLangAccess;
-import sun.misc.SharedSecrets;
 
 public class HotSpotStackWalkerTest {
 
-  private final boolean isJDK8WithHotSpot = isRunningJDK8WithHotSpot();
-
-  private final HotSpotStackWalker hotSpotStackWalker = new HotSpotStackWalker();
+  @BeforeAll
+  public static void setUp() {
+    assumeTrue(isRunningJDK8WithHotSpot());
+  }
 
   @Test
   public void hotSpotStackWalker_must_be_enabled_for_JDK8_with_hotspot() {
-    assertEquals(isJDK8WithHotSpot, hotSpotStackWalker.isEnabled());
+    assertTrue(new HotSpotStackWalker().isEnabled());
   }
 
   @Test
   public void get_stack_trace() {
-    assumeTrue(isJDK8WithHotSpot);
     // When
-    Stream<StackTraceElement> stream = hotSpotStackWalker.doGetStack();
+    Stream<StackTraceElement> stream = new HotSpotStackWalker().doGetStack();
     // Then
     assertNotEquals(stream.count(), 0);
   }
 
-  private boolean isRunningJDK8WithHotSpot() {
-    try {
-      JavaLangAccess access = SharedSecrets.getJavaLangAccess();
-      return Platform.isJavaVersion(8) && access != null;
-    } catch (Throwable throwable) {
-      return false;
-    }
+  @Test
+  public void is_not_enabled_when_access_throws_exception() {
+    // When
+    sun.misc.JavaLangAccess mockedAccess = mock(sun.misc.JavaLangAccess.class);
+    when(mockedAccess.getStackTraceElement(any(Throwable.class), eq(0)))
+        .thenThrow(new RuntimeException());
+    HotSpotStackWalker hotSpotStackWalker = new HotSpotStackWalker();
+    hotSpotStackWalker.access = mockedAccess;
+    // Then
+    assertFalse(hotSpotStackWalker.isEnabled());
+  }
+
+  @Test
+  public void is_not_enabled_when_access_is_null() {
+    // When
+    HotSpotStackWalker hotSpotStackWalker = new HotSpotStackWalker();
+    hotSpotStackWalker.access = null;
+    // Then
+    assertFalse(hotSpotStackWalker.isEnabled());
   }
 }
