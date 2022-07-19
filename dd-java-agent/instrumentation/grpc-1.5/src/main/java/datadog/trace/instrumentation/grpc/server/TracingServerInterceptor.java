@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
@@ -60,9 +61,6 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
 
     Context spanContext = propagate().extract(headers, GETTER);
-    if (spanContext != null) {
-      AgentTracer.get().setDataStreamCheckpoint(spanContext, Arrays.asList("type:grpc"));
-    }
 
     CallbackProvider cbp = tracer().instrumentationGateway();
     if (cbp != null) {
@@ -70,6 +68,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
 
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+
+    PathwayContext pathwayContext = propagate().extractPathwayContext(headers, GETTER);
+    span.mergePathwayContext(pathwayContext);
+    AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:grpc"));
+
     RequestContext<Object> reqContext = span.getRequestContext();
     if (reqContext != null) {
       callIGCallbackClientAddress(cbp, reqContext, call);

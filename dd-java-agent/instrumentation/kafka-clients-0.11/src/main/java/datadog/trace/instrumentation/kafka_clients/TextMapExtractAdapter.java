@@ -11,7 +11,9 @@ import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<Headers> {
+public class TextMapExtractAdapter
+    implements AgentPropagation.ContextVisitor<Headers>,
+    AgentPropagation.BinaryContextVisitor<Headers> {
 
   private static final Logger log = LoggerFactory.getLogger(TextMapExtractAdapter.class);
 
@@ -35,6 +37,19 @@ public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<He
                 ? new String(base64.decode(header.value()), UTF_8)
                 : new String(header.value(), UTF_8);
         if (!classifier.accept(key, string)) {
+          return;
+        }
+      }
+    }
+  }
+
+  @Override
+  public void forEachKey(Headers carrier, AgentPropagation.BinaryKeyClassifier classifier) {
+    for (Header header : carrier) {
+      String key = header.key();
+      byte[] value = header.value();
+      if (null != value) {
+        if (!classifier.accept(key, value)) {
           return;
         }
       }

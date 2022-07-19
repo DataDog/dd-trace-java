@@ -203,6 +203,29 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
+  private static class BinaryPathwayContextExtractor implements AgentPropagation.BinaryKeyClassifier {
+    private final TimeSource timeSource;
+    private final WellKnownTags wellKnownTags;
+    private DefaultPathwayContext extractedContext;
+
+    BinaryPathwayContextExtractor(TimeSource timeSource, WellKnownTags wellKnownTags) {
+      this.timeSource = timeSource;
+      this.wellKnownTags = wellKnownTags;
+    }
+
+    @Override
+    public boolean accept(String key, byte[] value) {
+      if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
+        try {
+          extractedContext = decode(timeSource, wellKnownTags, value);
+        } catch (IOException e) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
   public static <C> DefaultPathwayContext extract(
       C carrier,
       AgentPropagation.ContextVisitor<C> getter,
@@ -210,6 +233,22 @@ public class DefaultPathwayContext implements PathwayContext {
       WellKnownTags wellKnownTags) {
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, wellKnownTags);
+    getter.forEachKey(carrier, pathwayContextExtractor);
+    if (pathwayContextExtractor.extractedContext == null) {
+      log.debug("No context extracted");
+    } else {
+      log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
+    }
+    return pathwayContextExtractor.extractedContext;
+  }
+
+  public static <C> DefaultPathwayContext extractBinary(
+      C carrier,
+      AgentPropagation.BinaryContextVisitor<C> getter,
+      TimeSource timeSource,
+      WellKnownTags wellKnownTags) {
+    BinaryPathwayContextExtractor pathwayContextExtractor =
+        new BinaryPathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");

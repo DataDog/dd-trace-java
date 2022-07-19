@@ -67,10 +67,6 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
-          if (spanContext != null) {
-            AgentTracer.get().setDataStreamCheckpoint(
-                spanContext, Arrays.asList("type:kafka", "group:" + group, "topic:" + val.topic()));
-          }
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {
             span = startSpan(operationName, spanContext);
@@ -84,6 +80,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             BROKER_DECORATE.beforeFinish(queueSpan);
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
+          }
+          if (spanContext != null) {
+            PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(val.headers(), GETTER);
+            span.mergePathwayContext(pathwayContext);
+            AgentTracer.get().setDataStreamCheckpoint(
+                span, Arrays.asList("type:kafka", "group:" + group, "topic:" + val.topic()));
           }
         } else {
           span = startSpan(operationName, null);

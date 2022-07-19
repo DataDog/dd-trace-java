@@ -179,7 +179,7 @@ public class AgentTracer {
 
     InstrumentationGateway instrumentationGateway();
 
-    void setDataStreamCheckpoint(AgentSpan.Context spanContext, List<String> tags);
+    void setDataStreamCheckpoint(AgentSpan span, List<String> tags);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -344,6 +344,15 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
+    @Override
+    public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
+      return null;
+    }
 
     @Override
     public void checkpoint(AgentSpan span, int flags) {}
@@ -378,7 +387,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setDataStreamCheckpoint(AgentSpan.Context spanContext, List<String> tags) {}
+    public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -746,6 +755,16 @@ public class AgentTracer {
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
+    }
+
+    @Override
+    public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
+      return null;
     }
   }
 

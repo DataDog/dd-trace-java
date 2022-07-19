@@ -799,21 +799,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public <C> AgentSpan.Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
-    TagContext spanContext = extractor.extract(carrier, getter);
-    PathwayContext pathwayContext = dataStreamsCheckpointer.extractPathwayContext(carrier, getter);
-    if (!(pathwayContext instanceof DefaultPathwayContext)) {
-      return spanContext;
-    }
-    if (spanContext == null) {
-      return new ExtractedPathwayContext(pathwayContext);
-    }
-    spanContext.setPathwayContext(pathwayContext);
-    return spanContext;
+    return extractor.extract(carrier, getter);
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan.Context spanContext, List<String> tags) {
-    spanContext.getPathwayContext().setCheckpoint(tags, dataStreamsCheckpointer);
+  public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    return dataStreamsCheckpointer.extractBinaryPathwayContext(carrier, getter);
+  }
+
+  @Override
+  public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
+    return dataStreamsCheckpointer.extractPathwayContext(carrier, getter);
+  }
+
+  @Override
+  public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {
+    span.context().getPathwayContext().setCheckpoint(tags, dataStreamsCheckpointer);
   }
 
   @Override

@@ -26,6 +26,10 @@ public interface AgentPropagation {
 
   <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
 
+  <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter);
+
+  <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter);
+
   interface KeyClassifier {
 
     boolean accept(String key, String value);
@@ -37,5 +41,9 @@ public interface AgentPropagation {
 
   interface ContextVisitor<C> {
     void forEachKey(C carrier, KeyClassifier classifier);
+  }
+
+  interface BinaryContextVisitor<C> {
+    void forEachKey(C carrier, BinaryKeyClassifier classifier);
   }
 }

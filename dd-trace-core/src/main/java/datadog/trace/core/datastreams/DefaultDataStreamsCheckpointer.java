@@ -132,6 +132,11 @@ public class DefaultDataStreamsCheckpointer
     return new DefaultPathwayContext(timeSource, wellKnownTags);
   }
 
+  public <C> PathwayContext extractBinaryPathwayContext(
+      C carrier, AgentPropagation.BinaryContextVisitor<C> getter) {
+    return DefaultPathwayContext.extractBinary(carrier, getter, timeSource, wellKnownTags);
+  }
+
   @Override
   public <C> PathwayContext extractPathwayContext(
       C carrier, AgentPropagation.ContextVisitor<C> getter) {
