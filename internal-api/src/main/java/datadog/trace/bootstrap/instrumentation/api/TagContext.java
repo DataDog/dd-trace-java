@@ -15,8 +15,6 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private Object requestContextData;
   private final HttpHeaders httpHeaders;
 
-  private PathwayContext pathwayContext;
-
   public TagContext() {
     this(null, null);
   }
@@ -29,7 +27,6 @@ public class TagContext implements AgentSpan.Context.Extracted {
     this.origin = origin;
     this.tags = tags;
     this.httpHeaders = httpHeaders;
-    this.pathwayContext = AgentTracer.NoopPathwayContext.INSTANCE;
   }
 
   public final String getOrigin() {
@@ -174,14 +171,9 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return this;
   }
 
-  public final TagContext setPathwayContext(PathwayContext pathwayContext) {
-    this.pathwayContext = pathwayContext;
-    return this;
-  }
-
   @Override
   public PathwayContext getPathwayContext() {
-    return pathwayContext;
+    return null;
   }
 
   public static class HttpHeaders {

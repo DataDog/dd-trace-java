@@ -192,7 +192,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public boolean accept(String key, String value) {
-      if (PathwayContext.PROPAGATION_KEY.equalsIgnoreCase(key)) {
+      if (PathwayContext.PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = strDecode(timeSource, wellKnownTags, value);
         } catch (IOException e) {
