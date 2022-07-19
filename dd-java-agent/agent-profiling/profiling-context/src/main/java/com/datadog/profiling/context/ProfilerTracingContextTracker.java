@@ -222,7 +222,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     store(threadId, masked, true);
 
     if (Thread.currentThread().getId() == threadId) {
-      System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+      // System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
       ASYNC_PROFILER.setContext(spanId, rootSpanId);
     }
   }
@@ -264,7 +264,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     store(threadId, masked, false);
 
     if (Thread.currentThread().getId() == threadId) {
-      System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+      // System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
       ASYNC_PROFILER.clearContext();
     }
   }
