@@ -203,7 +203,8 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  private static class BinaryPathwayContextExtractor implements AgentPropagation.BinaryKeyClassifier {
+  private static class BinaryPathwayContextExtractor
+      implements AgentPropagation.BinaryKeyClassifier {
     private final TimeSource timeSource;
     private final WellKnownTags wellKnownTags;
     private DefaultPathwayContext extractedContext;

@@ -344,8 +344,10 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
+
     @Override
-    public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    public <C> PathwayContext extractBinaryPathwayContext(
+        C carrier, BinaryContextVisitor<C> getter) {
       return null;
     }
 
@@ -758,7 +760,8 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    public <C> PathwayContext extractBinaryPathwayContext(
+        C carrier, BinaryContextVisitor<C> getter) {
       return null;
     }
 
