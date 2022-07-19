@@ -160,9 +160,6 @@ public class RabbitDecorator extends MessagingClientDecorator {
         propagate && null != properties ? properties.getHeaders() : null;
     AgentSpan.Context parentContext =
         null != headers ? propagate().extract(headers, ContextVisitors.objectValuesMap()) : null;
-    if (parentContext != null) {
-      AgentTracer.get().setDataStreamCheckpoint(parentContext, Arrays.asList("type:rabbitmq", "topic:" + queue));
-    }
     // TODO: check dynamically bound queues -
     // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
 

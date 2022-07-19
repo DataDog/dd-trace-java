@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface PathwayContext {
   String PROPAGATION_KEY = "dd-pathway-ctx";
+  String PROPAGATION_KEY_BASE64 = "dd-pathway-ctx-base64";
 
   boolean isStarted();
 

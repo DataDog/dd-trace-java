@@ -749,6 +749,37 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     inject(span.context(), carrier, setter, style);
   }
 
+  @Override
+  public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
+
+    try {
+      byte[] encodedContext = span.context().getPathwayContext().encode();
+
+      if (encodedContext != null) {
+        log.debug("Injecting pathway context {}", pathwayContext);
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
+  @Override
+  public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
+    try {
+      String encodedContext = pathwayContext.strEncode();
+      if (encodedContext != null) {
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
   private <C> void inject(
       AgentSpan.Context context, C carrier, Setter<C> setter, PropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {
@@ -763,16 +794,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       injector.inject(ddSpanContext, carrier, setter);
     } else {
       HttpCodec.inject(ddSpanContext, carrier, setter, style);
-    }
-    PathwayContext pathwayContext = ddSpanContext.getPathwayContext();
-    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
-    try {
-      String encodedContext = pathwayContext.strEncode();
-      if (encodedContext != null) {
-        setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
-      }
-    } catch (IOException e) {
-      log.debug("Unable to set encode pathway context", e);
     }
   }
 
