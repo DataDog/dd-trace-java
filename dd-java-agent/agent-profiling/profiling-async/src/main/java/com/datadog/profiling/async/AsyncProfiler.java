@@ -342,10 +342,22 @@ public final class AsyncProfiler {
   }
 
   public void setContext(long spanId, long rootSpanId) {
-    asyncProfiler.setContext(spanId, rootSpanId);
+    if (asyncProfiler != null) {
+      try {
+        asyncProfiler.setContext(spanId, rootSpanId);
+      } catch (IllegalStateException e) {
+        e.printStackTrace(System.out);
+      }
+    }
   }
 
   public void clearContext() {
-    asyncProfiler.clearContext();
+    if (asyncProfiler != null) {
+      try {
+        asyncProfiler.clearContext();
+      } catch (IllegalStateException e) {
+        e.printStackTrace(System.out);
+      }
+    }
   }
 }
