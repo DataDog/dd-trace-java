@@ -254,7 +254,9 @@ public final class AsyncProfiler {
     if (profilingModes.contains(ProfilingMode.WALL)) {
       // wall profiling is enabled.
       cmd.append(",wall=").append(getWallInterval()).append('m');
-      // cmd.append(",context");
+      if (getWallFilterOnContext()) {
+        cmd.append(",context");
+      }
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
@@ -290,6 +292,12 @@ public final class AsyncProfiler {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL,
         ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL_DEFAULT);
+  }
+
+  public boolean getWallFilterOnContext() {
+    return configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT,
+        ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT);
   }
 
   private int getStackDepth() {
