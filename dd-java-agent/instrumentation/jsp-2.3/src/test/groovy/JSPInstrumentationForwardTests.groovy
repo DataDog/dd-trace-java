@@ -35,6 +35,8 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$forwardFromFileName"
             defaultTags()
@@ -135,6 +137,8 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToHtml.jsp"
             defaultTags()
@@ -202,6 +206,8 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToIncludeMulti.jsp"
             defaultTags()
@@ -353,6 +359,8 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToJspForward.jsp"
             defaultTags()
@@ -476,6 +484,8 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToCompileError.jsp"
             errorTags(JasperException, String)
@@ -560,6 +570,8 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToNonExistent.jsp"
             defaultTags()

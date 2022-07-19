@@ -54,5 +54,7 @@ public final class GeneralConfig {
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
 
+  public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
+
   private GeneralConfig() {}
 }

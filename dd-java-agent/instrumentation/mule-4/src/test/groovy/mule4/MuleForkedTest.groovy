@@ -104,7 +104,9 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${address.resolve("/client-request")}"
             "$Tags.HTTP_HOSTNAME" address.host
+            "$Tags.HTTP_USER_AGENT" String
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }
@@ -158,7 +160,9 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${address.resolve("/pfe-request")}"
             "$Tags.HTTP_HOSTNAME" address.host
+            "$Tags.HTTP_USER_AGENT" String
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }

@@ -1,6 +1,5 @@
 package datadog.trace.util.stacktrace;
 
-import java.util.Arrays;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -13,11 +12,14 @@ public abstract class AbstractStackWalker implements StackWalker {
   protected static final Predicate<StackTraceElement> NOT_DD_TRACE_STACKELEMENT =
       (stackElement) -> NOT_DD_TRACE_CLASS.test(stackElement.getClassName());
 
-  Stream<StackTraceElement> doGetStack() {
-    return Arrays.stream(new Throwable().getStackTrace());
+  @Override
+  public Stream<StackTraceElement> walk() {
+    return doFilterStack(doGetStack());
   }
 
   Stream<StackTraceElement> doFilterStack(Stream<StackTraceElement> stream) {
-    return stream.filter(NOT_DD_TRACE_STACKELEMENT);
+    return stream.filter(NOT_DD_TRACE_CLASS);
   }
+
+  abstract Stream<StackTraceElement> doGetStack();
 }

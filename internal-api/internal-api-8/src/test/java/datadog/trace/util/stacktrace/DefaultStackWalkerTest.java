@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 public class DefaultStackWalkerTest {
 
-  private static final DefaultStackWalker defaultStackWalker = new DefaultStackWalker();
+  private final DefaultStackWalker defaultStackWalker = new DefaultStackWalker();
 
   @Test
   public void defaultStackWalker_must_be_enabled() {
