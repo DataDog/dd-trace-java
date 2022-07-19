@@ -221,8 +221,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     long masked = maskActivation(tsDiff);
     store(threadId, masked, true);
 
-    System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
-    ASYNC_PROFILER.setContext(spanId, rootSpanId);
+    if (Thread.currentThread().getId() == threadId) {
+      System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+      ASYNC_PROFILER.setContext(spanId, rootSpanId);
+    }
   }
 
   private long accessTimestamp() {
@@ -261,8 +263,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     // store the transition even if it would cross the limit - for the sake of interval completeness
     store(threadId, masked, false);
 
-    System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
-    ASYNC_PROFILER.clearContext();
+    if (Thread.currentThread().getId() == threadId) {
+      System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+      ASYNC_PROFILER.clearContext();
+    }
   }
 
   @Override

@@ -150,14 +150,19 @@ public final class AsyncProfiler {
 
   @Nullable
   public OngoingRecording start() {
+    System.out.printf("AsyncProfiler.start%n");
     if (asyncProfiler != null) {
       log.debug("Starting profiling");
       try {
+        System.out.printf("AsyncProfiler.start: new recording%n");
         return new AsyncProfilerRecording(this);
       } catch (IOException | IllegalStateException e) {
-        log.debug("Failed to start async profiler recording", e);
+        System.out.printf("Failed to start async profiler recording: " + e.toString() + "%n");
+        e.printStackTrace(System.out);
         return null;
       }
+    } else {
+      System.out.printf("AsyncProfiler.start: asyncProfiler == null%n");
     }
     return null;
   }
@@ -173,8 +178,10 @@ public final class AsyncProfiler {
 
   /** A call-back from {@linkplain AsyncProfilerRecording#stop()} */
   void stopProfiler() {
+    System.out.printf("AsyncProfiler.stopProfiler%n");
     if (asyncProfiler != null) {
       if (recordingFlag.compareAndSet(true, false)) {
+        System.out.printf("AsyncProfiler.stopProfiler: call asyncProfiler.stop()%n");
         asyncProfiler.stop();
         if (isActive()) {
           log.debug("Profiling is still active. Waiting to stop.");
@@ -182,7 +189,11 @@ public final class AsyncProfiler {
             LockSupport.parkNanos(10_000_000L);
           }
         }
+      } else {
+        System.out.printf("AsyncProfiler.stopProfiler: recordingFlag == false%n");
       }
+    } else {
+      System.out.printf("AsyncProfiler.stopProfiler: asyncProfiler == null%n");
     }
   }
 
@@ -216,14 +227,11 @@ public final class AsyncProfiler {
       Path recFile = Files.createTempFile("dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(recFile);
       try {
+        System.out.printf("AsyncProfiler.execute(%s)%n", cmd);
         String rslt = executeProfilerCmd(cmd);
-        log.debug("AsyncProfiler.execute({}) = {}", cmd, rslt);
+        System.out.printf("AsyncProfiler.execute(%s) -> %s%n", cmd, rslt);
       } catch (IOException | IllegalStateException e) {
-        if (log.isDebugEnabled()) {
-          log.warn("Unable to start async profiler recording", e);
-        } else {
-          log.warn("Unable to start async profiler recording: {}", e.getMessage());
-        }
+        System.out.printf("Unable to start async profiler recording: %s%n", e);
         recordingFlag.set(false);
         throw e;
       }
@@ -261,7 +269,7 @@ public final class AsyncProfiler {
           .append('b');
     }
     String cmdString = cmd.toString();
-    log.debug("Async profiler command line: {}", cmdString);
+    System.out.printf("Async profiler command line: %s%n", cmdString);
     return cmdString;
   }
 
