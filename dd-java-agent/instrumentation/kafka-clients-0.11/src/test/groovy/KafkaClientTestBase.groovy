@@ -940,10 +940,3 @@ class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
     return false
   }
 }
-
-class KafkaClientDataStreamsDisabledTest extends KafkaClientForkedTest {
-  @Override
-  boolean isDataStreamsEnabled() {
-    return false
-  }
-}
