@@ -97,28 +97,38 @@ final class CachedData {
       "com.squareup.okio:okio:${versions.okio}",
       "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
       "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
+      "com.squareup.moshi:moshi:${versions.moshi}",
     ],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
     // which is similar but not exactly the same as the regular gradle dependency{} block
     // Also, transitive dependencies have to be explicitly listed
-    sharedInverse        : (Closure) {
-      // dogstatsd and its transitives
-      exclude(dependency('com.datadoghq:java-dogstatsd-client'))
-      exclude(dependency('com.github.jnr::'))
-      exclude(dependency('org.ow2.asm::'))
+    excludeShared        : (Closure) {
+      // projects bundled with shared or on bootstrap
+      exclude(project(':dd-java-agent:agent-bootstrap'))
+      exclude(project(':dd-java-agent:agent-logging'))
+      exclude(project(':dd-trace-api'))
+      exclude(project(':internal-api'))
+      exclude(project(':internal-api:internal-api-8'))
+      exclude(project(':communication'))
+      exclude(project(':telemetry'))
+      exclude(project(':utils:container-utils'))
+      exclude(project(':utils:socket-utils'))
+      exclude(project(':utils:time-utils'))
+      exclude(project(':utils:version-utils'))
+      exclude(dependency('org.slf4j::'))
 
       // okhttp and its transitives
       exclude(dependency('com.squareup.okhttp3:okhttp'))
       exclude(dependency('com.squareup.okio:okio'))
 
-      exclude(dependency("com.squareup.moshi:moshi:${versions.moshi}"))
+      // dogstatsd and its transitives
+      exclude(dependency('com.datadoghq:java-dogstatsd-client'))
+      exclude(dependency('com.github.jnr::'))
+      exclude(dependency('org.ow2.asm::'))
 
-      // container-utils/communication and transitives
-      exclude(project(':communication'))
-
-      exclude(project(':utils:container-utils'))
-      exclude(dependency("org.slf4j:slf4j-api:${versions.slf4j}"))
+      // moshi and its transitives
+      exclude(dependency('com.squareup.moshi::'))
     }
   ]
 }
