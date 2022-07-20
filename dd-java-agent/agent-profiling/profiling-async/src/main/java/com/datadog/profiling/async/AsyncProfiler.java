@@ -307,7 +307,7 @@ public final class AsyncProfiler {
         ProfilingConfig.PROFILING_ASYNC_STACKDEPTH_DEFAULT);
   }
 
-  private int getCStack() {
+  private String getCStack() {
     return configProvider.getString(
         ProfilingConfig.PROFILING_ASYNC_CSTACK,
         ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);

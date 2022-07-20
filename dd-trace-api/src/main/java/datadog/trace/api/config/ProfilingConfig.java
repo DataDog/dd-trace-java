@@ -79,7 +79,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
   public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
   public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
-  public static final int PROFILING_ASYNC_CSTACK_DEFAULT = "default";
+  public static final String PROFILING_ASYNC_CSTACK_DEFAULT = "default";
   public static final String PROFILING_ASYNC_SAFEMODE = "profiling.async.safemode";
   public static final int PROFILING_ASYNC_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
