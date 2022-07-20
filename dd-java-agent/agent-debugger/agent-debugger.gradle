@@ -60,17 +60,9 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 shadowJar {
-  dependencies deps.sharedInverse
+  dependencies deps.excludeShared
   dependencies {
-    exclude(project(':dd-java-agent:agent-bootstrap'))
     exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
-    exclude(project(':dd-java-agent:agent-logging'))
-    exclude(project(':dd-trace-api'))
-    exclude(project(':internal-api'))
-    exclude(project(':internal-api:internal-api-8'))
-    exclude(project(':utils:socket-utils'))
-    exclude(project(':utils:time-utils'))
-    exclude(dependency('org.slf4j::'))
   }
 }
 
