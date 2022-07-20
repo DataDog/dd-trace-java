@@ -107,7 +107,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2)
     }
-    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     // check that the message was received
@@ -138,7 +140,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8)) {
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(["type:internal"])
@@ -203,7 +205,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       })
       blockUntilChildSpansFinished(2)
     }
-    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     // check that the message was received
@@ -234,7 +238,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
-    if (Platform.isJavaVersionAtLeast(8)) {
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(["type:internal"])
@@ -633,7 +637,9 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
       blockUntilChildSpansFinished(2 * greetings.size())
     }
-    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     def receivedSet = greetings.toSet()
@@ -685,7 +691,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       }
     }
 
-    if (Platform.isJavaVersionAtLeast(8)) {
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(["type:internal"])
@@ -931,6 +937,35 @@ class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
 
   @Override
   boolean splitByDestination() {
+    return false
+  }
+}
+
+class KafkaClientDataStreamsDisabledTest extends KafkaClientTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "KafkaClientDataStreamsDisabledTest")
+    injectSysConfig("dd.kafka.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String expectedServiceName() {
+    return "KafkaClientDataStreamsDisabledTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
     return false
   }
 }

@@ -32,6 +32,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DataStreamsCheckpointer
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
+import datadog.trace.core.datastreams.StubDataStreamsCheckpointer
 import datadog.trace.test.util.DDSpecification
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -172,7 +173,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    DataStreamsCheckpointer dataStreamsCheckpointer = null
+    DataStreamsCheckpointer dataStreamsCheckpointer = new StubDataStreamsCheckpointer()
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       try {
         // Fast enough so tests don't take forever
