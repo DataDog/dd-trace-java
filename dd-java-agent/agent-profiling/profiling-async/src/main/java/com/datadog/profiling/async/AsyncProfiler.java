@@ -246,6 +246,7 @@ public final class AsyncProfiler {
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel());
     cmd.append(",jstackdepth=").append(getStackDepth());
+    cmd.append(",cstack=").append(getCStack());
     cmd.append(",safemode=").append(getSafeMode());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled.
@@ -304,6 +305,12 @@ public final class AsyncProfiler {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_STACKDEPTH,
         ProfilingConfig.PROFILING_ASYNC_STACKDEPTH_DEFAULT);
+  }
+
+  private int getCStack() {
+    return configProvider.getString(
+        ProfilingConfig.PROFILING_ASYNC_CSTACK,
+        ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);
   }
 
   private int getSafeMode() {
