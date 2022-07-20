@@ -22,7 +22,8 @@ ext {
     'datadog.telemetry.Uname.UtsNameLinux',
     'datadog.telemetry.Uname.EmptyUtsName',
     'datadog.telemetry.dependency.LocationsCollectingTransformer',
-    'datadog.telemetry.TelemetrySystem'
+    'datadog.telemetry.TelemetrySystem',
+    'datadog.telemetry.api.*'
   ]
   excludedClassesBranchCoverage = [
     'datadog.telemetry.PolymorphicAdapterFactory.1',
@@ -71,16 +72,13 @@ openApiGenerate {
 }
 
 def openApiSrcDir = "$buildDir/generated/src/main/java" as String
-sourceSets {
-  generatedApis {
-    java.srcDirs openApiSrcDir
-  }
-}
-compileGeneratedApisJava.dependsOn tasks.openApiGenerate
-compileGeneratedApisJava {
-  sourceCompatibility = JavaVersion.VERSION_1_7
-  targetCompatibility = JavaVersion.VERSION_1_7
-}
+sourceSets.main.java.srcDirs += [openApiSrcDir]
+compileJava.dependsOn 'openApiGenerate'
+
+forbiddenApisMain.exclude('datadog/telemetry/api/*.class')
+
+packageSources.dependsOn 'openApiGenerate'
+sourcesJar.dependsOn 'openApiGenerate'
 
 dependencies {
   implementation deps.slf4j
@@ -93,15 +91,11 @@ dependencies {
   compileOnly project(':utils:container-utils')
   testImplementation project(':utils:container-utils')
 
-  compileOnly sourceSets.generatedApis.compileClasspath
-  api sourceSets.generatedApis.output
-
   api deps.okhttp
+  api deps.moshi
 
   compileOnly deps.jnr_ffi
   testImplementation deps.jnr_ffi
-
-  generatedApisImplementation deps.moshi
 
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
@@ -109,6 +103,3 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
 }
 
-forbiddenApisGeneratedApis {
-  signaturesFiles = files('/dev/null')
-}
