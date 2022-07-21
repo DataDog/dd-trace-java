@@ -83,10 +83,7 @@ public class DefaultPathwayContext implements PathwayContext {
         started = true;
         log.debug("Started {}", this);
       }
-      if (tags != null) {
-        // Only create edge tags if there's a parent (ie context has started)
-        edgeTags.addAll(tags);
-      }
+      edgeTags.addAll(tags);
 
       long newHash = generatePathwayHash(edgeTags, hash);
 
