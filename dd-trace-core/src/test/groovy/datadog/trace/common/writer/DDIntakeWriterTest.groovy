@@ -173,6 +173,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
       0,
       trace,
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false)
     return new DDSpan(0, context)

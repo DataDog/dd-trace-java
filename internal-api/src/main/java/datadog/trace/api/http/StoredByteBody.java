@@ -29,9 +29,9 @@ public class StoredByteBody implements StoredBodySupplier {
   private StoredCharBody storedCharBody;
 
   public StoredByteBody(
-      RequestContext<Object> requestContext,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> startCb,
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> endCb,
+      RequestContext requestContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
       @Nullable Charset charset,
       int lengthHint) {
     if (charset != null) {

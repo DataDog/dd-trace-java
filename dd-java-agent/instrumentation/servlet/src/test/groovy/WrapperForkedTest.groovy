@@ -1,6 +1,7 @@
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.http.StoredByteBody
 import datadog.trace.api.http.StoredCharBody
@@ -16,8 +17,8 @@ import java.nio.charset.Charset
  * classloader and then failing other tests that run under SpockRunner
  * (see datadog.trace.agent.test.SpockRunner#setupBootstrapClasspath()). */
 class WrapperForkedTest extends Specification {
-  RequestContext<Object> requestContext = Mock(RequestContext) {
-    getData() >> it
+  RequestContext requestContext = Mock(RequestContext) {
+    getData(RequestContextSlot.APPSEC) >> it
   }
   BiFunction<RequestContext, StoredBodySupplier, Void> startCb = Mock()
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb = Mock()

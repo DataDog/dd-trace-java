@@ -748,6 +748,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       0,
       trace,
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false)
   }

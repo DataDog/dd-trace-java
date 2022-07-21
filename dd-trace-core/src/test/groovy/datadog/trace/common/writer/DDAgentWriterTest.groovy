@@ -184,6 +184,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false)
     return new DDSpan(0, context)
