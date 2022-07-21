@@ -308,6 +308,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
      * I would hope this becomes unnecessary.
      */
     final void onProperClose() {
+      span.finishWork();
+
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeClosed();
@@ -451,6 +453,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         final ContinuableScopeManager.Continuation continuation) {
       super(scopeManager, span, source, isAsyncPropagating);
       this.continuation = continuation;
+      span.finishThreadMigration();
     }
 
     @Override
@@ -513,6 +516,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       }
       top = scope;
       scope.afterActivated();
+      top.span.startWork();
     }
 
     /** Fast check to see if the expectedScope is on top */

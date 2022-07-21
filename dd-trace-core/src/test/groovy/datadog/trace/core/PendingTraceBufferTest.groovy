@@ -84,6 +84,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onFinish(span)
+    1 * tracer.onFinishWork(span)
     0 * _
 
     when:
@@ -176,6 +177,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.onStart(_)
     _ * tracer.getTimeWithNanoTicks(_)
     _ * tracer.onFinish(_)
+    _ * tracer.onFinishWork(_)
     0 * _
 
     when:
@@ -191,6 +193,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.onStart(_)
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onFinish(_)
+    _ * tracer.onFinishWork(_)
     0 * _
     pendingTrace.isEnqueued == 0
   }
@@ -376,6 +379,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.onStart(_)
     _ * tracer.getTimeWithNanoTicks(_)
     _ * tracer.onFinish(_)
+    _ * tracer.onFinishWork(_)
     0 * _
 
     when: "process the buffer"

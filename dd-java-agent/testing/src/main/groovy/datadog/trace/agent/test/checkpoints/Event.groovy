@@ -17,10 +17,10 @@ class Event {
     this.thread = thread
 
     def idx = -1
-    def strace = Thread.currentThread().stackTrace
+    def strace = thread.stackTrace
     for (int i = 0; i < strace.length; i++) {
       def frame = strace[i]
-      if (frame.className == "datadog.trace.api.SamplingCheckpointer") {
+      if (frame.className == "datadog.trace.api.SamplingCheckpointer" || frame.className == "datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker") {
         // this is SamplingCheckpointer.checkpoint()
         // the interesting information is in the next frame
         idx = i + 1

@@ -4,6 +4,7 @@ class TimelinePrinter {
   private static String[] emptySpaces = new String[128]
 
   static void print(def spanEvents, def threadEvents, def orderedEvents, def invalidEvents, PrintStream out) {
+    invalidEvents = invalidEvents != null ? invalidEvents : []
     if (!orderedEvents.isEmpty()) {
       if (!invalidEvents.empty) {
         out.println("Invalid event sequences were detected. " +
