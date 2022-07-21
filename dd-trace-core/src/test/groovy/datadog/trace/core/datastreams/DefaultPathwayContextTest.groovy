@@ -376,7 +376,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
   }
 
-  def "Empty and null tags not set"() {
+  def "Empty tags not set"() {
     given:
     def timeSource = new ControllableTimeSource()
     def context = new DefaultPathwayContext(timeSource, wellKnownTags)
@@ -387,7 +387,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(25)
     context.setCheckpoint(Arrays.asList("type:type", "group:group", "topic:topic"), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(null, pointConsumer)
+    context.setCheckpoint(Arrays.asList(), pointConsumer)
 
     then:
     context.isStarted()
