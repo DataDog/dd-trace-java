@@ -56,7 +56,7 @@ public class CrashUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   private Config config = spy(Config.get());
-  private ConfigProvider configProvider = spy(ConfigProvider.getInstance());
+  private ConfigProvider configProvider;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -65,6 +65,8 @@ public class CrashUploaderTest {
 
   @BeforeEach
   public void setup() throws IOException {
+    configProvider = ConfigProvider.getInstance();
+
     server.start();
     url = server.url(URL_PATH);
 
@@ -74,8 +76,6 @@ public class CrashUploaderTest {
     when(config.getFinalCrashTrackingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.getApiKey()).thenReturn(null);
-
-    uploader = new CrashUploader(config, configProvider);
   }
 
   @Test
