@@ -1,9 +1,9 @@
-package datadog.remote_config.tuf;
+package datadog.remoteconfig.tuf;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.remote_config.ConfigurationDeserializer;
+import datadog.remoteconfig.ConfigurationDeserializer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Collection;

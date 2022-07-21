@@ -45,6 +45,13 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.configurationPoller(config)
 
     then:
+    1 * config.remoteConfigEnabled >> false
+    sco.configurationPoller == null
+
+    when:
+    sco.configurationPoller(config)
+
+    then:
     1 * config.remoteConfigEnabled >> true
     1 * config.finalRemoteConfigUrl >> 'http://localhost:8080/config'
     sco.configurationPoller != null

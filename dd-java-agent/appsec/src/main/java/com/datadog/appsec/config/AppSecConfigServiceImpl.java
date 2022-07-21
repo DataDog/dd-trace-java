@@ -4,8 +4,8 @@ import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INV
 
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
-import datadog.remote_config.ConfigurationPoller;
-import datadog.remote_config.Product;
+import datadog.remoteconfig.ConfigurationPoller;
+import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

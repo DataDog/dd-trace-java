@@ -4,7 +4,7 @@ import static com.datadog.appsec.config.AppSecConfig.MOSHI;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
-import datadog.remote_config.ConfigurationDeserializer;
+import datadog.remoteconfig.ConfigurationDeserializer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

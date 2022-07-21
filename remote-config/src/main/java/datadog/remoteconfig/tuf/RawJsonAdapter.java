@@ -1,4 +1,4 @@
-package datadog.remote_config.tuf;
+package datadog.remoteconfig.tuf;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;

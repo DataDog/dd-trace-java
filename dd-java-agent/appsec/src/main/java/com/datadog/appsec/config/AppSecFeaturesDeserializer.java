@@ -3,7 +3,7 @@ package com.datadog.appsec.config;
 import static com.datadog.appsec.config.AppSecConfig.MOSHI;
 
 import com.squareup.moshi.JsonAdapter;
-import datadog.remote_config.ConfigurationDeserializer;
+import datadog.remoteconfig.ConfigurationDeserializer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import okio.Okio;

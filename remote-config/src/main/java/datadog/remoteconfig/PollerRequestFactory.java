@@ -1,9 +1,9 @@
-package datadog.remote_config;
+package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
-import datadog.remote_config.tuf.RemoteConfigRequest;
-import datadog.remote_config.tuf.RemoteConfigRequest.CachedTargetFile;
-import datadog.remote_config.tuf.RemoteConfigRequest.ClientInfo.ClientState;
+import datadog.remoteconfig.tuf.RemoteConfigRequest;
+import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
+import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.util.Collection;

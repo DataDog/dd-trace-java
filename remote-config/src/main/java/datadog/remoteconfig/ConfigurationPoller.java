@@ -1,14 +1,14 @@
-package datadog.remote_config;
+package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
-import datadog.remote_config.ConfigurationChangesListener.PollingRateHinter;
-import datadog.remote_config.tuf.FeaturesConfig;
-import datadog.remote_config.tuf.InstantJsonAdapter;
-import datadog.remote_config.tuf.RawJsonAdapter;
-import datadog.remote_config.tuf.RemoteConfigRequest.CachedTargetFile;
-import datadog.remote_config.tuf.RemoteConfigRequest.ClientInfo.ClientState;
-import datadog.remote_config.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState;
-import datadog.remote_config.tuf.RemoteConfigResponse;
+import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
+import datadog.remoteconfig.tuf.FeaturesConfig;
+import datadog.remoteconfig.tuf.InstantJsonAdapter;
+import datadog.remoteconfig.tuf.RawJsonAdapter;
+import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
+import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
+import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState;
+import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -42,7 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Handles polling debugger configuration from datadog agent/Remote Configuration */
-public class ConfigurationPoller implements AgentTaskScheduler.Target<ConfigurationPoller> {
+public class ConfigurationPoller
+    implements AgentTaskScheduler.Target<ConfigurationPoller>, PollingRateHinter {
   private static final Logger log = LoggerFactory.getLogger(ConfigurationPoller.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
@@ -63,6 +64,8 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
   private final Map<String /*cfg key*/, CachedTargetFile> cachedTargetFiles = new HashMap<>();
   private final AtomicInteger startCount = new AtomicInteger(0);
   private final Moshi moshi;
+
+  private Duration durationHint;
 
   public ConfigurationPoller(
       Config config, String tracerVersion, String configUrl, OkHttpClient client) {
@@ -109,29 +112,34 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
     this.listeners.remove(product.name());
   }
 
-  public synchronized <T> void addFeaturesListener(
+  public <T> void addFeaturesListener(
       String name,
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesListener<T> listener) {
 
     DeserializerAndListener<T> dl = new DeserializerAndListener<>(deserializer, listener);
-    this.featureListeners.put(name, dl);
-    if (!listeners.containsKey(Product.FEATURES.name())) {
-      addListener(
-          Product.FEATURES,
-          new FeaturesConfig.FeaturesConfigDeserializer(moshi),
-          this::featuresChangeListener);
+    byte[] productFeaturesByteArray;
+    synchronized (this) {
+      this.featureListeners.put(name, dl);
+      if (!listeners.containsKey(Product.FEATURES.name())) {
+        addListener(
+            Product.FEATURES,
+            new FeaturesConfig.FeaturesConfigDeserializer(moshi),
+            this::featuresChangeListener);
+      }
+
+      // if we already have some saved features, call listener on them
+      if (this.lastFeaturesConfig == null) {
+        return;
+      }
+      productFeaturesByteArray = this.lastFeaturesConfig.getProductFeaturesByteArray(name);
     }
 
-    // if we already have some saved features, call listener on them
-    if (this.lastFeaturesConfig != null) {
-      byte[] productFeaturesByteArray = this.lastFeaturesConfig.getProductFeaturesByteArray(name);
-      if (productFeaturesByteArray != null) {
-        try {
-          dl.deserializeAndAccept(productFeaturesByteArray, PollingRateHinter.NOOP);
-        } catch (RuntimeException | IOException e) {
-          log.warn("Error applying features for {}", name, e);
-        }
+    if (productFeaturesByteArray != null) {
+      try {
+        dl.deserializeAndAccept(productFeaturesByteArray, PollingRateHinter.NOOP);
+      } catch (RuntimeException | IOException e) {
+        log.warn("Error applying features for {}", name, e);
       }
     }
   }
@@ -239,7 +247,6 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
   private void handleAgentResponse(ResponseBody body) {
     int successes = 0, failures = 0;
 
-    PollingRateHinterImpl pollingRateHinter = new PollingRateHinterImpl();
     List<String> inspectedConfigurationKeys = new ArrayList<>();
     RemoteConfigResponse fleetResponse;
 
@@ -260,11 +267,10 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
 
     List<String> configsToApply = fleetResponse.getClientConfigs();
     String errorMessage = null;
+    this.durationHint = null;
     for (String configKey : configsToApply) {
       try {
-        boolean res =
-            processConfigKey(
-                fleetResponse, configKey, inspectedConfigurationKeys, pollingRateHinter);
+        boolean res = processConfigKey(fleetResponse, configKey, inspectedConfigurationKeys, this);
         if (res) {
           successes++;
         } else {
@@ -278,7 +284,7 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
     }
 
     try {
-      unapplyConfigs(configsToApply, pollingRateHinter);
+      unapplyConfigs(configsToApply, this);
     } catch (ReportableException e) {
       errorMessage = e.getMessage();
     }
@@ -290,7 +296,7 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
           "None of the configuration data was successfully read and processed");
     }
 
-    rescheduleBaseOnConfiguration(pollingRateHinter.hint);
+    rescheduleBaseOnConfiguration(this.durationHint);
   }
 
   private void unapplyConfigs(List<String> configsToApply, PollingRateHinter hinter) {
@@ -506,16 +512,12 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
     return true;
   }
 
-  private static class PollingRateHinterImpl implements PollingRateHinter {
-    Duration hint;
-
-    @Override
-    public void suggestPollingRate(Duration duration) {
-      if (hint == null) {
-        hint = duration;
-      } else if (duration.compareTo(hint) < 0) {
-        hint = duration;
-      }
+  @Override
+  public void suggestPollingRate(Duration duration) {
+    if (durationHint == null) {
+      durationHint = duration;
+    } else if (duration.compareTo(durationHint) < 0) {
+      durationHint = duration;
     }
   }
 

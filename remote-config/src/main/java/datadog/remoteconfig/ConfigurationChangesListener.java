@@ -1,4 +1,4 @@
-package datadog.remote_config;
+package datadog.remoteconfig;
 
 import java.time.Duration;
 import javax.annotation.Nullable;

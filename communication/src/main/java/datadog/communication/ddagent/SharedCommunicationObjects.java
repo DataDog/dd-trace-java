@@ -4,6 +4,7 @@ import datadog.common.socket.SocketUtils;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +46,7 @@ public class SharedCommunicationObjects {
     }
 
     try {
-      maybeSetPoller(config);
+      this.configurationPoller = maybeCreatePoller(config);
     } catch (ClassNotFoundException
         | NoSuchMethodException
         | InstantiationException
@@ -57,40 +58,37 @@ public class SharedCommunicationObjects {
     return configurationPoller;
   }
 
-  private void maybeSetPoller(Config config)
+  private Object maybeCreatePoller(Config config)
       throws ClassNotFoundException, NoSuchMethodException, InstantiationException,
           IllegalAccessException, InvocationTargetException {
-    Class<?> confPollerCls = Class.forName("datadog.remote_config.ConfigurationPoller");
+    if (!config.isRemoteConfigEnabled()) {
+      return null;
+    }
+
+    Class<?> confPollerCls =
+        getClass().getClassLoader().loadClass("datadog.remoteconfig.ConfigurationPoller");
     Constructor<?> constructor =
         confPollerCls.getConstructor(Config.class, String.class, String.class, OkHttpClient.class);
 
-    if (config.isRemoteConfigEnabled()) {
-      String remoteConfigUrl = config.getFinalRemoteConfigUrl();
-      if (remoteConfigUrl != null) {
-        configurationPoller =
-            constructor.newInstance(
-                config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
-      } else {
-        createRemaining(config);
-        DDAgentFeaturesDiscovery fd = featuresDiscovery(config);
-        String configEndpoint = fd.getConfigEndpoint();
-        if (configEndpoint != null) {
-          remoteConfigUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
-          configurationPoller =
-              constructor.newInstance(
-                  config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
-        }
+    String remoteConfigUrl = config.getFinalRemoteConfigUrl();
+    if (remoteConfigUrl != null) {
+      return constructor.newInstance(
+          config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
+    } else {
+      createRemaining(config);
+      DDAgentFeaturesDiscovery fd = featuresDiscovery(config);
+      String configEndpoint = fd.getConfigEndpoint();
+      if (configEndpoint != null) {
+        remoteConfigUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
+        return constructor.newInstance(
+            config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
       }
     }
+    return null;
   }
 
   private static boolean isAtLeastJava8() {
-    try {
-      Class.forName("java.util.Optional");
-      return true;
-    } catch (ClassNotFoundException e) {
-      return false;
-    }
+    return Platform.isJavaVersionAtLeast(8, 0);
   }
 
   // for testing

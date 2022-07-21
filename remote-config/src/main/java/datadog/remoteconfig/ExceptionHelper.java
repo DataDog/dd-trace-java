@@ -1,4 +1,4 @@
-package datadog.remote_config;
+package datadog.remoteconfig;
 
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.util.Arrays;

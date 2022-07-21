@@ -16,18 +16,15 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     // not used yet
-    'datadog.remote_config.tuf.RemoteConfigRequest.ClientInfo.AgentInfo',
+    'datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.AgentInfo',
     // only half the adapter interface used
-    'datadog.remote_config.tuf.InstantJsonAdapter',
+    'datadog.remoteconfig.tuf.InstantJsonAdapter',
     // idem
-    'datadog.remote_config.tuf.RawJsonAdapter',
-    'datadog.remote_config.ExceptionHelper',
+    'datadog.remoteconfig.tuf.RawJsonAdapter',
+    'datadog.remoteconfig.ExceptionHelper',
   ]
-  excludedClassesBranchCoverage = [
-    'datadog.remote_config.tuf.FeaturesConfig',
-    'datadog.remote_config.PollerRequestFactory',
-  ]
-  excludedClassesInstructionCoverage = ['datadog.remote_config.ConfigurationChangesListener.PollingHinterNoop',]
+  excludedClassesBranchCoverage = ['datadog.remoteconfig.tuf.FeaturesConfig', 'datadog.remoteconfig.PollerRequestFactory',]
+  excludedClassesInstructionCoverage = ['datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop',]
 }
 
 

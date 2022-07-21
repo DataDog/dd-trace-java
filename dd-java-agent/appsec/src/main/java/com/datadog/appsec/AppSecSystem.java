@@ -9,7 +9,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
-import datadog.remote_config.ConfigurationPoller;
+import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;

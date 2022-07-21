@@ -1,10 +1,10 @@
 package com.datadog.appsec.config
 
 import com.datadog.appsec.util.AbortStartupException
-import datadog.remote_config.ConfigurationChangesListener
-import datadog.remote_config.ConfigurationDeserializer
-import datadog.remote_config.ConfigurationPoller
-import datadog.remote_config.Product
+import datadog.remoteconfig.ConfigurationChangesListener
+import datadog.remoteconfig.ConfigurationDeserializer
+import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.Product
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files

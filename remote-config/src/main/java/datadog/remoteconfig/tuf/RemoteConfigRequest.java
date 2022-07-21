@@ -1,4 +1,4 @@
-package datadog.remote_config.tuf;
+package datadog.remoteconfig.tuf;
 
 import com.squareup.moshi.Json;
 import java.util.ArrayList;
@@ -38,7 +38,9 @@ public class RemoteConfigRequest {
 
   public RemoteConfigRequest(ClientInfo client, Collection<CachedTargetFile> cachedTargetFiles) {
     this.client = client;
-    this.cachedTargetFiles = cachedTargetFiles;
+    // system tests expect this to be null if we're not holding anything cached
+    this.cachedTargetFiles =
+        (cachedTargetFiles != null && cachedTargetFiles.isEmpty()) ? null : cachedTargetFiles;
   }
 
   public ClientInfo getClient() {

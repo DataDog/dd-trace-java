@@ -1,7 +1,7 @@
-import datadog.remote_config.ConfigurationChangesListener
-import datadog.remote_config.ConfigurationDeserializer
-import datadog.remote_config.ConfigurationPoller
-import datadog.remote_config.Product
+import datadog.remoteconfig.ConfigurationChangesListener
+import datadog.remoteconfig.ConfigurationDeserializer
+import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.Product
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
@@ -120,7 +120,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
     def body = parseBody(request.body())
     with(body) {
-      (cached_target_files as List).empty
+      cached_target_files == null
       with(client) {
         with(client_tracer) {
           app_version == ''

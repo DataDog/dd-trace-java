@@ -1,4 +1,4 @@
-package datadog.remote_config.tuf;
+package datadog.remoteconfig.tuf;
 
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -125,7 +125,7 @@ public class RemoteConfigResponse {
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] hash = digest.digest(bytes);
-      return new BigInteger(hash);
+      return new BigInteger(1, hash);
     } catch (NoSuchAlgorithmException e) {
       throw new UndeclaredThrowableException(e);
     }

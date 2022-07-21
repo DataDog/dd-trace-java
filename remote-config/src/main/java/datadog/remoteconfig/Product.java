@@ -1,4 +1,4 @@
-package datadog.remote_config;
+package datadog.remoteconfig;
 
 public enum Product {
   LIVE_DEBUGGING,
