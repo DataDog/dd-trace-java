@@ -75,7 +75,6 @@ public final class ProfileUploader {
   static final String V4_ATTACHMENT_FILENAME = V4_ATTACHMENT_NAME + ".jfr";
 
   // Header names and values
-  static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
 

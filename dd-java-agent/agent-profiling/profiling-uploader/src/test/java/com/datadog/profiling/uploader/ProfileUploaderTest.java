@@ -284,7 +284,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
 
     final List<FileItem> multiPartItems =
         FileUpload.parse(
@@ -319,7 +319,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
 
     final List<FileItem> multiPartItems =
         FileUpload.parse(
@@ -371,7 +371,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
   }
 
   @Test
@@ -385,7 +385,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
   }
 
   @Test
@@ -399,7 +399,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
     // it would be nice if the test asserted the log line was written out, but it's not essential
   }
 
@@ -415,7 +415,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
   }
 
   @Test
