@@ -152,7 +152,6 @@ public class ProfileUploaderTest {
 
     when(config.getFinalProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isProfilingAgentless()).thenReturn(false);
-    when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
     when(config.isProfilingUploadSummaryOn413Enabled()).thenReturn(true);
@@ -273,6 +272,7 @@ public class ProfileUploaderTest {
 
   @Test
   public void testZippedInput() throws Exception {
+    when(config.getApiKey()).thenReturn(null);
     when(config.getProfilingUploadCompression()).thenReturn("on");
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
@@ -308,6 +308,7 @@ public class ProfileUploaderTest {
   @ParameterizedTest
   @ValueSource(strings = {"on", "lz4", "gzip", "off", "invalid"})
   public void testCompression(final String compression) throws Exception {
+    when(config.getApiKey()).thenReturn(null);
     when(config.getProfilingUploadCompression()).thenReturn(compression);
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
