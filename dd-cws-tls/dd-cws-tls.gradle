@@ -20,11 +20,7 @@ dependencies {
 }
 
 shadowJar {
-  dependencies deps.sharedInverse
-  dependencies {
-    exclude(project(':dd-trace-api'))
-    exclude(project(':internal-api'))
-  }
+  dependencies deps.excludeShared
 }
 
 ext {

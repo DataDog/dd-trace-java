@@ -186,7 +186,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     public static void setMessageListener(
         @Advice.This MessageConsumer messageConsumer,
         @Advice.Argument(value = 0, readOnly = false) MessageListener listener) {
-      if (!(listener instanceof DatadogMessageListener)) {
+      if (null != listener && !(listener instanceof DatadogMessageListener)) {
         MessageConsumerState consumerState =
             InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
                 .get(messageConsumer);

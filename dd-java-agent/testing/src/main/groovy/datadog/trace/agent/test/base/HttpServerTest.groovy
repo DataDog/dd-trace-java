@@ -433,7 +433,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test forwarded request"() {
     setup:
     assumeTrue(testForwarded())
-    def request = request(FORWARDED, method, body).header("x-forwarded-for", FORWARDED.body).build()
+    def ip = FORWARDED.body
+    def request = request(FORWARDED, method, body).header("x-forwarded-for", ip).build()
     def response = client.newCall(request).execute()
 
     expect:
@@ -444,7 +445,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(FORWARDED)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, FORWARDED)
+        serverSpan(it, null, null, method, FORWARDED, null, ip)
         if (hasHandlerSpan()) {
           handlerSpan(it, FORWARDED)
         }
@@ -1092,7 +1093,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     BigInteger parentID = null,
     String method = "GET",
     ServerEndpoint endpoint = SUCCESS,
-    Map<String, Serializable> extraTags = null) {
+    Map<String, Serializable> extraTags = null,
+    String clientIp = null) {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
@@ -1122,11 +1124,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             "$Tags.PEER_PORT" Integer
           }
           "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+        } else {
+          "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
+        "$Tags.HTTP_USER_AGENT" String
         if (endpoint == FORWARDED && hasForwardedIP) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

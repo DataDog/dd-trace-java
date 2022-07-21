@@ -23,6 +23,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
+import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -100,6 +102,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final CONNECTION connection,
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
+    Config config = Config.get();
 
     if (context != null) {
       String forwarded = context.getForwarded();
@@ -122,6 +125,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (forwardedPort != null) {
         span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
       }
+      String userAgent = context.getUserAgent();
+      if (userAgent != null) {
+        span.setTag(Tags.HTTP_USER_AGENT, userAgent);
+      }
     }
 
     if (request != null) {
@@ -132,7 +139,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-          Config config = Config.get();
           boolean supportsRaw = url.supportsRaw();
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           String path = encoded ? url.rawPath() : url.path();
@@ -162,8 +168,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
 
+    String ip = null;
     if (connection != null) {
-      final String ip = peerHostIP(connection);
+      ip = peerHostIP(connection);
       final int port = peerPort(connection);
       if (ip != null) {
         if (ip.indexOf(':') > 0) {
@@ -176,6 +183,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       // TODO: blocking
       callIGCallbackSocketAddress(span, ip, port);
     }
+
+    if (config.isTraceClientIpResolverEnabled()) {
+      InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
+      // As a fallback, if no IP was resolved, the peer IP address should be checked
+      // to see if it is public and used as the resolved IP if it is.
+      // If no public IP address, then a private IP address should reported as a fall back.
+      if (inferredAddress == null && ip != null) {
+        inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
+      }
+      if (inferredAddress != null) {
+        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
+      }
+    }
+
     return span;
   }
 

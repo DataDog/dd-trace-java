@@ -1,16 +1,19 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDOutlineTypeStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
-import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import net.bytebuddy.agent.builder.AgentBuilder.ClassFileBufferStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.DiscoveryStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.TransformerDecorator;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.pool.TypePool;
+import net.bytebuddy.agent.builder.AgentBuilder.TypeStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,20 +44,22 @@ public class AgentStrategies {
   private static final TransformerDecorator TRANSFORMER_DECORATOR = loadTransformerDecorator();
   private static final DiscoveryStrategy REDISCOVERY_STRATEGY = new DDRediscoveryStrategy();
   private static final LocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-  private static final PoolStrategy POOL_STRATEGY =
-      new PoolStrategy() {
-        @Override
-        public TypePool typePool(ClassFileLocator classFileLocator, ClassLoader classLoader) {
-          return SharedTypePools.typePool(classFileLocator, classLoader);
-        }
 
-        @Override
-        public TypePool typePool(
-            ClassFileLocator classFileLocator, ClassLoader classLoader, String name) {
-          // FIXME satisfy interface constraint that currently instrumented type is not cached
-          return SharedTypePools.typePool(classFileLocator, classLoader);
-        }
-      };
+  private static final PoolStrategy POOL_STRATEGY;
+  private static final ClassFileBufferStrategy BUFFER_STRATEGY;
+  private static final TypeStrategy TYPE_STRATEGY;
+
+  static {
+    if (Config.get().isResolverOutlinePoolEnabled()) {
+      POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
+      BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
+      TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
+    } else {
+      POOL_STRATEGY = DDCachingPoolStrategy.INSTANCE;
+      BUFFER_STRATEGY = ClassFileBufferStrategy.Default.RETAINING;
+      TYPE_STRATEGY = TypeStrategy.Default.REDEFINE_FROZEN;
+    }
+  }
 
   public static TransformerDecorator transformerDecorator() {
     return TRANSFORMER_DECORATOR;
@@ -70,5 +75,13 @@ public class AgentStrategies {
 
   public static PoolStrategy poolStrategy() {
     return POOL_STRATEGY;
+  }
+
+  public static ClassFileBufferStrategy bufferStrategy() {
+    return BUFFER_STRATEGY;
+  }
+
+  public static TypeStrategy typeStrategy() {
+    return TYPE_STRATEGY;
   }
 }

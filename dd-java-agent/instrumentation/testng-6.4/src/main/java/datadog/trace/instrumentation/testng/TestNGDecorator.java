@@ -72,7 +72,7 @@ public class TestNGDecorator extends TestDecorator {
       sb.append("\"")
           .append(i)
           .append("\":\"")
-          .append(Strings.escapeToJson(result.getParameters()[i].toString()))
+          .append(Strings.escapeToJson(String.valueOf(result.getParameters()[i])))
           .append("\"");
       if (i != result.getParameters().length - 1) {
         sb.append(",");

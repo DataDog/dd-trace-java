@@ -19,10 +19,20 @@ public class HttpCodec {
   private static final Logger log = LoggerFactory.getLogger(HttpCodec.class);
   // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
   static final String FORWARDED_KEY = "forwarded";
+  static final String FORWARDED_FOR_KEY = "forwarded-for";
   static final String X_FORWARDED_PROTO_KEY = "x-forwarded-proto";
   static final String X_FORWARDED_HOST_KEY = "x-forwarded-host";
+  static final String X_FORWARDED_KEY = "x-forwarded";
   static final String X_FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
+
+  // Headers which may contain real ip
+  static final String CLIENT_IP_KEY = "client-ip";
+  static final String TRUE_CLIENT_IP_KEY = "true-client-ip";
+  static final String X_CLUSTER_CLIENT_IP_KEY = "x-cluster-client-ip";
+  static final String X_REAL_IP_KEY = "x-real-ip";
+  static final String USER_AGENT_KEY = "user-agent";
+  static final String VIA_KEY = "via";
 
   public interface Injector {
     <C> void inject(

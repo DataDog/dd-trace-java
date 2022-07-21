@@ -78,12 +78,14 @@ public final class AgentBootstrap {
 
     if (codeSource != null) {
       ddJavaAgentJarURL = codeSource.getLocation();
-      final File bootstrapFile = new File(ddJavaAgentJarURL.toURI());
+      if (ddJavaAgentJarURL != null) {
+        final File bootstrapFile = new File(ddJavaAgentJarURL.toURI());
 
-      if (!bootstrapFile.isDirectory()) {
-        checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
-        inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapFile));
-        return ddJavaAgentJarURL;
+        if (!bootstrapFile.isDirectory()) {
+          checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
+          inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapFile));
+          return ddJavaAgentJarURL;
+        }
       }
     }
 

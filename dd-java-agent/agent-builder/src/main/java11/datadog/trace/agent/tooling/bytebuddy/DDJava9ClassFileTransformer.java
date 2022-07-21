@@ -41,8 +41,12 @@ public final class DDJava9ClassFileTransformer
       return null;
     }
 
-    return classFileTransformer.transform(
-        classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    try {
+      return classFileTransformer.transform(
+          classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+    } finally {
+      SharedTypePools.endTransform();
+    }
   }
 
   @Override
@@ -59,12 +63,16 @@ public final class DDJava9ClassFileTransformer
       return null;
     }
 
-    return classFileTransformer.transform(
-        module,
-        classLoader,
-        internalClassName,
-        classBeingRedefined,
-        protectionDomain,
-        classFileBuffer);
+    try {
+      return classFileTransformer.transform(
+          module,
+          classLoader,
+          internalClassName,
+          classBeingRedefined,
+          protectionDomain,
+          classFileBuffer);
+    } finally {
+      SharedTypePools.endTransform();
+    }
   }
 }

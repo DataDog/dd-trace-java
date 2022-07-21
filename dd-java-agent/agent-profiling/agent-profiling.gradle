@@ -35,19 +35,7 @@ configurations {
 }
 
 shadowJar {
-  dependencies deps.sharedInverse
-  dependencies {
-    exclude(project(':dd-java-agent:agent-bootstrap'))
-    exclude(project(':dd-java-agent:agent-logging'))
-    exclude(project(':dd-trace-api'))
-    exclude(project(':internal-api'))
-    exclude(project(':internal-api:internal-api-8'))
-    exclude(project(':utils:process-utils'))
-    exclude(project(':utils:socket-utils'))
-    exclude(project(':utils:time-utils'))
-    exclude(project(':utils:version-utils'))
-    exclude(dependency('org.slf4j::'))
-  }
+  dependencies deps.excludeShared
   exclude {
     if (it.path.startsWith('org/jctools/')) {
       def ret = true
