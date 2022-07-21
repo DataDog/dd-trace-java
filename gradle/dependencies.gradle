@@ -29,7 +29,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    // asyncprofiler : "2.8-DD-luhenry_both-wall-and-cpu-SNAPSHOT",
+    asyncprofiler : "2.8.3-DD-luhenry_wall-time-profiler-SNAPSHOT",
     asm           : "9.2"
   ]
 
@@ -45,7 +45,7 @@ final class CachedData {
     autoserviceProcessor : "com.google.auto.service:auto-service:${versions.autoservice}",
     autoserviceAnnotation: "com.google.auto.service:auto-service-annotations:${versions.autoservice}",
     commonsMath          : "org.apache.commons:commons-math3:${versions.commons}",
-    // asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
+    asyncprofiler        : "com.datadoghq:ap-tools:${versions.asyncprofiler}",
     asm                  : "org.ow2.asm:asm:${versions.asm}",
     asmcommons           : "org.ow2.asm:asm-commons:${versions.asm}",
     dogstatsd            : "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
