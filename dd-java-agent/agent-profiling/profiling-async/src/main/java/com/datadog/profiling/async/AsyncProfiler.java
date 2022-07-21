@@ -354,7 +354,7 @@ public final class AsyncProfiler {
       try {
         asyncProfiler.setContext(spanId, rootSpanId);
       } catch (IllegalStateException e) {
-        e.printStackTrace(System.out);
+        log.warn("Failed to set context", e);
       }
     }
   }
@@ -364,7 +364,7 @@ public final class AsyncProfiler {
       try {
         asyncProfiler.clearContext();
       } catch (IllegalStateException e) {
-        e.printStackTrace(System.out);
+        log.warn("Failed to clear context", e);
       }
     }
   }
