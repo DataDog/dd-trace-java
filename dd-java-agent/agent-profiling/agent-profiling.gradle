@@ -9,8 +9,6 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api deps.slf4j

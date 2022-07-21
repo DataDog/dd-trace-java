@@ -1,0 +1,67 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+// Set properties before any plugins get loaded
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+// FIXME: Improve test coverage.
+minimumBranchCoverage = 0.6
+minimumInstructionCoverage = 0.9
+
+dependencies {
+  implementation deps.slf4j
+  implementation project(':communication')
+  implementation project(':internal-api')
+  implementation project(':utils:container-utils')
+  implementation project(':utils:process-utils')
+  implementation project(':utils:socket-utils')
+  implementation project(':utils:version-utils')
+
+  implementation deps.okhttp
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  testImplementation deps.junit5
+  testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
+  testImplementation deps.mockito
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+configurations {
+  // exclude bootstrap dependencies from shadowJar
+  runtime.exclude module: deps.slf4j
+  runtime.exclude group: 'org.slf4j'
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+  exclude {
+    if (it.path.startsWith('org/jctools/')) {
+      def ret = true
+      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps')) {
+        ret = false
+      } else {
+        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') || it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap'))
+      }
+      return ret
+    }
+    return false
+  }
+}
+
+jar {
+  classifier = 'unbundled'
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8

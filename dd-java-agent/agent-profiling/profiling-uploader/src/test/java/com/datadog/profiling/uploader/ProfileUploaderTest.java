@@ -36,11 +36,11 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingInputStream;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
-import com.datadog.profiling.uploader.util.PidHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
+import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -118,6 +118,8 @@ public class ProfileUploaderTest {
           PidHelper.PID_TAG,
           PidHelper.PID.toString(),
           VersionInfo.PROFILER_VERSION_TAG,
+          VersionInfo.VERSION,
+          VersionInfo.LIBRARY_VERSION_TAG,
           VersionInfo.VERSION);
 
   private static final int SEQUENCE_NUMBER = 123;
@@ -150,7 +152,6 @@ public class ProfileUploaderTest {
 
     when(config.getFinalProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isProfilingAgentless()).thenReturn(false);
-    when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
     when(config.isProfilingUploadSummaryOn413Enabled()).thenReturn(true);
@@ -271,6 +272,7 @@ public class ProfileUploaderTest {
 
   @Test
   public void testZippedInput() throws Exception {
+    when(config.getApiKey()).thenReturn(null);
     when(config.getProfilingUploadCompression()).thenReturn("on");
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
@@ -282,7 +284,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
 
     final List<FileItem> multiPartItems =
         FileUpload.parse(
@@ -306,6 +308,7 @@ public class ProfileUploaderTest {
   @ParameterizedTest
   @ValueSource(strings = {"on", "lz4", "gzip", "off", "invalid"})
   public void testCompression(final String compression) throws Exception {
+    when(config.getApiKey()).thenReturn(null);
     when(config.getProfilingUploadCompression()).thenReturn(compression);
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
@@ -317,7 +320,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
 
     final List<FileItem> multiPartItems =
         FileUpload.parse(
@@ -369,7 +372,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
   }
 
   @Test
@@ -383,7 +386,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
   }
 
   @Test
@@ -397,7 +400,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader("DD-API-KEY"));
     // it would be nice if the test asserted the log line was written out, but it's not essential
   }
 
@@ -413,7 +416,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
   }
 
   @Test

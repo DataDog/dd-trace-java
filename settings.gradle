@@ -64,6 +64,8 @@ include ':dd-java-agent:agent-debugger:debugger-bootstrap'
 include ':dd-java-agent:agent-debugger:debugger-test-scala'
 include ':dd-java-agent:agent-debugger:debugger-el'
 
+include ':dd-java-agent:agent-crashtracking'
+
 include ':communication'
 include ':telemetry'
 
@@ -74,6 +76,7 @@ include ':dd-java-agent:appsec:weblog:weblog-common'
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
 include ':utils:histograms'
+include ':utils:process-utils'
 include ':utils:socket-utils'
 include ':utils:test-agent-utils:decoder'
 include ':utils:test-utils'
