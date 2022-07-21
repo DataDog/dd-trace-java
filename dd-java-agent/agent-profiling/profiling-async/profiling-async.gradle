@@ -27,8 +27,7 @@ excludedClassesCoverage += [
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
-  // implementation project.hasProperty('ap.tools.jar') ? files(project.getProperty('ap.tools.jar')) : deps.asyncprofiler
-  implementation files(project.getProperty('ap.tools.jar'))
+  implementation project.hasProperty('ap.tools.jar') ? files(project.getProperty('ap.tools.jar')) : deps.asyncprofiler
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
