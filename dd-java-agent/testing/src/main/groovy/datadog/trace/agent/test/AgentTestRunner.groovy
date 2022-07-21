@@ -32,6 +32,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.datastreams.DataStreamsCheckpointer
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
+import datadog.trace.core.datastreams.StubDataStreamsCheckpointer
 import datadog.trace.test.util.DDSpecification
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -136,6 +137,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   boolean isLatestDepTest = Boolean.getBoolean('test.dd.latestDepTest')
 
+  protected boolean isDataStreamsEnabled() {
+    return false
+  }
+
   private static void configureLoggingLevels() {
     final Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     if (!rootLogger.iteratorForAppenders().hasNext()) {
@@ -168,8 +173,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
         void register(EventListener listener) {}
       }
-    DataStreamsCheckpointer dataStreamsCheckpointer = null
-    if (Platform.isJavaVersionAtLeast(8)) {
+    DataStreamsCheckpointer dataStreamsCheckpointer = new StubDataStreamsCheckpointer()
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       try {
         // Fast enough so tests don't take forever
         long bucketDuration = TimeUnit.MILLISECONDS.toNanos(50)
@@ -183,7 +188,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
         e.printStackTrace()
       }
     }
-
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
       Spy(

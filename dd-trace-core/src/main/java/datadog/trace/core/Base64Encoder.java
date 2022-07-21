@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 // TODO - can be removed when JDK7 is dropped (adapted from JDK source)
-final class Base64Encoder {
+public final class Base64Encoder {
 
   private static final char[] BASE_64 = new char[65];
 
