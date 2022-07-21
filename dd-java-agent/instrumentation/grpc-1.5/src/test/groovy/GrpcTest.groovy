@@ -40,7 +40,7 @@ import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class GrpcTest extends AgentTestRunner {
+abstract class GrpcTest extends AgentTestRunner {
 
   @Shared
   def ig
@@ -48,11 +48,6 @@ class GrpcTest extends AgentTestRunner {
   def collectedAppSecHeaders = [:]
   boolean appSecHeaderDone = false
   def collectedAppSecReqMsgs = []
-
-  @Override
-  protected boolean isDataStreamsEnabled() {
-    return true
-  }
 
   @Override
   protected void configurePreAgent() {
@@ -118,7 +113,9 @@ class GrpcTest extends AgentTestRunner {
     }
     // wait here to make checkpoint asserts deterministic
     TEST_WRITER.waitForTraces(2)
-    TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     response.message == "Hello $name"
@@ -203,7 +200,7 @@ class GrpcTest extends AgentTestRunner {
     collectedAppSecReqMsgs.first().name == name
 
     and:
-    if (Platform.isJavaVersionAtLeast(8)) {
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(["type:internal"])
@@ -599,5 +596,32 @@ class GrpcTest extends AgentTestRunner {
       (Runtime.getRuntime().availableProcessors(),
       ForkJoinPool.defaultForkJoinWorkerThreadFactory,
       null, true)
+  }
+}
+
+class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.data.streams.enabled", "true")
+  }
+
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
+  }
+
+}
+
+class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.data.streams.enabled", "false")
+  }
+
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return false
   }
 }
