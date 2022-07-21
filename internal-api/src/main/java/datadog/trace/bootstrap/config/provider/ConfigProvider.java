@@ -17,7 +17,7 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ConfigProvider {
+public class ConfigProvider {
   private static final class Singleton {
     private static final ConfigProvider INSTANCE = ConfigProvider.createDefault();
   }

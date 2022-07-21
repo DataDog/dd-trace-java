@@ -14,15 +14,13 @@ import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -42,23 +40,20 @@ public class CrashUploader {
 
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
+  // Header names and values
+  static final String JAVA_LANG = "java";
+  static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
+  static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
+  static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
+  static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
+  static final String API_VERSION = "v1";
+  static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+  static final String REQUEST_TYPE = "logs";
+
   private static final MediaType APPLICATION_JSON =
       MediaType.get("application/json; charset=utf-8");
   private static final MediaType APPLICATION_OCTET_STREAM =
       MediaType.parse("application/octet-stream");
-
-  // Header names and values
-  private static final String HEADER_DD_API_KEY = "DD-API-KEY";
-  private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  private static final String HEADER_DATADOG_META_LANG = "Datadog-Meta-Lang";
-  private static final String JAVA_LANG = "java";
-  private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
-  private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
-  private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
-  private static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
-  private static final String API_VERSION = "v1";
-  private static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-  private static final String REQUEST_TYPE = "logs";
 
   private final Config config;
   private final ConfigProvider configProvider;
@@ -111,40 +106,8 @@ public class CrashUploader {
         .collect(Collectors.joining(","));
   }
 
-  private static final class FileEntry {
-    private final String name;
-    private final InputStream stream;
-
-    public FileEntry(String name, InputStream stream) {
-      this.name = name;
-      this.stream = stream;
-    }
-
-    public String name() {
-      return name;
-    }
-
-    public InputStream stream() {
-      return stream;
-    }
-  }
-
-  public void upload(@Nonnull String[] files) throws IOException {
-    Call call =
-        makeRequest(
-            Arrays.stream(files)
-                .map(
-                    f -> {
-                      try {
-                        return new FileEntry(f, new FileInputStream(f));
-                      } catch (FileNotFoundException | SecurityException e) {
-                        log.error("Failed to open {}", f, e);
-                        return null;
-                      }
-                    })
-                .filter(s -> s != null)
-                .collect(Collectors.toMap(FileEntry::name, FileEntry::stream)));
-
+  public void upload(@Nonnull List<InputStream> files) throws IOException {
+    Call call = makeRequest(files);
     try {
       handleSuccess(call, call.execute());
     } catch (IOException e) {
@@ -152,7 +115,7 @@ public class CrashUploader {
     }
   }
 
-  private Call makeRequest(@Nonnull Map<String, InputStream> files) throws IOException {
+  private Call makeRequest(@Nonnull List<InputStream> files) throws IOException {
     final RequestBody requestBody = makeRequestBody(files);
 
     final Map<String, String> headers = new HashMap<>();
@@ -169,7 +132,7 @@ public class CrashUploader {
         OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
   }
 
-  private RequestBody makeRequestBody(@Nonnull Map<String, InputStream> files) throws IOException {
+  private RequestBody makeRequestBody(@Nonnull List<InputStream> files) throws IOException {
     Buffer out = new Buffer();
     try (JsonWriter writer = JsonWriter.of(out)) {
       writer.beginObject();
@@ -185,9 +148,9 @@ public class CrashUploader {
       writer.name("debug").value(true);
       writer.name("payload");
       writer.beginArray();
-      for (Map.Entry<String, InputStream> file : files.entrySet()) {
+      for (InputStream file : files) {
         writer.beginObject();
-        writer.name("message").value(readContent(file.getValue()));
+        writer.name("message").value(readContent(file));
         writer.name("level").value("ERROR");
         writer.endObject();
       }
