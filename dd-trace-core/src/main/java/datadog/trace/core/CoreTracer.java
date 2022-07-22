@@ -67,6 +67,7 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -747,10 +748,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectPathwayContext(
-      AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
+  public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.start(dataStreamsCheckpointer);
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
 
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
@@ -758,6 +758,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
+  @Override
+  public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
+    try {
+      String encodedContext = pathwayContext.strEncode();
+      if (encodedContext != null) {
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -787,13 +801,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+  public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    return dataStreamsCheckpointer.extractBinaryPathwayContext(carrier, getter);
+  }
+
+  @Override
+  public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
     return dataStreamsCheckpointer.extractPathwayContext(carrier, getter);
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
-    span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
+  public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {
+    span.context().getPathwayContext().setCheckpoint(tags, dataStreamsCheckpointer);
   }
 
   @Override

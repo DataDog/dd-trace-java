@@ -49,7 +49,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -92,12 +92,13 @@ class GatewayBridgeSpecification extends DDSpecification {
       getData() >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    IGSpanInfo spanInfo = Mock()
+    IGSpanInfo spanInfo = Mock(AgentSpan)
 
     when:
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
+    1 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
@@ -109,7 +110,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    0 * traceSegment._(*_)
+    1 * traceSegment._(*_)
     1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -123,7 +124,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       getData() >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    IGSpanInfo spanInfo = Mock()
+    IGSpanInfo spanInfo = Mock(AgentSpan)
 
     when:
     11.times {requestEndedCB.apply(mockCtx, spanInfo) }
@@ -132,6 +133,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     11 * mockAppSecCtx.transferCollectedEvents() >> [event]
     11 * mockAppSecCtx.close()
     11 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
+    10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     10 * traceSegment.setDataTop("appsec", _)
   }
 
@@ -145,12 +147,14 @@ class GatewayBridgeSpecification extends DDSpecification {
       getData() >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
 
     when:
-    requestEndedCB.apply(mockCtx, Mock(IGSpanInfo))
+    requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Mock(AppSecEvent100)]
+    1 * spanInfo.getTags() >> ['http.client_ip':'8.8.8.8']
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 

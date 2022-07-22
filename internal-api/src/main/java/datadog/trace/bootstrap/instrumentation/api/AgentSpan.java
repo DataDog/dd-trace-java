@@ -174,6 +174,26 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
       String getForwardedIp();
 
       String getForwardedPort();
+
+      String getForwardedFor();
+
+      String getXForwarded();
+
+      String getXForwardedFor();
+
+      String getXClusterClientIp();
+
+      String getXRealIp();
+
+      String getClientIp();
+
+      String getUserAgent();
+
+      String getVia();
+
+      String getTrueClientIp();
+
+      String getCustomIpHeader();
     }
   }
 }

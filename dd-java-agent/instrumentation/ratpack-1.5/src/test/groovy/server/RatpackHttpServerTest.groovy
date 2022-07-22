@@ -228,6 +228,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
         "$Tags.HTTP_ROUTE" String
+        "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
         }

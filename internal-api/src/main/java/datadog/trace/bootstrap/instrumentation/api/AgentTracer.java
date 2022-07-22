@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.ScopeListener;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class AgentTracer {
@@ -178,7 +179,7 @@ public class AgentTracer {
 
     InstrumentationGateway instrumentationGateway();
 
-    void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic);
+    void setDataStreamCheckpoint(AgentSpan span, List<String> tags);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -334,8 +335,10 @@ public class AgentTracer {
     public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {}
+    public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {}
+
+    @Override
+    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -343,7 +346,13 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    public <C> PathwayContext extractBinaryPathwayContext(
+        C carrier, BinaryContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
       return null;
     }
 
@@ -380,7 +389,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {}
+    public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -740,8 +749,10 @@ public class AgentTracer {
     public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {}
+    public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {}
+
+    @Override
+    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -749,7 +760,13 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    public <C> PathwayContext extractBinaryPathwayContext(
+        C carrier, BinaryContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
       return null;
     }
   }
@@ -802,6 +819,7 @@ public class AgentTracer {
       return Collections.emptyList();
     }
 
+    @Override
     public PathwayContext getPathwayContext() {
       return NoopPathwayContext.INSTANCE;
     }
@@ -830,6 +848,56 @@ public class AgentTracer {
     public String getForwardedPort() {
       return null;
     }
+
+    @Override
+    public String getForwardedFor() {
+      return null;
+    }
+
+    @Override
+    public String getXForwarded() {
+      return null;
+    }
+
+    @Override
+    public String getXForwardedFor() {
+      return null;
+    }
+
+    @Override
+    public String getXClusterClientIp() {
+      return null;
+    }
+
+    @Override
+    public String getXRealIp() {
+      return null;
+    }
+
+    @Override
+    public String getClientIp() {
+      return null;
+    }
+
+    @Override
+    public String getUserAgent() {
+      return null;
+    }
+
+    @Override
+    public String getVia() {
+      return null;
+    }
+
+    @Override
+    public String getTrueClientIp() {
+      return null;
+    }
+
+    @Override
+    public String getCustomIpHeader() {
+      return null;
+    }
   }
 
   public static class NoopAgentTrace implements AgentTrace {
@@ -851,14 +919,15 @@ public class AgentTracer {
     }
 
     @Override
-    public void start(Consumer<StatsPoint> pointConsumer) {}
-
-    @Override
-    public void setCheckpoint(
-        String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {}
+    public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {}
 
     @Override
     public byte[] encode() throws IOException {
+      return null;
+    }
+
+    @Override
+    public String strEncode() throws IOException {
       return null;
     }
   }

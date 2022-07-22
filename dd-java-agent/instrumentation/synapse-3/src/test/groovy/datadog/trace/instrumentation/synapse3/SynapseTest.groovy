@@ -4,6 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -105,8 +106,9 @@ class SynapseTest extends AgentTestRunner {
 
   def "test plain request is traced"() {
     setup:
+    def query = 'wsdl'
     def request = new Request.Builder()
-      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService?wsdl")
+      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService?${query}")
       .get()
       .build()
 
@@ -116,7 +118,7 @@ class SynapseTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(1) {
-        serverSpan(it, 0, 'GET', statusCode)
+        serverSpan(it, 0, 'GET', statusCode, query)
       }
     }
     statusCode == 200
@@ -125,8 +127,9 @@ class SynapseTest extends AgentTestRunner {
   def "test plain request is traced with legacy operation name"() {
     setup:
     injectSysConfig("integration.synapse.legacy-operation-name", "true")
+    def query = 'wsdl'
     def request = new Request.Builder()
-      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService?wsdl")
+      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService?${query}")
       .get()
       .build()
 
@@ -136,7 +139,7 @@ class SynapseTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(1) {
-        serverSpan(it, 0, 'GET', statusCode, null, false, true)
+        serverSpan(it, 0, 'GET', statusCode, query, null, false, true)
       }
     }
     statusCode == 200
@@ -217,13 +220,13 @@ class SynapseTest extends AgentTestRunner {
         parentSpan = span(1)
       }
       trace(1) {
-        serverSpan(it, 0, 'POST', statusCode, parentSpan, true)
+        serverSpan(it, 0, 'POST', statusCode, null, parentSpan, true)
       }
     }
     statusCode == 200
   }
 
-  def serverSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null, boolean distributedRootSpan = false, boolean legacyOperationName = false) {
+  def serverSpan(TraceAssert trace, int index, String method, int statusCode, String query = null, Object parentSpan = null, boolean distributedRootSpan = false, boolean legacyOperationName = false) {
     trace.span {
       serviceName expectedServiceName()
       operationName legacyOperationName ? "http.request" : "synapse.request"
@@ -242,8 +245,11 @@ class SynapseTest extends AgentTestRunner {
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
+        "$DDTags.HTTP_QUERY" query
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
+        "$Tags.HTTP_USER_AGENT" String
+        "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
         defaultTags(distributedRootSpan)
       }
     }
@@ -270,6 +276,8 @@ class SynapseTest extends AgentTestRunner {
         "$Tags.HTTP_URL" "/services/StockQuoteProxy"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
+        "$Tags.HTTP_USER_AGENT" String
+        "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
         defaultTags()
       }
     }

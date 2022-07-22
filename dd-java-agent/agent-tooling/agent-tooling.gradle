@@ -14,6 +14,8 @@ configurations {
 }
 
 compileJava.dependsOn 'generateClassNameTries'
+packageSources.dependsOn 'generateClassNameTries'
+sourcesJar.dependsOn 'generateClassNameTries'
 
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
@@ -26,6 +28,8 @@ dependencies {
 
   api project(':dd-trace-core')
   api project(':dd-trace-core:jfr-openjdk')
+
+  implementation project(':dd-java-agent:agent-crashtracking')
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'

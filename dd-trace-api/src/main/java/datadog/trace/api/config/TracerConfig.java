@@ -37,6 +37,9 @@ public final class TracerConfig {
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
+  public static final String TRACE_CLIENT_IP_HEADER = "trace.client-ip-header";
+  public static final String TRACE_CLIENT_IP_HEADER_DISABLED = "trace.client-ip-header.disabled";
+  public static final String TRACE_CLIENT_IP_RESOLVER_ENABLED = "trace.client-ip.resolver.enabled";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String REQUEST_HEADER_TAGS = "trace.request_header.tags";
   public static final String RESPONSE_HEADER_TAGS = "trace.response_header.tags";

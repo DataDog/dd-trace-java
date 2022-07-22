@@ -25,7 +25,8 @@ public final class ForwardedExtractedContext extends ExtractedContext {
       final String forwardedIp,
       final String forwardedPort,
       final Map<String, String> baggage,
-      final Map<String, String> tags) {
+      final Map<String, String> tags,
+      final HttpHeaders httpHeaders) {
     super(
         traceId,
         spanId,
@@ -34,7 +35,8 @@ public final class ForwardedExtractedContext extends ExtractedContext {
         origin,
         endToEndStartTime,
         baggage,
-        tags);
+        tags,
+        httpHeaders);
     this.forwarded = forwarded;
     this.forwardedProto = forwardedProto;
     this.forwardedHost = forwardedHost;

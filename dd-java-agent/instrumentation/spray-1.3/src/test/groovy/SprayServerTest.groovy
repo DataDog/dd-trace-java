@@ -46,7 +46,7 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   boolean hasForwardedIP() {
-    return false
+    return true
   }
 
   @Override

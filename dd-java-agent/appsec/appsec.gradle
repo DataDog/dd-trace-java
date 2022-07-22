@@ -23,6 +23,7 @@ dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
+  implementation project(':telemetry')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '4.2.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
@@ -40,17 +41,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 shadowJar {
   exclude '**/*-dbgsym.zip'
-  dependencies deps.sharedInverse
-  dependencies {
-    exclude(project(':dd-java-agent:agent-bootstrap'))
-    exclude(project(':dd-java-agent:agent-logging'))
-    exclude(project(':dd-trace-api'))
-    exclude(project(':internal-api'))
-    exclude(project(':utils:time-utils'))
-    exclude(project(':utils:version-utils'))
-    exclude(project(':communication'))
-    exclude(dependency('org.slf4j::'))
-  }
+  dependencies deps.excludeShared
 }
 
 jar {
@@ -97,6 +88,9 @@ jsonSchema2Pojo {
 
   targetVersion = "1.8"
 }
+
+packageSources.dependsOn 'generateJsonSchema2Pojo'
+sourcesJar.dependsOn 'generateJsonSchema2Pojo'
 
 task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
   description = "Run AppSec sample app with instrumentation"

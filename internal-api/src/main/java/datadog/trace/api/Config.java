@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
@@ -58,6 +59,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_IN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -90,6 +92,10 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
@@ -130,12 +136,14 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
@@ -214,6 +222,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_P
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
@@ -270,6 +279,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER_DISABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
@@ -449,6 +461,9 @@ public class Config {
   private final Set<String> traceThreadPoolExecutorsExclude;
 
   private final boolean traceAnalyticsEnabled;
+  private final String traceClientIpHeader;
+  private final boolean traceClientIpHeaderDisabled;
+  private final boolean traceClientIpResolverEnabled;
 
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
@@ -477,16 +492,21 @@ public class Config {
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
 
+  private final boolean crashTrackingAgentless;
+  @Deprecated private final String crashTrackingUrl;
+  private final Map<String, String> crashTrackingTags;
+
   private final boolean appSecEnabled;
   private final boolean appSecReportingInband;
   private final String appSecRulesFile;
   private final int appSecReportMinTimeout;
   private final int appSecReportMaxTimeout;
-  private final String appSecIpAddrHeader;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
+
+  private final boolean iastEnabled;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -531,6 +551,7 @@ public class Config {
   private final boolean igniteCacheIncludeKeys;
 
   private final int osgiSearchDepth;
+  private final String obfuscationQueryRegexp;
 
   // TODO: remove at a future point.
   private final boolean playReportHttpStatus;
@@ -567,6 +588,8 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataStreamsEnabled;
+
+  private final boolean telemetryEnabled;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -911,6 +934,21 @@ public class Config {
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
 
+    String traceClientIpHeader = configProvider.getString(TRACE_CLIENT_IP_HEADER);
+    if (traceClientIpHeader == null) {
+      traceClientIpHeader = configProvider.getString(APPSEC_IP_ADDR_HEADER);
+    }
+    if (traceClientIpHeader != null) {
+      traceClientIpHeader = traceClientIpHeader.toLowerCase(Locale.ROOT);
+    }
+    this.traceClientIpHeader = traceClientIpHeader;
+
+    this.traceClientIpHeaderDisabled =
+        configProvider.getBoolean(TRACE_CLIENT_IP_HEADER_DISABLED, false);
+
+    this.traceClientIpResolverEnabled =
+        configProvider.getBoolean(TRACE_CLIENT_IP_RESOLVER_ENABLED, true);
+
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
@@ -926,7 +964,7 @@ public class Config {
 
     if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile = configProvider.getString(PROFILING_API_KEY_FILE_OLD);
-      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
+      tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
@@ -941,7 +979,7 @@ public class Config {
     if (tmpApiKey == null) {
       final String veryOldProfilingApiKeyFile =
           configProvider.getString(PROFILING_API_KEY_FILE_VERY_OLD);
-      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
+      tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
       if (veryOldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
@@ -995,6 +1033,13 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
 
+    crashTrackingAgentless =
+        configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
+    crashTrackingUrl = configProvider.getString(CRASH_TRACKING_URL);
+    crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
+
+    telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -1003,11 +1048,6 @@ public class Config {
     // Default AppSec report timeout min=5, max=60
     appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
     appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
-    String appSecIpAddrHeader = configProvider.getString(APPSEC_IP_ADDR_HEADER);
-    if (appSecIpAddrHeader != null) {
-      appSecIpAddrHeader = appSecIpAddrHeader.toLowerCase(Locale.ROOT);
-    }
-    this.appSecIpAddrHeader = appSecIpAddrHeader;
 
     appSecTraceRateLimit =
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
@@ -1018,6 +1058,8 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
     appSecObfuscationParameterValueRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
+
+    iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1122,6 +1164,8 @@ public class Config {
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
     osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
+
+    obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
 
     playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
@@ -1517,6 +1561,18 @@ public class Config {
     return traceAnalyticsEnabled;
   }
 
+  public String getTraceClientIpHeader() {
+    return traceClientIpHeader;
+  }
+
+  public boolean isTraceClientIpHeaderDisabled() {
+    return traceClientIpHeaderDisabled;
+  }
+
+  public boolean isTraceClientIpResolverEnabled() {
+    return traceClientIpResolverEnabled;
+  }
+
   public Map<String, String> getTraceSamplingServiceRules() {
     return traceSamplingServiceRules;
   }
@@ -1609,6 +1665,14 @@ public class Config {
     return profilingLegacyTracingIntegrationEnabled;
   }
 
+  public boolean isCrashTrackingAgentless() {
+    return crashTrackingAgentless;
+  }
+
+  public boolean isTelemetryEnabled() {
+    return telemetryEnabled;
+  }
+
   public boolean isAppSecEnabled() {
     return appSecEnabled;
   }
@@ -1619,10 +1683,6 @@ public class Config {
 
   public int getAppSecReportMinTimeout() {
     return appSecReportMinTimeout;
-  }
-
-  public String getAppSecIpAddrHeader() {
-    return appSecIpAddrHeader;
   }
 
   public int getAppSecReportMaxTimeout() {
@@ -1643,6 +1703,10 @@ public class Config {
 
   public String getAppSecObfuscationParameterValueRegexp() {
     return appSecObfuscationParameterValueRegexp;
+  }
+
+  public boolean isIastEnabled() {
+    return iastEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -1787,6 +1851,10 @@ public class Config {
 
   public int getOsgiSearchDepth() {
     return osgiSearchDepth;
+  }
+
+  public String getObfuscationQueryRegexp() {
+    return obfuscationQueryRegexp;
   }
 
   public boolean getPlayReportHttpStatus() {
@@ -2008,6 +2076,26 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public Map<String, String> getMergedCrashTrackingTags() {
+    final Map<String, String> runtimeTags = getRuntimeTags();
+    final String host = getHostName();
+    final Map<String, String> result =
+        newHashMap(
+            getGlobalTags().size()
+                + crashTrackingTags.size()
+                + runtimeTags.size()
+                + 3 /* for serviceName and host and language */);
+    result.put(HOST_TAG, host); // Host goes first to allow to override it
+    result.putAll(getGlobalTags());
+    result.putAll(crashTrackingTags);
+    result.putAll(runtimeTags);
+    // service name set here instead of getRuntimeTags because apm already manages the service tag
+    // and may chose to override it.
+    result.put(SERVICE_TAG, serviceName);
+    result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    return Collections.unmodifiableMap(result);
+  }
+
   /**
    * Returns the sample rate for the specified instrumentation or {@link
    * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
@@ -2053,7 +2141,7 @@ public class Config {
     Map<String, String> aasTags = new HashMap<>();
 
     /// The site name of the site instance in Azure where the traced application is running.
-    String siteName = System.getenv("WEBSITE_SITE_NAME");
+    String siteName = getEnv("WEBSITE_SITE_NAME");
     if (siteName != null) {
       aasTags.put("aas.site.name", siteName);
     }
@@ -2064,8 +2152,8 @@ public class Config {
 
     // The type of application instance running in Azure.
     // Possible values: app, function
-    if (System.getenv("FUNCTIONS_WORKER_RUNTIME") != null
-        || System.getenv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
+    if (getEnv("FUNCTIONS_WORKER_RUNTIME") != null
+        || getEnv("FUNCTIONS_EXTENSIONS_VERSION") != null) {
       aasTags.put("aas.site.kind", "functionapp");
       aasTags.put("aas.site.type", "function");
     } else {
@@ -2074,14 +2162,14 @@ public class Config {
     }
 
     //  The resource group of the site instance in Azure App Services
-    String resourceGroup = System.getenv("WEBSITE_RESOURCE_GROUP");
+    String resourceGroup = getEnv("WEBSITE_RESOURCE_GROUP");
     if (resourceGroup != null) {
       aasTags.put("aas.resource.group", resourceGroup);
     }
 
     // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
     // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
-    String websiteOwner = System.getenv("WEBSITE_OWNER_NAME");
+    String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
     int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
 
     // The subscription ID of the site instance in Azure App Services
@@ -2111,26 +2199,26 @@ public class Config {
     }
 
     // The instance ID in Azure
-    String instanceId = System.getenv("WEBSITE_INSTANCE_ID");
+    String instanceId = getEnv("WEBSITE_INSTANCE_ID");
     instanceId = instanceId == null ? "unknown" : instanceId;
     aasTags.put("aas.environment.instance_id", instanceId);
 
     // The instance name in Azure
-    String instanceName = System.getenv("COMPUTERNAME");
+    String instanceName = getEnv("COMPUTERNAME");
     instanceName = instanceName == null ? "unknown" : instanceName;
     aasTags.put("aas.environment.instance_name", instanceName);
 
     // The operating system in Azure
-    String operatingSystem = System.getenv("WEBSITE_OS");
+    String operatingSystem = getEnv("WEBSITE_OS");
     operatingSystem = operatingSystem == null ? "unknown" : operatingSystem;
     aasTags.put("aas.environment.os", operatingSystem);
 
     // The version of the extension installed
-    String siteExtensionVersion = System.getenv("DD_AAS_JAVA_EXTENSION_VERSION");
+    String siteExtensionVersion = getEnv("DD_AAS_JAVA_EXTENSION_VERSION");
     siteExtensionVersion = siteExtensionVersion == null ? "unknown" : siteExtensionVersion;
     aasTags.put("aas.environment.extension_version", siteExtensionVersion);
 
-    aasTags.put("aas.environment.runtime", System.getProperty("java.vm.name", "unknown"));
+    aasTags.put("aas.environment.runtime", getProp("java.vm.name", "unknown"));
 
     return aasTags;
   }
@@ -2145,6 +2233,20 @@ public class Config {
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";
+    }
+  }
+
+  public String getFinalCrashTrackingUrl() {
+    if (crashTrackingUrl != null) {
+      // when crashTrackingUrl is set we use it regardless of apiKey/agentless config
+      return crashTrackingUrl;
+    } else if (crashTrackingAgentless) {
+      // when agentless crashTracking is turned on we send directly to our intake
+      return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
+    } else {
+      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
+      // locally
+      return "http://" + agentHost + ":" + agentPort + "/crashTracking/v1/input";
     }
   }
 
@@ -2238,13 +2340,13 @@ public class Config {
 
   private static boolean isDebugMode() {
     final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
+    final String tracerDebugLevelProp = getProp(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
       return Boolean.parseBoolean(tracerDebugLevelProp);
     }
 
-    final String tracerDebugLevelEnv = System.getenv(toEnvVar(tracerDebugLevelSysprop));
+    final String tracerDebugLevelEnv = getEnv(toEnvVar(tracerDebugLevelSysprop));
 
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
@@ -2385,9 +2487,9 @@ public class Config {
 
     // Try environment variable.  This works in almost all environments
     if (isWindowsOS()) {
-      possibleHostname = System.getenv("COMPUTERNAME");
+      possibleHostname = getEnv("COMPUTERNAME");
     } else {
-      possibleHostname = System.getenv("HOSTNAME");
+      possibleHostname = getEnv("HOSTNAME");
     }
 
     if (possibleHostname != null && !possibleHostname.isEmpty()) {
@@ -2420,7 +2522,27 @@ public class Config {
   }
 
   private static boolean isWindowsOS() {
-    return System.getProperty("os.name").startsWith("Windows");
+    return getProp("os.name").startsWith("Windows");
+  }
+
+  private static String getEnv(String name) {
+    String value = System.getenv(name);
+    if (value != null) {
+      ConfigCollector.get().put(name, value);
+    }
+    return value;
+  }
+
+  private static String getProp(String name) {
+    return getProp(name, null);
+  }
+
+  private static String getProp(String name, String def) {
+    String value = System.getProperty(name, def);
+    if (value != null) {
+      ConfigCollector.get().put(name, value);
+    }
+    return value;
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
@@ -2682,6 +2804,13 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", crashTrackingUrl='"
+        + crashTrackingUrl
+        + '\''
+        + ", crashTrackingTags="
+        + crashTrackingTags
+        + ", crashTrackingAgentless="
+        + crashTrackingAgentless
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="
