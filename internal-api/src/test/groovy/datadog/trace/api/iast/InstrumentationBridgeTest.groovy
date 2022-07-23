@@ -20,10 +20,10 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.MODULE = Mock(IASTModule)
 
     when:
-    InstrumentationBridge.onHash('SHA-1')
+    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
 
     then:
-    1 * InstrumentationBridge.MODULE.onHash('SHA-1')
+    1 * InstrumentationBridge.MODULE.onHashingAlgorithm('SHA-1')
   }
 
   def "bridge calls don't fail with null module when a new hash is detected"() {
@@ -31,7 +31,7 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.MODULE = null
 
     when:
-    InstrumentationBridge.onHash('SHA-1')
+    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
 
     then:
     noExceptionThrown()
@@ -42,10 +42,10 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.MODULE = Mock(IASTModule)
 
     when:
-    InstrumentationBridge.onHash('SHA-1')
+    InstrumentationBridge.onMessageDigestGetInstance('SHA-1')
 
     then:
-    1 * InstrumentationBridge.MODULE.onHash(_) >> { throw new Error('Boom!!!') }
+    1 * InstrumentationBridge.MODULE.onHashingAlgorithm(_) >> { throw new Error('Boom!!!') }
     noExceptionThrown()
   }
 
@@ -54,10 +54,10 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.MODULE = Mock(IASTModule)
 
     when:
-    InstrumentationBridge.onCipher('AES')
+    InstrumentationBridge.onCipherGetInstance('AES')
 
     then:
-    1 * InstrumentationBridge.MODULE.onCipher('AES')
+    1 * InstrumentationBridge.MODULE.onCipherAlgorithm('AES')
   }
 
   def "bridge calls don't fail with null module when a new cipher is detected"() {
@@ -65,7 +65,7 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.MODULE = null
 
     when:
-    InstrumentationBridge.onCipher('AES')
+    InstrumentationBridge.onCipherGetInstance('AES')
 
     then:
     noExceptionThrown()
@@ -76,10 +76,10 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge.MODULE = Mock(IASTModule)
 
     when:
-    InstrumentationBridge.onCipher('AES')
+    InstrumentationBridge.onCipherGetInstance('AES')
 
     then:
-    1 * InstrumentationBridge.MODULE.onCipher(_) >> { throw new Error('Boom!!!') }
+    1 * InstrumentationBridge.MODULE.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
     noExceptionThrown()
   }
 }
