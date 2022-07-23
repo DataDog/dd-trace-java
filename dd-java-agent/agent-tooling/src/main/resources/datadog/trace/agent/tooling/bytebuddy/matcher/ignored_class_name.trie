@@ -36,6 +36,7 @@
 1 datadog.trace.*
 # remove this once https://github.com/raphw/byte-buddy/issues/558 is fixed
 0 datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
+0 datadog.trace.api.iast.InstrumentationBridge
 1 datadog.trace.core.*
 1 io.micrometer.*
 1 io.micronaut.tracing.*
