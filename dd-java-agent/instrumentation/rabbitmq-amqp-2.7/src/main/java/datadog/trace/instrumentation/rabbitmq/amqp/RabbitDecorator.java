@@ -15,11 +15,14 @@ import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -183,6 +186,15 @@ public class RabbitDecorator extends MessagingClientDecorator {
       // spans are written out together by the TraceStructureWriter when running in strict mode
     }
     final AgentSpan span = startSpan(AMQP_COMMAND, parentContext, spanStartMicros);
+
+    if (null != headers) {
+      PathwayContext pathwayContext =
+          propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
+      span.mergePathwayContext(pathwayContext);
+      AgentTracer.get()
+          .setDataStreamCheckpoint(span, Arrays.asList("type:rabbitmq", "topic:" + queue));
+    }
+
     if (null != body) {
       span.setTag("message.size", body.length);
     }
