@@ -110,7 +110,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
   def "test rabbit publish/get"() {
     setup:
-    String queueName;
+    String queueName
     GetResponse response = runUnderTrace("parent") {
       channel.exchangeDeclare(exchangeName, "direct", false)
       queueName = channel.queueDeclare().getQueue()
@@ -487,7 +487,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + "some-routing-queue"])
+        edgeTags.containsAll(["type:rabbitmq", "topic:some-routing-queue"])
         edgeTags.size() == 2
       }
     }
