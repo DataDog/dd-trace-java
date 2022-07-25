@@ -521,6 +521,10 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       default:
         break
     }
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+      // In the noParent case, the exchange is disabled so we don't expect any pathway injections.
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     body == "Hello, world!"
@@ -554,6 +558,21 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
             rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
           }
         }
+      }
+    }
+
+    and:
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags.size() == 2
       }
     }
 
@@ -595,6 +614,10 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       default:
         break
     }
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+      // In the noParent case, the queue is disabled so we don't expect any pathway injections.
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     body == "Hello, world!"
@@ -628,6 +651,21 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
             rabbitSpan(it, "basic.$type $queueName", true, publishSpan)
           }
         }
+      }
+    }
+
+    and:
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags.size() == 2
       }
     }
 
@@ -827,6 +865,36 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   @Override
   boolean splitByDestination() {
     return false
+  }
+}
+
+@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.service", "RabbitMQDatastreamsDisabledForkedTest")
+    injectSysConfig("dd.rabbit.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String expectedServiceName()  {
+    return "RabbitMQDatastreamsDisabledForkedTest"
+  }
+
+  @Override
+  boolean hasQueueSpan() {
+    return true
+  }
+
+  @Override
+  boolean splitByDestination() {
+    return false
+  }
+
+  @Override
+  boolean isDataStreamsEnabled() {
+    false
   }
 }
 
