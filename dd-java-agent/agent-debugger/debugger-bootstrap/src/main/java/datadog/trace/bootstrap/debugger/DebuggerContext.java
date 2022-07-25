@@ -42,10 +42,17 @@ public class DebuggerContext {
     void histogram(String name, long value, String[] tags);
   }
 
+  public interface SnapshotSerializer {
+    String serializeSnapshot(String serviceName, Snapshot snapshot);
+
+    String serializeValue(Snapshot.CapturedValue value);
+  }
+
   private static volatile Sink sink;
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
+  private static volatile SnapshotSerializer snapshotSerializer;
 
   public static void init(Sink sink, ProbeResolver probeResolver, MetricForwarder metricForwarder) {
     DebuggerContext.sink = sink;
@@ -55,6 +62,10 @@ public class DebuggerContext {
 
   public static void initClassFilter(ClassFilter classFilter) {
     DebuggerContext.classFilter = classFilter;
+  }
+
+  public static void initSnapshotSerializer(SnapshotSerializer snapshotSerializer) {
+    DebuggerContext.snapshotSerializer = snapshotSerializer;
   }
 
   public static void skipSnapshot(String probeId, SkipCause cause) {
@@ -120,5 +131,23 @@ public class DebuggerContext {
       return;
     }
     forwarder.histogram(name, value, tags);
+  }
+
+  public static String serializeSnapshot(String serviceName, Snapshot snapshot) {
+    SnapshotSerializer serializer = snapshotSerializer;
+    if (serializer == null) {
+      LOGGER.warn("Cannot serialize snapshots, no serializer set");
+      return null;
+    }
+    return serializer.serializeSnapshot(serviceName, snapshot);
+  }
+
+  public static String serializeValue(Snapshot.CapturedValue value) {
+    SnapshotSerializer serializer = snapshotSerializer;
+    if (serializer == null) {
+      LOGGER.warn("Cannot serialize value, no serializer set");
+      return null;
+    }
+    return serializer.serializeValue(value);
   }
 }

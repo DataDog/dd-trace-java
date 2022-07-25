@@ -43,11 +43,10 @@ public class SnapshotProbeTest {
   @Test
   public void testCapture() {
     SnapshotProbe.Builder builder = createProbe();
-    SnapshotProbe snapshotProbe = builder.capture(1, 420, 255, 1, 20).build();
+    SnapshotProbe snapshotProbe = builder.capture(1, 420, 255, 20).build();
     Assert.assertEquals(1, snapshotProbe.getCapture().getMaxReferenceDepth());
     Assert.assertEquals(420, snapshotProbe.getCapture().getMaxCollectionSize());
     Assert.assertEquals(255, snapshotProbe.getCapture().getMaxLength());
-    Assert.assertEquals(1, snapshotProbe.getCapture().getMaxFieldDepth());
   }
 
   @Test

@@ -1,5 +1,9 @@
 package datadog.trace.bootstrap.debugger;
 
+import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_COLLECTION_SIZE;
+import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_FIELD_COUNT;
+import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_LENGTH;
+import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_REFERENCE_DEPTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,10 +20,10 @@ import org.junit.jupiter.api.condition.EnabledOnJre;
 
 public class FieldExtractorTest {
 
-  private static final FieldExtractor.Limits DEPTH_0 =
-      new FieldExtractor.Limits(0, FieldExtractor.DEFAULT_FIELD_COUNT);
-  private static final FieldExtractor.Limits DEPTH_1 =
-      new FieldExtractor.Limits(1, FieldExtractor.DEFAULT_FIELD_COUNT);
+  private static final Limits DEPTH_0 =
+      new Limits(0, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, DEFAULT_FIELD_COUNT);
+  private static final Limits DEPTH_1 =
+      new Limits(1, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, DEFAULT_FIELD_COUNT);
 
   @Test
   public void basic() {
@@ -102,7 +106,9 @@ public class FieldExtractorTest {
   @Test
   public void lotsOfFields() {
     Map<String, Snapshot.CapturedValue> fields =
-        FieldExtractor.extract(new LotsFields(), new FieldExtractor.Limits(1, 5));
+        FieldExtractor.extract(
+            new LotsFields(),
+            new Limits(DEFAULT_REFERENCE_DEPTH, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, 5));
     assertEquals(6, fields.size());
     assertTrue(fields.containsKey("f00"));
     assertTrue(fields.containsKey("f01"));

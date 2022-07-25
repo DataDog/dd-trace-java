@@ -1,7 +1,7 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.DebuggerAgent;
-import com.datadog.debugger.sink.SnapshotSink.IntakeRequest;
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
@@ -82,7 +82,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
       SnapshotSink snapshotSink) {
     this.batchUploader = batchUploader;
     tags =
-        IntakeRequest.concatTags(
+        JsonSnapshotSerializer.IntakeRequest.concatTags(
             "env:" + config.getEnv(),
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,

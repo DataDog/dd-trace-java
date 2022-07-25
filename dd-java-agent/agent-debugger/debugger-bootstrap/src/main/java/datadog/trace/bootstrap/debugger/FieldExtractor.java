@@ -5,27 +5,14 @@ import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.ObjIntConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Extracts all fields of an instance to be added into a Snapshot as CapturedValue */
 public class FieldExtractor {
-  public static final int DEFAULT_FIELD_DEPTH = -1;
-  public static final int DEFAULT_FIELD_COUNT = 20;
-  private static final Logger LOG = LoggerFactory.getLogger(ValueConverter.class);
-
-  public static class Limits {
-    public final int maxFieldDepth;
-    public final int maxFieldCount;
-
-    public static Limits DEFAULT = new Limits(DEFAULT_FIELD_DEPTH, DEFAULT_FIELD_COUNT);
-
-    public Limits(int maxFieldDepth, int maxFieldCount) {
-
-      this.maxFieldDepth = maxFieldDepth;
-      this.maxFieldCount = maxFieldCount;
-    }
-  }
+  private static final Logger LOG = LoggerFactory.getLogger(FieldExtractor.class);
 
   private static boolean filterIn(Field field) {
     // Jacoco insert a transient field
@@ -41,12 +28,16 @@ public class FieldExtractor {
 
   private static void extractField(
       Field field, Object value, Map<String, Snapshot.CapturedValue> results, Limits limits) {
-    Snapshot.CapturedValue capturedValue =
-        Snapshot.CapturedValue.raw(
-            field.getType().getName(),
+    Map<String, Snapshot.CapturedValue> subFields =
+        extract(
             value,
-            field.getType().isPrimitive() ? -1 : limits.maxFieldDepth - 1,
-            limits.maxFieldCount);
+            new Limits(
+                limits.maxReferenceDepth - 1,
+                limits.maxCollectionSize,
+                limits.maxLength,
+                limits.maxFieldCount));
+    Snapshot.CapturedValue capturedValue =
+        Snapshot.CapturedValue.raw(field.getType().getName(), value, limits, subFields, null);
     results.put(field.getName(), capturedValue);
   }
 
@@ -75,7 +66,7 @@ public class FieldExtractor {
     if (obj == null) {
       return Collections.emptyMap();
     }
-    if (isPrimitiveClass(obj)) {
+    if (Fields.isPrimitiveClass(obj)) {
       return Collections.emptyMap();
     }
     Field[] declaredFields = obj.getClass().getDeclaredFields();
@@ -86,39 +77,37 @@ public class FieldExtractor {
     Fields.processFields(
         obj,
         FieldExtractor::filterIn,
-        (f, value) -> extractField(f, value, results, limits),
+        (f, value, maxDepth) -> extractField(f, value, results, limits),
         (ex, f) -> handleExtractException(ex, f, obj.getClass().getName(), results),
         (f, total) -> onMaxFieldCount(f, results, limits.maxFieldCount, total),
-        limits.maxFieldCount);
+        limits.maxFieldCount,
+        limits.maxReferenceDepth);
     return results;
   }
 
-  private static boolean isPrimitiveClass(Object obj) {
-    Class<?> clazz = obj.getClass();
-    if (clazz == Byte.class) {
-      return true;
+  public static void extract(
+      Object obj,
+      Limits limits,
+      Fields.ProcessField onField,
+      BiConsumer<Exception, Field> exHandling,
+      ObjIntConsumer<Field> maxFieldCount) {
+    if (obj == null) {
+      return;
     }
-    if (clazz == Short.class) {
-      return true;
+    if (Fields.isPrimitiveClass(obj)) {
+      return;
     }
-    if (clazz == Integer.class) {
-      return true;
+    Field[] declaredFields = obj.getClass().getDeclaredFields();
+    if (declaredFields.length == 0) {
+      return;
     }
-    if (clazz == Character.class) {
-      return true;
-    }
-    if (clazz == Long.class) {
-      return true;
-    }
-    if (clazz == Float.class) {
-      return true;
-    }
-    if (clazz == Double.class) {
-      return true;
-    }
-    if (clazz == Boolean.class) {
-      return true;
-    }
-    return false;
+    Fields.processFields(
+        obj,
+        FieldExtractor::filterIn,
+        onField,
+        exHandling,
+        maxFieldCount,
+        limits.maxFieldCount,
+        limits.maxReferenceDepth);
   }
 }

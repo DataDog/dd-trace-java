@@ -141,7 +141,7 @@ public class SnapshotSummary {
   private static Optional<String> getReturnValue(Snapshot snapshot) {
     CapturedContext exit = snapshot.getCaptures().getReturn();
     if (exit != null && exit.getLocals() != null && exit.getLocals().get("@return") != null) {
-      return Optional.of(exit.getLocals().get("@return").getValue());
+      return Optional.of(String.valueOf(exit.getLocals().get("@return").getValue()));
     }
     return Optional.empty();
   }

@@ -6,8 +6,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
@@ -65,7 +65,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
     LOG.info("got snapshot: {}", bodyStr);
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertNotNull(snapshot);
   }
@@ -150,7 +150,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     System.out.println(bodyStr);
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
@@ -205,11 +205,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
       RecordedRequest request = retrieveSnapshotRequest();
       assertNotNull(request);
       String bodyStr = request.getBody().readUtf8();
-      JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
-      List<SnapshotSink.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
+      JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+      List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
       snapshotCount += intakeRequests.size();
       System.out.println("received " + intakeRequests.size() + " snapshots");
-      for (SnapshotSink.IntakeRequest intakeRequest : intakeRequests) {
+      for (JsonSnapshotSerializer.IntakeRequest intakeRequest : intakeRequests) {
         Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
         probeIds.add(snapshot.getProbe().getId());
       }
