@@ -187,9 +187,11 @@ public class RabbitDecorator extends MessagingClientDecorator {
     }
     final AgentSpan span = startSpan(AMQP_COMMAND, parentContext, spanStartMicros);
 
-    PathwayContext pathwayContext = propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
-    span.mergePathwayContext(pathwayContext);
-    AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:rabbitmq", "topic:" + queue));
+    if (null != headers) {
+      PathwayContext pathwayContext = propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
+      span.mergePathwayContext(pathwayContext);
+      AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:rabbitmq", "topic:" + queue));
+    }
 
     if (null != body) {
       span.setTag("message.size", body.length);
