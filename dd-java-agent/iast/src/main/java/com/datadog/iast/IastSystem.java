@@ -6,6 +6,7 @@ import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.iast.InstrumentationBridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,8 @@ public class IastSystem {
     log.debug("IAST is starting");
 
     registerRequestStartedCallback(ss);
+
+    InstrumentationBridge.registerIastModule(new IastModuleImpl());
   }
 
   private static void registerRequestStartedCallback(final SubscriptionService ss) {
