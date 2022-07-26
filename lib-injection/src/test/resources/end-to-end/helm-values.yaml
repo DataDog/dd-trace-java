@@ -1,0 +1,23 @@
+targetSystem: "linux"
+clusterAgent:
+  enabled: true
+  image:
+    name: ""
+    tag: ahmed-auto-instru
+    repository: datadog/cluster-agent-dev
+    pullPolicy: Always
+  admissionController:
+    configMode: socket
+agents:
+  enabled: false
+datadog:
+  clusterName: local
+  tags: []
+  # datadog.kubelet.tlsVerify should be `false` on kind and minikube
+  # to establish communication with the kubelet
+  kubelet:
+    tlsVerify: "false"
+  logs:
+    enabled: true
+    containerCollectAll: false
+    containerCollectUsingFiles: true
