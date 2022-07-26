@@ -19,6 +19,9 @@ public class EndpointEvent extends Event implements EndpointTracker {
   @Label("Endpoint")
   private String endpoint = "unknown";
 
+  @Label("Operation")
+  private String operation = "unknown";
+
   @Label("Trace Id")
   private final long traceId;
 
@@ -53,6 +56,7 @@ public class EndpointEvent extends Event implements EndpointTracker {
     if (shouldCommit()) {
       end();
       this.endpoint = span.getResourceName().toString();
+      this.operation = span.getOperationName().toString();
       this.samplingPriorityEnd = span.samplingPriority();
       this.traceSampled = traceSampled;
       this.checkpointsSampled = checkpointsSampled;
