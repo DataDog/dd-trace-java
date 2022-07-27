@@ -160,7 +160,7 @@ public class Agent {
         // multiple times
         // If early profiling is enabled then this call will start profiling.
         // If early profiling is disabled then later call will do this.
-        startProfilingAgent(bootstrapURL, true);
+        startProfilingAgent(bootstrapURL, true, inst);
       } else {
         log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
@@ -170,7 +170,7 @@ public class Agent {
             new AgentTaskScheduler.Task<URL>() {
               @Override
               public void run(URL target) {
-                startProfilingAgent(target, false);
+                startProfilingAgent(target, false, inst);
               }
             };
       }
@@ -257,10 +257,10 @@ public class Agent {
     if (profilingEnabled && !isOracleJDK8()) {
       if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartProfilingAgentCallback(bootstrapURL));
+        registerLogManagerCallback(new StartProfilingAgentCallback(bootstrapURL, inst));
       } else {
         // Anything above 8 is OpenJDK implementation and is safe to run synchronously
-        startProfilingAgent(bootstrapURL, false);
+        startProfilingAgent(bootstrapURL, false, inst);
       }
     }
   }
@@ -416,8 +416,11 @@ public class Agent {
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
-    StartProfilingAgentCallback(final URL bootstrapURL) {
+    private final Instrumentation inst;
+
+    StartProfilingAgentCallback(final URL bootstrapURL, Instrumentation inst) {
       super(bootstrapURL);
+      this.inst = inst;
     }
 
     @Override
@@ -427,7 +430,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      startProfilingAgent(bootstrapURL, false);
+      startProfilingAgent(bootstrapURL, false, inst);
     }
   }
 
@@ -655,7 +658,8 @@ public class Agent {
         });
   }
 
-  private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
+  private static void startProfilingAgent(
+      final URL bootstrapURL, final boolean isStartingFirst, Instrumentation inst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
@@ -663,8 +667,9 @@ public class Agent {
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod =
-          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
-      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
+          profilingAgentClass.getMethod(
+              "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
+      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.

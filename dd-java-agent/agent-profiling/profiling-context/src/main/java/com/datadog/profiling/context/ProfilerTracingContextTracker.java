@@ -9,7 +9,6 @@ import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.Delayed;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -19,7 +18,8 @@ import org.jctools.maps.NonBlockingHashMapLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilerTracingContextTracker implements TracingContextTracker {
+public final class ProfilerTracingContextTracker
+    implements TracingContextTracker, ExpirationTracker.Expirable<ProfilerTracingContextTracker> {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
 
   private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
@@ -48,52 +48,27 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     long frequency();
   }
 
-  static final class DelayedTrackerImpl implements TracingContextTracker.DelayedTracker {
-    volatile ProfilerTracingContextTracker ref;
-
-    DelayedTrackerImpl(ProfilerTracingContextTracker ref) {
-      this.ref = ref;
+  static final class ExpiringProfilerTracingContextTracker
+      extends ExpirationTracker.Expiring<ProfilerTracingContextTracker> {
+    ExpiringProfilerTracingContextTracker(ProfilerTracingContextTracker ref) {
+      super(ref, ref.lastTransitionTimestamp, ref.inactivityDelay);
     }
 
     @Override
-    public void cleanup() {
-      ProfilerTracingContextTracker instance = ref;
+    public void onExpired() {
+      ProfilerTracingContextTracker instance = payload;
       if (instance != null) {
         instance.release();
-        /*
-        It is important to remove the reference such that the tracker, and transitively the span
-        is not held by the delayed instance until its timeout
-        */
-        releaseRef();
       }
+    }
+
+    @Override
+    public boolean isActive() {
+      return payload != null;
     }
 
     void releaseRef() {
-      ref = null;
-    }
-
-    @Override
-    public long getDelay(TimeUnit unit) {
-      ProfilerTracingContextTracker instance = ref;
-      if (ref != null) {
-        return unit.convert(
-            instance.lastTransitionTimestamp + instance.inactivityDelay - System.nanoTime(),
-            TimeUnit.NANOSECONDS);
-      }
-      // if the rerence was cleared this instance is ready for immediate removal from the queue
-      return -1;
-    }
-
-    @Override
-    public int compareTo(Delayed o) {
-      if (o instanceof ProfilerTracingContextTracker.DelayedTrackerImpl) {
-        ProfilerTracingContextTracker thiz = ref;
-        ProfilerTracingContextTracker other = ((DelayedTrackerImpl) o).ref;
-        return Long.compare(
-            thiz != null ? thiz.lastTransitionTimestamp : -1,
-            other != null ? other.lastTransitionTimestamp : -1);
-      }
-      return 0;
+      payload = null;
     }
   }
 
@@ -102,10 +77,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
           LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30, TimeUnit.SECONDS);
 
   private static final AtomicReferenceFieldUpdater<
-          ProfilerTracingContextTracker, DelayedTrackerImpl>
-      DELAYED_TRACKER_REF_UPDATER =
+          ProfilerTracingContextTracker, ExpiringProfilerTracingContextTracker>
+      EXPIRING_TRACKER_REF_UPDATER =
           AtomicReferenceFieldUpdater.newUpdater(
-              ProfilerTracingContextTracker.class, DelayedTrackerImpl.class, "delayedTrackerRef");
+              ProfilerTracingContextTracker.class,
+              ExpiringProfilerTracingContextTracker.class,
+              "expiringTrackerRef");
   private static final long TRANSITION_MAYBE_FINISHED_MASK =
       (long) (TRANSITION_MAYBE_FINISHED) << 62;
   private static final long TRANSITION_FINISHED_MASK = (long) (TRANSITION_FINISHED) << 62;
@@ -117,7 +94,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   private final long inactivityDelay;
 
   private final NonBlockingHashMapLong<LongSequence> threadSequences =
-      new NonBlockingHashMapLong<>(64);
+      new NonBlockingHashMapLong<>(64, false);
   private final long startTimestampTicks;
   private final long startTimestampMillis;
   private final long delayedActivationTimestamp;
@@ -144,7 +121,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private long lastTransitionTimestamp = -1;
 
-  private volatile DelayedTrackerImpl delayedTrackerRef = null;
+  private volatile ExpiringProfilerTracingContextTracker expiringTrackerRef = null;
 
   static {
     SPAN_ACTIVATION_DATA_LIMIT =
@@ -216,7 +193,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private long accessTimestamp() {
     long ts = timeTicksProvider.ticks();
-    lastTransitionTimestamp = System.nanoTime();
+    long tsNano = System.nanoTime();
+    lastTransitionTimestamp = tsNano;
+    ExpiringProfilerTracingContextTracker ref = expiringTrackerRef;
+    if (ref != null) {
+      ref.touch(tsNano);
+    }
     return ts;
   }
 
@@ -296,7 +278,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   @Override
   public boolean release() {
     boolean result = releaseThreadSequences();
-    releaseDelayed();
+    releaseExpiring();
     return result;
   }
 
@@ -318,10 +300,11 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     return false;
   }
 
-  void releaseDelayed() {
-    DelayedTrackerImpl delayed = DELAYED_TRACKER_REF_UPDATER.getAndSet(this, null);
-    if (delayed != null) {
-      delayed.releaseRef();
+  void releaseExpiring() {
+    ExpiringProfilerTracingContextTracker expiring =
+        EXPIRING_TRACKER_REF_UPDATER.getAndSet(this, null);
+    if (expiring != null) {
+      expiring.releaseRef();
     }
   }
 
@@ -331,9 +314,9 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   @Override
-  public DelayedTracker asDelayed() {
-    return DELAYED_TRACKER_REF_UPDATER.updateAndGet(
-        this, prev -> prev != null ? prev : new DelayedTrackerImpl(this));
+  public ExpiringProfilerTracingContextTracker asExpiring() {
+    return EXPIRING_TRACKER_REF_UPDATER.updateAndGet(
+        this, prev -> prev != null ? prev : new ExpiringProfilerTracingContextTracker(this));
   }
 
   public boolean isTruncated() {

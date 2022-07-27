@@ -3,14 +3,11 @@ package com.datadog.profiling.context;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
-import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
@@ -165,8 +162,32 @@ class ProfilerTracingContextTrackerTest {
         data1, tracker.persist()); // previously persisted data survives double-release
   }
 
+  //  @Test
+  //  void delayedCompareToTest() {
+  //    ProfilerTracingContextTrackerFactory instance =
+  //        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
+  //
+  //    ProfilerTracingContextTracker tracker1 =
+  //        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+  //    ProfilerTracingContextTracker tracker2 =
+  //        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+  //
+  //    ExpirationTracker.Expiring<ProfilerTracingContextTracker> delayed1 = tracker1.asExpiring();
+  //    ExpirationTracker.Expiring<ProfilerTracingContextTracker> delayed2 = tracker2.asExpiring();
+  //
+  //    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker other =
+  //        new ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker();
+  //
+  //    assertEquals(0, delayed1.compareTo(other));
+  //    assertEquals(0, delayed1.compareTo(delayed1));
+  //
+  //    tracker2.activateContext();
+  //    assertEquals(-1, delayed1.compareTo(delayed2));
+  //    assertEquals(1, delayed2.compareTo(delayed1));
+  //  }
+
   @Test
-  void delayedCompareToTest() {
+  void expiringCachingTest() {
     ProfilerTracingContextTrackerFactory instance =
         new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
 
@@ -175,32 +196,17 @@ class ProfilerTracingContextTrackerTest {
     ProfilerTracingContextTracker tracker2 =
         (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
 
-    TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
-    TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
+    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring1 =
+        tracker1.asExpiring();
+    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring2 =
+        tracker2.asExpiring();
 
-    Delayed other =
-        new Delayed() {
-          @Override
-          public long getDelay(TimeUnit unit) {
-            return 0;
-          }
-
-          @Override
-          public int compareTo(Delayed o) {
-            return 0;
-          }
-        };
-
-    assertEquals(0, delayed1.compareTo(other));
-    assertEquals(0, delayed1.compareTo(delayed1));
-
-    tracker2.activateContext();
-    assertEquals(-1, delayed1.compareTo(delayed2));
-    assertEquals(1, delayed2.compareTo(delayed1));
+    assertEquals(expiring1, tracker1.asExpiring());
+    assertEquals(expiring2, tracker2.asExpiring());
   }
 
   @Test
-  void delayedCachingTest() {
+  void expiringReleaseTest() {
     ProfilerTracingContextTrackerFactory instance =
         new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
 
@@ -209,35 +215,20 @@ class ProfilerTracingContextTrackerTest {
     ProfilerTracingContextTracker tracker2 =
         (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
 
-    TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
-    TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
-
-    assertEquals(delayed1, tracker1.asDelayed());
-    assertEquals(delayed2, tracker2.asDelayed());
-  }
-
-  @Test
-  void delayedReleaseTest() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
-
-    ProfilerTracingContextTracker tracker1 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-    ProfilerTracingContextTracker tracker2 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-
-    TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
-    TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
+    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring1 =
+        tracker1.asExpiring();
+    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring2 =
+        tracker2.asExpiring();
 
     // make sure the tracker release will remove the reference from delayed to the tracker
     tracker1.release();
-    assertNull(((ProfilerTracingContextTracker.DelayedTrackerImpl) delayed1).ref);
-    assertNotEquals(delayed1, tracker1.asDelayed());
+    assertNull(expiring1.payload);
+    assertNotEquals(expiring1, tracker1.asExpiring());
 
-    // make sure that the delayed cleanup will also trigger the tracker release
-    delayed2.cleanup();
-    assertNull(((ProfilerTracingContextTracker.DelayedTrackerImpl) delayed2).ref);
-    assertNotEquals(delayed2, tracker2.asDelayed());
+    // make sure that the expiration will also trigger the tracker release
+    expiring2.onExpired();
+    assertNull(expiring2.payload);
+    assertNotEquals(expiring2, tracker2.asExpiring());
   }
 
   @Test

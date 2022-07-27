@@ -51,11 +51,6 @@ class TimelineTracingContextTracker implements TracingContextTracker {
           int getVersion() {
             return tracker.getVersion()
           }
-
-          @Override
-          DelayedTracker asDelayed() {
-            return tracker.asDelayed()
-          }
         }
     }
   }
@@ -128,11 +123,6 @@ class TimelineTracingContextTracker implements TracingContextTracker {
   @Override
   int getVersion() {
     return 0
-  }
-
-  @Override
-  DelayedTracker asDelayed() {
-    return null
   }
 
   void clear() {

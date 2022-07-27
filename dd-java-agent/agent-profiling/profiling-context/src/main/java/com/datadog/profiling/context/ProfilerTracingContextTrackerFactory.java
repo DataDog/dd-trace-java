@@ -7,13 +7,9 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.util.AgentTaskScheduler;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +19,8 @@ public final class ProfilerTracingContextTrackerFactory
   private static final Logger log =
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
 
-  private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
+  private final ExpirationTracker<ProfilerTracingContextTracker, ProfilerTracingContextTracker>
+      expirationTracker;
   private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
   public static void register(ConfigProvider configProvider) {
@@ -56,33 +53,6 @@ public final class ProfilerTracingContextTrackerFactory
     }
   }
 
-  private void initializeInactiveTrackerCleanup(long checkPeriodMs) {
-    // the task should not run more often than once per 100ms
-    long refreshRateMs = Math.max(100, checkPeriodMs);
-    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-        target -> {
-          int capacity = 500;
-          Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(capacity);
-          int drainedAll = 0;
-          int drained = 0;
-          while ((drained = target.drainTo(timeouts, capacity)) > 0) {
-            if (log.isDebugEnabled()) {
-              log.debug("Drained {} inactive trackers", drained);
-            }
-            timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
-            timeouts.clear();
-            drainedAll += drained;
-          }
-          if (drainedAll > 0) {
-            statsd.count("tracing.context.spans.drained_inactive", drainedAll);
-          }
-        },
-        delayQueue,
-        refreshRateMs,
-        refreshRateMs,
-        TimeUnit.MILLISECONDS);
-  }
-
   private final Allocator allocator;
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
@@ -105,10 +75,10 @@ public final class ProfilerTracingContextTrackerFactory
             ? Allocators.directAllocator(reservedMemorySize, 32)
             : Allocators.heapAllocator(reservedMemorySize, 32);
     this.inactivityDelay = inactivityDelayNs;
-
-    if (inactivityDelay > 0) {
-      initializeInactiveTrackerCleanup(inactivityCheckPeriodMs);
-    }
+    this.expirationTracker =
+        inactivityDelay > 0
+            ? new ExpirationTracker<>(200_000, inactivityCheckPeriodMs, 50_000L)
+            : null;
   }
 
   private static ProfilerTracingContextTracker.TimeTicksProvider getTicksProvider() {
@@ -166,9 +136,16 @@ public final class ProfilerTracingContextTrackerFactory
     ProfilerTracingContextTracker instance =
         new ProfilerTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
-    if (inactivityDelay > 0) {
+    if (expirationTracker != null) {
       statsd.incrementCounter("tracing.context.spans.tracked");
-      delayQueue.offer(instance.asDelayed());
+      try {
+        if (!expirationTracker.track(instance)) {
+          return TracingContextTracker.EMPTY;
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return TracingContextTracker.EMPTY;
+      }
     }
     return instance;
   }

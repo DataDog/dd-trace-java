@@ -4,7 +4,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIR
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import com.datadog.profiling.context.JfrTimestampPatch;
+import com.datadog.profiling.context.ModulePatcher;
 import com.datadog.profiling.context.ProfilerTracingContextTrackerFactory;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
 import java.util.function.Predicate;
@@ -38,7 +39,8 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(final boolean isStartingFirst, ClassLoader agentClasLoader)
+  public static synchronized void run(
+      final boolean isStartingFirst, ClassLoader agentClasLoader, Instrumentation inst)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
@@ -63,7 +65,7 @@ public class ProfilingAgent {
         return;
       }
       if (Platform.isJavaVersionAtLeast(9)) {
-        JfrTimestampPatch.execute(agentClasLoader);
+        ModulePatcher.execute(inst);
       }
 
       try {
