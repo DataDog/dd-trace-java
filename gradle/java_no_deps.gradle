@@ -212,6 +212,10 @@ project.afterEvaluate {
           enabled = false
         }
       }
+      if (metadata.languageVersion.asInt() >= 16) {
+        // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
+        jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
+      }
     } else {
       def name = it.name
       onlyIf { isJavaVersionAllowed(JavaVersion.current(), name) }
