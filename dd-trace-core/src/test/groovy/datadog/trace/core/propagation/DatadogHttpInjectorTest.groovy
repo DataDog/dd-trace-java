@@ -37,6 +37,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))
@@ -92,6 +93,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().fromHeaderValue("_dd.p.dm=-4,_dd.p.anytag=value"))
@@ -137,6 +139,7 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,

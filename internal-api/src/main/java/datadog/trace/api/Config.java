@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
@@ -92,6 +93,10 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
@@ -139,6 +144,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
@@ -488,6 +494,10 @@ public class Config {
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
 
+  private final boolean crashTrackingAgentless;
+  @Deprecated private final String crashTrackingUrl;
+  private final Map<String, String> crashTrackingTags;
+
   private final boolean appSecEnabled;
   private final boolean appSecReportingInband;
   private final String appSecRulesFile;
@@ -497,6 +507,8 @@ public class Config {
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
+
+  private final boolean iastEnabled;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1025,6 +1037,11 @@ public class Config {
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
 
+    crashTrackingAgentless =
+        configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
+    crashTrackingUrl = configProvider.getString(CRASH_TRACKING_URL);
+    crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
+
     telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
@@ -1045,6 +1062,8 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
     appSecObfuscationParameterValueRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
+
+    iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1654,6 +1673,10 @@ public class Config {
     return profilingLegacyTracingIntegrationEnabled;
   }
 
+  public boolean isCrashTrackingAgentless() {
+    return crashTrackingAgentless;
+  }
+
   public boolean isTelemetryEnabled() {
     return telemetryEnabled;
   }
@@ -1688,6 +1711,10 @@ public class Config {
 
   public String getAppSecObfuscationParameterValueRegexp() {
     return appSecObfuscationParameterValueRegexp;
+  }
+
+  public boolean isIastEnabled() {
+    return iastEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -2061,6 +2088,26 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public Map<String, String> getMergedCrashTrackingTags() {
+    final Map<String, String> runtimeTags = getRuntimeTags();
+    final String host = getHostName();
+    final Map<String, String> result =
+        newHashMap(
+            getGlobalTags().size()
+                + crashTrackingTags.size()
+                + runtimeTags.size()
+                + 3 /* for serviceName and host and language */);
+    result.put(HOST_TAG, host); // Host goes first to allow to override it
+    result.putAll(getGlobalTags());
+    result.putAll(crashTrackingTags);
+    result.putAll(runtimeTags);
+    // service name set here instead of getRuntimeTags because apm already manages the service tag
+    // and may chose to override it.
+    result.put(SERVICE_TAG, serviceName);
+    result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+    return Collections.unmodifiableMap(result);
+  }
+
   /**
    * Returns the sample rate for the specified instrumentation or {@link
    * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
@@ -2198,6 +2245,20 @@ public class Config {
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";
+    }
+  }
+
+  public String getFinalCrashTrackingUrl() {
+    if (crashTrackingUrl != null) {
+      // when crashTrackingUrl is set we use it regardless of apiKey/agentless config
+      return crashTrackingUrl;
+    } else if (crashTrackingAgentless) {
+      // when agentless crashTracking is turned on we send directly to our intake
+      return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
+    } else {
+      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
+      // locally
+      return "http://" + agentHost + ":" + agentPort + "/crashTracking/v1/input";
     }
   }
 
@@ -2755,6 +2816,13 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", crashTrackingUrl='"
+        + crashTrackingUrl
+        + '\''
+        + ", crashTrackingTags="
+        + crashTrackingTags
+        + ", crashTrackingAgentless="
+        + crashTrackingAgentless
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="

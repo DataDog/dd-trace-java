@@ -18,6 +18,7 @@ import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.time.TimeSource
@@ -33,13 +34,21 @@ class GatewayBridgeSpecification extends DDSpecification {
   EventDispatcher eventDispatcher = Mock()
   AppSecRequestContext arCtx = new AppSecRequestContext()
   TraceSegment traceSegment = Mock()
-  RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
+  RequestContext ctx = new RequestContext() {
     final AppSecRequestContext data = arCtx
+
+    @Override
+    Object getData(RequestContextSlot slot) {
+      slot == RequestContextSlot.APPSEC ? data : null
+    }
 
     @Override
     final TraceSegment getTraceSegment() {
       GatewayBridgeSpecification.this.traceSegment
     }
+
+    @Override
+    void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
     EventProducerService.DataSubscriberInfo i = Mock()
@@ -89,7 +98,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       'some-header': ['123'],
       'content-type':['text/html; charset=UTF-8']]
     RequestContext mockCtx = Mock(RequestContext) {
-      getData() >> mockAppSecCtx
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
     IGSpanInfo spanInfo = Mock(AgentSpan)
@@ -121,7 +130,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
     mockAppSecCtx.requestHeaders >> [:]
     RequestContext mockCtx = Mock(RequestContext) {
-      getData() >> mockAppSecCtx
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
     IGSpanInfo spanInfo = Mock(AgentSpan)
@@ -144,7 +153,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       forwarded: ['for=127.0.0.1', 'for="[::1]", for=8.8.8.8'],
     ]
     RequestContext mockCtx = Mock(RequestContext) {
-      getData() >> mockAppSecCtx
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
     IGSpanInfo spanInfo = Mock(AgentSpan)

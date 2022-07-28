@@ -146,6 +146,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       null)
@@ -215,6 +216,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,
@@ -295,6 +297,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       spanType,
       1,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,

@@ -23,8 +23,11 @@ import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -61,12 +64,12 @@ import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.Closeable;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -172,6 +175,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final HttpCodec.Extractor extractor;
 
   private final InstrumentationGateway instrumentationGateway;
+  private final CallbackProvider callbackProviderAppSec;
+  private final CallbackProvider callbackProviderIast;
+  private final CallbackProvider universalCallbackProvider;
 
   private final DatadogTags.Factory datadogTagsFactory;
 
@@ -550,6 +556,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     this.instrumentationGateway = instrumentationGateway;
+    this.callbackProviderAppSec =
+        instrumentationGateway.getCallbackProvider(RequestContextSlot.APPSEC);
+    this.callbackProviderIast = instrumentationGateway.getCallbackProvider(RequestContextSlot.IAST);
+    this.universalCallbackProvider = instrumentationGateway.getUniversalCallbackProvider();
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -755,10 +765,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectPathwayContext(
-      AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {
+  public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.start(dataStreamsCheckpointer);
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
 
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
@@ -766,6 +775,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (encodedContext != null) {
         log.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PathwayContext.PROPAGATION_KEY, encodedContext);
+      }
+    } catch (IOException e) {
+      log.debug("Unable to set encode pathway context", e);
+    }
+  }
+
+  @Override
+  public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {
+    PathwayContext pathwayContext = span.context().getPathwayContext();
+    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
+    try {
+      String encodedContext = pathwayContext.strEncode();
+      if (encodedContext != null) {
+        setter.set(carrier, PathwayContext.PROPAGATION_KEY_BASE64, encodedContext);
       }
     } catch (IOException e) {
       log.debug("Unable to set encode pathway context", e);
@@ -795,13 +818,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+  public <C> PathwayContext extractBinaryPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    return dataStreamsCheckpointer.extractBinaryPathwayContext(carrier, getter);
+  }
+
+  @Override
+  public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
     return dataStreamsCheckpointer.extractPathwayContext(carrier, getter);
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {
-    span.context().getPathwayContext().setCheckpoint(type, group, topic, dataStreamsCheckpointer);
+  public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {
+    span.context().getPathwayContext().setCheckpoint(tags, dataStreamsCheckpointer);
   }
 
   @Override
@@ -881,10 +909,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         // request context is propagated to contexts in child spans
         // Assume here that if present it will be so starting in the top span
-        RequestContext<Object> requestContext = rootSpan.getRequestContext();
-        if (requestContext != null && requestContext.getData() instanceof Closeable) {
+        RequestContext requestContext = rootSpan.getRequestContext();
+        if (requestContext != null) {
           try {
-            ((Closeable) requestContext.getData()).close();
+            requestContext.close();
           } catch (IOException e) {
             log.warn("Error closing request context data", e);
           }
@@ -943,8 +971,24 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public InstrumentationGateway instrumentationGateway() {
-    return instrumentationGateway;
+  public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
+    return (SubscriptionService) this.instrumentationGateway.getCallbackProvider(slot);
+  }
+
+  @Override
+  public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
+    if (slot == RequestContextSlot.APPSEC) {
+      return callbackProviderAppSec;
+    } else if (slot == RequestContextSlot.IAST) {
+      return callbackProviderIast;
+    } else {
+      return CallbackProvider.CallbackProviderNoop.INSTANCE;
+    }
+  }
+
+  @Override
+  public CallbackProvider getUniversalCallbackProvider() {
+    return universalCallbackProvider;
   }
 
   @Override
@@ -1180,7 +1224,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, ?> rootSpanTags;
 
       final DDSpanContext context;
-      final Object requestContextData;
+      Object requestContextDataAppSec;
+      Object requestContextDataIast;
       final PathwayContext pathwayContext;
       final DatadogTags datadogTags;
 
@@ -1214,8 +1259,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-        RequestContext<Object> requestContext = ddsc.getRequestContext();
-        requestContextData = null == requestContext ? null : requestContext.getData();
+        RequestContext requestContext = ((DDSpanContext) parentContext).getRequestContext();
+        if (requestContext != null) {
+          requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
+          requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
+        } else {
+          requestContextDataAppSec = null;
+          requestContextDataIast = null;
+        }
         pathwayContext =
             ddsc.getPathwayContext().isStarted()
                 ? ddsc.getPathwayContext()
@@ -1248,11 +1299,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           TagContext tc = (TagContext) parentContext;
           coreTags = tc.getTags();
           origin = tc.getOrigin();
-          requestContextData = tc.getRequestContextData();
+          requestContextDataAppSec = tc.getRequestContextDataAppSec();
+          requestContextDataIast = tc.getRequestContextDataIast();
         } else {
           coreTags = null;
           origin = null;
-          requestContextData = null;
+          requestContextDataAppSec = null;
+          requestContextDataIast = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1295,7 +1348,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               spanType,
               tagsSize,
               parentTrace,
-              requestContextData,
+              requestContextDataAppSec,
+              requestContextDataIast,
               pathwayContext,
               disableSamplingMechanismValidation,
               datadogTags);

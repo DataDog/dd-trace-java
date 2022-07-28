@@ -56,6 +56,7 @@ public class PendingTraceWrite {
                 0,
                 trace,
                 null,
+                null,
                 NoopPathwayContext.INSTANCE,
                 false,
                 null));
@@ -77,6 +78,7 @@ public class PendingTraceWrite {
                 "type",
                 0,
                 trace,
+                null,
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,

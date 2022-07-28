@@ -17,6 +17,7 @@ import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -91,8 +92,8 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         events.requestEnded(),
-        (RequestContext<AppSecRequestContext> ctx_, IGSpanInfo spanInfo) -> {
-          AppSecRequestContext ctx = ctx_.getData();
+        (RequestContext ctx_, IGSpanInfo spanInfo) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           TraceSegment traceSeg = ctx_.getTraceSegment();
@@ -168,8 +169,8 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyStart())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyStart(),
-          (RequestContext<AppSecRequestContext> ctx_, StoredBodySupplier supplier) -> {
-            AppSecRequestContext ctx = ctx_.getData();
+          (RequestContext ctx_, StoredBodySupplier supplier) -> {
+            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
             ctx.setStoredRequestBodySupplier(supplier);
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_START);
             return null;
@@ -180,7 +181,7 @@ public class GatewayBridge {
       subscriptionService.registerCallback(
           EVENTS.requestPathParams(),
           (ctx_, data) -> {
-            AppSecRequestContext ctx = ctx_.getData();
+            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
             if (ctx.isPathParamsPublished()) {
               log.debug("Second or subsequent publication of request params");
               return NoopFlow.INSTANCE;
@@ -198,8 +199,8 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyDone())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyDone(),
-          (RequestContext<AppSecRequestContext> ctx_, StoredBodySupplier supplier) -> {
-            AppSecRequestContext ctx = ctx_.getData();
+          (RequestContext ctx_, StoredBodySupplier supplier) -> {
+            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
 
             if (ctx.isRawReqBodyPublished()) {
               return NoopFlow.INSTANCE;
@@ -229,8 +230,8 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(),
-          (RequestContext<AppSecRequestContext> ctx_, Object obj) -> {
-            AppSecRequestContext ctx = ctx_.getData();
+          (RequestContext ctx_, Object obj) -> {
+            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
             if (ctx.isConvertedReqBodyPublished()) {
               log.debug(
                   "Request body already published; will ignore new value of type {}",
@@ -256,7 +257,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(),
         (ctx_, ip, port) -> {
-          AppSecRequestContext ctx = ctx_.getData();
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx.isReqDataPublished()) {
             return NoopFlow.INSTANCE;
           }
@@ -268,7 +269,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         EVENTS.responseStarted(),
         (ctx_, status) -> {
-          AppSecRequestContext ctx = ctx_.getData();
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx.isRespDataPublished()) {
             return NoopFlow.INSTANCE;
           }
@@ -278,11 +279,13 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         EVENTS.responseHeader(),
-        (ctx, name, value) -> ctx.getData().addResponseHeader(name, value));
+        (ctx, name, value) ->
+            ctx.<AppSecRequestContext>getData(RequestContextSlot.APPSEC)
+                .addResponseHeader(name, value));
     subscriptionService.registerCallback(
         EVENTS.responseHeaderDone(),
         ctx_ -> {
-          AppSecRequestContext ctx = ctx_.getData();
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx.isRespDataPublished()) {
             return NoopFlow.INSTANCE;
           }
@@ -293,7 +296,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(
         EVENTS.grpcServerRequestMessage(),
         (ctx_, obj) -> {
-          AppSecRequestContext ctx = ctx_.getData();
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (grpcServerRequestMsgSubInfo == null) {
             grpcServerRequestMsgSubInfo =
                 producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
@@ -328,10 +331,10 @@ public class GatewayBridge {
   }
 
   private static class NewRequestHeaderCallback
-      implements TriConsumer<RequestContext<AppSecRequestContext>, String, String> {
+      implements TriConsumer<RequestContext, String, String> {
     @Override
-    public void accept(RequestContext<AppSecRequestContext> ctx_, String name, String value) {
-      AppSecRequestContext ctx = ctx_.getData();
+    public void accept(RequestContext ctx_, String name, String value) {
+      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
       if (name.equalsIgnoreCase("cookie")) {
         Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
         ctx.addCookies(cookies);
@@ -341,10 +344,9 @@ public class GatewayBridge {
     }
   }
 
-  private class RequestHeadersDoneCallback
-      implements Function<RequestContext<AppSecRequestContext>, Flow<Void>> {
-    public Flow<Void> apply(RequestContext<AppSecRequestContext> ctx_) {
-      AppSecRequestContext ctx = ctx_.getData();
+  private class RequestHeadersDoneCallback implements Function<RequestContext, Flow<Void>> {
+    public Flow<Void> apply(RequestContext ctx_) {
+      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
       if (ctx.isReqDataPublished()) {
         return NoopFlow.INSTANCE;
       }
@@ -354,12 +356,10 @@ public class GatewayBridge {
   }
 
   private class MethodAndRawURICallback
-      implements TriFunction<
-          RequestContext<AppSecRequestContext>, String, URIDataAdapter, Flow<Void>> {
+      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
     @Override
-    public Flow<Void> apply(
-        RequestContext<AppSecRequestContext> ctx_, String method, URIDataAdapter uri) {
-      AppSecRequestContext ctx = ctx_.getData();
+    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
+      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
       if (ctx.isReqDataPublished()) {
         log.debug(
             "Request method and URI already published; will ignore new values {}, {}", method, uri);

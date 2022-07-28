@@ -44,6 +44,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))
@@ -118,6 +119,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,

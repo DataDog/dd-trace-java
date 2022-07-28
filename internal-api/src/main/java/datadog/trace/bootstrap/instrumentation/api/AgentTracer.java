@@ -7,14 +7,17 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.function.Consumer;
-import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.ScopeListener;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class AgentTracer {
@@ -176,9 +179,13 @@ public class AgentTracer {
      */
     void registerCheckpointer(Checkpointer checkpointer);
 
-    InstrumentationGateway instrumentationGateway();
+    SubscriptionService getSubscriptionService(RequestContextSlot slot);
 
-    void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic);
+    CallbackProvider getCallbackProvider(RequestContextSlot slot);
+
+    CallbackProvider getUniversalCallbackProvider();
+
+    void setDataStreamCheckpoint(AgentSpan span, List<String> tags);
 
     AgentSpan.Context notifyExtensionStart(Object event);
 
@@ -320,6 +327,21 @@ public class AgentTracer {
     public void registerCheckpointer(Checkpointer checkpointer) {}
 
     @Override
+    public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
+      return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
+    }
+
+    @Override
+    public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
+      return CallbackProvider.CallbackProviderNoop.INSTANCE;
+    }
+
+    @Override
+    public CallbackProvider getUniversalCallbackProvider() {
+      return CallbackProvider.CallbackProviderNoop.INSTANCE;
+    }
+
+    @Override
     public AgentScope.Continuation capture() {
       return null;
     }
@@ -334,8 +356,10 @@ public class AgentTracer {
     public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {}
+    public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {}
+
+    @Override
+    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -343,7 +367,13 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    public <C> PathwayContext extractBinaryPathwayContext(
+        C carrier, BinaryContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
       return null;
     }
 
@@ -375,12 +405,7 @@ public class AgentTracer {
     public void onRootSpanStarted(AgentSpan root) {}
 
     @Override
-    public InstrumentationGateway instrumentationGateway() {
-      return null;
-    }
-
-    @Override
-    public void setDataStreamCheckpoint(AgentSpan span, String type, String group, String topic) {}
+    public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {}
 
     @Override
     public AgentSpan.Context notifyExtensionStart(Object event) {
@@ -521,7 +546,7 @@ public class AgentTracer {
     public void finishWork() {}
 
     @Override
-    public RequestContext<Object> getRequestContext() {
+    public RequestContext getRequestContext() {
       return null;
     }
 
@@ -740,8 +765,10 @@ public class AgentTracer {
     public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, String type, String group, C carrier, BinarySetter<C> setter) {}
+    public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {}
+
+    @Override
+    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -749,7 +776,13 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> PathwayContext extractPathwayContext(C carrier, BinaryContextVisitor<C> getter) {
+    public <C> PathwayContext extractBinaryPathwayContext(
+        C carrier, BinaryContextVisitor<C> getter) {
+      return null;
+    }
+
+    @Override
+    public <C> PathwayContext extractPathwayContext(C carrier, ContextVisitor<C> getter) {
       return null;
     }
   }
@@ -802,6 +835,7 @@ public class AgentTracer {
       return Collections.emptyList();
     }
 
+    @Override
     public PathwayContext getPathwayContext() {
       return NoopPathwayContext.INSTANCE;
     }
@@ -901,14 +935,15 @@ public class AgentTracer {
     }
 
     @Override
-    public void start(Consumer<StatsPoint> pointConsumer) {}
-
-    @Override
-    public void setCheckpoint(
-        String type, String group, String topic, Consumer<StatsPoint> pointConsumer) {}
+    public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {}
 
     @Override
     public byte[] encode() throws IOException {
+      return null;
+    }
+
+    @Override
+    public String strEncode() throws IOException {
       return null;
     }
   }

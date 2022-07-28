@@ -38,6 +38,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       null)
@@ -91,6 +92,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       null)
@@ -136,6 +138,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,

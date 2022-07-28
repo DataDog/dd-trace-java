@@ -36,8 +36,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
         @Nonnull Duration windowSize,
         int samplesPerWindow,
         int averageLookback,
-        int budgetLookback,
-        int recordingSampleLimit) {
+        int budgetLookback) {
       this.windowSize = windowSize;
       this.samplesPerWindow = samplesPerWindow;
       this.averageLookback = averageLookback;
@@ -95,7 +94,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
 
   private final int recordingSampleLimit;
   private volatile long recordingSampleCount = 0L;
-  private final AtomicLongFieldUpdater<JFRCheckpointer> recordingSampleCountUpdater =
+  private static final AtomicLongFieldUpdater<JFRCheckpointer> recordingSampleCountUpdater =
       AtomicLongFieldUpdater.newUpdater(JFRCheckpointer.class, "recordingSampleCount");
 
   public JFRCheckpointer() {
@@ -126,15 +125,12 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
     recordingSampleLimit = getRecordingSampleLimit(configProvider);
     this.sampler = Objects.requireNonNull(sampler);
 
-    if (sampler != null) {
-      // skip the sampler config periodical event if the required sampler config is not available
-      if (this.samplerConfig != null) {
-        FlightRecorder.addPeriodicEvent(
-            CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
-      }
-      FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
-      ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).addListener(this);
+    // skip the sampler config periodical event if the required sampler config is not available
+    if (this.samplerConfig != null) {
+      FlightRecorder.addPeriodicEvent(CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
     }
+    FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
+    ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).addListener(this);
 
     isEndpointCollectionEnabled =
         configProvider.getBoolean(
@@ -262,7 +258,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
       if (log.isDebugEnabled()) {
         log.warn("Exception occurred while emitting sampler config event", t);
       } else {
-        log.warn("Exception occurred while emitting sampler config event", t.toString());
+        log.warn("Exception occurred while emitting sampler config event: {}", t.toString());
       }
       throw t;
     }
@@ -276,7 +272,7 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
       return new ConfiguredSampler(null, new ConstantSampler(true));
     }
     log.debug(
-        "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}, hardLimit={}",
+        "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}",
         config.windowSize.toMillis(),
         config.samplesPerWindow,
         config.budgetLookback);
@@ -325,16 +321,8 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
     int budgetLookback =
         Math.round(Math.max((0.8f * limit) / samplesPerWindow, MIN_SAMPLER_LOOKBACK));
 
-    int recordingSampleLimit =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT,
-            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT);
     return new SamplerConfig(
-        windowSize,
-        Math.round(samplesPerWindow),
-        DEFAULT_AVERAGE_LOOKBACK,
-        budgetLookback,
-        recordingSampleLimit);
+        windowSize, Math.round(samplesPerWindow), DEFAULT_AVERAGE_LOOKBACK, budgetLookback);
   }
 
   private static int getRateLimit(final ConfigProvider configProvider) {

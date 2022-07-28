@@ -84,6 +84,7 @@ class TypeConverterTest extends AgentTestRunner {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().empty()) {

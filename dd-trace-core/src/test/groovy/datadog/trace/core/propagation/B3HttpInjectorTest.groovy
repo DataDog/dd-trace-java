@@ -42,6 +42,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().empty())
@@ -102,6 +103,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,

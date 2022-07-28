@@ -90,6 +90,7 @@ class TypeConverterTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().empty())

@@ -11,6 +11,8 @@ import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.IOException;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,7 +20,9 @@ import org.junit.Test;
 public class InstrumentationGatewayTest {
 
   private InstrumentationGateway gateway;
-  private RequestContext<Object> context;
+  private SubscriptionService ss;
+  private CallbackProvider cbp;
+  private RequestContext context;
   private Flow<Void> flow;
   private Callback callback;
   private Events<Object> events;
@@ -26,10 +30,15 @@ public class InstrumentationGatewayTest {
   @Before
   public void setUp() {
     gateway = new InstrumentationGateway();
+    ss = gateway.getSubscriptionService(RequestContextSlot.APPSEC);
+    cbp = gateway.getCallbackProvider(RequestContextSlot.APPSEC);
     context =
-        new RequestContext<Object>() {
+        new RequestContext() {
           @Override
-          public Object getData() {
+          public void close() throws IOException {}
+
+          @Override
+          public Object getData(RequestContextSlot slot) {
             return this;
           }
 
@@ -45,11 +54,11 @@ public class InstrumentationGatewayTest {
 
   @Test
   public void testGetCallback() {
-    gateway.registerCallback(events.requestStarted(), callback);
+    ss.registerCallback(events.requestStarted(), callback);
     // check event without registered callback
-    assertThat(gateway.getCallback(events.requestEnded())).isNull();
+    assertThat(cbp.getCallback(events.requestEnded())).isNull();
     // check event with registered callback
-    Supplier<Flow<Object>> cback = gateway.getCallback(events.requestStarted());
+    Supplier<Flow<Object>> cback = cbp.getCallback(events.requestStarted());
     assertThat(cback).isEqualTo(callback);
     Flow<Object> flow = cback.get();
     assertThat(flow.getAction()).isEqualTo(Flow.Action.Noop.INSTANCE);
@@ -59,33 +68,33 @@ public class InstrumentationGatewayTest {
 
   @Test
   public void testRegisterCallback() {
-    Subscription s1 = gateway.registerCallback(events.requestStarted(), callback);
+    Subscription s1 = ss.registerCallback(events.requestStarted(), callback);
     // check event without registered callback
-    assertThat(gateway.getCallback(events.requestEnded())).isNull();
+    assertThat(cbp.getCallback(events.requestEnded())).isNull();
     // check event with registered callback
-    assertThat(gateway.getCallback(events.requestStarted())).isEqualTo(callback);
+    assertThat(cbp.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can register a callback
     Callback cb = new Callback(context, flow);
-    Subscription s2 = gateway.registerCallback(events.requestEnded(), cb);
-    assertThat(gateway.getCallback(events.requestEnded())).isEqualTo(cb);
+    Subscription s2 = ss.registerCallback(events.requestEnded(), cb);
+    assertThat(cbp.getCallback(events.requestEnded())).isEqualTo(cb);
     // check that we can cancel a callback
     s1.cancel();
-    assertThat(gateway.getCallback(events.requestStarted())).isNull();
+    assertThat(cbp.getCallback(events.requestStarted())).isNull();
     // check that we didn't remove the other callback
-    assertThat(gateway.getCallback(events.requestEnded())).isEqualTo(cb);
+    assertThat(cbp.getCallback(events.requestEnded())).isEqualTo(cb);
   }
 
   @Test
   public void testDoubleRegistration() {
-    gateway.registerCallback(events.requestStarted(), callback);
+    ss.registerCallback(events.requestStarted(), callback);
     // check event with registered callback
-    assertThat(gateway.getCallback(events.requestStarted())).isEqualTo(callback);
+    assertThat(cbp.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can't overwrite the callback
     assertThatThrownBy(
             new ThrowableAssert.ThrowingCallable() {
               @Override
               public void call() throws Throwable {
-                gateway.registerCallback(events.requestStarted(), callback);
+                ss.registerCallback(events.requestStarted(), callback);
               }
             })
         .isInstanceOf(IllegalStateException.class)
@@ -95,15 +104,15 @@ public class InstrumentationGatewayTest {
 
   @Test
   public void testDoubleCancel() {
-    Subscription s1 = gateway.registerCallback(events.requestStarted(), callback);
+    Subscription s1 = ss.registerCallback(events.requestStarted(), callback);
     // check event with registered callback
-    assertThat(gateway.getCallback(events.requestStarted())).isEqualTo(callback);
+    assertThat(cbp.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can cancel a callback
     s1.cancel();
-    assertThat(gateway.getCallback(events.requestStarted())).isNull();
+    assertThat(cbp.getCallback(events.requestStarted())).isNull();
     // check that we can cancel a callback
     s1.cancel();
-    assertThat(gateway.getCallback(events.requestStarted())).isNull();
+    assertThat(cbp.getCallback(events.requestStarted())).isNull();
   }
 
   @Test
@@ -121,39 +130,39 @@ public class InstrumentationGatewayTest {
   @Test
   public void testNormalCalls() {
     // check that we pass through normal calls
-    gateway.registerCallback(events.requestStarted(), callback);
-    assertThat(gateway.getCallback(events.requestStarted()).get().getResult()).isEqualTo(context);
-    gateway.registerCallback(events.requestEnded(), callback);
-    assertThat(gateway.getCallback(events.requestEnded()).apply(null, null)).isEqualTo(flow);
-    gateway.registerCallback(events.requestHeader(), callback);
-    gateway.getCallback(events.requestHeader()).accept(null, null, null);
-    gateway.registerCallback(events.requestHeaderDone(), callback);
-    assertThat(gateway.getCallback(events.requestHeaderDone()).apply(null)).isEqualTo(flow);
-    gateway.registerCallback(events.requestMethodUriRaw(), callback);
-    assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
+    ss.registerCallback(events.requestStarted(), callback);
+    assertThat(cbp.getCallback(events.requestStarted()).get().getResult()).isEqualTo(context);
+    ss.registerCallback(events.requestEnded(), callback);
+    assertThat(cbp.getCallback(events.requestEnded()).apply(null, null)).isEqualTo(flow);
+    ss.registerCallback(events.requestHeader(), callback);
+    cbp.getCallback(events.requestHeader()).accept(null, null, null);
+    ss.registerCallback(events.requestHeaderDone(), callback);
+    assertThat(cbp.getCallback(events.requestHeaderDone()).apply(null)).isEqualTo(flow);
+    ss.registerCallback(events.requestMethodUriRaw(), callback);
+    assertThat(cbp.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(flow);
-    gateway.registerCallback(events.requestPathParams(), callback);
-    assertThat(gateway.getCallback(events.requestPathParams()).apply(null, null)).isEqualTo(flow);
-    gateway.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
-    assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
+    ss.registerCallback(events.requestPathParams(), callback);
+    assertThat(cbp.getCallback(events.requestPathParams()).apply(null, null)).isEqualTo(flow);
+    ss.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
+    assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(flow);
-    gateway.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
-    assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
-    gateway.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
-    assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
+    ss.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
+    assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
+    ss.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
+    assertThat(cbp.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    gateway.registerCallback(events.requestBodyProcessed(), callback);
-    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+    ss.registerCallback(events.requestBodyProcessed(), callback);
+    assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    gateway.registerCallback(events.grpcServerRequestMessage(), callback);
-    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
+    ss.registerCallback(events.grpcServerRequestMessage(), callback);
+    assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    gateway.registerCallback(events.responseStarted(), callback);
-    gateway.getCallback(events.responseStarted()).apply(null, null);
-    gateway.registerCallback(events.responseHeader(), callback);
-    gateway.getCallback(events.responseHeader()).accept(null, null, null);
-    gateway.registerCallback(events.responseHeaderDone(), callback);
-    gateway.getCallback(events.responseHeaderDone()).apply(null);
+    ss.registerCallback(events.responseStarted(), callback);
+    cbp.getCallback(events.responseStarted()).apply(null, null);
+    ss.registerCallback(events.responseHeader(), callback);
+    cbp.getCallback(events.responseHeader()).accept(null, null, null);
+    ss.registerCallback(events.responseHeaderDone(), callback);
+    cbp.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -161,72 +170,213 @@ public class InstrumentationGatewayTest {
   public void testThrowableBlocking() {
     Throwback throwback = new Throwback();
     // check that we block the thrown exceptions
-    gateway.registerCallback(events.requestStarted(), throwback);
-    assertThat(gateway.getCallback(events.requestStarted()).get())
+    ss.registerCallback(events.requestStarted(), throwback);
+    assertThat(cbp.getCallback(events.requestStarted()).get()).isEqualTo(Flow.ResultFlow.empty());
+    ss.registerCallback(events.requestEnded(), throwback);
+    assertThat(cbp.getCallback(events.requestEnded()).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(events.requestEnded(), throwback);
-    assertThat(gateway.getCallback(events.requestEnded()).apply(null, null))
+    ss.registerCallback(events.requestHeader(), throwback);
+    cbp.getCallback(events.requestHeader()).accept(null, null, null);
+    ss.registerCallback(events.requestHeaderDone(), throwback);
+    assertThat(cbp.getCallback(events.requestHeaderDone()).apply(null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(events.requestHeader(), throwback);
-    gateway.getCallback(events.requestHeader()).accept(null, null, null);
-    gateway.registerCallback(events.requestHeaderDone(), throwback);
-    assertThat(gateway.getCallback(events.requestHeaderDone()).apply(null))
+    ss.registerCallback(events.requestMethodUriRaw(), throwback);
+    assertThat(cbp.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(events.requestMethodUriRaw(), throwback);
-    assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
+    ss.registerCallback(events.requestPathParams(), throwback);
+    assertThat(cbp.getCallback(events.requestPathParams()).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(events.requestPathParams(), throwback);
-    assertThat(gateway.getCallback(events.requestPathParams()).apply(null, null))
+    ss.registerCallback(events.requestClientSocketAddress(), throwback.asClientSocketAddress());
+    assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(
-        events.requestClientSocketAddress(), throwback.asClientSocketAddress());
-    assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
-        .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(events.requestBodyStart(), throwback.asRequestBodyStart());
-    assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
-    gateway.registerCallback(events.requestBodyDone(), throwback.asRequestBodyDone());
-    assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
+    ss.registerCallback(events.requestBodyStart(), throwback.asRequestBodyStart());
+    assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
+    ss.registerCallback(events.requestBodyDone(), throwback.asRequestBodyDone());
+    assertThat(cbp.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    gateway.registerCallback(events.requestBodyProcessed(), throwback);
-    assertThat(gateway.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+    ss.registerCallback(events.requestBodyProcessed(), throwback);
+    assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    gateway.registerCallback(events.grpcServerRequestMessage(), throwback);
-    assertThat(gateway.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
+    ss.registerCallback(events.grpcServerRequestMessage(), throwback);
+    assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-    gateway.registerCallback(events.responseStarted(), throwback);
-    gateway.getCallback(events.responseStarted()).apply(null, null);
-    gateway.registerCallback(events.responseHeader(), throwback);
-    gateway.getCallback(events.responseHeader()).accept(null, null, null);
-    gateway.registerCallback(events.responseHeaderDone(), throwback);
-    gateway.getCallback(events.responseHeaderDone()).apply(null);
+    ss.registerCallback(events.responseStarted(), throwback);
+    cbp.getCallback(events.responseStarted()).apply(null, null);
+    ss.registerCallback(events.responseHeader(), throwback);
+    cbp.getCallback(events.responseHeader()).accept(null, null, null);
+    ss.registerCallback(events.responseHeaderDone(), throwback);
+    cbp.getCallback(events.responseHeaderDone()).apply(null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
+  }
+
+  @Test
+  public void iastRegistryOperatesIndependently() {
+    SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
+    CallbackProvider cbpIast = gateway.getCallbackProvider(RequestContextSlot.IAST);
+
+    ss.registerCallback(events.requestStarted(), callback);
+    assertThat(cbpIast.getCallback(events.requestStarted())).isNull();
+
+    ssIast.registerCallback(events.requestStarted(), callback);
+    assertThat(cbpIast.getCallback(events.requestStarted())).isNotNull();
+  }
+
+  @Test
+  public void resettingResetsAllSubsystems() {
+    SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
+    CallbackProvider cbpIast = gateway.getCallbackProvider(RequestContextSlot.IAST);
+
+    ss.registerCallback(events.requestStarted(), callback);
+    ssIast.registerCallback(events.requestStarted(), callback);
+
+    gateway.reset();
+
+    assertThat(cbp.getCallback(events.requestStarted())).isNull();
+    assertThat(cbpIast.getCallback(events.requestStarted())).isNull();
+  }
+
+  @Test
+  public void invalidRequestContextSlot() {
+    SubscriptionService ss = gateway.getSubscriptionService(null);
+    CallbackProvider cbp = gateway.getCallbackProvider(null);
+
+    assertThat(ss).isSameAs(SubscriptionService.SubscriptionServiceNoop.INSTANCE);
+    assertThat(cbp).isSameAs(CallbackProvider.CallbackProviderNoop.INSTANCE);
+  }
+
+  @Test
+  public void universalCallbackProviderForRequestEnded() {
+    SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
+    final int[] count = new int[1];
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
+        new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext requestContext, IGSpanInfo igSpanInfo) {
+            assertThat(requestContext).isSameAs(callback.ctxt);
+            assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
+            count[0]++;
+            return new Flow.ResultFlow<>(null);
+          }
+        };
+    ss.registerCallback(events.requestEnded(), cb);
+    ssIast.registerCallback(events.requestEnded(), cb);
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
+        gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
+    Flow<Void> res = uniCb.apply(callback.ctxt, AgentTracer.NoopAgentSpan.INSTANCE);
+
+    assertThat(count[0]).isEqualTo(2);
+    assertThat(res).isNotNull();
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb2 =
+        gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
+    assertThat(uniCb).isSameAs(uniCb2);
+  }
+
+  @Test
+  public void universalCallbackWithOnlyAppSec() {
+    ss.registerCallback(events.requestEnded(), callback);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
+        gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> appSecCb =
+        cbp.getCallback(events.requestEnded());
+    assertThat(appSecCb).isSameAs(uniCb);
+  }
+
+  @Test
+  public void universalCallbackWithOnlyIast() {
+    SubscriptionService ssIast = gateway.getSubscriptionService(RequestContextSlot.IAST);
+    CallbackProvider cbpIast = gateway.getCallbackProvider(RequestContextSlot.IAST);
+
+    ssIast.registerCallback(events.requestEnded(), callback);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
+        gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> iastCb =
+        cbpIast.getCallback(events.requestEnded());
+    assertThat(iastCb).isSameAs(uniCb);
+  }
+
+  @Test
+  public void universalCallbackWithNoCallbacks() {
+    assertThat(gateway.getUniversalCallbackProvider().getCallback(events.requestEnded())).isNull();
+  }
+
+  @Test
+  public void mergeFlowIdenticalFlows() {
+    Flow<Void> flow = new Flow.ResultFlow<>(null);
+    Flow<Void> resFlow = InstrumentationGateway.mergeFlows(flow, flow);
+
+    assertThat(resFlow).isSameAs(flow);
+  }
+
+  @Test
+  public void mergeFlowBlockingActionHasPriority() {
+    Flow<Void> flow1 = new Flow.ResultFlow<>(null);
+    Flow<Void> flow2 =
+        new Flow.ResultFlow<Void>(null) {
+          @Override
+          public Action getAction() {
+            return new Action.Throw(new Exception());
+          }
+        };
+
+    Flow<Void> resFlow1 = InstrumentationGateway.mergeFlows(flow1, flow2);
+    Flow<Void> resFlow2 = InstrumentationGateway.mergeFlows(flow2, flow1);
+
+    assertThat(resFlow1.getAction().isBlocking()).isTrue();
+    assertThat(resFlow2.getAction().isBlocking()).isTrue();
+  }
+
+  @Test
+  public void mergeFlowReturnsNonNullResult() {
+    Flow<Integer> flow1 = new Flow.ResultFlow<>(42);
+    Flow<Integer> flow2 = new Flow.ResultFlow<>(null);
+
+    Flow<Integer> resFlow1 = InstrumentationGateway.mergeFlows(flow1, flow2);
+    Flow<Integer> resFlow2 = InstrumentationGateway.mergeFlows(flow2, flow1);
+
+    assertThat(resFlow1.getResult()).isEqualTo(42);
+    assertThat(resFlow2.getResult()).isEqualTo(42);
+  }
+
+  @Test
+  public void mergeFlowReturnsLatestNonNullResult() {
+    Flow<Integer> flow1 = new Flow.ResultFlow<>(42);
+    Flow<Integer> flow2 = new Flow.ResultFlow<>(43);
+
+    Flow<Integer> resFlow1 = InstrumentationGateway.mergeFlows(flow1, flow2);
+    Flow<Integer> resFlow2 = InstrumentationGateway.mergeFlows(flow2, flow1);
+
+    assertThat(resFlow1.getResult()).isEqualTo(43);
+    assertThat(resFlow2.getResult()).isEqualTo(42);
   }
 
   private static class Callback<D, T>
       implements Supplier<Flow<D>>,
-          Function<RequestContext<D>, Flow<Void>>,
-          BiConsumer<RequestContext<D>, T>,
-          TriConsumer<RequestContext<D>, T, T>,
-          BiFunction<RequestContext<D>, T, Flow<Void>>,
-          TriFunction<RequestContext<D>, T, T, Flow<Void>> {
+          Function<RequestContext, Flow<Void>>,
+          BiConsumer<RequestContext, T>,
+          TriConsumer<RequestContext, T, T>,
+          BiFunction<RequestContext, T, Flow<Void>>,
+          TriFunction<RequestContext, T, T, Flow<Void>> {
 
-    private final RequestContext<D> ctxt;
+    private final RequestContext ctxt;
     private final Flow<Void> flow;
     private int count = 0;
 
-    public Callback(RequestContext<D> ctxt, Flow<Void> flow) {
+    public Callback(RequestContext ctxt, Flow<Void> flow) {
       this.ctxt = ctxt;
       this.flow = flow;
     }
 
     @Override
-    public Flow<Void> apply(RequestContext<D> input) {
+    public Flow<Void> apply(RequestContext input) {
       count++;
       return flow;
     }
 
     @Override
-    public Flow<Void> apply(RequestContext<D> requestContext, T arg) {
+    public Flow<Void> apply(RequestContext requestContext, T arg) {
       count++;
       return flow;
     }
@@ -238,35 +388,35 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public void accept(RequestContext<D> requestContext, T s, T s2) {
+    public void accept(RequestContext requestContext, T s, T s2) {
       count++;
     }
 
-    public TriFunction<RequestContext<D>, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext<D>, String, Short, Flow<Void>>() {
+    public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
+      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
         @Override
-        public Flow<Void> apply(RequestContext<D> requestContext, String s, Short aShort) {
+        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
           count++;
           return flow;
         }
       };
     }
 
-    public BiFunction<RequestContext<D>, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext<D>, StoredBodySupplier, Void>() {
+    public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
         @Override
-        public Void apply(RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
+        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           return null;
         }
       };
     }
 
-    public BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>>() {
+    public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
         @Override
         public Flow<Void> apply(
-            RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
+            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           return new Flow.ResultFlow<>(null);
         }
@@ -274,12 +424,12 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public void accept(RequestContext<D> requestContext, T t) {
+    public void accept(RequestContext requestContext, T t) {
       count++;
     }
 
     @Override
-    public Flow<Void> apply(RequestContext<D> requestContext, T t, T t2) {
+    public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
       count++;
       return flow;
     }
@@ -287,22 +437,22 @@ public class InstrumentationGatewayTest {
 
   private static class Throwback<D, T>
       implements Supplier<Flow<D>>,
-          Function<RequestContext<D>, Flow<Void>>,
-          BiConsumer<RequestContext<D>, T>,
-          TriConsumer<RequestContext<D>, T, T>,
-          BiFunction<RequestContext<D>, T, Flow<Void>>,
-          TriFunction<RequestContext<D>, T, T, Flow<Void>> {
+          Function<RequestContext, Flow<Void>>,
+          BiConsumer<RequestContext, T>,
+          TriConsumer<RequestContext, T, T>,
+          BiFunction<RequestContext, T, Flow<Void>>,
+          TriFunction<RequestContext, T, T, Flow<Void>> {
 
     private int count = 0;
 
     @Override
-    public Flow<Void> apply(RequestContext<D> input) {
+    public Flow<Void> apply(RequestContext input) {
       count++;
       throw new IllegalArgumentException();
     }
 
     @Override
-    public Flow<Void> apply(RequestContext<D> requestContext, T arg) {
+    public Flow<Void> apply(RequestContext requestContext, T arg) {
       count++;
       throw new IllegalArgumentException();
     }
@@ -314,42 +464,42 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public void accept(RequestContext<D> requestContext, T s, T s2) {
+    public void accept(RequestContext requestContext, T s, T s2) {
       count++;
       throw new IllegalArgumentException();
     }
 
     @Override
-    public void accept(RequestContext<D> requestContext, T t) {
+    public void accept(RequestContext requestContext, T t) {
       count++;
       throw new IllegalArgumentException();
     }
 
-    public TriFunction<RequestContext<D>, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext<D>, String, Short, Flow<Void>>() {
+    public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
+      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
         @Override
-        public Flow<Void> apply(RequestContext<D> requestContext, String s, Short aShort) {
+        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
           count++;
           throw new IllegalArgumentException();
         }
       };
     }
 
-    public BiFunction<RequestContext<D>, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext<D>, StoredBodySupplier, Void>() {
+    public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
         @Override
-        public Void apply(RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
+        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           throw new IllegalArgumentException();
         }
       };
     }
 
-    public BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>>() {
+    public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
         @Override
         public Flow<Void> apply(
-            RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
+            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           throw new IllegalArgumentException();
         }
@@ -361,7 +511,7 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public Flow<Void> apply(RequestContext<D> requestContext, T t, T t2) {
+    public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
       count++;
       throw new IllegalArgumentException();
     }

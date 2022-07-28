@@ -20,7 +20,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
-import com.datadog.profiling.uploader.util.PidHelper;
+import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -46,7 +46,6 @@ import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
@@ -76,7 +75,6 @@ public final class ProfileUploader {
   static final String V4_ATTACHMENT_FILENAME = V4_ATTACHMENT_NAME + ".jfr";
 
   // Header names and values
-  static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
 
@@ -96,12 +94,14 @@ public final class ProfileUploader {
               + V4_ATTACHMENT_FILENAME
               + "\"");
 
+  private final Config config;
+  private final ConfigProvider configProvider;
+
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final IOLogger ioLogger;
   private final boolean agentless;
   private final boolean summaryOn413;
-  private final String apiKey;
   private final HttpUrl url;
   private final int terminationTimeout;
   private final CompressionType compressionType;
@@ -120,12 +120,14 @@ public final class ProfileUploader {
       final ConfigProvider configProvider,
       final IOLogger ioLogger,
       final int terminationTimeout) {
-    url = HttpUrl.get(config.getFinalProfilingUrl());
-    apiKey = config.getApiKey();
-    agentless = config.isProfilingAgentless();
-    summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
+    this.config = config;
+    this.configProvider = configProvider;
     this.ioLogger = ioLogger;
     this.terminationTimeout = terminationTimeout;
+
+    url = HttpUrl.get(config.getFinalProfilingUrl());
+    agentless = config.isProfilingAgentless();
+    summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
 
     log.debug("Started ProfileUploader with target url {}", url);
     /*
@@ -138,6 +140,7 @@ public final class ProfileUploader {
     */
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedProfilingTags());
     tagsMap.put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION);
+    tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
     // PID can be null if we cannot find it out from the system
     if (PidHelper.PID != null) {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
@@ -278,7 +281,7 @@ public final class ProfileUploader {
     if (response.isSuccessful()) {
       ioLogger.success("Upload done");
     } else {
-      final String apiKey = call.request().header(HEADER_DD_API_KEY);
+      final String apiKey = call.request().header("DD-API-KEY");
       if (response.code() == 404 && apiKey == null) {
         // if no API key and not found error we assume we're sending to the agent
         ioLogger.error(
@@ -372,16 +375,8 @@ public final class ProfileUploader {
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
 
-    final Request.Builder requestBuilder =
-        OkHttpUtils.prepareRequest(url, headers).post(requestBody);
-
-    if (agentless && apiKey != null) {
-      // we only add the api key header if we know we're doing agentless profiling. No point in
-      // adding it to other agent-based requests since we know the datadog-agent isn't going to
-      // make use of it.
-      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-    }
-    return client.newCall(requestBuilder.build());
+    return client.newCall(
+        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
   }
 
   private boolean canEnqueueMoreRequests() {

@@ -11,6 +11,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,6 +23,8 @@ import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.QueryObfuscator;
 import datadog.trace.core.tagprocessor.TagsPostProcessor;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>, TraceSegment {
+public class DDSpanContext implements AgentSpan.Context, RequestContext, TraceSegment {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -110,7 +113,9 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
   private volatile CharSequence origin;
 
   /** RequestContext data for the InstrumentationGateway */
-  private final Object requestContextData;
+  private final Object requestContextDataAppSec;
+
+  private final Object requestContextDataIast;
 
   private final boolean disableSamplingMechanismValidation;
 
@@ -133,7 +138,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
-      final Object requestContextData,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final DatadogTags datadogTags) {
@@ -155,7 +161,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
 
-    this.requestContextData = requestContextData;
+    this.requestContextDataAppSec = requestContextDataAppSec;
+    this.requestContextDataIast = requestContextDataIast;
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
@@ -434,8 +441,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
     return trace;
   }
 
-  public RequestContext<Object> getRequestContext() {
-    return null == requestContextData ? null : this;
+  public RequestContext getRequestContext() {
+    return this;
   }
 
   @Override
@@ -612,8 +619,39 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object>,
 
   /** RequestContext Implementation */
   @Override
-  public Object getData() {
-    return requestContextData;
+  public Object getData(RequestContextSlot slot) {
+    if (slot == RequestContextSlot.APPSEC) {
+      return this.requestContextDataAppSec;
+    } else if (slot == RequestContextSlot.IAST) {
+      return this.requestContextDataIast;
+    }
+    return null;
+  }
+
+  @Override
+  public void close() throws IOException {
+    Exception exc = null;
+    if (this.requestContextDataAppSec instanceof Closeable) {
+      try {
+        ((Closeable) this.requestContextDataAppSec).close();
+      } catch (IOException | RuntimeException e) {
+        exc = e;
+      }
+    }
+    if (this.requestContextDataIast instanceof Closeable) {
+      try {
+        ((Closeable) this.requestContextDataIast).close();
+      } catch (IOException | RuntimeException e) {
+        exc = e;
+      }
+    }
+    if (exc != null) {
+      if (exc instanceof RuntimeException) {
+        throw (RuntimeException) exc;
+      } else {
+        throw (IOException) exc;
+      }
+    }
   }
 
   @Override

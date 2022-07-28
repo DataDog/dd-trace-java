@@ -154,10 +154,13 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
 
   // Includes for the shared internal shadow jar
-  sharedShadowInclude project(':utils:socket-utils')
   sharedShadowInclude deps.shared
-  sharedShadowInclude deps.moshi
   sharedShadowInclude project(':communication'), {
+    transitive = false
+    // do not bring along slf4j and dependent subprojects
+    // (which are loaded on the bootstrap cl)
+  }
+  sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
@@ -165,10 +168,15 @@ dependencies {
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false
   }
+  sharedShadowInclude project(':utils:socket-utils'), {
+    transitive = false
+  }
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
-  sharedShadowInclude project(':telemetry')
+  sharedShadowInclude project(':utils:process-utils'), {
+    transitive = false
+  }
 }
 
 tasks.withType(Test).configureEach {

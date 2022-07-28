@@ -412,6 +412,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().empty())
@@ -435,6 +436,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeType",
       0,
       trace,
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false,

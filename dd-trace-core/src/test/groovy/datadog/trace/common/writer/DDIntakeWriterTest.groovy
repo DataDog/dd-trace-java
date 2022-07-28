@@ -172,6 +172,7 @@ class DDIntakeWriterTest extends DDCoreSpecification{
       0,
       trace,
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().empty())

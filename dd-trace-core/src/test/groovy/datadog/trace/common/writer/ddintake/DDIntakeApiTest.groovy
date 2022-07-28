@@ -223,6 +223,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
       DatadogTags.factory().empty())
