@@ -181,6 +181,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);
+        propagate().injectPathwayContext(span, headers, SETTER);
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

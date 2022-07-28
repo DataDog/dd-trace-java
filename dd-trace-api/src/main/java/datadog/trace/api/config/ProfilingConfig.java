@@ -128,8 +128,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
       "profiling.checkpoints.sampler.sliding-window.ms";
   public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
-  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT =
-      "profiling.checkpoints.sampler.limit";
+  public static final String PROFILING_CHECKPOINTS_SAMPLER_LIMIT = "profiling.checkpoints.limit";
   public static final int PROFILING_CHECKPOINTS_SAMPLER_LIMIT_DEFAULT = 500_000;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
