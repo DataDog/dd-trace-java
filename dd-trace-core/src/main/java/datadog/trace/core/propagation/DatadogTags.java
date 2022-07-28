@@ -1,6 +1,6 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 
 import datadog.trace.api.Config;
 import java.util.HashMap;
@@ -29,7 +29,7 @@ public abstract class DatadogTags {
   }
 
   public static DatadogTags.Factory factory() {
-    return factory(TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE);
+    return factory(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
   }
 
   public interface Factory {

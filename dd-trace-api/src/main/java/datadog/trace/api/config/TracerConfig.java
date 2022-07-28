@@ -77,8 +77,6 @@ public final class TracerConfig {
    */
   public static final String TRACE_X_DATADOG_TAGS_MAX_LENGTH = "trace.x-datadog-tags.max.length";
 
-  public static final int TRACE_X_DATADOG_TAGS_MAX_LENGTH_DEFAULT_VALUE = 512;
-
   public static final String CLOCK_SYNC_PERIOD = "trace.clock.sync.period";
 
   private TracerConfig() {}
