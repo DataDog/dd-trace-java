@@ -149,7 +149,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void finishWork();
 
   /** RequestContext for the Instrumentation Gateway */
-  RequestContext<Object> getRequestContext();
+  RequestContext getRequestContext();
 
   void mergePathwayContext(PathwayContext pathwayContext);
 

@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
@@ -317,13 +318,13 @@ class DDSpanTest extends DDCoreSpecification {
   def 'publishing of root span closes the request context data'() {
     setup:
     def reqContextData = Mock(Closeable)
-    def context = new TagContext().withRequestContextData(reqContextData)
+    def context = new TagContext().withRequestContextDataAppSec(reqContextData)
     def root = tracer.buildSpan("root").asChildOf(context).start()
     def child = tracer.buildSpan("child").asChildOf(root).start()
 
     expect:
-    root.requestContext.data.is(reqContextData)
-    child.requestContext.data.is(reqContextData)
+    root.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
+    child.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
 
     when:
     child.finish()
@@ -357,6 +358,7 @@ class DDSpanTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false)
@@ -394,6 +396,7 @@ class DDSpanTest extends DDCoreSpecification {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false)

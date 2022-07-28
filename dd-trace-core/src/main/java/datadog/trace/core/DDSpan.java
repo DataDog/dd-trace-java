@@ -594,7 +594,7 @@ public class DDSpan
   }
 
   @Override
-  public RequestContext<Object> getRequestContext() {
+  public RequestContext getRequestContext() {
     return context.getRequestContext();
   }
 

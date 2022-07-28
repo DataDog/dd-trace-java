@@ -16,7 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
-import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
@@ -601,17 +601,17 @@ public class Agent {
       return;
     }
 
-    InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
-    startAppSec(gw, scoClass, o);
+    SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+    startAppSec(ss, scoClass, o);
   }
 
-  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
+  private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
           appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, gw, sco);
+      appSecInstallerMethod.invoke(null, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }

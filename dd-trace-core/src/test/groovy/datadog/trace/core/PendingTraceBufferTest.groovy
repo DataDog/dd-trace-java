@@ -416,6 +416,7 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false)
     return DDSpan.create(0, context)
@@ -439,6 +440,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeType",
       0,
       trace,
+      null,
       null,
       NoopPathwayContext.INSTANCE,
       false)

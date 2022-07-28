@@ -77,6 +77,7 @@ class TypeConverterTest extends AgentTestRunner {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
       false) {
         @Override void setServiceName(final String serviceName) {
