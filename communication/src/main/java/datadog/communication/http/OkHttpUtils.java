@@ -46,6 +46,8 @@ public final class OkHttpUtils {
       "Datadog-Meta-Lang-Interpreter-Vendor";
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
 
+  private static final String DD_API_KEY = "DD-API-KEY";
+
   private static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
   private static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");
   private static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");
@@ -77,8 +79,8 @@ public final class OkHttpUtils {
       final Config config,
       final Dispatcher dispatcher,
       final HttpUrl url,
-      final boolean retryOnConnectionFailure,
-      final int maxRunningRequests,
+      final Boolean retryOnConnectionFailure,
+      final Integer maxRunningRequests,
       final String proxyHost,
       final Integer proxyPort,
       final String proxyUsername,
@@ -206,6 +208,23 @@ public final class OkHttpUtils {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException();
     }
+  }
+
+  public static Request.Builder prepareRequest(
+      final HttpUrl url,
+      final Map<String, String> headers,
+      final Config config,
+      final boolean agentless) {
+    Request.Builder builder = prepareRequest(url, headers);
+
+    final String apiKey = config.getApiKey();
+    if (agentless && apiKey != null) {
+      // we only add the api key header if we know we're doing agentless. No point in adding it to
+      // other agent-based requests since we know the datadog-agent isn't going to make use of it.
+      builder.addHeader(DD_API_KEY, apiKey);
+    }
+
+    return builder;
   }
 
   public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {

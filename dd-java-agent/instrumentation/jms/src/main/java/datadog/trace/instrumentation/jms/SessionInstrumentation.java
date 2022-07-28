@@ -73,10 +73,36 @@ public class SessionInstrumentation extends Instrumenter.Tracing
         getClass().getName() + "$CreateProducer");
     transformation.applyAdvice(
         isMethod()
+            .and(named("createSender"))
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.jms.Queue"))),
+        getClass().getName() + "$CreateProducer");
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("createPublisher"))
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.jms.Topic"))),
+        getClass().getName() + "$CreateProducer");
+
+    transformation.applyAdvice(
+        isMethod()
             .and(named("createConsumer"))
             .and(isPublic())
             .and(takesArgument(0, named("javax.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("createReceiver"))
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.jms.Queue"))),
+        getClass().getName() + "$CreateConsumer");
+    transformation.applyAdvice(
+        isMethod()
+            .and(namedOneOf("createSubscriber", "createDurableSubscriber"))
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.jms.Topic"))),
+        getClass().getName() + "$CreateConsumer");
+
     transformation.applyAdvice(
         namedOneOf("recover").and(takesNoArguments()), getClass().getName() + "$Recover");
     transformation.applyAdvice(

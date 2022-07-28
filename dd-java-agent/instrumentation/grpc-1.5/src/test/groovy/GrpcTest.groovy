@@ -2,15 +2,18 @@ import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.Platform
 import datadog.trace.api.function.Function
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
 import example.Helloworld
@@ -38,7 +41,7 @@ import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class GrpcTest extends AgentTestRunner {
+abstract class GrpcTest extends AgentTestRunner {
 
   @Shared
   def ig
@@ -55,7 +58,7 @@ class GrpcTest extends AgentTestRunner {
   }
 
   def setupSpec() {
-    ig = AgentTracer.get().instrumentationGateway()
+    ig = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
   }
 
   def setup() {
@@ -111,6 +114,9 @@ class GrpcTest extends AgentTestRunner {
     }
     // wait here to make checkpoint asserts deterministic
     TEST_WRITER.waitForTraces(2)
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     response.message == "Hello $name"
@@ -193,6 +199,21 @@ class GrpcTest extends AgentTestRunner {
     traceId.toLong() as String == collectedAppSecHeaders['x-datadog-trace-id']
     collectedAppSecReqMsgs.size() == 1
     collectedAppSecReqMsgs.first().name == name
+
+    and:
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        edgeTags.containsAll(["type:grpc"])
+        edgeTags.size() == 1
+      }
+    }
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
@@ -576,5 +597,32 @@ class GrpcTest extends AgentTestRunner {
       (Runtime.getRuntime().availableProcessors(),
       ForkJoinPool.defaultForkJoinWorkerThreadFactory,
       null, true)
+  }
+}
+
+class GrpcDataStreamsEnabledForkedTest extends GrpcTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.data.streams.enabled", "true")
+  }
+
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
+  }
+
+}
+
+class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.data.streams.enabled", "false")
+  }
+
+  @Override
+  protected boolean isDataStreamsEnabled() {
+    return false
   }
 }

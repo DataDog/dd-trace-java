@@ -16,7 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
-import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
@@ -69,6 +69,7 @@ public class Agent {
     STARTUP_LOGS("dd.trace.startup.logs", true),
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
+    IAST("dd.iast.enabled", false),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
@@ -112,6 +113,7 @@ public class Agent {
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
+  private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = false;
@@ -133,6 +135,7 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
@@ -147,6 +150,7 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
+    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
 
@@ -275,6 +279,23 @@ public class Agent {
       AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
     }
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
+  }
+
+  public static synchronized Object installAgentClassLoader(final URL bootstrapURL)
+      throws Exception {
+    createSharedClassloader(bootstrapURL);
+    if (null == AGENT_CLASSLOADER) {
+      // in CLI mode we skip installation of instrumentation because we're not running as an agent
+      // we still create the agent classloader so we can install the tracer and query integrations
+      AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
+    }
+    ClassLoader current = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+    return current;
+  }
+
+  public static synchronized void uninstallAgentClassLoader(final Object cookie) throws Exception {
+    Thread.currentThread().setContextClassLoader((ClassLoader) cookie);
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -580,17 +601,17 @@ public class Agent {
       return;
     }
 
-    InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
-    startAppSec(gw, scoClass, o);
+    SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+    startAppSec(ss, scoClass, o);
   }
 
-  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
+  private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
           appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, gw, sco);
+      appSecInstallerMethod.invoke(null, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }

@@ -26,7 +26,7 @@ metadata:
 spec:
   initContainers:
     - image: ${IMAGE_NAME}:${IMAGE_TAG}
-      command: ["sh", "copy-javaagent.sh", "/datadog"]
+      command: ["sh", "copy-lib.sh", "/datadog"]
       name: copy-sdk
       volumeMounts:
         - name: apm-sdk-volume

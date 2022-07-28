@@ -17,6 +17,7 @@ import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.http.StoredByteBody;
 import datadog.trace.api.http.StoredCharBody;
@@ -189,15 +190,15 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
       if (alreadyWrapped != null || is instanceof ServletInputStreamWrapper) {
         return;
       }
-      RequestContext<Object> requestContext = agentSpan.getRequestContext();
+      RequestContext requestContext = agentSpan.getRequestContext();
       if (requestContext == null) {
         return;
       }
 
-      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
           cbp.getCallback(EVENTS.requestBodyStart());
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
           cbp.getCallback(EVENTS.requestBodyDone());
       if (requestStartCb == null || requestEndedCb == null) {
         return;
@@ -253,14 +254,14 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
       if (alreadyWrapped != null || reader instanceof BufferedReaderWrapper) {
         return;
       }
-      RequestContext<Object> requestContext = agentSpan.getRequestContext();
+      RequestContext requestContext = agentSpan.getRequestContext();
       if (requestContext == null) {
         return;
       }
-      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
           cbp.getCallback(EVENTS.requestBodyStart());
-      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
           cbp.getCallback(EVENTS.requestBodyDone());
       if (requestStartCb == null || requestEndedCb == null) {
         return;

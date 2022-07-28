@@ -15,6 +15,7 @@ import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpServerExchange;
@@ -67,10 +68,10 @@ public class FormDataParserInstrumentation extends Instrumenter.AppSec
         return;
       }
 
-      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-      BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, Object, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
-      RequestContext<Object> requestContext = agentSpan.getRequestContext();
+      RequestContext requestContext = agentSpan.getRequestContext();
       if (requestContext == null || callback == null) {
         return;
       }

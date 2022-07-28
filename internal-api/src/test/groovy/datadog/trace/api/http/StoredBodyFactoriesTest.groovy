@@ -2,9 +2,10 @@ package datadog.trace.api.http
 
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
+import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
@@ -17,16 +18,16 @@ class StoredBodyFactoriesTest extends DDSpecification {
   AgentTracer.TracerAPI tracerAPI = Mock()
   AgentSpan agentSpan
 
-  RequestContext<Object> requestContext = Mock(RequestContext) {
+  RequestContext requestContext = Mock(RequestContext) {
     getData() >> it
   }
-  InstrumentationGateway ig = Mock()
+  CallbackProvider cbp = Mock()
 
   def setup() {
     originalTracer = AgentTracer.provider
     AgentTracer.provider = tracerAPI
     _ * tracerAPI.activeSpan() >> { agentSpan }
-    _ * tracerAPI.instrumentationGateway() >> ig
+    _ * tracerAPI.getCallbackProvider(RequestContextSlot.APPSEC) >> cbp
   }
 
   def cleanup() {
@@ -77,16 +78,16 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
-    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
 
     when:
     Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo({ 'body' } as Supplier<CharSequence>)
 
     then:
     1 * agentSpan.requestContext >> requestContext
-    1 * ig.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
-    1 * ig.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
+    1 * cbp.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
+    1 * cbp.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
     1 * mockRequestBodyStart.apply(requestContext, _ as StoredBodySupplier) >> {
       bodySupplier1 = it[1]
       null
@@ -112,8 +113,8 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     1 * agentSpan.requestContext >> requestContext
-    1 * ig.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
-    1 * ig.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
+    1 * cbp.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
+    1 * cbp.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
     1 * mockRequestBodyDone.apply(requestContext, _ as StoredBodySupplier) >> {
       bodySupplier = it[1]
       mockFlow
@@ -131,8 +132,8 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
-    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
   }
 
   void 'with correct content length int version'() {
@@ -144,8 +145,8 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
-    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
   }
 
   void 'with bad content length'() {
@@ -157,7 +158,7 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
-    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * cbp.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
   }
 }

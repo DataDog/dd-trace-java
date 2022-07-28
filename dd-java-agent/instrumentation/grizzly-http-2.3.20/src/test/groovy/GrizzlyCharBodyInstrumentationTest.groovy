@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -24,7 +25,7 @@ class GrizzlyCharBodyInstrumentationTest extends AgentTestRunner {
   InputBuffer mockInputBuffer = Mock()
   AttributeHolder attributeHolder = Mock()
   def scope
-  def ig = AgentTracer.get().instrumentationGateway()
+  def ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC)
   def supplier
   boolean bodyDone
 
@@ -32,15 +33,15 @@ class GrizzlyCharBodyInstrumentationTest extends AgentTestRunner {
     _ * mockHttpHeader.attributes >> attributeHolder
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)
 
-    TagContext ctx = new TagContext().withRequestContextData(new Object())
+    TagContext ctx = new TagContext().withRequestContextDataAppSec(new Object())
     def agentSpan = AgentTracer.startSpan('test-span', ctx, true)
     this.scope = AgentTracer.activateSpan(agentSpan)
 
-    ig.registerCallback(EVENTS.requestBodyStart(), { RequestContext<Object> reqContext, StoredBodySupplier sup ->
+    ss.registerCallback(EVENTS.requestBodyStart(), { RequestContext reqContext, StoredBodySupplier sup ->
       supplier = sup
       null
     } as BiFunction)
-    ig.registerCallback(EVENTS.requestBodyDone(), { RequestContext<Object> reqContext, StoredBodySupplier sup ->
+    ss.registerCallback(EVENTS.requestBodyDone(), { RequestContext reqContext, StoredBodySupplier sup ->
       bodyDone = true
       Flow.ResultFlow.empty()
     } as BiFunction)
@@ -53,7 +54,7 @@ class GrizzlyCharBodyInstrumentationTest extends AgentTestRunner {
   }
 
   void cleanup() {
-    ig.reset()
+    ss.reset()
     nioReader.recycle()
     this.scope.close()
   }
