@@ -302,7 +302,7 @@ class ConfigTest extends DDSpecification {
     config.debuggerInstrumentTheWorld == true
     config.debuggerExcludeFile == "exclude file"
 
-    config.dataDogTagsLimit == 128
+    config.xDatadogTagsMaxLength == 128
   }
 
   def "specify overrides via system properties"() {
@@ -463,7 +463,7 @@ class ConfigTest extends DDSpecification {
     config.debuggerInstrumentTheWorld == true
     config.debuggerExcludeFile == "exclude file"
 
-    config.dataDogTagsLimit == 128
+    config.xDatadogTagsMaxLength == 128
   }
 
   def "specify overrides via env vars"() {
@@ -491,7 +491,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
-    config.dataDogTagsLimit == 42
+    config.xDatadogTagsMaxLength == 42
   }
 
   def "sys props override env vars"() {

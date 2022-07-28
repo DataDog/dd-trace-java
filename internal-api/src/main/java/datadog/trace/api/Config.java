@@ -549,7 +549,7 @@ public class Config {
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
 
-  private final int dataDogTagsLimit;
+  private final int xDatadogTagsMaxLength;
 
   private final boolean tempJarsCleanOnBoot;
 
@@ -1156,7 +1156,7 @@ public class Config {
 
     servletPrincipalEnabled = configProvider.getBoolean(SERVLET_PRINCIPAL_ENABLED, false);
 
-    dataDogTagsLimit =
+    xDatadogTagsMaxLength =
         configProvider.getInteger(
             TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
 
@@ -1846,8 +1846,8 @@ public class Config {
     return servletPrincipalEnabled;
   }
 
-  public int getDataDogTagsLimit() {
-    return dataDogTagsLimit;
+  public int getxDatadogTagsMaxLength() {
+    return xDatadogTagsMaxLength;
   }
 
   public boolean isServletAsyncTimeoutError() {
@@ -2822,7 +2822,7 @@ public class Config {
         + ", servletAsyncTimeoutError="
         + servletAsyncTimeoutError
         + ", datadogTagsLimit="
-        + dataDogTagsLimit
+        + xDatadogTagsMaxLength
         + ", tempJarsCleanOnBoot="
         + tempJarsCleanOnBoot
         + ", traceAgentV05Enabled="

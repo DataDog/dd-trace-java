@@ -11,7 +11,7 @@ class DatadogTagsTest extends DDCoreSpecification {
   def createDatadogTagsFromHeaderValue() {
     setup:
     def config = Mock(Config)
-    config.getDataDogTagsLimit() >> 512
+    config.getxDatadogTagsMaxLength() >> 512
     def datadogTagsFactory = DatadogTags.factory(config)
 
     when:
@@ -68,7 +68,7 @@ class DatadogTagsTest extends DDCoreSpecification {
   def updateDatadogTagsSamplingMechanism() {
     setup:
     def config = Mock(Config)
-    config.getDataDogTagsLimit() >> 512
+    config.getxDatadogTagsMaxLength() >> 512
     def datadogTagsFactory = DatadogTags.factory(config)
     def datadogTags = datadogTagsFactory.fromHeaderValue(originalTagSet)
 

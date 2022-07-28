@@ -21,7 +21,7 @@ import java.util.Map;
 public abstract class DatadogTags {
 
   public static DatadogTags.Factory factory(Config config) {
-    return factory(config.getDataDogTagsLimit());
+    return factory(config.getxDatadogTagsMaxLength());
   }
 
   public static DatadogTags.Factory factory(int datadogTagsLimit) {
