@@ -3,13 +3,6 @@ package datadog.communication.fleet;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.util.AgentThreadFactory;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -24,6 +17,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FleetServiceImpl implements FleetService {
 
@@ -90,8 +89,7 @@ public class FleetServiceImpl implements FleetService {
     @Override
     public void run() {
       okHttpClient = sco.okHttpClient;
-      httpUrl =
-          sco.agentUrl.newBuilder().addPathSegment("v0.6").addPathSegment("config").build();
+      httpUrl = sco.agentUrl.newBuilder().addPathSegment("v0.6").addPathSegment("config").build();
 
       if (testingLatch != null) {
         testingLatch.countDown();
@@ -187,7 +185,7 @@ public class FleetServiceImpl implements FleetService {
       waitSeconds =
           BACKOFF_INITIAL
               * Math.pow(
-              BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
+                  BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
       if (testingLatch != null && testingLatch.getCount() > 0) {
         waitSeconds = 0;
       }

@@ -14,22 +14,19 @@ import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.relocate.api.IOLogger;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * The API pointing to a DD agent
- */
+/** The API pointing to a DD agent */
 public class DDAgentApi implements RemoteApi {
 
   public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
@@ -126,7 +123,7 @@ public class DDAgentApi implements RemoteApi {
       totalTraces += payload.traceCount();
       receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
-           final okhttp3.Response response = httpClient.newCall(request).execute()) {
+          final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());

@@ -63,14 +63,14 @@ public class LambdaHandler {
   public static AgentSpan.Context notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
-             HTTP_CLIENT
-                 .newCall(
-                     new Request.Builder()
-                         .url(EXTENSION_BASE_URL + START_INVOCATION)
-                         .addHeader(DATADOG_META_LANG, "java")
-                         .post(body)
-                         .build())
-                 .execute()) {
+        HTTP_CLIENT
+            .newCall(
+                new Request.Builder()
+                    .url(EXTENSION_BASE_URL + START_INVOCATION)
+                    .addHeader(DATADOG_META_LANG, "java")
+                    .post(body)
+                    .build())
+            .execute()) {
       if (response.isSuccessful()) {
         final String traceID = response.headers().get(DATADOG_TRACE_ID);
         final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);

@@ -17,6 +17,10 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
+import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -36,12 +40,6 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
-
-import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
-import java.net.URI;
-import java.net.URISyntaxException;
-
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 4, time = 2, timeUnit = SECONDS)
@@ -149,19 +147,18 @@ public class AppSecBenchmark {
         public void enqueue(Callback responseCallback) {
           final Call thiz = this;
           new Thread(
-              () -> {
-                try {
-                  responseCallback.onResponse(thiz, response);
-                } catch (IOException e) {
-                  throw new UndeclaredThrowableException(e);
-                }
-              })
+                  () -> {
+                    try {
+                      responseCallback.onResponse(thiz, response);
+                    } catch (IOException e) {
+                      throw new UndeclaredThrowableException(e);
+                    }
+                  })
               .start();
         }
 
         @Override
-        public void cancel() {
-        }
+        public void cancel() {}
 
         @Override
         public boolean isExecuted() {
@@ -192,8 +189,7 @@ public class AppSecBenchmark {
     }
 
     @Override
-    public void discover() {
-    }
+    public void discover() {}
 
     @Override
     public boolean supportsMetrics() {

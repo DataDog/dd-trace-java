@@ -9,6 +9,14 @@ import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import okhttp3.Authenticator;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
@@ -26,15 +34,6 @@ import okio.GzipSink;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 public final class OkHttpUtils {
   private static final Logger log = LoggerFactory.getLogger(OkHttpUtils.class);
@@ -161,7 +160,8 @@ public final class OkHttpUtils {
                       .header("Proxy-Authorization", credential)
                       .build();
                 } catch (IllegalArgumentException e) {
-                  throw new IllegalArgumentException("IllegalArgumentException at Proxy-Authorization header");
+                  throw new IllegalArgumentException(
+                      "IllegalArgumentException at Proxy-Authorization header");
                 }
               }
             });
@@ -179,9 +179,8 @@ public final class OkHttpUtils {
       return client;
     } catch (IllegalArgumentException e) {
       log.warn("IllegalArgumentException at OkHttpUtils.class");
-      //???
+      // ???
       throw new IllegalArgumentException();
-
     }
   }
 

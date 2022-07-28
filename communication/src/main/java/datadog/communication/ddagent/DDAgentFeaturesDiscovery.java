@@ -8,13 +8,6 @@ import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.trace.util.Strings;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
@@ -23,6 +16,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
@@ -75,8 +74,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.metricsEnabled = metricsEnabled;
     traceEndpoints =
         enableV05Traces
-            ? new String[]{V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
-            : new String[]{V4_ENDPOINT, V3_ENDPOINT};
+            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
+            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
     discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
@@ -98,9 +97,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
       try (Response response =
-               client
-                   .newCall(new Request.Builder().url(agentBaseUrl.resolve("info").url()).build())
-                   .execute()) {
+          client
+              .newCall(new Request.Builder().url(agentBaseUrl.resolve("info").url()).build())
+              .execute()) {
         if (response.isSuccessful()) {
           fallback = !processInfoResponse(response.body().string());
         }
@@ -122,7 +121,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         traceEndpoint = probeTracesEndpoint(traceEndpoints);
       } else if (state == null || state.isEmpty()) {
         // Still need to probe so that state is correctly assigned
-        probeTracesEndpoint(new String[]{traceEndpoint});
+        probeTracesEndpoint(new String[] {traceEndpoint});
       }
     }
 
@@ -139,13 +138,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private String probeTracesEndpoint(String[] endpoints) {
     for (String candidate : endpoints) {
       try (Response response =
-               client
-                   .newCall(
-                       new Request.Builder()
-                           .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
-                           .url(agentBaseUrl.resolve(candidate))
-                           .build())
-                   .execute()) {
+          client
+              .newCall(
+                  new Request.Builder()
+                      .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
+                      .url(agentBaseUrl.resolve(candidate))
+                      .build())
+              .execute()) {
         if (response.code() != 404) {
           state = response.header(DATADOG_AGENT_STATE);
           return candidate;
@@ -213,7 +212,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         supportsDropping =
             null != canDrop
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
-                || Boolean.TRUE.equals(canDrop));
+                    || Boolean.TRUE.equals(canDrop));
       }
       try {
         state = Strings.sha256(response);

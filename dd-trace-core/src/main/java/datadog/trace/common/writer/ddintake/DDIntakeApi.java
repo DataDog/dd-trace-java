@@ -12,19 +12,16 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.relocate.api.IOLogger;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.ConnectException;
-import java.util.concurrent.TimeUnit;
-
-/**
- * The API pointing to a DD Intake endpoint
- */
+/** The API pointing to a DD Intake endpoint */
 public class DDIntakeApi implements RemoteApi {
 
   private static final String DD_API_KEY_HEADER = "dd-api-key";
@@ -245,8 +242,7 @@ public class DDIntakeApi implements RemoteApi {
   }
 
   @Override
-  public void addResponseListener(RemoteResponseListener listener) {
-  }
+  public void addResponseListener(RemoteResponseListener listener) {}
 
   private static class Response {
     private final int code;

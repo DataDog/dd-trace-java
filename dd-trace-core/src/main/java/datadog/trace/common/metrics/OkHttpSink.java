@@ -10,14 +10,6 @@ import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.util.AgentTaskScheduler;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import org.jctools.queues.SpscArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -27,6 +19,13 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import org.jctools.queues.SpscArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class OkHttpSink implements Sink, EventListener {
 

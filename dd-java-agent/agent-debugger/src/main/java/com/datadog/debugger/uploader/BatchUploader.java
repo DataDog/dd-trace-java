@@ -4,6 +4,16 @@ import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
@@ -19,20 +29,7 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Phaser;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-/**
- * Handles batching logic of upload requests sent to the intake
- */
+/** Handles batching logic of upload requests sent to the intake */
 public class BatchUploader {
   private static final Logger log = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;

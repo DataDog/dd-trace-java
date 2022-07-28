@@ -1,14 +1,13 @@
 package datadog.trace.agent.test.utils;
 
 import datadog.trace.agent.test.server.http.TestHttpServer;
+import java.net.ProxySelector;
+import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.ProxySelector;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class was moved from groovy to java because groovy kept trying to introspect on the
