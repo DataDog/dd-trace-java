@@ -54,8 +54,8 @@ public final class OkHttpSink implements Sink, EventListener {
       boolean compressionEnabled,
       Map<String, String> headers) {
     this.client = client;
-    metricsUrl = HttpUrl.get(agentUrl).resolve(path);
-    listeners = new CopyOnWriteArrayList<>();
+    this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
+    this.listeners = new CopyOnWriteArrayList<>();
     this.bufferingEnabled = bufferingEnabled;
     this.compressionEnabled = compressionEnabled;
     this.headers = new HashMap<>(headers);
@@ -71,7 +71,6 @@ public final class OkHttpSink implements Sink, EventListener {
     // without copying the buffer, otherwise this needs to be async,
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
-
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
       send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
@@ -83,7 +82,7 @@ public final class OkHttpSink implements Sink, EventListener {
       }
     } else {
       if (asyncTaskStarted.compareAndSet(false, true)) {
-        future =
+        this.future =
             AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
                 new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
@@ -142,7 +141,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   @Override
   public void register(EventListener listener) {
-    listeners.add(listener);
+    this.listeners.add(listener);
   }
 
   private void handleFailure(okhttp3.Response response) throws IOException {

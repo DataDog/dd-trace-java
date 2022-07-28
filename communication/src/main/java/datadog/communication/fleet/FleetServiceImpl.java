@@ -41,7 +41,7 @@ public class FleetServiceImpl implements FleetService {
 
   public FleetServiceImpl(SharedCommunicationObjects sco, AgentThreadFactory agentThreadFactory) {
     this.sco = sco;
-    thread = agentThreadFactory.newThread(new AgentConfigPollingRunnable());
+    this.thread = agentThreadFactory.newThread(new AgentConfigPollingRunnable());
   }
 
   @Override
@@ -59,12 +59,12 @@ public class FleetServiceImpl implements FleetService {
 
   @Override
   public void close() throws IOException {
-    thread.interrupt();
+    this.thread.interrupt();
     try {
-      thread.join(5000);
+      this.thread.join(5000);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      log.warn("Interrupted waiting for thread " + thread.getName() + "to join");
+      log.warn("Interrupted waiting for thread " + this.thread.getName() + "to join");
     }
   }
 
@@ -88,8 +88,9 @@ public class FleetServiceImpl implements FleetService {
 
     @Override
     public void run() {
-      okHttpClient = sco.okHttpClient;
-      httpUrl = sco.agentUrl.newBuilder().addPathSegment("v0.6").addPathSegment("config").build();
+      this.okHttpClient = sco.okHttpClient;
+      this.httpUrl =
+          sco.agentUrl.newBuilder().addPathSegment("v0.6").addPathSegment("config").build();
 
       if (testingLatch != null) {
         testingLatch.countDown();
@@ -127,7 +128,6 @@ public class FleetServiceImpl implements FleetService {
     }
 
     private boolean fetchConfig(FleetSubscriptionImpl sub) {
-
       Request request = OkHttpUtils.prepareRequest(httpUrl, sub.headers).get().build();
       Response response;
       try {
@@ -223,7 +223,7 @@ public class FleetServiceImpl implements FleetService {
 
     private FleetSubscriptionImpl(Product product, ConfigurationListener listener) {
       this.product = product;
-      headers = Collections.singletonMap(CONFIG_PRODUCT_HEADER, product.name());
+      this.headers = Collections.singletonMap(CONFIG_PRODUCT_HEADER, product.name());
       this.listener = listener;
     }
 

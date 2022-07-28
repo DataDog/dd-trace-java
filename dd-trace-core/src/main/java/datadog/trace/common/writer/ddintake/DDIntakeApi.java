@@ -133,8 +133,8 @@ public class DDIntakeApi implements RemoteApi {
               .addHeader(DD_API_KEY_HEADER, apiKey)
               .post(payload.toRequest())
               .build();
-      totalTraces += payload.traceCount();
-      receivedTraces += payload.traceCount();
+      this.totalTraces += payload.traceCount();
+      this.receivedTraces += payload.traceCount();
 
       int httpCode = 0;
       IOException lastException = null;
@@ -172,8 +172,6 @@ public class DDIntakeApi implements RemoteApi {
           return RemoteApi.Response.success(httpCode);
         }
       }
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return RemoteApi.Response.failed(e);
@@ -182,7 +180,7 @@ public class DDIntakeApi implements RemoteApi {
 
   private void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
     // count the successful traces
-    sentTraces += traceCount;
+    this.sentTraces += traceCount;
 
     ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
   }
@@ -193,7 +191,7 @@ public class DDIntakeApi implements RemoteApi {
       final DDIntakeApi.Response response,
       final IOException outer) {
     // count the failed traces
-    failedTraces += traceCount;
+    this.failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
     String intakeError = response != null ? response.body : "";
     String sendErrorString =
@@ -231,13 +229,13 @@ public class DDIntakeApi implements RemoteApi {
         + ")"
         + " traces to the DD Intake."
         + " Total: "
-        + totalTraces
+        + this.totalTraces
         + ", Received: "
-        + receivedTraces
+        + this.receivedTraces
         + ", Sent: "
-        + sentTraces
+        + this.sentTraces
         + ", Failed: "
-        + failedTraces
+        + this.failedTraces
         + ".";
   }
 

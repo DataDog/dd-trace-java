@@ -70,13 +70,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       boolean enableV05Traces,
       boolean metricsEnabled) {
     this.client = client;
-    agentBaseUrl = agentUrl;
+    this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
-    traceEndpoints =
+    this.traceEndpoints =
         enableV05Traces
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
-    discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
+    this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
   private void reset() {
@@ -154,6 +154,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return V3_ENDPOINT;
   }
 
+  @SuppressWarnings("unchecked")
   private boolean processInfoResponse(String response) {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
@@ -222,6 +223,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return false;
   }
 
+  @SuppressWarnings("unchecked")
   private static void discoverStatsDPort(final Map<String, Object> info) {
     try {
       Map<String, ?> config = (Map<String, ?>) info.get("config");
