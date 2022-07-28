@@ -1,6 +1,9 @@
 package datadog.trace.api;
 
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class ConfigDefaults {
 
@@ -109,6 +112,9 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_RESOLVER_OUTLINE_POOL_SIZE = 128;
   static final int DEFAULT_RESOLVER_TYPE_POOL_SIZE = 64;
+
+  static final Set<String> DEFAULT_IAST_WEAK_HASHING_ALGORITHMS =
+      new HashSet<>(Arrays.asList("MD2", "MD5", "RIPEMD128", "MD4"));
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = false;
 
