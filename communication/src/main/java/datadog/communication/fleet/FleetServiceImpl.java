@@ -127,41 +127,37 @@ public class FleetServiceImpl implements FleetService {
     }
 
     private boolean fetchConfig(FleetSubscriptionImpl sub) {
+
+      Request request = OkHttpUtils.prepareRequest(httpUrl, sub.headers).get().build();
+      Response response;
       try {
-        Request request = OkHttpUtils.prepareRequest(httpUrl, sub.headers).get().build();
-        Response response;
+        response = okHttpClient.newCall(request).execute();
+      } catch (IOException e) {
+        log.warn("IOException on HTTP class to fleet service", e);
+        return false;
+      }
+
+      if (response.code() == 200) {
+        byte[] body;
         try {
-          response = okHttpClient.newCall(request).execute();
+          body = consumeBody(response);
         } catch (IOException e) {
-          log.warn("IOException on HTTP class to fleet service", e);
+          log.warn("IOException when reading fleet service response");
           return false;
         }
 
-        if (response.code() == 200) {
-          byte[] body;
-          try {
-            body = consumeBody(response);
-          } catch (IOException e) {
-            log.warn("IOException when reading fleet service response");
-            return false;
-          }
-
-          digest.reset();
-          byte[] hash = digest.digest(body);
-          if (Arrays.equals(hash, sub.lastHash)) {
-            return true;
-          }
-
-          sub.lastHash = hash;
-          sub.listener.onNewConfiguration(new ByteArrayInputStream(body));
-
+        digest.reset();
+        byte[] hash = digest.digest(body);
+        if (Arrays.equals(hash, sub.lastHash)) {
           return true;
-        } else {
-          log.warn("FleetService: agent responded with code " + response.code());
-          return false;
         }
-      } catch (IllegalArgumentException e) {
-        log.warn("Illegal argument exception in {}: fetchConfig()", getClass().getName());
+
+        sub.lastHash = hash;
+        sub.listener.onNewConfiguration(new ByteArrayInputStream(body));
+
+        return true;
+      } else {
+        log.warn("FleetService: agent responded with code " + response.code());
         return false;
       }
     }

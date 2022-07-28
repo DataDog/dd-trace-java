@@ -57,23 +57,15 @@ public class OkHttpUtils {
   }
 
   static OkHttpClient client(final OkHttpClient.Builder builder, final boolean followRedirects) {
-    try {
-      return builder.followRedirects(followRedirects).build();
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
-    }
+    return builder.followRedirects(followRedirects).build();
   }
 
   public static OkHttpClient client(
       final TestHttpServer server, final ProxySelector proxySelector) {
-    try {
-      return clientBuilder()
-          .sslSocketFactory(server.sslContext.getSocketFactory(), server.getTrustManager())
-          .hostnameVerifier(server.getHostnameVerifier())
-          .proxySelector(proxySelector)
-          .build();
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
-    }
+    return clientBuilder()
+        .sslSocketFactory(server.sslContext.getSocketFactory(), server.getTrustManager())
+        .hostnameVerifier(server.getHostnameVerifier())
+        .proxySelector(proxySelector)
+        .build();
   }
 }

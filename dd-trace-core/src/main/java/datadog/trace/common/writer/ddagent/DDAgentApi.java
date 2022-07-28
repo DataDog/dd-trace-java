@@ -148,8 +148,6 @@ public class DDAgentApi implements RemoteApi {
           return Response.success(response.code(), e);
         }
       }
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);

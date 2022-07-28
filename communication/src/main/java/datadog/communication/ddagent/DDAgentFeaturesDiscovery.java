@@ -103,8 +103,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         if (response.isSuccessful()) {
           fallback = !processInfoResponse(response.body().string());
         }
-      } catch (IllegalArgumentException e) {
-        illegalArgumentErrorQueryingEndpoint("info", getClass());
       } catch (Throwable error) {
         errorQueryingEndpoint("info", error);
       }
@@ -151,8 +149,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       } catch (IOException e) {
         errorQueryingEndpoint(candidate, e);
-      } catch (IllegalArgumentException e) {
-        illegalArgumentErrorQueryingEndpoint(candidate, getClass());
       }
     }
     return V3_ENDPOINT;
@@ -274,10 +270,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
     log.debug("Error querying {} at {}", endpoint, agentBaseUrl, t);
-  }
-
-  private void illegalArgumentErrorQueryingEndpoint(String endpoint, Class c) {
-    log.debug("Error querying {} at {} from {}", endpoint, agentBaseUrl, c.getName());
   }
 
   public String state() {

@@ -167,21 +167,16 @@ public final class OkHttpUtils {
             });
       }
     }
-    try {
-      OkHttpClient client = builder.build();
 
-      if (maxRunningRequests != null) {
-        client.dispatcher().setMaxRequests(maxRunningRequests);
-        // We are mainly talking to the same(ish) host so we need to raise this limit
-        client.dispatcher().setMaxRequestsPerHost(maxRunningRequests);
-      }
+    OkHttpClient client = builder.build();
 
-      return client;
-    } catch (IllegalArgumentException e) {
-      log.warn("IllegalArgumentException at OkHttpUtils.class");
-      // ???
-      throw new IllegalArgumentException();
+    if (maxRunningRequests != null) {
+      client.dispatcher().setMaxRequests(maxRunningRequests);
+      // We are mainly talking to the same(ish) host so we need to raise this limit
+      client.dispatcher().setMaxRequestsPerHost(maxRunningRequests);
     }
+
+    return client;
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
