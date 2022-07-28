@@ -100,11 +100,7 @@ public class BatchUploader {
       // see: https://github.com/DataDog/dd-trace-java/pull/1582
       clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
     }
-    try {
-      client = clientBuilder.build();
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
-    }
+    client = clientBuilder.build();
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);

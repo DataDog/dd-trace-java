@@ -61,8 +61,8 @@ public class RequestBuilder {
 
     Config config = Config.get();
 
-    runtimeId = config.getRuntimeId();
-    application =
+    this.runtimeId = config.getRuntimeId();
+    this.application =
         new Application()
             .env(config.getEnv())
             .serviceName(config.getServiceName())
@@ -75,7 +75,7 @@ public class RequestBuilder {
             .runtimePatches(Platform.getRuntimePatches());
 
     ContainerInfo containerInfo = ContainerInfo.get();
-    host =
+    this.host =
         new Host()
             .hostname(HostInfo.getHostname())
             .os(HostInfo.getOsName())
