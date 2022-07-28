@@ -1,0 +1,32 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = "com.graphql-java"
+    module = 'graphql-java'
+    // Limit range, since Muzzle is failing on helper class injection
+    // because 4.+ is Java 11 and a callback inherits a Java 11 class.
+    versions = "[9.6,19.0)"
+  }
+  // Not bothering to test against 1.x since it has a different package name.
+  // https://mvnrepository.com/artifact/com.sun.grizzly/grizzly-http
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+//testSets {
+//  latestDepTest {
+//    dirName = 'test'
+//  }
+//}
+
+dependencies {
+  main_java8CompileOnly group: 'com.graphql-java', name: 'graphql-java', version: '18.1'
+
+  //  testImplementation group: 'com.google.http-client', name: 'google-http-client', version: '1.19.0'
+  //
+  //  latestDepTestImplementation group: 'com.google.http-client', name: 'google-http-client', version: '+'
+}

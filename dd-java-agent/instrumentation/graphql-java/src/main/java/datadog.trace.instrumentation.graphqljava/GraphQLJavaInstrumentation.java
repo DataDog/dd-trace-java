@@ -1,0 +1,61 @@
+package datadog.trace.instrumentation.graphqljava;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import graphql.execution.instrumentation.Instrumentation;
+import net.bytebuddy.asm.Advice;
+
+@AutoService(Instrumenter.class)
+public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForSingleType {
+
+  public GraphQLJavaInstrumentation() {
+    super("graphql-java");
+  }
+
+  @Override
+  public String instrumentedType() {
+    return "graphql.GraphQL";
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".GraphQLDecorator",
+      packageName + ".GraphQLInstrumentation$1",
+      packageName + ".GraphQLInstrumentation$2",
+      packageName + ".GraphQLInstrumentation$State",
+      packageName + ".GraphQLInstrumentation"
+    };
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        isMethod()
+            .and(
+                namedOneOf(
+                    "checkInstrumentationDefaultState", // 9.7+
+                    // https://github.com/graphql-java/graphql-java/commit/821241de8ee055d6d254a9d95ef5143f9e540826
+                    "checkInstrumentation" // <9.7
+                    // https://github.com/graphql-java/graphql-java/commit/78a6e4eda1c13f47573adb879ae781cce794e96a
+                    ))
+            .and(returns(named("graphql.execution.instrumentation.Instrumentation"))),
+        this.getClass().getName() + "$AddInstrumentationAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class AddInstrumentationAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.Return(readOnly = false) Instrumentation instrumentation) {
+      // TODO verify if the instrumentation already installed
+      // TODO chain with other installed instrumentations if needed
+      instrumentation = new GraphQLInstrumentation();
+    }
+  }
+}
