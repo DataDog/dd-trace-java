@@ -3,6 +3,13 @@ package datadog.communication.fleet;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.util.AgentThreadFactory;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,12 +24,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class FleetServiceImpl implements FleetService {
 
@@ -41,7 +42,7 @@ public class FleetServiceImpl implements FleetService {
 
   public FleetServiceImpl(SharedCommunicationObjects sco, AgentThreadFactory agentThreadFactory) {
     this.sco = sco;
-    this.thread = agentThreadFactory.newThread(new AgentConfigPollingRunnable());
+    thread = agentThreadFactory.newThread(new AgentConfigPollingRunnable());
   }
 
   @Override
@@ -59,12 +60,12 @@ public class FleetServiceImpl implements FleetService {
 
   @Override
   public void close() throws IOException {
-    this.thread.interrupt();
+    thread.interrupt();
     try {
-      this.thread.join(5000);
+      thread.join(5000);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      log.warn("Interrupted waiting for thread " + this.thread.getName() + "to join");
+      log.warn("Interrupted waiting for thread " + thread.getName() + "to join");
     }
   }
 
@@ -88,8 +89,8 @@ public class FleetServiceImpl implements FleetService {
 
     @Override
     public void run() {
-      this.okHttpClient = sco.okHttpClient;
-      this.httpUrl =
+      okHttpClient = sco.okHttpClient;
+      httpUrl =
           sco.agentUrl.newBuilder().addPathSegment("v0.6").addPathSegment("config").build();
 
       if (testingLatch != null) {
@@ -128,36 +129,41 @@ public class FleetServiceImpl implements FleetService {
     }
 
     private boolean fetchConfig(FleetSubscriptionImpl sub) {
-      Request request = OkHttpUtils.prepareRequest(httpUrl, sub.headers).get().build();
-      Response response;
       try {
-        response = okHttpClient.newCall(request).execute();
-      } catch (IOException e) {
-        log.warn("IOException on HTTP class to fleet service", e);
-        return false;
-      }
-
-      if (response.code() == 200) {
-        byte[] body;
+        Request request = OkHttpUtils.prepareRequest(httpUrl, sub.headers).get().build();
+        Response response;
         try {
-          body = consumeBody(response);
+          response = okHttpClient.newCall(request).execute();
         } catch (IOException e) {
-          log.warn("IOException when reading fleet service response");
+          log.warn("IOException on HTTP class to fleet service", e);
           return false;
         }
 
-        digest.reset();
-        byte[] hash = digest.digest(body);
-        if (Arrays.equals(hash, sub.lastHash)) {
+        if (response.code() == 200) {
+          byte[] body;
+          try {
+            body = consumeBody(response);
+          } catch (IOException e) {
+            log.warn("IOException when reading fleet service response");
+            return false;
+          }
+
+          digest.reset();
+          byte[] hash = digest.digest(body);
+          if (Arrays.equals(hash, sub.lastHash)) {
+            return true;
+          }
+
+          sub.lastHash = hash;
+          sub.listener.onNewConfiguration(new ByteArrayInputStream(body));
+
           return true;
+        } else {
+          log.warn("FleetService: agent responded with code " + response.code());
+          return false;
         }
-
-        sub.lastHash = hash;
-        sub.listener.onNewConfiguration(new ByteArrayInputStream(body));
-
-        return true;
-      } else {
-        log.warn("FleetService: agent responded with code " + response.code());
+      } catch (IllegalArgumentException e) {
+        log.warn("Illegal argument exception in {}: fetchConfig()", getClass().getName());
         return false;
       }
     }
@@ -181,7 +187,7 @@ public class FleetServiceImpl implements FleetService {
       waitSeconds =
           BACKOFF_INITIAL
               * Math.pow(
-                  BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
+              BACKOFF_BASE, Math.min((double) consecutiveFailures - 1, BACKOFF_MAX_EXPONENT));
       if (testingLatch != null && testingLatch.getCount() > 0) {
         waitSeconds = 0;
       }
@@ -223,7 +229,7 @@ public class FleetServiceImpl implements FleetService {
 
     private FleetSubscriptionImpl(Product product, ConfigurationListener listener) {
       this.product = product;
-      this.headers = Collections.singletonMap(CONFIG_PRODUCT_HEADER, product.name());
+      headers = Collections.singletonMap(CONFIG_PRODUCT_HEADER, product.name());
       this.listener = listener;
     }
 

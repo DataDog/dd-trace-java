@@ -10,6 +10,14 @@ import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.util.AgentTaskScheduler;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import org.jctools.queues.SpscArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -19,13 +27,6 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import org.jctools.queues.SpscArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class OkHttpSink implements Sink, EventListener {
 
@@ -54,8 +55,8 @@ public final class OkHttpSink implements Sink, EventListener {
       boolean compressionEnabled,
       Map<String, String> headers) {
     this.client = client;
-    this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
-    this.listeners = new CopyOnWriteArrayList<>();
+    metricsUrl = HttpUrl.get(agentUrl).resolve(path);
+    listeners = new CopyOnWriteArrayList<>();
     this.bufferingEnabled = bufferingEnabled;
     this.compressionEnabled = compressionEnabled;
     this.headers = new HashMap<>(headers);
@@ -71,6 +72,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // without copying the buffer, otherwise this needs to be async,
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
+
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
       send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
@@ -82,7 +84,7 @@ public final class OkHttpSink implements Sink, EventListener {
       }
     } else {
       if (asyncTaskStarted.compareAndSet(false, true)) {
-        this.future =
+        future =
             AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
                 new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
@@ -141,7 +143,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   @Override
   public void register(EventListener listener) {
-    this.listeners.add(listener);
+    listeners.add(listener);
   }
 
   private void handleFailure(okhttp3.Response response) throws IOException {

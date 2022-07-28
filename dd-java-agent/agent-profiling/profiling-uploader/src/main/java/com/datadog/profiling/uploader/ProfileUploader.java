@@ -27,17 +27,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Dispatcher;
@@ -53,7 +42,21 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The class for uploading profiles to the backend. */
+import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+/**
+ * The class for uploading profiles to the backend.
+ */
 public final class ProfileUploader {
 
   private static final Logger log = LoggerFactory.getLogger(ProfileUploader.class);
@@ -189,17 +192,18 @@ public final class ProfileUploader {
    * @param sync {@link boolean uploading synchronously}
    */
   public void upload(final RecordingType type, final RecordingData data, final boolean sync) {
-    upload(type, data, sync, () -> {});
+    upload(type, data, sync, () -> {
+    });
   }
 
   /**
    * Enqueue an upload request and run the provided hook when that request is completed
    * (successfully or failing).
    *
-   * @param type {@link RecordingType recording type}
-   * @param data {@link RecordingData recording data}
+   * @param type         {@link RecordingType recording type}
+   * @param data         {@link RecordingData recording data}
    * @param onCompletion call-back to execute once the request is completed (successfully or
-   *     failing)
+   *                     failing)
    */
   public void upload(
       final RecordingType type, final RecordingData data, @Nonnull final Runnable onCompletion) {
@@ -210,11 +214,11 @@ public final class ProfileUploader {
    * Enqueue an upload request and run the provided hook when that request is completed
    * (successfully or failing).
    *
-   * @param type {@link RecordingType recording type}
-   * @param data {@link RecordingData recording data}
-   * @param sync {@link boolean uploading synchronously}
+   * @param type         {@link RecordingType recording type}
+   * @param data         {@link RecordingData recording data}
+   * @param sync         {@link boolean uploading synchronously}
    * @param onCompletion call-back to execute once the request is completed (successfully or
-   *     failing)
+   *                     failing)
    */
   public void upload(
       final RecordingType type,
@@ -374,14 +378,18 @@ public final class ProfileUploader {
 
     final Request.Builder requestBuilder =
         OkHttpUtils.prepareRequest(url, headers).post(requestBody);
+    try {
+      if (agentless && apiKey != null) {
+        // we only add the api key header if we know we're doing agentless profiling. No point in
+        // adding it to other agent-based requests since we know the datadog-agent isn't going to
+        // make use of it.
+        requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+      }
 
-    if (agentless && apiKey != null) {
-      // we only add the api key header if we know we're doing agentless profiling. No point in
-      // adding it to other agent-based requests since we know the datadog-agent isn't going to
-      // make use of it.
-      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+      return client.newCall(requestBuilder.build());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     }
-    return client.newCall(requestBuilder.build());
   }
 
   private boolean canEnqueueMoreRequests() {

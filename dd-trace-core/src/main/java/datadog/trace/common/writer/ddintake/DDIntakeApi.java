@@ -12,16 +12,19 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.relocate.api.IOLogger;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The API pointing to a DD Intake endpoint */
+import java.io.IOException;
+import java.net.ConnectException;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * The API pointing to a DD Intake endpoint
+ */
 public class DDIntakeApi implements RemoteApi {
 
   private static final String DD_API_KEY_HEADER = "dd-api-key";
@@ -133,8 +136,8 @@ public class DDIntakeApi implements RemoteApi {
               .addHeader(DD_API_KEY_HEADER, apiKey)
               .post(payload.toRequest())
               .build();
-      this.totalTraces += payload.traceCount();
-      this.receivedTraces += payload.traceCount();
+      totalTraces += payload.traceCount();
+      receivedTraces += payload.traceCount();
 
       int httpCode = 0;
       IOException lastException = null;
@@ -172,6 +175,8 @@ public class DDIntakeApi implements RemoteApi {
           return RemoteApi.Response.success(httpCode);
         }
       }
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return RemoteApi.Response.failed(e);
@@ -180,7 +185,7 @@ public class DDIntakeApi implements RemoteApi {
 
   private void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
     // count the successful traces
-    this.sentTraces += traceCount;
+    sentTraces += traceCount;
 
     ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
   }
@@ -191,7 +196,7 @@ public class DDIntakeApi implements RemoteApi {
       final DDIntakeApi.Response response,
       final IOException outer) {
     // count the failed traces
-    this.failedTraces += traceCount;
+    failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
     String intakeError = response != null ? response.body : "";
     String sendErrorString =
@@ -229,18 +234,19 @@ public class DDIntakeApi implements RemoteApi {
         + ")"
         + " traces to the DD Intake."
         + " Total: "
-        + this.totalTraces
+        + totalTraces
         + ", Received: "
-        + this.receivedTraces
+        + receivedTraces
         + ", Sent: "
-        + this.sentTraces
+        + sentTraces
         + ", Failed: "
-        + this.failedTraces
+        + failedTraces
         + ".";
   }
 
   @Override
-  public void addResponseListener(RemoteResponseListener listener) {}
+  public void addResponseListener(RemoteResponseListener listener) {
+  }
 
   private static class Response {
     private final int code;

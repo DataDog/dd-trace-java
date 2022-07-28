@@ -9,14 +9,6 @@ import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import okhttp3.Authenticator;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
@@ -34,6 +26,15 @@ import okio.GzipSink;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 public final class OkHttpUtils {
   private static final Logger log = LoggerFactory.getLogger(OkHttpUtils.class);
@@ -151,46 +152,60 @@ public final class OkHttpUtils {
               public Request authenticate(final Route route, final Response response) {
                 final String credential =
                     Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
-                return response
-                    .request()
-                    .newBuilder()
-                    .header("Proxy-Authorization", credential)
-                    .build();
+                try {
+                  return response
+                      .request()
+                      .newBuilder()
+                      .header("Proxy-Authorization", credential)
+                      .build();
+                } catch (IllegalArgumentException e) {
+                  throw new IllegalArgumentException("IllegalArgumentException at Proxy-Authorization header");
+                }
               }
             });
       }
     }
+    try {
+      OkHttpClient client = builder.build();
 
-    OkHttpClient client = builder.build();
+      if (maxRunningRequests != null) {
+        client.dispatcher().setMaxRequests(maxRunningRequests);
+        // We are mainly talking to the same(ish) host so we need to raise this limit
+        client.dispatcher().setMaxRequestsPerHost(maxRunningRequests);
+      }
 
-    if (maxRunningRequests != null) {
-      client.dispatcher().setMaxRequests(maxRunningRequests);
-      // We are mainly talking to the same(ish) host so we need to raise this limit
-      client.dispatcher().setMaxRequestsPerHost(maxRunningRequests);
+      return client;
+    } catch (IllegalArgumentException e) {
+      log.warn("IllegalArgumentException at OkHttpUtils.class");
+      //???
+      throw new IllegalArgumentException();
+
     }
-
-    return client;
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
-    final Request.Builder builder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
-            .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+    try {
+      final Request.Builder builder =
+          new Request.Builder()
+              .url(url)
+              .addHeader(DATADOG_META_LANG, "java")
+              .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
+              .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
+              .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
-    final String containerId = ContainerInfo.get().getContainerId();
-    if (containerId != null) {
-      builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+      final String containerId = ContainerInfo.get().getContainerId();
+      if (containerId != null) {
+        builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+      }
+
+      for (Map.Entry<String, String> e : headers.entrySet()) {
+        builder.addHeader(e.getKey(), e.getValue());
+      }
+
+      return builder;
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     }
-
-    for (Map.Entry<String, String> e : headers.entrySet()) {
-      builder.addHeader(e.getKey(), e.getValue());
-    }
-
-    return builder;
   }
 
   public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {

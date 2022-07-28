@@ -4,16 +4,6 @@ import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
-import java.io.IOException;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Phaser;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
@@ -29,7 +19,20 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles batching logic of upload requests sent to the intake */
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * Handles batching logic of upload requests sent to the intake
+ */
 public class BatchUploader {
   private static final Logger log = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
@@ -100,7 +103,11 @@ public class BatchUploader {
       // see: https://github.com/DataDog/dd-trace-java/pull/1582
       clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
     }
-    client = clientBuilder.build();
+    try {
+      client = clientBuilder.build();
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
+    }
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
@@ -151,28 +158,32 @@ public class BatchUploader {
     if (!tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
-    if (apiKey != null) {
-      if (apiKey.isEmpty()) {
-        log.debug("API key is empty");
+    try {
+      Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
+      if (apiKey != null) {
+        if (apiKey.isEmpty()) {
+          log.debug("API key is empty");
+        }
+        if (apiKey.length() != 32) {
+          log.debug(
+              "API key length is incorrect (truncated?) expected=32 actual={} API key={}...",
+              apiKey.length(),
+              apiKey.substring(0, Math.min(apiKey.length(), 6)));
+        }
+        requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+      } else {
+        log.debug("API key is null");
       }
-      if (apiKey.length() != 32) {
-        log.debug(
-            "API key length is incorrect (truncated?) expected=32 actual={} API key={}...",
-            apiKey.length(),
-            apiKey.substring(0, Math.min(apiKey.length(), 6)));
+      if (containerId != null) {
+        requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
       }
-      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-    } else {
-      log.debug("API key is null");
+      Request request = requestBuilder.build();
+      log.debug("Sending request: {} CT: {}", request, request.body().contentType());
+      client.newCall(request).enqueue(responseCallback);
+      inflightRequests.register();
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     }
-    if (containerId != null) {
-      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
-    }
-    Request request = requestBuilder.build();
-    log.debug("Sending request: {} CT: {}", request, request.body().contentType());
-    client.newCall(request).enqueue(responseCallback);
-    inflightRequests.register();
   }
 
   public void shutdown() {

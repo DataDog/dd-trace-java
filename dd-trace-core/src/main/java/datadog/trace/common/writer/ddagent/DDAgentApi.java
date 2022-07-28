@@ -14,19 +14,22 @@ import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.relocate.api.IOLogger;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The API pointing to a DD agent */
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * The API pointing to a DD agent
+ */
 public class DDAgentApi implements RemoteApi {
 
   public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
@@ -77,22 +80,24 @@ public class DDAgentApi implements RemoteApi {
       boolean metricsEnabled) {
     this.featuresDiscovery = featuresDiscovery;
     this.agentUrl = agentUrl;
-    this.httpClient = client;
-    this.sendPayloadTimer = monitoring.newTimer("trace.agent.send.time");
-    this.agentErrorCounter = monitoring.newCounter("trace.agent.error.counter");
+    httpClient = client;
+    sendPayloadTimer = monitoring.newTimer("trace.agent.send.time");
+    agentErrorCounter = monitoring.newCounter("trace.agent.error.counter");
     this.metricsEnabled = metricsEnabled;
 
-    this.headers = new HashMap<>();
-    this.headers.put(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true");
-    this.headers.put(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
+    headers = new HashMap<>();
+    headers.put(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true");
+    headers.put(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
   }
 
+  @Override
   public void addResponseListener(final RemoteResponseListener listener) {
     if (!responseListeners.contains(listener)) {
       responseListeners.add(listener);
     }
   }
 
+  @Override
   public Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
@@ -118,10 +123,10 @@ public class DDAgentApi implements RemoteApi {
                   metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
               .put(payload.toRequest())
               .build();
-      this.totalTraces += payload.traceCount();
-      this.receivedTraces += payload.traceCount();
+      totalTraces += payload.traceCount();
+      receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
-          final okhttp3.Response response = httpClient.newCall(request).execute()) {
+           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
@@ -146,6 +151,8 @@ public class DDAgentApi implements RemoteApi {
           return Response.success(response.code(), e);
         }
       }
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
@@ -161,7 +168,7 @@ public class DDAgentApi implements RemoteApi {
 
   private void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
     // count the successful traces
-    this.sentTraces += traceCount;
+    sentTraces += traceCount;
 
     ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
   }
@@ -172,7 +179,7 @@ public class DDAgentApi implements RemoteApi {
       final okhttp3.Response response,
       final IOException outer) {
     // count the failed traces
-    this.failedTraces += traceCount;
+    failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
     String agentError = getResponseBody(response);
     String sendErrorString =
@@ -209,13 +216,13 @@ public class DDAgentApi implements RemoteApi {
         + ")"
         + " traces to the DD agent."
         + " Total: "
-        + this.totalTraces
+        + totalTraces
         + ", Received: "
-        + this.receivedTraces
+        + receivedTraces
         + ", Sent: "
-        + this.sentTraces
+        + sentTraces
         + ", Failed: "
-        + this.failedTraces
+        + failedTraces
         + ".";
   }
 }

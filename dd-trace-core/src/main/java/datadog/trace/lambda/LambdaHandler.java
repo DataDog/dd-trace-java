@@ -58,14 +58,14 @@ public class LambdaHandler {
   public static AgentSpan.Context notifyStartInvocation(Object event) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
     try (Response response =
-        HTTP_CLIENT
-            .newCall(
-                new Request.Builder()
-                    .url(EXTENSION_BASE_URL + START_INVOCATION)
-                    .addHeader(DATADOG_META_LANG, "java")
-                    .post(body)
-                    .build())
-            .execute()) {
+             HTTP_CLIENT
+                 .newCall(
+                     new Request.Builder()
+                         .url(EXTENSION_BASE_URL + START_INVOCATION)
+                         .addHeader(DATADOG_META_LANG, "java")
+                         .post(body)
+                         .build())
+                 .execute()) {
       if (response.isSuccessful()) {
         final String traceID = response.headers().get(DATADOG_TRACE_ID);
         final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
@@ -87,6 +87,8 @@ public class LambdaHandler {
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");
         }
       }
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
     }
@@ -94,33 +96,38 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
-    if (null == span || null == span.getSamplingPriority()) {
-      log.error(
-          "could not notify the extension as the lambda span is null or no sampling priority has been found");
-      return false;
-    }
-    RequestBody body = RequestBody.create(jsonMediaType, "{}");
-    Request.Builder builder =
-        new Request.Builder()
-            .url(EXTENSION_BASE_URL + END_INVOCATION)
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
-            .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
-            .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
-            .addHeader(DATADOG_META_LANG, "java")
-            .post(body);
-    if (isError) {
-      builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
-    }
-    try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
-      if (response.isSuccessful()) {
-        log.debug("notifyEndInvocation success");
-        return true;
+    try {
+      if (null == span || null == span.getSamplingPriority()) {
+        log.error(
+            "could not notify the extension as the lambda span is null or no sampling priority has been found");
+        return false;
       }
-    } catch (Exception e) {
-      log.error("could not reach the extension, not injecting the context", e);
+      RequestBody body = RequestBody.create(jsonMediaType, "{}");
+      Request.Builder builder =
+          new Request.Builder()
+              .url(EXTENSION_BASE_URL + END_INVOCATION)
+              .addHeader(DATADOG_META_LANG, "java")
+              .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
+              .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
+              .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
+              .addHeader(DATADOG_META_LANG, "java")
+              .post(body);
+      if (isError) {
+        builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
+      }
+
+      try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
+        if (response.isSuccessful()) {
+          log.debug("notifyEndInvocation success");
+          return true;
+        }
+      } catch (Exception e) {
+        log.error("could not reach the extension, not injecting the context", e);
+      }
+      return false;
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException();
     }
-    return false;
   }
 
   public static String writeValueAsString(Object obj) {
