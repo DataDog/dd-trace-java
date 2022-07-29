@@ -9,6 +9,7 @@ import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -57,7 +58,7 @@ abstract class GrpcTest extends AgentTestRunner {
   }
 
   def setupSpec() {
-    ig = AgentTracer.get().instrumentationGateway()
+    ig = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
   }
 
   def setup() {

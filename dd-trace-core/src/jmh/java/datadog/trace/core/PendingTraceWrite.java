@@ -58,6 +58,7 @@ public class PendingTraceWrite {
                 0,
                 trace,
                 null,
+                null,
                 NoopPathwayContext.INSTANCE,
                 false));
     span =
@@ -79,6 +80,7 @@ public class PendingTraceWrite {
                 "type",
                 0,
                 trace,
+                null,
                 null,
                 NoopPathwayContext.INSTANCE,
                 false));

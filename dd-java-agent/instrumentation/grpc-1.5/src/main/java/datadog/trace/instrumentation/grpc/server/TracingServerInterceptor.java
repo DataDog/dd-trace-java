@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -61,19 +62,17 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
 
     Context spanContext = propagate().extract(headers, GETTER);
+    AgentTracer.TracerAPI tracer = tracer();
+    spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    if (cbp != null) {
-      spanContext = callIGCallbackRequestStarted(cbp, spanContext);
-    }
-
+    CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
 
     PathwayContext pathwayContext = propagate().extractPathwayContext(headers, GETTER);
     span.mergePathwayContext(pathwayContext);
     AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:grpc"));
 
-    RequestContext<Object> reqContext = span.getRequestContext();
+    RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {
       callIGCallbackClientAddress(cbp, reqContext, call);
       callIGCallbackHeaders(cbp, reqContext, headers);
@@ -242,31 +241,41 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
   // IG helpers follow
 
-  private static Context callIGCallbackRequestStarted(CallbackProvider cbp, Context context) {
-    Supplier<Flow<Object>> startedCB = cbp.getCallback(EVENTS.requestStarted());
-    if (startedCB == null) {
+  private static Context callIGCallbackRequestStarted(AgentTracer.TracerAPI cbp, Context context) {
+    Supplier<Flow<Object>> startedCbAppSec =
+        cbp.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
+    Supplier<Flow<Object>> startedCbIast =
+        cbp.getCallbackProvider(RequestContextSlot.IAST).getCallback(EVENTS.requestStarted());
+
+    if (startedCbAppSec == null && startedCbIast == null) {
       return context;
     }
-    Object requestContextData = startedCB.get().getResult();
-    if (requestContextData != null) {
-      TagContext tagContext = null;
-      if (context == null) {
-        tagContext = new TagContext();
-      } else if (context instanceof TagContext) {
-        tagContext = (TagContext) context;
+
+    TagContext tagContext = null;
+    if (context == null) {
+      tagContext = new TagContext();
+    } else if (context instanceof TagContext) {
+      tagContext = (TagContext) context;
+    }
+    if (tagContext != null) {
+      if (startedCbAppSec != null) {
+        Flow<Object> flowAppSec = startedCbAppSec.get();
+        tagContext.withRequestContextDataAppSec(flowAppSec.getResult());
       }
-      if (tagContext != null) {
-        tagContext.withRequestContextData(requestContextData);
+      if (startedCbIast != null) {
+        Flow<Object> flowIast = startedCbIast.get();
+        tagContext.withRequestContextDataAppSec(flowIast.getResult());
       }
       return tagContext;
     }
+
     return context;
   }
 
   private static <ReqT, RespT> void callIGCallbackClientAddress(
-      CallbackProvider cbp, RequestContext<Object> ctx, ServerCall<ReqT, RespT> call) {
+      CallbackProvider cbp, RequestContext ctx, ServerCall<ReqT, RespT> call) {
     SocketAddress socketAddress = call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
-    TriFunction<RequestContext<Object>, String, Integer, Flow<Void>> cb =
+    TriFunction<RequestContext, String, Integer, Flow<Void>> cb =
         cbp.getCallback(EVENTS.requestClientSocketAddress());
     if (socketAddress == null || !(socketAddress instanceof InetSocketAddress) || cb == null) {
       return;
@@ -277,11 +286,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   private static void callIGCallbackHeaders(
-      CallbackProvider cbp, RequestContext<Object> reqCtx, Metadata metadata) {
-    TriConsumer<RequestContext<Object>, String, String> headerCb =
-        cbp.getCallback(EVENTS.requestHeader());
-    Function<RequestContext<Object>, Flow<Void>> headerEndCb =
-        cbp.getCallback(EVENTS.requestHeaderDone());
+      CallbackProvider cbp, RequestContext reqCtx, Metadata metadata) {
+    TriConsumer<RequestContext, String, String> headerCb = cbp.getCallback(EVENTS.requestHeader());
+    Function<RequestContext, Flow<Void>> headerEndCb = cbp.getCallback(EVENTS.requestHeaderDone());
     if (headerCb == null || headerEndCb == null) {
       return;
     }
@@ -298,13 +305,13 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   private static void callIGCallbackRequestEnded(@Nonnull final AgentSpan span) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
+    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     if (cbp == null) {
       return;
     }
-    RequestContext<Object> requestContext = span.getRequestContext();
+    RequestContext requestContext = span.getRequestContext();
     if (requestContext != null) {
-      BiFunction<RequestContext<Object>, IGSpanInfo, Flow<Void>> callback =
+      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestEnded());
       if (callback != null) {
         callback.apply(requestContext, span);
@@ -317,16 +324,16 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return;
     }
 
-    CallbackProvider cbp = tracer().instrumentationGateway();
+    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     if (cbp == null) {
       return;
     }
-    BiFunction<RequestContext<Object>, Object, Flow<Void>> callback =
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
         cbp.getCallback(EVENTS.grpcServerRequestMessage());
     if (callback == null) {
       return;
     }
-    RequestContext<Object> requestContext = span.getRequestContext();
+    RequestContext requestContext = span.getRequestContext();
     if (requestContext == null) {
       return;
     }

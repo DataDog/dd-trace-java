@@ -6,8 +6,8 @@ import datadog.trace.api.gateway.RequestContext
 import spock.lang.Specification
 
 class StoredCharBodyTest extends Specification {
-  RequestContext<Object> requestContext = Mock(RequestContext) {
-    getData() >> it
+  RequestContext requestContext = Mock(RequestContext) {
+    _ * getData(_) >> it
   }
   BiFunction<RequestContext, StoredBodySupplier, Void> startCb = Mock()
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void> > endCb = Mock()
