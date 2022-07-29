@@ -7,7 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.iast.InstrumentationBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -42,10 +42,7 @@ public class WeakHashInstrumentation extends Instrumenter.Iast
     @Advice.OnMethodEnter
     public static void onEnter(@Advice.Argument(value = 0, readOnly = true) String algorithm) {
       if (Config.get().getWeakHashingAlgorithms().contains(algorithm.toUpperCase())) {
-        final AgentSpan span =
-            datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan(
-                "WeakHashingAlgorithm_" + algorithm);
-        span.finish();
+        InstrumentationBridge.onMessageDigestGetInstance(algorithm);
       }
     }
   }
