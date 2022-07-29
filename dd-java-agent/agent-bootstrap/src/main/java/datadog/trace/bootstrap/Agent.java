@@ -24,7 +24,6 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -434,11 +433,7 @@ public class Agent {
   private static synchronized void createSharedClassloader(final URL bootstrapURL) {
     if (SHARED_CLASSLOADER == null) {
       try {
-        final Class<?> bootstrapProxyClass =
-            ClassLoader.getSystemClassLoader()
-                .loadClass("datadog.trace.bootstrap.DatadogClassLoader$BootstrapClassLoaderProxy");
-        final Constructor constructor = bootstrapProxyClass.getDeclaredConstructor(URL.class);
-        BOOTSTRAP_PROXY = (ClassLoader) constructor.newInstance(bootstrapURL);
+        BOOTSTRAP_PROXY = new DatadogClassLoader.BootstrapClassLoaderProxy(bootstrapURL);
 
         // assume this is the right location of other agent-bootstrap classes
         ClassLoader parent = Agent.class.getClassLoader();
@@ -789,32 +784,14 @@ public class Agent {
    * @return Datadog Classloader
    */
   private static ClassLoader createDatadogClassLoader(
-      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent)
-      throws Exception {
-
-    final Class<?> loaderClass =
-        ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.DatadogClassLoader");
-    final Constructor constructor =
-        loaderClass.getDeclaredConstructor(
-            URL.class, String.class, ClassLoader.class, ClassLoader.class);
-    return (ClassLoader)
-        constructor.newInstance(bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent);
+      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent) {
+    return new DatadogClassLoader(bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent);
   }
 
   private static ClassLoader createDelegateClassLoader(
-      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent)
-      throws Exception {
-    final Class<?> loaderClass =
-        ClassLoader.getSystemClassLoader()
-            .loadClass("datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader");
-    final Constructor constructor =
-        loaderClass.getDeclaredConstructor(
-            URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
-    final ClassLoader classLoader =
-        (ClassLoader)
-            constructor.newInstance(
-                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, SHARED_CLASSLOADER);
-    return classLoader;
+      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent) {
+    return new DatadogClassLoader.DelegateClassLoader(
+        bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, SHARED_CLASSLOADER);
   }
 
   private static ClassLoader getPlatformClassLoader()
