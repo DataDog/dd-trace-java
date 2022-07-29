@@ -153,16 +153,10 @@ public final class OkHttpUtils {
               public Request authenticate(final Route route, final Response response) {
                 final String credential =
                     Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
-                try {
-                  return response
-                      .request()
-                      .newBuilder()
-                      .header("Proxy-Authorization", credential)
-                      .build();
-                } catch (IllegalArgumentException e) {
-                  throw new IllegalArgumentException(
-                      "IllegalArgumentException at Proxy-Authorization header");
-                }
+
+                return new SafeRequestBuilder.Builder(response.request())
+                    .header("Proxy-Authorization", credential)
+                    .build();
               }
             });
       }
@@ -179,28 +173,44 @@ public final class OkHttpUtils {
     return client;
   }
 
+  /*
+  SafeRequestBuilder adapter is used here to safely add headers
+  It catches the exception because of a vulnerability in okhttp3 that can cause secrets
+  to be printed/logged when invalid characters are passed into the .header() and .addHeader()
+  methods. This just throws an empty IllegalArgumentException without the message instead.
+  */
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
+
+    final SafeRequestBuilder.Builder builder = new SafeRequestBuilder.Builder();
+    builder
+        .url(url)
+        .addHeader(DATADOG_META_LANG, "java")
+        .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
+        .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
+        .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+
+    final String containerId = ContainerInfo.get().getContainerId();
+    if (containerId != null) {
+      builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+    }
+
+    for (Map.Entry<String, String> e : headers.entrySet()) {
+      builder.addHeader(e.getKey(), e.getValue());
+    }
+
+    return builder.getBuilder();
+  }
+  // This method is used for the one addHeader() call in prepareRequest below.
+  // This catches the Illegal argument to prevent printing/logging header secrets.
+  private static void safeAddHeader(Request.Builder builder, String key, String value) {
     try {
-      final Request.Builder builder =
-          new Request.Builder()
-              .url(url)
-              .addHeader(DATADOG_META_LANG, "java")
-              .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
-              .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-              .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
-
-      final String containerId = ContainerInfo.get().getContainerId();
-      if (containerId != null) {
-        builder.addHeader(DATADOG_CONTAINER_ID, containerId);
-      }
-
-      for (Map.Entry<String, String> e : headers.entrySet()) {
-        builder.addHeader(e.getKey(), e.getValue());
-      }
-
-      return builder;
+      builder.addHeader(key, value);
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException(
+          new StringBuilder()
+              .append("InvalidArgumentException at header() for header: ")
+              .append(key)
+              .toString());
     }
   }
 
@@ -215,7 +225,7 @@ public final class OkHttpUtils {
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless. No point in adding it to
       // other agent-based requests since we know the datadog-agent isn't going to make use of it.
-      builder.addHeader(DD_API_KEY, apiKey);
+      safeAddHeader(builder, DD_API_KEY, apiKey);
     }
 
     return builder;

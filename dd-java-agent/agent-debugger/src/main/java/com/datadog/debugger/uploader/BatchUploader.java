@@ -2,6 +2,7 @@ package com.datadog.debugger.uploader;
 
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
+import datadog.communication.http.SafeRequestBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.IOException;
@@ -151,32 +152,32 @@ public class BatchUploader {
     if (!tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    try {
-      Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
-      if (apiKey != null) {
-        if (apiKey.isEmpty()) {
-          log.debug("API key is empty");
-        }
-        if (apiKey.length() != 32) {
-          log.debug(
-              "API key length is incorrect (truncated?) expected=32 actual={} API key={}...",
-              apiKey.length(),
-              apiKey.substring(0, Math.min(apiKey.length(), 6)));
-        }
-        requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
-      } else {
-        log.debug("API key is null");
+    // SafeRequestBuilder is used here because of a vulnerability in okhttp3
+    // that can cause secrets to be printed/logged when invalid characters
+    // are passed in.
+    SafeRequestBuilder.Builder requestBuilder = new SafeRequestBuilder.Builder();
+    requestBuilder.url(builder.build()).post(body);
+    if (apiKey != null) {
+      if (apiKey.isEmpty()) {
+        log.debug("API key is empty");
       }
-      if (containerId != null) {
-        requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+      if (apiKey.length() != 32) {
+        log.debug(
+            "API key length is incorrect (truncated?) expected=32 actual={} API key={}...",
+            apiKey.length(),
+            apiKey.substring(0, Math.min(apiKey.length(), 6)));
       }
-      Request request = requestBuilder.build();
-      log.debug("Sending request: {} CT: {}", request, request.body().contentType());
-      client.newCall(request).enqueue(responseCallback);
-      inflightRequests.register();
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
+      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+    } else {
+      log.debug("API key is null");
     }
+    if (containerId != null) {
+      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+    }
+    Request request = requestBuilder.build();
+    log.debug("Sending request: {} CT: {}", request, request.body().contentType());
+    client.newCall(request).enqueue(responseCallback);
+    inflightRequests.register();
   }
 
   public void shutdown() {
