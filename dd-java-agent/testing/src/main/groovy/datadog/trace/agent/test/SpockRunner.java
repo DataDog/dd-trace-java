@@ -144,7 +144,7 @@ public class SpockRunner extends Sputnik {
       if (isBootstrapClass(clazz.getName())
           && clazz.getClassLoader() != null
           && !clazz.getName().equals("datadog.trace.api.DisableTestTrace")
-          && !clazz.getPackage().getName().startsWith("org.slf4j")) {
+          && !clazz.getName().startsWith("org.slf4j")) {
         prematureBootstrapClasses.add(clazz.getName());
       }
     }

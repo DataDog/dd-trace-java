@@ -115,8 +115,7 @@ public interface Instrumenter {
     private final String instrumentationPrimaryName;
     private final boolean enabled;
 
-    protected final String packageName =
-        getClass().getPackage() == null ? "" : getClass().getPackage().getName();
+    protected final String packageName = Strings.getPackageName(getClass().getName());
 
     public Default(final String instrumentationName, final String... additionalNames) {
       instrumentationNames = new ArrayList<>(1 + additionalNames.length);
