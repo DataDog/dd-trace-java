@@ -433,7 +433,7 @@ public class Agent {
   private static synchronized void createSharedClassloader(final URL bootstrapURL) {
     if (SHARED_CLASSLOADER == null) {
       try {
-        BOOTSTRAP_PROXY = new DatadogClassLoader.BootstrapClassLoaderProxy(bootstrapURL);
+        BOOTSTRAP_PROXY = new BootstrapProxy(bootstrapURL);
 
         // assume this is the right location of other agent-bootstrap classes
         ClassLoader parent = Agent.class.getClassLoader();

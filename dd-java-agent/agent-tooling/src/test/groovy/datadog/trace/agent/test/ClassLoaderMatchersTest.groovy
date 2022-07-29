@@ -2,6 +2,7 @@ package datadog.trace.agent.test
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.log.LogContextScopeListener
+import datadog.trace.bootstrap.BootstrapProxy
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileStatic
@@ -18,7 +19,7 @@ class ClassLoaderMatchersTest extends DDSpecification {
   def "skips agent classloader"() {
     setup:
     URL root = new URL("file://")
-    final URLClassLoader agentLoader = new DatadogClassLoader(root, null, new DatadogClassLoader.BootstrapClassLoaderProxy(), null)
+    final URLClassLoader agentLoader = new DatadogClassLoader(root, null, new BootstrapProxy(), null)
     expect:
     ClassLoaderMatchers.skipClassLoader(agentLoader)
   }

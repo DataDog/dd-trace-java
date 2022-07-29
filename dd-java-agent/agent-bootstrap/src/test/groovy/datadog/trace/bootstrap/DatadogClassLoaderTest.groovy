@@ -30,7 +30,7 @@ class DatadogClassLoaderTest extends DDSpecification {
     final URL loc = getClass().getProtectionDomain().getCodeSource().getLocation()
     final DatadogClassLoader ddLoader = new DatadogClassLoader(loc,
       null,
-      new DatadogClassLoader.BootstrapClassLoaderProxy(),
+      new BootstrapProxy(),
       null)
     final Phaser threadHoldLockPhase = new Phaser(2)
     final Phaser acquireLockFromMainThreadPhase = new Phaser(2)
@@ -69,8 +69,7 @@ class DatadogClassLoaderTest extends DDSpecification {
   def "test delegate class load to parent"() {
     given:
     assumeTrue(isJavaVersionAtLeast(8))
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
-      new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
     DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
       "child", bootstrapProxy, null, parent)
@@ -86,8 +85,7 @@ class DatadogClassLoaderTest extends DDSpecification {
   def "test delegate class load to bootstrap"() {
     given:
     assumeTrue(isJavaVersionAtLeast(8))
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
-      new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
     DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
       "child", bootstrapProxy, null, parent)
@@ -102,8 +100,7 @@ class DatadogClassLoaderTest extends DDSpecification {
   def "test class load managed by child"() {
     given:
     assumeTrue(isJavaVersionAtLeast(8))
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
-      new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
     DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
       "child", bootstrapProxy, null, parent)
@@ -117,8 +114,7 @@ class DatadogClassLoaderTest extends DDSpecification {
 
   def "test class not found"() {
     setup:
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
-      new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
     DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
       "child", bootstrapProxy, null, parent)
@@ -133,7 +129,7 @@ class DatadogClassLoaderTest extends DDSpecification {
   def "test parent classloader successfully loads classes concurrently"() {
     given:
     assumeTrue(isJavaVersionAtLeast(8))
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
 
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
     parent.findLoadedClass(_) >> null
@@ -169,7 +165,7 @@ class DatadogClassLoaderTest extends DDSpecification {
   def "test delegate classloader successfully loads classes concurrently"() {
     given:
     assumeTrue(isJavaVersionAtLeast(8))
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
 
     DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
@@ -205,7 +201,7 @@ class DatadogClassLoaderTest extends DDSpecification {
     given:
     assumeTrue(isJavaVersionAtLeast(8))
 
-    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
+    BootstrapProxy bootstrapProxy = new BootstrapProxy()
     DatadogClassLoader classLoader = new DatadogClassLoader(nestedTestJarLocation, "prefix", bootstrapProxy, null)
 
     when:

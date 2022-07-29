@@ -118,36 +118,6 @@ public class DatadogClassLoader extends URLClassLoader {
     return bootstrapProxy;
   }
 
-  /**
-   * A stand-in for the bootstrap classloader. Used to look up bootstrap resources and resources
-   * appended by instrumentation.
-   *
-   * <p>This class is thread safe.
-   */
-  public static final class BootstrapClassLoaderProxy extends URLClassLoader {
-    static {
-      ClassLoader.registerAsParallelCapable();
-    }
-
-    public BootstrapClassLoaderProxy(final URL url) {
-      super(new URL[] {url}, null);
-    }
-
-    public BootstrapClassLoaderProxy() {
-      super(new URL[0], null);
-    }
-
-    @Override
-    public void addURL(final URL url) {
-      super.addURL(url);
-    }
-
-    @Override
-    protected Class<?> findClass(final String name) throws ClassNotFoundException {
-      throw new ClassNotFoundException(name);
-    }
-  }
-
   @Override
   public String toString() {
     return classLoaderName;

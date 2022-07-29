@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.BootstrapProxy
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.http_url_connection.UrlInstrumentation
@@ -118,7 +119,7 @@ class UrlConnectionTest extends AgentTestRunner {
 
   def "DatadogClassloader ClassNotFoundException doesn't create span"() {
     given:
-    ClassLoader datadogLoader = new DatadogClassLoader(null, null, new DatadogClassLoader.BootstrapClassLoaderProxy(), null)
+    ClassLoader datadogLoader = new DatadogClassLoader(null, null, new BootstrapProxy(), null)
     ClassLoader childLoader = new URLClassLoader(new URL[0], datadogLoader)
 
     when:
