@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.BootstrapProxy
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.http_url_connection.UrlInstrumentation
