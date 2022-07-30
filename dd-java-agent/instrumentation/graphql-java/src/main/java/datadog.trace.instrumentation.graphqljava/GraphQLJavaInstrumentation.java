@@ -28,9 +28,9 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".GraphQLDecorator",
       packageName + ".GraphQLInstrumentation$1",
-      packageName + ".GraphQLInstrumentation$2",
       packageName + ".GraphQLInstrumentation$State",
-      packageName + ".GraphQLInstrumentation"
+      packageName + ".GraphQLInstrumentation",
+      packageName + ".InstrumentedDataFetcher"
     };
   }
 
