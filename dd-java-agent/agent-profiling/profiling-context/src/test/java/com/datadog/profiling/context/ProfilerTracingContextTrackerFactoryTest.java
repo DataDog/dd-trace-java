@@ -21,11 +21,11 @@ class ProfilerTracingContextTrackerFactoryTest {
   @Test
   void testReleasedAfterInactivity() throws Exception {
     long inactivityMs = 100;
-    ProfilerTracingContextTrackerFactory instance =
+    ProfilerTracingContextTrackerFactory factory =
         new ProfilerTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
-    TracingContextTracker tracker1 = instance.instance(null);
-    TracingContextTracker tracker2 = instance.instance(null);
+    TracingContextTracker tracker1 = factory.instance(null);
+    TracingContextTracker tracker2 = factory.instance(null);
 
     Thread.sleep((long) (inactivityMs * 1.5d));
     assertFalse(
@@ -37,11 +37,11 @@ class ProfilerTracingContextTrackerFactoryTest {
   @Test
   void testNotReleasedBeforeInactivity() throws Exception {
     long inactivityMs = 100;
-    ProfilerTracingContextTrackerFactory instance =
+    ProfilerTracingContextTrackerFactory factory =
         new ProfilerTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
-    TracingContextTracker tracker1 = instance.instance(null);
-    TracingContextTracker tracker2 = instance.instance(null);
+    TracingContextTracker tracker1 = factory.instance(null);
+    TracingContextTracker tracker2 = factory.instance(null);
 
     Thread.sleep((long) (inactivityMs * 0.5d));
     assertTrue(
@@ -55,11 +55,11 @@ class ProfilerTracingContextTrackerFactoryTest {
   @Test
   void testNoInactivityRelease() throws Exception {
     long inactivityMs = 0;
-    ProfilerTracingContextTrackerFactory instance =
+    ProfilerTracingContextTrackerFactory factory =
         new ProfilerTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
-    TracingContextTracker tracker1 = instance.instance(null);
-    TracingContextTracker tracker2 = instance.instance(null);
+    TracingContextTracker tracker1 = factory.instance(null);
+    TracingContextTracker tracker2 = factory.instance(null);
 
     Thread.sleep((long) (inactivityMs * 1.5d));
     assertTrue(tracker1.release(), "Tracker resources are erroneously released");

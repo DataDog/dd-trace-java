@@ -4,12 +4,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -139,11 +146,11 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void testSanity() {
-    ProfilerTracingContextTrackerFactory instance =
+    ProfilerTracingContextTrackerFactory factory =
         new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
 
     ProfilerTracingContextTracker tracker =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (ProfilerTracingContextTracker) factory.instance(AgentTracer.NoopAgentSpan.INSTANCE);
     AtomicInteger blobCounter = new AtomicInteger();
 
     tracker.activateContext();
@@ -162,73 +169,60 @@ class ProfilerTracingContextTrackerTest {
         data1, tracker.persist()); // previously persisted data survives double-release
   }
 
-  //  @Test
-  //  void delayedCompareToTest() {
-  //    ProfilerTracingContextTrackerFactory instance =
-  //        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
-  //
-  //    ProfilerTracingContextTracker tracker1 =
-  //        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-  //    ProfilerTracingContextTracker tracker2 =
-  //        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-  //
-  //    ExpirationTracker.Expiring<ProfilerTracingContextTracker> delayed1 = tracker1.asExpiring();
-  //    ExpirationTracker.Expiring<ProfilerTracingContextTracker> delayed2 = tracker2.asExpiring();
-  //
-  //    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker other =
-  //        new ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker();
-  //
-  //    assertEquals(0, delayed1.compareTo(other));
-  //    assertEquals(0, delayed1.compareTo(delayed1));
-  //
-  //    tracker2.activateContext();
-  //    assertEquals(-1, delayed1.compareTo(delayed2));
-  //    assertEquals(1, delayed2.compareTo(delayed1));
-  //  }
-
   @Test
-  void expiringCachingTest() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
+  void expiringReleaseTest() throws Exception {
+    ProfilerTracingContextTrackerFactory factory =
+        new ProfilerTracingContextTrackerFactory(TimeUnit.HOURS.toNanos(1), TimeUnit.MINUTES.toMillis(5), 512);
 
     ProfilerTracingContextTracker tracker1 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (ProfilerTracingContextTracker) factory.instance(AgentTracer.NoopAgentSpan.INSTANCE);
     ProfilerTracingContextTracker tracker2 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (ProfilerTracingContextTracker) factory.instance(AgentTracer.NoopAgentSpan.INSTANCE);
 
-    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring1 =
-        tracker1.asExpiring();
-    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring2 =
-        tracker2.asExpiring();
+    WeakReference<ProfilerTracingContextTracker> tracker1Ref = new WeakReference<>(tracker1);
+    WeakReference<ProfilerTracingContextTracker> tracker2Ref = new WeakReference<>(tracker2);
 
-    assertEquals(expiring1, tracker1.asExpiring());
-    assertEquals(expiring2, tracker2.asExpiring());
-  }
+    ExpirationTracker.Expirable expirable1 =
+        tracker1.getExpirationTracker();
+    ExpirationTracker.Expirable expirable2 =
+        tracker2.getExpirationTracker();
 
-  @Test
-  void expiringReleaseTest() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
-
-    ProfilerTracingContextTracker tracker1 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-    ProfilerTracingContextTracker tracker2 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-
-    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring1 =
-        tracker1.asExpiring();
-    ProfilerTracingContextTracker.ExpiringProfilerTracingContextTracker expiring2 =
-        tracker2.asExpiring();
-
-    // make sure the tracker release will remove the reference from delayed to the tracker
+    // make sure the tracker release will also expire the expiring instance
     tracker1.release();
-    assertNull(expiring1.payload);
-    assertNotEquals(expiring1, tracker1.asExpiring());
+    assertTrue(expirable1.isExpired());
+    assertTrue(tracker1.isReleased());
+    // after release the back-reference to the context tracker must be gone
+    tracker1 = null;
+    forceGc(30, TimeUnit.SECONDS);
+    assertNull(tracker1Ref.get());
 
     // make sure that the expiration will also trigger the tracker release
-    expiring2.onExpired();
-    assertNull(expiring2.payload);
-    assertNotEquals(expiring2, tracker2.asExpiring());
+    expirable2.expire();
+    assertTrue(expirable2.isExpired());
+    assertTrue(tracker2.isReleased());
+    // after release the back-reference to the context tracker must be gone
+    tracker2 = null;
+    forceGc(30, TimeUnit.SECONDS);
+    assertNull(tracker2Ref.get());
+  }
+
+  /**
+   * This method will try to force GC cycle within the given timeout.
+   * @param timeout the timeout value
+   * @param timeUnit the timeout unit
+   * @throws TimeoutException if invoking explicit GC didn't trigger GC cycle within the timeout
+   */
+  private static void forceGc(long timeout, TimeUnit timeUnit) throws TimeoutException  {
+    long timeoutNs = timeUnit.toNanos(timeout);
+    long startTs = System.nanoTime();
+    List<GarbageCollectorMXBean> beans = ManagementFactory.getGarbageCollectorMXBeans();
+    long counts = beans.stream().mapToLong(GarbageCollectorMXBean::getCollectionCount).sum();
+    do {
+      if (System.nanoTime() - startTs > timeoutNs) {
+        throw new TimeoutException();
+      }
+      System.gc();
+    } while (counts == beans.stream().mapToLong(GarbageCollectorMXBean::getCollectionCount).sum());
   }
 
   @Test

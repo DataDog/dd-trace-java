@@ -13,11 +13,11 @@ import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
 public class TimeBucketsBenchmark {
-  private TimeBuckets instance = null;
+  private ExpirationTracker instance = null;
 
   @Setup(Level.Iteration)
   public void setup() throws Exception {
-    instance = new TimeBuckets(10, 1, TimeUnit.MILLISECONDS, 4, 10_000_000);
+    instance = new ExpirationTracker(10, 1, TimeUnit.MILLISECONDS, 4, 10_000_000);
   }
 
   @TearDown(Level.Iteration)
@@ -28,21 +28,21 @@ public class TimeBucketsBenchmark {
   @Benchmark
   @Threads(4)
   public void expiringAdds4(Blackhole bh) {
-    TimeBuckets.Expiring rslt = instance.add(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), () -> {});
+    ExpirationTracker.Expirable rslt = instance.track(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), () -> {});
     bh.consume(rslt);
   }
 
   @Benchmark
   @Threads(2)
   public void expiringAdds2(Blackhole bh) {
-    TimeBuckets.Expiring rslt = instance.add(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), () -> {});
+    ExpirationTracker.Expirable rslt = instance.track(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), () -> {});
     bh.consume(rslt);
   }
 
   @Benchmark
   @Threads(1)
   public void expiringAdds1(Blackhole bh) {
-    TimeBuckets.Expiring rslt = instance.add(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), () -> {});
+    ExpirationTracker.Expirable rslt = instance.track(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), () -> {});
     bh.consume(rslt);
   }
 

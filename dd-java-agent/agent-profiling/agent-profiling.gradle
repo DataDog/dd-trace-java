@@ -39,10 +39,14 @@ shadowJar {
   exclude {
     if (it.path.startsWith('org/jctools/')) {
       def ret = true
-      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps')) {
+      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps') || it.path.equals('org/jctools/queues')) {
         ret = false
       } else {
-        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') || it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap'))
+        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') ||
+                it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap') ||
+                it.path.contains('MpscArrayQueue') || it.path.contains('ConcurrentCircularArrayQueue') ||
+                it.path.contains('IndexedQueueSizeUtil') || it.path.contains('MessagePassingQueue') ||
+                it.path.contains('QueueProgressIndicators') || it.path.contains('SupportsIterator'))
       }
       return ret
     }

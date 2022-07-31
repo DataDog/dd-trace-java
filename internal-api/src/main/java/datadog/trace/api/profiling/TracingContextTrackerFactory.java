@@ -28,14 +28,14 @@ public final class TracingContextTrackerFactory {
   private static final TracingContextTrackerFactory INSTANCE = new TracingContextTrackerFactory();
 
   private volatile Implementation implementation = Implementation.EMPTY;
-  private final AtomicReferenceFieldUpdater<TracingContextTrackerFactory, Implementation>
+  private static final AtomicReferenceFieldUpdater<TracingContextTrackerFactory, Implementation>
       implFieldUpdater =
           AtomicReferenceFieldUpdater.newUpdater(
               TracingContextTrackerFactory.class, Implementation.class, "implementation");
 
   public static boolean registerImplementation(Implementation factoryImplementation) {
     try {
-      return INSTANCE.implFieldUpdater.compareAndSet(
+      return TracingContextTrackerFactory.implFieldUpdater.compareAndSet(
           INSTANCE, Implementation.EMPTY, factoryImplementation);
     } catch (Throwable t) {
       log.warn("Failed to register a profiling context implementation", t);
@@ -44,7 +44,7 @@ public final class TracingContextTrackerFactory {
   }
 
   static void removeImplementation(Implementation implementation) {
-    INSTANCE.implFieldUpdater.compareAndSet(INSTANCE, implementation, Implementation.EMPTY);
+    TracingContextTrackerFactory.implFieldUpdater.compareAndSet(INSTANCE, implementation, Implementation.EMPTY);
   }
 
   public static boolean isTrackingAvailable() {

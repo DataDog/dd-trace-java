@@ -18,8 +18,7 @@ import org.jctools.maps.NonBlockingHashMapLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilerTracingContextTracker
-    implements TracingContextTracker, ExpirationTracker.Expirable<ProfilerTracingContextTracker> {
+public final class ProfilerTracingContextTracker implements TracingContextTracker {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
 
   private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
@@ -48,41 +47,10 @@ public final class ProfilerTracingContextTracker
     long frequency();
   }
 
-  static final class ExpiringProfilerTracingContextTracker
-      extends ExpirationTracker.Expiring<ProfilerTracingContextTracker> {
-    ExpiringProfilerTracingContextTracker(ProfilerTracingContextTracker ref) {
-      super(ref, ref.lastTransitionTimestamp, ref.inactivityDelay);
-    }
-
-    @Override
-    public void onExpired() {
-      ProfilerTracingContextTracker instance = payload;
-      if (instance != null) {
-        instance.release();
-      }
-    }
-
-    @Override
-    public boolean isActive() {
-      return payload != null;
-    }
-
-    void releaseRef() {
-      payload = null;
-    }
-  }
-
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
           LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30, TimeUnit.SECONDS);
 
-  private static final AtomicReferenceFieldUpdater<
-          ProfilerTracingContextTracker, ExpiringProfilerTracingContextTracker>
-      EXPIRING_TRACKER_REF_UPDATER =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ProfilerTracingContextTracker.class,
-              ExpiringProfilerTracingContextTracker.class,
-              "expiringTrackerRef");
   private static final long TRANSITION_MAYBE_FINISHED_MASK =
       (long) (TRANSITION_MAYBE_FINISHED) << 62;
   private static final long TRANSITION_FINISHED_MASK = (long) (TRANSITION_FINISHED) << 62;
@@ -91,10 +59,7 @@ public final class ProfilerTracingContextTracker
 
   private static final int SPAN_ACTIVATION_DATA_LIMIT;
 
-  private final long inactivityDelay;
-
-  private final NonBlockingHashMapLong<LongSequence> threadSequences =
-      new NonBlockingHashMapLong<>(64, false);
+  private final NonBlockingHashMapLong<LongSequence> threadSequences = ThreadSequencesCache.instance().reserve();
   private final long startTimestampTicks;
   private final long startTimestampMillis;
   private final long delayedActivationTimestamp;
@@ -119,9 +84,7 @@ public final class ProfilerTracingContextTracker
               ProfilerTracingContextTracker.class, ByteBuffer.class, "persisted");
   private volatile ByteBuffer persisted = null;
 
-  private long lastTransitionTimestamp = -1;
-
-  private volatile ExpiringProfilerTracingContextTracker expiringTrackerRef = null;
+  private final ExpirationTracker.Expirable expirable;
 
   static {
     SPAN_ACTIVATION_DATA_LIMIT =
@@ -137,7 +100,7 @@ public final class ProfilerTracingContextTracker
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       int maxDataSize) {
-    this(allocator, span, timeTicksProvider, sequencePruner, -1L, maxDataSize);
+    this(allocator, span, timeTicksProvider, sequencePruner, ExpirationTracker.Expirable.EMPTY, maxDataSize);
   }
 
   ProfilerTracingContextTracker(
@@ -145,13 +108,13 @@ public final class ProfilerTracingContextTracker
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
-      long inactivityDelay) {
+      ExpirationTracker.Expirable expirable) {
     this(
         allocator,
         span,
         timeTicksProvider,
         sequencePruner,
-        inactivityDelay,
+        expirable,
         SPAN_ACTIVATION_DATA_LIMIT);
   }
 
@@ -160,7 +123,7 @@ public final class ProfilerTracingContextTracker
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
-      long inactivityDelay,
+      ExpirationTracker.Expirable expirable,
       int maxDataSize) {
     this.startTimestampTicks = timeTicksProvider.ticks();
     this.startTimestampMillis = System.currentTimeMillis();
@@ -169,9 +132,8 @@ public final class ProfilerTracingContextTracker
     this.span = span;
     this.allocator = allocator;
     this.initialThreadId = Thread.currentThread().getId();
-    this.lastTransitionTimestamp = System.nanoTime();
-    this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
+    this.expirable = expirable;
     this.maxDataSize = maxDataSize;
   }
 
@@ -193,11 +155,8 @@ public final class ProfilerTracingContextTracker
 
   private long accessTimestamp() {
     long ts = timeTicksProvider.ticks();
-    long tsNano = System.nanoTime();
-    lastTransitionTimestamp = tsNano;
-    ExpiringProfilerTracingContextTracker ref = expiringTrackerRef;
-    if (ref != null) {
-      ref.touch(tsNano);
+    if (expirable.hasExpiration()) {
+      expirable.touch(System.nanoTime());
     }
     return ts;
   }
@@ -277,9 +236,15 @@ public final class ProfilerTracingContextTracker
 
   @Override
   public boolean release() {
-    boolean result = releaseThreadSequences();
-    releaseExpiring();
-    return result;
+    try {
+      return releaseThreadSequences();
+    } finally {
+      expirable.expire();
+    }
+  }
+
+  boolean isReleased() {
+    return released != 0;
   }
 
   private boolean releaseThreadSequences() {
@@ -295,28 +260,15 @@ public final class ProfilerTracingContextTracker
       // it is safe to cleanup the resources
       threadSequences.values().forEach(LongSequence::release);
       threadSequences.clear();
+      ThreadSequencesCache.instance().release(threadSequences);
       return true;
     }
     return false;
   }
 
-  void releaseExpiring() {
-    ExpiringProfilerTracingContextTracker expiring =
-        EXPIRING_TRACKER_REF_UPDATER.getAndSet(this, null);
-    if (expiring != null) {
-      expiring.releaseRef();
-    }
-  }
-
   @Override
   public int getVersion() {
     return 1;
-  }
-
-  @Override
-  public ExpiringProfilerTracingContextTracker asExpiring() {
-    return EXPIRING_TRACKER_REF_UPDATER.updateAndGet(
-        this, prev -> prev != null ? prev : new ExpiringProfilerTracingContextTracker(this));
   }
 
   public boolean isTruncated() {
@@ -433,6 +385,10 @@ public final class ProfilerTracingContextTracker
       log.trace("Storing delayed activation for span {}", span);
       activateContext(initialThreadId, delayedActivationTimestamp);
     }
+  }
+
+  ExpirationTracker.Expirable getExpirationTracker() {
+    return expirable;
   }
 
   // Fisher–Yates shuffle

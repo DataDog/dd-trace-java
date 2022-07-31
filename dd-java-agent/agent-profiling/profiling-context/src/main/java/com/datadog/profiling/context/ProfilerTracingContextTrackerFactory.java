@@ -11,6 +11,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.TimeUnit;
+
+import datadog.trace.relocate.api.RatelimitedLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,21 +20,21 @@ public final class ProfilerTracingContextTrackerFactory
     implements TracingContextTrackerFactory.Implementation {
   private static final Logger log =
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
+  private static final RatelimitedLogger warnlog =
+      new RatelimitedLogger(
+          LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class), 30, TimeUnit.SECONDS);
 
-  private final ExpirationTracker<ProfilerTracingContextTracker, ProfilerTracingContextTracker>
-      expirationTracker;
-  private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
+  private static final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
   public static void register(ConfigProvider configProvider) {
     if (configProvider.getBoolean(
         ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED,
         ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT)) {
       long inactivityDelayNs =
-          TimeUnit.NANOSECONDS.convert(
+          TimeUnit.SECONDS.toNanos(
               configProvider.getInteger(
                   ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_SEC,
-                  ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT),
-              TimeUnit.SECONDS);
+                  ProfilingConfig.PROFILING_TRACING_CONTEXT_TRACKER_INACTIVE_DEFAULT));
       int reservedMemorySize =
           configProvider.getInteger(
               ProfilingConfig.PROFILING_TRACING_CONTEXT_RESERVED_MEMORY_SIZE,
@@ -56,7 +58,8 @@ public final class ProfilerTracingContextTrackerFactory
   private final Allocator allocator;
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
-  private final long inactivityDelay;
+
+  private final ExpirationTracker expirationTracker;
 
   ProfilerTracingContextTrackerFactory(
       long inactivityDelayNs, long inactivityCheckPeriodMs, int reservedMemorySize) {
@@ -74,11 +77,7 @@ public final class ProfilerTracingContextTrackerFactory
         reservedMemoryType.equalsIgnoreCase("direct")
             ? Allocators.directAllocator(reservedMemorySize, 32)
             : Allocators.heapAllocator(reservedMemorySize, 32);
-    this.inactivityDelay = inactivityDelayNs;
-    this.expirationTracker =
-        inactivityDelay > 0
-            ? new ExpirationTracker<>(200_000, inactivityCheckPeriodMs, 50_000L)
-            : null;
+    this.expirationTracker = new ExpirationTracker(inactivityDelayNs, TimeUnit.MILLISECONDS.toNanos(inactivityCheckPeriodMs), TimeUnit.NANOSECONDS, Runtime.getRuntime().availableProcessors(), 500_000);
   }
 
   private static ProfilerTracingContextTracker.TimeTicksProvider getTicksProvider() {
@@ -133,20 +132,17 @@ public final class ProfilerTracingContextTrackerFactory
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
-    ProfilerTracingContextTracker instance =
-        new ProfilerTracingContextTracker(
-            allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
-    if (expirationTracker != null) {
-      statsd.incrementCounter("tracing.context.spans.tracked");
-      try {
-        if (!expirationTracker.track(instance)) {
-          return TracingContextTracker.EMPTY;
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return TracingContextTracker.EMPTY;
-      }
+    ExpirationTracker.Expirable e = expirationTracker.track();
+    if (!e.hasExpiration()) {
+      warnlog.warn("Expiration tracking of profiling context failed. Span {} will not be tracked", span);
+      return TracingContextTracker.EMPTY;
     }
+    ProfilerTracingContextTracker instance =
+        new ProfilerTracingContextTracker(allocator, span, timeTicksProvider, sequencePruner, e);
+
+    e.setOnExpiredCallback(i -> instance.release());
+
+    statsd.incrementCounter("tracing.context.spans.tracked");
     return instance;
   }
 }

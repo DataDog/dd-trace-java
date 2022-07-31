@@ -15,7 +15,7 @@ class TimelineTracingContextTracker implements TracingContextTracker {
   static class TimelineTracingContextTrackerFactory implements TracingContextTrackerFactory.Implementation {
     TimelineTracingContextTracker tracker = new TimelineTracingContextTracker()
     @Override
-    TracingContextTracker instance(AgentSpan span) {
+    TracingContextTracker contextTrackerInstance(AgentSpan span) {
       return new TracingContextTracker() {
           @Override
           boolean release() {
