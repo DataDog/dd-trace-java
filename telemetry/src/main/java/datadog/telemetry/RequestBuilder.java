@@ -105,17 +105,14 @@ public class RequestBuilder {
 
     String json = JSON_ADAPTER.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);
-    try {
-      return new SafeRequestBuilder.Builder()
-          .url(httpUrl)
-          .addHeader("Content-Type", JSON.toString())
-          .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
-          .addHeader("DD-Telemetry-Request-Type", requestType.toString())
-          .post(body)
-          .build();
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
-    }
+
+    return new SafeRequestBuilder.Builder()
+        .url(httpUrl)
+        .addHeader("Content-Type", JSON.toString())
+        .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())
+        .addHeader("DD-Telemetry-Request-Type", requestType.toString())
+        .post(body)
+        .build();
   }
 
   private static String getAgentVersion() throws IOException {

@@ -152,11 +152,8 @@ public class BatchUploader {
     if (!tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    // SafeRequestBuilder is used here because of a vulnerability in okhttp3
-    // that can cause secrets to be printed/logged when invalid characters
-    // are passed in.
-    SafeRequestBuilder.Builder requestBuilder = new SafeRequestBuilder.Builder();
-    requestBuilder.url(builder.build()).post(body);
+    SafeRequestBuilder.Builder requestBuilder =
+        new SafeRequestBuilder.Builder().url(builder.build()).post(body);
     if (apiKey != null) {
       if (apiKey.isEmpty()) {
         log.debug("API key is empty");

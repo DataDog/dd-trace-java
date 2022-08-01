@@ -154,7 +154,7 @@ public final class OkHttpUtils {
                 final String credential =
                     Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-                return new SafeRequestBuilder.Builder(response.request())
+                return new SafeRequestBuilder.Builder(response.request().newBuilder())
                     .header("Proxy-Authorization", credential)
                     .build();
               }
@@ -173,21 +173,15 @@ public final class OkHttpUtils {
     return client;
   }
 
-  /*
-  SafeRequestBuilder adapter is used here to safely add headers
-  It catches the exception because of a vulnerability in okhttp3 that can cause secrets
-  to be printed/logged when invalid characters are passed into the .header() and .addHeader()
-  methods. This just throws an empty IllegalArgumentException without the message instead.
-  */
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
 
-    final SafeRequestBuilder.Builder builder = new SafeRequestBuilder.Builder();
-    builder
-        .url(url)
-        .addHeader(DATADOG_META_LANG, "java")
-        .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
-        .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-        .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+    final SafeRequestBuilder.Builder builder =
+        new SafeRequestBuilder.Builder()
+            .url(url)
+            .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
+            .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
+            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId != null) {
@@ -199,19 +193,6 @@ public final class OkHttpUtils {
     }
 
     return builder.getBuilder();
-  }
-  // This method is used for the one addHeader() call in prepareRequest below.
-  // This catches the Illegal argument to prevent printing/logging header secrets.
-  private static void safeAddHeader(Request.Builder builder, String key, String value) {
-    try {
-      builder.addHeader(key, value);
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(
-          new StringBuilder()
-              .append("InvalidArgumentException at header() for header: ")
-              .append(key)
-              .toString());
-    }
   }
 
   public static Request.Builder prepareRequest(
@@ -225,7 +206,7 @@ public final class OkHttpUtils {
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless. No point in adding it to
       // other agent-based requests since we know the datadog-agent isn't going to make use of it.
-      safeAddHeader(builder, DD_API_KEY, apiKey);
+      builder = new SafeRequestBuilder.Builder(builder).addHeader(DD_API_KEY, apiKey).getBuilder();
     }
 
     return builder;

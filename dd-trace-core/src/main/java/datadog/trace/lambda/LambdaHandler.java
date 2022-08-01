@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.slf4j.Logger;
@@ -93,8 +92,6 @@ public class LambdaHandler {
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");
         }
       }
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
     }
@@ -102,38 +99,35 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
-    try {
-      if (null == span || null == span.getSamplingPriority()) {
-        log.error(
-            "could not notify the extension as the lambda span is null or no sampling priority has been found");
-        return false;
-      }
-      RequestBody body = RequestBody.create(jsonMediaType, "{}");
-      Request.Builder builder =
-          new SafeRequestBuilder.Builder()
-              .url(EXTENSION_BASE_URL + END_INVOCATION)
-              .addHeader(DATADOG_META_LANG, "java")
-              .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
-              .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
-              .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
-              .addHeader(DATADOG_META_LANG, "java")
-              .post(body);
-      if (isError) {
-        builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
-      }
 
-      try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
-        if (response.isSuccessful()) {
-          log.debug("notifyEndInvocation success");
-          return true;
-        }
-      } catch (Exception e) {
-        log.error("could not reach the extension, not injecting the context", e);
-      }
+    if (null == span || null == span.getSamplingPriority()) {
+      log.error(
+          "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException();
     }
+    RequestBody body = RequestBody.create(jsonMediaType, "{}");
+    SafeRequestBuilder.Builder builder =
+        new SafeRequestBuilder.Builder()
+            .url(EXTENSION_BASE_URL + END_INVOCATION)
+            .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
+            .addHeader(DATADOG_SPAN_ID, span.getSpanId().toString())
+            .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
+            .addHeader(DATADOG_META_LANG, "java")
+            .post(body);
+    if (isError) {
+      builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
+    }
+
+    try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
+      if (response.isSuccessful()) {
+        log.debug("notifyEndInvocation success");
+        return true;
+      }
+    } catch (Exception e) {
+      log.error("could not reach the extension, not injecting the context", e);
+    }
+    return false;
   }
 
   public static String writeValueAsString(Object obj) {

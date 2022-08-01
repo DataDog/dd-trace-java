@@ -23,27 +23,31 @@ public final class SafeRequestBuilder {
     }
 
     // Constructs a SafeRequestBuilder from an existing request
-    public Builder(Request request) {
-      this.requestBuilder = request.newBuilder();
+    public Builder(Request.Builder request) {
+      this.requestBuilder = request;
     }
 
-    public Request.Builder url(HttpUrl url) {
-      return this.requestBuilder.url(url);
+    public SafeRequestBuilder.Builder url(HttpUrl url) {
+      this.requestBuilder.url(url);
+      return this;
     }
 
-    public Request.Builder url(String url) {
-      return this.requestBuilder.url(url);
+    public SafeRequestBuilder.Builder url(String url) {
+      this.requestBuilder.url(url);
+      return this;
     }
 
-    public Request.Builder url(URL url) {
-      return this.requestBuilder.url(url);
+    public SafeRequestBuilder.Builder url(URL url) {
+      this.requestBuilder.url(url);
+      return this;
     }
 
-    public Request.Builder header(String name, String value) {
+    public SafeRequestBuilder.Builder header(String name, String value) {
       // This try/catch block prevents header secrets from being outputted to
       // console or logs.
       try {
-        return this.requestBuilder.header(name, value);
+        this.requestBuilder.header(name, value);
+        return this;
       } catch (IllegalArgumentException e) {
         throw new IllegalArgumentException(
             new StringBuilder()
@@ -53,11 +57,12 @@ public final class SafeRequestBuilder {
       }
     }
 
-    public Request.Builder addHeader(String name, String value) {
+    public SafeRequestBuilder.Builder addHeader(String name, String value) {
       // This try/catch block prevents header secrets from being outputted to
       // console or logs.
       try {
-        return this.requestBuilder.addHeader(name, value);
+        this.requestBuilder.addHeader(name, value);
+        return this;
       } catch (IllegalArgumentException e) {
         throw new IllegalArgumentException(
             new StringBuilder()
@@ -67,56 +72,69 @@ public final class SafeRequestBuilder {
       }
     }
 
-    public Request.Builder removeHeader(String name) {
-      return this.requestBuilder.removeHeader(name);
+    public SafeRequestBuilder.Builder removeHeader(String name) {
+      this.requestBuilder.removeHeader(name);
+      return this;
     }
 
-    public Request.Builder headers(Headers headers) {
-      return this.requestBuilder.headers(headers);
+    public SafeRequestBuilder.Builder headers(Headers headers) {
+      this.requestBuilder.headers(headers);
+      return this;
     }
 
-    public Request.Builder cacheControl(CacheControl cacheControl) {
-      return this.requestBuilder.cacheControl(cacheControl);
+    public SafeRequestBuilder.Builder cacheControl(CacheControl cacheControl) {
+      this.requestBuilder.cacheControl(cacheControl);
+      return this;
     }
 
-    public Request.Builder get() {
-      return this.requestBuilder.get();
+    public SafeRequestBuilder.Builder get() {
+      this.requestBuilder.get();
+      return this;
     }
 
-    public Request.Builder head() {
-      return this.requestBuilder.head();
+    public SafeRequestBuilder.Builder head() {
+      this.requestBuilder.head();
+      return this;
     }
 
-    public Request.Builder post(RequestBody body) {
-      return this.requestBuilder.post(body);
+    public SafeRequestBuilder.Builder post(RequestBody body) {
+      this.requestBuilder.post(body);
+      return this;
     }
 
-    public Request.Builder delete(@Nullable RequestBody body) {
-      return this.requestBuilder.delete(body);
+    public SafeRequestBuilder.Builder delete(@Nullable RequestBody body) {
+      this.requestBuilder.delete(body);
+      return this;
     }
 
-    public Request.Builder delete() {
-      return this.requestBuilder.delete();
+    public SafeRequestBuilder.Builder delete() {
+      this.requestBuilder.delete();
+      return this;
     }
 
-    public Request.Builder put(RequestBody body) {
-      return this.requestBuilder.put(body);
+    public SafeRequestBuilder.Builder put(RequestBody body) {
+      this.requestBuilder.put(body);
+      return this;
     }
 
-    public Request.Builder patch(RequestBody body) {
-      return this.requestBuilder.patch(body);
+    public SafeRequestBuilder.Builder patch(RequestBody body) {
+      this.requestBuilder.patch(body);
+      return this;
     }
 
-    public Request.Builder method(String method, @Nullable RequestBody body) {
-      return this.requestBuilder.method(method, body);
+    public SafeRequestBuilder.Builder method(String method, @Nullable RequestBody body) {
+      this.requestBuilder.method(method, body);
+      return this;
     }
 
-    public Request.Builder tag(@Nullable Object tag) {
-      return this.requestBuilder.tag(tag);
+    public SafeRequestBuilder.Builder tag(@Nullable Object tag) {
+      this.requestBuilder.tag(tag);
+      return this;
     }
 
-    public <T> Request.Builder tag(Class<? super T> type, @Nullable T tag) {
-      return this.requestBuilder.tag(type, tag);
+    public <T> SafeRequestBuilder.Builder tag(Class<? super T> type, @Nullable T tag) {
+      this.requestBuilder.tag(type, tag);
+      return this;
     }
 
     public Request build() {
