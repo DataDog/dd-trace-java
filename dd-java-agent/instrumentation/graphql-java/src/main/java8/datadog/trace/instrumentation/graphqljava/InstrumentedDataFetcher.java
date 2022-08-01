@@ -26,6 +26,7 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
   @Override
   public Object get(DataFetchingEnvironment environment) throws Exception {
     if (parameters.isTrivialDataFetcher()) {
+      // have this method
       try (AgentScope scope = activateSpan(this.span)) {
         return dataFetcher.get(environment);
       }

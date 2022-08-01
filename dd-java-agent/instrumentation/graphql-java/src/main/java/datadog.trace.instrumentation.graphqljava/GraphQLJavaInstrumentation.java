@@ -27,7 +27,9 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GraphQLDecorator",
-      packageName + ".GraphQLInstrumentation$1",
+      packageName + ".ParsingInstrumentationContext",
+      packageName + ".ExecutionInstrumentationContext",
+      packageName + ".ValidationInstrumentationContext",
       packageName + ".GraphQLInstrumentation$State",
       packageName + ".GraphQLInstrumentation",
       packageName + ".InstrumentedDataFetcher"
@@ -40,9 +42,9 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
         isMethod()
             .and(
                 namedOneOf(
-                    "checkInstrumentationDefaultState", // 9.7+
+                    "checkInstrumentationDefaultState" // 9.7+
                     // https://github.com/graphql-java/graphql-java/commit/821241de8ee055d6d254a9d95ef5143f9e540826
-                    "checkInstrumentation" // <9.7
+                    //                    "checkInstrumentation" // <9.7
                     // https://github.com/graphql-java/graphql-java/commit/78a6e4eda1c13f47573adb879ae781cce794e96a
                     ))
             .and(returns(named("graphql.execution.instrumentation.Instrumentation"))),

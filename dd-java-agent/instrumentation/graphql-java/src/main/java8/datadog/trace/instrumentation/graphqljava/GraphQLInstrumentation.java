@@ -12,9 +12,13 @@ import graphql.execution.instrumentation.SimpleInstrumentationContext;
 import graphql.execution.instrumentation.parameters.InstrumentationExecuteOperationParameters;
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
+import graphql.execution.instrumentation.parameters.InstrumentationValidationParameters;
 import graphql.language.AstPrinter;
+import graphql.language.Document;
 import graphql.language.OperationDefinition;
 import graphql.schema.DataFetcher;
+import graphql.validation.ValidationError;
+import java.util.List;
 import java.util.Locale;
 
 public final class GraphQLInstrumentation extends SimpleInstrumentation {
@@ -48,15 +52,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     State state = parameters.getInstrumentationState();
     state.setSpan(span);
 
-    // TODO give it a name to avoid using anonymous class
-    return new SimpleInstrumentationContext<ExecutionResult>() {
-      @Override
-      public void onCompleted(ExecutionResult result, Throwable t) {
-        DECORATE.onError(span, t);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
-    };
+    return new ExecutionInstrumentationContext(span);
   }
 
   @Override
@@ -84,8 +80,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
         AstPrinter.printAst(
             operationDefinition)); // TODO graphql.document (OTel) or graphql.query (Go impl)
 
-    return new SimpleInstrumentationContext<>(); // SimpleInstrumentationContext.noOp(); doesn't
-    // exist in graphql-java-9.7
+    return SimpleInstrumentationContext.noOp();
   }
 
   @Override
@@ -94,5 +89,25 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     State state = parameters.getInstrumentationState();
     final AgentSpan span = state.getSpan();
     return new InstrumentedDataFetcher(dataFetcher, parameters, span);
+  }
+
+  @Override
+  public InstrumentationContext<Document> beginParse(
+      InstrumentationExecutionParameters parameters) {
+    State state = parameters.getInstrumentationState();
+
+    final AgentSpan span = startSpan("graphql.parse", state.getSpan().context());
+    DECORATE.afterStart(span);
+    return new ParsingInstrumentationContext(span);
+  }
+
+  @Override
+  public InstrumentationContext<List<ValidationError>> beginValidation(
+      InstrumentationValidationParameters parameters) {
+    State state = parameters.getInstrumentationState();
+
+    final AgentSpan span = startSpan("graphql.validate", state.getSpan().context());
+    DECORATE.afterStart(span);
+    return new ValidationInstrumentationContext(span);
   }
 }
