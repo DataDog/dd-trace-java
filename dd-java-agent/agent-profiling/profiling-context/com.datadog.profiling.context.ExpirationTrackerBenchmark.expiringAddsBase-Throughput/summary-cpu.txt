@@ -1,0 +1,769 @@
+--- Execution profile ---
+Total samples       : 3942
+
+--- 16580000000 ns (42.06%), 1658 samples
+  [ 0] mach_absolute_time
+  [ 1] os::javaTimeNanos()
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 16380000000 ns (41.55%), 1638 samples
+  [ 0] os::javaTimeNanos()
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 2630000000 ns (6.67%), 263 samples
+  [ 0] __psynch_cvwait
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 560000000 ns (1.42%), 56 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 330000000 ns (0.84%), 33 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 330000000 ns (0.84%), 33 samples
+  [ 0] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 2] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 4] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 5] java.lang.reflect.Method.invoke
+  [ 6] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] java.util.concurrent.FutureTask.run
+  [ 9] java.util.concurrent.Executors$RunnableAdapter.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [12] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [13] java.lang.Thread.run
+
+--- 300000000 ns (0.76%), 30 samples
+  [ 0] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 5] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 6] java.lang.reflect.Method.invoke
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] java.util.concurrent.FutureTask.run
+  [10] java.util.concurrent.Executors$RunnableAdapter.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [13] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [14] java.lang.Thread.run
+
+--- 290000000 ns (0.74%), 29 samples
+  [ 0] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 5] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 6] java.lang.reflect.Method.invoke
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] java.util.concurrent.FutureTask.run
+  [10] java.util.concurrent.Executors$RunnableAdapter.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [13] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [14] java.lang.Thread.run
+
+--- 290000000 ns (0.74%), 29 samples
+  [ 0] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 2] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 4] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 5] java.lang.reflect.Method.invoke
+  [ 6] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] java.util.concurrent.FutureTask.run
+  [ 9] java.util.concurrent.Executors$RunnableAdapter.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [12] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [13] java.lang.Thread.run
+
+--- 270000000 ns (0.68%), 27 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 260000000 ns (0.66%), 26 samples
+  [ 0] mach_absolute_time
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 240000000 ns (0.61%), 24 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consume
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 110000000 ns (0.28%), 11 samples
+  [ 0] __gettimeofday
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 90000000 ns (0.23%), 9 samples
+  [ 0] __psynch_cvwait
+  [ 1] os::PlatformEvent::park(long)
+  [ 2] Monitor::IWait(Thread*, long)
+  [ 3] Monitor::wait(bool, long, bool)
+  [ 4] WatcherThread::sleep() const
+  [ 5] WatcherThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 70000000 ns (0.18%), 7 samples
+  [ 0] pthread_cond_init
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 60000000 ns (0.15%), 6 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 60000000 ns (0.15%), 6 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 50000000 ns (0.13%), 5 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 30000000 ns (0.08%), 3 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/202459923.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 20000000 ns (0.05%), 2 samples
+  [ 0] JavaThread::handle_special_suspend_equivalent_condition()
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 20000000 ns (0.05%), 2 samples
+  [ 0] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 1] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 2] java.lang.Thread.run
+
+--- 20000000 ns (0.05%), 2 samples
+  [ 0] Parker::park(bool, long)
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] mach_absolute_time
+  [ 1] os::javaTimeNanos()
+  [ 2] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 3] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/202459923.run
+  [ 5] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 1] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/202459923.run
+  [ 2] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 4] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] Monitor::IUnlock(bool)
+  [ 1] Monitor::wait(bool, long, bool)
+  [ 2] WatcherThread::sleep() const
+  [ 3] WatcherThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] Monitor::TryFast()
+  [ 1] Monitor::lock_without_safepoint_check()
+  [ 2] JavaThread::handle_special_suspend_equivalent_condition()
+  [ 3] Parker::park(bool, long)
+  [ 4] Unsafe_Park
+  [ 5] sun.misc.Unsafe.park
+  [ 6] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 7] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 8] java.util.concurrent.DelayQueue.take
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] pthread_cond_destroy
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.addConditionWaiter
+  [ 1] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 2] java.util.concurrent.DelayQueue.take
+  [ 3] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 4] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] pthread_mutex_unlock
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 1] java.util.concurrent.DelayQueue.take
+  [ 2] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 3] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/202459923.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] _pthread_cond_updateval
+  [ 1] _pthread_cond_wait
+  [ 2] Parker::park(bool, long)
+  [ 3] Unsafe_Park
+  [ 4] sun.misc.Unsafe.park
+  [ 5] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 6] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 7] java.util.concurrent.DelayQueue.take
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.locks.ReentrantLock.lockInterruptibly
+  [ 1] java.util.concurrent.DelayQueue.take
+  [ 2] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 3] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] HandleMark::pop_and_restore()
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.locks.AbstractQueuedSynchronizer.compareAndSetWaitStatus
+  [ 1] java.util.concurrent.locks.AbstractQueuedSynchronizer.transferForSignal
+  [ 2] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.doSignal
+  [ 3] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.signal
+  [ 4] java.util.concurrent.DelayQueue.take
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] Monitor::TryFast()
+  [ 1] Monitor::ILock(Thread*)
+  [ 2] Monitor::lock_without_safepoint_check()
+  [ 3] JavaThread::handle_special_suspend_equivalent_condition()
+  [ 4] Parker::park(bool, long)
+  [ 5] Unsafe_Park
+  [ 6] sun.misc.Unsafe.park
+  [ 7] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 8] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 9] java.util.concurrent.DelayQueue.take
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] pthread_cond_destroy
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] mach_absolute_time
+  [ 1] os::javaTimeNanos()
+  [ 2] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 3] java.util.concurrent.DelayQueue.take
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.DelayQueue.take
+  [ 1] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 2] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] YieldingFlexibleWorkGang::run_task(AbstractGangTask*)
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] StatSampler::collect_sample()
+  [ 1] PeriodicTask::real_time_tick(int)
+  [ 2] WatcherThread::run()
+  [ 3] java_start(Thread*)
+  [ 4] _pthread_start
+  [ 5] thread_start
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.DelayQueue.take
+  [ 1] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 2] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] os::verify_stack_alignment()
+  [ 1] sun.misc.Unsafe.park
+  [ 2] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 3] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 4] java.util.concurrent.DelayQueue.take
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] Thread::is_interrupted(Thread*, bool)
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] JavaFrameAnchor::make_walkable(JavaThread*)
+  [ 1] ThreadBlockInVM::ThreadBlockInVM(JavaThread*)
+  [ 2] Parker::park(bool, long)
+  [ 3] Unsafe_Park
+  [ 4] sun.misc.Unsafe.park
+  [ 5] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 6] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 7] java.util.concurrent.DelayQueue.take
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/202459923.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] Java_java_lang_Class_isInstance
+  [ 1] java.lang.Class.isInstance
+  [ 2] java.util.concurrent.atomic.AtomicIntegerFieldUpdater$AtomicIntegerFieldUpdaterImpl.accessCheck
+  [ 3] java.util.concurrent.atomic.AtomicIntegerFieldUpdater$AtomicIntegerFieldUpdaterImpl.compareAndSet
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 1] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] EventThreadPark::EventThreadPark(EventStartTime)
+  [ 1] sun.misc.Unsafe.park
+  [ 2] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 3] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 4] java.util.concurrent.DelayQueue.take
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] __gettimeofday
+  [ 1] os::PlatformEvent::park(long)
+  [ 2] Monitor::IWait(Thread*, long)
+  [ 3] Monitor::wait(bool, long, bool)
+  [ 4] CompileQueue::get()
+  [ 5] CompileBroker::compiler_thread_loop()
+  [ 6] JavaThread::thread_main_inner()
+  [ 7] JavaThread::run()
+  [ 8] java_start(Thread*)
+  [ 9] _pthread_start
+  [10] thread_start
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] YieldingFlexibleWorkGang::run_task(AbstractGangTask*)
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] __psynch_cvwait
+  [ 1] os::PlatformEvent::park(long)
+  [ 2] Monitor::IWait(Thread*, long)
+  [ 3] Monitor::wait(bool, long, bool)
+  [ 4] CompileQueue::get()
+  [ 5] CompileBroker::compiler_thread_loop()
+  [ 6] JavaThread::thread_main_inner()
+  [ 7] JavaThread::run()
+  [ 8] java_start(Thread*)
+  [ 9] _pthread_start
+  [10] thread_start
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.DelayQueue.take
+  [ 1] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 2] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] mach_absolute_time
+  [ 1] os::javaTimeNanos()
+  [ 2] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 3] java.util.concurrent.DelayQueue.take
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] Monitor::IUnlock(bool)
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] cerror_nocancel
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] _pthread_cond_wait
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] JavaThread::get_thread_stat() const
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] ThreadStatistics::monitor_wait()
+  [ 1] JavaThreadParkedState::JavaThreadParkedState(JavaThread*, bool)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] datadog.trace.util.AgentTaskScheduler$PeriodicTask.compareTo
+  [ 1] java.util.PriorityQueue.siftDownComparable
+  [ 2] java.util.PriorityQueue.siftDown
+  [ 3] java.util.PriorityQueue.poll
+  [ 4] java.util.concurrent.DelayQueue.take
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] os::javaTimeNanos()
+  [ 1] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 2] java.util.concurrent.DelayQueue.take
+  [ 3] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 4] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] pthread_mutex_trylock
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] java.util.concurrent.locks.AbstractQueuedSynchronizer.compareAndSetState
+  [ 1] java.util.concurrent.locks.ReentrantLock$Sync.nonfairTryAcquire
+  [ 2] java.util.concurrent.locks.ReentrantLock$NonfairSync.tryAcquire
+  [ 3] java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireInterruptibly
+  [ 4] java.util.concurrent.locks.ReentrantLock.lockInterruptibly
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.03%), 1 sample
+  [ 0] mach_absolute_time
+  [ 1] os::javaTimeNanos()
+  [ 2] java.util.concurrent.DelayQueue.take
+  [ 3] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 4] java.lang.Thread.run
+
+          ns  percent  samples  top
+  ----------  -------  -------  ---
+ 16880000000   42.82%     1688  mach_absolute_time
+ 16390000000   41.58%     1639  os::javaTimeNanos()
+  2730000000    6.93%      273  __psynch_cvwait
+  1160000000    2.94%      116  org.openjdk.jmh.infra.Blackhole.consumeFull
+   620000000    1.57%       62  com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAddsBase_jmhTest.expiringAddsBase_thrpt_jmhStub
+   590000000    1.50%       59  com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAddsBase
+   240000000    0.61%       24  org.openjdk.jmh.infra.Blackhole.consume
+   180000000    0.46%       18  _platform_memmove$VARIANT$Haswell
+   120000000    0.30%       12  __gettimeofday
+    70000000    0.18%        7  pthread_cond_init
+    30000000    0.08%        3  java.util.concurrent.DelayQueue.take
+    30000000    0.08%        3  com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+    20000000    0.05%        2  YieldingFlexibleWorkGang::run_task(AbstractGangTask*)
+    20000000    0.05%        2  Parker::park(bool, long)
+    20000000    0.05%        2  Monitor::TryFast()
+    20000000    0.05%        2  datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+    20000000    0.05%        2  JavaThread::handle_special_suspend_equivalent_condition()
+    20000000    0.05%        2  pthread_cond_destroy
+    20000000    0.05%        2  com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+    20000000    0.05%        2  Monitor::IUnlock(bool)
+    10000000    0.03%        1  cerror_nocancel
+    10000000    0.03%        1  com.datadog.profiling.context.ExpirationTracker.processCleanup
+    10000000    0.03%        1  _pthread_cond_wait
+    10000000    0.03%        1  _pthread_cond_updateval
+    10000000    0.03%        1  datadog.trace.util.AgentTaskScheduler$PeriodicTask.compareTo
+    10000000    0.03%        1  ThreadStatistics::monitor_wait()
+    10000000    0.03%        1  datadog.trace.util.AgentTaskScheduler$Worker.run
+    10000000    0.03%        1  Thread::is_interrupted(Thread*, bool)
+    10000000    0.03%        1  java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.addConditionWaiter
+    10000000    0.03%        1  java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+    10000000    0.03%        1  java.util.concurrent.locks.AbstractQueuedSynchronizer.compareAndSetState
+    10000000    0.03%        1  java.util.concurrent.locks.AbstractQueuedSynchronizer.compareAndSetWaitStatus
+    10000000    0.03%        1  java.util.concurrent.locks.ReentrantLock.lockInterruptibly
+    10000000    0.03%        1  StatSampler::collect_sample()
+    10000000    0.03%        1  Java_java_lang_Class_isInstance
+    10000000    0.03%        1  JavaThread::get_thread_stat() const
+    10000000    0.03%        1  JavaFrameAnchor::make_walkable(JavaThread*)
+    10000000    0.03%        1  os::verify_stack_alignment()
+    10000000    0.03%        1  HandleMark::pop_and_restore()
+    10000000    0.03%        1  EventThreadPark::EventThreadPark(EventStartTime)
+    10000000    0.03%        1  pthread_mutex_trylock
+    10000000    0.03%        1  pthread_mutex_unlock

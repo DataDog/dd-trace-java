@@ -22,11 +22,37 @@ final class LongSequence {
   private class LongIteratorImpl implements LongIterator {
     int bufferReadSlot = 0;
     int allIndex = 0;
+
+    final AllocatedBuffer[] buffers;
+
     LongIterator currentIterator = null;
+    boolean released = false;
+
+    LongIteratorImpl() {
+      // check'n'update the state - if it is non-negative, increment the counter and proceed,
+      // otherwise bail out
+      if (state.updateAndGet(prev -> prev >= 0 ? prev + 1 : prev) < 0) {
+        // bail out if this instance was already released
+        this.buffers = null;
+        released = true;
+      } else {
+        this.buffers = LongSequence.this.buffers;
+      }
+    }
 
     @Override
     public boolean hasNext() {
+      if (released) {
+        return false;
+      }
       if (bufferReadSlot > bufferWriteSlot || allIndex >= size) {
+        // check'n'update the state - if it is negative before update, perform release, otherwise
+        // just
+        // decrement the counter
+        if (state.getAndUpdate(prev -> prev > 0 ? prev - 1 : prev) < 0) {
+          released = true;
+          doRelease();
+        }
         return false;
       }
       if (currentIterator == null) {
@@ -74,7 +100,7 @@ final class LongSequence {
     return (int) (Math.ceil(size / 8d) * 8);
   }
 
-  private AtomicInteger state = new AtomicInteger(0);
+  private final AtomicInteger state = new AtomicInteger(0);
   private final int limit;
   private int capturedSize = -1;
 
@@ -85,7 +111,6 @@ final class LongSequence {
   public LongSequence(Allocator allocator, int limit) {
     this.allocator = allocator;
     this.limit = limit;
-    this.bufferWriteSlot = -1;
     Arrays.fill(bufferBoundaryMap, Integer.MAX_VALUE);
   }
 
@@ -257,10 +282,12 @@ final class LongSequence {
   }
 
   private void doRelease() {
-    for (int i = 0; i < buffers.length; i++) {
-      AllocatedBuffer buffer = buffers[i];
-      if (buffer != null) {
-        buffer.release();
+    if (buffers != null) {
+      for (int i = 0; i < buffers.length; i++) {
+        AllocatedBuffer buffer = buffers[i];
+        if (buffer != null) {
+          buffer.release();
+        }
       }
     }
     // clear out the buffer slots to allow the most of the retained data to be GCed

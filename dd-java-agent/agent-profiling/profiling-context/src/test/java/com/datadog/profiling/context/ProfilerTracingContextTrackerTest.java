@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
@@ -16,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -172,7 +170,8 @@ class ProfilerTracingContextTrackerTest {
   @Test
   void expiringReleaseTest() throws Exception {
     ProfilerTracingContextTrackerFactory factory =
-        new ProfilerTracingContextTrackerFactory(TimeUnit.HOURS.toNanos(1), TimeUnit.MINUTES.toMillis(5), 512);
+        new ProfilerTracingContextTrackerFactory(
+            TimeUnit.HOURS.toNanos(1), TimeUnit.MINUTES.toMillis(5), 512);
 
     ProfilerTracingContextTracker tracker1 =
         (ProfilerTracingContextTracker) factory.instance(AgentTracer.NoopAgentSpan.INSTANCE);
@@ -182,10 +181,8 @@ class ProfilerTracingContextTrackerTest {
     WeakReference<ProfilerTracingContextTracker> tracker1Ref = new WeakReference<>(tracker1);
     WeakReference<ProfilerTracingContextTracker> tracker2Ref = new WeakReference<>(tracker2);
 
-    ExpirationTracker.Expirable expirable1 =
-        tracker1.getExpirationTracker();
-    ExpirationTracker.Expirable expirable2 =
-        tracker2.getExpirationTracker();
+    ExpirationTracker.Expirable expirable1 = tracker1.getExpirable();
+    ExpirationTracker.Expirable expirable2 = tracker2.getExpirable();
 
     // make sure the tracker release will also expire the expiring instance
     tracker1.release();
@@ -208,11 +205,12 @@ class ProfilerTracingContextTrackerTest {
 
   /**
    * This method will try to force GC cycle within the given timeout.
+   *
    * @param timeout the timeout value
    * @param timeUnit the timeout unit
    * @throws TimeoutException if invoking explicit GC didn't trigger GC cycle within the timeout
    */
-  private static void forceGc(long timeout, TimeUnit timeUnit) throws TimeoutException  {
+  private static void forceGc(long timeout, TimeUnit timeUnit) throws TimeoutException {
     long timeoutNs = timeUnit.toNanos(timeout);
     long startTs = System.nanoTime();
     List<GarbageCollectorMXBean> beans = ManagementFactory.getGarbageCollectorMXBeans();

@@ -43,10 +43,10 @@ shadowJar {
         ret = false
       } else {
         ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') ||
-                it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap') ||
-                it.path.contains('MpscArrayQueue') || it.path.contains('ConcurrentCircularArrayQueue') ||
-                it.path.contains('IndexedQueueSizeUtil') || it.path.contains('MessagePassingQueue') ||
-                it.path.contains('QueueProgressIndicators') || it.path.contains('SupportsIterator'))
+          it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap') ||
+          it.path.contains('MpscArrayQueue') || it.path.contains('ConcurrentCircularArrayQueue') ||
+          it.path.contains('IndexedQueueSizeUtil') || it.path.contains('MessagePassingQueue') ||
+          it.path.contains('QueueProgressIndicators') || it.path.contains('SupportsIterator'))
       }
       return ret
     }

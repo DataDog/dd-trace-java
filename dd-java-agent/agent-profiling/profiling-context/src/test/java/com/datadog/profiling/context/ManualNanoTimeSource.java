@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 
 final class ManualNanoTimeSource implements ExpirationTracker.NanoTimeSource {
   long ticks = 0;
+
   @Override
   public long getNanos() {
     return ticks;

@@ -2,8 +2,6 @@ package com.datadog.profiling.context;
 
 import datadog.trace.api.function.Consumer;
 import datadog.trace.util.AgentTaskScheduler;
-import org.jctools.queues.MpscArrayQueue;
-
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,27 +10,65 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import org.jctools.queues.MpscArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * A size bound expiration tracker.<br>
+ * <br>
+ *
+ * <p>The main idea is to keep the tracked items in a number of buckets corresponding to the
+ * expiration period and granularity. In short, there will be 'period / granularity' buckets which
+ * will be inspected in round-robin fashion and the oldest bucket will be marked for expiration when
+ * an element is first time added to a new bucket. This can be simplified by expiring bucket
+ * {@literal I+1} when an item is added to bucket {@literal I} first time after it was
+ * expired/cleaned. The {@literal I+1} index is a subject to wrapping, such that when we have
+ * {@literal N} buckets and {@literal I==N} the index of the bucket to expire will be {@literal 0}.
+ *
+ * <p>In order to reduce contention each bucket is further 'striped' based on the 'parallelism'
+ * setting and each stripe is guarded by its own lock. The number of stripes is estimated in such a
+ * way that even if all 'parallelism' threads are accessing the stripe concurrently there is ~50%
+ * chance of uncontended access.
+ *
+ * <p>Currently, the cleanup of expired buckets is handled by a dedicated thread to reduce the
+ * latency effect on the traced code. However, it would be possible to handle the cleanup inline -
+ * that would reduce overall additional CPU consumption for the price of increased latency of the
+ * traced code.
+ *
+ * <p>The tracker is size-bound - it has defined capacity and it will track at most that number of
+ * expirables. If, for whatever reason the tracker can not create a new expirable it will return
+ * {@linkplain Expirable#EMPTY} instance and the caller can then decide how to handle the situation.
+ */
 final class ExpirationTracker implements Closeable {
+  private static final Logger log = LoggerFactory.getLogger(ExpirationTracker.class);
+
+  /** An expirable element with optional code to run upon expiration. */
   static final class Expirable {
-    private static final Consumer<Expirable> NOOP_CONSUMER = x -> {};
     static final Expirable EMPTY = new Expirable(-1, -1);
 
     private volatile Consumer<Expirable> onExpired;
+
     @SuppressWarnings("rawtypes")
-    private static final AtomicReferenceFieldUpdater<Expirable, Consumer> ON_EXPIRED_UPDATER = AtomicReferenceFieldUpdater.newUpdater(Expirable.class, Consumer.class, "onExpired");
+    private static final AtomicReferenceFieldUpdater<Expirable, Consumer> ON_EXPIRED_UPDATER =
+        AtomicReferenceFieldUpdater.newUpdater(Expirable.class, Consumer.class, "onExpired");
+
     private final long expiration;
     private volatile long nanos;
-    private static final AtomicLongFieldUpdater<Expirable> NANOS_UPDATER = AtomicLongFieldUpdater.newUpdater(Expirable.class, "nanos");
+    private static final AtomicLongFieldUpdater<Expirable> NANOS_UPDATER =
+        AtomicLongFieldUpdater.newUpdater(Expirable.class, "nanos");
 
     private final Bucket bucket;
     private final int pos;
 
     private Expirable(long ts, long expiration) {
-      this(null, -1, ts, expiration, NOOP_CONSUMER);
+      this(null, -1, ts, expiration, null);
     }
 
     Expirable(Bucket bucket, int pos, long nanos, long expiration, Consumer<Expirable> onExpired) {
+      if (expiration < 0 && onExpired != null) {
+        throw new IllegalArgumentException("Expiration must be positive number");
+      }
       this.bucket = bucket;
       this.pos = pos;
       this.onExpired = onExpired;
@@ -40,52 +76,95 @@ final class ExpirationTracker implements Closeable {
       this.expiration = expiration;
     }
 
+    /**
+     * Set the on-expiration callback
+     *
+     * @param callback the callback
+     */
     void setOnExpiredCallback(Consumer<Expirable> callback) {
       this.onExpired = callback;
     }
 
-    public void touch(long nanos) {
+    /**
+     * 'Touch' the expirable - reset the timestamp since when the expiration is calculated to the
+     * given timestamp
+     *
+     * @param nanos the timestamp in nanoseconds
+     */
+    void touch(long nanos) {
       NANOS_UPDATER.set(this, nanos);
     }
 
+    /**
+     * Expire the item. Remove the item from the tracker and call the on-expiration code, if
+     * present.
+     */
     @SuppressWarnings("unchecked")
     void expire() {
       Consumer<Expirable> callback = ON_EXPIRED_UPDATER.getAndSet(this, null);
-      if (callback != null) {
+      if (hasExpiration() && callback != null) {
         synchronized (bucket) {
           bucket.remove(pos);
         }
         try {
           callback.accept(this);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+          log.debug("Unexpected exception while executing expiration callback", t);
         }
       }
     }
 
+    /**
+     * Check whether the expirable is already expired - the expiration period has run out and the
+     * expirable was properly cleaned.
+     *
+     * @return {@literal true} if the expirable was expired
+     */
     boolean isExpired() {
-      return onExpired == null;
+      return hasExpiration() && onExpired == null;
     }
 
+    /**
+     * Check whether the expirable is about to expire in the given timestamp
+     *
+     * @param nowNs timestamp in nanoseconds
+     * @return {@literal true} if the expirable is eligible for expiration in the given timestamp
+     */
     boolean isExpiring(long nowNs) {
-      return onExpired != null && expiration > 0 && (nowNs - nanos) >= expiration;
+      return onExpired != null && hasExpiration() && (nowNs - nanos) >= expiration;
     }
 
+    /**
+     * Check whether the expirable has the expiration set
+     *
+     * @return {@literal true} if the expiration period > 0
+     */
     boolean hasExpiration() {
-      return expiration > -1;
+      return expiration > 0;
     }
   }
 
+  /**
+   * A single expiration tracker bucket.<br>
+   * Consists of a number {@linkplain Expirable} instances stored in a fixed size array.
+   */
   static final class Bucket {
+    /**
+     * An observability callback to get notified once the bucket gets filled up or when there is
+     * again some capacity available.
+     */
     interface Callback {
-      Callback EMPTY = new Callback() {
-        @Override
-        public void onBucketFull() {}
+      Callback EMPTY =
+          new Callback() {
+            @Override
+            public void onBucketFull() {}
 
-        @Override
-        public void onBucketAvailable() {}
-      };
+            @Override
+            public void onBucketAvailable() {}
+          };
 
       void onBucketFull();
+
       void onBucketAvailable();
     }
 
@@ -97,85 +176,130 @@ final class ExpirationTracker implements Closeable {
 
     Bucket(int capacity, Callback fillupCallback) {
       data = new Expirable[capacity];
-      this.fillupCallback = fillupCallback;
+      this.fillupCallback = fillupCallback == null ? Callback.EMPTY : fillupCallback;
     }
 
+    /**
+     * Create and add a new {@linkplain Expirable} instance if possible withoug violating capacity
+     * constraints.
+     *
+     * @param nanos timestamp in nanoseconds
+     * @param expiration the expiration period in nanoseconds
+     * @param onExpired the expiration callback
+     * @return a new instance or {@linkplain Expirable#EMPTY} if the instance can not be added
+     */
     Expirable add(long nanos, long expiration, Consumer<Expirable> onExpired) {
       if (size == data.length) {
         return Expirable.EMPTY;
       }
-      if (size == data.length - 1) {
-        if (!fillupTriggered) {
-          try {
-            fillupCallback.onBucketFull();
-          } catch (Throwable ignored) {
-          } finally {
-            fillupTriggered = true;
-          }
-        }
-      }
+      fireBucketFull();
       int pos = size;
       Expirable e = new Expirable(this, pos, nanos, expiration, onExpired);
       data[size++] = e;
       return e;
     }
 
+    /**
+     * Remove the {@linkplain Expirable} instance from the given position in the array
+     *
+     * @param pos the position of the element to remove
+     */
     private void remove(int pos) {
       if (pos > -1) {
         data[pos] = data[--size];
         data[size] = null;
 
-        if (fillupTriggered) {
-          try {
-            fillupCallback.onBucketAvailable();
-          } catch (Throwable ignored) {
-          } finally {
-            fillupTriggered = false;
-          }
-        }
+        fireBucketAvailable();
       }
     }
 
+    /**
+     * Try and remove all {@linkplain Expirable} instances from the tracking array.<br>
+     * <br>
+     * Due to the support of 'tuch' capability when the expiration can be continuously moved forward
+     * it may happen that certain {@link Expirable expirables} are still in a bucket which really
+     * does not correspond to their expiration. The problem is that shuffling around the {@link
+     * Expirable expirables} between buckets each time they are 'touched' would be extremely costly
+     * as both buckets would have to be locked and the capacity problems would have to be resolved
+     * (eg. the target bucket might already be full etc.). Therefore, it is easier to keep the
+     * non-expiring {@link Expirable expirables} in the bucket, mark the bucket as tainted and
+     * re-schedule cleanup with the hopes that the elements will expire eventually.
+     *
+     * @param nanos timestamp in nanoseconds
+     * @return {@literal true} if the bucket was fully cleaned
+     */
     boolean clean(long nanos) {
       int reinsertionIdx = 0;
-      for (int i =0; i < data.length; i++) {
+      for (int i = 0; i < data.length; i++) {
         if (data[i] == null) {
-          // the data is auto-compacted so first 'null' element means all the followup ones are null also
+          // the data is auto-compacted so first 'null' element means all the followup ones are null
+          // also
           break;
         }
         Expirable e = data[i];
         if (e.isExpiring(nanos)) {
           try {
-            e.onExpired.accept(e);
-          } catch (Throwable ignored) {
+            // call the 'expiration' callback
+            if (e.onExpired != null) {
+              e.onExpired.accept(e);
+            }
+          } catch (Throwable t) {
+            log.debug("Unexpected exception while executing expiration callback", t);
           } finally {
+            // remove the reference to the expirable element
             data[i] = null;
           }
         } else {
+          // this element is not eligible for expiration yet
           if (reinsertionIdx != i) {
+            // Move the element to the beginning of the tracking array -
+            // this will naturally compact the remaining elements and help keeping the invariant
+            // that the first discovered 'null' reference should break the cleanup run as the
+            // remnant of the tracking array would be empty
             data[reinsertionIdx] = data[i];
+            // clean up the original slot
             data[i] = null;
           }
           // if reinsertionIdx == i the data stay in its place so data[i] is not be nulled
           reinsertionIdx++;
         }
       }
+      // update the number of tracked elements
       size = reinsertionIdx;
+      fireBucketAvailable();
+      // set the tainted status if there were any reinsertions
+      int tainted = reinsertionIdx;
+      return tainted == 0;
+    }
+
+    private void fireBucketAvailable() {
       if (fillupTriggered && size < data.length) {
         try {
           fillupCallback.onBucketAvailable();
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+          log.debug("Unexpected exception while executing bucket callback", t);
         } finally {
           fillupTriggered = false;
         }
       }
-      // set the tainted status if there were any reinsertions
-      int tainted = reinsertionIdx;
-      return tainted > 0;
+    }
+
+    private void fireBucketFull() {
+      if (size == data.length - 1) {
+        if (!fillupTriggered) {
+          try {
+            fillupCallback.onBucketFull();
+          } catch (Throwable t) {
+            log.debug("Unexpected exception while executing bucket callback", t);
+          } finally {
+            fillupTriggered = true;
+          }
+        }
+      }
     }
   }
 
-  static final class BucketAvailabilityTracker implements Bucket.Callback {
+  private static final class BucketAvailabilityTracker implements Bucket.Callback {
     private final AtomicInteger availableBuckets;
     private final int buckets;
 
@@ -199,8 +323,11 @@ final class ExpirationTracker implements Closeable {
     }
   }
 
+  /** Striped-locking implementation over buckets. */
   @SuppressWarnings({"SynchronizationOnLocalVariableOrMethodParameter"})
   static final class StripedBucket {
+    // prime-number increments
+    private static final int[] INCREMENTS = new int[] {5, 7, 11, 13, 19, 23, 29, 31, 37, 41, 47};
     private final Bucket[] buckets;
 
     private final int numStripes;
@@ -219,13 +346,30 @@ final class ExpirationTracker implements Closeable {
       }
     }
 
+    /**
+     * Add a new {@linkplain Expirable} instance if possible without violating capacity constraints.
+     *
+     * @param nanos timestamp in nanoseconds
+     * @param expiration expiration period in nanoseconds
+     * @param onExpired expiration callback
+     * @return a new {@linkplain Expirable} instance or {@linkplain Expirable#EMPTY}
+     */
     Expirable add(long nanos, long expiration, Runnable onExpired) {
+      // Short-circuit a possibly full striped bucket.
+      // This will not prevent multiple threads filling up the bucket
+      // concurrently but will prevent useless attempts to find an
+      // available stripe if the bucket is completely full.
       if (!availabilityTracker.hasAvailableBuckets()) {
         return Expirable.EMPTY;
       }
 
-      int stripe = ThreadLocalRandom.current().nextInt(numStripes);
+      // Randomize the starting point for accessing the stripes
+      ThreadLocalRandom rnd = ThreadLocalRandom.current();
+      int stripe = rnd.nextInt(numStripes);
+      int increment = INCREMENTS[rnd.nextInt(INCREMENTS.length)];
 
+      // Iterate over the stripes at most once to find a stripe which is able to hold
+      // one more item.
       for (int i = 0; i < numStripes; i++) {
         Bucket bucket = buckets[stripe];
         // Synchronized is performing better than locks here because we are striving
@@ -238,7 +382,8 @@ final class ExpirationTracker implements Closeable {
           if (e != Expirable.EMPTY) {
             return e;
           }
-          stripe = (stripe + 11) % numStripes;
+          // use a prime number increment to iterate over the stripes in a pseudo-random manner
+          stripe = (stripe + increment) % numStripes;
         }
       }
       return Expirable.EMPTY;
@@ -246,23 +391,25 @@ final class ExpirationTracker implements Closeable {
 
     /**
      * Cleans up the bucket by expiring all eligible elements.<br>
-     * This method should always be called from the same thread and from only thread at a time -
-     * otherwise the performancy may suffer because the same bucket could be cleaned up several times
-     * @param nanos the operation timestamp
+     * This method should always be called from the same thread and from only one thread at a time -
+     * otherwise the performance may suffer because the same bucket could be cleaned up several
+     * times
+     *
+     * @param nanos timestamp in nanoseconds
      * @return {@literal true} if the bucket was completely cleaned
      */
     boolean clean(long nanos) {
-      if (lastCleanupTs ==  nanos) {
+      if (lastCleanupTs == nanos) {
         return true; // already processed in this epoch
       }
-      boolean tainted = false;
+      boolean cleaned = true;
       for (Bucket bucket : buckets) {
         synchronized (bucket) {
-          tainted = bucket.clean(nanos) || tainted;
+          cleaned = bucket.clean(nanos) && cleaned;
         }
       }
       lastCleanupTs = nanos;
-      return !tainted;
+      return cleaned;
     }
   }
 
@@ -272,52 +419,60 @@ final class ExpirationTracker implements Closeable {
   }
 
   private final int capacity;
-  private final int tickCapacity;
+  private final int bucketCapacity;
   private final StripedBucket[] buckets;
   private final int numBuckets;
-  private final TimeUnit timeUnit;
-  private final long expiration;
   private final long expirationNs;
-
-  private final long granularity;
   private final long granularityNs;
 
-  private static final AtomicLongFieldUpdater<ExpirationTracker> LAST_ACCESS_TS_UPDATER = AtomicLongFieldUpdater.newUpdater(ExpirationTracker.class, "lastAccessTs");
-  private volatile long lastAccessTs = -1;
+  private static final AtomicLongFieldUpdater<ExpirationTracker> LAST_ACCESSED_SLOT_UPDATER =
+      AtomicLongFieldUpdater.newUpdater(ExpirationTracker.class, "lastAccessedSlot");
+  private volatile long lastAccessedSlot = -1;
   private volatile boolean closed = false;
 
   private final MpscArrayQueue<StripedBucket> cleanupQueue;
   private final AgentTaskScheduler.Scheduled<ExpirationTracker> scheduledTask;
   private final NanoTimeSource timeSource;
 
-  ExpirationTracker(long expiration, long granularity, TimeUnit timeUnit, int parallelism, int capacity) {
+  ExpirationTracker(
+      long expiration, long granularity, TimeUnit timeUnit, int parallelism, int capacity) {
     this(expiration, granularity, timeUnit, parallelism, capacity, System::nanoTime, true);
   }
 
-  ExpirationTracker(long expiration, long granularity, TimeUnit timeUnit, int parallelism, int capacity, NanoTimeSource timeSource, boolean scheduleCleanup) {
-    if (expiration > -1 && expiration <= granularity) {
+  ExpirationTracker(
+      long expiration,
+      long granularity,
+      TimeUnit timeUnit,
+      int parallelism,
+      int capacity,
+      NanoTimeSource timeSource,
+      boolean scheduleCleanup) {
+    if (expiration > 0 && expiration <= granularity) {
       throw new IllegalArgumentException("'expiration' must be larger than 'granularity'");
     }
 
-    this.timeUnit = timeUnit;
-    this.expiration = expiration;
     this.expirationNs = timeUnit.toNanos(expiration);
-    this.granularity = granularity;
     this.granularityNs = timeUnit.toNanos(granularity);
     this.timeSource = timeSource;
 
-    numBuckets = (int)(this.expiration / this.granularity) + 1;
+    numBuckets = (int) (expiration / granularity) + 1;
     buckets = new StripedBucket[numBuckets];
-    tickCapacity = (int)Math.ceil(capacity / (double)numBuckets);
+    bucketCapacity = (int) Math.ceil(capacity / (double) numBuckets);
 
-    this.capacity = numBuckets * tickCapacity;
+    this.capacity = numBuckets * bucketCapacity;
     for (int i = 0; i < numBuckets; i++) {
-      buckets[i] = new StripedBucket(parallelism, tickCapacity);
+      buckets[i] = new StripedBucket(parallelism, bucketCapacity);
     }
     cleanupQueue = new MpscArrayQueue<>(numBuckets * 2);
     if (scheduleCleanup) {
-      int schedulePeriod = Math.max((int)(granularityNs / 2d), 1);
-      scheduledTask = AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(ExpirationTracker::processCleanup, this, schedulePeriod, schedulePeriod, timeUnit);
+      int schedulePeriodNs = Math.max((int) (granularityNs / 2d), 1);
+      scheduledTask =
+          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+              ExpirationTracker::processCleanup,
+              this,
+              schedulePeriodNs,
+              schedulePeriodNs,
+              TimeUnit.NANOSECONDS);
     } else {
       scheduledTask = null;
     }
@@ -328,15 +483,19 @@ final class ExpirationTracker implements Closeable {
 
   void processCleanup() {
     long nanos = timeSource.getNanos();
-    long slot = (long)Math.ceil(nanos / (double)granularityNs);
+    long slot = getTimeSlot(nanos);
     try {
+      // do not trigger cleanup for the same time slot
       if (slot > lastCleanupSlot) {
         // first process the expired queue
-        int processed = cleanupQueue.drain(b -> {
-          if (!b.clean(slot)) {
-            survivors.add(b);
-          }
-        });
+        int processed =
+            cleanupQueue.drain(
+                b -> {
+                  if (!b.clean(nanos)) {
+                    // if a bucket was not fully cleaned add it to survivors
+                    survivors.add(b);
+                  }
+                });
         // re-add the surviving buckets
         cleanupQueue.addAll(survivors);
 
@@ -356,24 +515,42 @@ final class ExpirationTracker implements Closeable {
     }
   }
 
+  /**
+   * Track new {@linkplain Expirable}
+   *
+   * @return a new {@linkplain Expirable} instance or {@linkplain Expirable#EMPTY}
+   */
   Expirable track() {
     return track(() -> {});
   }
 
+  /**
+   * Track new {@linkplain Expirable} with a custom expiration callback
+   *
+   * @param onExpired expiration callback
+   * @return a new {@linkplain Expirable} instance or {@linkplain Expirable#EMPTY}
+   */
   Expirable track(Runnable onExpired) {
-    long nanos = timeSource.getNanos();
+    // shortcut if the expiration period is not set
     if (expirationNs <= 0) {
+      System.out.println("===> [1]");
       return Expirable.EMPTY;
     }
+    // shortcut if the tracker is closed
     if (closed) {
       return Expirable.EMPTY;
     }
 
-    long thisSlot = (long)Math.ceil(nanos / (double)granularityNs);
-    long previousSlot = LAST_ACCESS_TS_UPDATER.getAndSet(this, thisSlot);
+    long nanos = timeSource.getNanos();
+    long thisSlot = getTimeSlot(nanos);
+    long previousSlot = LAST_ACCESSED_SLOT_UPDATER.getAndSet(this, thisSlot);
     int toWriteIdx = getBucketIndex(thisSlot);
     if (previousSlot != thisSlot) {
+      // the time slot moved forward - schedule the oldest slot for expiration
       if (!expireBucketAt(toWriteIdx)) {
+        // Failed to schedule the oldest slot for expiration due to capacity constraints.
+        // Can not track any more expirables.
+        System.out.println("===> [3]");
         return Expirable.EMPTY;
       }
     }
@@ -391,10 +568,18 @@ final class ExpirationTracker implements Closeable {
           // avoid accessing the volatile field and reading timestamp every single iteration
           if ((cnt = (cnt + 1) % 1000) == 0) {
             if (closed) {
+              // bail out if the tracker was closed in the meantime
               return false;
             }
-            if (timeSource.getNanos() - start > 500_000_000L) {
+            if (timeSource.getNanos() - start > 500_000_000L) { // 500ms limit
               // something went terribly wrong and the cleanup thread is most probably dead
+              System.out.println(
+                  "===> [x] "
+                      + cleanupQueue.size()
+                      + " :: "
+                      + (timeSource.getNanos() - start)
+                      + " :: "
+                      + cnt);
               close();
               return false;
             }
@@ -405,6 +590,10 @@ final class ExpirationTracker implements Closeable {
     return true;
   }
 
+  /**
+   * Close the tracker.<br>
+   * Stop the cleanup thread and release all held resources.
+   */
   @Override
   public void close() {
     if (scheduledTask != null) {
@@ -415,15 +604,19 @@ final class ExpirationTracker implements Closeable {
   }
 
   int getBucketIndex(long slot) {
-    int idx = (int)slot  %  numBuckets;
+    int idx = (int) slot % numBuckets;
     return idx >= 0 ? idx : (numBuckets + idx);
+  }
+
+  long getTimeSlot(long nanos) {
+    return (long) Math.ceil(nanos / (double) granularityNs);
   }
 
   int capacity() {
     return capacity;
   }
 
-  int tickCapacity() {
-    return tickCapacity;
+  int bucketCapacity() {
+    return bucketCapacity;
   }
 }

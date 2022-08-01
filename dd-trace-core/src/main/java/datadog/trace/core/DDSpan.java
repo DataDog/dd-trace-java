@@ -57,7 +57,10 @@ public class DDSpan
     final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
-    span.tracingContextTracker = context.getSamplingPriority() > SAMPLER_DROP ? TracingContextTrackerFactory.instance(span) : TracingContextTracker.EMPTY;
+    span.tracingContextTracker =
+        context.getSamplingPriority() > SAMPLER_DROP
+            ? TracingContextTrackerFactory.instance(span)
+            : TracingContextTracker.EMPTY;
     return span;
   }
 

@@ -1,8 +1,7 @@
 package com.datadog.profiling.context;
 
-import org.jctools.maps.NonBlockingHashMapLong;
-
 import java.util.concurrent.ConcurrentLinkedDeque;
+import org.jctools.maps.NonBlockingHashMapLong;
 
 final class ThreadSequencesCache {
   private static final class Singleton {

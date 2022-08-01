@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 public final class ProfilerTracingContextTracker implements TracingContextTracker {
   private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
+  private static final RatelimitedLogger warnLog = new RatelimitedLogger(log, 30, TimeUnit.SECONDS);
 
   private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
 
@@ -59,7 +60,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private static final int SPAN_ACTIVATION_DATA_LIMIT;
 
-  private final NonBlockingHashMapLong<LongSequence> threadSequences = ThreadSequencesCache.instance().reserve();
+  private final NonBlockingHashMapLong<LongSequence> threadSequences =
+      ThreadSequencesCache.instance().reserve();
   private final long startTimestampTicks;
   private final long startTimestampMillis;
   private final long delayedActivationTimestamp;
@@ -100,7 +102,13 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       int maxDataSize) {
-    this(allocator, span, timeTicksProvider, sequencePruner, ExpirationTracker.Expirable.EMPTY, maxDataSize);
+    this(
+        allocator,
+        span,
+        timeTicksProvider,
+        sequencePruner,
+        ExpirationTracker.Expirable.EMPTY,
+        maxDataSize);
   }
 
   ProfilerTracingContextTracker(
@@ -109,13 +117,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       ExpirationTracker.Expirable expirable) {
-    this(
-        allocator,
-        span,
-        timeTicksProvider,
-        sequencePruner,
-        expirable,
-        SPAN_ACTIVATION_DATA_LIMIT);
+    this(allocator, span, timeTicksProvider, sequencePruner, expirable, SPAN_ACTIVATION_DATA_LIMIT);
   }
 
   ProfilerTracingContextTracker(
@@ -252,7 +254,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     // released from 'persist()' method
     if (releasedUpdater.compareAndSet(this, 0, 1)) {
       log.trace("Releasing tracing context for span {}", span);
-      // now let's wait for any date being currently persisted
+      // now let's wait for any data being currently persisted
       // 'persist()' method guarantees that the 'persisted' value will become != EMPTY_DATA
       while (persisted == EMPTY_DATA) {
         Thread.yield();
@@ -336,17 +338,22 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     int threadCount = 0;
     outer:
     for (long threadId : threadIds) {
-      threadCount++;
-      IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
       LongSequence rawIntervals = threadSequences.get(threadId);
+      if (rawIntervals == null) {
+        // the tracker was released due to expiration
+        warnlog.warn("Context interval sequence for thread id {} was not captured", threadId);
+        continue;
+      }
       int sequenceSize = rawIntervals.getCapturedSize();
 
       if (sequenceSize == -1) {
         // this should never happen given the assumption under which this method is executed
         // but - just in case, log a warning and skip the sequence
-        log.warn("Context interval sequence for thread id {} was not captured", threadId);
+        warnlog.warn("Context interval sequence for thread id {} was not captured", threadId);
         continue;
       }
+      IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
+      threadCount++;
 
       /*
       The only potential contention here will be between the tracked thread and the context summarization
@@ -354,6 +361,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       to that span still being executed in some other thread is pretty low. Therefore, most of the time the lock
       will be uncontented.
        */
+      //noinspection SynchronizationOnLocalVariableOrMethodParameter
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
         int sequenceIndex = 0;
@@ -387,7 +395,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     }
   }
 
-  ExpirationTracker.Expirable getExpirationTracker() {
+  ExpirationTracker.Expirable getExpirable() {
     return expirable;
   }
 

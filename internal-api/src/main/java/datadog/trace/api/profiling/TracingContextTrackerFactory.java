@@ -44,7 +44,8 @@ public final class TracingContextTrackerFactory {
   }
 
   static void removeImplementation(Implementation implementation) {
-    TracingContextTrackerFactory.implFieldUpdater.compareAndSet(INSTANCE, implementation, Implementation.EMPTY);
+    TracingContextTrackerFactory.implFieldUpdater.compareAndSet(
+        INSTANCE, implementation, Implementation.EMPTY);
   }
 
   public static boolean isTrackingAvailable() {

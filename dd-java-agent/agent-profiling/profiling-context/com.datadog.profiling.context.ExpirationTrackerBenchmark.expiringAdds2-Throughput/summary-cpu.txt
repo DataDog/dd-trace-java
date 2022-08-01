@@ -1,0 +1,3197 @@
+--- Execution profile ---
+Total samples       : 9136
+unknown_Java        : 17 (0.19%)
+
+--- 15510000000 ns (16.98%), 1551 samples
+  [ 0] os::javaTimeNanos()
+  [ 1] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 7910000000 ns (8.66%), 791 samples
+  [ 0] mach_absolute_time
+  [ 1] os::javaTimeNanos()
+  [ 2] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 7140000000 ns (7.82%), 714 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 6630000000 ns (7.26%), 663 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 8] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 4750000000 ns (5.20%), 475 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.getBucketIndex
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 3940000000 ns (4.31%), 394 samples
+  [ 0] ObjectMonitor::TrySpin_VaryDuration(Thread*)
+  [ 1] ObjectMonitor::enter(Thread*)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 3300000000 ns (3.61%), 330 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 3220000000 ns (3.52%), 322 samples
+  [ 0] ObjectMonitor::NotRunnable(Thread*, Thread*)
+  [ 1] ObjectMonitor::TrySpin_VaryDuration(Thread*)
+  [ 2] ObjectMonitor::enter(Thread*)
+  [ 3] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 4] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 5] com.datadog.profiling.context.ExpirationTracker.track
+  [ 6] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke
+  [11] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [12] java.lang.reflect.Method.invoke
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.Executors$RunnableAdapter.call
+  [17] java.util.concurrent.FutureTask.run
+  [18] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [19] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [20] java.lang.Thread.run
+
+--- 2740000000 ns (3.00%), 274 samples
+  [ 0] __psynch_cvwait
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 2430000000 ns (2.66%), 243 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.current
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 2010000000 ns (2.20%), 201 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 1850000000 ns (2.02%), 185 samples
+  [ 0] java.lang.Math.getExponent
+  [ 1] java.lang.StrictMath.floorOrCeil
+  [ 2] java.lang.StrictMath.ceil
+  [ 3] java.lang.Math.ceil
+  [ 4] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 5] com.datadog.profiling.context.ExpirationTracker.track
+  [ 6] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke
+  [11] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [12] java.lang.reflect.Method.invoke
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.Executors$RunnableAdapter.call
+  [17] java.util.concurrent.FutureTask.run
+  [18] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [19] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [20] java.lang.Thread.run
+
+--- 1840000000 ns (2.01%), 184 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 1500000000 ns (1.64%), 150 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 1040000000 ns (1.14%), 104 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.hasExpiration
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  [ 2] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 4] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 5] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] org.jctools.queues.MpscArrayQueue.drain
+  [ 8] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 9] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [10] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [11] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [12] java.lang.Thread.run
+
+--- 950000000 ns (1.04%), 95 samples
+  [ 0] java.util.concurrent.atomic.AtomicInteger.get
+  [ 1] com.datadog.profiling.context.ExpirationTracker$BucketAvailabilityTracker.hasAvailableBuckets
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 930000000 ns (1.02%), 93 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 8] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 930000000 ns (1.02%), 93 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 900000000 ns (0.99%), 90 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.getBucketIndex
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 710000000 ns (0.78%), 71 samples
+  [ 0] java.lang.Math.getExponent
+  [ 1] java.lang.StrictMath.floorOrCeil
+  [ 2] java.lang.StrictMath.ceil
+  [ 3] java.lang.Math.ceil
+  [ 4] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 5] com.datadog.profiling.context.ExpirationTracker.track
+  [ 6] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke
+  [11] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [12] java.lang.reflect.Method.invoke
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.Executors$RunnableAdapter.call
+  [17] java.util.concurrent.FutureTask.run
+  [18] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [19] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [20] java.lang.Thread.run
+
+--- 710000000 ns (0.78%), 71 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 670000000 ns (0.73%), 67 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket$$Lambda$9/1883999095.get$Lambda
+  [ 1] java.lang.invoke.LambdaForm$DMH/1581781576.invokeStatic_L_L
+  [ 2] java.lang.invoke.LambdaForm$MH/560431964.linkToTargetMethod
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 660000000 ns (0.72%), 66 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.getBucketIndex
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 660000000 ns (0.72%), 66 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 610000000 ns (0.67%), 61 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 8] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 600000000 ns (0.66%), 60 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 500000000 ns (0.55%), 50 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 480000000 ns (0.53%), 48 samples
+  [ 0] ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 470000000 ns (0.51%), 47 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 460000000 ns (0.50%), 46 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$BucketAvailabilityTracker.hasAvailableBuckets
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 450000000 ns (0.49%), 45 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.hasExpiration
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  [ 2] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 4] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 5] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] org.jctools.queues.MpscArrayQueue.drain
+  [ 8] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 9] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [10] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [11] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [12] java.lang.Thread.run
+
+--- 450000000 ns (0.49%), 45 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 360000000 ns (0.39%), 36 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 350000000 ns (0.38%), 35 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 340000000 ns (0.37%), 34 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 340000000 ns (0.37%), 34 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.<init>
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 330000000 ns (0.36%), 33 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket$$Lambda$9/1883999095.get$Lambda
+  [ 1] java.lang.invoke.LambdaForm$DMH/1581781576.invokeStatic_L_L
+  [ 2] java.lang.invoke.LambdaForm$MH/560431964.linkToTargetMethod
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 330000000 ns (0.36%), 33 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 310000000 ns (0.34%), 31 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 310000000 ns (0.34%), 31 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 310000000 ns (0.34%), 31 samples
+  [ 0] ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 300000000 ns (0.33%), 30 samples
+  [ 0] ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 300000000 ns (0.33%), 30 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextSeed
+  [ 1] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 300000000 ns (0.33%), 30 samples
+  [ 0] SpinPause
+  [ 1] ObjectMonitor::enter(Thread*)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 290000000 ns (0.32%), 29 samples
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 280000000 ns (0.31%), 28 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.mix32
+  [ 1] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 260000000 ns (0.28%), 26 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 250000000 ns (0.27%), 25 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 3] org.jctools.queues.MpscArrayQueue.drain
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 6] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 7] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 240000000 ns (0.26%), 24 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 240000000 ns (0.26%), 24 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 240000000 ns (0.26%), 24 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.lambda$add$0
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket$$Lambda$9/1883999095.accept
+  [ 2] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 4] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 5] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] org.jctools.queues.MpscArrayQueue.drain
+  [ 8] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 9] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [10] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [11] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [12] java.lang.Thread.run
+
+--- 230000000 ns (0.25%), 23 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 220000000 ns (0.24%), 22 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 210000000 ns (0.23%), 21 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 210000000 ns (0.23%), 21 samples
+  [ 0] ObjectMonitor::enter(Thread*)
+  [ 1] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 200000000 ns (0.22%), 20 samples
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 200000000 ns (0.22%), 20 samples
+  [ 0] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 2] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 4] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 5] java.lang.reflect.Method.invoke
+  [ 6] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] java.util.concurrent.FutureTask.run
+  [ 9] java.util.concurrent.Executors$RunnableAdapter.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [12] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [13] java.lang.Thread.run
+
+--- 200000000 ns (0.22%), 20 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 190000000 ns (0.21%), 19 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 8] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 190000000 ns (0.21%), 19 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 180000000 ns (0.20%), 18 samples
+  [ 0] java.util.concurrent.atomic.AtomicLongFieldUpdater$CASUpdater.getAndSet
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 180000000 ns (0.20%), 18 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consume
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 180000000 ns (0.20%), 18 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.getBucketIndex
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 180000000 ns (0.20%), 18 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextSeed
+  [ 1] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 180000000 ns (0.20%), 18 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.mix32
+  [ 1] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 170000000 ns (0.19%), 17 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 170000000 ns (0.19%), 17 samples
+  [ 0] ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 170000000 ns (0.19%), 17 samples
+  [ 0] os::javaTimeNanos()
+  [ 1] [unknown_Java]
+
+--- 160000000 ns (0.18%), 16 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 150000000 ns (0.16%), 15 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.<init>
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 150000000 ns (0.16%), 15 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.mix32
+  [ 1] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 140000000 ns (0.15%), 14 samples
+  [ 0] pthread_cond_init
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 140000000 ns (0.15%), 14 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 140000000 ns (0.15%), 14 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 140000000 ns (0.15%), 14 samples
+  [ 0] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 5] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 6] java.lang.reflect.Method.invoke
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] java.util.concurrent.FutureTask.run
+  [10] java.util.concurrent.Executors$RunnableAdapter.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [13] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [14] java.lang.Thread.run
+
+--- 130000000 ns (0.14%), 13 samples
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 130000000 ns (0.14%), 13 samples
+  [ 0] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 1] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 2] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 3] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 4] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 5] java.lang.reflect.Method.invoke
+  [ 6] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 7] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 8] java.util.concurrent.FutureTask.run
+  [ 9] java.util.concurrent.Executors$RunnableAdapter.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [12] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [13] java.lang.Thread.run
+
+--- 130000000 ns (0.14%), 13 samples
+  [ 0] __gettimeofday
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 110000000 ns (0.12%), 11 samples
+  [ 0] mach_absolute_time
+  [ 1] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 110000000 ns (0.12%), 11 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.access$200
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 8] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 100000000 ns (0.11%), 10 samples
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 100000000 ns (0.11%), 10 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 100000000 ns (0.11%), 10 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 100000000 ns (0.11%), 10 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 100000000 ns (0.11%), 10 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 100000000 ns (0.11%), 10 samples
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 90000000 ns (0.10%), 9 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket$$Lambda$9/1883999095.get$Lambda
+  [ 1] java.lang.invoke.LambdaForm$DMH/1581781576.invokeStatic_L_L
+  [ 2] java.lang.invoke.LambdaForm$MH/560431964.linkToTargetMethod
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 90000000 ns (0.10%), 9 samples
+  [ 0] BiasedLocking::revoke_and_rebias(Handle, bool, Thread*)
+  [ 1] ObjectSynchronizer::fast_enter(Handle, BasicLock*, bool, Thread*)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 90000000 ns (0.10%), 9 samples
+  [ 0] org.openjdk.jmh.infra.Blackhole.consumeFull
+  [ 1] org.openjdk.jmh.infra.Blackhole.consume
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 90000000 ns (0.10%), 9 samples
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$$Lambda$4/1316291647.getNanos
+  [ 1] com.datadog.profiling.context.ExpirationTracker.track
+  [ 2] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 7] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 8] java.lang.reflect.Method.invoke
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] java.util.concurrent.FutureTask.run
+  [12] java.util.concurrent.Executors$RunnableAdapter.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [15] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [16] java.lang.Thread.run
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 70000000 ns (0.08%), 7 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 50000000 ns (0.05%), 5 samples
+  [ 0] __psynch_cvwait
+  [ 1] os::PlatformEvent::park(long)
+  [ 2] Monitor::IWait(Thread*, long)
+  [ 3] Monitor::wait(bool, long, bool)
+  [ 4] WatcherThread::sleep() const
+  [ 5] WatcherThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 50000000 ns (0.05%), 5 samples
+  [ 0] ThreadInVMfromJavaNoAsyncException::~ThreadInVMfromJavaNoAsyncException()
+  [ 1] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 50000000 ns (0.05%), 5 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 50000000 ns (0.05%), 5 samples
+  [ 0] ObjArrayKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+  [ 1] PSParallelCompact::update_deferred_objects(ParCompactionManager*, PSParallelCompact::SpaceId)
+  [ 2] PSParallelCompact::compact()
+  [ 3] PSParallelCompact::invoke_no_policy(bool)
+  [ 4] PSScavenge::invoke()
+  [ 5] ParallelScavengeHeap::failed_mem_allocate(unsigned long)
+  [ 6] VM_ParallelGCFailedAllocation::doit()
+  [ 7] VM_Operation::evaluate()
+  [ 8] VMThread::evaluate_operation(VM_Operation*)
+  [ 9] VMThread::loop()
+  [10] VMThread::run()
+  [11] java_start(Thread*)
+  [12] _pthread_start
+  [13] thread_start
+
+--- 40000000 ns (0.04%), 4 samples
+  [ 0] ObjectMonitor::NotRunnable(Thread*, Thread*)
+  [ 1] ObjectMonitor::enter(Thread*)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 40000000 ns (0.04%), 4 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 40000000 ns (0.04%), 4 samples
+  [ 0] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 40000000 ns (0.04%), 4 samples
+  [ 0] Arena::Amalloc_4(unsigned long, AllocFailStrategy::AllocFailEnum)
+  [ 1] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] Parker::park(bool, long)
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] __psynch_cvwait
+  [ 1] os::PlatformEvent::park(long)
+  [ 2] ObjectMonitor::EnterI(Thread*)
+  [ 3] ObjectMonitor::enter(Thread*)
+  [ 4] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 5] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 6] com.datadog.profiling.context.ExpirationTracker.track
+  [ 7] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 9] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [11] sun.reflect.NativeMethodAccessorImpl.invoke
+  [12] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [13] java.lang.reflect.Method.invoke
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.Executors$RunnableAdapter.call
+  [18] java.util.concurrent.FutureTask.run
+  [19] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [20] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [21] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 1] PSPromotionManager::drain_stacks_depth(bool)
+  [ 2] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 3] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsigned long)
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 5] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 6] GCTaskThread::run()
+  [ 7] java_start(Thread*)
+  [ 8] _pthread_start
+  [ 9] thread_start
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] Arena::check_for_overflow(unsigned long, char const*, AllocFailStrategy::AllocFailEnum) const
+  [ 1] Arena::Amalloc_4(unsigned long, AllocFailStrategy::AllocFailEnum)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] ObjectMonitor::TrySpin_VaryDuration(Thread*)
+  [ 1] ObjectMonitor::EnterI(Thread*)
+  [ 2] ObjectMonitor::enter(Thread*)
+  [ 3] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 4] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 5] com.datadog.profiling.context.ExpirationTracker.track
+  [ 6] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke
+  [11] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [12] java.lang.reflect.Method.invoke
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.Executors$RunnableAdapter.call
+  [17] java.util.concurrent.FutureTask.run
+  [18] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [19] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [20] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] ObjectSynchronizer::fast_enter(Handle, BasicLock*, bool, Thread*)
+  [ 1] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] PSPromotionManager::drain_stacks_depth(bool)
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] os::javaTimeNanos()
+  [ 1] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 2] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 5] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 6] java.lang.Thread.run
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] GenericTaskQueueSet<OverflowTaskQueue<StarTask, (MemoryType)1, 131072u>, (MemoryType)1>::steal_best_of_2(unsigned int, int*, StarTask&)
+  [ 1] GenericTaskQueueSet<OverflowTaskQueue<StarTask, (MemoryType)1, 131072u>, (MemoryType)1>::steal(unsigned int, int*, StarTask&)
+  [ 2] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 30000000 ns (0.03%), 3 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] void PSParallelCompact::mark_and_push<unsigned int>(ParCompactionManager*, unsigned int*)
+  [ 1] ParCompactionManager::follow_marking_stacks()
+  [ 2] StealMarkingTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] os::is_interrupted(Thread*, bool)
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] void PSParallelCompact::mark_and_push<unsigned int>(ParCompactionManager*, unsigned int*)
+  [ 1] ParCompactionManager::follow_marking_stacks()
+  [ 2] StealMarkingTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] void PSPromotionManager::claim_or_forward_internal_depth<unsigned int>(unsigned int*)
+  [ 1] InstanceKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 2] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 3] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 4] PSPromotionManager::drain_stacks_depth(bool)
+  [ 5] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 6] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 7] GCTaskThread::run()
+  [ 8] java_start(Thread*)
+  [ 9] _pthread_start
+  [10] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsigned long)
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] SpinPause
+  [ 1] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 2] GCTaskThread::run()
+  [ 3] java_start(Thread*)
+  [ 4] _pthread_start
+  [ 5] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsigned long)
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 5] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 6] GCTaskThread::run()
+  [ 7] java_start(Thread*)
+  [ 8] _pthread_start
+  [ 9] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] YieldingFlexibleWorkGang::run_task(AbstractGangTask*)
+  [ 1] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 3] org.jctools.queues.MpscArrayQueue.drain
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 6] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 7] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] void PSPromotionManager::claim_or_forward_internal_depth<unsigned int>(unsigned int*)
+  [ 1] ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 2] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 3] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] _pthread_cond_wait
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.access$200
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 3] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] org.jctools.queues.MpscArrayQueue.drain
+  [ 7] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 8] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] _pthread_cond_updateval
+  [ 1] _pthread_cond_wait
+  [ 2] Parker::park(bool, long)
+  [ 3] Unsafe_Park
+  [ 4] sun.misc.Unsafe.park
+  [ 5] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 6] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 7] java.util.concurrent.DelayQueue.take
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] pthread_mutex_trylock
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] JavaThread::handle_special_suspend_equivalent_condition()
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] __psynch_cvwait
+  [ 1] os::PlatformEvent::park()
+  [ 2] ParkCommon(ParkEvent*, long)
+  [ 3] Monitor::IWait(Thread*, long)
+  [ 4] Monitor::wait(bool, long, bool)
+  [ 5] GCTaskManager::get_task(unsigned int)
+  [ 6] GCTaskThread::run()
+  [ 7] java_start(Thread*)
+  [ 8] _pthread_start
+  [ 9] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] PSPromotionManager::drain_stacks_depth(bool)
+  [ 1] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 2] GCTaskThread::run()
+  [ 3] java_start(Thread*)
+  [ 4] _pthread_start
+  [ 5] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] org.jctools.queues.MpscArrayQueueConsumerIndexField.soConsumerIndex
+  [ 1] org.jctools.queues.MpscArrayQueue.drain
+  [ 2] org.jctools.queues.MpscArrayQueue.drain
+  [ 3] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 4] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 5] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] MoveAndUpdateClosure::copy_partial_obj()
+  [ 2] PSParallelCompact::fill_region(ParCompactionManager*, unsigned long)
+  [ 3] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] java.util.concurrent.ThreadLocalRandom.current
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] ObjectMonitor::NotRunnable(Thread*, Thread*)
+  [ 1] ObjectMonitor::TrySpin_VaryDuration(Thread*)
+  [ 2] ObjectMonitor::EnterI(Thread*)
+  [ 3] ObjectMonitor::enter(Thread*)
+  [ 4] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 5] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 6] com.datadog.profiling.context.ExpirationTracker.track
+  [ 7] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 9] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [11] sun.reflect.NativeMethodAccessorImpl.invoke
+  [12] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [13] java.lang.reflect.Method.invoke
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.Executors$RunnableAdapter.call
+  [18] java.util.concurrent.FutureTask.run
+  [19] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [20] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [21] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] ObjectMonitor::NotRunnable(Thread*, Thread*)
+  [ 1] ObjectMonitor::TrySpin_VaryDuration(Thread*)
+  [ 2] ObjectMonitor::enter(Thread*)
+  [ 3] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 4] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 5] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 6] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 7] org.jctools.queues.MpscArrayQueue.drain
+  [ 8] org.jctools.queues.MpscArrayQueue.drain
+  [ 9] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [10] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [11] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [12] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [13] java.lang.Thread.run
+
+--- 20000000 ns (0.02%), 2 samples
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] __psynch_cvsignal
+  [ 1] os::PlatformEvent::unpark()
+  [ 2] Monitor::IWait(Thread*, long)
+  [ 3] Monitor::wait(bool, long, bool)
+  [ 4] GCTaskManager::get_task(unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] java.lang.StrictMath.floorOrCeil
+  [ 1] java.lang.StrictMath.ceil
+  [ 2] java.lang.Math.ceil
+  [ 3] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 4] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 5] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 6] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ParallelCompactData::calc_new_pointer(HeapWord*)
+  [ 1] ObjArrayKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+  [ 2] PSParallelCompact::update_deferred_objects(ParCompactionManager*, PSParallelCompact::SpaceId)
+  [ 3] PSParallelCompact::compact()
+  [ 4] PSParallelCompact::invoke_no_policy(bool)
+  [ 5] PSScavenge::invoke()
+  [ 6] ParallelScavengeHeap::failed_mem_allocate(unsigned long)
+  [ 7] VM_ParallelGCFailedAllocation::doit()
+  [ 8] VM_Operation::evaluate()
+  [ 9] VMThread::evaluate_operation(VM_Operation*)
+  [10] VMThread::loop()
+  [11] VMThread::run()
+  [12] java_start(Thread*)
+  [13] _pthread_start
+  [14] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 1] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 2] PSPromotionManager::drain_stacks_depth(bool)
+  [ 3] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 4] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] Monitor::IUnlock(bool)
+  [ 1] JavaThread::handle_special_suspend_equivalent_condition()
+  [ 2] Parker::park(bool, long)
+  [ 3] Unsafe_Park
+  [ 4] sun.misc.Unsafe.park
+  [ 5] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 6] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 7] java.util.concurrent.DelayQueue.take
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] pthread_mutex_lock
+  [ 1] _pthread_cond_wait
+  [ 2] Parker::park(bool, long)
+  [ 3] Unsafe_Park
+  [ 4] sun.misc.Unsafe.park
+  [ 5] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 6] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 7] java.util.concurrent.DelayQueue.take
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] void PSPromotionManager::claim_or_forward_internal_depth<unsigned int>(unsigned int*)
+  [ 1] void PSPromotionManager::process_array_chunk_work<unsigned int>(oopDesc*, int, int)
+  [ 2] PSPromotionManager::drain_stacks_depth(bool)
+  [ 3] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] PSPromotionManager::drain_stacks_depth(bool)
+  [ 1] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 2] GCTaskThread::run()
+  [ 3] java_start(Thread*)
+  [ 4] _pthread_start
+  [ 5] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] PSPromotionManager::drain_stacks_depth(bool)
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] java.util.concurrent.DelayQueue.offer
+  [ 1] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 2] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] pthread_cond_destroy
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] update_heuristics(oopDesc*, bool)
+  [ 1] BiasedLocking::revoke_and_rebias(Handle, bool, Thread*)
+  [ 2] ObjectSynchronizer::fast_enter(Handle, BasicLock*, bool, Thread*)
+  [ 3] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 4] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 5] com.datadog.profiling.context.ExpirationTracker.track
+  [ 6] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke
+  [11] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [12] java.lang.reflect.Method.invoke
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.Executors$RunnableAdapter.call
+  [17] java.util.concurrent.FutureTask.run
+  [18] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [19] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [20] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsigned long)
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] os::is_MP()
+  [ 1] ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] __psynch_cvwait
+  [ 1] os::PlatformEvent::park()
+  [ 2] ParkCommon(ParkEvent*, long)
+  [ 3] Monitor::IWait(Thread*, long)
+  [ 4] Monitor::wait(bool, long, bool)
+  [ 5] WaitForBarrierGCTask::wait_for(bool)
+  [ 6] GCTaskManager::execute_and_wait(GCTaskQueue*)
+  [ 7] PSScavenge::invoke_no_policy()
+  [ 8] PSScavenge::invoke()
+  [ 9] ParallelScavengeHeap::failed_mem_allocate(unsigned long)
+  [10] VM_ParallelGCFailedAllocation::doit()
+  [11] VM_Operation::evaluate()
+  [12] VMThread::evaluate_operation(VM_Operation*)
+  [13] VMThread::loop()
+  [14] VMThread::run()
+  [15] java_start(Thread*)
+  [16] _pthread_start
+  [17] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] PSParallelCompact::fill_region(ParCompactionManager*, unsigned long)
+  [ 2] ParCompactionManager::drain_region_stacks()
+  [ 3] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 1] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 2] PSPromotionManager::drain_stacks_depth(bool)
+  [ 3] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] __commpage_gettimeofday
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ObjectMonitor::EnterI(Thread*)
+  [ 1] ObjectMonitor::enter(Thread*)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker.track
+  [ 1] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 2] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 3] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 4] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 5] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 6] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 7] java.lang.reflect.Method.invoke
+  [ 8] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [ 9] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [10] java.util.concurrent.FutureTask.run
+  [11] java.util.concurrent.Executors$RunnableAdapter.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [14] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [15] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] JavaThread::is_lock_owned(unsigned char*) const
+  [ 1] ObjectMonitor::enter(Thread*)
+  [ 2] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 3] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 4] com.datadog.profiling.context.ExpirationTracker.track
+  [ 5] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 7] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 9] sun.reflect.NativeMethodAccessorImpl.invoke
+  [10] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [11] java.lang.reflect.Method.invoke
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.Executors$RunnableAdapter.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [18] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [19] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] JavaThreadParkedState::~JavaThreadParkedState()
+  [ 1] Unsafe_Park
+  [ 2] sun.misc.Unsafe.park
+  [ 3] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 4] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ParMarkBitMap::live_words_in_range(HeapWord*, oopDesc*) const
+  [ 1] ParallelCompactData::calc_new_pointer(HeapWord*)
+  [ 2] InstanceKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+  [ 3] MoveAndUpdateClosure::do_addr(HeapWord*, unsigned long)
+  [ 4] ParMarkBitMap::iterate(ParMarkBitMapClosure*, unsigned long, unsigned long) const
+  [ 5] PSParallelCompact::fill_region(ParCompactionManager*, unsigned long)
+  [ 6] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 7] GCTaskThread::run()
+  [ 8] java_start(Thread*)
+  [ 9] _pthread_start
+  [10] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] os::javaTimeNanos()
+  [ 1] java.util.concurrent.DelayQueue.take
+  [ 2] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 3] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] _platform_memmove$VARIANT$Haswell
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] JavaFrameAnchor::make_walkable(JavaThread*)
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] datadog.trace.util.AgentTaskScheduler$PeriodicTask.compareTo
+  [ 1] datadog.trace.util.AgentTaskScheduler$PeriodicTask.compareTo
+  [ 2] java.util.PriorityQueue.siftDownComparable
+  [ 3] java.util.PriorityQueue.siftDown
+  [ 4] java.util.PriorityQueue.poll
+  [ 5] java.util.concurrent.DelayQueue.take
+  [ 6] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 7] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 1] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 2] PSPromotionManager::drain_stacks_depth(bool)
+  [ 3] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ParMarkBitMap::live_words_in_range(HeapWord*, oopDesc*) const
+  [ 1] ParallelCompactData::calc_new_pointer(HeapWord*)
+  [ 2] InstanceKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+  [ 3] MoveAndUpdateClosure::do_addr(HeapWord*, unsigned long)
+  [ 4] ParMarkBitMap::iterate(ParMarkBitMapClosure*, unsigned long, unsigned long) const
+  [ 5] PSParallelCompact::fill_region(ParCompactionManager*, unsigned long)
+  [ 6] ParCompactionManager::drain_region_stacks()
+  [ 7] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 8] GCTaskThread::run()
+  [ 9] java_start(Thread*)
+  [10] _pthread_start
+  [11] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] __psynch_cvsignal
+  [ 1] os::PlatformEvent::unpark()
+  [ 2] ObjectMonitor::ExitEpilog(Thread*, ObjectWaiter*)
+  [ 3] SharedRuntime::complete_monitor_unlocking_C(oopDesc*, BasicLock*)
+  [ 4] java.util.concurrent.ThreadLocalRandom.nextInt
+  [ 5] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 6] com.datadog.profiling.context.ExpirationTracker.track
+  [ 7] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 8] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 9] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [10] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [11] sun.reflect.NativeMethodAccessorImpl.invoke
+  [12] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [13] java.lang.reflect.Method.invoke
+  [14] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [15] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [16] java.util.concurrent.FutureTask.run
+  [17] java.util.concurrent.Executors$RunnableAdapter.call
+  [18] java.util.concurrent.FutureTask.run
+  [19] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [20] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [21] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ObjectStartArray::object_start(HeapWord*) const
+  [ 1] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 2] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ParMarkBitMap::live_words_in_range(HeapWord*, oopDesc*) const
+  [ 1] ParallelCompactData::calc_new_pointer(HeapWord*)
+  [ 2] InstanceKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+  [ 3] MoveAndUpdateClosure::do_addr(HeapWord*, unsigned long)
+  [ 4] ParMarkBitMap::iterate(ParMarkBitMapClosure*, unsigned long, unsigned long) const
+  [ 5] PSParallelCompact::fill_region(ParCompactionManager*, unsigned long)
+  [ 6] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 7] GCTaskThread::run()
+  [ 8] java_start(Thread*)
+  [ 9] _pthread_start
+  [10] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ParallelTaskTerminator::offer_termination(TerminatorTerminator*)
+  [ 1] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 2] GCTaskThread::run()
+  [ 3] java_start(Thread*)
+  [ 4] _pthread_start
+  [ 5] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 2] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] GenericTaskQueue<StarTask, (MemoryType)1, 131072u>::pop_local_slow(unsigned int, TaskQueueSuper<131072u, (MemoryType)1>::Age)
+  [ 1] PSPromotionManager::drain_stacks_depth(bool)
+  [ 2] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] InstanceKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] PSPromotionManager::drain_stacks_depth(bool)
+  [ 4] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.fireBucketFull
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] __psynch_mutexwait
+  [ 1] _pthread_mutex_firstfit_lock_slow
+  [ 2] _pthread_cond_wait
+  [ 3] os::PlatformEvent::park(long)
+  [ 4] ObjectMonitor::EnterI(Thread*)
+  [ 5] ObjectMonitor::enter(Thread*)
+  [ 6] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 7] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 8] com.datadog.profiling.context.ExpirationTracker.track
+  [ 9] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [10] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [11] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [12] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [13] sun.reflect.NativeMethodAccessorImpl.invoke
+  [14] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [15] java.lang.reflect.Method.invoke
+  [16] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [17] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [18] java.util.concurrent.FutureTask.run
+  [19] java.util.concurrent.Executors$RunnableAdapter.call
+  [20] java.util.concurrent.FutureTask.run
+  [21] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [22] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [23] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] void PSPromotionManager::process_array_chunk_work<unsigned int>(oopDesc*, int, int)
+  [ 1] PSPromotionManager::drain_stacks_depth(bool)
+  [ 2] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ObjectSynchronizer::slow_enter(Handle, BasicLock*, Thread*)
+  [ 1] SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ThreadInVMfromJavaNoAsyncException::~ThreadInVMfromJavaNoAsyncException()
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker.track
+  [ 3] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 4] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 6] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 8] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [ 9] java.lang.reflect.Method.invoke
+  [10] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] java.util.concurrent.FutureTask.run
+  [13] java.util.concurrent.Executors$RunnableAdapter.call
+  [14] java.util.concurrent.FutureTask.run
+  [15] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [16] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [17] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] Monitor::TryFast()
+  [ 1] Monitor::ILock(Thread*)
+  [ 2] Monitor::lock_without_safepoint_check()
+  [ 3] JavaThread::handle_special_suspend_equivalent_condition()
+  [ 4] Parker::park(bool, long)
+  [ 5] Unsafe_Park
+  [ 6] sun.misc.Unsafe.park
+  [ 7] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 8] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 9] java.util.concurrent.DelayQueue.take
+  [10] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [11] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  [ 1] com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+  [ 2] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 3] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 4] org.jctools.queues.MpscArrayQueue.drain
+  [ 5] org.jctools.queues.MpscArrayQueue.drain
+  [ 6] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 7] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 9] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [10] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker$Expirable.<init>
+  [ 1] com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  [ 2] com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  [ 3] com.datadog.profiling.context.ExpirationTracker.track
+  [ 4] com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+  [ 5] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+  [ 6] com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_Throughput
+  [ 7] sun.reflect.NativeMethodAccessorImpl.invoke0
+  [ 8] sun.reflect.NativeMethodAccessorImpl.invoke
+  [ 9] sun.reflect.DelegatingMethodAccessorImpl.invoke
+  [10] java.lang.reflect.Method.invoke
+  [11] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [12] org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call
+  [13] java.util.concurrent.FutureTask.run
+  [14] java.util.concurrent.Executors$RunnableAdapter.call
+  [15] java.util.concurrent.FutureTask.run
+  [16] java.util.concurrent.ThreadPoolExecutor.runWorker
+  [17] java.util.concurrent.ThreadPoolExecutor$Worker.run
+  [18] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] java.lang.Math.getExponent
+  [ 1] java.lang.StrictMath.floorOrCeil
+  [ 2] java.lang.StrictMath.ceil
+  [ 3] java.lang.Math.ceil
+  [ 4] com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  [ 5] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 6] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 7] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 8] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 9] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ThreadBlockInVM::ThreadBlockInVM(JavaThread*)
+  [ 1] Parker::park(bool, long)
+  [ 2] Unsafe_Park
+  [ 3] sun.misc.Unsafe.park
+  [ 4] java.util.concurrent.locks.LockSupport.parkNanos
+  [ 5] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 6] java.util.concurrent.DelayQueue.take
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] void PSPromotionManager::claim_or_forward_internal_depth<unsigned int>(unsigned int*)
+  [ 1] ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  [ 2] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 3] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+  [ 1] com.datadog.profiling.context.ExpirationTracker$$Lambda$8/718794120.accept
+  [ 2] org.jctools.queues.MpscArrayQueue.drain
+  [ 3] org.jctools.queues.MpscArrayQueue.drain
+  [ 4] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 5] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 6] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 7] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 8] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] GenericTaskQueue<StarTask, (MemoryType)1, 131072u>::pop_global(StarTask volatile&)
+  [ 1] GenericTaskQueueSet<OverflowTaskQueue<StarTask, (MemoryType)1, 131072u>, (MemoryType)1>::steal(unsigned int, int*, StarTask&)
+  [ 2] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 3] GCTaskThread::run()
+  [ 4] java_start(Thread*)
+  [ 5] _pthread_start
+  [ 6] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] ObjArrayKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+  [ 1] MoveAndUpdateClosure::do_addr(HeapWord*, unsigned long)
+  [ 2] PSParallelCompact::fill_region(ParCompactionManager*, unsigned long)
+  [ 3] ParCompactionManager::drain_region_stacks()
+  [ 4] StealRegionCompactionTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 1] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 2] PSPromotionManager::drain_stacks_depth(bool)
+  [ 3] CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+  [ 4] OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)
+  [ 5] GCTaskThread::run()
+  [ 6] java_start(Thread*)
+  [ 7] _pthread_start
+  [ 8] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] java.lang.Thread.interrupted
+  [ 1] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.checkInterruptWhileWaiting
+  [ 2] java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos
+  [ 3] java.util.concurrent.DelayQueue.take
+  [ 4] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 5] java.lang.Thread.run
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsigned long)
+  [ 1] oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+  [ 2] PSPromotionManager::process_popped_location_depth(StarTask)
+  [ 3] StealTask::do_it(GCTaskManager*, unsigned int)
+  [ 4] GCTaskThread::run()
+  [ 5] java_start(Thread*)
+  [ 6] _pthread_start
+  [ 7] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] StringTable::buckets_unlink_or_oops_do(BoolObjectClosure*, OopClosure*, int, int, BasicHashtable<(MemoryType)9>::BucketUnlinkContext*)
+  [ 1] StringTable::unlink_or_oops_do(BoolObjectClosure*, OopClosure*, int*, int*)
+  [ 2] PSScavenge::invoke_no_policy()
+  [ 3] PSScavenge::invoke()
+  [ 4] ParallelScavengeHeap::failed_mem_allocate(unsigned long)
+  [ 5] VM_ParallelGCFailedAllocation::doit()
+  [ 6] VM_Operation::evaluate()
+  [ 7] VMThread::evaluate_operation(VM_Operation*)
+  [ 8] VMThread::loop()
+  [ 9] VMThread::run()
+  [10] java_start(Thread*)
+  [11] _pthread_start
+  [12] thread_start
+
+--- 10000000 ns (0.01%), 1 sample
+  [ 0] com.datadog.profiling.context.ExpirationTracker.processCleanup
+  [ 1] com.datadog.profiling.context.ExpirationTracker$$Lambda$5/1266524873.run
+  [ 2] datadog.trace.util.AgentTaskScheduler$PeriodicTask.run
+  [ 3] datadog.trace.util.AgentTaskScheduler$Worker.run
+  [ 4] java.lang.Thread.run
+
+          ns  percent  samples  top
+  ----------  -------  -------  ---
+ 15730000000   17.22%     1573  os::javaTimeNanos()
+  8970000000    9.82%      897  com.datadog.profiling.context.ExpirationTracker$StripedBucket.add
+  8360000000    9.15%      836  com.datadog.profiling.context.ExpirationTracker$Expirable.isExpiring
+  8040000000    8.80%      804  mach_absolute_time
+  6490000000    7.10%      649  com.datadog.profiling.context.ExpirationTracker.getBucketIndex
+  4240000000    4.64%      424  com.datadog.profiling.context.ExpirationTracker$Bucket.clean
+  3990000000    4.37%      399  com.datadog.profiling.context.ExpirationTracker$Bucket.add
+  3980000000    4.36%      398  ObjectMonitor::TrySpin_VaryDuration(Thread*)
+  3610000000    3.95%      361  com.datadog.profiling.context.ExpirationTracker.track
+  3340000000    3.66%      334  com.datadog.profiling.context.ExpirationTracker.getTimeSlot
+  3300000000    3.61%      330  ObjectMonitor::NotRunnable(Thread*, Thread*)
+  2850000000    3.12%      285  __psynch_cvwait
+  2570000000    2.81%      257  java.lang.Math.getExponent
+  2460000000    2.69%      246  java.util.concurrent.ThreadLocalRandom.current
+  1490000000    1.63%      149  com.datadog.profiling.context.ExpirationTracker$Expirable.hasExpiration
+  1260000000    1.38%      126  ObjArrayKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+  1090000000    1.19%      109  com.datadog.profiling.context.ExpirationTracker$StripedBucket$$Lambda$9/1883999095.get$Lambda
+   950000000    1.04%       95  java.util.concurrent.atomic.AtomicInteger.get
+   920000000    1.01%       92  java.lang.StrictMath.floorOrCeil
+   810000000    0.89%       81  java.util.concurrent.ThreadLocalRandom.nextInt
+   610000000    0.67%       61  java.util.concurrent.ThreadLocalRandom.mix32
+   520000000    0.57%       52  org.openjdk.jmh.infra.Blackhole.consumeFull
+   510000000    0.56%       51  com.datadog.profiling.context.ExpirationTracker$Expirable.<init>
+   480000000    0.53%       48  java.util.concurrent.ThreadLocalRandom.nextSeed
+   460000000    0.50%       46  com.datadog.profiling.context.ExpirationTracker$BucketAvailabilityTracker.hasAvailableBuckets
+   360000000    0.39%       36  com.datadog.profiling.context.ExpirationTracker$StripedBucket.clean
+   330000000    0.36%       33  com.datadog.profiling.context.jmh_generated.ExpirationTrackerBenchmark_expiringAdds2_jmhTest.expiringAdds2_thrpt_jmhStub
+   330000000    0.36%       33  SpinPause
+   240000000    0.26%       24  com.datadog.profiling.context.ExpirationTracker$StripedBucket.lambda$add$0
+   220000000    0.24%       22  ObjectMonitor::enter(Thread*)
+   210000000    0.23%       21  _platform_memmove$VARIANT$Haswell
+   180000000    0.20%       18  org.openjdk.jmh.infra.Blackhole.consume
+   180000000    0.20%       18  java.util.concurrent.atomic.AtomicLongFieldUpdater$CASUpdater.getAndSet
+   140000000    0.15%       14  com.datadog.profiling.context.ExpirationTrackerBenchmark.expiringAdds2
+   140000000    0.15%       14  pthread_cond_init
+   130000000    0.14%       13  com.datadog.profiling.context.ExpirationTracker$Expirable.access$200
+   130000000    0.14%       13  __gettimeofday
+   100000000    0.11%       10  Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsigned long)
+    90000000    0.10%        9  BiasedLocking::revoke_and_rebias(Handle, bool, Thread*)
+    80000000    0.09%        8  PSPromotionManager::drain_stacks_depth(bool)
+    70000000    0.08%        7  com.datadog.profiling.context.ExpirationTracker$$Lambda$4/1316291647.getNanos
+    70000000    0.08%        7  void PSPromotionManager::claim_or_forward_internal_depth<unsigned int>(unsigned int*)
+    60000000    0.07%        6  ObjArrayKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+    60000000    0.07%        6  void PSParallelCompact::mark_and_push<unsigned int>(ParCompactionManager*, unsigned int*)
+    60000000    0.07%        6  ThreadInVMfromJavaNoAsyncException::~ThreadInVMfromJavaNoAsyncException()
+    50000000    0.05%        5  ParMarkBitMap::live_words_in_range(HeapWord*, oopDesc*) const
+    50000000    0.05%        5  oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)
+    40000000    0.04%        4  PSPromotionManager::process_popped_location_depth(StarTask)
+    40000000    0.04%        4  Arena::Amalloc_4(unsigned long, AllocFailStrategy::AllocFailEnum)
+    40000000    0.04%        4  SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)
+    30000000    0.03%        3  Parker::park(bool, long)
+    30000000    0.03%        3  GenericTaskQueueSet<OverflowTaskQueue<StarTask, (MemoryType)1, 131072u>, (MemoryType)1>::steal_best_of_2(unsigned int, int*, StarTask&)
+    30000000    0.03%        3  ObjectSynchronizer::fast_enter(Handle, BasicLock*, bool, Thread*)
+    30000000    0.03%        3  Arena::check_for_overflow(unsigned long, char const*, AllocFailStrategy::AllocFailEnum) const
+    30000000    0.03%        3  ParCompactionManager::follow_marking_stacks()
+    20000000    0.02%        2  __psynch_mutexwait
+    20000000    0.02%        2  _pthread_cond_updateval
+    20000000    0.02%        2  _pthread_cond_wait
+    20000000    0.02%        2  __psynch_cvsignal
+    20000000    0.02%        2  pthread_mutex_trylock
+    20000000    0.02%        2  YieldingFlexibleWorkGang::run_task(AbstractGangTask*)
+    20000000    0.02%        2  GenericTaskQueue<StarTask, (MemoryType)1, 131072u>::pop_global(StarTask volatile&)
+    20000000    0.02%        2  os::is_interrupted(Thread*, bool)
+    20000000    0.02%        2  InstanceKlass::oop_push_contents(PSPromotionManager*, oopDesc*)
+    20000000    0.02%        2  org.jctools.queues.MpscArrayQueueConsumerIndexField.soConsumerIndex
+    20000000    0.02%        2  JavaThread::handle_special_suspend_equivalent_condition()
+    20000000    0.02%        2  JavaThread::is_lock_owned(unsigned char*) const
+    20000000    0.02%        2  Monitor::IUnlock(bool)
+    20000000    0.02%        2  void PSPromotionManager::process_array_chunk_work<unsigned int>(oopDesc*, int, int)
+    20000000    0.02%        2  ParallelCompactData::calc_new_pointer(HeapWord*)
+    20000000    0.02%        2  java.lang.Thread.interrupted
+    20000000    0.02%        2  ObjectStartArray::object_start(HeapWord*) const
+    20000000    0.02%        2  com.datadog.profiling.context.ExpirationTracker.lambda$processCleanup$0
+    10000000    0.01%        1  ObjectSynchronizer::slow_enter(Handle, BasicLock*, Thread*)
+    10000000    0.01%        1  com.datadog.profiling.context.ExpirationTracker.processCleanup
+    10000000    0.01%        1  ObjectSynchronizer::inflate(Thread*, oopDesc*, ObjectSynchronizer::InflateCause)
+    10000000    0.01%        1  ObjectSynchronizer::deflate_idle_monitors()
+    10000000    0.01%        1  ObjectStartArray::object_starts_in_range(HeapWord*, HeapWord*) const
+    10000000    0.01%        1  datadog.trace.util.AgentTaskScheduler$PeriodicTask.compareTo
+    10000000    0.01%        1  datadog.trace.util.AgentTaskScheduler$PeriodicTask.reschedule
+    10000000    0.01%        1  datadog.trace.util.AgentTaskScheduler$Worker.run
+    10000000    0.01%        1  gettimeofday
+    10000000    0.01%        1  ParMarkBitMap::iterate(ParMarkBitMapClosure*, unsigned long, unsigned long) const
+    10000000    0.01%        1  ObjectMonitor::EnterI(Thread*)
+    10000000    0.01%        1  ParMarkBitMap::mark_obj(HeapWord*, unsigned long)
+    10000000    0.01%        1  ParallelTaskTerminator::offer_termination(TerminatorTerminator*)
+    10000000    0.01%        1  java.util.PriorityQueue.siftDownComparable
+    10000000    0.01%        1  java.util.concurrent.DelayQueue.offer
+    10000000    0.01%        1  java.util.concurrent.DelayQueue.take
+    10000000    0.01%        1  Monitor::TryFast()
+    10000000    0.01%        1  SafepointSynchronize::begin()
+    10000000    0.01%        1  Monitor::ILock(Thread*)
+    10000000    0.01%        1  JavaThreadParkedState::~JavaThreadParkedState()
+    10000000    0.01%        1  SharedRuntime::find_callee_info_helper(JavaThread*, vframeStream&, Bytecodes::Code&, CallInfo&, Thread*)
+    10000000    0.01%        1  StringTable::buckets_unlink_or_oops_do(BoolObjectClosure*, OopClosure*, int, int, BasicHashtable<(MemoryType)9>::BucketUnlinkContext*)
+    10000000    0.01%        1  java.util.concurrent.locks.AbstractQueuedSynchronizer$Node.<init>
+    10000000    0.01%        1  java.util.concurrent.locks.ReentrantLock$Sync.nonfairTryAcquire
+    10000000    0.01%        1  JavaFrameAnchor::make_walkable(JavaThread*)
+    10000000    0.01%        1  InstanceKlass::oop_update_pointers(ParCompactionManager*, oopDesc*)
+    10000000    0.01%        1  Thread::last_handle_mark() const
+    10000000    0.01%        1  org.jctools.util.UnsafeRefArrayAccess.soRefElement
+    10000000    0.01%        1  ThreadBlockInVM::ThreadBlockInVM(JavaThread*)
+    10000000    0.01%        1  GenericTaskQueue<StarTask, (MemoryType)1, 131072u>::pop_local_slow(unsigned int, TaskQueueSuper<131072u, (MemoryType)1>::Age)
+    10000000    0.01%        1  os::is_MP()
+    10000000    0.01%        1  ThreadStateTransition::ThreadStateTransition(JavaThread*)
+    10000000    0.01%        1  com.datadog.profiling.context.ExpirationTracker$Bucket.fireBucketFull
+    10000000    0.01%        1  pthread_cond_destroy
+    10000000    0.01%        1  CollectedHeap::allocate_from_tlab_slow(KlassHandle, Thread*, unsigned long)
+    10000000    0.01%        1  pthread_mutex_lock
+    10000000    0.01%        1  __commpage_gettimeofday
+    10000000    0.01%        1  sun.misc.Unsafe.park
+    10000000    0.01%        1  update_heuristics(oopDesc*, bool)
+    10000000    0.01%        1  Chunk::next() const
+    10000000    0.01%        1  CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)
+    10000000    0.01%        1  java.util.PriorityQueue.peek

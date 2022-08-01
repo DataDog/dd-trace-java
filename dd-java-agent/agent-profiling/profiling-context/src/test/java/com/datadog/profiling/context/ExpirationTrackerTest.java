@@ -1,14 +1,15 @@
 package com.datadog.profiling.context;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class ExpirationTrackerTest {
   private static final long expiration = 5;
@@ -22,7 +23,8 @@ class ExpirationTrackerTest {
 
   @BeforeEach
   void setup() throws Exception {
-    instance = new ExpirationTracker(expiration, granularity, timeUnit, 2, capacity, timeSource, false);
+    instance =
+        new ExpirationTracker(expiration, granularity, timeUnit, 2, capacity, timeSource, false);
   }
 
   @AfterEach
@@ -41,17 +43,16 @@ class ExpirationTrackerTest {
       assertNotNull(e);
       assertNotEquals(ExpirationTracker.Expirable.EMPTY, e, "element " + i);
 
-      instance.processCleanup();
-
       timeSource.proceed(1, timeUnit);
+      instance.processCleanup();
     }
 
     assertEquals(elements - expiration, expiredCnt.get());
   }
 
   @Test
-  void checkCapacitySingleTick() throws Exception {
-    for (int i = 0; i < instance.tickCapacity(); i++) {
+  void checkCapacitySingleBucket() throws Exception {
+    for (int i = 0; i < instance.bucketCapacity(); i++) {
       ExpirationTracker.Expirable e = instance.track(() -> {});
       assertNotNull(e);
       assertNotEquals(ExpirationTracker.Expirable.EMPTY, e, "Element " + i);
@@ -61,12 +62,12 @@ class ExpirationTrackerTest {
 
     // capacity is exhausted - the tracking should be refused
     assertEquals(ExpirationTracker.Expirable.EMPTY, e);
-
   }
 
   @Test
   void checkBrokenCleanup() {
-    // here we are not going to move forward the cleaner ticks so we should start geting NOOPs after the 'expiration' number of adds
+    // here we are not going to move forward the cleaner ticks so we should start geting NOOPs after
+    // the 'expiration' number of adds
     // this test depends on the internal implementation of MpscArrayQueue which rounds up
     // the asked capacity (10) to the nearest larger power of two (16)
     for (int i = 0; i < 16; i++) {
@@ -76,6 +77,17 @@ class ExpirationTrackerTest {
       timeSource.proceed(1, timeUnit);
     }
 
+    // time source must be moved forward asynchronously -
+    // otherwise the attempt to cleanup will never time out
+    new Timer(true)
+        .schedule(
+            new TimerTask() {
+              @Override
+              public void run() {
+                timeSource.proceed(510, TimeUnit.MILLISECONDS);
+              }
+            },
+            500L);
     ExpirationTracker.Expirable e = instance.track(() -> {});
     assertEquals(ExpirationTracker.Expirable.EMPTY, e);
   }
@@ -100,17 +112,18 @@ class ExpirationTrackerTest {
   @Test
   void checkBucketFillup() {
     AtomicBoolean isFull = new AtomicBoolean(false);
-    ExpirationTracker.Bucket.Callback callback = new ExpirationTracker.Bucket.Callback() {
-      @Override
-      public void onBucketFull() {
-        isFull.set(true);
-      }
+    ExpirationTracker.Bucket.Callback callback =
+        new ExpirationTracker.Bucket.Callback() {
+          @Override
+          public void onBucketFull() {
+            isFull.set(true);
+          }
 
-      @Override
-      public void onBucketAvailable() {
-        isFull.set(false);
-      }
-    };
+          @Override
+          public void onBucketAvailable() {
+            isFull.set(false);
+          }
+        };
 
     ExpirationTracker.Bucket bucket = new ExpirationTracker.Bucket(1, callback);
 
@@ -125,5 +138,4 @@ class ExpirationTrackerTest {
     e1 = bucket.add(0, timeUnit.toNanos(1), b -> {});
     assertNotEquals(ExpirationTracker.Expirable.EMPTY, e1);
   }
-
 }

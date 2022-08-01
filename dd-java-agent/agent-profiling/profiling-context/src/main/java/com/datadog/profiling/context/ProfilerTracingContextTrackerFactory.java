@@ -7,12 +7,11 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.TimeUnit;
-
-import datadog.trace.relocate.api.RatelimitedLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +21,9 @@ public final class ProfilerTracingContextTrackerFactory
       LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
-          LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class), 30, TimeUnit.SECONDS);
+          LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class),
+          30,
+          TimeUnit.SECONDS);
 
   private static final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
@@ -77,7 +78,15 @@ public final class ProfilerTracingContextTrackerFactory
         reservedMemoryType.equalsIgnoreCase("direct")
             ? Allocators.directAllocator(reservedMemorySize, 32)
             : Allocators.heapAllocator(reservedMemorySize, 32);
-    this.expirationTracker = new ExpirationTracker(inactivityDelayNs, TimeUnit.MILLISECONDS.toNanos(inactivityCheckPeriodMs), TimeUnit.NANOSECONDS, Runtime.getRuntime().availableProcessors(), 500_000);
+    this.expirationTracker =
+        inactivityDelayNs > 0
+            ? new ExpirationTracker(
+                inactivityDelayNs,
+                TimeUnit.MILLISECONDS.toNanos(inactivityCheckPeriodMs),
+                TimeUnit.NANOSECONDS,
+                Runtime.getRuntime().availableProcessors(),
+                500_000)
+            : null;
   }
 
   private static ProfilerTracingContextTracker.TimeTicksProvider getTicksProvider() {
@@ -132,10 +141,14 @@ public final class ProfilerTracingContextTrackerFactory
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
-    ExpirationTracker.Expirable e = expirationTracker.track();
-    if (!e.hasExpiration()) {
-      warnlog.warn("Expiration tracking of profiling context failed. Span {} will not be tracked", span);
-      return TracingContextTracker.EMPTY;
+    ExpirationTracker.Expirable e = ExpirationTracker.Expirable.EMPTY;
+    if (expirationTracker != null) {
+      e = expirationTracker.track();
+      if (!e.hasExpiration()) {
+        warnlog.warn(
+            "Expiration tracking of profiling context failed. Span {} will not be tracked", span);
+        return TracingContextTracker.EMPTY;
+      }
     }
     ProfilerTracingContextTracker instance =
         new ProfilerTracingContextTracker(allocator, span, timeTicksProvider, sequencePruner, e);
