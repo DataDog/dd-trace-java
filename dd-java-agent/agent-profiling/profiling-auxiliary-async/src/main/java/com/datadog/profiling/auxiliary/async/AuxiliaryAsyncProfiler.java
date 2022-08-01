@@ -59,7 +59,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   private void emitConfiguration() {
     try {
       new AsyncProfilerConfigEvent(
-              asyncProfiler.getVersion(),
+              AsyncProfiler.getVersion(),
               configProvider.getString(ProfilingConfig.PROFILING_ASYNC_LIBPATH),
               asyncProfiler.getCpuInterval(),
               asyncProfiler.getWallInterval(),

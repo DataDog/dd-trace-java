@@ -27,6 +27,8 @@ public final class AsyncProfiler {
 
   public static final String TYPE = "async";
 
+  public static final String VERSION_TAG = "async_profiler_version";
+
   private static final class Singleton {
     private static final AsyncProfiler INSTANCE;
 
@@ -38,6 +40,8 @@ public final class AsyncProfiler {
       }
     }
   }
+
+  private static AsyncProfiler INSTANCE;
 
   private final long memleakIntervalDefault;
 
@@ -92,7 +96,18 @@ public final class AsyncProfiler {
   }
 
   public static AsyncProfiler getInstance() {
-    return Singleton.INSTANCE;
+    return INSTANCE = Singleton.INSTANCE;
+  }
+
+  public static boolean hasInstance() {
+    return INSTANCE != null && INSTANCE.asyncProfiler != null;
+  }
+
+  public static String getVersion() {
+    if (INSTANCE == null || INSTANCE.asyncProfiler == null) {
+      return null;
+    }
+    return INSTANCE.asyncProfiler.getVersion();
   }
 
   private static one.profiler.AsyncProfiler inferFromOsAndArch()
@@ -142,10 +157,6 @@ public final class AsyncProfiler {
     File localLib =
         LibraryHelper.libraryFromClasspath("/native-libs/" + libDir + "/libasyncProfiler.so");
     return one.profiler.AsyncProfiler.getInstance(localLib.getAbsolutePath());
-  }
-
-  public String getVersion() {
-    return asyncProfiler.getVersion();
   }
 
   @Nullable
