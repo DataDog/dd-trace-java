@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
@@ -24,7 +25,10 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
+import java.util.Arrays;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -146,6 +150,10 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
+
+        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
+        span.mergePathwayContext(pathwayContext);
+        AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:kafka", "topic:" + record.topic()));
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -191,6 +199,10 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
+
+        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
+        span.mergePathwayContext(pathwayContext);
+        AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:kafka", "topic:" + record.topic()));
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
