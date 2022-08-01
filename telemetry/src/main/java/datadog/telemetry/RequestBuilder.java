@@ -106,7 +106,7 @@ public class RequestBuilder {
     String json = JSON_ADAPTER.toJson(telemetry);
     RequestBody body = RequestBody.create(JSON, json);
 
-    return new SafeRequestBuilder.Builder()
+    return new SafeRequestBuilder()
         .url(httpUrl)
         .addHeader("Content-Type", JSON.toString())
         .addHeader("DD-Telemetry-API-Version", API_VERSION.toString())

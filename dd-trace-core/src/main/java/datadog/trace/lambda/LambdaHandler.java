@@ -65,7 +65,7 @@ public class LambdaHandler {
     try (Response response =
         HTTP_CLIENT
             .newCall(
-                new SafeRequestBuilder.Builder()
+                new SafeRequestBuilder()
                     .url(EXTENSION_BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
                     .post(body)
@@ -106,8 +106,8 @@ public class LambdaHandler {
       return false;
     }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
-    SafeRequestBuilder.Builder builder =
-        new SafeRequestBuilder.Builder()
+    SafeRequestBuilder builder =
+        new SafeRequestBuilder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())

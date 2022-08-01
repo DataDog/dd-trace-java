@@ -154,7 +154,7 @@ public final class OkHttpUtils {
                 final String credential =
                     Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-                return new SafeRequestBuilder.Builder(response.request().newBuilder())
+                return new SafeRequestBuilder(response.request().newBuilder())
                     .header("Proxy-Authorization", credential)
                     .build();
               }
@@ -175,8 +175,8 @@ public final class OkHttpUtils {
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
 
-    final SafeRequestBuilder.Builder builder =
-        new SafeRequestBuilder.Builder()
+    final SafeRequestBuilder builder =
+        new SafeRequestBuilder()
             .url(url)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
@@ -206,7 +206,7 @@ public final class OkHttpUtils {
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless. No point in adding it to
       // other agent-based requests since we know the datadog-agent isn't going to make use of it.
-      builder = new SafeRequestBuilder.Builder(builder).addHeader(DD_API_KEY, apiKey).getBuilder();
+      builder = new SafeRequestBuilder(builder).addHeader(DD_API_KEY, apiKey).getBuilder();
     }
 
     return builder;

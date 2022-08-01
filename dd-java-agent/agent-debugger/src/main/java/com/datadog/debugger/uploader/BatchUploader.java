@@ -152,8 +152,7 @@ public class BatchUploader {
     if (!tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    SafeRequestBuilder.Builder requestBuilder =
-        new SafeRequestBuilder.Builder().url(builder.build()).post(body);
+    SafeRequestBuilder requestBuilder = new SafeRequestBuilder().url(builder.build()).post(body);
     if (apiKey != null) {
       if (apiKey.isEmpty()) {
         log.debug("API key is empty");
