@@ -37,11 +37,6 @@ class KafkaStreams32Test extends AgentTestRunner {
   @Shared
   EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
 
-  @Override
-  protected boolean isDataStreamsEnabled() {
-    return true;
-  }
-
   def "test kafka produce and consume with streams in-between"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
