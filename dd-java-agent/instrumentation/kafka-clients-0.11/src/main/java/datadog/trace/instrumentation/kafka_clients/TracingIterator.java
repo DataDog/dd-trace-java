@@ -65,6 +65,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+          System.out.println("[TEST_LOG] TracingIterator.startNewRecordSpan");
           final Context spanContext = propagate().extract(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || KAFKA_LEGACY_TRACING) {

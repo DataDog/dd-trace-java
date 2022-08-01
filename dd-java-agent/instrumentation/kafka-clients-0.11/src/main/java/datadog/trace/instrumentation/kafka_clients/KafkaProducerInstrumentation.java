@@ -76,6 +76,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
 
+      System.out.println("[TEST_LOG] KafkaProducerInstrumentation.onMethodEnter");
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
       // https://github.com/apache/kafka/blob/05fcfde8f69b0349216553f711fdfc3f0259c601/clients/src/main/java/org/apache/kafka/common/record/MemoryRecordsBuilder.java#L411-L412

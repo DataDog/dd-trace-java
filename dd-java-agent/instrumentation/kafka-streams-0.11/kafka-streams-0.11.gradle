@@ -13,6 +13,7 @@ apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
   latestDepTest
+  kafka32Test
 }
 
 dependencies {
@@ -38,4 +39,12 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.7+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.7+'
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
+
+  kafka32TestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '3.2.0'
+  kafka32TestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.2.0'
+  kafka32TestImplementation group: 'org.apache.kafka', name: 'kafka-streams', version: '3.2.0'
+  // spring-kafka 2.8.x pulls in kafka-clients/streams 3.x which behaves differently
+  kafka32TestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.8+'
+  kafka32TestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.8+'
+  kafka32TestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
 }
