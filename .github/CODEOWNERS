@@ -8,3 +8,11 @@ dd-smoke-tests/profiling-integration-tests/ @DataDog/profiling-java
 
 # @ValentinZakharov is not in the @DataDog org :( so add him here
 dd-java-agent/appsec/  @DataDog/appsec-java @ValentinZakharov
+
+# @DataDog/ci-app-libraries-java
+internal-api/src/main/java/datadog/trace/bootstrap/instrumentation/ci/ @DataDog/ci-app-libraries-java
+dd-trace-core/src/main/java/datadog/trace/civisibility/                @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-4.10/                              @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/junit-5.3/                               @DataDog/ci-app-libraries-java
+dd-java-agent/instrumentation/testng-6.4/                              @DataDog/ci-app-libraries-java
+
