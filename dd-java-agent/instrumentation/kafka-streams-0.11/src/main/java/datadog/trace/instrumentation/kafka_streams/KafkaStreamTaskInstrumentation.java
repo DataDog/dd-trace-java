@@ -59,6 +59,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         packageName + ".KafkaStreamsDecorator",
         packageName + ".ProcessorRecordContextVisitor",
         packageName + ".StampedRecordContextVisitor",
+        packageName + ".KafkaStreamTaskInstrumentation",
         packageName + ".KafkaStreamTaskInstrumentation$StreamTaskContext",
     };
   }
