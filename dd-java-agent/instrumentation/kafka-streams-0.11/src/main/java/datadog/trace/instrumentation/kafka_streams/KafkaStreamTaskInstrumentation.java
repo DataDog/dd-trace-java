@@ -97,16 +97,20 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    // StreamsConfig was the 4th input argument to StreamTask's constructor in kafka versions 2.6 to 3.1.
+    // Starting from 3.2 StreamsConfig was no longer an input argument into StreamTask.
     transformation.applyAdvice(
         isConstructor()
             .and(takesArgument(4, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor4Advice");
 
+    // StreamsConfig was the 5th input argument to StreamTask's constructor in kafka versions 1.1 to 2.5
     transformation.applyAdvice(
         isConstructor()
             .and(takesArgument(5, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor5Advice");
 
+    // StreamsConfig was the 6th input argument to StreamTask's constructor in kafka versions 0.11 to 1.0.
     transformation.applyAdvice(
         isConstructor()
             .and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
