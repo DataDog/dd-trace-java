@@ -36,18 +36,6 @@ configurations {
 
 shadowJar {
   dependencies deps.excludeShared
-  exclude {
-    if (it.path.startsWith('org/jctools/')) {
-      def ret = true
-      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps')) {
-        ret = false
-      } else {
-        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') || it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap'))
-      }
-      return ret
-    }
-    return false
-  }
 }
 
 jar {
