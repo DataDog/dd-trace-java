@@ -41,7 +41,7 @@ class KafkaStreamsTest extends AgentTestRunner {
 
   @Override
   protected boolean isDataStreamsEnabled() {
-    return true;
+    return true
   }
 
   def "test kafka produce and consume with streams in-between"() {

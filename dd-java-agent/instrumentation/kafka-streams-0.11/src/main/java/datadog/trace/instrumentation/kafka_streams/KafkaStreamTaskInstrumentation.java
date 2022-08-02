@@ -59,8 +59,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         packageName + ".KafkaStreamsDecorator",
         packageName + ".ProcessorRecordContextVisitor",
         packageName + ".StampedRecordContextVisitor",
-        packageName + ".KafkaStreamTaskInstrumentation",
-        packageName + ".KafkaStreamTaskInstrumentation$StreamTaskContext",
+        packageName + ".StreamTaskContext",
     };
   }
 
@@ -70,30 +69,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     contextStores.put("org.apache.kafka.streams.processor.internals.StreamTask", StreamTaskContext.class.getName());
 
     return contextStores;
-  }
-
-  public static class StreamTaskContext {
-    private AgentScope agentScope;
-    private String applicationId;
-
-    public StreamTaskContext() {
-    }
-
-    public void setAgentScope(AgentScope agentScope) {
-      this.agentScope = agentScope;
-    }
-
-    public AgentScope getAgentScope() {
-      return agentScope;
-    }
-
-    public void setApplicationId(String applicationId) {
-      this.applicationId = applicationId;
-    }
-
-    public String getApplicationId() {
-      return applicationId;
-    }
   }
 
   @Override
