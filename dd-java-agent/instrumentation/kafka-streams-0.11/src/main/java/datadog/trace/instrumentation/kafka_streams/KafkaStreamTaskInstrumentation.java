@@ -59,6 +59,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         packageName + ".KafkaStreamsDecorator",
         packageName + ".ProcessorRecordContextVisitor",
         packageName + ".StampedRecordContextVisitor",
+        packageName + ".KafkaStreamTaskInstrumentation$StreamTaskContext",
     };
   }
 
@@ -214,26 +215,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     }
   }
 
-  public static void mergeKafkaStreamsPathway(
-      AgentSpan span, PathwayContext pathwayContext, String topic, StreamTaskContext streamTaskContext) {
-    span.mergePathwayContext(pathwayContext);
-    List<String> edgeTags = new ArrayList<>();
-    edgeTags.add("type:kafka");
-    edgeTags.add("topic:" + topic);
-
-    if (streamTaskContext != null) {
-      String applicationId = streamTaskContext.getApplicationId();
-      if (applicationId != null) {
-        edgeTags.add("group:" + applicationId);
-      }
-    }
-    // Kafka Streams uses the application ID as the consumer group.id.
-    AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
-  }
-
   /** Very similar to StartSpanAdvice27, but with a different argument type for record. */
   public static class StartSpanAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void start(
         @Advice.Argument(0) final StampedRecord record,
@@ -264,7 +247,19 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         }
 
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
-        mergeKafkaStreamsPathway(span, pathwayContext, record.topic(), streamTaskContext);
+        span.mergePathwayContext(pathwayContext);
+        List<String> edgeTags = new ArrayList<>();
+        edgeTags.add("type:kafka");
+        edgeTags.add("topic:" + record.topic());
+
+        if (streamTaskContext != null) {
+          String applicationId = streamTaskContext.getApplicationId();
+          if (applicationId != null) {
+            edgeTags.add("group:" + applicationId);
+          }
+        }
+        // Kafka Streams uses the application ID as the consumer group.id.
+        AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -286,7 +281,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
   /** Very similar to StartSpanAdvice, but with a different argument type for record. */
   public static class StartSpanAdvice27 {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void start(
         @Advice.Argument(0) final ProcessorNode node,
@@ -317,7 +311,19 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         }
 
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
-        mergeKafkaStreamsPathway(span, pathwayContext, record.topic(), streamTaskContext);
+        span.mergePathwayContext(pathwayContext);
+        List<String> edgeTags = new ArrayList<>();
+        edgeTags.add("type:kafka");
+        edgeTags.add("topic:" + record.topic());
+
+        if (streamTaskContext != null) {
+          String applicationId = streamTaskContext.getApplicationId();
+          if (applicationId != null) {
+            edgeTags.add("group:" + applicationId);
+          }
+        }
+        // Kafka Streams uses the application ID as the consumer group.id.
+        AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
