@@ -83,10 +83,22 @@ class SafeRequestBuilderTest {
   }
   @Test
   void "test tag"(){
-    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    testBuilder = new SafeRequestBuilder()
     URL url = new URL("http://localhost")
     testBuilder.url(url).tag("test")
     Assert.assertEquals(testBuilder.build().tag().toString(),"test")
   }
-
+  @Test
+  void "test head"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    testBuilder.head()
+    Assert.assertEquals(testBuilder.build().method(),"HEAD")
+  }
+  @Test
+  void "test delete with parameter method"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
+    testBuilder.delete(body)
+    Assert.assertEquals(testBuilder.build().method(),"DELETE")
+  }
 }
