@@ -2,7 +2,9 @@ package datadog.communication.http
 
 
 import okhttp3.Headers
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import org.junit.Test
 import org.junit.Assert
 
@@ -13,6 +15,11 @@ class SafeRequestBuilderTest {
   void "test add header"(){
     testBuilder.url("http:localhost").addHeader("test","test")
     Assert.assertEquals(testBuilder.build().headers().get("test"),"test")
+  }
+  @Test
+  void "test remove header"(){
+    testBuilder.url("http:localhost").removeHeader("test");
+    Assert.assertEquals(testBuilder.build().headers().get("test"),null)
   }
   @Test(expected = IllegalArgumentException)
   void "test adding bad header"(){
@@ -40,6 +47,37 @@ class SafeRequestBuilderTest {
     testBuilder = new SafeRequestBuilder().url("http://localhost")
     testBuilder.get()
     testBuilder.headers(new Headers())
-    Assert.assertEquals(testBuilder.getClass(),SafeRequestBuilder)
+    Assert.assertEquals(testBuilder.build().method(),"GET")
+  }
+  @Test
+  void "test post method"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
+    testBuilder.post(body)
+    Assert.assertEquals(testBuilder.build().method(),"POST")
+
+  }
+  @Test
+  void "test put method"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
+    testBuilder.put(body)
+    Assert.assertEquals(testBuilder.build().method(),"PUT")
+
+  }
+  @Test
+  void "test patch method"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
+    testBuilder.patch(body)
+    Assert.assertEquals(testBuilder.build().method(),"PATCH")
+
+  }
+  @Test
+  void "test delete method"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    testBuilder.delete()
+    Assert.assertEquals(testBuilder.build().method(),"DELETE")
+
   }
 }
