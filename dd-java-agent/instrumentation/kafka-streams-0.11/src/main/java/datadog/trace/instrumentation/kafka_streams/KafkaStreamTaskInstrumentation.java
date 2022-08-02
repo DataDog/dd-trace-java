@@ -152,7 +152,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This StreamTask task, @Advice.Argument(4) StreamsConfig streamsConfig) {
-      System.out.println("[TEST_LOG] Constructor4Advice");
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
@@ -170,7 +169,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This StreamTask task, @Advice.Argument(5) StreamsConfig streamsConfig) {
-      System.out.println("[TEST_LOG] Constructor5Advice");
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
@@ -188,7 +186,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
         @Advice.This StreamTask task, @Advice.Argument(6) StreamsConfig streamsConfig) {
-      System.out.println("[TEST_LOG] Constructor6Advice");
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
@@ -206,7 +203,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(value = 1, readOnly = false) Iterable<ConsumerRecord<?, ?>> records) {
-      System.out.println("[TEST_LOG] UnwrapIterableAdvice.onMethodEnter");
       // This method adds the records to a queue, so we want to bypass the kafka instrumentation
       // since the resulting spans are very short and uninteresting.
       // KafkaStreamsProcessorInstrumentation will create a new span instead.
@@ -243,7 +239,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final StampedRecord record,
         @Advice.Argument(1) final ProcessorNode node,
         @Advice.This StreamTask task) {
-      System.out.println("[TEST_LOG] StartSpanAdvice.onMethodEnter");
       if (record == null || record.partition() == -1 || record.offset() == -1) {
         // partition|offset == -1 -> punctuation call.
         return;
@@ -297,7 +292,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) final ProcessorNode node,
         @Advice.Argument(2) final ProcessorRecordContext record,
         @Advice.This StreamTask task) {
-      System.out.println("[TEST_LOG] StartSpanAdvice27.onMethodEnter");
       if (record == null || record.partition() == -1 || record.offset() == -1) {
         // partition|offset == -1 -> punctuation call.
         return;
