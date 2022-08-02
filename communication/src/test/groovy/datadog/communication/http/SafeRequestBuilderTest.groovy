@@ -23,12 +23,12 @@ class SafeRequestBuilderTest {
   }
   @Test(expected = IllegalArgumentException)
   void "test adding bad header"(){
-    testBuilder.addHeader("\n\n","\n\n")
+    testBuilder.url("http:localhost").addHeader("\n\n","\n\n")
   }
-  @Test (expected = IllegalArgumentException)
-  void "test adding bad header2"(){
-    testBuilder.url("localhost").header("\n\n\n","\n\n\n")
-  }
+  //  @Test (expected = IllegalArgumentException)
+  //  void "test adding bad header2"(){
+  //    testBuilder.url("localhost").header("\u0019","\u0080")
+  //  }
   @Test
   void "test building result"(){
     Request testRequest = new SafeRequestBuilder().url("http://localhost")
@@ -76,4 +76,17 @@ class SafeRequestBuilderTest {
     testBuilder.delete()
     Assert.assertEquals(testBuilder.build().method(),"DELETE")
   }
+  @Test
+  void "test method adder"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    testBuilder.method("GET",null)
+  }
+  @Test
+  void "test tag"(){
+    testBuilder = new SafeRequestBuilder().url("http://localhost")
+    URL url = new URL("http://localhost")
+    testBuilder.url(url).tag("test")
+    Assert.assertEquals(testBuilder.build().tag().toString(),"test")
+  }
+
 }
