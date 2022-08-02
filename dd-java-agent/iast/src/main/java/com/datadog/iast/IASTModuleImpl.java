@@ -19,8 +19,7 @@ public class IASTModuleImpl implements IASTModule {
       // get StackTraceElement for the callee of MessageDigest
       StackTraceElement stackTraceElement =
           StackWalkerFactory.INSTANCE
-              .walk()
-              .filter(s -> !s.getClassName().equals("java.security.MessageDigest"))
+              .walk(st -> st.filter(s -> !s.getClassName().equals("java.security.MessageDigest")))
               .findFirst()
               .get();
 
@@ -28,7 +27,7 @@ public class IASTModuleImpl implements IASTModule {
           AgentTracer.activeSpan(),
           Vulnerability.builder()
               .type(VulnerabilityType.WEAK_HASH)
-              .evidence(Evidence.forAlgorithm(algorithm))
+              .evidence(new Evidence(algorithm))
               .location(Location.forStack(stackTraceElement))
               .build());
     }
