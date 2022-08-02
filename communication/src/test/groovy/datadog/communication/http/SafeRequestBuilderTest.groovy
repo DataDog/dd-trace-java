@@ -18,7 +18,7 @@ class SafeRequestBuilderTest {
   }
   @Test
   void "test remove header"(){
-    testBuilder.url("http:localhost").removeHeader("test");
+    testBuilder.url("http:localhost").removeHeader("test")
     Assert.assertEquals(testBuilder.build().headers().get("test"),null)
   }
   @Test(expected = IllegalArgumentException)
@@ -55,7 +55,6 @@ class SafeRequestBuilderTest {
     RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
     testBuilder.post(body)
     Assert.assertEquals(testBuilder.build().method(),"POST")
-
   }
   @Test
   void "test put method"(){
@@ -63,7 +62,6 @@ class SafeRequestBuilderTest {
     RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
     testBuilder.put(body)
     Assert.assertEquals(testBuilder.build().method(),"PUT")
-
   }
   @Test
   void "test patch method"(){
@@ -71,13 +69,11 @@ class SafeRequestBuilderTest {
     RequestBody body = RequestBody.create(MediaType.parse("application/json"), "{}")
     testBuilder.patch(body)
     Assert.assertEquals(testBuilder.build().method(),"PATCH")
-
   }
   @Test
   void "test delete method"(){
     testBuilder = new SafeRequestBuilder().url("http://localhost")
     testBuilder.delete()
     Assert.assertEquals(testBuilder.build().method(),"DELETE")
-
   }
 }
