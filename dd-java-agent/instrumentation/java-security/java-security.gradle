@@ -20,5 +20,6 @@ tasks.withType(Test).configureEach {
 }
 
 dependencies {
-  testImplementation group: 'org.bouncycastle', name: 'bcprov-jdk18on', version: '1.71'
+  testImplementation project(':dd-java-agent:iast')
+  testImplementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'
 }

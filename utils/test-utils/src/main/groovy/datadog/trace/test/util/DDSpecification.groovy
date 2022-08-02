@@ -140,7 +140,7 @@ abstract class DDSpecification extends Specification {
   private static Map<Object, Object> systemPropertiesExceptAllowed() {
     def allowlist = ['dd.appsec.enabled', 'dd.iast.enabled']
     System.getProperties()
-      .findAll { key, value -> key as String != 'dd.appsec.enabled' }
+      .findAll { !allowlist.contains(it.getKey())}
   }
 
   void setup() {
