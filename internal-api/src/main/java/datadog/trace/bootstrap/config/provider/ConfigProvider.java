@@ -10,10 +10,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,6 +163,15 @@ public final class ConfigProvider {
 
   public final List<String> getList(String key) {
     return ConfigConverter.parseList(getString(key));
+  }
+
+  public final Set<String> getSet(String key, Set<String> defaultValue) {
+    String list = getString(key);
+    if (null == list) {
+      return defaultValue;
+    } else {
+      return new HashSet(ConfigConverter.parseList(getString(key)));
+    }
   }
 
   public final List<String> getSpacedList(String key) {
