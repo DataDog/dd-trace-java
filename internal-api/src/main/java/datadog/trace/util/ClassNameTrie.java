@@ -392,8 +392,7 @@ public final class ClassNameTrie {
         char branchCount = trieData[dataIndex++];
 
         // trie is ordered, so we can use binary search to pick the right branch
-        int branchIndex =
-            Arrays.binarySearch(trieData, dataIndex, dataIndex + branchCount, c == '/' ? '.' : c);
+        int branchIndex = Arrays.binarySearch(trieData, dataIndex, dataIndex + branchCount, c);
 
         if (branchIndex < 0) {
           jumpOffset =
@@ -464,7 +463,7 @@ public final class ClassNameTrie {
           int segmentEnd = dataIndex + segmentLength;
           while (keyIndex < keyLength && dataIndex < segmentEnd) {
             c = key.charAt(keyIndex);
-            if ((c == '/' ? '.' : c) != trieData[dataIndex]) {
+            if (c != trieData[dataIndex]) {
               break;
             }
             keyIndex++;
