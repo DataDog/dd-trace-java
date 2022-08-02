@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.security.CodeSource;
+import java.security.SecureClassLoader;
+import java.security.cert.Certificate;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
@@ -12,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides access to Datadog internal classes. */
-public final class DatadogClassLoader extends ClassLoader {
+public final class DatadogClassLoader extends SecureClassLoader {
   static {
     ClassLoader.registerAsParallelCapable();
   }
@@ -21,6 +24,7 @@ public final class DatadogClassLoader extends ClassLoader {
 
   private final ClassLoader bootstrapProxy;
 
+  private final CodeSource agentCodeSource;
   private final AgentJarIndex agentJarIndex;
   private final JarFile agentJarFile;
   private final String agentResourcePrefix;
@@ -32,6 +36,7 @@ public final class DatadogClassLoader extends ClassLoader {
 
     this.bootstrapProxy = bootstrapProxy;
 
+    agentCodeSource = new CodeSource(agentJarLocation, (Certificate[]) null);
     agentJarFile = new JarFile(new File(agentJarLocation.toURI()), false);
     agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
     agentResourcePrefix = "jar:file:" + agentJarFile.getName() + "!/";
@@ -93,7 +98,7 @@ public final class DatadogClassLoader extends ClassLoader {
             bytesRead += delta;
           }
           if (bytesRead == buf.length) {
-            return defineClass(name, buf, 0, buf.length);
+            return defineClass(name, buf, 0, buf.length, agentCodeSource);
           } else {
             log.warn("Malformed class data at {}", jarEntry);
           }
