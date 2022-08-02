@@ -206,7 +206,7 @@ public final class OkHttpUtils {
     if (agentless && apiKey != null) {
       // we only add the api key header if we know we're doing agentless. No point in adding it to
       // other agent-based requests since we know the datadog-agent isn't going to make use of it.
-      builder = new SafeRequestBuilder(builder).addHeader(DD_API_KEY, apiKey).getBuilder();
+      builder = SafeRequestBuilder.addHeader(builder, DD_API_KEY, apiKey);
     }
 
     return builder;

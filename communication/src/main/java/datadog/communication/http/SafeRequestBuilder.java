@@ -72,6 +72,18 @@ public final class SafeRequestBuilder {
     }
   }
 
+  public static Request.Builder addHeader(Request.Builder builder, String name, String value) {
+    try {
+      return builder.addHeader(name, value);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          new StringBuilder()
+              .append("InvalidArgumentException at addHeader() for header: ")
+              .append(name)
+              .toString());
+    }
+  }
+
   public SafeRequestBuilder removeHeader(String name) {
     this.requestBuilder.removeHeader(name);
     return this;
