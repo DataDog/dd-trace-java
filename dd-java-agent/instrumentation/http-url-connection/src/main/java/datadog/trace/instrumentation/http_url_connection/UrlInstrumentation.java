@@ -12,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -50,13 +49,6 @@ public class UrlInstrumentation extends Instrumenter.Tracing implements Instrume
         @Advice.Thrown final Throwable throwable,
         @Advice.FieldValue("handler") final URLStreamHandler handler) {
       if (throwable != null) {
-        // Various agent components end up calling `openConnection` indirectly
-        // when loading classes. Avoid tracing these calls.
-        final boolean disableTracing = handler instanceof InternalJarURLHandler;
-        if (disableTracing) {
-          return;
-        }
-
         String protocol = url.getProtocol();
         protocol = protocol != null ? protocol : "url";
 

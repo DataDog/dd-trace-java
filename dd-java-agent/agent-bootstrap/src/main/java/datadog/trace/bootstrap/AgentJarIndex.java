@@ -36,15 +36,26 @@ public final class AgentJarIndex {
     this.prefixTrie = prefixTrie;
   }
 
-  public String findEntryName(String resourceName) {
-    int prefixId = prefixTrie.apply(resourceName);
-    if (prefixId >= 0) {
-      resourceName = prefixes[prefixId] + resourceName;
-      if (resourceName.endsWith(".class")) {
-        resourceName = resourceName + "data";
-      }
+  public String resourceEntryName(String name) {
+    int prefixId = prefixTrie.apply(name);
+    if (prefixId == 0) {
+      return name;
+    } else if (prefixId > 0) {
+      return prefixes[prefixId - 1] + (name.endsWith(".class") ? name + "data" : name);
+    } else {
+      return null;
     }
-    return resourceName;
+  }
+
+  public String classEntryName(String name) {
+    int prefixId = prefixTrie.apply(name);
+    if (prefixId == 0) {
+      return name.replace('.', '/') + ".class";
+    } else if (prefixId > 0) {
+      return prefixes[prefixId - 1] + name.replace('.', '/') + ".classdata";
+    } else {
+      return null;
+    }
   }
 
   public static AgentJarIndex readIndex(JarFile agentJar) {
@@ -81,6 +92,8 @@ public final class AgentJarIndex {
 
     IndexGenerator(Path resourcesDir) {
       this.resourcesDir = resourcesDir;
+
+      prefixTrie.put("datadog.*", 0);
     }
 
     public void writeIndex(Path indexFile) throws IOException {
@@ -98,8 +111,8 @@ public final class AgentJarIndex {
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
       if (dir.getParent().equals(resourcesDir)) {
         prefixRoot = dir;
-        prefixId = prefixes.size();
         prefixes.add(dir.getFileName() + "/");
+        prefixId = prefixes.size();
       }
       return FileVisitResult.CONTINUE;
     }
@@ -135,7 +148,7 @@ public final class AgentJarIndex {
         entryKey = entryKey.replace(File.separatorChar, '/');
       }
       if (entryKey.startsWith("datadog/trace/instrumentation/")) {
-        return "datadog/trace/instrumentation/*";
+        return "datadog.trace.instrumentation.*";
       }
       int nameCount = path.getNameCount();
       if (nameCount > 1) {
@@ -146,7 +159,7 @@ public final class AgentJarIndex {
           entryKey = entryKey.substring(0, entryKey.lastIndexOf('/') + 1) + "*";
         }
       }
-      return entryKey;
+      return entryKey.replace('/', '.');
     }
 
     public static void main(String[] args) throws IOException {
