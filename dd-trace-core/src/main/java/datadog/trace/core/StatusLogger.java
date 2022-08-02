@@ -7,7 +7,6 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -107,7 +106,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.name("appsec_rules_file_path");
     writer.value(config.getAppSecRulesFile());
     writer.name("dd_version");
-    writer.value(DDTraceApiInfo.VERSION);
+    writer.value(config.getVersion());
     writer.name("health_checks_enabled");
     writer.value(config.isHealthMetricsEnabled());
     writer.name("configuration_file");
