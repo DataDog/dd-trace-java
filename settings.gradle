@@ -34,6 +34,7 @@ include ':dd-trace-ot'
 // agent projects
 include ':internal-api'
 include ':internal-api:internal-api-8'
+include ':internal-api:internal-api-9'
 include ':dd-trace-core'
 include ':dd-trace-core:jfr-openjdk'
 include ':dd-java-agent'
@@ -71,6 +72,8 @@ include ':telemetry'
 
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
+
+include ':dd-java-agent:iast'
 
 // misc
 include ':dd-java-agent:testing'

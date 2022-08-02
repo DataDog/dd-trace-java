@@ -107,6 +107,7 @@ public class Agent {
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
   private static ClassLoader APPSEC_CLASSLOADER = null;
+  private static ClassLoader IAST_CLASSLOADER = null;
 
   private static volatile AgentTaskScheduler.Task<URL> PROFILER_INIT_AFTER_JMX = null;
 
@@ -197,6 +198,18 @@ public class Agent {
         }
       } else {
         log.warn("AppSec System requires Java 8 or later to run");
+      }
+    }
+
+    if (iastEnabled) {
+      if (isJavaVersionAtLeast(8)) {
+        try {
+          IAST_CLASSLOADER = createDelegateClassLoader("iast", bootstrapURL, SHARED_CLASSLOADER);
+        } catch (Exception e) {
+          log.error("Error creating iast classloader", e);
+        }
+      } else {
+        log.warn("IAST requires Java 8 or later to run");
       }
     }
 
@@ -408,6 +421,7 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
+      maybeStartIast(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -614,6 +628,25 @@ public class Agent {
       appSecInstallerMethod.invoke(null, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
+    }
+  }
+
+  private static void maybeStartIast(Class<?> scoClass, Object o) {
+    if (IAST_CLASSLOADER == null) {
+      return;
+    }
+
+    SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+    startIast(ss, scoClass, o);
+  }
+
+  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
+    try {
+      final Class<?> iastSysClass = IAST_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
+      final Method iastInstallerMethod = iastSysClass.getMethod("start", SubscriptionService.class);
+      iastInstallerMethod.invoke(null, ss);
+    } catch (final Throwable ex) {
+      log.warn("Not starting IAST subsystem: {}", ex.getMessage());
     }
   }
 
