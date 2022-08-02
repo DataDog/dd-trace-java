@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor
     implements AgentPropagation.ContextVisitor<ProcessorRecordContext>,
-    AgentPropagation.BinaryContextVisitor<ProcessorRecordContext>  {
+        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext> {
 
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
@@ -62,7 +62,8 @@ public class ProcessorRecordContextVisitor
   }
 
   @Override
-  public void forEachKey(ProcessorRecordContext carrier, AgentPropagation.BinaryKeyClassifier classifier) {
+  public void forEachKey(
+      ProcessorRecordContext carrier, AgentPropagation.BinaryKeyClassifier classifier) {
     if (HEADERS_METHOD == null) {
       return;
     }

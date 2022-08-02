@@ -54,42 +54,44 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
-        packageName + ".KafkaStreamsDecorator",
-        packageName + ".ProcessorRecordContextVisitor",
-        packageName + ".StampedRecordContextVisitor",
-        packageName + ".StreamTaskContext",
+    return new String[] {
+      "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
+      packageName + ".KafkaStreamsDecorator",
+      packageName + ".ProcessorRecordContextVisitor",
+      packageName + ".StampedRecordContextVisitor",
+      packageName + ".StreamTaskContext",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.streams.processor.internals.StreamTask", StreamTaskContext.class.getName());
+    contextStores.put(
+        "org.apache.kafka.streams.processor.internals.StreamTask",
+        StreamTaskContext.class.getName());
 
     return contextStores;
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // StreamsConfig was the 4th input argument to StreamTask's constructor in kafka versions 2.6 to 3.1.
+    // StreamsConfig was the 4th input argument to StreamTask's constructor in kafka versions 2.6 to
+    // 3.1.
     // Starting from 3.2 StreamsConfig was no longer an input argument into StreamTask.
     transformation.applyAdvice(
-        isConstructor()
-            .and(takesArgument(4, named("org.apache.kafka.streams.StreamsConfig"))),
+        isConstructor().and(takesArgument(4, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor4Advice");
 
-    // StreamsConfig was the 5th input argument to StreamTask's constructor in kafka versions 1.1 to 2.5
+    // StreamsConfig was the 5th input argument to StreamTask's constructor in kafka versions 1.1 to
+    // 2.5
     transformation.applyAdvice(
-        isConstructor()
-            .and(takesArgument(5, named("org.apache.kafka.streams.StreamsConfig"))),
+        isConstructor().and(takesArgument(5, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor5Advice");
 
-    // StreamsConfig was the 6th input argument to StreamTask's constructor in kafka versions 0.11 to 1.0.
+    // StreamsConfig was the 6th input argument to StreamTask's constructor in kafka versions 0.11
+    // to 1.0.
     transformation.applyAdvice(
-        isConstructor()
-            .and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
+        isConstructor().and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor6Advice");
 
     transformation.applyAdvice(
@@ -136,7 +138,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
-        StreamTaskContext context = InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
         if (context == null) {
           context = new StreamTaskContext();
         }
@@ -153,7 +156,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
-        StreamTaskContext context = InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
         if (context == null) {
           context = new StreamTaskContext();
         }
@@ -170,7 +174,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
 
       if (applicationId != null && !applicationId.isEmpty()) {
-        StreamTaskContext context = InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
         if (context == null) {
           context = new StreamTaskContext();
         }
@@ -208,7 +213,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       }
 
       AgentSpan span, queueSpan = null;
-      StreamTaskContext streamTaskContext = InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      StreamTaskContext streamTaskContext =
+          InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
@@ -255,7 +261,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         streamTaskContext = new StreamTaskContext();
       }
       streamTaskContext.setAgentScope(agentScope);
-      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, streamTaskContext);
+      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+          .put(task, streamTaskContext);
     }
   }
 
@@ -272,7 +279,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       }
 
       AgentSpan span, queueSpan = null;
-      StreamTaskContext streamTaskContext = InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      StreamTaskContext streamTaskContext =
+          InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
@@ -319,7 +327,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         streamTaskContext = new StreamTaskContext();
       }
       streamTaskContext.setAgentScope(agentScope);
-      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, streamTaskContext);
+      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+          .put(task, streamTaskContext);
     }
   }
 

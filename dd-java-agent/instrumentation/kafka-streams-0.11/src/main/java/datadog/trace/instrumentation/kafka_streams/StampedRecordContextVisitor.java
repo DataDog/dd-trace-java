@@ -10,8 +10,9 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StampedRecordContextVisitor implements AgentPropagation.ContextVisitor<StampedRecord>,
-    AgentPropagation.BinaryContextVisitor<StampedRecord> {
+public class StampedRecordContextVisitor
+    implements AgentPropagation.ContextVisitor<StampedRecord>,
+        AgentPropagation.BinaryContextVisitor<StampedRecord> {
 
   private static final Logger log = LoggerFactory.getLogger(StampedRecordContextVisitor.class);
 
