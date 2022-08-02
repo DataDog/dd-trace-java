@@ -259,8 +259,8 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags.containsAll(["type:kafka", "topic:$STREAM_PENDING".toString()])
-        edgeTags.size() == 2
+        edgeTags.containsAll(["type:kafka", "group:test-application", "topic:$STREAM_PENDING".toString()])
+        edgeTags.size() == 3
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
