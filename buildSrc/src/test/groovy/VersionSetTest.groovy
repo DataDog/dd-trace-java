@@ -33,29 +33,29 @@ class VersionSetTest extends Specification {
     versionSet.lowAndHighForMajorMinor == expected
 
     where:
-    versions << [[
-      ver('4.5.6'),
-      ver('1.2.3')
-    ], [
-      ver('1.2.3'),
-      ver('1.2.1'),
-      ver('1.3.0'),
-      ver('1.2.7'),
-      ver('1.4.17'),
-      ver('1.4.1'),
-      ver('1.4.0'),
-      ver('1.4.10')
-    ]]
-    expected << [[
-      ver('1.2.3'),
-      ver('4.5.6')
-    ], [
-      ver('1.2.1'),
-      ver('1.2.7'),
-      ver('1.3.0'),
-      ver('1.4.0'),
-      ver('1.4.17')
-    ]]
+    versions << [
+      [ver('4.5.6'), ver('1.2.3')],
+      [
+        ver('1.2.3'),
+        ver('1.2.1'),
+        ver('1.3.0'),
+        ver('1.2.7'),
+        ver('1.4.17'),
+        ver('1.4.1'),
+        ver('1.4.0'),
+        ver('1.4.10')
+      ]
+    ]
+    expected << [
+      [ver('1.2.3'), ver('4.5.6')],
+      [
+        ver('1.2.1'),
+        ver('1.2.7'),
+        ver('1.3.0'),
+        ver('1.4.0'),
+        ver('1.4.17')
+      ]
+    ]
   }
 
   Version ver(String string) {

@@ -4,6 +4,12 @@ plugins {
   id("com.diffplug.spotless") version "5.11.0"
 }
 
+val sharedConfigDirectory = "${rootDir.parentFile}/gradle"
+
+rootProject.ext.set("sharedConfigDirectory", sharedConfigDirectory)
+
+apply { from("$sharedConfigDirectory/spotless.gradle") }
+
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
@@ -41,6 +47,4 @@ dependencies {
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.10")
 }
 
-tasks.test {
-  useJUnitPlatform()
-}
+tasks.test { useJUnitPlatform() }

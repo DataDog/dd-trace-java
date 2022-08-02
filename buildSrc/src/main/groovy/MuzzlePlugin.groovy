@@ -49,7 +49,7 @@ class MuzzlePlugin implements Plugin<Project> {
     RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/releases").build()
     RemoteRepository akka = new RemoteRepository.Builder("akka", "default", "https://dl.bintray.com/akka/maven/").build()
     RemoteRepository atlassian = new RemoteRepository.Builder("atlassian", "default", "https://maven.atlassian.com/content/repositories/atlassian-public/").build()
-//    MUZZLE_REPOS = Arrays.asList(central, sonatype, jcenter, spring, jboss, typesafe, akka, atlassian)
+    //    MUZZLE_REPOS = Arrays.asList(central, sonatype, jcenter, spring, jboss, typesafe, akka, atlassian)
     MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, jcenter))
   }
 
@@ -67,7 +67,7 @@ class MuzzlePlugin implements Plugin<Project> {
       compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
     }
     project.afterEvaluate {
-      project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin'] }.all {
+      project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin']}.all {
         compileMuzzle.dependsOn(it)
       }
     }
@@ -248,8 +248,8 @@ class MuzzlePlugin implements Plugin<Project> {
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
     final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
 
-//    println "Range Request: " + rangeRequest
-//    println "Range Result: " + rangeResult
+    //    println "Range Request: " + rangeRequest
+    //    println "Range Result: " + rangeResult
 
     final Set<Artifact> allVersionArtifacts = versions.collect { version ->
       new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", version.toString())
@@ -324,6 +324,8 @@ class MuzzlePlugin implements Plugin<Project> {
     return versionsCopy.toSet()
   }
 
+  // TODO check why spotless fails to properly format the class from this point
+  // spotless:off
   /**
    * Configure a muzzle task to pass or fail a given version.
    *
@@ -398,7 +400,7 @@ class MuzzlePlugin implements Plugin<Project> {
     runAfter.finalizedBy(muzzleTask)
     return muzzleTask
   }
-
+  
   /**
    * Create muzzle's repository system
    */
@@ -605,3 +607,4 @@ class MuzzleExtension {
     directive.additionalRepositories.addAll(additionalRepositories)
   }
 }
+// spotless:on

@@ -19,7 +19,7 @@ class InstrumentPlugin implements Plugin<Project> {
   void apply(Project project) {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
-    project.tasks.matching { it.name in ['compileJava', 'compileScala', 'compileKotlin'] }.all {
+    project.tasks.matching { it.name in ['compileJava', 'compileScala', 'compileKotlin']}.all {
       AbstractCompile compileTask = it as AbstractCompile
       project.afterEvaluate {
         if (!compileTask.source.empty) {
@@ -51,7 +51,7 @@ class InstrumentPlugin implements Plugin<Project> {
           compileTask.destinationDir = rawClassesDir.asFile
 
           byteBuddyTask.classPath.from((project.configurations.findByName('instrumentationMuzzle') ?: []) +
-              project.configurations.compileClasspath + compileTask.destinationDir)
+          project.configurations.compileClasspath + compileTask.destinationDir)
 
           byteBuddyTask.transformation {
             it.plugin = InstrumentLoader
@@ -102,8 +102,8 @@ class InstrumentLoader implements net.bytebuddy.build.Plugin {
 
   @Override
   DynamicType.Builder<?> apply(DynamicType.Builder<?> builder,
-                               TypeDescription typeDescription,
-                               ClassFileLocator classFileLocator) {
+    TypeDescription typeDescription,
+    ClassFileLocator classFileLocator) {
     for (net.bytebuddy.build.Plugin plugin : plugins()) {
       if (plugin.matches(typeDescription)) {
         builder = plugin.apply(builder, typeDescription, classFileLocator)

@@ -13,7 +13,7 @@ class RangeQueryTest extends Specification {
 
   def "test range request"() {
     setup:
-//    compile group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.5.0', ext: 'pom'
+    //    compile group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.5.0', ext: 'pom'
     final Artifact directiveArtifact = new DefaultArtifact("org.codehaus.groovy", "groovy-all", "jar", "[2.5.0,2.5.8)")
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
     rangeRequest.setRepositories(MuzzlePlugin.MUZZLE_REPOS)

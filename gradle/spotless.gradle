@@ -24,12 +24,15 @@ spotless {
     greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
   }
 
-  kotlinGradle {
-    toggleOffOn()
-    // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
-    target '*.gradle.kts'
-    ktfmt()
-    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+  // ktfmt requires at least JDK 11: https://github.com/facebookincubator/ktfmt#ktfmt
+  if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
+    kotlinGradle {
+      toggleOffOn()
+      // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
+      target '*.gradle.kts'
+      ktfmt()
+      ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    }
   }
 
   if (project.plugins.hasPlugin('groovy')) {
