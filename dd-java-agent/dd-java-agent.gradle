@@ -122,6 +122,24 @@ shadowJar generalShadowJarConfig >> {
   }
 }
 
+tasks.register('generateAgentJarIndex', JavaExec) {
+  def contentDir = "${sourceSets.main.output.resourcesDir}"
+  def indexFile = "${contentDir}/dd-java-agent.index"
+
+  it.group = 'Build'
+  it.description = "Generate dd-java-agent.index"
+  it.inputs.files(contentDir)
+  it.outputs.files(indexFile)
+  it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
+  it.classpath = project.configurations.shadowInclude
+  it.args = [contentDir]
+
+  dependsOn 'processResources'
+  dependsOn 'writeVersionNumberFile'
+}
+
+shadowJar.dependsOn 'generateAgentJarIndex'
+
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
