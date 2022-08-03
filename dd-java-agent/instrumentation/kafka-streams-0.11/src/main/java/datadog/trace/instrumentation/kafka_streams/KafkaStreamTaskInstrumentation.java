@@ -11,6 +11,10 @@ import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.GROUP_TAG_CACHE;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.GROUP_TAG_PREFIX;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.TOPIC_TAG_CACHE;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.TOPIC_TAG_PREFIX;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -22,6 +26,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -61,6 +69,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
       packageName + ".StreamTaskContext",
+      packageName + ".TagsCache",
+        packageName + ".TagsCache$StringPrefix",
     };
   }
 
@@ -231,14 +241,14 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
         span.mergePathwayContext(pathwayContext);
-        List<String> edgeTags = new ArrayList<>();
+        List<String> edgeTags = new ArrayList<>(3);
         edgeTags.add("type:kafka");
-        edgeTags.add("topic:" + record.topic());
+        edgeTags.add(TOPIC_TAG_CACHE.computeIfAbsent(record.topic(), TOPIC_TAG_PREFIX));
 
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
-            edgeTags.add("group:" + applicationId);
+            edgeTags.add(GROUP_TAG_CACHE.computeIfAbsent(applicationId, GROUP_TAG_PREFIX));
           }
         }
         // Kafka Streams uses the application ID as the consumer group.id.
@@ -297,14 +307,14 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
         span.mergePathwayContext(pathwayContext);
-        List<String> edgeTags = new ArrayList<>();
+        List<String> edgeTags = new ArrayList<>(3);
         edgeTags.add("type:kafka");
-        edgeTags.add("topic:" + record.topic());
+        edgeTags.add(TOPIC_TAG_CACHE.computeIfAbsent(record.topic(), TOPIC_TAG_PREFIX));
 
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
-            edgeTags.add("group:" + applicationId);
+            edgeTags.add(GROUP_TAG_CACHE.computeIfAbsent(applicationId, GROUP_TAG_PREFIX));
           }
         }
         // Kafka Streams uses the application ID as the consumer group.id.
