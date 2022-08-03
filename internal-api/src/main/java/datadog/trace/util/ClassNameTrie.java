@@ -191,6 +191,42 @@ public final class ClassNameTrie {
     return result; // no more characters left to match in the key
   }
 
+  /** Reads trie content from an external resource. */
+  public static ClassNameTrie readFrom(DataInput in) throws IOException {
+    int magic = in.readInt();
+    if (magic != FILE_MAGIC) {
+      throw new IOException("Unexpected file magic " + magic);
+    }
+    int trieLength = in.readInt();
+    char[] trieData = new char[trieLength];
+    for (int i = 0; i < trieLength; i++) {
+      byte b = in.readByte();
+      char c;
+      if ((b & 0x80) == 0) {
+        // read 7-bit non-zero char as 1 byte
+        c = (char) b;
+      } else if ((b & 0xE0) == 0xE0) {
+        // read 16-bit char as 3 bytes (4+6+6)
+        c = (char) (((b & 0x0F) << 12) | ((in.readByte() & 0x3F) << 6) | (in.readByte() & 0x3F));
+      } else {
+        // read 11-bit char as 2 bytes (5+6)
+        c = (char) (((b & 0x1F) << 6) | (in.readByte() & 0x3F));
+      }
+      trieData[i] = c;
+    }
+    int longJumpCount = in.readInt();
+    int[] longJumps;
+    if (longJumpCount > 0) {
+      longJumps = new int[longJumpCount];
+      for (int i = 0; i < longJumpCount; i++) {
+        longJumps[i] = in.readInt();
+      }
+    } else {
+      longJumps = null;
+    }
+    return new ClassNameTrie(trieData, longJumps);
+  }
+
   ClassNameTrie(char[] trieData, int[] longJumps) {
     this.trieData = trieData;
     this.longJumps = longJumps;
@@ -206,6 +242,15 @@ public final class ClassNameTrie {
     private int trieLength;
     private int[] longJumps;
     private int longJumpCount;
+
+    public Builder() {}
+
+    public Builder(ClassNameTrie trie) {
+      trieData = trie.trieData;
+      trieLength = trieData.length;
+      longJumps = trie.longJumps;
+      longJumpCount = null != longJumps ? longJumps.length : 0;
+    }
 
     public boolean isEmpty() {
       return trieLength == 0;
@@ -253,40 +298,6 @@ public final class ClassNameTrie {
       out.writeInt(longJumpCount);
       for (int i = 0; i < longJumpCount; i++) {
         out.writeInt(longJumps[i]);
-      }
-    }
-
-    /** Reads trie content from an external resource. */
-    public void readFrom(DataInput in) throws IOException {
-      int magic = in.readInt();
-      if (magic != FILE_MAGIC) {
-        throw new IOException("Unexpected file magic " + magic);
-      }
-      trieLength = in.readInt();
-      trieData = new char[trieLength];
-      for (int i = 0; i < trieLength; i++) {
-        byte b = in.readByte();
-        char c;
-        if ((b & 0x80) == 0) {
-          // read 7-bit non-zero char as 1 byte
-          c = (char) b;
-        } else if ((b & 0xE0) == 0xE0) {
-          // read 16-bit char as 3 bytes (4+6+6)
-          c = (char) (((b & 0x0F) << 12) | ((in.readByte() & 0x3F) << 6) | (in.readByte() & 0x3F));
-        } else {
-          // read 11-bit char as 2 bytes (5+6)
-          c = (char) (((b & 0x1F) << 6) | (in.readByte() & 0x3F));
-        }
-        trieData[i] = c;
-      }
-      longJumpCount = in.readInt();
-      if (longJumpCount > 0) {
-        longJumps = new int[longJumpCount];
-        for (int i = 0; i < longJumpCount; i++) {
-          longJumps[i] = in.readInt();
-        }
-      } else {
-        longJumps = null;
       }
     }
 

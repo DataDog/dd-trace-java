@@ -194,9 +194,8 @@ class ClassNameTrieTest extends DDSpecification {
     def sink = new ByteArrayOutputStream()
     exporter.writeTo(new DataOutputStream(sink))
     // re-import
-    def importer = new ClassNameTrie.Builder()
     def source = new ByteArrayInputStream(sink.toByteArray())
-    importer.readFrom(new DataInputStream(source))
+    def importer = ClassNameTrie.readFrom(new DataInputStream(source))
     then:
     mapping.each({
       assert importer.apply(it.key) == it.value

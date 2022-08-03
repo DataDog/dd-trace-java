@@ -72,9 +72,7 @@ public final class AgentJarIndex {
         for (int i = 0; i < prefixCount; i++) {
           prefixes[i] = in.readUTF();
         }
-        ClassNameTrie.Builder prefixTrie = new ClassNameTrie.Builder();
-        prefixTrie.readFrom(in);
-        return new AgentJarIndex(prefixes, prefixTrie.buildTrie());
+        return new AgentJarIndex(prefixes, ClassNameTrie.readFrom(in));
       }
     } catch (Throwable e) {
       log.error("Unable to read " + AGENT_INDEX_FILE_NAME, e);
