@@ -9,6 +9,8 @@ import java.security.SecureClassLoader;
 import java.security.cert.Certificate;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import org.slf4j.Logger;
@@ -21,6 +23,8 @@ public final class DatadogClassLoader extends SecureClassLoader {
   }
 
   private static final Logger log = LoggerFactory.getLogger(DatadogClassLoader.class);
+
+  private final Set<String> definedPackages = new HashSet<>();
 
   private final ClassLoader bootstrapProxy;
 
@@ -108,6 +112,17 @@ public final class DatadogClassLoader extends SecureClassLoader {
       }
     }
     throw new ClassNotFoundException(name);
+  }
+
+  @Override
+  protected Package getPackage(String name) {
+    synchronized (definedPackages) {
+      if (definedPackages.add(name)) {
+        return definePackage(name, null, null, null, null, null, null, null);
+      } else {
+        return super.getPackage(name);
+      }
+    }
   }
 
   @Override
