@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
+import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -242,6 +243,8 @@ public class Agent {
       } else {
         // Anything above 8 is OpenJDK implementation and is safe to run synchronously
         startProfilingAgent(false);
+        // only enable sampler when we know JFR is ready
+        ExceptionSampling.enableExceptionSampling();
       }
     }
   }
@@ -377,6 +380,8 @@ public class Agent {
     @Override
     public void execute() {
       startProfilingAgent(false);
+      // only enable sampler when we know JFR is ready
+      ExceptionSampling.enableExceptionSampling();
     }
   }
 
@@ -609,11 +614,6 @@ public class Agent {
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
-       *
-       * Also, the registration routine must be embedded right here - ProfilingAgent, where it would logically belong,
-       * is loaded by PROFILER_CLASSLOADER which has no relation to AGENT_CLASSLOADER which is used to load various
-       * helper classes like SystemAccess. An attempt to do this registration in ProfilingAgent will cause ineviatbly
-       * duplicate loads of the same named classes but in different classloaders.
        */
       if (!isStartingFirst) {
         log.debug("Scheduling scope event factory registration");
