@@ -4,10 +4,11 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  api('com.datadoghq:jmxfetch:0.45.3') {
+  api('com.datadoghq:jmxfetch:0.47.0-SNAPSHOT') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'org.yaml', module: 'snakeyaml'
+    exclude group: 'com.beust', module: 'jcommander'
   }
   api deps.slf4j
   api project(':internal-api')
