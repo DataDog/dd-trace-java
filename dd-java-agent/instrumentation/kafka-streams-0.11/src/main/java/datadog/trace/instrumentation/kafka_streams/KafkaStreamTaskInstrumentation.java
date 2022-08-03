@@ -26,10 +26,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.Functions;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -37,7 +33,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -70,14 +65,15 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       packageName + ".StampedRecordContextVisitor",
       packageName + ".StreamTaskContext",
       packageName + ".TagsCache",
-        packageName + ".TagsCache$StringPrefix",
+      packageName + ".TagsCache$StringPrefix",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "org.apache.kafka.streams.processor.internals.StreamTask", StreamTaskContext.class.getName());
+        "org.apache.kafka.streams.processor.internals.StreamTask",
+        StreamTaskContext.class.getName());
   }
 
   @Override
