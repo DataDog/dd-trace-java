@@ -138,7 +138,7 @@ tasks.register('generateAgentJarIndex', JavaExec) {
   dependsOn 'writeVersionNumberFile'
 }
 
-shadowJar.dependsOn 'generateAgentJarIndex'
+compileJava.dependsOn 'generateAgentJarIndex'
 
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
