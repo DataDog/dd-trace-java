@@ -646,7 +646,7 @@ public class Agent {
       final Method iastInstallerMethod = iastSysClass.getMethod("start", SubscriptionService.class);
       iastInstallerMethod.invoke(null, ss);
     } catch (final Throwable ex) {
-      log.warn("Not starting IAST subsystem: {}", ex.getMessage());
+      log.warn("Not starting IAST subsystem: {}", ex.getCause().toString());
     }
   }
 

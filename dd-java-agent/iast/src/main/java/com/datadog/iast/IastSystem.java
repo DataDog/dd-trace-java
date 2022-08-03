@@ -9,6 +9,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.iast.IASTModuleInjector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,7 @@ public class IastSystem {
 
     registerRequestStartedCallback(ss);
     registerRequestEndedCallback(ss);
+    IASTModuleInjector.inject(new IASTModuleImpl());
   }
 
   private static void registerRequestStartedCallback(final SubscriptionService ss) {
