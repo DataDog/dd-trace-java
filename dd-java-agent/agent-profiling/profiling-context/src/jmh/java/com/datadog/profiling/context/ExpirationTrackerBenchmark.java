@@ -24,12 +24,12 @@ public class ExpirationTrackerBenchmark {
     instance = null;
   }
 
-  @Benchmark
-  @Threads(4)
-  public void expiringAdds4(Blackhole bh) {
-    ExpirationTracker.Expirable rslt = instance.track(() -> {});
-    bh.consume(rslt);
-  }
+//  @Benchmark
+//  @Threads(4)
+//  public void expiringAdds4(Blackhole bh) {
+//    ExpirationTracker.Expirable rslt = instance.track(() -> {});
+//    bh.consume(rslt);
+//  }
 
   @Benchmark
   @Threads(2)
@@ -38,22 +38,22 @@ public class ExpirationTrackerBenchmark {
     bh.consume(rslt);
   }
 
-  @Benchmark
-  @Threads(1)
-  public void expiringAdds1(Blackhole bh) {
-    ExpirationTracker.Expirable rslt = instance.track(() -> {});
-    bh.consume(rslt);
-  }
+//  @Benchmark
+//  @Threads(1)
+//  public void expiringAdds1(Blackhole bh) {
+//    ExpirationTracker.Expirable rslt = instance.track(() -> {});
+//    bh.consume(rslt);
+//  }
 
-  @Benchmark
-  @Threads(1)
-  public void expiringAddsBase(Blackhole bh) {
-    long rslt = System.nanoTime();
-    if (rslt < 0) {
-      throw new RuntimeException();
-    }
-    bh.consume(rslt);
-  }
+//  @Benchmark
+//  @Threads(1)
+//  public void expiringAddsBase1(Blackhole bh) {
+//    long rslt = System.nanoTime();
+//    if (rslt < 0) {
+//      throw new RuntimeException();
+//    }
+//    bh.consume(rslt);
+//  }
 
   @Benchmark
   @Threads(2)
@@ -65,13 +65,13 @@ public class ExpirationTrackerBenchmark {
     bh.consume(rslt);
   }
 
-  @Benchmark
-  @Threads(4)
-  public void expiringAddsBase4(Blackhole bh) {
-    long rslt = System.nanoTime();
-    if (rslt < 0) {
-      throw new RuntimeException();
-    }
-    bh.consume(rslt);
-  }
+//  @Benchmark
+//  @Threads(4)
+//  public void expiringAddsBase4(Blackhole bh) {
+//    long rslt = System.nanoTime();
+//    if (rslt < 0) {
+//      throw new RuntimeException();
+//    }
+//    bh.consume(rslt);
+//  }
 }

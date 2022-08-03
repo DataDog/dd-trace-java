@@ -12,6 +12,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +60,7 @@ public final class ProfilerTracingContextTrackerFactory
   private final Allocator allocator;
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
+  private final ThreadSequencesPool threadSequencesPool = new ThreadSequencesPool();
 
   private final ExpirationTracker expirationTracker;
 
@@ -142,16 +144,23 @@ public final class ProfilerTracingContextTrackerFactory
   @Override
   public TracingContextTracker instance(AgentSpan span) {
     ExpirationTracker.Expirable e = ExpirationTracker.Expirable.EMPTY;
+    ThreadSequences threadSequences = threadSequencesPool.claim();
+    if (threadSequences == null) {
+      return TracingContextTracker.EMPTY;
+    }
+
     if (expirationTracker != null) {
       e = expirationTracker.track();
       if (!e.hasExpiration()) {
         warnlog.warn(
             "Expiration tracking of profiling context failed. Span {} will not be tracked", span);
+        // must return the 'threadSequences' back to the pool
+        threadSequences.release();
         return TracingContextTracker.EMPTY;
       }
     }
     ProfilerTracingContextTracker instance =
-        new ProfilerTracingContextTracker(allocator, span, timeTicksProvider, sequencePruner, e);
+        new ProfilerTracingContextTracker(allocator, threadSequences, span, timeTicksProvider, sequencePruner, e);
 
     e.setOnExpiredCallback(i -> instance.release());
 

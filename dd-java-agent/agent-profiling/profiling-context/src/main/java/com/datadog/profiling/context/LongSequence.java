@@ -42,7 +42,7 @@ final class LongSequence {
 
     @Override
     public boolean hasNext() {
-      if (released) {
+      if (released || buffers == null) {
         return false;
       }
       if (bufferReadSlot > bufferWriteSlot || allIndex >= size) {
@@ -282,6 +282,9 @@ final class LongSequence {
   }
 
   private void doRelease() {
+    if (state.getAndSet(-1) == -1) {
+      return;
+    };
     if (buffers != null) {
       for (int i = 0; i < buffers.length; i++) {
         AllocatedBuffer buffer = buffers[i];
@@ -295,7 +298,6 @@ final class LongSequence {
     buffers = null;
     bufferBoundaryMap = null;
     bufferInitSlot = -1;
-    state.set(-1);
   }
 
   public LongIterator iterator() {
@@ -304,5 +306,9 @@ final class LongSequence {
 
   public int getCapacity() {
     return capacity;
+  }
+
+  public boolean isReleased() {
+    return buffers == null;
   }
 }

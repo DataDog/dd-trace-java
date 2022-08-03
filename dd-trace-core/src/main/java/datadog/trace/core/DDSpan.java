@@ -281,8 +281,6 @@ public class DDSpan
       return tracingContextTracker.persist(tracingContextPersistor);
     } catch (Throwable t) {
       log.error("", t);
-    } finally {
-      tracingContextTracker.release();
     }
     return -1;
   }

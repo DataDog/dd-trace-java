@@ -8,8 +8,14 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +65,7 @@ final class ExpirationTracker implements Closeable {
         AtomicLongFieldUpdater.newUpdater(Expirable.class, "nanos");
 
     private final Bucket bucket;
-    private final int pos;
+    private volatile int pos;
 
     private Expirable(long ts, long expiration) {
       this(null, -1, ts, expiration, null);
@@ -172,7 +178,7 @@ final class ExpirationTracker implements Closeable {
     private final Expirable[] data;
     private final Callback fillupCallback;
 
-    private boolean fillupTriggered = false;
+    private volatile boolean fillupTriggered = false;
 
     Bucket(int capacity, Callback fillupCallback) {
       data = new Expirable[capacity];
@@ -207,6 +213,7 @@ final class ExpirationTracker implements Closeable {
     private void remove(int pos) {
       if (pos > -1) {
         data[pos] = data[--size];
+        data[pos].pos = pos;
         data[size] = null;
 
         fireBucketAvailable();
@@ -257,6 +264,7 @@ final class ExpirationTracker implements Closeable {
             // that the first discovered 'null' reference should break the cleanup run as the
             // remnant of the tracking array would be empty
             data[reinsertionIdx] = data[i];
+            data[reinsertionIdx].pos = i;
             // clean up the original slot
             data[i] = null;
           }
@@ -314,12 +322,12 @@ final class ExpirationTracker implements Closeable {
 
     @Override
     public void onBucketFull() {
-      availableBuckets.accumulateAndGet(1, (cur, v) -> cur > 0 ? cur - v : 0);
+      availableBuckets.updateAndGet(v -> v > 0 ? v - 1 : 0);
     }
 
     @Override
     public void onBucketAvailable() {
-      availableBuckets.accumulateAndGet(1, (cur, v) -> cur < buckets ? cur + v : buckets);
+      availableBuckets.updateAndGet(v -> v < buckets ? v + 1 : buckets);
     }
   }
 
@@ -329,6 +337,7 @@ final class ExpirationTracker implements Closeable {
     // prime-number increments
     private static final int[] INCREMENTS = new int[] {5, 7, 11, 13, 19, 23, 29, 31, 37, 41, 47};
     private final Bucket[] buckets;
+    private final Lock[] locks;
 
     private final int numStripes;
 
@@ -336,13 +345,18 @@ final class ExpirationTracker implements Closeable {
 
     private long lastCleanupTs = -1;
 
+    private volatile int bulkState = 0;
+    private static final AtomicIntegerFieldUpdater<StripedBucket> BULK_STATE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(StripedBucket.class, "bulkState");
+
     StripedBucket(int parallelism, int capacity) {
       this.numStripes = parallelism * 2;
       buckets = new Bucket[numStripes];
-      int bucketCapacity = (int) Math.ceil((double) capacity / numStripes);
+      locks = new Lock[numStripes];
+      int bucketCapacity = (capacity / numStripes) + ((capacity % numStripes) == 0 ? 0 : 1);
       availabilityTracker = new BucketAvailabilityTracker(numStripes);
       for (int i = 0; i < numStripes; i++) {
         buckets[i] = new Bucket(bucketCapacity, availabilityTracker);
+        locks[i] = new ReentrantLock();
       }
     }
 
@@ -368,23 +382,32 @@ final class ExpirationTracker implements Closeable {
       int stripe = rnd.nextInt(numStripes);
       int increment = INCREMENTS[rnd.nextInt(INCREMENTS.length)];
 
-      // Iterate over the stripes at most once to find a stripe which is able to hold
-      // one more item.
-      for (int i = 0; i < numStripes; i++) {
-        Bucket bucket = buckets[stripe];
-        // Synchronized is performing better than locks here because we are striving
-        // for as low contention as possible by striping.
-        // Instead of locking buckets we could use dedicated reentrant locks but
-        // for ~50% chance of contention when all threads are accessing the striped bucket
-        // the throughput is almost 50% higher for synchronized than for reentrant locks.
-        synchronized (bucket) {
-          Expirable e = bucket.add(nanos, expiration, t -> onExpired.run());
-          if (e != Expirable.EMPTY) {
-            return e;
+      while (BULK_STATE_UPDATER.getAndUpdate(this, s -> s > -1 ? s + 1 : -1) == -1) {
+        Thread.yield();
+      }
+      try {
+        // Iterate over the stripes at most once to find a stripe which is able to hold
+        // one more item.
+        for (int i = 0; i < numStripes; i++) {
+          Bucket bucket = buckets[stripe];
+          while (!locks[stripe].tryLock()) {
+            Thread.yield();
+          }
+          try {
+//        synchronized (bucket) {
+            Expirable e = bucket.add(nanos, expiration, t -> onExpired.run());
+            if (e != Expirable.EMPTY) {
+              return e;
+            }
+          } finally {
+            locks[stripe].unlock();
           }
           // use a prime number increment to iterate over the stripes in a pseudo-random manner
           stripe = (stripe + increment) % numStripes;
+//        }
         }
+      } finally {
+        BULK_STATE_UPDATER.getAndUpdate(this, s -> s > -1 ? s - 1 : -1);
       }
       return Expirable.EMPTY;
     }
@@ -403,10 +426,16 @@ final class ExpirationTracker implements Closeable {
         return true; // already processed in this epoch
       }
       boolean cleaned = true;
-      for (Bucket bucket : buckets) {
-        synchronized (bucket) {
+      while (BULK_STATE_UPDATER.getAndUpdate(this, s -> s == 0 ? -1 : s) != 0) {
+        Thread.yield();
+      }
+      try {
+        for (int i = 0; i < numStripes; i++) {
+          Bucket bucket = buckets[i];
           cleaned = bucket.clean(nanos) && cleaned;
         }
+      } finally {
+        BULK_STATE_UPDATER.compareAndSet(this, -1, 0);
       }
       lastCleanupTs = nanos;
       return cleaned;
@@ -457,7 +486,8 @@ final class ExpirationTracker implements Closeable {
 
     numBuckets = (int) (expiration / granularity) + 1;
     buckets = new StripedBucket[numBuckets];
-    bucketCapacity = (int) Math.ceil(capacity / (double) numBuckets);
+    bucketCapacity = (capacity / numBuckets) + ((capacity % numBuckets) == 0 ? 0 : 1);
+    log.debug("capacity: {}, num_buckets: {}, bucket_capacity: {}", capacity, numBuckets, bucketCapacity);
 
     this.capacity = numBuckets * bucketCapacity;
     for (int i = 0; i < numBuckets; i++) {
@@ -533,7 +563,6 @@ final class ExpirationTracker implements Closeable {
   Expirable track(Runnable onExpired) {
     // shortcut if the expiration period is not set
     if (expirationNs <= 0) {
-      System.out.println("===> [1]");
       return Expirable.EMPTY;
     }
     // shortcut if the tracker is closed
@@ -550,7 +579,6 @@ final class ExpirationTracker implements Closeable {
       if (!expireBucketAt(toWriteIdx)) {
         // Failed to schedule the oldest slot for expiration due to capacity constraints.
         // Can not track any more expirables.
-        System.out.println("===> [3]");
         return Expirable.EMPTY;
       }
     }
@@ -573,13 +601,6 @@ final class ExpirationTracker implements Closeable {
             }
             if (timeSource.getNanos() - start > 500_000_000L) { // 500ms limit
               // something went terribly wrong and the cleanup thread is most probably dead
-              System.out.println(
-                  "===> [x] "
-                      + cleanupQueue.size()
-                      + " :: "
-                      + (timeSource.getNanos() - start)
-                      + " :: "
-                      + cnt);
               close();
               return false;
             }

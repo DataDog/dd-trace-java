@@ -32,6 +32,7 @@ dependencies {
   main_java11CompileOnly deps.slf4j
   implementation sourceSets.main_java11.output
   implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
+  implementation group: 'it.unimi.dsi', name: 'fastutil-core', version: '8.5.8'
 
   testImplementation deps.junit5
   testImplementation deps.mockito
@@ -64,7 +65,7 @@ jmh {
   //  include = ['some regular expression'] // include pattern (regular expression) for benchmarks to be executed
   //  exclude = ['some regular expression'] // exclude pattern (regular expression) for benchmarks to be executed
   iterations = 4 // Number of measurement iterations to do.
-  benchmarkMode = ['thrpt', 'avgt']
+  benchmarkMode = ['avgt']
   // Benchmark mode. Available modes are: [Throughput/thrpt, AverageTime/avgt, SampleTime/sample, SingleShotTime/ss, All/all]
   //  batchSize = 1
   // Batch size: number of benchmark method calls per operation. (some benchmark modes can ignore this setting)
@@ -87,7 +88,7 @@ jmh {
   //  threads = 2 // Number of worker threads to run with.
   //  threadGroups = [2,3,4] //Override thread group distribution for asymmetric benchmarks.
   //  timeout = '1s' // Timeout for benchmark iteration.
-  timeUnit = 's' // Output time unit. Available time units are: [m, s, ms, us, ns].
+  timeUnit = 'ns' // Output time unit. Available time units are: [m, s, ms, us, ns].
   //  verbosity = 'NORMAL' // Verbosity mode. Available modes are: [SILENT, NORMAL, EXTRA]
   warmup = '10s' // Time to spend at each warmup iteration.
   //  warmupBatchSize = 10 // Warmup batch size: number of benchmark method calls per operation.

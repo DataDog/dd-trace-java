@@ -49,6 +49,33 @@ shadowJar {
           it.path.contains('QueueProgressIndicators') || it.path.contains('SupportsIterator'))
       }
       return ret
+    } else if (it.path.startsWith('it/unimi/dsi/fastutil/')) {
+      def ret = true
+      if (it.path.startsWith('it/unimi/dsi/fastutil') ||
+          it.path.equals('it/unimi/dsi/fastutil/longs') ||
+          it.path.equals('it/unimi/dsi/fastutil/objects')) {
+        ret = false
+      } else if (it.path.startsWith('it/unimi/dsi/fastutil/longs/AbstractLong2Object') ||
+        it.path.startsWith('it/unimi/dsi/fastutil/longs/Long2ObjectRBTreeMap') ||
+        it.path.endsWith('Long2ObjectMap.class') ||
+        it.path.contains('Long2ObjectFunction') ||
+        it.path.equals('it/unimi/dsi/fastutil/Function.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/longs/Long2ObjectSortedMap.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/longs/LongSet.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/longs/LongCollection.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/longs/LongIterable.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/longs/LongSortedSet.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/longs/LongBidirectionalIterable.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/objects/ObjectCollection.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/objects/ObjectIterable.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/objects/ObjectSet.class') ||
+        it.path.equals('it/unimi/dsi/fastutil/objects/ObjectSortedSet.class')) {
+        ret = false
+      }
+      if (!ret) {
+        println "*** $it.path"
+      }
+      return ret
     }
     return false
   }

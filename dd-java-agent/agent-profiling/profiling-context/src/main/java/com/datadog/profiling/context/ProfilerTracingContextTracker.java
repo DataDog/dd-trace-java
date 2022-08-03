@@ -8,13 +8,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import org.jctools.maps.NonBlockingHashMapLong;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,8 +62,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private static final int SPAN_ACTIVATION_DATA_LIMIT;
 
-  private final NonBlockingHashMapLong<LongSequence> threadSequences =
-      ThreadSequencesCache.instance().reserve();
+  private final ThreadSequences threadSequences;
   private final long startTimestampTicks;
   private final long startTimestampMillis;
   private final long delayedActivationTimestamp;
@@ -96,6 +97,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
                 ProfilingConfig.PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT);
   }
 
+  // @VisibleForTests
   ProfilerTracingContextTracker(
       Allocator allocator,
       AgentSpan span,
@@ -104,6 +106,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       int maxDataSize) {
     this(
         allocator,
+        new ThreadSequences(),
         span,
         timeTicksProvider,
         sequencePruner,
@@ -113,15 +116,17 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   ProfilerTracingContextTracker(
       Allocator allocator,
+      ThreadSequences threadSequences,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       ExpirationTracker.Expirable expirable) {
-    this(allocator, span, timeTicksProvider, sequencePruner, expirable, SPAN_ACTIVATION_DATA_LIMIT);
+    this(allocator, threadSequences, span, timeTicksProvider, sequencePruner, expirable, SPAN_ACTIVATION_DATA_LIMIT);
   }
 
   ProfilerTracingContextTracker(
       Allocator allocator,
+      ThreadSequences threadSequences,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
@@ -133,6 +138,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     this.sequencePruner = sequencePruner;
     this.span = span;
     this.allocator = allocator;
+    this.threadSequences = threadSequences;
     this.initialThreadId = Thread.currentThread().getId();
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
     this.expirable = expirable;
@@ -218,14 +224,22 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         Thread.yield();
       }
     } else {
+      Set<LongMapEntry<LongSequence>> entrySet = null;
       try {
         if (released != 0) {
           // tracker was released without persisting the data
           return 0;
         }
-        data = encodeIntervals();
+        entrySet = threadSequences.snapshot();
+        try {
+          data = encodeIntervals(entrySet);
+        } finally {
+          // release the snapshot sequences as they are not used or tracked any more
+          entrySet.forEach(e -> e.value.release());
+        }
       } finally {
         // make sure the other threads do not stay blocked even if there is an exception thrown
+        // unlock persist block
         persistedUpdater.compareAndSet(this, EMPTY_DATA, data);
       }
     }
@@ -260,9 +274,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         Thread.yield();
       }
       // it is safe to cleanup the resources
-      threadSequences.values().forEach(LongSequence::release);
-      threadSequences.clear();
-      ThreadSequencesCache.instance().release(threadSequences);
+      threadSequences.release();
       return true;
     }
     return false;
@@ -319,29 +331,29 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
    *
    * @return the {@linkplain ByteBuffer} instance containing the serialized data
    */
-  private ByteBuffer encodeIntervals() {
+  @SuppressWarnings("unchecked")
+  private ByteBuffer encodeIntervals(Set<LongMapEntry<LongSequence>> entrySet) {
     int encodedDataLimit =
         (maxDataSize * 3) / 4; // encoded data is in base64, growing by 4/3 in size
     int totalSequenceBufferSize = 0;
-    long[] threadIds = shuffleArray(threadSequences.keySetLong());
-    for (LongSequence sequence : threadSequences.values()) {
-      int size = sequence.captureSize();
-      totalSequenceBufferSize += size;
+    LongMapEntry<LongSequence>[] entries = entrySet.toArray(new LongMapEntry[0]);
+    for (LongMapEntry<LongSequence> entry : entries) {
+      totalSequenceBufferSize += entry.value.captureSize();
     }
 
     IntervalEncoder encoder =
         new IntervalEncoder(
             startTimestampMillis,
             timeTicksProvider.frequency() / 1_000_000L,
-            threadIds.length,
+            entries.length,
             totalSequenceBufferSize);
     int threadCount = 0;
     outer:
-    for (long threadId : threadIds) {
-      LongSequence rawIntervals = threadSequences.get(threadId);
+    for (LongMapEntry<LongSequence> entry : entries) {
+      LongSequence rawIntervals = entry.value;
       if (rawIntervals == null) {
         // the tracker was released due to expiration
-        warnlog.warn("Context interval sequence for thread id {} was not captured", threadId);
+        warnlog.warn("Context interval sequence for thread id {} was not captured", entry.key);
         continue;
       }
       int sequenceSize = rawIntervals.getCapturedSize();
@@ -349,10 +361,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       if (sequenceSize == -1) {
         // this should never happen given the assumption under which this method is executed
         // but - just in case, log a warning and skip the sequence
-        warnlog.warn("Context interval sequence for thread id {} was not captured", threadId);
+        warnlog.warn("Context interval sequence for thread id {} was not captured", entry.key);
         continue;
       }
-      IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(threadId);
+      IntervalEncoder.ThreadEncoder threadEncoder = encoder.startThread(entry.key);
       threadCount++;
 
       /*
