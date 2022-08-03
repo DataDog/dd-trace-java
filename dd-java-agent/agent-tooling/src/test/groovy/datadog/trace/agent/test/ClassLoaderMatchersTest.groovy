@@ -2,7 +2,6 @@ package datadog.trace.agent.test
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.log.LogContextScopeListener
-import datadog.trace.bootstrap.BootstrapProxy
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileStatic
