@@ -34,7 +34,6 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 
 @SuppressForbidden

@@ -18,7 +18,6 @@ class BitBucketInfo extends CIProviderInfo {
   public static final String BITBUCKET_GIT_BRANCH = "BITBUCKET_BRANCH";
   public static final String BITBUCKET_GIT_TAG = "BITBUCKET_TAG";
 
-
   @Override
   protected GitInfo buildCIGitInfo() {
     return new GitInfo(
