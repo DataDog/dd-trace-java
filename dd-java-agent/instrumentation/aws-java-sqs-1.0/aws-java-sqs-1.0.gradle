@@ -36,5 +36,5 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.8'
 
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '+'
-  latestDepTestImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.+'
 }

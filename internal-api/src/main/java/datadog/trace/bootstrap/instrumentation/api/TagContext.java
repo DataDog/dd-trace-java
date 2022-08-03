@@ -12,15 +12,22 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   private final String origin;
   private final Map<String, String> tags;
-  private Object requestContextData;
+  private Object requestContextDataAppSec;
+  private Object requestContextDataIast;
+  private final HttpHeaders httpHeaders;
 
   public TagContext() {
     this(null, null);
   }
 
   public TagContext(final String origin, final Map<String, String> tags) {
+    this(origin, tags, null);
+  }
+
+  public TagContext(final String origin, final Map<String, String> tags, HttpHeaders httpHeaders) {
     this.origin = origin;
     this.tags = tags;
+    this.httpHeaders = httpHeaders;
   }
 
   public final String getOrigin() {
@@ -52,6 +59,86 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return null;
   }
 
+  @Override
+  public String getForwardedFor() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.forwardedFor;
+  }
+
+  @Override
+  public String getXForwarded() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xForwarded;
+  }
+
+  @Override
+  public String getXForwardedFor() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xForwardedFor;
+  }
+
+  @Override
+  public String getXClusterClientIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xClusterClientIp;
+  }
+
+  @Override
+  public String getXRealIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.xRealIp;
+  }
+
+  @Override
+  public String getClientIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.clientIp;
+  }
+
+  @Override
+  public String getUserAgent() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.userAgent;
+  }
+
+  @Override
+  public String getVia() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.via;
+  }
+
+  @Override
+  public String getTrueClientIp() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.trueClientIp;
+  }
+
+  @Override
+  public String getCustomIpHeader() {
+    if (httpHeaders == null) {
+      return null;
+    }
+    return httpHeaders.customIpHeader;
+  }
+
   public final Map<String, String> getTags() {
     return tags;
   }
@@ -76,17 +163,39 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
-  public final Object getRequestContextData() {
-    return requestContextData;
+  public final Object getRequestContextDataAppSec() {
+    return requestContextDataAppSec;
   }
 
-  public final TagContext withRequestContextData(Object requestContextData) {
-    this.requestContextData = requestContextData;
+  public final TagContext withRequestContextDataAppSec(Object requestContextData) {
+    this.requestContextDataAppSec = requestContextData;
+    return this;
+  }
+
+  public final Object getRequestContextDataIast() {
+    return requestContextDataIast;
+  }
+
+  public final TagContext withRequestContextDataIast(Object requestContextData) {
+    this.requestContextDataIast = requestContextData;
     return this;
   }
 
   @Override
   public PathwayContext getPathwayContext() {
     return null;
+  }
+
+  public static class HttpHeaders {
+    public String forwardedFor;
+    public String xForwarded;
+    public String xForwardedFor;
+    public String xClusterClientIp;
+    public String xRealIp;
+    public String clientIp;
+    public String userAgent;
+    public String via;
+    public String trueClientIp;
+    public String customIpHeader;
   }
 }

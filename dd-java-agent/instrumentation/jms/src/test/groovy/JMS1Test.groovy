@@ -15,8 +15,12 @@ import spock.lang.Shared
 import javax.jms.Connection
 import javax.jms.Message
 import javax.jms.MessageListener
+import javax.jms.QueueConnection
+import javax.jms.QueueSession
 import javax.jms.Session
 import javax.jms.TextMessage
+import javax.jms.TopicConnection
+import javax.jms.TopicSession
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
@@ -31,9 +35,17 @@ class JMS1Test extends AgentTestRunner {
   String messageText3 = "yet another message"
   @Shared
   Session session
+  @Shared
+  QueueSession queueSession
+  @Shared
+  TopicSession topicSession
 
   @Shared
   Connection connection
+  @Shared
+  QueueConnection queueConnection
+  @Shared
+  TopicConnection topicConnection
 
   ActiveMQTextMessage message1 = session.createTextMessage(messageText1)
   ActiveMQTextMessage message2 = session.createTextMessage(messageText2)
@@ -46,6 +58,15 @@ class JMS1Test extends AgentTestRunner {
     connection = connectionFactory.createConnection()
     connection.start()
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+
+    queueConnection = connectionFactory.createQueueConnection()
+    queueConnection.start()
+    queueSession = queueConnection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE)
+
+    topicConnection = connectionFactory.createTopicConnection()
+    topicConnection.setClientID('gradle')
+    topicConnection.start()
+    topicSession = topicConnection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE)
   }
 
   def cleanupSpec() {
@@ -335,6 +356,32 @@ class JMS1Test extends AgentTestRunner {
 
     cleanup:
     producer.close()
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending to a null MessageListener on #jmsResourceName generates only producer spans"() {
+    setup:
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
+    consumer.setMessageListener(null)
+
+    producer.send(message1)
+
+    expect:
+    assertTraces(1) {
+      producerTrace(it, jmsResourceName)
+    }
+
+    cleanup:
+    producer.close()
+    consumer.receiveNoWait()
     consumer.close()
 
     where:
@@ -674,6 +721,158 @@ class JMS1Test extends AgentTestRunner {
     session.createTopic("someTopic") | "Topic someTopic" | ""          | "someTopic" | false
     session.createTemporaryQueue()   | "Temporary Queue" | ""          | ""          | true
     session.createTemporaryTopic()   | "Temporary Topic" | "random"    | ""          | true
+  }
+
+  def "queue session with #jmsResourceName generates spans"() {
+    setup:
+    def sender = queueSession.createSender(destination)
+    def receiver = queueSession.createReceiver(destination)
+
+    when:
+    sender.send(message1)
+    sender.send(message2)
+    sender.send(message3)
+
+    TextMessage receivedMessage1 = receiver.receive()
+    TextMessage receivedMessage2 = receiver.receive()
+    TextMessage receivedMessage3 = receiver.receive()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // only two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    receiver.receiveNoWait()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(2)[0])
+    }
+
+    cleanup:
+    sender.close()
+    receiver.close()
+
+    where:
+    destination                           | jmsResourceName
+    queueSession.createQueue("someQueue") | "Queue someQueue"
+    queueSession.createTemporaryQueue()   | "Temporary Queue"
+  }
+
+  def "topic session with #jmsResourceName generates spans"() {
+    setup:
+    def publisher = topicSession.createPublisher(destination)
+    def subscriber = topicSession.createSubscriber(destination)
+
+    when:
+    publisher.send(message1)
+    publisher.send(message2)
+    publisher.send(message3)
+
+    TextMessage receivedMessage1 = subscriber.receive()
+    TextMessage receivedMessage2 = subscriber.receive()
+    TextMessage receivedMessage3 = subscriber.receive()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // only two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    subscriber.receiveNoWait()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(2)[0])
+    }
+
+    cleanup:
+    publisher.close()
+    subscriber.close()
+
+    where:
+    destination                           | jmsResourceName
+    topicSession.createTopic("someTopic") | "Topic someTopic"
+    topicSession.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "durable topic session with #jmsResourceName generates spans"() {
+    setup:
+    def publisher = topicSession.createPublisher(destination)
+    def subscriber = topicSession.createDurableSubscriber(destination, 'test')
+
+    when:
+    publisher.send(message1)
+    publisher.send(message2)
+    publisher.send(message3)
+
+    TextMessage receivedMessage1 = subscriber.receive()
+    TextMessage receivedMessage2 = subscriber.receive()
+    TextMessage receivedMessage3 = subscriber.receive()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // only two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    subscriber.receiveNoWait()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(2)[0])
+    }
+
+    cleanup:
+    publisher.close()
+    subscriber.close()
+
+    where:
+    destination                           | jmsResourceName
+    topicSession.createTopic("someTopic") | "Topic someTopic"
   }
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {

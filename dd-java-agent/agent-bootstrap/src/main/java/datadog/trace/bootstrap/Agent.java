@@ -16,7 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
-import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
@@ -69,9 +69,11 @@ public class Agent {
     STARTUP_LOGS("dd.trace.startup.logs", true),
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
+    IAST("dd.iast.enabled", false),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
-    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false);
+    CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
+    TELEMETRY("dd.instrumentation.telemetry.enabled", false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -111,8 +113,10 @@ public class Agent {
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
+  private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean telemetryEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
@@ -131,6 +135,7 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
@@ -145,7 +150,9 @@ public class Agent {
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
+    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
+    telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -236,7 +243,7 @@ public class Agent {
      * logging facility.
      */
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(bootstrapURL);
+        new InstallDatadogTracerCallback(bootstrapURL, inst);
     if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
@@ -272,6 +279,23 @@ public class Agent {
       AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
     }
     return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
+  }
+
+  public static synchronized Object installAgentClassLoader(final URL bootstrapURL)
+      throws Exception {
+    createSharedClassloader(bootstrapURL);
+    if (null == AGENT_CLASSLOADER) {
+      // in CLI mode we skip installation of instrumentation because we're not running as an agent
+      // we still create the agent classloader so we can install the tracer and query integrations
+      AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
+    }
+    ClassLoader current = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+    return current;
+  }
+
+  public static synchronized void uninstallAgentClassLoader(final Object cookie) throws Exception {
+    Thread.currentThread().setContextClassLoader((ClassLoader) cookie);
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -353,8 +377,11 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
-    InstallDatadogTracerCallback(final URL bootstrapURL) {
+    private final Instrumentation instrumentation;
+
+    public InstallDatadogTracerCallback(final URL bootstrapURL, Instrumentation instrumentation) {
       super(bootstrapURL);
+      this.instrumentation = instrumentation;
     }
 
     @Override
@@ -381,6 +408,10 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
+
+      if (telemetryEnabled) {
+        startTelemetry(instrumentation, scoClass, sco);
+      }
     }
   }
 
@@ -570,19 +601,31 @@ public class Agent {
       return;
     }
 
-    InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
-    startAppSec(gw, scoClass, o);
+    SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+    startAppSec(ss, scoClass, o);
   }
 
-  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
+  private static void startAppSec(SubscriptionService ss, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
           appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
-      appSecInstallerMethod.invoke(null, gw, sco);
+      appSecInstallerMethod.invoke(null, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
+    }
+  }
+
+  private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
+    try {
+      final Class<?> telemetrySystem =
+          SHARED_CLASSLOADER.loadClass("datadog.telemetry.TelemetrySystem");
+      final Method startTelemetry =
+          telemetrySystem.getMethod("startTelemetry", Instrumentation.class, scoClass);
+      startTelemetry.invoke(null, inst, sco);
+    } catch (final Throwable ex) {
+      log.warn("Unable start telemetry: {}", ex);
     }
   }
 

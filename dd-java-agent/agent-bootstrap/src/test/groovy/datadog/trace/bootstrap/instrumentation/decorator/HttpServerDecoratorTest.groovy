@@ -4,9 +4,11 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.function.Function
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -36,6 +38,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, "test-method")
+      1 * span.setTag(DDTags.HTTP_QUERY, _)
+      1 * span.setTag(DDTags.HTTP_FRAGMENT, _)
       1 * span.setTag(Tags.HTTP_URL, url)
       1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
       1 * span.getRequestContext()
@@ -140,18 +144,31 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     _ * ctx.getForwarded() >> null
+    _ * ctx.getForwardedFor() >> null
     _ * ctx.getForwardedProto() >> null
     _ * ctx.getForwardedHost() >> null
     _ * ctx.getForwardedIp() >> null
     _ * ctx.getForwardedPort() >> null
+    _ * ctx.getXForwarded()
+    _ * ctx.getXForwardedFor() >> null
+    _ * ctx.getXClusterClientIp() >> null
+    _ * ctx.getXRealIp() >> null
+    _ * ctx.getClientIp() >> null
+    _ * ctx.getUserAgent() >> null
+    _ * ctx.getCustomIpHeader() >> null
+    _ * ctx.getTrueClientIp() >> null
+    _ * ctx.getVia() >> null
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
         1 * span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
+        1 * span.setTag(Tags.HTTP_CLIENT_IP, "10.0.0.1")
       } else if (ipv4 != null) {
         1 * span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
+        1 * span.setTag(Tags.HTTP_CLIENT_IP, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
       }
     }
+    _ * span.getRequestContext() >> null
     0 * _
 
     when:
@@ -159,10 +176,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     _ * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
+    _ * ctx.getForwardedFor() >> null
     _ * ctx.getForwardedProto() >> "https"
     _ * ctx.getForwardedHost() >> "somehost"
     _ * ctx.getForwardedIp() >> (ipv4 ? "10.1.1.1, 192.168.1.1" : "0::1")
     _ * ctx.getForwardedPort() >> "123"
+    _ * ctx.getXForwarded()
+    _ * ctx.getXForwardedFor() >> null
+    _ * ctx.getXClusterClientIp() >> null
+    _ * ctx.getXRealIp() >> null
+    _ * ctx.getClientIp() >> null
+    _ * ctx.getUserAgent() >> "some-user-agent"
+    _ * ctx.getCustomIpHeader() >> null
+    _ * ctx.getTrueClientIp() >> null
+    _ * ctx.getVia() >> null
     1 * span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
     1 * span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
     1 * span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
@@ -178,7 +205,12 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
+      if (conn.ip) {
+        1 * span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
+      }
     }
+    1 * span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
+    _ * span.getRequestContext() >> null
     0 * _
 
     where:
@@ -296,26 +328,29 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   def "test startSpan and InstrumentationGateway"() {
     setup:
     def ig = new InstrumentationGateway()
+    def ss = ig.getSubscriptionService(RequestContextSlot.APPSEC)
+    def cbpAppSec = ig.getCallbackProvider(RequestContextSlot.APPSEC)
     def callbacks = new IGCallBacks(reqData)
     if (reqStarted) {
-      ig.registerCallback(EVENTS.requestStarted(), callbacks)
+      ss.registerCallback(EVENTS.requestStarted(), callbacks)
     }
     if (reqHeader) {
-      ig.registerCallback(EVENTS.requestHeader(), callbacks)
+      ss.registerCallback(EVENTS.requestHeader(), callbacks)
     }
     if (reqHeaderDone) {
-      ig.registerCallback(EVENTS.requestHeaderDone(), callbacks)
+      ss.registerCallback(EVENTS.requestHeaderDone(), callbacks)
     }
     Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
     def reqCtxt = Mock(RequestContext) {
-      getData() >> reqData
+      getData(RequestContextSlot.APPSEC) >> reqData
     }
     def mSpan = Mock(AgentSpan) {
       getRequestContext() >> reqCtxt
     }
     def mTracer = Mock(TracerAPI) {
       startSpan(_, _, _) >> mSpan
-      instrumentationGateway() >> ig
+      getCallbackProvider(RequestContextSlot.APPSEC) >> cbpAppSec
+      getCallbackProvider(RequestContextSlot.IAST) >> CallbackProvider.CallbackProviderNoop.INSTANCE
     }
     def decorator = newDecorator(mTracer)
 
@@ -343,8 +378,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   private static final class IGCallBacks implements
   Supplier<Flow<Object>>,
-  TriConsumer<RequestContext<Object>, String, String>,
-  Function<RequestContext<Object>, Flow<Void>> {
+  TriConsumer<RequestContext, String, String>,
+  Function<RequestContext, Flow<Void>> {
 
     private final Object data
     private final Map<String, String> headers = new HashMap<>()
@@ -364,15 +399,15 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     // REQUEST_HEADER
     @Override
-    void accept(RequestContext<Object> requestContext, String key, String value) {
-      assert (requestContext.data == this.data)
+    void accept(RequestContext requestContext, String key, String value) {
+      assert (requestContext.getData(RequestContextSlot.APPSEC) == this.data)
       headers.put(key, value)
     }
 
     // REQUEST_HEADER_DONE
     @Override
-    Flow<Void> apply(RequestContext<Object> requestContext) {
-      assert (requestContext.data == this.data)
+    Flow<Void> apply(RequestContext requestContext) {
+      assert (requestContext.getData(RequestContextSlot.APPSEC) == this.data)
       reqHeaderDoneCount++
       return null
     }

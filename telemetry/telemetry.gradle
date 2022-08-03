@@ -1,0 +1,105 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath "org.openapitools:openapi-generator-gradle-plugin:5.4.0"
+  }
+}
+
+apply plugin: 'org.openapi.generator'
+apply from: "$rootDir/gradle/java.gradle"
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = [
+    'datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl',
+    'datadog.telemetry.HostInfo',
+    'datadog.telemetry.HostInfo.Os',
+    'datadog.telemetry.Uname',
+    'datadog.telemetry.Uname.UtsNameMacOs',
+    'datadog.telemetry.Uname.UtsNameLinux',
+    'datadog.telemetry.Uname.EmptyUtsName',
+    'datadog.telemetry.dependency.LocationsCollectingTransformer',
+    'datadog.telemetry.TelemetrySystem',
+    'datadog.telemetry.api.*'
+  ]
+  excludedClassesBranchCoverage = [
+    'datadog.telemetry.PolymorphicAdapterFactory.1',
+    'datadog.telemetry.Uname.UtsNameMapper',
+    'datadog.telemetry.HostInfo',
+    'datadog.telemetry.HostInfo.Os',
+  ]
+  excludedClassesInstructionCoverage = []
+  minJavaVersionForTests = JavaVersion.VERSION_1_7
+}
+
+openApiGenerate {
+  generatorName = 'java'
+  inputSpec = "$projectDir/src/main/schemas/telemetry-api-v1.yaml"
+  outputDir = "$buildDir/generated"
+  modelPackage = "datadog.telemetry.api"
+  templateDir = "$projectDir/src/main/templates"
+
+  typeMappings = [
+    // Java representation of ambiguous types
+    "OneOfnumberbooleanstring": "Object", // number/boolean/string
+    "OneOfintegerdouble": "Number",       // integer/double
+    "integer": "Long"
+  ]
+  importMappings = [
+    // Java representation of ambiguous imports
+    'OneOfnumberbooleanstring': 'java.lang.Object',
+    'OneOfintegerdouble': 'java.lang.Number',
+  ]
+
+  configOptions = [
+    dateLibrary: 'leggacy',
+    library: 'microprofile',
+    openApiNullable: 'false',
+    useOneOfInterfaces: 'true',
+    legacyDiscriminatorBehavior: 'false',
+  ]
+  globalProperties = [
+    // force generate only the models
+    apis: 'false',
+    invokers: 'false',
+    models: '',
+    modelDocs: 'false',
+    modelTests: 'false'
+  ]
+}
+
+def openApiSrcDir = "$buildDir/generated/src/main/java" as String
+sourceSets.main.java.srcDirs += [openApiSrcDir]
+compileJava.dependsOn 'openApiGenerate'
+
+forbiddenApisMain.exclude('datadog/telemetry/api/*.class')
+
+packageSources.dependsOn 'openApiGenerate'
+sourcesJar.dependsOn 'openApiGenerate'
+
+dependencies {
+  implementation deps.slf4j
+
+  implementation project(':internal-api')
+
+  compileOnly project(':communication')
+  testImplementation project(':communication')
+
+  compileOnly project(':utils:container-utils')
+  testImplementation project(':utils:container-utils')
+
+  api deps.okhttp
+  api deps.moshi
+
+  compileOnly deps.jnr_ffi
+  testImplementation deps.jnr_ffi
+
+  testImplementation project(':utils:test-utils')
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
+  testImplementation group: 'org.jboss', name: 'jboss-vfs', version: '3.2.16.Final'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
+}
+

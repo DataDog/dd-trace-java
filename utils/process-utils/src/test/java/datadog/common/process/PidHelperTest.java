@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader.util;
+package datadog.common.process;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

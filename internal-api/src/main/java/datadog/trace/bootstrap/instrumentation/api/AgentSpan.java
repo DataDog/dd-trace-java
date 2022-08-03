@@ -149,7 +149,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void finishWork();
 
   /** RequestContext for the Instrumentation Gateway */
-  RequestContext<Object> getRequestContext();
+  RequestContext getRequestContext();
 
   void mergePathwayContext(PathwayContext pathwayContext);
 
@@ -174,6 +174,26 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
       String getForwardedIp();
 
       String getForwardedPort();
+
+      String getForwardedFor();
+
+      String getXForwarded();
+
+      String getXForwardedFor();
+
+      String getXClusterClientIp();
+
+      String getXRealIp();
+
+      String getClientIp();
+
+      String getUserAgent();
+
+      String getVia();
+
+      String getTrueClientIp();
+
+      String getCustomIpHeader();
     }
   }
 }

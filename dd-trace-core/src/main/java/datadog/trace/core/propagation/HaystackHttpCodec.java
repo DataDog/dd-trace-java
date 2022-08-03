@@ -170,8 +170,18 @@ class HaystackHttpCodec {
             classification = BAGGAGE;
           }
           break;
+        case 'u':
+          if (handledUserAgent(key, value)) {
+            return true;
+          }
+          break;
         default:
       }
+
+      if (handledIpHeaders(key, value)) {
+        return true;
+      }
+
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
         lowerCaseKey = toLowerCase(key);
         if (taggedHeaders.containsKey(lowerCaseKey)) {

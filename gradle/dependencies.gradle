@@ -23,13 +23,15 @@ final class CachedData {
     coroutines    : "1.3.0",
     dogstatsd     : "4.0.0",
     jnr_unixsocket: "0.28",
+    jnr_ffi       : '2.1.12', // dependency of jnr_unixsocket: update in tandem
     commons       : "3.2",
     mockito       : '4.4.0',
     moshi         : '1.9.2',
+    jctools       : '3.3.0',
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8-DD-20220530",
+    asyncprofiler : "2.8.3-DD-20220720",
     asm           : "9.2"
   ]
 
@@ -38,6 +40,7 @@ final class CachedData {
     slf4j                : "org.slf4j:slf4j-api:${versions.slf4j}",
     guava                : "com.google.guava:guava:$versions.guava",
     moshi                : "com.squareup.moshi:moshi:${versions.moshi}",
+    jctools              : "org.jctools:jctools-core:${versions.jctools}",
     okhttp               : "com.squareup.okhttp3:okhttp:${versions.okhttp}",
     okio                 : "com.squareup.okio:okio:${versions.okio}",
     bytebuddy            : "net.bytebuddy:byte-buddy:${versions.bytebuddy}",
@@ -49,6 +52,7 @@ final class CachedData {
     asm                  : "org.ow2.asm:asm:${versions.asm}",
     asmcommons           : "org.ow2.asm:asm-commons:${versions.asm}",
     dogstatsd            : "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
+    jnr_ffi              : "com.github.jnr:jnr-ffi:${versions.jnr_ffi}",
 
     // Testing
 
@@ -95,28 +99,43 @@ final class CachedData {
       "com.squareup.okio:okio:${versions.okio}",
       "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
       "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
+      "com.squareup.moshi:moshi:${versions.moshi}",
+      "org.jctools:jctools-core:${versions.jctools}",
     ],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
     // which is similar but not exactly the same as the regular gradle dependency{} block
     // Also, transitive dependencies have to be explicitly listed
-    sharedInverse        : (Closure) {
-      // dogstatsd and its transitives
-      exclude(dependency('com.datadoghq:java-dogstatsd-client'))
-      exclude(dependency('com.github.jnr::'))
-      exclude(dependency('org.ow2.asm::'))
+    excludeShared        : (Closure) {
+      // projects bundled with shared or on bootstrap
+      exclude(project(':dd-java-agent:agent-bootstrap'))
+      exclude(project(':dd-java-agent:agent-logging'))
+      exclude(project(':dd-trace-api'))
+      exclude(project(':internal-api'))
+      exclude(project(':internal-api:internal-api-8'))
+      exclude(project(':communication'))
+      exclude(project(':telemetry'))
+      exclude(project(':utils:container-utils'))
+      exclude(project(':utils:process-utils'))
+      exclude(project(':utils:socket-utils'))
+      exclude(project(':utils:time-utils'))
+      exclude(project(':utils:version-utils'))
+      exclude(dependency('org.slf4j::'))
 
       // okhttp and its transitives
       exclude(dependency('com.squareup.okhttp3:okhttp'))
       exclude(dependency('com.squareup.okio:okio'))
 
-      exclude(dependency("com.squareup.moshi:moshi:${versions.moshi}"))
+      // dogstatsd and its transitives
+      exclude(dependency('com.datadoghq:java-dogstatsd-client'))
+      exclude(dependency('com.github.jnr::'))
+      exclude(dependency('org.ow2.asm::'))
 
-      // container-utils/communication and transitives
-      exclude(project(':communication'))
+      // moshi and its transitives
+      exclude(dependency('com.squareup.moshi::'))
 
-      exclude(project(':utils:container-utils'))
-      exclude(dependency("org.slf4j:slf4j-api:${versions.slf4j}"))
+      // jctools and its transitives
+      exclude(dependency('org.jctools::'))
     }
   ]
 }

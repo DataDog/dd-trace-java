@@ -8,6 +8,7 @@ import datadog.trace.api.function.Supplier
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -46,12 +47,12 @@ abstract class AbstractResteasyAppsecTest extends AgentTestRunner {
 
   def setupSpec() {
     Events<Object> events = Events.get()
-    ig = AgentTracer.get().instrumentationGateway()
+    ig = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
     ig.registerCallback(events.requestStarted(), { -> new Flow.ResultFlow<Object>(new Object()) } as Supplier<Flow<Object>>)
-    ig.registerCallback(events.requestBodyProcessed(), { RequestContext<Object> ctx, Object obj ->
+    ig.registerCallback(events.requestBodyProcessed(), { RequestContext ctx, Object obj ->
       ctx.traceSegment.setTagTop('request.body.converted', obj as String)
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext<Object>, Object, Flow<Void>>)
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
 
     startServer()
   }

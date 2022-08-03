@@ -119,6 +119,11 @@ class DatadogHttpCodec {
             return true;
           }
           break;
+        case 'u':
+          if (handledUserAgent(key, value)) {
+            return true;
+          }
+          break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
           if (E2E_START_KEY.equals(lowerCaseKey)) {
@@ -129,6 +134,11 @@ class DatadogHttpCodec {
           break;
         default:
       }
+
+      if (handledIpHeaders(key, value)) {
+        return true;
+      }
+
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
         lowerCaseKey = toLowerCase(key);
         if (taggedHeaders.containsKey(lowerCaseKey)) {

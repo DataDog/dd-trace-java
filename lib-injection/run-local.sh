@@ -29,7 +29,7 @@ fi
 docker buildx use dd-trace-java
 export BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
 
-./build.sh docker.io/${1}/dd-java-agent-k8s-init local
+./build.sh docker.io/${1}/dd-java-agent-init local
 
 kubectl apply -f app-config.yaml
 kubectl wait pod/my-app --for condition=ready --timeout=5m

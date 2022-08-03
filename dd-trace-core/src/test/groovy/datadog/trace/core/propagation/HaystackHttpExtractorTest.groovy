@@ -104,7 +104,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
     then:
     context != null
-    !(context instanceof ExtractedContext)
+    context instanceof TagContext
     context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 
@@ -224,5 +224,33 @@ class HaystackHttpExtractorTest extends DDSpecification {
     "1"                                    | "f" * 16                               | DDId.ONE                       | DDId.MAX
     "1"                                    | "1" + "f" * 16                         | null                           | DDId.ZERO
     "1"                                    | "000" + "f" * 16                       | DDId.ONE                       | DDId.MAX
+  }
+
+
+  def "extract common http headers"() {
+    setup:
+    def headers = [
+      (HttpCodec.USER_AGENT_KEY): 'some-user-agent',
+      (HttpCodec.X_CLUSTER_CLIENT_IP_KEY): '1.1.1.1',
+      (HttpCodec.X_REAL_IP_KEY): '2.2.2.2',
+      (HttpCodec.CLIENT_IP_KEY): '3.3.3.3',
+      (HttpCodec.TRUE_CLIENT_IP_KEY): '4.4.4.4',
+      (HttpCodec.VIA_KEY): '5.5.5.5',
+      (HttpCodec.FORWARDED_FOR_KEY): '6.6.6.6',
+      (HttpCodec.X_FORWARDED_KEY): '7.7.7.7'
+    ]
+
+    when:
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    assert context.userAgent == 'some-user-agent'
+    assert context.XClusterClientIp == '1.1.1.1'
+    assert context.XRealIp == '2.2.2.2'
+    assert context.clientIp == '3.3.3.3'
+    assert context.trueClientIp == '4.4.4.4'
+    assert context.via == '5.5.5.5'
+    assert context.forwardedFor == '6.6.6.6'
+    assert context.XForwarded == '7.7.7.7'
   }
 }

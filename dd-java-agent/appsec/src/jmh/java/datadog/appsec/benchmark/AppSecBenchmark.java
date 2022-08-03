@@ -9,9 +9,12 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.TraceSegment;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.io.IOException;
@@ -51,6 +54,8 @@ public class AppSecBenchmark {
   }
 
   private InstrumentationGateway gw;
+  private CallbackProvider cbp;
+  private SubscriptionService ss;
   private String method = "GET";
   private URIDataAdapter uri;
   private String ip = "0.0.0.0";
@@ -59,27 +64,29 @@ public class AppSecBenchmark {
   @Setup(Level.Trial)
   public void setUp() throws URISyntaxException {
     gw = new InstrumentationGateway();
+    cbp = gw.getCallbackProvider(RequestContextSlot.APPSEC);
+    ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
     sharedCommunicationObjects.okHttpClient = new StubOkHttpClient();
     sharedCommunicationObjects.featuresDiscovery =
         new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.okHttpClient);
 
-    AppSecSystem.start(gw, sharedCommunicationObjects);
+    AppSecSystem.start(ss, sharedCommunicationObjects);
     uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));
   }
 
   private void maliciousRequest() throws Exception {
-    RequestContext<Object> context =
-        new Context(gw.getCallback(EVENTS.requestStarted()).get().getResult());
-    gw.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
-    gw.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
-    gw.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
-    Flow<?> flow = gw.getCallback(EVENTS.requestHeaderDone()).apply(context);
+    RequestContext context =
+        new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
+    cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
+    cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
+    cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
+    Flow<?> flow = cbp.getCallback(EVENTS.requestHeaderDone()).apply(context);
     if (!flow.getAction().isBlocking()) {
       throw new Exception("Request should be blocked");
     }
-    gw.getCallback(EVENTS.requestEnded()).apply(context, null);
+    cbp.getCallback(EVENTS.requestEnded()).apply(context, null);
   }
 
   @Benchmark
@@ -94,13 +101,13 @@ public class AppSecBenchmark {
   }
 
   private void normalRequest() {
-    RequestContext<Object> context =
-        new Context(gw.getCallback(EVENTS.requestStarted()).get().getResult());
-    gw.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
-    gw.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
-    gw.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
-    Flow<?> flow = gw.getCallback(EVENTS.requestHeaderDone()).apply(context);
-    gw.getCallback(EVENTS.requestEnded()).apply(context, null);
+    RequestContext context =
+        new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
+    cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
+    cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
+    cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
+    Flow<?> flow = cbp.getCallback(EVENTS.requestHeaderDone()).apply(context);
+    cbp.getCallback(EVENTS.requestEnded()).apply(context, null);
   }
 
   @Benchmark
@@ -210,7 +217,7 @@ public class AppSecBenchmark {
     }
   }
 
-  static class Context implements RequestContext<Object> {
+  static class Context implements RequestContext {
     private final Object data;
 
     public Context(Object data) {
@@ -218,13 +225,20 @@ public class AppSecBenchmark {
     }
 
     @Override
-    public Object getData() {
-      return data;
+    public Object getData(RequestContextSlot slot) {
+      if (slot == RequestContextSlot.APPSEC) {
+        return data;
+      } else {
+        return null;
+      }
     }
 
     @Override
     public TraceSegment getTraceSegment() {
       return TraceSegment.NoOp.INSTANCE;
     }
+
+    @Override
+    public void close() throws IOException {}
   }
 }

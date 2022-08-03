@@ -23,7 +23,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.scopemanager.ContinuableScopeManager.SingleContinuation',
   'datadog.trace.core.SpanCorrelationImpl',
   'datadog.trace.core.Base64Encoder',
-  'datadog.trace.core.DDSpan.1'
+  'datadog.trace.core.DDSpan.1',
+  'datadog.trace.core.tagprocessor.QueryObfuscator.1'
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
@@ -48,9 +49,11 @@ dependencies {
 
   implementation deps.slf4j
   implementation deps.moshi
+  implementation deps.jctools
 
-  implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
   implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.2'
+
+  implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
@@ -63,6 +66,7 @@ dependencies {
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
   testImplementation group: 'org.openjdk.jol', name: 'jol-core', version: '0.16'
   testImplementation group: 'commons-codec', name: 'commons-codec', version: '1.3'
+  testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-events', version:'3.11.0'
 
   traceAgentTestImplementation deps.testcontainers
 }

@@ -35,6 +35,11 @@ class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
 
   @Override
+  protected boolean isDataStreamsEnabled() {
+    return true
+  }
+
+  @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
@@ -159,7 +164,8 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.isEmpty()
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -279,7 +285,8 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.isEmpty()
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -856,7 +863,8 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.isEmpty()
+        edgeTags.containsAll(["type:internal"])
+        edgeTags.size() == 1
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -924,9 +932,9 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
 
     where:
-    value                                                    | expected
-    "false"                                                  | false
-    "true"                                                   | true
+    value   | expected
+    "false" | false
+    "true"  | true
   }
 
 

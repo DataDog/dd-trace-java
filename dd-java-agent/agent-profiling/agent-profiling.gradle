@@ -9,8 +9,6 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api deps.slf4j
@@ -37,30 +35,7 @@ configurations {
 }
 
 shadowJar {
-  dependencies deps.sharedInverse
-  dependencies {
-    exclude(project(':dd-java-agent:agent-bootstrap'))
-    exclude(project(':dd-java-agent:agent-logging'))
-    exclude(project(':dd-trace-api'))
-    exclude(project(':internal-api'))
-    exclude(project(':internal-api:internal-api-8'))
-    exclude(project(':utils:socket-utils'))
-    exclude(project(':utils:time-utils'))
-    exclude(project(':utils:version-utils'))
-    exclude(dependency('org.slf4j::'))
-  }
-  exclude {
-    if (it.path.startsWith('org/jctools/')) {
-      def ret = true
-      if (it.path.equals('org/jctools/util') || it.path.equals('org/jctools/maps')) {
-        ret = false
-      } else {
-        ret = !(it.path.contains('/util') || it.path.contains('AbstractEntry') || it.path.contains('ConcurrentAutoTable') || it.path.contains('NonBlockingHashMap'))
-      }
-      return ret
-    }
-    return false
-  }
+  dependencies deps.excludeShared
 }
 
 jar {
