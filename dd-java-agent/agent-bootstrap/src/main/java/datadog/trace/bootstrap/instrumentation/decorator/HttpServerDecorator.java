@@ -263,7 +263,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         tagContext.withRequestContextDataAppSec(startedCbAppSec.get().getResult());
       }
       if (startedCbIast != null) {
-        tagContext.withRequestContextDataAppSec(startedCbIast.get().getResult());
+        tagContext.withRequestContextDataIast(startedCbIast.get().getResult());
       }
       return tagContext;
     }
