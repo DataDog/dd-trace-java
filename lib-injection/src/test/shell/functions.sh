@@ -1,7 +1,13 @@
 #!/bin/bash
 
+## HELPERS
+function echoerr() {
+    echo "$@" 1>&2;
+}
+## end HELPERS
+
 if [ -z "${BASE_DIR}" ] ; then
-    echo "MUST define BASE_DIR before sourcing this file"
+    echoerr "MUST define BASE_DIR before sourcing this file"
     exit 1
 fi
 export SRC_DIR=${BASE_DIR}/src
@@ -12,13 +18,15 @@ mkdir -p ${BUILD_DIR}
 if [ -z ${CI} ] ; then
     export RUNNING_LOCALLY=1
     if [ -z ${DOCKER_USERNAME} ] ; then
-        echo "MUST set DOCKER_USERNAME to your dockerhub username"
+        echoerr "MUST set DOCKER_USERNAME to your dockerhub username"
     fi
-    export DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-java-agent-init
+    export INIT_DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-java-agent-init
+    export APP_DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-java-agent-init-test-app
     export DOCKER_IMAGE_TAG=local
 else
     export RUNNING_LOCALLY=0
-    export DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-java-agent-init
+    export INIT_DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-java-agent-init
+    export APP_DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-java-agent-init-test-app
     if ! [ -z ${GITHUB_SHA} ] ; then
         export DOCKER_IMAGE_TAG=${GITHUB_SHA}
     fi
@@ -26,7 +34,7 @@ else
         export DOCKER_IMAGE_TAG=${CI_COMMIT_SHA}
     fi
     if [ -z ${DOCKER_IMAGE_TAG} ] ; then
-        echo "Unknown CI provider used, can't determine git commit hash"
+        echoerr "Unknown CI provider used, can't determine git commit hash"
         exit 1
     fi
     export DD_API_KEY=apikey
@@ -89,36 +97,22 @@ targetSystem: "linux"
 agents:
   enabled: false
 datadog:
-EOF
-    if [ $RUNNING_LOCALLY -eq 1 ] ; then
-        cat <<EOF >> ${BUILD_DIR}/operator-helm-values.yaml
-  clusterName: local
-EOF
-    else
-        cat <<EOF >> ${BUILD_DIR}/operator-helm-values.yaml
-  clusterName: ci
-EOF
-    fi
-    cat <<EOF >> ${BUILD_DIR}/operator-helm-values.yaml
+  clusterName: lib-injection-testing
   tags: []
   # datadog.kubelet.tlsVerify should be `false` on kind and minikube
   # to establish communication with the kubelet
   kubelet:
     tlsVerify: "false"
-  logs:
-    enabled: true
-    containerCollectAll: false
-    containerCollectUsingFiles: true
 clusterAgent:
   enabled: true
   image:
     name: ""
-    tag: ahmed-auto-instru
+    tag: master
     repository: datadog/cluster-agent-dev
     pullPolicy: Always
   admissionController:
 EOF
-    if [ $USE_UDS -eq 1 ] ; then
+    if [ ${USE_UDS} -eq 1 ] ; then
         cat <<EOF >> ${BUILD_DIR}/operator-helm-values.yaml
     configMode: socket
 EOF
@@ -138,8 +132,8 @@ function deploy-operator() {
     helm install datadog --set datadog.apiKey=${DD_API_KEY} --set datadog.appKey=${DD_APP_KEY} -f ${BUILD_DIR}/operator-helm-values.yaml datadog/datadog
     sleep 5 && kubectl get pods
 
-    POD_NAME=$(kubectl get pods -l app=datadog-cluster-agent -o name)
-    kubectl wait $POD_NAME --for condition=ready --timeout=5m
+    pod_name=$(kubectl get pods -l app=datadog-cluster-agent -o name)
+    kubectl wait ${pod_name} --for condition=ready --timeout=5m
     sleep 5 && kubectl get pods
 }
 
@@ -148,13 +142,13 @@ function deploy-test-agent() {
     kubectl rollout status daemonset/datadog
     sleep 5 && kubectl get pods -l app=datadog
 
-    POD_NAME=$(kubectl get pods -l app=datadog -o name)
-    kubectl wait $POD_NAME --for condition=ready
+    pod_name=$(kubectl get pods -l app=datadog -o name)
+    kubectl wait ${pod_name} --for condition=ready
     sleep 5 && kubectl get pods -l app=datadog
 }
 
 function deploy-agents() {
-    if [ $USE_OPERATOR -eq 1 ] ;  then
+    if [ ${USE_OPERATOR} -eq 1 ] ;  then
         deploy-operator
     fi
     deploy-test-agent   
@@ -176,19 +170,19 @@ metadata:
     tags.datadoghq.com/version: local
     admission.datadoghq.com/enabled: "true"
   annotations:
-    admission.datadoghq.com/java-tracer.custom-image: ${DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
+    admission.datadoghq.com/java-tracer.custom-image: ${INIT_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
   name: my-app
 spec:
 EOF
-    if [ $USE_OPERATOR -eq 0 ]; then
+    if [ ${USE_OPERATOR} -eq 0 ]; then
         cat <<EOF >> ${BUILD_DIR}/app-config.yaml
   initContainers:
     - command:
       - sh
       - copy-lib.sh
       - /datadog-lib
-      image: ${DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
-      imagePullPolicy: IfNotPresent
+      image: ${INIT_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
+      imagePullPolicy: Always
       name: datadog-tracer-init
       resources: {}
       terminationMessagePath: /dev/termination-log
@@ -200,7 +194,7 @@ EOF
     fi
     cat <<EOF >> ${BUILD_DIR}/app-config.yaml
   containers:
-    - image: docker.io/bdevinssureshatddog/k8s-lib-injection-app:latest
+    - image: ${APP_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
       env:
         - name: SERVER_PORT
           value: "18080"
@@ -220,14 +214,14 @@ EOF
               apiVersion: v1
               fieldPath: metadata.labels['tags.datadoghq.com/version']
 EOF
-    if [ $USE_OPERATOR -eq 0 ]; then
+    if [ ${USE_OPERATOR} -eq 0 ]; then
         cat <<EOF >> ${BUILD_DIR}/app-config.yaml
         - name: DD_LOGS_INJECTION
           value: 'true'
         - name: JAVA_TOOL_OPTIONS
           value: '-javaagent:/datadog-lib/dd-java-agent.jar'
 EOF
-        if [ $USE_UDS -eq 0 ]; then
+        if [ ${USE_UDS} -eq 0 ]; then
             cat <<EOF >> ${BUILD_DIR}/app-config.yaml
         - name: DD_AGENT_HOST
           valueFrom:
@@ -261,13 +255,13 @@ EOF
           hostPort: 18080
           protocol: TCP
 EOF
-    if [ $USE_OPERATOR -eq 0 ]; then
+    if [ ${USE_OPERATOR} -eq 0 ]; then
         cat <<EOF >> ${BUILD_DIR}/app-config.yaml
       volumeMounts:
         - mountPath: /datadog-lib
           name: datadog-auto-instrumentation
 EOF
-        if [ $USE_UDS -eq 1 ] ; then
+        if [ ${USE_UDS} -eq 1 ] ; then
             cat <<EOF >> ${BUILD_DIR}/app-config.yaml
         - mountPath: /var/run/datadog
           name: datadog
@@ -278,7 +272,7 @@ EOF
     - emptyDir: {}
       name: datadog-auto-instrumentation
 EOF
-        if [ $USE_UDS -eq 1 ] ; then
+        if [ ${USE_UDS} -eq 1 ] ; then
             cat <<EOF >> ${BUILD_DIR}/app-config.yaml
     - hostPath:
         path: /var/run/datadog
@@ -302,7 +296,7 @@ function test-for-traces() {
     wget -O $(readlink -f "${tmpfile}") http://localhost:18126/test/traces || true
     traces=`cat ${tmpfile}`
     if [[ ${#traces} -lt 3 ]] ; then
-        echo "No traces reported - ${traces}"
+        echoerr "No traces reported - ${traces}"
         exit 1
     else
         count=`jq '. | length' <<< "${traces}"`
@@ -313,25 +307,40 @@ function test-for-traces() {
 function build-and-push-init-image() {
     ensure-buildx
 
-    DOCKER_SRC_DIR=${SRC_DIR}/main/docker
-    DOCKER_BUILD_DIR=${BUILD_DIR}/docker
+    docker_src_dir=${SRC_DIR}/main/docker
+    docker_build_dir=${BUILD_DIR}/docker
 
     if [ -z "${BUILDX_PLATFORMS}" ] ; then
         BUILDX_PLATFORMS=`docker buildx imagetools inspect --raw busybox:latest | jq -r 'reduce (.manifests[] | [ .platform.os, .platform.architecture, .platform.variant ] | join("/") | sub("\\/$"; "")) as $item (""; . + "," + $item)' | sed 's/,//'`
     fi
 
-    mkdir -p ${DOCKER_BUILD_DIR}
-    cp ${DOCKER_SRC_DIR}/* ${DOCKER_BUILD_DIR}/.
+    mkdir -p ${docker_build_dir}
+    cp ${docker_src_dir}/* ${docker_build_dir}/.
 
     if [ ${RUNNING_LOCALLY} -eq 1 ] ; then
         echo "Running locally"
-        cp ${BASE_DIR}/../dd-java-agent/build/libs/dd-java-agent.jar ${DOCKER_BUILD_DIR}
+        cp ${BASE_DIR}/../dd-java-agent/build/libs/dd-java-agent.jar ${docker_build_dir}
     else
         echo "Running on CI"
-        cp ${BASE_DIR}/../workspace/dd-java-agent/build/libs/*.jar ${DOCKER_BUILD_DIR}
-        mv ${DOCKER_BUILD_DIR}/*.jar ${DOCKER_BUILD_DIR}/dd-java-agent.jar
+        cp ${BASE_DIR}/../workspace/dd-java-agent/build/libs/*.jar ${docker_build_dir}
+        mv ${docker_build_dir}/*.jar ${docker_build_dir}/dd-java-agent.jar
     fi
 
-    cd ${DOCKER_BUILD_DIR}
-    docker buildx build --platform ${BUILDX_PLATFORMS} -t "${DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}" --push .
+    if [ ! -f ${docker_build_dir}/dd-java-agent.jar ] ; then
+        echoerr "dd-java-agent.jar not found"
+        exit 1
+    fi
+
+    cd ${docker_build_dir}
+    docker buildx build --platform ${BUILDX_PLATFORMS} -t "${INIT_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}" --push .
+}
+
+function build-test-app-image() {
+    export JAVA_HOME=$JAVA_11_HOME
+    cd ${BASE_DIR}/application
+    ./gradlew -PdockerImageRepo=${APP_DOCKER_IMAGE_REPO} -PdockerImageTag=${DOCKER_IMAGE_TAG} clean bootBuildImage
+}
+
+function push-test-app-image() {
+    docker push ${APP_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
 }

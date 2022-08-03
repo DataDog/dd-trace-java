@@ -27,7 +27,7 @@ spec:
         - name: LOG_LEVEL
           value: 'DEBUG'
         image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15

@@ -7,10 +7,8 @@ export BASE_DIR=$(dirname "${SCRIPT_PATH}")
 
 source ${BASE_DIR}/src/test/shell/functions.sh
 
-# set -x
 for func in "${@}"
 do
     echo "*** Running ${func} ***"
     $func
 done
-# set +x
