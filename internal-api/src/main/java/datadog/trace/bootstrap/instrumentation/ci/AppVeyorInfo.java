@@ -8,7 +8,6 @@ class AppVeyorInfo extends CIProviderInfo {
 
   // https://www.appveyor.com/docs/environment-variables/
   public static final String APPVEYOR = "APPVEYOR";
-  public static final String APPVEYOR_PREFIX = "APPVEYOR_";
   public static final String APPVEYOR_PROVIDER_NAME = "appveyor";
   public static final String APPVEYOR_BUILD_ID = "APPVEYOR_BUILD_ID";
   public static final String APPVEYOR_REPO_NAME = "APPVEYOR_REPO_NAME";
@@ -52,7 +51,6 @@ class AppVeyorInfo extends CIProviderInfo {
         .ciPipelineUrl(url)
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH)))
-        .ciEnvVars(getFilteredEnvVars(APPVEYOR_PREFIX))
         .build();
   }
 

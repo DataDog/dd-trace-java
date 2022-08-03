@@ -7,11 +7,11 @@ class CircleCIInfo extends CIProviderInfo {
 
   // https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
   public static final String CIRCLECI = "CIRCLECI";
-  public static final String CIRCLECI_PREFIX = "CIRCLE_";
   public static final String CIRCLECI_PROVIDER_NAME = "circleci";
   public static final String CIRCLECI_PIPELINE_ID = "CIRCLE_WORKFLOW_ID";
   public static final String CIRCLECI_PIPELINE_NAME = "CIRCLE_PROJECT_REPONAME";
   public static final String CIRCLECI_BUILD_URL = "CIRCLE_BUILD_URL";
+  public static final String CIRCLECI_BUILD_NUM = "CIRCLE_BUILD_NUM";
   public static final String CIRCLECI_WORKSPACE_PATH = "CIRCLE_WORKING_DIRECTORY";
   public static final String CIRCLECI_GIT_REPOSITORY_URL = "CIRCLE_REPOSITORY_URL";
   public static final String CIRCLECI_GIT_COMMIT = "CIRCLE_SHA1";
@@ -40,7 +40,7 @@ class CircleCIInfo extends CIProviderInfo {
         .ciJobName(System.getenv(CIRCLECI_JOB_NAME))
         .ciJobUrl(System.getenv(CIRCLECI_BUILD_URL))
         .ciWorkspace(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
-        .ciEnvVars(getFilteredEnvVars(CIRCLECI_PREFIX))
+        .ciEnvVars(CIRCLECI_PIPELINE_ID, CIRCLECI_BUILD_NUM)
         .build();
   }
 

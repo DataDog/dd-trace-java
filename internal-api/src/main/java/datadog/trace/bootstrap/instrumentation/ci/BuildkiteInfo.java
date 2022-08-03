@@ -8,7 +8,6 @@ class BuildkiteInfo extends CIProviderInfo {
 
   // https://buildkite.com/docs/pipelines/environment-variables
   public static final String BUILDKITE = "BUILDKITE";
-  public static final String BUILDKITE_PREFIX = "BUILDKITE_";
   public static final String BUILDKITE_PROVIDER_NAME = "buildkite";
   public static final String BUILDKITE_PIPELINE_ID = "BUILDKITE_BUILD_ID";
   public static final String BUILDKITE_PIPELINE_NAME = "BUILDKITE_PIPELINE_SLUG";
@@ -49,7 +48,7 @@ class BuildkiteInfo extends CIProviderInfo {
         .ciPipelineUrl(ciPipelineUrl)
         .ciJobUrl(String.format("%s#%s", ciPipelineUrl, System.getenv(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
-        .ciEnvVars(getFilteredEnvVars(BUILDKITE_PREFIX))
+        .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
         .build();
   }
 

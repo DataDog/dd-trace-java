@@ -8,7 +8,6 @@ class TravisInfo extends CIProviderInfo {
 
   // https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
   public static final String TRAVIS = "TRAVIS";
-  public static final String TRAVIS_PREFIX = "TRAVIS_";
   public static final String TRAVIS_PROVIDER_NAME = "travisci";
   public static final String TRAVIS_PIPELINE_ID = "TRAVIS_BUILD_ID";
   public static final String TRAVIS_PIPELINE_NUMBER = "TRAVIS_BUILD_NUMBER";
@@ -48,7 +47,6 @@ class TravisInfo extends CIProviderInfo {
         .ciPipelineUrl(System.getenv(TRAVIS_PIPELINE_URL))
         .ciJobUrl(System.getenv(TRAVIS_JOB_URL))
         .ciWorkspace(expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH)))
-        .ciEnvVars(getFilteredEnvVars(TRAVIS_PREFIX))
         .build();
   }
 

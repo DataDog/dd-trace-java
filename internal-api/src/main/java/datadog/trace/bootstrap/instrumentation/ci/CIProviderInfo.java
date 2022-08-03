@@ -23,6 +23,7 @@ import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_REPO
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.DD_GIT_TAG;
 import static datadog.trace.util.Strings.toJson;
 
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
@@ -79,21 +80,6 @@ public abstract class CIProviderInfo {
 
   protected String getGitFolderName() {
     return ".git";
-  }
-
-  protected Map<String, String> getFilteredEnvVars(final String prefix) {
-    final Map<String, String> envVars = new HashMap<>();
-    for (Entry<String, String> entryEnvVar : System.getenv().entrySet()) {
-      final String key = entryEnvVar.getKey();
-      if (key.startsWith(prefix)
-          && !key.contains("PASS")
-          && !key.contains("TOKEN")
-          && !key.contains("SECRET")
-          && !key.contains("KEY")) {
-        envVars.put(key, entryEnvVar.getValue());
-      }
-    }
-    return envVars;
   }
 
   private GitInfo buildCILocalGitInfo(CIInfo ciInfo) {
@@ -242,7 +228,7 @@ public abstract class CIProviderInfo {
     }
 
     public CITagsBuilder withCiEnvVars(final Map<String, String> ciEnvVars) {
-      return this.putTagValue(Tags.CI_ENV_VARS, toJson(ciEnvVars));
+      return this.putTagValue(DDTags.CI_ENV_VARS, toJson(ciEnvVars));
     }
 
     public CITagsBuilder withGitRepositoryUrl(
@@ -479,10 +465,13 @@ public abstract class CIProviderInfo {
         return this;
       }
 
-      public Builder ciEnvVars(Map<String, String>... ciEnvVarsArray) {
+      public Builder ciEnvVars(String... ciEnvVarKeysArray) {
         this.ciEnvVars = new HashMap<>();
-        for (Map<String, String> ciEnvVarsEntry : ciEnvVarsArray) {
-          ciEnvVars.putAll(ciEnvVarsEntry);
+        for (String ciEnvVarKey : ciEnvVarKeysArray) {
+          final String envVarVal = System.getenv(ciEnvVarKey);
+          if (envVarVal != null && !envVarVal.isEmpty()) {
+            ciEnvVars.put(ciEnvVarKey, envVarVal);
+          }
         }
         return this;
       }
