@@ -198,6 +198,8 @@ public final class ClassNameTrie {
 
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
+    public static final ClassNameTrie EMPTY_TRIE = new ClassNameTrie(new char[] {0x0000}, null);
+
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
 
     private char[] trieData;
@@ -215,8 +217,11 @@ public final class ClassNameTrie {
     }
 
     public ClassNameTrie buildTrie() {
+      if (null == trieData) {
+        return EMPTY_TRIE;
+      }
       // avoid unnecessary allocation when compaction isn't required
-      if (null != trieData && trieData.length > trieLength) {
+      if (trieData.length > trieLength) {
         trieData = Arrays.copyOfRange(trieData, 0, trieLength);
       }
       if (null != longJumps && longJumps.length > longJumpCount) {

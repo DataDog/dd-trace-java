@@ -3,6 +3,7 @@ package datadog.trace.agent.test;
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork;
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork;
 
+import datadog.trace.bootstrap.BootstrapProxy;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -13,7 +14,6 @@ import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,15 +31,11 @@ public class IntegrationTestUtils {
 
   /** Returns the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
-    return getAgentFieldClassloader("AGENT_CLASSLOADER");
-  }
-
-  private static ClassLoader getAgentFieldClassloader(final String fieldName) {
     Field classloaderField = null;
     try {
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-      classloaderField = agentClass.getDeclaredField(fieldName);
+      classloaderField = agentClass.getDeclaredField("AGENT_CLASSLOADER");
       classloaderField.setAccessible(true);
       return (ClassLoader) classloaderField.get(null);
     } catch (final Exception e) {
@@ -51,11 +47,9 @@ public class IntegrationTestUtils {
     }
   }
 
-  /** Returns the URL to the jar the agent appended to the bootstrap classpath * */
-  public static ClassLoader getBootstrapProxy() throws Exception {
-    final ClassLoader agentClassLoader = getAgentClassLoader();
-    final Method getBootstrapProxy = agentClassLoader.getClass().getMethod("getBootstrapProxy");
-    return (ClassLoader) getBootstrapProxy.invoke(agentClassLoader);
+  /** Returns the classloader use for bootstrap resources. */
+  public static ClassLoader getBootstrapProxy() {
+    return BootstrapProxy.INSTANCE;
   }
 
   /** See {@link IntegrationTestUtils#createJarWithClasses(String, Class[])} */

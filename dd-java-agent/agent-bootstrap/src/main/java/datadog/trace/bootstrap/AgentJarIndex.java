@@ -58,6 +58,10 @@ public final class AgentJarIndex {
     }
   }
 
+  public static AgentJarIndex emptyIndex() {
+    return new AgentJarIndex(new String[0], ClassNameTrie.Builder.EMPTY_TRIE);
+  }
+
   public static AgentJarIndex readIndex(JarFile agentJar) {
     try {
       ZipEntry indexEntry = agentJar.getEntry(AGENT_INDEX_FILE_NAME);
@@ -163,7 +167,7 @@ public final class AgentJarIndex {
     }
 
     public static void main(String[] args) throws IOException {
-      Path resourcesDir = Paths.get(args[0]);
+      Path resourcesDir = Paths.get(args[0]).toAbsolutePath();
       IndexGenerator indexGenerator = new IndexGenerator(resourcesDir);
       Files.walkFileTree(resourcesDir, indexGenerator);
       indexGenerator.writeIndex(resourcesDir.resolve(AGENT_INDEX_FILE_NAME));

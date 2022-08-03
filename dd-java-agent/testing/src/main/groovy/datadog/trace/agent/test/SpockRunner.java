@@ -160,8 +160,7 @@ public class SpockRunner extends Sputnik {
           .appendToBootstrapClassLoaderSearch(new JarFile(bootstrapJar));
       // Utils cannot be referenced before this line, as its static initializers load bootstrap
       // classes (for example, the bootstrap proxy).
-      ((BootstrapProxy) datadog.trace.agent.tooling.Utils.getBootstrapProxy())
-          .addURL(bootstrapJar.toURI().toURL());
+      BootstrapProxy.addBootstrapResource(bootstrapJar.toURI().toURL());
     } catch (final IOException e) {
       throw new RuntimeException(e);
     }

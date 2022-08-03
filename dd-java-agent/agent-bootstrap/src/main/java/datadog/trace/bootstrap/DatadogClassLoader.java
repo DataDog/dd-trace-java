@@ -26,33 +26,33 @@ public final class DatadogClassLoader extends SecureClassLoader {
 
   private final Set<String> definedPackages = new HashSet<>();
 
-  private final ClassLoader bootstrapProxy;
-
-  private final CodeSource agentCodeSource;
-  private final AgentJarIndex agentJarIndex;
   private final JarFile agentJarFile;
+  private final CodeSource agentCodeSource;
   private final String agentResourcePrefix;
+  private final AgentJarIndex agentJarIndex;
 
-  public DatadogClassLoader(
-      final URL agentJarLocation, final ClassLoader bootstrapProxy, final ClassLoader parent)
-      throws Exception {
+  public DatadogClassLoader(final URL agentJarURL, final ClassLoader parent) throws Exception {
     super(parent);
 
-    this.bootstrapProxy = bootstrapProxy;
-
-    agentCodeSource = new CodeSource(agentJarLocation, (Certificate[]) null);
-    agentJarFile = new JarFile(new File(agentJarLocation.toURI()), false);
-    agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
+    agentJarFile = new JarFile(new File(agentJarURL.toURI()), false);
+    agentCodeSource = new CodeSource(agentJarURL, (Certificate[]) null);
     agentResourcePrefix = "jar:file:" + agentJarFile.getName() + "!/";
+    agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
   }
 
-  public ClassLoader getBootstrapProxy() {
-    return bootstrapProxy;
+  /** For testing purposes only. */
+  public DatadogClassLoader() {
+    super(null);
+
+    agentCodeSource = null;
+    agentJarFile = null;
+    agentResourcePrefix = null;
+    agentJarIndex = AgentJarIndex.emptyIndex();
   }
 
   @Override
   public URL getResource(final String name) {
-    URL bootstrapResource = bootstrapProxy.getResource(name);
+    URL bootstrapResource = BootstrapProxy.INSTANCE.getResource(name);
     if (null != bootstrapResource) {
       return bootstrapResource;
     }

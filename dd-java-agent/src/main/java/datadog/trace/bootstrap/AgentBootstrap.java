@@ -49,7 +49,7 @@ public final class AgentBootstrap {
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
-      final URL bootstrapURL = installBootstrapJar(inst);
+      final URL agentJarURL = installAgentJar(inst);
 
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
@@ -57,7 +57,7 @@ public final class AgentBootstrap {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
       }
       final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
-      startMethod.invoke(null, inst, bootstrapURL);
+      startMethod.invoke(null, inst, agentJarURL);
     } catch (final Throwable ex) {
       // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
@@ -69,7 +69,7 @@ public final class AgentBootstrap {
     AgentJar.main(args);
   }
 
-  private static synchronized URL installBootstrapJar(final Instrumentation inst)
+  private static synchronized URL installAgentJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     URL ddJavaAgentJarURL = null;
 
@@ -79,11 +79,11 @@ public final class AgentBootstrap {
     if (codeSource != null) {
       ddJavaAgentJarURL = codeSource.getLocation();
       if (ddJavaAgentJarURL != null) {
-        final File bootstrapFile = new File(ddJavaAgentJarURL.toURI());
+        final File ddJavaAgentJarPath = new File(ddJavaAgentJarURL.toURI());
 
-        if (!bootstrapFile.isDirectory()) {
+        if (!ddJavaAgentJarPath.isDirectory()) {
           checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
-          inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapFile));
+          inst.appendToBootstrapClassLoaderSearch(new JarFile(ddJavaAgentJarPath));
           return ddJavaAgentJarURL;
         }
       }

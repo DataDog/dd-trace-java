@@ -13,17 +13,14 @@ public final class BootstrapProxy extends URLClassLoader {
     ClassLoader.registerAsParallelCapable();
   }
 
-  public BootstrapProxy(final URL url) {
-    super(new URL[] {url}, null);
-  }
+  public static final BootstrapProxy INSTANCE = new BootstrapProxy();
 
-  public BootstrapProxy() {
+  private BootstrapProxy() {
     super(new URL[0], null);
   }
 
-  @Override
-  public void addURL(final URL url) {
-    super.addURL(url);
+  public static void addBootstrapResource(final URL url) {
+    INSTANCE.addURL(url);
   }
 
   @Override
