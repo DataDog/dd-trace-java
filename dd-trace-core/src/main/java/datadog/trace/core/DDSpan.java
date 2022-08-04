@@ -100,6 +100,9 @@ public class DDSpan
   private static final AtomicReferenceFieldUpdater<DDSpan, Object> WRAPPER_FIELD_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, Object.class, "wrapper");
 
+  // the request is to be blocked (AppSec)
+  private volatile boolean blocked;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -421,6 +424,16 @@ public class DDSpan
   public final DDSpan setTag(final String tag, final boolean value) {
     context.setTag(tag, value);
     return this;
+  }
+
+  @Override
+  public void markForBlocking() {
+    this.blocked = true;
+  }
+
+  @Override
+  public boolean isToBeBlocked() {
+    return blocked;
   }
 
   @Override

@@ -409,7 +409,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     Flow<Void> apply(RequestContext requestContext) {
       assert (requestContext.getData(RequestContextSlot.APPSEC) == this.data)
       reqHeaderDoneCount++
-      return null
+      Flow.ResultFlow.empty()
     }
 
     int getReqStartedCount() {

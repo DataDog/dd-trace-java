@@ -265,6 +265,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBlocking() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -1057,6 +1061,29 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test blocking of request'() {
+    // Note: this does not actually test that the handler for SUCCESS is never called,
+    //       only that the response is the expected one (insofar as invoking the handler
+    //       does not result in another span being created)
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null).addHeader(IG_BLOCK_HEADER, 'true').build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 403
+    response.body().charStream().text == 'Access denied (request blocked)'
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 403
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -1166,6 +1193,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
+  static final String IG_BLOCK_HEADER = "x-block"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -1182,6 +1210,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       HashMap<String, String> tags = new HashMap<>()
       StoredBodySupplier requestBodySupplier
       String responseEncoding
+      boolean foundBlockingHeader
     }
 
     static final String stringOrEmpty(String string) {
@@ -1217,6 +1246,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (IG_EXTRA_SPAN_NAME_HEADER.equalsIgnoreCase(key)) {
         context.extraSpanName = value
       }
+      if (IG_BLOCK_HEADER.equalsIgnoreCase(key)) {
+        context.foundBlockingHeader = true
+      }
     } as TriConsumer<RequestContext, String, String>
 
     final Function<RequestContext, Flow<Void>> requestHeaderDoneCb =
@@ -1225,7 +1257,17 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (null != context.matchingHeaderValue) {
         context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
       }
-      Flow.ResultFlow.empty()
+
+      if (context.foundBlockingHeader) {
+        new Flow.ResultFlow<Void>(null) {
+            @Override
+            Flow.Action getAction() {
+              new Flow.Action.Throw(new RuntimeException('block'))
+            }
+          }
+      } else {
+        Flow.ResultFlow.empty()
+      }
     } as Function<RequestContext, Flow<Void>>)
 
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"

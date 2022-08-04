@@ -152,6 +152,11 @@ class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       ["error.msg"  : "${endpoint.body}",

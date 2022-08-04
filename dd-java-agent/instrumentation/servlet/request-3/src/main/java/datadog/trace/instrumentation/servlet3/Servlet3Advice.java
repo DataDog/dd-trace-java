@@ -11,6 +11,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.ServletRequest;
@@ -21,16 +22,20 @@ import net.bytebuddy.asm.Advice;
 
 public class Servlet3Advice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
+  @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+  public static boolean onEnter(
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
-      @Advice.Local("isDispatch") boolean isDispatch) {
-    final boolean invalidRequest = !(request instanceof HttpServletRequest);
+      @Advice.Argument(value = 1) ServletResponse response,
+      @Advice.Local("isDispatch") boolean isDispatch,
+      @Advice.Local("agentScope") AgentScope scope) {
+    final boolean invalidRequest =
+        !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
     if (invalidRequest) {
-      return null;
+      return false;
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
 
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
@@ -41,7 +46,8 @@ public class Servlet3Advice {
       AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
       // span could have been originated on a different thread and migrated
       castDispatchSpan.finishThreadMigration();
-      return activateSpan(castDispatchSpan);
+      scope = activateSpan(castDispatchSpan);
+      return false;
     }
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
@@ -49,7 +55,7 @@ public class Servlet3Advice {
     if (hasServletTrace) {
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
-      return null;
+      return false;
     }
 
     final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(httpServletRequest);
@@ -58,7 +64,7 @@ public class Servlet3Advice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
-    final AgentScope scope = activateSpan(span);
+    scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -67,14 +73,19 @@ public class Servlet3Advice {
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
-    return scope;
+    if (span.isToBeBlocked()) {
+      ServletBlockingHelper.commitBlockingResponse(httpServletResponse);
+      return true; // skip method body
+    }
+
+    return false;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
       @Advice.Argument(0) final ServletRequest request,
       @Advice.Argument(1) final ServletResponse response,
-      @Advice.Enter final AgentScope scope,
+      @Advice.Local("agentScope") final AgentScope scope,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.

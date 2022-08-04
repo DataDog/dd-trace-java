@@ -12,4 +12,8 @@ public interface IGSpanInfo {
   Map<String, Object> getTags();
 
   AgentSpan setTag(String key, boolean value);
+
+  void markForBlocking();
+
+  boolean isToBeBlocked();
 }

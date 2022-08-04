@@ -94,7 +94,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
     AgentSpan span =
         tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
-    callIGCallbackRequestHeaders(span, carrier);
+    Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
+    if (flow.getAction().isBlocking()) {
+      span.markForBlocking();
+    }
     return span;
   }
 
@@ -157,7 +160,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
-          callIGCallbackURI(span, url, method);
+          Flow<Void> flow = callIGCallbackURI(span, url, method);
+          if (flow.getAction().isBlocking()) {
+            span.markForBlocking();
+          }
           if (SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
@@ -181,8 +187,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         }
       }
       setPeerPort(span, port);
-      // TODO: blocking
-      callIGCallbackSocketAddress(span, ip, port);
+      Flow<Void> flow = callIGCallbackSocketAddress(span, ip, port);
+      if (flow.getAction().isBlocking()) {
+        span.markForBlocking();
+      }
     }
 
     if (config.isTraceClientIpResolverEnabled()) {
@@ -271,12 +279,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return context;
   }
 
-  private void callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
+  private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (requestContext == null || cbp == null || getter == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
     IGKeyClassifier igKeyClassifier =
         IGKeyClassifier.create(
@@ -285,8 +293,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.requestHeaderDone()));
     if (null != igKeyClassifier) {
       getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
+      return igKeyClassifier.done();
     }
+    return Flow.ResultFlow.empty();
   }
 
   private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
@@ -315,20 +324,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
-  private void callIGCallbackURI(
+  private Flow<Void> callIGCallbackURI(
       @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
     // TODO:appsec there must be some better way to do this?
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (requestContext == null || cbp == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
 
     TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestMethodUriRaw());
     if (callback != null) {
-      callback.apply(requestContext, method, url);
+      return callback.apply(requestContext, method, url);
     }
+    return Flow.ResultFlow.empty();
   }
 
   @Override
@@ -401,10 +411,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return true;
     }
 
-    public void done() {
+    public Flow<Void> done() {
       if (null != doneCallback) {
-        doneCallback.apply(requestContext);
+        return doneCallback.apply(requestContext);
       }
+      return Flow.ResultFlow.empty();
     }
   }
 

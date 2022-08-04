@@ -89,6 +89,11 @@ class Jetty76Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }
