@@ -49,8 +49,8 @@ dependencies {
 
   implementation deps.slf4j
   implementation deps.moshi
+  implementation deps.jctools
 
-  implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
   implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.2'
 
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'

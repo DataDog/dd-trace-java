@@ -93,6 +93,42 @@ class DependencyServiceImplSpecification extends DDSpecification {
     attributes
   }
 
+  void 'get groupId/artifactId from bundleSymbolicName - #jar'() {
+    expect:
+    knownJarCheck(
+      jarName: jar,
+      name: name,
+      version: version)
+
+    where:
+    jar                       |  name                        | version
+    'bson4jackson-2.11.0.jar' | 'de.undercouch:bson4jackson' | '2.11.0'
+    'bson-4.2.0.jar'          | 'org.mongodb:bson'           | '4.2.0'
+  }
+
+  void 'groupId cannot be resolved #jar'() {
+    expect:
+    knownJarCheck(
+      jarName: jar,
+      name: name,
+      version: version)
+
+    where:
+    jar                  |  name        | version
+    'asm-util-9.2.jar'   | 'asm-util'   | '9.2'
+    'agrona-1.7.2.jar'   | 'agrona'     | '1.7.2'
+    'caffeine-2.8.5.jar' | 'caffeine'   | '2.8.5'
+  }
+
+  void 'no version in file name'() {
+    expect:
+    knownJarCheck(
+      jarName: 'spring-webmvc.jar',
+      name: 'spring-webmvc',
+      version: '3.0.0.RELEASE'
+      )
+  }
+
   void 'known jar with maven pom'() {
     expect:
     knownJarCheck(
