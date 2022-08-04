@@ -7,7 +7,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.IASTModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,12 +19,13 @@ public class IASTModuleImpl implements IASTModule {
 
   @Override
   public void onHashingAlgorithm(String algorithm) {
-    log.info("onHashingAlgorithm");
+    log.info("onHashingAlgorithm, algorithm: " + algorithm);
     if (Config.get().getWeakHashingAlgorithms().contains(algorithm.toUpperCase())) {
+      log.info("inside HashingAlgorithm");
       // get StackTraceElement for the callee of MessageDigest
       StackTraceElement stackTraceElement =
-          StackWalkerFactory.INSTANCE
-              .walk(st -> st.filter(s -> !s.getClassName().equals("java.security.MessageDigest")))
+          Arrays.stream(new Throwable().getStackTrace())
+              .filter(s -> !s.getClassName().equals("java.security.MessageDigest"))
               .findFirst()
               .get();
 
