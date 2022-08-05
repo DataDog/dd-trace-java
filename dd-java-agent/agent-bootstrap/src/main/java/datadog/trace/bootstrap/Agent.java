@@ -185,7 +185,7 @@ public class Agent {
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst);
     if (debuggerEnabled) {
-      startDebuggerAgent(inst, bootstrapURL);
+      startDebuggerAgent(inst);
     }
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -698,14 +698,12 @@ public class Agent {
     }
   }
 
-  private static synchronized void startDebuggerAgent(
-      final Instrumentation inst, final URL bootstrapURL) {
+  private static synchronized void startDebuggerAgent(final Instrumentation inst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      final ClassLoader classLoader = getDebuggerClassloader(bootstrapURL);
-      Thread.currentThread().setContextClassLoader(classLoader);
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
       final Class<?> debuggerAgentClass =
-          classLoader.loadClass("com.datadog.debugger.agent.DebuggerAgent");
+          AGENT_CLASSLOADER.loadClass("com.datadog.debugger.agent.DebuggerAgent");
       final Method debuggerInstallerMethod =
           debuggerAgentClass.getMethod("run", Instrumentation.class);
       debuggerInstallerMethod.invoke(null, inst);
