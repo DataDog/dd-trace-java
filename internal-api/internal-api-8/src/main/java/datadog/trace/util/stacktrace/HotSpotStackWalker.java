@@ -30,9 +30,8 @@ public class HotSpotStackWalker extends AbstractStackWalker {
 
   @Override
   <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer) {
-
-    Iterable<StackTraceElement> iterable =
-        () -> new HotSpotStackTraceIterator(new Throwable(), access);
+    Throwable throwable = new Throwable();
+    Iterable<StackTraceElement> iterable = () -> new HotSpotStackTraceIterator(throwable, access);
     return consumer.apply(StreamSupport.stream(iterable.spliterator(), false));
   }
 }

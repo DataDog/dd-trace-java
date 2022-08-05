@@ -7,7 +7,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.IASTModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.Arrays;
+import datadog.trace.util.stacktrace.StackWalkerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +24,10 @@ public class IASTModuleImpl implements IASTModule {
       log.info("inside HashingAlgorithm");
       // get StackTraceElement for the callee of MessageDigest
       StackTraceElement stackTraceElement =
-          Arrays.stream(new Throwable().getStackTrace())
-              .filter(s -> !s.getClassName().equals("java.security.MessageDigest"))
+          StackWalkerFactory.INSTANCE
+              .walk(
+                  stream ->
+                      stream.filter(s -> !s.getClassName().equals("java.security.MessageDigest")))
               .findFirst()
               .get();
 
