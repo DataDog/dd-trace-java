@@ -55,9 +55,7 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
   public static class AddInstrumentationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return(readOnly = false) Instrumentation instrumentation) {
-      // TODO verify if the instrumentation already installed
-      // TODO chain with other installed instrumentations if needed
-      instrumentation = new GraphQLInstrumentation();
+      instrumentation = GraphQLInstrumentation.install(instrumentation);
     }
   }
 }

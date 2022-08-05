@@ -7,7 +7,11 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
 
-  public static final CharSequence GRAPHQL_QUERY = UTF8BytesString.create("graphql.query");
+  public static final CharSequence GRAPHQL_REQUEST = UTF8BytesString.create("graphql.request");
+  public static final CharSequence GRAPHQL_PARSING = UTF8BytesString.create("graphql.parsing");
+  public static final CharSequence GRAPHQL_VALIDATION =
+      UTF8BytesString.create("graphql.validation");
+
   public static final CharSequence GRAPHQL_JAVA = UTF8BytesString.create("graphql-java");
 
   @Override

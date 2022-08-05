@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.graphqljava;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -32,7 +33,8 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
       }
     } else {
       final AgentSpan span = startSpan("graphql.field", this.span.context());
-      // TODO decorate span
+      DECORATE.afterStart(span);
+      span.setMeasured(true);
       GraphQLOutputType fieldType = environment.getFieldType();
       if (fieldType instanceof GraphQLNamedType) {
         String typeName = ((GraphQLNamedType) fieldType).getName();
@@ -41,6 +43,7 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
       try (AgentScope scope = activateSpan(span)) {
         return dataFetcher.get(environment);
       } finally {
+        DECORATE.beforeFinish(span);
         span.finish();
       }
     }

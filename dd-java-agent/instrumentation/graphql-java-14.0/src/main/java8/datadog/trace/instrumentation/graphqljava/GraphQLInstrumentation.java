@@ -2,9 +2,14 @@ package datadog.trace.instrumentation.graphqljava;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
+import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_PARSING;
+import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_REQUEST;
+import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_VALIDATION;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import graphql.ExecutionResult;
+import graphql.execution.instrumentation.ChainedInstrumentation;
+import graphql.execution.instrumentation.Instrumentation;
 import graphql.execution.instrumentation.InstrumentationContext;
 import graphql.execution.instrumentation.InstrumentationState;
 import graphql.execution.instrumentation.SimpleInstrumentation;
@@ -18,10 +23,33 @@ import graphql.language.Document;
 import graphql.language.OperationDefinition;
 import graphql.schema.DataFetcher;
 import graphql.validation.ValidationError;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 public final class GraphQLInstrumentation extends SimpleInstrumentation {
+
+  public static Instrumentation install(Instrumentation instrumentation) {
+    if (instrumentation == null) {
+      return new GraphQLInstrumentation();
+    }
+    if (instrumentation.getClass() == GraphQLInstrumentation.class) {
+      return instrumentation;
+    }
+    List<Instrumentation> instrumentationList = new ArrayList<>();
+    if (instrumentation instanceof ChainedInstrumentation) {
+      List<Instrumentation> instrumentations =
+          ((ChainedInstrumentation) instrumentation).getInstrumentations();
+      if (instrumentations.stream().anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
+        return instrumentation;
+      }
+      instrumentationList.addAll(instrumentations);
+    }
+    instrumentationList.add(instrumentation);
+    instrumentationList.add(new GraphQLInstrumentation());
+    return new ChainedInstrumentation(instrumentationList);
+  }
+
   public static final class State implements InstrumentationState {
     private AgentSpan span;
 
@@ -43,11 +71,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   public InstrumentationContext<ExecutionResult> beginExecution(
       InstrumentationExecutionParameters parameters) {
 
-    final AgentSpan span = startSpan(GraphQLDecorator.GRAPHQL_QUERY);
-
+    final AgentSpan span = startSpan(GRAPHQL_REQUEST);
     DECORATE.afterStart(span);
-    // TODO onQuery (parameters.getQuery()...)
-    // TODO check result.getErrors()
+    span.setMeasured(true);
 
     State state = parameters.getInstrumentationState();
     state.setSpan(span);
@@ -75,10 +101,8 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
     span.setTag("graphql.operation.name", operationName);
     // TODO sanitize query?
-    span.setTag(
-        "graphql.document",
-        AstPrinter.printAst(
-            operationDefinition)); // TODO graphql.document (OTel) or graphql.query (Go impl)
+    String query = AstPrinter.printAst(operationDefinition);
+    span.setTag("graphql.query", query);
 
     return SimpleInstrumentationContext.noOp();
   }
@@ -96,8 +120,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
       InstrumentationExecutionParameters parameters) {
     State state = parameters.getInstrumentationState();
 
-    final AgentSpan span = startSpan("graphql.parse", state.getSpan().context());
+    final AgentSpan span = startSpan(GRAPHQL_PARSING, state.getSpan().context());
     DECORATE.afterStart(span);
+    span.setMeasured(true);
     return new ParsingInstrumentationContext(span);
   }
 
@@ -106,8 +131,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
       InstrumentationValidationParameters parameters) {
     State state = parameters.getInstrumentationState();
 
-    final AgentSpan span = startSpan("graphql.validate", state.getSpan().context());
+    final AgentSpan span = startSpan(GRAPHQL_VALIDATION, state.getSpan().context());
     DECORATE.afterStart(span);
+    span.setMeasured(true);
     return new ValidationInstrumentationContext(span);
   }
 }
