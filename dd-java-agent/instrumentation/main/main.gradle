@@ -1,0 +1,10 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+ext {
+}
+
+configurations {
+}
+
+dependencies {
+}
