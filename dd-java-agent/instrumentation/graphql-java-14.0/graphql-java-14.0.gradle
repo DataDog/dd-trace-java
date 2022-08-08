@@ -24,5 +24,8 @@ testSets {
 dependencies {
   main_java8CompileOnly group: 'com.graphql-java', name: 'graphql-java', version: '18.1'
   testImplementation group: 'com.graphql-java', name: 'graphql-java', version: '18.1'
+
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+
   latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '+'
 }

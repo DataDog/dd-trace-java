@@ -51,14 +51,14 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   }
 
   public static final class State implements InstrumentationState {
-    private AgentSpan span;
+    private AgentSpan requestSpan;
 
-    public AgentSpan getSpan() {
-      return span;
+    public AgentSpan getRequestSpan() {
+      return requestSpan;
     }
 
-    public void setSpan(AgentSpan span) {
-      this.span = span;
+    public void setRequestSpan(AgentSpan requestSpan) {
+      this.requestSpan = requestSpan;
     }
   }
 
@@ -73,10 +73,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
     final AgentSpan span = startSpan(GRAPHQL_REQUEST);
     DECORATE.afterStart(span);
-    span.setMeasured(true);
 
     State state = parameters.getInstrumentationState();
-    state.setSpan(span);
+    state.setRequestSpan(span);
 
     return new ExecutionInstrumentationContext(span);
   }
@@ -85,7 +84,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   public InstrumentationContext<ExecutionResult> beginExecuteOperation(
       InstrumentationExecuteOperationParameters parameters) {
     State state = parameters.getInstrumentationState();
-    AgentSpan span = state.getSpan();
+    AgentSpan requestSpan = state.getRequestSpan();
 
     OperationDefinition operationDefinition =
         parameters.getExecutionContext().getOperationDefinition();
@@ -97,12 +96,12 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     if (operationName != null && !operationName.isEmpty()) {
       spanName += " " + operationName;
     }
-    span.setSpanName(spanName);
+    requestSpan.setSpanName(spanName);
 
-    span.setTag("graphql.operation.name", operationName);
+    requestSpan.setTag("graphql.operation.name", operationName);
     // TODO sanitize query?
     String query = AstPrinter.printAst(operationDefinition);
-    span.setTag("graphql.query", query);
+    requestSpan.setTag("graphql.query", query);
 
     return SimpleInstrumentationContext.noOp();
   }
@@ -111,8 +110,8 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   public DataFetcher<?> instrumentDataFetcher(
       final DataFetcher<?> dataFetcher, InstrumentationFieldFetchParameters parameters) {
     State state = parameters.getInstrumentationState();
-    final AgentSpan span = state.getSpan();
-    return new InstrumentedDataFetcher(dataFetcher, parameters, span);
+    final AgentSpan requestSpan = state.getRequestSpan();
+    return new InstrumentedDataFetcher(dataFetcher, parameters, requestSpan);
   }
 
   @Override
@@ -120,9 +119,8 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
       InstrumentationExecutionParameters parameters) {
     State state = parameters.getInstrumentationState();
 
-    final AgentSpan span = startSpan(GRAPHQL_PARSING, state.getSpan().context());
+    final AgentSpan span = startSpan(GRAPHQL_PARSING, state.getRequestSpan().context());
     DECORATE.afterStart(span);
-    span.setMeasured(true);
     return new ParsingInstrumentationContext(span);
   }
 
@@ -131,9 +129,8 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
       InstrumentationValidationParameters parameters) {
     State state = parameters.getInstrumentationState();
 
-    final AgentSpan span = startSpan(GRAPHQL_VALIDATION, state.getSpan().context());
+    final AgentSpan span = startSpan(GRAPHQL_VALIDATION, state.getRequestSpan().context());
     DECORATE.afterStart(span);
-    span.setMeasured(true);
     return new ValidationInstrumentationContext(span);
   }
 }

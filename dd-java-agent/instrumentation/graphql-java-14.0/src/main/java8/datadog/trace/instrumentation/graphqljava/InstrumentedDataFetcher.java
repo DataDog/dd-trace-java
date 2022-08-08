@@ -15,26 +15,27 @@ import graphql.schema.GraphQLOutputType;
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
   private final DataFetcher<?> dataFetcher;
   private final InstrumentationFieldFetchParameters parameters;
-  private final AgentSpan span;
+  private final AgentSpan requestSpan;
 
   public InstrumentedDataFetcher(
-      DataFetcher<?> dataFetcher, InstrumentationFieldFetchParameters parameters, AgentSpan span) {
+      DataFetcher<?> dataFetcher,
+      InstrumentationFieldFetchParameters parameters,
+      AgentSpan requestSpan) {
     this.dataFetcher = dataFetcher;
     this.parameters = parameters;
-    this.span = span;
+    this.requestSpan = requestSpan;
   }
 
   @Override
   public Object get(DataFetchingEnvironment environment) throws Exception {
     if (parameters.isTrivialDataFetcher()) {
       // have this method
-      try (AgentScope scope = activateSpan(this.span)) {
+      try (AgentScope scope = activateSpan(this.requestSpan)) {
         return dataFetcher.get(environment);
       }
     } else {
-      final AgentSpan span = startSpan("graphql.field", this.span.context());
+      final AgentSpan span = startSpan("graphql.field", this.requestSpan.context());
       DECORATE.afterStart(span);
-      span.setMeasured(true);
       GraphQLOutputType fieldType = environment.getFieldType();
       if (fieldType instanceof GraphQLNamedType) {
         String typeName = ((GraphQLNamedType) fieldType).getName();

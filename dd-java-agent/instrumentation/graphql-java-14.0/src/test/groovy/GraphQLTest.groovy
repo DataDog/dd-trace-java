@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import graphql.ExecutionResult
 import graphql.GraphQL
@@ -26,6 +27,7 @@ class GraphQLTest extends AgentTestRunner {
       def typeRegistry = new SchemaParser().parse(reader)
       def runtimeWiring = RuntimeWiring.newRuntimeWiring()
         .type(newTypeWiring("Query").dataFetcher("bookById", new DataFetcher<Book>() {
+          @Trace(operationName = "getBookById", resourceName = "book")
           @Override
           Book get(DataFetchingEnvironment environment) throws Exception {
             String bookId = environment.getArgument("id")
@@ -37,7 +39,6 @@ class GraphQLTest extends AgentTestRunner {
           Author get(DataFetchingEnvironment environment) throws Exception {
             Book book = environment.getSource()
             String authorId = book.getAuthorId()
-            // TODO maybe created a span?
             return Author.getById(authorId)
           }
         }))
@@ -70,7 +71,7 @@ class GraphQLTest extends AgentTestRunner {
     result.getErrors().isEmpty()
 
     assertTraces(1) {
-      trace(5) {
+      trace(6) {
         span {
           operationName "query findBookById"
           resourceName "query findBookById"
@@ -108,6 +109,18 @@ class GraphQLTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "Book"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "getBookById"
+          resourceName "book"
+          childOf(span(2))
+          spanType null
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "trace"
             defaultTags()
           }
         }
