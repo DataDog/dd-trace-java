@@ -232,6 +232,8 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     this.spanId = span != null ? span.getSpanId().toLong() : -1;
     this.rootSpanId = span != null ? span.getLocalRootSpan() != null ? span.getLocalRootSpan().getSpanId().toLong() : -1 : -1;
+
+    activateAsyncProfilerContext();
   }
 
   @Override
@@ -250,11 +252,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     store(threadId, masked, true);
 
     if (Thread.currentThread().getId() == threadId) {
-      ArrayDeque<Context> contexts = contextsThreadLocal.get();
-
-      contexts.push(new Context(spanId, rootSpanId));
-      System.err.printf("[%d] Set (activation) context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
-      ASYNC_PROFILER.setContext(spanId, rootSpanId);
+      activateAsyncProfilerContext();
     }
   }
 
@@ -295,24 +293,36 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     store(threadId, masked, false);
 
     if (Thread.currentThread().getId() == threadId) {
-      ArrayDeque<Context> contexts = contextsThreadLocal.get();
+      deactivateAsyncProfilerContext();
+    }
+  }
 
-      while (!contexts.isEmpty()) {
-        // pop until we peeled the stack to where we pushed it in the activation
-        Context context = contexts.pop();
-        if (context.equals(spanId, rootSpanId)) {
-          break;
-        }
-      }
+  private void activateAsyncProfilerContext() {
+    ArrayDeque<Context> contexts = contextsThreadLocal.get();
 
-      if (contexts.isEmpty()) {
-        System.err.printf("[%d] Clear context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
-        ASYNC_PROFILER.clearContext();
-      } else {
-        Context context = contexts.peek();
-        System.err.printf("[%d] Set (deactivation) context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
-        ASYNC_PROFILER.setContext(context.spanId(), context.rootSpanId());
+    contexts.push(new Context(spanId, rootSpanId));
+    System.err.printf("[%d] Set (activation) context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
+    ASYNC_PROFILER.setContext(spanId, rootSpanId);
+  }
+
+  private void deactivateAsyncProfilerContext() {
+    ArrayDeque<Context> contexts = contextsThreadLocal.get();
+
+    while (!contexts.isEmpty()) {
+      // pop until we peeled the stack to where we pushed it in the activation
+      Context context = contexts.pop();
+      if (context.equals(spanId, rootSpanId)) {
+        break;
       }
+    }
+
+    if (contexts.isEmpty()) {
+      System.err.printf("[%d] Clear context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
+      ASYNC_PROFILER.clearContext();
+    } else {
+      Context context = contexts.peek();
+      System.err.printf("[%d] Set (deactivation) context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
+      ASYNC_PROFILER.setContext(context.spanId(), context.rootSpanId());
     }
   }
 
