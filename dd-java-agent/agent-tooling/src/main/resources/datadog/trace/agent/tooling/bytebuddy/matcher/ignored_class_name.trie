@@ -50,6 +50,8 @@
 1 java.util.concurrent.atomic.*
 1 java.util.concurrent.locks.*
 0 java.util.logging.*
+# allow capturing JVM shutdown
+0 java.lang.Shutdown
 # Concurrent instrumentation modifies the structure of the Cleaner class incompatibly with java9+ modules.
 1 java.util.logging.LogManager$Cleaner
 1 jdk.*
