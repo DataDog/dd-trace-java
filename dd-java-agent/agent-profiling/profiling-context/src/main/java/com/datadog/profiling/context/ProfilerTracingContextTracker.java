@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ThreadLocalRandom;
@@ -99,6 +100,32 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       return 0;
     }
   }
+
+  private static final class Context {
+    private final long spanId;
+    private final long rootSpanId;
+    public Context(long spanId, long rootSpanId) {
+      this.spanId = spanId;
+      this.rootSpanId = rootSpanId;
+    }
+    public long spanId() {
+      return spanId;
+    }
+    public long rootSpanId() {
+      return rootSpanId;
+    }
+    public boolean equals(long spanId, long rootSpanId) {
+      return this.spanId == spanId && this.rootSpanId == rootSpanId;
+    }
+  }
+
+  private static final ThreadLocal<ArrayDeque<Context>> contextsThreadLocal =
+      new ThreadLocal<ArrayDeque<Context>>() {
+        @Override
+        protected ArrayDeque<Context> initialValue() {
+          return new ArrayDeque<Context>();
+        }
+      };
 
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
@@ -223,7 +250,10 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     store(threadId, masked, true);
 
     if (Thread.currentThread().getId() == threadId) {
-      // System.out.printf("Set context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+      ArrayDeque<Context> contexts = contextsThreadLocal.get();
+
+      contexts.push(new Context(spanId, rootSpanId));
+      // System.out.printf("Set (activation) context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
       ASYNC_PROFILER.setContext(spanId, rootSpanId);
     }
   }
@@ -265,8 +295,24 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     store(threadId, masked, false);
 
     if (Thread.currentThread().getId() == threadId) {
-      // System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
-      ASYNC_PROFILER.clearContext();
+      ArrayDeque<Context> contexts = contextsThreadLocal.get();
+
+      while (!contexts.isEmpty()) {
+        // pop until we peeled the stack to where we pushed it in the activation
+        Context context = contexts.pop();
+        if (context.equals(spanId, rootSpanId)) {
+          break;
+        }
+      }
+
+      if (contexts.isEmpty()) {
+        // System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+        ASYNC_PROFILER.clearContext();
+      } else {
+        Context context = contexts.peek();
+        // System.out.printf("Set (deactivation) context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+        ASYNC_PROFILER.setContext(context.spanId(), context.rootSpanId());
+      }
     }
   }
 
