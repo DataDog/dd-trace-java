@@ -40,7 +40,7 @@ else
     export DD_API_KEY=apikey
     export DD_APP_KEY=appkey
 fi
-export USE_OPERATOR=0
+export USE_ADMISSION_CONTROLLER=0
 export USE_UDS=0
 
 ## MODIFIERS
@@ -48,8 +48,8 @@ function use-uds() {
     export USE_UDS=1
 }
 
-function use-operator() {
-    export USE_OPERATOR=1
+function use-admission-controller() {
+    export USE_ADMISSION_CONTROLLER=1
 }
 
 ## FUNCTIONS
@@ -148,7 +148,7 @@ function deploy-test-agent() {
 }
 
 function deploy-agents() {
-    if [ ${USE_OPERATOR} -eq 1 ] ;  then
+    if [ ${USE_ADMISSION_CONTROLLER} -eq 1 ] ;  then
         deploy-operator
     fi
     deploy-test-agent   
@@ -174,7 +174,7 @@ metadata:
   name: my-app
 spec:
 EOF
-    if [ ${USE_OPERATOR} -eq 0 ]; then
+    if [ ${USE_ADMISSION_CONTROLLER} -eq 0 ]; then
         cat <<EOF >> ${BUILD_DIR}/app-config.yaml
   initContainers:
     - command:
@@ -214,7 +214,7 @@ EOF
               apiVersion: v1
               fieldPath: metadata.labels['tags.datadoghq.com/version']
 EOF
-    if [ ${USE_OPERATOR} -eq 0 ]; then
+    if [ ${USE_ADMISSION_CONTROLLER} -eq 0 ]; then
         cat <<EOF >> ${BUILD_DIR}/app-config.yaml
         - name: DD_LOGS_INJECTION
           value: 'true'
@@ -255,7 +255,7 @@ EOF
           hostPort: 18080
           protocol: TCP
 EOF
-    if [ ${USE_OPERATOR} -eq 0 ]; then
+    if [ ${USE_ADMISSION_CONTROLLER} -eq 0 ]; then
         cat <<EOF >> ${BUILD_DIR}/app-config.yaml
       volumeMounts:
         - mountPath: /datadog-lib

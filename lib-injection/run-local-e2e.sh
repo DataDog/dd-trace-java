@@ -10,4 +10,4 @@ if [ ! -f ${SCRIPT_DIR}/../dd-java-agent/build/libs/dd-java-agent.jar ] ; then
   wget -O ${SCRIPT_DIR}/../dd-java-agent/build/libs/dd-java-agent.jar https://dtdg.co/latest-java-tracer
 fi
 
-${SCRIPT_DIR}/run.sh use-operator ensure-cluster ensure-buildx reset-deploys build-and-push-init-image deploy-agents deploy-app test-for-traces
+${SCRIPT_DIR}/run.sh use-admission-controller ensure-cluster ensure-buildx reset-deploys build-and-push-init-image deploy-agents deploy-app test-for-traces

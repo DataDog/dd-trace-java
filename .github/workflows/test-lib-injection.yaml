@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        use-operator: ["", "use-operator"]
+        use-admission-controller: ["", "use-admission-controller"]
         use-uds: ["", "use-uds"]
     runs-on: ubuntu-latest
     steps:
@@ -87,11 +87,11 @@ jobs:
 
       - name: Deploy apm test trace agent
         run: |
-          ./lib-injection/run.sh ${{ matrix.use-uds }} ${{ matrix.use-operator }} deploy-agents
+          ./lib-injection/run.sh ${{ matrix.use-uds }} ${{ matrix.use-admission-controller }} deploy-agents
 
       - name: Deploy pre-modified pod
         run: |
-          ./lib-injection/run.sh ${{ matrix.use-uds }} ${{ matrix.use-operator }} create-app-config deploy-app
+          ./lib-injection/run.sh ${{ matrix.use-uds }} ${{ matrix.use-admission-controller }} create-app-config deploy-app
 
       - name: Test
         run: |
