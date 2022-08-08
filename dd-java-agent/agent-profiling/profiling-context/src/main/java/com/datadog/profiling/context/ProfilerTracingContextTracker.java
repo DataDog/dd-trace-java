@@ -253,7 +253,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       ArrayDeque<Context> contexts = contextsThreadLocal.get();
 
       contexts.push(new Context(spanId, rootSpanId));
-      // System.out.printf("Set (activation) context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+      System.err.printf("Set (activation) context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
       ASYNC_PROFILER.setContext(spanId, rootSpanId);
     }
   }
@@ -306,11 +306,11 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       }
 
       if (contexts.isEmpty()) {
-        // System.out.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+        System.err.printf("Clear context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
         ASYNC_PROFILER.clearContext();
       } else {
         Context context = contexts.peek();
-        // System.out.printf("Set (deactivation) context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
+        System.err.printf("Set (deactivation) context spanId = " + spanId + " rootSpanId = " + rootSpanId + "%n");
         ASYNC_PROFILER.setContext(context.spanId(), context.rootSpanId());
       }
     }
