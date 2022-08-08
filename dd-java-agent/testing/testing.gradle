@@ -42,7 +42,6 @@ dependencies {
   api project(':dd-java-agent:agent-builder')
   api project(':dd-java-agent:agent-installer')
   api project(':utils:test-utils')
-  api project(':utils:time-utils')
 
   api deps.groovy
 

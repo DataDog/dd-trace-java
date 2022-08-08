@@ -84,7 +84,6 @@ def bundledProjects = [
   ':utils:histograms',
   ':utils:process-utils',
   ':utils:socket-utils',
-  ':utils:time-utils',
   ':utils:version-utils'
 ]
 

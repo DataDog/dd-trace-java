@@ -71,7 +71,6 @@ dependencies {
   // references TraceScope and Continuation from public api
   api project(':dd-trace-api')
   api deps.slf4j
-  api project(":utils:time-utils")
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:2.9.1")

@@ -114,7 +114,6 @@ final class CachedData {
       exclude(project(':telemetry'))
       exclude(project(':utils:container-utils'))
       exclude(project(':utils:socket-utils'))
-      exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))
       exclude(dependency('org.slf4j::'))
 
