@@ -3,6 +3,7 @@ package com.datadog.profiling.context;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.profiling.TracingContextTracker;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -119,7 +120,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   private final NonBlockingHashMapLong<LongSequence> threadSequences =
       new NonBlockingHashMapLong<>(64);
   private final long startTimestampTicks;
-  private final long startTimestampMillis;
+  private final long startTimestampNanos;
   private final long delayedActivationTimestamp;
   private final Allocator allocator;
   private static final AtomicIntegerFieldUpdater<ProfilerTracingContextTracker> releasedUpdater =
@@ -158,21 +159,24 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       Allocator allocator,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
+      TimeSource timeSource,
       IntervalSequencePruner sequencePruner,
       int maxDataSize) {
-    this(allocator, span, timeTicksProvider, sequencePruner, -1L, maxDataSize);
+    this(allocator, span, timeTicksProvider, timeSource, sequencePruner, -1L, maxDataSize);
   }
 
   ProfilerTracingContextTracker(
       Allocator allocator,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
+      TimeSource timeSource,
       IntervalSequencePruner sequencePruner,
       long inactivityDelay) {
     this(
         allocator,
         span,
         timeTicksProvider,
+        timeSource,
         sequencePruner,
         inactivityDelay,
         SPAN_ACTIVATION_DATA_LIMIT);
@@ -182,11 +186,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       Allocator allocator,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
+      TimeSource timeSource,
       IntervalSequencePruner sequencePruner,
       long inactivityDelay,
       int maxDataSize) {
     this.startTimestampTicks = timeTicksProvider.ticks();
-    this.startTimestampMillis = System.currentTimeMillis();
+    this.startTimestampNanos = timeSource.getCurrentTimeNanos();
     this.timeTicksProvider = timeTicksProvider;
     this.sequencePruner = sequencePruner;
     this.span = span;
@@ -394,7 +399,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     IntervalEncoder encoder =
         new IntervalEncoder(
-            startTimestampMillis,
+            startTimestampNanos,
             timeTicksProvider.frequency() / 1_000_000L,
             threadIds.length,
             totalSequenceBufferSize);

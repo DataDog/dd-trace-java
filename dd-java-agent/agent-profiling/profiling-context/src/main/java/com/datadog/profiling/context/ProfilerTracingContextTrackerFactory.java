@@ -5,6 +5,8 @@ import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentTaskScheduler;
@@ -86,6 +88,7 @@ public final class ProfilerTracingContextTrackerFactory
   private final Allocator allocator;
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
+  private final TimeSource timeSource;
   private final long inactivityDelay;
 
   ProfilerTracingContextTrackerFactory(
@@ -99,6 +102,7 @@ public final class ProfilerTracingContextTrackerFactory
       int reservedMemorySize,
       String reservedMemoryType) {
     timeTicksProvider = getTicksProvider();
+    timeSource = SystemTimeSource.INSTANCE;
     log.debug("Tracing Context Tracker Memory Type: {}", reservedMemoryType);
     allocator =
         reservedMemoryType.equalsIgnoreCase("direct")
@@ -165,7 +169,7 @@ public final class ProfilerTracingContextTrackerFactory
   public TracingContextTracker instance(AgentSpan span) {
     ProfilerTracingContextTracker instance =
         new ProfilerTracingContextTracker(
-            allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
+            allocator, span, timeTicksProvider, timeSource, sequencePruner, inactivityDelay);
     if (inactivityDelay > 0) {
       statsd.incrementCounter("tracing.context.spans.tracked");
       delayQueue.offer(instance.asDelayed());

@@ -5,9 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.ExternalAgentLauncher;
@@ -101,17 +99,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
-
-  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
-  private final long startTimeNano;
-  /** Nanosecond ticks value at tracer start */
-  private final long startNanoTicks;
-  /** How often should traced threads check clock ticks against the wall clock */
-  private final long clockSyncPeriod;
-  /** Last time (in nanosecond ticks) the clock was checked for drift */
-  private volatile long lastSyncTicks;
-  /** Nanosecond offset to counter clock drift */
-  private volatile long counterDrift;
 
   private final PendingTraceBuffer pendingTraceBuffer;
 
@@ -433,10 +420,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
-    this.startTimeNano = this.timeSource.getCurrentTimeNanos();
-    this.startNanoTicks = this.timeSource.getNanoTicks();
-    this.clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
-    this.lastSyncTicks = startNanoTicks;
 
     this.spanCheckpointer = SamplingCheckpointer.create();
     this.serviceName = serviceName;
@@ -599,29 +582,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } catch (final ServiceConfigurationError e) {
       log.warn("Problem loading TraceInterceptor for classLoader: " + classLoader, e);
     }
-  }
-
-  /**
-   * Timestamp in nanoseconds for the current {@code nanoTicks}.
-   *
-   * <p>Note: it is not possible to get 'real' nanosecond time. This method uses tracer start time
-   * (with millisecond precision) as a reference and applies relative time with nanosecond precision
-   * after that. This means time measured with same Tracer in different Spans is relatively correct
-   * with nanosecond precision.
-   *
-   * @param nanoTicks as returned by {@link TimeSource#getNanoTicks()}
-   * @return timestamp in nanoseconds
-   */
-  long getTimeWithNanoTicks(long nanoTicks) {
-    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
-    if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
-      if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
-        counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
-      }
-      lastSyncTicks = nanoTicks;
-    }
-    return computedNanoTime + counterDrift;
   }
 
   @Override

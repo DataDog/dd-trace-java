@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
 import datadog.trace.api.profiling.TracingContextTracker;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -54,7 +55,12 @@ class ProfilerTracingContextTrackerTest {
         new TestTimeTickProvider(100_000L, 1000L, 1_000_000_000L);
     instance =
         new ProfilerTracingContextTracker(
-            Allocators.heapAllocator(32, 16), null, ticker, sequencePruner, 512);
+            Allocators.heapAllocator(32, 16),
+            null,
+            ticker,
+            SystemTimeSource.INSTANCE,
+            sequencePruner,
+            512);
   }
 
   @Test
@@ -68,6 +74,7 @@ class ProfilerTracingContextTrackerTest {
             Allocators.directAllocator(8192, 64),
             null,
             tickProvider,
+            SystemTimeSource.INSTANCE,
             sequencePruner,
             Integer.MAX_VALUE);
     for (int i = 0; i < 40; i += 4) {
@@ -101,6 +108,7 @@ class ProfilerTracingContextTrackerTest {
             Allocators.directAllocator(8192, 64),
             null,
             tickProvider,
+            SystemTimeSource.INSTANCE,
             sequencePruner,
             dataSizeLimit);
     int intervalsCount = 0;

@@ -132,7 +132,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   public long getCurrentTimeNano() {
     long nanoTicks = timeSource.getNanoTicks();
     lastReferenced = nanoTicks;
-    return tracer.getTimeWithNanoTicks(nanoTicks);
+    return timeSource.getCurrentTimeNanos();
   }
 
   public TimeSource getTimeSource() {
