@@ -23,7 +23,7 @@ sourceSets {
 
 dependencies {
   api project(':internal-api')
-  implementation project(':dd-java-agent:agent-profiling:profiling-async')
+  implementation project(path: ':dd-java-agent:agent-profiling:profiling-async', configuration: 'shadow')
 
   implementation deps.slf4j
   main_java11CompileOnly deps.slf4j
