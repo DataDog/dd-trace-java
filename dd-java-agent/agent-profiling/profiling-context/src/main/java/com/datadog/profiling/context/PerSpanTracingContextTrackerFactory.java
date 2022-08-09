@@ -18,10 +18,10 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilerTracingContextTrackerFactory
+public final class PerSpanTracingContextTrackerFactory
     implements TracingContextTrackerFactory.Implementation {
   private static final Logger log =
-      LoggerFactory.getLogger(ProfilerTracingContextTrackerFactory.class);
+      LoggerFactory.getLogger(PerSpanTracingContextTrackerFactory.class);
 
   private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
   private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
@@ -51,7 +51,7 @@ public final class ProfilerTracingContextTrackerFactory
               ProfilingConfig.PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT);
 
       TracingContextTrackerFactory.registerImplementation(
-          new ProfilerTracingContextTrackerFactory(
+          new PerSpanTracingContextTrackerFactory(
               inactivityDelayNs, inactivityCheckPeriod, reservedMemorySize, reservedMemoryType));
     }
   }
@@ -85,15 +85,15 @@ public final class ProfilerTracingContextTrackerFactory
 
   private final Allocator allocator;
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
-  private final ProfilerTracingContextTracker.TimeTicksProvider timeTicksProvider;
+  private final PerSpanTracingContextTracker.TimeTicksProvider timeTicksProvider;
   private final long inactivityDelay;
 
-  ProfilerTracingContextTrackerFactory(
+  PerSpanTracingContextTrackerFactory(
       long inactivityDelayNs, long inactivityCheckPeriodMs, int reservedMemorySize) {
     this(inactivityDelayNs, inactivityCheckPeriodMs, reservedMemorySize, "heap");
   }
 
-  ProfilerTracingContextTrackerFactory(
+  PerSpanTracingContextTrackerFactory(
       long inactivityDelayNs,
       long inactivityCheckPeriodMs,
       int reservedMemorySize,
@@ -111,10 +111,10 @@ public final class ProfilerTracingContextTrackerFactory
     }
   }
 
-  private static ProfilerTracingContextTracker.TimeTicksProvider getTicksProvider() {
+  private static PerSpanTracingContextTracker.TimeTicksProvider getTicksProvider() {
     try {
       Class<?> clz =
-          ProfilerTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
+          PerSpanTracingContextTracker.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
       MethodHandle mh;
       long frequency = 0L;
       try {
@@ -136,7 +136,7 @@ public final class ProfilerTracingContextTrackerFactory
       long fixedFrequency = frequency;
 
       log.info("Using JFR time ticks provider");
-      return new ProfilerTracingContextTracker.TimeTicksProvider() {
+      return new PerSpanTracingContextTracker.TimeTicksProvider() {
         @Override
         public long ticks() {
           try {
@@ -158,13 +158,13 @@ public final class ProfilerTracingContextTrackerFactory
         log.warn("Failed to access JFR timestamps. Falling back to system nanotime.");
       }
     }
-    return ProfilerTracingContextTracker.TimeTicksProvider.SYSTEM;
+    return PerSpanTracingContextTracker.TimeTicksProvider.SYSTEM;
   }
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
-    ProfilerTracingContextTracker instance =
-        new ProfilerTracingContextTracker(
+    PerSpanTracingContextTracker instance =
+        new PerSpanTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
     if (inactivityDelay > 0) {
       statsd.incrementCounter("tracing.context.spans.tracked");

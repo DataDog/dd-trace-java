@@ -7,13 +7,13 @@ import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-class ProfilerTracingContextTrackerFactoryTest {
+class PerSpanTracingContextTrackerFactoryTest {
   @Test
   void testTracingAvailable() {
     assertFalse(TracingContextTrackerFactory.isTrackingAvailable());
 
     TracingContextTrackerFactory.registerImplementation(
-        new ProfilerTracingContextTrackerFactory(
+        new PerSpanTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS), 10L, 512));
     assertTrue(TracingContextTrackerFactory.isTrackingAvailable());
   }
@@ -21,8 +21,8 @@ class ProfilerTracingContextTrackerFactoryTest {
   @Test
   void testReleasedAfterInactivity() throws Exception {
     long inactivityMs = 100;
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
     TracingContextTracker tracker1 = instance.instance(null);
     TracingContextTracker tracker2 = instance.instance(null);
@@ -37,8 +37,8 @@ class ProfilerTracingContextTrackerFactoryTest {
   @Test
   void testNotReleasedBeforeInactivity() throws Exception {
     long inactivityMs = 100;
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
     TracingContextTracker tracker1 = instance.instance(null);
     TracingContextTracker tracker2 = instance.instance(null);
@@ -55,8 +55,8 @@ class ProfilerTracingContextTrackerFactoryTest {
   @Test
   void testNoInactivityRelease() throws Exception {
     long inactivityMs = 0;
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
     TracingContextTracker tracker1 = instance.instance(null);
     TracingContextTracker tracker2 = instance.instance(null);
