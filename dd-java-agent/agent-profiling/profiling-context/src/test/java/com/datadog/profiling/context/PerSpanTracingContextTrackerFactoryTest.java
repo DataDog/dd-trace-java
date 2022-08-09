@@ -2,20 +2,31 @@ package com.datadog.profiling.context;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.TracingContextTracker;
-import datadog.trace.api.profiling.TracingContextTrackerFactory;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class PerSpanTracingContextTrackerFactoryTest {
+
   @Test
   void testTracingAvailable() {
-    assertFalse(TracingContextTrackerFactory.isTrackingAvailable());
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED, Boolean.toString(true));
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    TracingContextTrackerFactory.registerImplementation(
+    assertTrue(PerSpanTracingContextTrackerFactory.isEnabled(configProvider));
+
+    long inactivityMs = 100;
+    PerSpanTracingContextTrackerFactory instance =
         new PerSpanTracingContextTrackerFactory(
-            TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS), 10L, 512));
-    assertTrue(TracingContextTrackerFactory.isTrackingAvailable());
+            TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
+
+    TracingContextTracker tracker = instance.instance(null);
+    assertNotNull(tracker);
+    assertNotEquals(tracker, TracingContextTracker.EMPTY);
   }
 
   @Test
