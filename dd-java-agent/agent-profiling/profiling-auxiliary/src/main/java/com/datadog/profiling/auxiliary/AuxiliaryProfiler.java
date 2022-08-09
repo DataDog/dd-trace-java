@@ -37,9 +37,13 @@ public final class AuxiliaryProfiler {
 
   AuxiliaryProfiler(ConfigProvider configProvider) {
     String auxilliaryType =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_AUXILIARY_TYPE,
-            ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
+        configProvider.getBoolean(
+                ProfilingConfig.PROFILING_ASYNC_ENABLED,
+                ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
+            ? "async"
+            : configProvider.getString(
+                ProfilingConfig.PROFILING_AUXILIARY_TYPE,
+                ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT);
     log.debug("Requested auxiliary profiler: {}", auxilliaryType);
     AuxiliaryImplementation impl = AuxiliaryImplementation.NULL;
     log.debug("Iterating auxiliary implementation providers");

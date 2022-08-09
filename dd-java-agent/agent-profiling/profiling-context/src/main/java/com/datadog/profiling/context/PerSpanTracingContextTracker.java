@@ -1,6 +1,5 @@
 package com.datadog.profiling.context;
 
-import com.datadog.profiling.async.AsyncProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.function.ToIntFunction;
 import datadog.trace.api.profiling.TracingContextTracker;
@@ -9,7 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ThreadLocalRandom;
@@ -25,8 +23,6 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
   private static final Logger log = LoggerFactory.getLogger(PerSpanTracingContextTracker.class);
 
   private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
-
-  private static final AsyncProfiler ASYNC_PROFILER = AsyncProfiler.getInstance();
 
   static final int TRANSITION_STARTED = 0;
   static final int TRANSITION_MAYBE_FINISHED = 1;
@@ -101,38 +97,11 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     }
   }
 
-  private static final class Context {
-    private final long spanId;
-    private final long rootSpanId;
-    public Context(long spanId, long rootSpanId) {
-      this.spanId = spanId;
-      this.rootSpanId = rootSpanId;
-    }
-    public long spanId() {
-      return spanId;
-    }
-    public long rootSpanId() {
-      return rootSpanId;
-    }
-    public boolean equals(long spanId, long rootSpanId) {
-      return this.spanId == spanId && this.rootSpanId == rootSpanId;
-    }
-  }
-
-  private static final ThreadLocal<ArrayDeque<Context>> contextsThreadLocal =
-      new ThreadLocal<ArrayDeque<Context>>() {
-        @Override
-        protected ArrayDeque<Context> initialValue() {
-          return new ArrayDeque<Context>();
-        }
-      };
-
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
           LoggerFactory.getLogger(PerSpanTracingContextTracker.class), 30, TimeUnit.SECONDS);
 
-  private static final AtomicReferenceFieldUpdater<
-          PerSpanTracingContextTracker, DelayedTrackerImpl>
+  private static final AtomicReferenceFieldUpdater<PerSpanTracingContextTracker, DelayedTrackerImpl>
       DELAYED_TRACKER_REF_UPDATER =
           AtomicReferenceFieldUpdater.newUpdater(
               PerSpanTracingContextTracker.class, DelayedTrackerImpl.class, "delayedTrackerRef");
@@ -175,9 +144,6 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
   private long lastTransitionTimestamp = -1;
 
   private volatile DelayedTrackerImpl delayedTrackerRef = null;
-
-  private final long spanId;
-  private final long rootSpanId;
 
   static {
     SPAN_ACTIVATION_DATA_LIMIT =
@@ -229,11 +195,6 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
     this.maxDataSize = maxDataSize;
-
-    this.spanId = span != null ? span.getSpanId().toLong() : -1;
-    this.rootSpanId = span != null ? span.getLocalRootSpan() != null ? span.getLocalRootSpan().getSpanId().toLong() : -1 : -1;
-
-    activateAsyncProfilerContext();
   }
 
   @Override
@@ -250,10 +211,6 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     long tsDiff = timestamp - startTimestampTicks;
     long masked = maskActivation(tsDiff);
     store(threadId, masked, true);
-
-    if (Thread.currentThread().getId() == threadId) {
-      activateAsyncProfilerContext();
-    }
   }
 
   private long accessTimestamp() {
@@ -291,39 +248,6 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     long masked = maskDeactivation(tsDiff, maybe);
     // store the transition even if it would cross the limit - for the sake of interval completeness
     store(threadId, masked, false);
-
-    if (Thread.currentThread().getId() == threadId) {
-      deactivateAsyncProfilerContext();
-    }
-  }
-
-  private void activateAsyncProfilerContext() {
-    ArrayDeque<Context> contexts = contextsThreadLocal.get();
-
-    contexts.push(new Context(spanId, rootSpanId));
-    // System.err.printf("[%d] Set (activation) context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
-    ASYNC_PROFILER.setContext(spanId, rootSpanId);
-  }
-
-  private void deactivateAsyncProfilerContext() {
-    ArrayDeque<Context> contexts = contextsThreadLocal.get();
-
-    while (!contexts.isEmpty()) {
-      // pop until we peeled the stack to where we pushed it in the activation
-      Context context = contexts.pop();
-      if (context.equals(spanId, rootSpanId)) {
-        break;
-      }
-    }
-
-    if (contexts.isEmpty()) {
-      // System.err.printf("[%d] Clear context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
-      ASYNC_PROFILER.clearContext();
-    } else {
-      Context context = contexts.peek();
-      // System.err.printf("[%d] Set (deactivation) context spanId = %d rootSpanId = %d%n", Thread.currentThread().getId(), spanId, rootSpanId);
-      ASYNC_PROFILER.setContext(context.spanId(), context.rootSpanId());
-    }
   }
 
   @Override

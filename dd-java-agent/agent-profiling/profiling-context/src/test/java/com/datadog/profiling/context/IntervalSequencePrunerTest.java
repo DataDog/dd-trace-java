@@ -280,7 +280,6 @@ public class IntervalSequencePrunerTest {
 
     assertFalse(iterator.hasNext());
     assertEquals(
-        Arrays.asList(start, PerSpanTracingContextTracker.maskDeactivation(stopTs, false)),
-        values);
+        Arrays.asList(start, PerSpanTracingContextTracker.maskDeactivation(stopTs, false)), values);
   }
 }

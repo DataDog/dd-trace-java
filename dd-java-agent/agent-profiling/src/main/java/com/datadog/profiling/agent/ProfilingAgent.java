@@ -69,7 +69,11 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController(configProvider);
 
-        PerSpanTracingContextTrackerFactory.register(configProvider);
+        if (AsyncProfilerTracingContextTrackerFactory.isEnabled(configProvider)) {
+          AsyncProfilerTracingContextTrackerFactory.register(configProvider);
+        } else if (PerSpanTracingContextTrackerFactory.isEnabled(configProvider)) {
+          PerSpanTracingContextTrackerFactory.register(configProvider);
+        }
 
         uploader = new ProfileUploader(config, configProvider);
 

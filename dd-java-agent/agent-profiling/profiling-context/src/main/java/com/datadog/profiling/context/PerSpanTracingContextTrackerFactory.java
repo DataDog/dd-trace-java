@@ -26,10 +26,14 @@ public final class PerSpanTracingContextTrackerFactory
   private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
   private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
-  public static void register(ConfigProvider configProvider) {
-    if (configProvider.getBoolean(
+  public static boolean isEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(
         ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED,
-        ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT)) {
+        ProfilingConfig.PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT);
+  }
+
+  public static void register(ConfigProvider configProvider) {
+    if (isEnabled(configProvider)) {
       long inactivityDelayNs =
           TimeUnit.NANOSECONDS.convert(
               configProvider.getInteger(
