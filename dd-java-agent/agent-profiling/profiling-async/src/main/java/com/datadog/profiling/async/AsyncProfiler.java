@@ -299,16 +299,16 @@ public final class AsyncProfiler {
         ProfilingConfig.PROFILING_ASYNC_STACKDEPTH_DEFAULT);
   }
 
-  private String getCStack() {
-    return configProvider.getString(
-        ProfilingConfig.PROFILING_ASYNC_CSTACK,
-        ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);
-  }
-
   private int getSafeMode() {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_ASYNC_SAFEMODE,
         ProfilingConfig.PROFILING_ASYNC_SAFEMODE_DEFAULT);
+  }
+
+  private String getCStack() {
+    return configProvider.getString(
+        ProfilingConfig.PROFILING_ASYNC_CSTACK,
+        ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);
   }
 
   public long getMemleakInterval() {
