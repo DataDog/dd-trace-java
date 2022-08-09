@@ -18,7 +18,6 @@ import graphql.execution.instrumentation.parameters.InstrumentationExecuteOperat
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.execution.instrumentation.parameters.InstrumentationValidationParameters;
-import graphql.language.AstPrinter;
 import graphql.language.Document;
 import graphql.language.OperationDefinition;
 import graphql.schema.DataFetcher;
@@ -71,13 +70,17 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   public InstrumentationContext<ExecutionResult> beginExecution(
       InstrumentationExecutionParameters parameters) {
 
-    final AgentSpan span = startSpan(GRAPHQL_REQUEST);
-    DECORATE.afterStart(span);
+    final AgentSpan requestSpan = startSpan(GRAPHQL_REQUEST);
+    DECORATE.afterStart(requestSpan);
 
     State state = parameters.getInstrumentationState();
-    state.setRequestSpan(span);
+    state.setRequestSpan(requestSpan);
+    requestSpan.setTag(
+        "graphql.query",
+        parameters.getQuery()); // TODO maybe keep it aside until the span is about to finish?
+    // parameters.getOperation() is null
 
-    return new ExecutionInstrumentationContext(span);
+    return new ExecutionInstrumentationContext(requestSpan);
   }
 
   @Override
@@ -99,9 +102,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     requestSpan.setSpanName(spanName);
 
     requestSpan.setTag("graphql.operation.name", operationName);
-    // TODO sanitize query?
-    String query = AstPrinter.printAst(operationDefinition);
-    requestSpan.setTag("graphql.query", query);
+    // TODO sanitize query? and update it
+    //    String query = AstPrinter.printAst(operationDefinition);
+    //    requestSpan.setTag("graphql.query", query);
 
     return SimpleInstrumentationContext.noOp();
   }

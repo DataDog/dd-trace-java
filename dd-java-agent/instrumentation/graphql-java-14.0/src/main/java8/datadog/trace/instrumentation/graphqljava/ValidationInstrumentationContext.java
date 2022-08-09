@@ -20,7 +20,9 @@ public final class ValidationInstrumentationContext
     if (t != null) {
       DECORATE.onError(span, t);
     }
-    // TODO set error if any (result)
+    if (!result.isEmpty()) {
+      span.setError(true);
+    }
     DECORATE.beforeFinish(span);
     span.finish();
   }

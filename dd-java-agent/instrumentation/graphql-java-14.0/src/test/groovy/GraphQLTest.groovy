@@ -152,5 +152,114 @@ class GraphQLTest extends AgentTestRunner {
     }
   }
 
+  def "query validation error"() {
+    setup:
+    def query = 'query findBookById {\n' +
+      '  bookById(id: "book-1") {\n' +
+      '    id\n' +
+      '    title\n' + // title doesn't exist
+      '  }\n' +
+      '}'
+    ExecutionResult result =
+      graphql.execute(query)
+
+    expect:
+    !result.getErrors().isEmpty()
+
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "graphql.request"
+          resourceName "graphql.request"
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.query" query
+            "graphql.operation.name" null
+            "error.msg" "Validation error of type FieldUndefined: Field 'title' in type 'Book' is undefined @ 'bookById/title'"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.validation"
+          resourceName "graphql.validation"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.parsing"
+          resourceName "graphql.parsing"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "query parse error"() {
+    setup:
+    def query = 'query findBookById {\n' +
+      '  bookById(id: "book-1")) {\n' + // double closing brace
+      '    id\n' +
+      '  }\n' +
+      '}'
+    ExecutionResult result =
+      graphql.execute(query)
+
+    expect:
+    !result.getErrors().isEmpty()
+
+    assertTraces(1) {
+      trace(2) {
+        span {
+          operationName "graphql.request"
+          resourceName "graphql.request"
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.query" query
+            "graphql.operation.name" null
+            "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.parsing"
+          resourceName "graphql.parsing"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
+            "error.stack" String
+            "error.type" "graphql.parser.InvalidSyntaxException"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+
   //TODO test errors
 }
