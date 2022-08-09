@@ -2,6 +2,7 @@ package com.datadog.debugger.uploader;
 
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
+import datadog.communication.http.SafeRequestBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.IOException;
@@ -151,7 +152,7 @@ public class BatchUploader {
     if (!tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
+    SafeRequestBuilder requestBuilder = new SafeRequestBuilder().url(builder.build()).post(body);
     if (apiKey != null) {
       if (apiKey.isEmpty()) {
         log.debug("API key is empty");

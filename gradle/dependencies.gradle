@@ -27,6 +27,7 @@ final class CachedData {
     commons       : "3.2",
     mockito       : '4.4.0',
     moshi         : '1.9.2',
+    jctools       : '3.3.0',
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
@@ -39,6 +40,7 @@ final class CachedData {
     slf4j                : "org.slf4j:slf4j-api:${versions.slf4j}",
     guava                : "com.google.guava:guava:$versions.guava",
     moshi                : "com.squareup.moshi:moshi:${versions.moshi}",
+    jctools              : "org.jctools:jctools-core:${versions.jctools}",
     okhttp               : "com.squareup.okhttp3:okhttp:${versions.okhttp}",
     okio                 : "com.squareup.okio:okio:${versions.okio}",
     bytebuddy            : "net.bytebuddy:byte-buddy:${versions.bytebuddy}",
@@ -98,6 +100,7 @@ final class CachedData {
       "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
       "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
       "com.squareup.moshi:moshi:${versions.moshi}",
+      "org.jctools:jctools-core:${versions.jctools}",
     ],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
@@ -130,6 +133,9 @@ final class CachedData {
 
       // moshi and its transitives
       exclude(dependency('com.squareup.moshi::'))
+
+      // jctools and its transitives
+      exclude(dependency('org.jctools::'))
     }
   ]
 }

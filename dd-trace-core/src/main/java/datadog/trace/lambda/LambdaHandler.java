@@ -5,13 +5,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.communication.http.SafeRequestBuilder;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.slf4j.Logger;
@@ -65,7 +65,7 @@ public class LambdaHandler {
     try (Response response =
         HTTP_CLIENT
             .newCall(
-                new Request.Builder()
+                new SafeRequestBuilder()
                     .url(EXTENSION_BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
                     .post(body)
@@ -99,14 +99,15 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(AgentSpan span, boolean isError) {
+
     if (null == span || null == span.getSamplingPriority()) {
       log.error(
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
-    Request.Builder builder =
-        new Request.Builder()
+    SafeRequestBuilder builder =
+        new SafeRequestBuilder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
@@ -117,6 +118,7 @@ public class LambdaHandler {
     if (isError) {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
+
     try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
