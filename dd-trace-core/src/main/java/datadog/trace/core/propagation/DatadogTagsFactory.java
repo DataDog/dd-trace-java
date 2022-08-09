@@ -68,7 +68,7 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
       return new InvalidDatadogTags(PROPAGATION_ERROR_EXTRACT_MAX_SIZE);
     }
 
-    List<String> tagPairs = new ArrayList<>();
+    List<String> tagPairs = new ArrayList<>(10);
     int len = value.length();
     int tagPos = 0;
     while (tagPos < len) {
