@@ -301,14 +301,12 @@ public final class AsyncProfiler {
 
   private int getSafeMode() {
     return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_SAFEMODE,
-        ProfilingConfig.PROFILING_ASYNC_SAFEMODE_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_SAFEMODE, ProfilingConfig.PROFILING_ASYNC_SAFEMODE_DEFAULT);
   }
 
   private String getCStack() {
     return configProvider.getString(
-        ProfilingConfig.PROFILING_ASYNC_CSTACK,
-        ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_CSTACK, ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);
   }
 
   public long getMemleakInterval() {
