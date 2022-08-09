@@ -17,7 +17,6 @@ package com.datadog.profiling.uploader;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
-import com.datadog.profiling.async.AsyncProfiler;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.JfrCliHelper;
@@ -142,9 +141,6 @@ public final class ProfileUploader {
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedProfilingTags());
     tagsMap.put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION);
     tagsMap.put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
-    if (AsyncProfiler.hasInstance()) {
-      tagsMap.put(AsyncProfiler.VERSION_TAG, AsyncProfiler.getVersion());
-    }
     // PID can be null if we cannot find it out from the system
     if (PidHelper.PID != null) {
       tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
