@@ -77,8 +77,6 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
     ArrayDeque<Context> contexts = contextsThreadLocal.get();
 
     contexts.push(new Context(spanId, rootSpanId));
-    // System.err.printf("[%d] Set (activation) context spanId = %d rootSpanId = %d%n",
-    // Thread.currentThread().getId(), spanId, rootSpanId);
     ASYNC_PROFILER.setContext(spanId, rootSpanId);
   }
 
@@ -94,13 +92,9 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
     }
 
     if (contexts.isEmpty()) {
-      // System.err.printf("[%d] Clear context spanId = %d rootSpanId = %d%n",
-      // Thread.currentThread().getId(), spanId, rootSpanId);
       ASYNC_PROFILER.clearContext();
     } else {
       Context context = contexts.peek();
-      // System.err.printf("[%d] Set (deactivation) context spanId = %d rootSpanId = %d%n",
-      // Thread.currentThread().getId(), spanId, rootSpanId);
       ASYNC_PROFILER.setContext(context.spanId(), context.rootSpanId());
     }
   }
