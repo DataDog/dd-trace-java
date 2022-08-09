@@ -1,5 +1,6 @@
 plugins {
   id "com.github.johnrengelman.shadow"
+  id 'me.champeau.jmh'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -52,4 +53,9 @@ spotless {
   java {
     target 'src/**/*.java'
   }
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

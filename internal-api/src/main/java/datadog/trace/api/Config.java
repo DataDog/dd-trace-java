@@ -38,6 +38,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONTEXT_OPERATIONS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
@@ -149,6 +152,9 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
+import static datadog.trace.api.config.IastConfig.IAST_MAX_CONTEXT_OPERATIONS;
+import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -519,6 +525,9 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
 
   private final boolean iastEnabled;
+  private final int iastMaxConcurrentRequests;
+  private final int iastMaxContextOperations;
+  private final float iastRequestSampling;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1084,6 +1093,13 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
 
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+    iastMaxConcurrentRequests =
+        configProvider.getInteger(
+            IAST_MAX_CONCURRENT_REQUESTS, DEFAULT_IAST_MAX_CONCURRENT_REQUESTS);
+    iastMaxContextOperations =
+        configProvider.getInteger(IAST_MAX_CONTEXT_OPERATIONS, DEFAULT_IAST_MAX_CONTEXT_OPERATIONS);
+    iastRequestSampling =
+        configProvider.getFloat(IAST_REQUEST_SAMPLING, DEFAULT_IAST_REQUEST_SAMPLING);
     iastWeakHashAlgorithms =
         tryMakeImmutableSet(
             configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
@@ -1765,6 +1781,18 @@ public class Config {
 
   public boolean isIastEnabled() {
     return iastEnabled;
+  }
+
+  public int getIastMaxConcurrentRequests() {
+    return iastMaxConcurrentRequests;
+  }
+
+  public int getIastMaxContextOperations() {
+    return iastMaxContextOperations;
+  }
+
+  public float getIastRequestSampling() {
+    return iastRequestSampling;
   }
 
   public boolean isCiVisibilityEnabled() {
