@@ -8,6 +8,7 @@ import datadog.trace.api.Config;
  */
 public final class ExceptionProfiling {
 
+  /** Lazy initialization-on-demand. */
   private static final class Holder {
     static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
   }
@@ -18,11 +19,7 @@ public final class ExceptionProfiling {
    * @return the shared instance
    */
   public static ExceptionProfiling getInstance() {
-    if (ExceptionSampling.canSampleExceptions()) {
-      return Holder.INSTANCE;
-    } else {
-      return null;
-    }
+    return Holder.INSTANCE;
   }
 
   private final ExceptionHistogram histogram;
