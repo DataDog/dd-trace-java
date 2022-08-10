@@ -105,6 +105,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 
 class ConfigTest extends DDSpecification {
 
@@ -138,6 +139,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
+  private static final DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH = "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH"
 
   def "specify overrides via properties"() {
     setup:
@@ -217,6 +219,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
     prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
     prop.setProperty(DEBUGGER_EXCLUDE_FILE, "exclude file")
+    prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
     Config config = Config.get(prop)
@@ -298,6 +301,8 @@ class ConfigTest extends DDSpecification {
     config.debuggerVerifyByteCode == true
     config.debuggerInstrumentTheWorld == true
     config.debuggerExcludeFile == "exclude file"
+
+    config.xDatadogTagsMaxLength == 128
   }
 
   def "specify overrides via system properties"() {
@@ -377,6 +382,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
     System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
     System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILE, "exclude file")
+    System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
     Config config = new Config()
@@ -456,6 +462,8 @@ class ConfigTest extends DDSpecification {
     config.debuggerVerifyByteCode == true
     config.debuggerInstrumentTheWorld == true
     config.debuggerExcludeFile == "exclude file"
+
+    config.xDatadogTagsMaxLength == 128
   }
 
   def "specify overrides via env vars"() {
@@ -469,6 +477,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
     environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
+    environmentVariables.set(DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "42")
 
     when:
     def config = new Config()
@@ -482,6 +491,7 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
+    config.xDatadogTagsMaxLength == 42
   }
 
   def "sys props override env vars"() {

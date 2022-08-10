@@ -20,7 +20,6 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ForwardedTagContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -35,7 +34,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected DDId traceId;
   protected DDId spanId;
   protected int samplingPriority;
-  protected int samplingMechanism;
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
   protected String origin;
@@ -47,6 +45,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String forwardedIp;
   protected String forwardedPort;
   protected boolean valid;
+  protected DatadogTags datadogTags;
 
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
@@ -186,7 +185,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     traceId = DDId.ZERO;
     spanId = DDId.ZERO;
     samplingPriority = defaultSamplingPriority();
-    samplingMechanism = defaultSamplingMechanism();
     origin = null;
     endToEndStartTime = 0;
     hasForwarded = false;
@@ -212,7 +210,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   traceId,
                   spanId,
                   samplingPriority,
-                  samplingMechanism,
                   origin,
                   endToEndStartTime,
                   forwarded,
@@ -222,19 +219,20 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                   forwardedPort,
                   baggage,
                   tags,
-                  httpHeaders);
+                  httpHeaders,
+                  datadogTags);
         } else {
           context =
               new ExtractedContext(
                   traceId,
                   spanId,
                   samplingPriority,
-                  samplingMechanism,
                   origin,
                   endToEndStartTime,
                   baggage,
                   tags,
-                  httpHeaders);
+                  httpHeaders,
+                  datadogTags);
         }
         return context;
       } else if (hasForwarded) {
@@ -260,10 +258,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected int defaultSamplingPriority() {
     return PrioritySampling.UNSET;
-  }
-
-  protected int defaultSamplingMechanism() {
-    return SamplingMechanism.UNKNOWN;
   }
 
   private final TagContext.HttpHeaders getHeaders() {

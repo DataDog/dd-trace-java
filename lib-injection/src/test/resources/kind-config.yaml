@@ -5,7 +5,7 @@ nodes:
     # port forward 80 on the host to 80 on this node
     extraPortMappings:
       # agent port
-      - containerPort: 18126
+      - containerPort: 8126
         hostPort: 18126
         # optional: set the bind address on the host
         # 0.0.0.0 is the current default
