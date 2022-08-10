@@ -200,7 +200,7 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
 
   private static long currentTimeNanos() {
     Instant now = Instant.now();
-    return now.toEpochMilli() * 1_000_000L + now.getNano();
+    return now.getEpochSecond() * 1_000_000_000L + now.getNano();
   }
 
   @Override
