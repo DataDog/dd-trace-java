@@ -227,6 +227,9 @@ public abstract class CIProviderInfo {
     }
 
     public CITagsBuilder withCiEnvVars(final Map<String, String> ciEnvVars) {
+      if (ciEnvVars == null || ciEnvVars.isEmpty()) {
+        return this;
+      }
       return this.putTagValue(DDTags.CI_ENV_VARS, toJson(ciEnvVars));
     }
 
