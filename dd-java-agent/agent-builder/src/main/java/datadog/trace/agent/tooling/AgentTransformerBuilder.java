@@ -140,6 +140,8 @@ public class AgentTransformerBuilder
       typeMatcher = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher();
     } else if (instrumenter instanceof Instrumenter.ForConfiguredType) {
       typeMatcher = none(); // handle below, just like when it's combined with other matchers
+    } else if (instrumenter instanceof Instrumenter.ForCallSite) {
+      typeMatcher = ((Instrumenter.ForCallSite) instrumenter).callerType();
     } else {
       return AgentBuilder.RawMatcher.Trivial.NON_MATCHING;
     }
