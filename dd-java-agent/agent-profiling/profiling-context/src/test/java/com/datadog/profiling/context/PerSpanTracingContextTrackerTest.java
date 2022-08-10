@@ -17,9 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-class ProfilerTracingContextTrackerTest {
+class PerSpanTracingContextTrackerTest {
   private static final class TestTimeTickProvider
-      implements ProfilerTracingContextTracker.TimeTicksProvider {
+      implements PerSpanTracingContextTracker.TimeTicksProvider {
     private final long step;
     private final long frequency;
     private final AtomicLong ts = new AtomicLong(0);
@@ -46,14 +46,14 @@ class ProfilerTracingContextTrackerTest {
   }
 
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
-  private ProfilerTracingContextTracker instance;
+  private PerSpanTracingContextTracker instance;
 
   @BeforeEach
   void setup() throws Exception {
-    ProfilerTracingContextTracker.TimeTicksProvider ticker =
+    PerSpanTracingContextTracker.TimeTicksProvider ticker =
         new TestTimeTickProvider(100_000L, 1000L, 1_000_000_000L);
     instance =
-        new ProfilerTracingContextTracker(
+        new PerSpanTracingContextTracker(
             Allocators.heapAllocator(32, 16), null, ticker, sequencePruner, 512);
   }
 
@@ -64,7 +64,7 @@ class ProfilerTracingContextTrackerTest {
   void persist() {
     TestTimeTickProvider tickProvider = new TestTimeTickProvider(100_000L, 3, 1_000_000_000L);
     instance =
-        new ProfilerTracingContextTracker(
+        new PerSpanTracingContextTracker(
             Allocators.directAllocator(8192, 64),
             null,
             tickProvider,
@@ -97,7 +97,7 @@ class ProfilerTracingContextTrackerTest {
     int dataSizeLimit = 140;
     TestTimeTickProvider tickProvider = new TestTimeTickProvider(100_000L, 3, 1_000_000_000L);
     instance =
-        new ProfilerTracingContextTracker(
+        new PerSpanTracingContextTracker(
             Allocators.directAllocator(8192, 64),
             null,
             tickProvider,
@@ -142,11 +142,11 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void testSanity() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
-    ProfilerTracingContextTracker tracker =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
     AtomicInteger blobCounter = new AtomicInteger();
 
     tracker.activateContext();
@@ -167,13 +167,13 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void delayedCompareToTest() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
-    ProfilerTracingContextTracker tracker1 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-    ProfilerTracingContextTracker tracker2 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker1 =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker2 =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
 
     TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
     TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
@@ -201,13 +201,13 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void delayedCachingTest() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
-    ProfilerTracingContextTracker tracker1 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-    ProfilerTracingContextTracker tracker2 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker1 =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker2 =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
 
     TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
     TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
@@ -218,25 +218,25 @@ class ProfilerTracingContextTrackerTest {
 
   @Test
   void delayedReleaseTest() {
-    ProfilerTracingContextTrackerFactory instance =
-        new ProfilerTracingContextTrackerFactory(-1, 10L, 512);
+    PerSpanTracingContextTrackerFactory instance =
+        new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
-    ProfilerTracingContextTracker tracker1 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
-    ProfilerTracingContextTracker tracker2 =
-        (ProfilerTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker1 =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+    PerSpanTracingContextTracker tracker2 =
+        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
 
     TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
     TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
 
     // make sure the tracker release will remove the reference from delayed to the tracker
     tracker1.release();
-    assertNull(((ProfilerTracingContextTracker.DelayedTrackerImpl) delayed1).ref);
+    assertNull(((PerSpanTracingContextTracker.DelayedTrackerImpl) delayed1).ref);
     assertNotEquals(delayed1, tracker1.asDelayed());
 
     // make sure that the delayed cleanup will also trigger the tracker release
     delayed2.cleanup();
-    assertNull(((ProfilerTracingContextTracker.DelayedTrackerImpl) delayed2).ref);
+    assertNull(((PerSpanTracingContextTracker.DelayedTrackerImpl) delayed2).ref);
     assertNotEquals(delayed2, tracker2.asDelayed());
   }
 

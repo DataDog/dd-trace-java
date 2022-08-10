@@ -22,27 +22,27 @@ jobs:
         language: [ 'java' ]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+      - name: Checkout repository
+        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
 
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@1a927e9307bc11970b2c679922ebc4d03a5bd980 # 1.0.31
-      with:
-        languages: ${{ matrix.language }}
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
-        # queries: ./path/to/local/query, your-org/your-repo/queries@main
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1a927e9307bc11970b2c679922ebc4d03a5bd980 # 1.0.31
+        with:
+          languages: ${{ matrix.language }}
+          # If you wish to specify custom queries, you can do so here or in a config file.
+          # By default, queries listed here will override any specified in a config file.
+          # Prefix the list here with "+" to use these queries and those in the config file.
+          # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
-    - name: Build dd-trace-java for creating the CodeQL database
-      run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+      - name: Build dd-trace-java for creating the CodeQL database
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@1a927e9307bc11970b2c679922ebc4d03a5bd980 # 1.0.31
-      
-    - name: upload_artifact
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # 2.3.1
-      with:
-         name: CodeQL Analysis Sarif
-         path: /home/runner/work/dd-trace-java/results/java.sarif    
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@1a927e9307bc11970b2c679922ebc4d03a5bd980 # 1.0.31
+
+      - name: upload_artifact
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # 2.3.1
+        with:
+          name: CodeQL Analysis Sarif
+          path: /home/runner/work/dd-trace-java/results/java.sarif

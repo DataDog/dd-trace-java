@@ -76,18 +76,18 @@ final class IntervalSequencePruner {
    * @return a {@linkplain LongIterator} instance providing access to the pruned data
    */
   LongIterator pruneIntervals(LongSequence sequence, long timestampDelta) {
-    int lastTransition = ProfilerTracingContextTracker.TRANSITION_NONE;
+    int lastTransition = PerSpanTracingContextTracker.TRANSITION_NONE;
     int finishIndexStart = -1;
     int sequenceOffset = 0;
     LongIterator iterator = sequence.iterator();
     while (iterator.hasNext()) {
       long value = iterator.next();
-      int transition = (int) ((value & ProfilerTracingContextTracker.TRANSITION_MASK) >>> 62);
-      if (transition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
-        if (lastTransition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
+      int transition = (int) ((value & PerSpanTracingContextTracker.TRANSITION_MASK) >>> 62);
+      if (transition == PerSpanTracingContextTracker.TRANSITION_STARTED) {
+        if (lastTransition == PerSpanTracingContextTracker.TRANSITION_STARTED) {
           // skip duplicated starts
           sequence.set(sequenceOffset, 0L);
-        } else if (lastTransition > ProfilerTracingContextTracker.TRANSITION_STARTED) {
+        } else if (lastTransition > PerSpanTracingContextTracker.TRANSITION_STARTED) {
           int collapsedLength = sequenceOffset - finishIndexStart - 1;
           if (collapsedLength > 0) {
             for (int i = 0; i < collapsedLength; i++) {
@@ -96,32 +96,32 @@ final class IntervalSequencePruner {
           }
           finishIndexStart = -1;
 
-          if (lastTransition == ProfilerTracingContextTracker.TRANSITION_MAYBE_FINISHED) {
+          if (lastTransition == PerSpanTracingContextTracker.TRANSITION_MAYBE_FINISHED) {
             // skip 'maybe finished' followed by started
             sequence.set(sequenceOffset - 1, 0L);
             // also, ignore the start - instead just continue the previous interval
             sequence.set(sequenceOffset, 0L);
           }
         }
-      } else if (transition == ProfilerTracingContextTracker.TRANSITION_MAYBE_FINISHED) {
-        if (lastTransition == ProfilerTracingContextTracker.TRANSITION_NONE) {
+      } else if (transition == PerSpanTracingContextTracker.TRANSITION_MAYBE_FINISHED) {
+        if (lastTransition == PerSpanTracingContextTracker.TRANSITION_NONE) {
           // dangling transition - remove it
           log.debug("Dangling 'maybe finished' transition");
           sequence.set(sequenceOffset, 0L);
           transition = lastTransition;
-        } else if (lastTransition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
+        } else if (lastTransition == PerSpanTracingContextTracker.TRANSITION_STARTED) {
           finishIndexStart = sequenceOffset;
-        } else if (lastTransition == ProfilerTracingContextTracker.TRANSITION_FINISHED) {
+        } else if (lastTransition == PerSpanTracingContextTracker.TRANSITION_FINISHED) {
           // 'finish' followed by 'maybe finished' turns into 'finished'
           transition = lastTransition;
         }
-      } else { // if (transition == ProfilerTracingContextTracker.TRANSITION_FINISHED)
-        if (lastTransition == ProfilerTracingContextTracker.TRANSITION_NONE) {
+      } else { // if (transition == PerSpanTracingContextTracker.TRANSITION_FINISHED)
+        if (lastTransition == PerSpanTracingContextTracker.TRANSITION_NONE) {
           // dangling transition - remove it
           log.debug("Dangling 'finished' transition");
           sequence.set(sequenceOffset, 0L);
           transition = lastTransition;
-        } else if (lastTransition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
+        } else if (lastTransition == PerSpanTracingContextTracker.TRANSITION_STARTED) {
           // mark the start of 'finished' sequence
           finishIndexStart = sequenceOffset;
         }
@@ -135,12 +135,12 @@ final class IntervalSequencePruner {
         sequence.set(i, 0L);
       }
     }
-    if (lastTransition == ProfilerTracingContextTracker.TRANSITION_STARTED) {
+    if (lastTransition == PerSpanTracingContextTracker.TRANSITION_STARTED) {
       // dangling start -> create a synthetic finished transition
       log.debug(
           "Dangling 'started' transition. Creating synthetic 'finished' transition @{} delta",
           timestampDelta);
-      sequence.add(ProfilerTracingContextTracker.maskDeactivation(timestampDelta, false));
+      sequence.add(PerSpanTracingContextTracker.maskDeactivation(timestampDelta, false));
     }
     return new PruningLongIterator(sequence.iterator());
   }

@@ -3,12 +3,12 @@ package datadog.trace.core
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
@@ -321,11 +321,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     }
     span.getTag(THREAD_ID) == thread.id
     span.getTag(THREAD_NAME) == thread.name
+    span.context().datadogTags.headerValue() == extractedContext.datadogTags.headerValue()
 
     where:
-    extractedContext                                                                                                                                                                              | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, null, 0, [:], [:])                                                                     | _
-    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
+    extractedContext | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().fromHeaderValue("_dd.p.dm=934086a686-4,_dd.p.anytag=value"))                 | _
+    new ExtractedContext(DDId.from(3), DDId.from(4), PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, DatadogTags.factory().empty()) | _
   }
 
   def "TagContext should populate default span details"() {

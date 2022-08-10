@@ -3,7 +3,6 @@ package datadog.trace.common.writer
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.core.CoreTracer
@@ -13,6 +12,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
@@ -176,7 +176,6 @@ class DDAgentWriterTest extends DDCoreSpecification {
       "",
       "",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       "",
       [:],
       false,
@@ -186,7 +185,8 @@ class DDAgentWriterTest extends DDCoreSpecification {
       null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     return new DDSpan(0, context)
   }
 }

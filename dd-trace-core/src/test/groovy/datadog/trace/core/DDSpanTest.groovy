@@ -6,14 +6,14 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
-import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
+import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
@@ -24,9 +24,10 @@ import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class DDSpanTest extends DDCoreSpecification {
 
-  def writer = new ListWriter()
-  def sampler = new RateByServiceSampler()
-  def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
+  @Shared def writer = new ListWriter()
+  @Shared def sampler = new RateByServiceSampler()
+  @Shared def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
+  @Shared def datadogTagsFactory = tracer.getDatadogTagsFactory()
 
   def cleanup() {
     tracer?.close()
@@ -269,9 +270,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                                                                | _
-    new TagContext("some-origin", [:])                                                                                              | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT, "some-origin", 0, [:], [:]) | _
+    extractedContext                                                                                                                          | _
+    new TagContext("some-origin", [:])                                                                                                        | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), PrioritySampling.SAMPLER_DROP, "some-origin", 0, [:], [:], null, datadogTagsFactory.empty()) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -288,9 +289,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                   | isTraceRootSpan
-    null                                                                                                                               | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
+    extractedContext                                                                                                                          | isTraceRootSpan
+    null                                                                                                                                      | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -310,9 +311,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                                                                   | isTraceRootSpan
-    null                                                                                                                               | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT, "789", 0, [:], [:]) | false
+    extractedContext                                                                                                                          | isTraceRootSpan
+    null                                                                                                                                      | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), PrioritySampling.SAMPLER_KEEP, "789", 0, [:], [:], null, datadogTagsFactory.empty()) | false
   }
 
   def 'publishing of root span closes the request context data'() {
@@ -340,6 +341,8 @@ class DDSpanTest extends DDCoreSpecification {
   }
 
   def "infer top level from parent service name"() {
+    setup:
+    def datadogTagsFactory = tracer.getDatadogTagsFactory()
     when:
     DDSpanContext context =
       new DDSpanContext(
@@ -351,7 +354,6 @@ class DDSpanTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.<String, String> emptyMap(),
       false,
@@ -361,7 +363,8 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      datadogTagsFactory.empty())
     then:
     context.isTopLevel() == expectTopLevel
 
@@ -379,6 +382,7 @@ class DDSpanTest extends DDCoreSpecification {
     setup:
     Checkpointer checkpointer = Mock()
     tracer.registerCheckpointer(checkpointer)
+    def datadogTagsFactory = tracer.getDatadogTagsFactory()
     DDSpanContext context =
       new DDSpanContext(
       DDId.from(1),
@@ -389,7 +393,6 @@ class DDSpanTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.<String, String> emptyMap(),
       false,
@@ -399,7 +402,8 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      datadogTagsFactory.empty())
 
     def span = null
 

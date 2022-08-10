@@ -31,7 +31,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8.3-DD-20220720",
+    asyncprofiler : "2.8.3-DD-20220810",
     asm           : "9.2"
   ]
 
@@ -113,6 +113,7 @@ final class CachedData {
       exclude(project(':dd-trace-api'))
       exclude(project(':internal-api'))
       exclude(project(':internal-api:internal-api-8'))
+      exclude(project(':internal-api:internal-api-9'))
       exclude(project(':communication'))
       exclude(project(':telemetry'))
       exclude(project(':utils:container-utils'))

@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.Delayed;
@@ -19,8 +20,8 @@ import org.jctools.maps.NonBlockingHashMapLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ProfilerTracingContextTracker implements TracingContextTracker {
-  private static final Logger log = LoggerFactory.getLogger(ProfilerTracingContextTracker.class);
+public final class PerSpanTracingContextTracker implements TracingContextTracker {
+  private static final Logger log = LoggerFactory.getLogger(PerSpanTracingContextTracker.class);
 
   private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0);
 
@@ -49,15 +50,15 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   }
 
   static final class DelayedTrackerImpl implements TracingContextTracker.DelayedTracker {
-    volatile ProfilerTracingContextTracker ref;
+    volatile PerSpanTracingContextTracker ref;
 
-    DelayedTrackerImpl(ProfilerTracingContextTracker ref) {
+    DelayedTrackerImpl(PerSpanTracingContextTracker ref) {
       this.ref = ref;
     }
 
     @Override
     public void cleanup() {
-      ProfilerTracingContextTracker instance = ref;
+      PerSpanTracingContextTracker instance = ref;
       if (instance != null) {
         instance.release();
         /*
@@ -74,7 +75,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     @Override
     public long getDelay(TimeUnit unit) {
-      ProfilerTracingContextTracker instance = ref;
+      PerSpanTracingContextTracker instance = ref;
       if (ref != null) {
         return unit.convert(
             instance.lastTransitionTimestamp + instance.inactivityDelay - System.nanoTime(),
@@ -86,9 +87,9 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     @Override
     public int compareTo(Delayed o) {
-      if (o instanceof ProfilerTracingContextTracker.DelayedTrackerImpl) {
-        ProfilerTracingContextTracker thiz = ref;
-        ProfilerTracingContextTracker other = ((DelayedTrackerImpl) o).ref;
+      if (o instanceof PerSpanTracingContextTracker.DelayedTrackerImpl) {
+        PerSpanTracingContextTracker thiz = ref;
+        PerSpanTracingContextTracker other = ((DelayedTrackerImpl) o).ref;
         return Long.compare(
             thiz != null ? thiz.lastTransitionTimestamp : -1,
             other != null ? other.lastTransitionTimestamp : -1);
@@ -99,13 +100,12 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
   private static final RatelimitedLogger warnlog =
       new RatelimitedLogger(
-          LoggerFactory.getLogger(ProfilerTracingContextTracker.class), 30, TimeUnit.SECONDS);
+          LoggerFactory.getLogger(PerSpanTracingContextTracker.class), 30, TimeUnit.SECONDS);
 
-  private static final AtomicReferenceFieldUpdater<
-          ProfilerTracingContextTracker, DelayedTrackerImpl>
+  private static final AtomicReferenceFieldUpdater<PerSpanTracingContextTracker, DelayedTrackerImpl>
       DELAYED_TRACKER_REF_UPDATER =
           AtomicReferenceFieldUpdater.newUpdater(
-              ProfilerTracingContextTracker.class, DelayedTrackerImpl.class, "delayedTrackerRef");
+              PerSpanTracingContextTracker.class, DelayedTrackerImpl.class, "delayedTrackerRef");
   private static final long TRANSITION_MAYBE_FINISHED_MASK =
       (long) (TRANSITION_MAYBE_FINISHED) << 62;
   private static final long TRANSITION_FINISHED_MASK = (long) (TRANSITION_FINISHED) << 62;
@@ -119,27 +119,27 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
   private final NonBlockingHashMapLong<LongSequence> threadSequences =
       new NonBlockingHashMapLong<>(64);
   private final long startTimestampTicks;
-  private final long startTimestampMillis;
+  private final long startTimestampNanos;
   private final long delayedActivationTimestamp;
   private final Allocator allocator;
-  private static final AtomicIntegerFieldUpdater<ProfilerTracingContextTracker> releasedUpdater =
-      AtomicIntegerFieldUpdater.newUpdater(ProfilerTracingContextTracker.class, "released");
+  private static final AtomicIntegerFieldUpdater<PerSpanTracingContextTracker> releasedUpdater =
+      AtomicIntegerFieldUpdater.newUpdater(PerSpanTracingContextTracker.class, "released");
   private volatile int released = 0;
   private final AgentSpan span;
   private final TimeTicksProvider timeTicksProvider;
   private final IntervalSequencePruner sequencePruner;
 
   private final long initialThreadId;
-  private static final AtomicIntegerFieldUpdater<ProfilerTracingContextTracker> initializedUpdater =
-      AtomicIntegerFieldUpdater.newUpdater(ProfilerTracingContextTracker.class, "initialized");
+  private static final AtomicIntegerFieldUpdater<PerSpanTracingContextTracker> initializedUpdater =
+      AtomicIntegerFieldUpdater.newUpdater(PerSpanTracingContextTracker.class, "initialized");
   private volatile int initialized = 0;
   private volatile boolean truncated = false;
   private final int maxDataSize;
 
-  private static final AtomicReferenceFieldUpdater<ProfilerTracingContextTracker, ByteBuffer>
+  private static final AtomicReferenceFieldUpdater<PerSpanTracingContextTracker, ByteBuffer>
       persistedUpdater =
           AtomicReferenceFieldUpdater.newUpdater(
-              ProfilerTracingContextTracker.class, ByteBuffer.class, "persisted");
+              PerSpanTracingContextTracker.class, ByteBuffer.class, "persisted");
   private volatile ByteBuffer persisted = null;
 
   private long lastTransitionTimestamp = -1;
@@ -154,7 +154,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
                 ProfilingConfig.PROFILING_TRACING_CONTEXT_MAX_SIZE_DEFAULT);
   }
 
-  ProfilerTracingContextTracker(
+  PerSpanTracingContextTracker(
       Allocator allocator,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
@@ -163,7 +163,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     this(allocator, span, timeTicksProvider, sequencePruner, -1L, maxDataSize);
   }
 
-  ProfilerTracingContextTracker(
+  PerSpanTracingContextTracker(
       Allocator allocator,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
@@ -178,7 +178,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
         SPAN_ACTIVATION_DATA_LIMIT);
   }
 
-  ProfilerTracingContextTracker(
+  PerSpanTracingContextTracker(
       Allocator allocator,
       AgentSpan span,
       TimeTicksProvider timeTicksProvider,
@@ -186,7 +186,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
       long inactivityDelay,
       int maxDataSize) {
     this.startTimestampTicks = timeTicksProvider.ticks();
-    this.startTimestampMillis = System.currentTimeMillis();
+    this.startTimestampNanos = currentTimeNanos();
     this.timeTicksProvider = timeTicksProvider;
     this.sequencePruner = sequencePruner;
     this.span = span;
@@ -196,6 +196,11 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
     this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
     this.maxDataSize = maxDataSize;
+  }
+
+  private static long currentTimeNanos() {
+    Instant now = Instant.now();
+    return now.toEpochMilli() * 1_000_000L + now.getNano();
   }
 
   @Override
@@ -394,7 +399,7 @@ public final class ProfilerTracingContextTracker implements TracingContextTracke
 
     IntervalEncoder encoder =
         new IntervalEncoder(
-            startTimestampMillis,
+            startTimestampNanos,
             timeTicksProvider.frequency() / 1_000_000L,
             threadIds.length,
             totalSequenceBufferSize);

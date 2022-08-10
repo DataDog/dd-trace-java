@@ -68,19 +68,29 @@ public final class ProfilingConfig {
   public static final int PROFILING_ASYNC_ALLOC_INTERVAL_DEFAULT = 256 * 1024;
   public static final String PROFILING_ASYNC_CPU_ENABLED = "profiling.async.cpu.enabled";
   public static final boolean PROFILING_ASYNC_CPU_ENABLED_DEFAULT = true;
-  public static final String PROFILING_ASYNC_CPU_MODE = "profiling.async.cpu.mode";
-  public static final String PROFILING_ASYNC_CPU_MODE_DEFAULT = "cpu";
   public static final String PROFILING_ASYNC_CPU_INTERVAL = "profiling.async.cpu.interval.ms";
   public static final int PROFILING_ASYNC_CPU_INTERVAL_DEFAULT = 10;
-  public static final String PROFILING_ASYNC_CPU_STACKDEPTH = "profiling.async.cpu.stackdepth";
-  public static final int PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT = 512;
-  public static final String PROFILING_ASYNC_CPU_SAFEMODE = "profiling.async.cpu.safemode";
-  public static final int PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
+  public static final String PROFILING_ASYNC_WALL_ENABLED = "profiling.async.wall.enabled";
+  public static final boolean PROFILING_ASYNC_WALL_ENABLED_DEFAULT = true;
+  public static final String PROFILING_ASYNC_WALL_INTERVAL = "profiling.async.wall.interval.ms";
+  public static final int PROFILING_ASYNC_WALL_INTERVAL_DEFAULT = 10;
+  public static final String PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT =
+      "profiling.async.wall.filter-on-context";
+  public static final boolean PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT = true;
+  public static final String PROFILING_ASYNC_STACKDEPTH = "profiling.async.stackdepth";
+  public static final int PROFILING_ASYNC_STACKDEPTH_DEFAULT = 512;
+  public static final String PROFILING_ASYNC_CSTACK = "profiling.async.cstack";
+  public static final String PROFILING_ASYNC_CSTACK_DEFAULT = "default";
+  public static final String PROFILING_ASYNC_SAFEMODE = "profiling.async.safemode";
+  public static final int PROFILING_ASYNC_SAFEMODE_DEFAULT = 12; // POP_FRAME|SCAN_STACK
   public static final String PROFILING_ASYNC_MEMLEAK_ENABLED = "profiling.async.memleak.enabled";
   public static final boolean PROFILING_ASYNC_MEMLEAK_ENABLED_DEFAULT = false;
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
+  public static final String PROFILING_ASYNC_TRACING_CONTEXT_ENABLED =
+      "profiling.async.tracing_context.enabled";
+  public static final boolean PROFILING_ASYNC_TRACING_CONTEXT_ENABLED_DEFAULT = false;
 
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";
