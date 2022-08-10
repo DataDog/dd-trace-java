@@ -112,5 +112,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = false;
 
+  public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
+
   private ConfigDefaults() {}
 }
