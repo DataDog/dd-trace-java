@@ -1,24 +1,22 @@
 package datadog.trace.instrumentation.main;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-import static net.bytebuddy.matcher.ElementMatchers.any;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
-import datadog.trace.api.WithGlobalTracer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.description.type.TypeDescription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
 public class MainInstrumentation extends Instrumenter.Tracing {
+
+  private static final Logger log = LoggerFactory.getLogger(MainInstrumentation.class);
 
   public MainInstrumentation() {
     super("main");
@@ -44,9 +42,13 @@ public class MainInstrumentation extends Instrumenter.Tracing {
   public static class MainAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit() {
-      Class.forName("datadog.trace.bootstrap.Agent")
-          .getMethod("shutdown", Boolean.TYPE)
-          .invoke(null, true);
+      try {
+        Class.forName("datadog.trace.bootstrap.Agent")
+            .getMethod("shutdown", Boolean.TYPE)
+            .invoke(null, true);
+      } catch (Throwable t) {
+        log.debug("Failed to shutdown Agent", t);
+      }
     }
   }
 }
