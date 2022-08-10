@@ -4,7 +4,6 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -242,11 +241,6 @@ class HaystackHttpCodec {
     @Override
     protected int defaultSamplingPriority() {
       return PrioritySampling.SAMPLER_KEEP;
-    }
-
-    @Override
-    protected int defaultSamplingMechanism() {
-      return SamplingMechanism.DEFAULT;
     }
   }
 

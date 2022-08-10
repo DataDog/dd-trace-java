@@ -1,6 +1,7 @@
 package com.datadog.profiling.context;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
 
 /**
  * Encodes the collected interval into a binary compressed format.
@@ -53,8 +54,8 @@ import java.nio.ByteBuffer;
  *       <td style="padding-left: 5px; padding-right: 5px;">RAW</td>
  *     </tr>
  *     <tr bgcolor="#eeeeee">
- *       <td style="padding-left: 5px; padding-right: 5px;">Start Epoch Millis</td>
- *       <td style="padding-left: 5px; padding-right: 5px;">The system epoch millis to peg the start ticks againstt</td>
+ *       <td style="padding-left: 5px; padding-right: 5px;">Start Epoch Nanos</td>
+ *       <td style="padding-left: 5px; padding-right: 5px;">The system epoch nanos (as obtained by {@linkplain Instant#now()}) to peg the start ticks againstt</td>
  *       <td style="padding-left: 5px; padding-right: 5px;">1-9 bytes</td>
  *       <td style="padding-left: 5px; padding-right: 5px;"><a href="https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128">LEB128 Varint</a></td>
  *     </tr>
@@ -268,12 +269,12 @@ final class IntervalEncoder {
   }
 
   /**
-   * @param timestampMillis the timestamp in epoch millis
+   * @param timestampNanos the start ticks
    * @param freqMultiplier number of ticks per 1000ns
    * @param threadCount number of tracked threads
    * @param maxDataSize max data size
    */
-  IntervalEncoder(long timestampMillis, long freqMultiplier, int threadCount, int maxDataSize) {
+  IntervalEncoder(long timestampNanos, long freqMultiplier, int threadCount, int maxDataSize) {
     this.threadCount = threadCount;
 
     this.threadCountBuffer = ByteBuffer.allocate(leb128Support.varintSize(threadCount));
@@ -282,7 +283,7 @@ final class IntervalEncoder {
     this.prologueBuffer =
         ByteBuffer.allocate(
             5 // 1 byte for truncated flag + 4 bytes for datachunk offset
-                + leb128Support.varintSize(timestampMillis)
+                + leb128Support.varintSize(timestampNanos)
                 + leb128Support.varintSize(freqMultiplier));
     this.dataChunkBuffer = ByteBuffer.allocate(maxDataSize * 8 + 4);
     this.groupVarintMapBuffer =
@@ -291,7 +292,7 @@ final class IntervalEncoder {
     prologueBuffer.put((byte) 0); // pre-allocated space for the truncated flag
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset
     dataChunkBuffer.putInt(0); // pre-allocate space for the group varint map offset
-    leb128Support.putVarint(prologueBuffer, timestampMillis);
+    leb128Support.putVarint(prologueBuffer, timestampNanos);
     leb128Support.putVarint(prologueBuffer, freqMultiplier);
   }
 

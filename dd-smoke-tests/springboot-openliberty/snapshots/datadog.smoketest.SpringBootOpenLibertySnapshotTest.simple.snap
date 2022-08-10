@@ -16,6 +16,7 @@
            "http.hostname" "localhost"
            "http.useragent" "okhttp/x.x.x"
            "http.client_ip" "127.0.0.1"
+           "_dd.p.dm" "-1"
            "component" "liberty-server"
            "thread.name" "Default Executor-thread-2"
            "peer.ipv4" "127.0.0.1"

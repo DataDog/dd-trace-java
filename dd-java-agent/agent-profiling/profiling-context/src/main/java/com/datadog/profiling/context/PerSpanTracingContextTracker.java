@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.Delayed;
@@ -118,7 +119,7 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
   private final NonBlockingHashMapLong<LongSequence> threadSequences =
       new NonBlockingHashMapLong<>(64);
   private final long startTimestampTicks;
-  private final long startTimestampMillis;
+  private final long startTimestampNanos;
   private final long delayedActivationTimestamp;
   private final Allocator allocator;
   private static final AtomicIntegerFieldUpdater<PerSpanTracingContextTracker> releasedUpdater =
@@ -185,7 +186,7 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
       long inactivityDelay,
       int maxDataSize) {
     this.startTimestampTicks = timeTicksProvider.ticks();
-    this.startTimestampMillis = System.currentTimeMillis();
+    this.startTimestampNanos = currentTimeNanos();
     this.timeTicksProvider = timeTicksProvider;
     this.sequencePruner = sequencePruner;
     this.span = span;
@@ -195,6 +196,11 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
     this.maxDataSize = maxDataSize;
+  }
+
+  private static long currentTimeNanos() {
+    Instant now = Instant.now();
+    return now.toEpochMilli() * 1_000_000L + now.getNano();
   }
 
   @Override
@@ -393,7 +399,7 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
 
     IntervalEncoder encoder =
         new IntervalEncoder(
-            startTimestampMillis,
+            startTimestampNanos,
             timeTicksProvider.frequency() / 1_000_000L,
             threadIds.length,
             totalSequenceBufferSize);

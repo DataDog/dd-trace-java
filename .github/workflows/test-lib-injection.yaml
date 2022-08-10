@@ -23,7 +23,7 @@ jobs:
 
       - name: Build app image
         run: |
-          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 \
           ./lib-injection/run.sh build-test-app-image push-test-app-image
 
   lib-injection-image-build:
@@ -51,7 +51,7 @@ jobs:
               max-parallelism = 1
 
       - name: Build dd-java-agent.jar
-        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
+        run: JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 ./gradlew clean shadowJar --build-cache --parallel --no-daemon --max-workers=8
 
       - name: Build injection image
         run: |
@@ -64,8 +64,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        use-admission-controller: ["", "use-admission-controller"]
-        use-uds: ["", "use-uds"]
+        use-admission-controller: [ "", "use-admission-controller" ]
+        use-uds: [ "", "use-uds" ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -96,7 +96,7 @@ jobs:
       - name: Test
         run: |
           ./lib-injection/run.sh test-for-traces
-      
+
       - name: Get app output for debugging
         if: ${{ failure() }}
         run: kubectl logs pod/my-app

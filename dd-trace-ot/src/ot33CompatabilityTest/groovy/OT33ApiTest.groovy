@@ -94,12 +94,16 @@ class OT33ApiTest extends DDSpecification {
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
-    textMap == [
+    def expectedTextMap = [
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
       "x-datadog-sampling-priority": propagatedPriority.toString(),
     ]
-
+    if (propagatedPriority > 0) {
+      def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
+      expectedTextMap.put("x-datadog-tags", "_dd.p.dm=-" + effectiveSamplingMechanism)
+    }
+    textMap == expectedTextMap
     when:
     def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)
 

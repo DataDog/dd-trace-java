@@ -3,7 +3,6 @@ package datadog.trace.common.writer
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
@@ -20,6 +19,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.Mapper
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import spock.lang.Retry
@@ -273,7 +273,6 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       "",
       "",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       "",
       [:],
       false,
@@ -283,7 +282,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       null,
       null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
   }
 
   def createMinimalTrace() {
