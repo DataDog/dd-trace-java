@@ -29,7 +29,7 @@ tasks.withType<Test> {
 }
 
 val dockerImageRepo: String? by project
-val resolvedDockerImageRepo: String = dockerImageRepo ?: "docker.io/" + System.getenv("DOCKER_USERNAME") + "/dd-java-agent-init-test-app"
+val resolvedDockerImageRepo: String = dockerImageRepo ?: "docker.io/" + System.getenv("DOCKER_USERNAME") + "/dd-lib-java-init-test-app"
 val dockerImageTag: String by project
 tasks.named<BootBuildImage>("bootBuildImage") {
     imageName = "${resolvedDockerImageRepo}:${dockerImageTag}"
