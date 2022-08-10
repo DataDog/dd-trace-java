@@ -132,7 +132,7 @@ public final class Dependency {
     String artifactId;
     String groupId = null;
     String version;
-    String hash = null;
+    String hash;
 
     // Guess from manifest
     String bundleSymbolicName = null;
@@ -194,19 +194,6 @@ public final class Dependency {
     } else if (equalsNonNull(bundleVersion, fileNameVersion)) {
       version = fileNameVersion;
     } else {
-      // No reliable version calculate hash and use any version
-      MessageDigest md;
-      try {
-        md = MessageDigest.getInstance("SHA-1");
-      } catch (NoSuchAlgorithmException e) {
-        // should not happen
-        throw new UndeclaredThrowableException(e);
-      }
-      is = new DigestInputStream(is, md);
-      while (is.read(buf, 0, buf.length) > 0) {}
-
-      hash = String.format("%040X", new BigInteger(1, md.digest()));
-
       artifactId = source;
 
       if (implementationVersion != null) {
@@ -227,6 +214,19 @@ public final class Dependency {
       // no group resolved. use only artifactId
       name = artifactId;
     }
+
+    // Compute hash for all dependencies that has no pom
+    // No reliable version calculate hash and use any version
+    MessageDigest md;
+    try {
+      md = MessageDigest.getInstance("SHA-1");
+    } catch (NoSuchAlgorithmException e) {
+      // should not happen
+      throw new UndeclaredThrowableException(e);
+    }
+    is = new DigestInputStream(is, md);
+    while (is.read(buf, 0, buf.length) > 0) {}
+    hash = String.format("%040X", new BigInteger(1, md.digest()));
 
     return new Dependency(name, version, source, hash);
   }

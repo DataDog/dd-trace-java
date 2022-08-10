@@ -19,10 +19,13 @@ class TelemetrySystemSpecification extends DDSpecification {
     injectSysConfig('dd.instrumentation.telemetry.enabled', 'true')
 
     when:
-    TelemetrySystem.createDependencyService(inst)
+    def depService = TelemetrySystem.createDependencyService(inst)
 
     then:
     1 * inst.addTransformer(_ as LocationsCollectingTransformer)
+
+    cleanup:
+    depService.stop()
   }
 
   void 'create telemetry thread'() {
