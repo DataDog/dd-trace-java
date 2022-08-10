@@ -20,13 +20,13 @@ if [ -z ${CI} ] ; then
     if [ -z ${DOCKER_USERNAME} ] ; then
         echoerr "MUST set DOCKER_USERNAME to your dockerhub username"
     fi
-    export INIT_DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-java-agent-init
-    export APP_DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-java-agent-init-test-app
+    export INIT_DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-lib-java-init
+    export APP_DOCKER_IMAGE_REPO=docker.io/${DOCKER_USERNAME}/dd-lib-java-init-test-app
     export DOCKER_IMAGE_TAG=local
 else
     export RUNNING_LOCALLY=0
-    export INIT_DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-java-agent-init
-    export APP_DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-java-agent-init-test-app
+    export INIT_DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-lib-java-init
+    export APP_DOCKER_IMAGE_REPO=ghcr.io/datadog/dd-trace-java/dd-lib-java-init-test-app
     if ! [ -z ${GITHUB_SHA} ] ; then
         export DOCKER_IMAGE_TAG=${GITHUB_SHA}
     fi
