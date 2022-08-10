@@ -62,6 +62,7 @@ final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
               asyncProfiler.getVersion(),
               configProvider.getString(ProfilingConfig.PROFILING_ASYNC_LIBPATH),
               asyncProfiler.getCpuInterval(),
+              asyncProfiler.getWallInterval(),
               asyncProfiler.getAllocationInterval(),
               asyncProfiler.getMemleakInterval(),
               asyncProfiler.getMemleakCapacity(),

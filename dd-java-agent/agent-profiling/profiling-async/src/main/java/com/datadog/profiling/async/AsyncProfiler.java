@@ -74,6 +74,11 @@ public final class AsyncProfiler {
         ProfilingConfig.PROFILING_ASYNC_CPU_ENABLED_DEFAULT)) {
       profilingModes.add(ProfilingMode.CPU);
     }
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED,
+        ProfilingConfig.PROFILING_ASYNC_WALL_ENABLED_DEFAULT)) {
+      profilingModes.add(ProfilingMode.WALL);
+    }
     try {
       // sanity test - force load async profiler to catch it not being available early
       asyncProfiler.execute("status");
@@ -232,17 +237,19 @@ public final class AsyncProfiler {
     StringBuilder cmd = new StringBuilder("start,jfr=7");
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel());
+    cmd.append(",jstackdepth=").append(getStackDepth());
+    cmd.append(",cstack=").append(getCStack());
+    cmd.append(",safemode=").append(getSafeMode());
     if (profilingModes.contains(ProfilingMode.CPU)) {
       // cpu profiling is enabled.
-      cmd.append(",event=")
-          .append(getCpuMode())
-          .append(",interval=")
-          .append(getCpuInterval())
-          .append('m')
-          .append(",jstackdepth=")
-          .append(getStackDepth())
-          .append(",safemode=")
-          .append(getSafeMode());
+      cmd.append(",cpu=").append(getCpuInterval()).append('m');
+    }
+    if (profilingModes.contains(ProfilingMode.WALL)) {
+      // wall profiling is enabled.
+      cmd.append(",wall=").append(getWallInterval()).append('m');
+      if (getWallFilterOnContext()) {
+        cmd.append(",context");
+      }
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
       // allocation profiling is enabled
@@ -274,21 +281,32 @@ public final class AsyncProfiler {
         ProfilingConfig.PROFILING_ASYNC_CPU_INTERVAL_DEFAULT);
   }
 
+  public int getWallInterval() {
+    return configProvider.getInteger(
+        ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL,
+        ProfilingConfig.PROFILING_ASYNC_WALL_INTERVAL_DEFAULT);
+  }
+
+  public boolean getWallFilterOnContext() {
+    return configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT,
+        ProfilingConfig.PROFILING_ASYNC_WALL_FILTER_ON_CONTEXT_DEFAULT);
+  }
+
   private int getStackDepth() {
     return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH,
-        ProfilingConfig.PROFILING_ASYNC_CPU_STACKDEPTH_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_STACKDEPTH,
+        ProfilingConfig.PROFILING_ASYNC_STACKDEPTH_DEFAULT);
   }
 
   private int getSafeMode() {
     return configProvider.getInteger(
-        ProfilingConfig.PROFILING_ASYNC_CPU_SAFEMODE,
-        ProfilingConfig.PROFILING_ASYNC_CPU_SAFEMODE_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_SAFEMODE, ProfilingConfig.PROFILING_ASYNC_SAFEMODE_DEFAULT);
   }
 
-  private String getCpuMode() {
+  private String getCStack() {
     return configProvider.getString(
-        ProfilingConfig.PROFILING_ASYNC_CPU_MODE, ProfilingConfig.PROFILING_ASYNC_CPU_MODE_DEFAULT);
+        ProfilingConfig.PROFILING_ASYNC_CSTACK, ProfilingConfig.PROFILING_ASYNC_CSTACK_DEFAULT);
   }
 
   public long getMemleakInterval() {
@@ -327,5 +345,25 @@ public final class AsyncProfiler {
 
   private int clamp(int min, int max, int value) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  public void setContext(long spanId, long rootSpanId) {
+    if (asyncProfiler != null) {
+      try {
+        asyncProfiler.setContext(spanId, rootSpanId);
+      } catch (IllegalStateException e) {
+        log.warn("Failed to set context", e);
+      }
+    }
+  }
+
+  public void clearContext() {
+    if (asyncProfiler != null) {
+      try {
+        asyncProfiler.clearContext();
+      } catch (IllegalStateException e) {
+        log.warn("Failed to clear context", e);
+      }
+    }
   }
 }
