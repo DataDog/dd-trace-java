@@ -14,7 +14,7 @@ apply plugin: 'idea'
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
+  implementation deps.jctools
   implementation deps.slf4j
 
   annotationProcessor deps.autoserviceProcessor
