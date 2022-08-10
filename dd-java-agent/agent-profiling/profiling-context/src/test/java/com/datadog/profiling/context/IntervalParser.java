@@ -3,7 +3,6 @@ package com.datadog.profiling.context;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public final class IntervalParser {
   public static final class Interval {
@@ -85,9 +84,11 @@ public final class IntervalParser {
     ByteBuffer buffer = ByteBuffer.wrap(intervalData);
     boolean truncated = buffer.get() != 0;
     int chunkDataOffset = buffer.getInt();
-    long timestampMillis = getVarint(buffer);
+    long timestampNanos = getVarint(buffer);
     long frequencyMultiplier = getVarint(buffer);
     int numThreads = (int) getVarint(buffer);
+
+    double frequency = frequencyMultiplier / 1000d;
 
     ByteBuffer dataChunk =
         ByteBuffer.wrap(intervalData, chunkDataOffset, intervalData.length - chunkDataOffset)
@@ -95,34 +96,29 @@ public final class IntervalParser {
 
     GroupVarintIterator iterator = new GroupVarintIterator(dataChunk);
     for (int thread = 0; thread < numThreads; thread++) {
-      long previousTimestamp = 0;
+      long previousTicks = 0;
       long threadId = getVarint(buffer);
       int intervals = (int) getVarint(buffer);
       for (int interval = 0; interval < intervals; interval++) {
         if (iterator.hasNext()) {
           long startTsDelta = iterator.next();
           long endTsDelta = iterator.next();
-          long startTs = previousTimestamp + startTsDelta;
+          long startTs = previousTicks + startTsDelta;
           long endTs = startTs + endTsDelta;
           if (!consumer.accept(
               new Interval(
                   threadId,
-                  toEpochNanos(timestampMillis, startTs, frequencyMultiplier),
-                  toEpochNanos(timestampMillis, endTs, frequencyMultiplier)))) {
+                  (timestampNanos + (long) (startTs / frequency)),
+                  (timestampNanos + (long) (endTs / frequency))))) {
             // consumer not interested in the rest of the data
             return;
           }
-          previousTimestamp = endTs;
+          previousTicks = endTs;
         } else {
           throw new IllegalStateException();
         }
       }
     }
-  }
-
-  private static long toEpochNanos(long startMs, long ts, long frequencyMultiplier) {
-    return TimeUnit.NANOSECONDS.convert(startMs, TimeUnit.MILLISECONDS)
-        + ((ts * 1000) / frequencyMultiplier);
   }
 
   private long getVarint(ByteBuffer buffer) {
