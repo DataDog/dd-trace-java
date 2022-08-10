@@ -106,7 +106,9 @@ public class SharedCommunicationObjects {
               agentUrl,
               config.isTraceAgentV05Enabled(),
               config.isTracerMetricsEnabled());
-      featuresDiscovery.discover();
+      if (!"true".equalsIgnoreCase(System.getProperty("dd.test.no.early.discovery"))) {
+        featuresDiscovery.discover();
+      }
     }
     return featuresDiscovery;
   }

@@ -448,8 +448,7 @@ public class Agent {
         log.debug("Remote config is not enabled");
         return;
       }
-      Class<?> pollerCls =
-          SHARED_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
+      Class<?> pollerCls = SHARED_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
       Method startMethod = pollerCls.getMethod("start");
       log.info("Starting remote config poller");
       startMethod.invoke(poller);
