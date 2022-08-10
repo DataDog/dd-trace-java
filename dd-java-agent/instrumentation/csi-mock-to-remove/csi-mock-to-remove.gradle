@@ -1,0 +1,56 @@
+import groovy.json.JsonSlurper
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
+import org.gradle.tooling.events.FinishEvent
+import org.gradle.tooling.events.OperationCompletionListener
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/tries.gradle"
+apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
+
+forbiddenApisMain {
+  ignoreFailures = true // this is just a mock project
+}
+
+// ensure the trie is generated before compiling
+tasks.compileJava.dependsOn(tasks.generateClassNameTries)
+
+// benchmarking
+task copyAgent(type: Copy) {
+  from("${rootProject.projectDir}/dd-java-agent/build/libs/dd-java-agent-${version}.jar") {
+    rename {
+      'dd-java-agent.jar'
+    }
+  }
+  into("$projectDir/src/benchmark/agent")
+  outputs.upToDateWhen { false }
+}
+tasks.copyAgent.group = 'call site instrumentation'
+
+task benchmark(type: Exec) {
+  workingDir "$projectDir/src/benchmark"
+  commandLine './benchmark.sh'
+  errorOutput = new ByteArrayOutputStream()
+  ignoreExitValue = true
+  doLast {
+    if (execResult.exitValue != 0) {
+      throw new RuntimeException("Task returned with exit code ${execResult.exitValue}, error: ${errorOutput.toString()}")
+    }
+    println "Benchmark results:"
+    ['none', 'datadog', 'datadog-csi'].each {
+      final serverLogs = new File("${workingDir}/logs/${it}.log").text
+      final timeMatcher = serverLogs =~ /oejs.Server:main: Started @(\d+)ms/
+      final startupTime = timeMatcher ? Integer.parseInt(timeMatcher[0][1]) : '-'
+      final k6JsonLines = new File("${workingDir}/logs/${it}.json.log").readLines()
+      final k6Json = new JsonSlurper().parseText("[${k6JsonLines.join(',')}]")
+      final responseTimes = k6Json.findAll { it.type == 'Point' && it.metric == 'http_req_duration'}.collect { it.data.value } as List<Number>
+      final meanResponseTime = Math.round(responseTimes.average() * 100) / 100
+      println "[${it.padLeft(12)}] Startup time (ms): ${startupTime}, Mean response time (ms): $meanResponseTime"
+    }
+  }
+}
+tasks.benchmark.dependsOn(tasks.copyAgent)
+tasks.benchmark.outputs.upToDateWhen { false }
+tasks.benchmark.group = 'call site instrumentation'
+
