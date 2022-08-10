@@ -39,4 +39,5 @@ public class DDTags {
   public static final String LANGUAGE_TAG_VALUE = "jvm";
   public static final String ORIGIN_KEY = "_dd.origin";
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
+  public static final String CI_ENV_VARS = "_dd.ci.env_vars";
 }

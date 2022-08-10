@@ -5,6 +5,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
 import javax.annotation.Nonnull;
 
 public final class Strings {
@@ -224,5 +226,26 @@ public final class Strings {
       return input;
     }
     return input.subSequence(0, limit);
+  }
+
+  public static String toJson(final Map<String, String> map) {
+    if (map == null || map.isEmpty()) {
+      return "{}";
+    }
+    final StringBuilder sb = new StringBuilder("{");
+    final Iterator<Entry<String, String>> entriesIter = map.entrySet().iterator();
+    while (entriesIter.hasNext()) {
+      final Entry<String, String> entry = entriesIter.next();
+      sb.append("\"")
+          .append(escapeToJson(entry.getKey()))
+          .append("\":\"")
+          .append(escapeToJson(entry.getValue()))
+          .append("\"");
+      if (entriesIter.hasNext()) {
+        sb.append(",");
+      }
+    }
+    sb.append("}");
+    return sb.toString();
   }
 }
