@@ -13,9 +13,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -45,9 +47,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -77,9 +81,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -109,9 +115,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -142,10 +150,12 @@
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
       "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": "",
       "HOME": "/not-my-home",
       "USERPROFILE": "/not-my-home"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -176,10 +186,12 @@
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
       "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": "",
       "HOME": "/not-my-home",
       "USERPROFILE": "/not-my-home"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -210,10 +222,12 @@
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
       "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": "",
       "HOME": "/not-my-home",
       "USERPROFILE": "/not-my-home"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -243,9 +257,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://user@hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://user@hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -275,9 +291,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://user%E2%82%AC@hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://user%E2%82%AC@hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -307,9 +325,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://user:pwd@hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://user:pwd@hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -339,9 +359,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "git@hostname.com:org/repo.git"
+      "BUILDKITE_REPO": "git@hostname.com:org/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -371,9 +393,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -403,9 +427,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -435,9 +461,11 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
-      "BUILDKITE_REPO": "http://hostname.com/repo.git"
+      "BUILDKITE_REPO": "http://hostname.com/repo.git",
+      "BUILDKITE_TAG": ""
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -456,6 +484,7 @@
   [
     {
       "BUILDKITE": "true",
+      "BUILDKITE_BRANCH": "",
       "BUILDKITE_BUILD_AUTHOR": "buildkite-git-commit-author-name",
       "BUILDKITE_BUILD_AUTHOR_EMAIL": "buildkite-git-commit-author-email@datadoghq.com",
       "BUILDKITE_BUILD_CHECKOUT_PATH": "/foo/bar",
@@ -470,6 +499,7 @@
       "BUILDKITE_TAG": "0.1.0"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -488,6 +518,7 @@
   [
     {
       "BUILDKITE": "true",
+      "BUILDKITE_BRANCH": "",
       "BUILDKITE_BUILD_AUTHOR": "buildkite-git-commit-author-name",
       "BUILDKITE_BUILD_AUTHOR_EMAIL": "buildkite-git-commit-author-email@datadoghq.com",
       "BUILDKITE_BUILD_CHECKOUT_PATH": "/foo/bar",
@@ -502,6 +533,7 @@
       "BUILDKITE_TAG": "origin/tags/0.1.0"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -520,6 +552,7 @@
   [
     {
       "BUILDKITE": "true",
+      "BUILDKITE_BRANCH": "",
       "BUILDKITE_BUILD_AUTHOR": "buildkite-git-commit-author-name",
       "BUILDKITE_BUILD_AUTHOR_EMAIL": "buildkite-git-commit-author-email@datadoghq.com",
       "BUILDKITE_BUILD_CHECKOUT_PATH": "/foo/bar",
@@ -534,6 +567,7 @@
       "BUILDKITE_TAG": "refs/heads/tags/0.1.0"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -552,6 +586,7 @@
   [
     {
       "BUILDKITE": "true",
+      "BUILDKITE_BRANCH": "",
       "BUILDKITE_BUILD_AUTHOR": "buildkite-git-commit-author-name",
       "BUILDKITE_BUILD_AUTHOR_EMAIL": "buildkite-git-commit-author-email@datadoghq.com",
       "BUILDKITE_BUILD_ID": "buildkite-pipeline-id",
@@ -561,6 +596,7 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
+      "BUILDKITE_TAG": "",
       "DD_GIT_BRANCH": "user-supplied-branch",
       "DD_GIT_COMMIT_AUTHOR_DATE": "usersupplied-authordate",
       "DD_GIT_COMMIT_AUTHOR_EMAIL": "usersupplied-authoremail",
@@ -573,6 +609,7 @@
       "DD_GIT_REPOSITORY_URL": "usersupplied-repo"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
@@ -594,6 +631,7 @@
   [
     {
       "BUILDKITE": "true",
+      "BUILDKITE_BRANCH": "",
       "BUILDKITE_BUILD_AUTHOR": "buildkite-git-commit-author-name",
       "BUILDKITE_BUILD_AUTHOR_EMAIL": "buildkite-git-commit-author-email@datadoghq.com",
       "BUILDKITE_BUILD_ID": "buildkite-pipeline-id",
@@ -603,6 +641,7 @@
       "BUILDKITE_JOB_ID": "buildkite-job-id",
       "BUILDKITE_MESSAGE": "buildkite-git-commit-message",
       "BUILDKITE_PIPELINE_SLUG": "buildkite-pipeline-name",
+      "BUILDKITE_TAG": "",
       "DD_GIT_COMMIT_AUTHOR_DATE": "usersupplied-authordate",
       "DD_GIT_COMMIT_AUTHOR_EMAIL": "usersupplied-authoremail",
       "DD_GIT_COMMIT_AUTHOR_NAME": "usersupplied-authorname",
@@ -615,6 +654,7 @@
       "DD_GIT_TAG": "0.0.2"
     },
     {
+      "_dd.ci.env_vars": "{\"BUILDKITE_BUILD_ID\":\"buildkite-pipeline-id\",\"BUILDKITE_JOB_ID\":\"buildkite-job-id\"}",
       "ci.job.url": "buildkite-build-url#buildkite-job-id",
       "ci.pipeline.id": "buildkite-pipeline-id",
       "ci.pipeline.name": "buildkite-pipeline-name",
