@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -88,22 +89,9 @@ class AsyncProfilerTest {
   }
 
   private static Stream<Arguments> profilingModes() {
-    return Stream.of(
-        Arguments.of(false, false, false, false),
-        Arguments.of(false, false, false, true),
-        Arguments.of(false, false, true, false),
-        Arguments.of(false, false, true, true),
-        Arguments.of(false, true, false, false),
-        Arguments.of(false, true, false, true),
-        Arguments.of(false, true, true, false),
-        Arguments.of(false, true, true, true),
-        Arguments.of(true, false, false, false),
-        Arguments.of(true, false, false, true),
-        Arguments.of(true, false, true, false),
-        Arguments.of(true, false, true, true),
-        Arguments.of(true, true, false, false),
-        Arguments.of(true, true, false, true),
-        Arguments.of(true, true, true, false),
-        Arguments.of(true, true, true, true));
+    return IntStream.range(0, 1 << 4)
+        .mapToObj(
+            x ->
+                Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
   }
 }
