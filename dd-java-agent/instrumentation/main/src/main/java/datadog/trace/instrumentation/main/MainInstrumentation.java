@@ -40,8 +40,14 @@ public class MainInstrumentation extends Instrumenter.Tracing {
   }
 
   public static class MainAdvice {
+    @Advice.OnMethodEnter()
+    public static void methodEnter() {
+      System.err.println("MainAdvice.methodEnter");
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit() {
+      System.err.println("MainAdvice.methodExit");
       try {
         Class.forName("datadog.trace.bootstrap.Agent")
             .getMethod("shutdown", Boolean.TYPE)
