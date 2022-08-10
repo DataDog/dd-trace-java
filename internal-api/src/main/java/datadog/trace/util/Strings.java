@@ -239,7 +239,7 @@ public final class Strings {
       sb.append("\"")
           .append(escapeToJson(entry.getKey()))
           .append("\":\"")
-          .append(escapeToJson(entry.getValue().toString()))
+          .append(escapeToJson(entry.getValue()))
           .append("\"");
       if (entriesIter.hasNext()) {
         sb.append(",");

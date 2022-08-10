@@ -468,6 +468,10 @@ public abstract class CIProviderInfo {
       }
 
       public Builder ciEnvVars(String... ciEnvVarKeysArray) {
+        if (ciEnvVarKeysArray == null || ciEnvVarKeysArray.length == 0) {
+          return this;
+        }
+
         this.ciEnvVars = new HashMap<>();
         for (String ciEnvVarKey : ciEnvVarKeysArray) {
           final String envVarVal = System.getenv(ciEnvVarKey);
