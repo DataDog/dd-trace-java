@@ -1,14 +1,27 @@
-plugins {
-  id "de.undercouch.download" version "4.1.1"
+// Set properties before any plugins get loaded
+ext {
+  // the tests need Java 11 because the JFR writer got compiled with a version
+  // of ByteBuffer.position(int) which is binary incompatible with Java 8 ¯\_(ツ)_/¯
+  minJavaVersionForTests = JavaVersion.VERSION_11
+
+  // need access to jdk.jfr package
+  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
 
+  implementation deps.jctools
   implementation deps.slf4j
 
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
+
+  testImplementation group: 'org.openjdk.jmc', name: 'flightrecorder.writer', version: '8.1.0-SNAPSHOT'
+  testImplementation deps.mockito
   testImplementation deps.junit5
 }
 
@@ -19,3 +32,24 @@ excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
+
+tasks.named("compileTestJava").configure {
+  setJavaVersion(it, 11)
+  // tests should be compiled in Java 8 compatible way
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+  // Disable '-processing' because some annotations are not claimed.
+  // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+  // Disable '-path' because we do not have some of the paths seem to be missing.
+  options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
+}
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
