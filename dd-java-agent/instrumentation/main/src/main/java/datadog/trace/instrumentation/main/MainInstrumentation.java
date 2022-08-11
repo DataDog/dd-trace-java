@@ -49,14 +49,14 @@ public class MainInstrumentation extends Instrumenter.Tracing
   }
 
   public static class MainAdvice {
-    @Advice.OnMethodEnter()
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter() {
-      System.err.println("MainAdvice.methodEnter");
+      System.err.printf("MainAdvice.methodEnter%n");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit() {
-      System.err.println("MainAdvice.methodExit");
+      System.err.printf("MainAdvice.methodExit%n");
       try {
         Class.forName("datadog.trace.bootstrap.Agent")
             .getMethod("shutdown", Boolean.TYPE)
@@ -64,6 +64,9 @@ public class MainInstrumentation extends Instrumenter.Tracing
       } catch (Throwable t) {
         log.debug("Failed to shutdown Agent", t);
       }
+    }
+
+    public static void muzzleCheck() {
     }
   }
 }
