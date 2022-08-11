@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -181,6 +180,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final DatadogTags.Factory datadogTagsFactory;
 
+  private final boolean scopeDefaultAsyncPropagation;
+
   DatadogTags.Factory getDatadogTagsFactory() {
     return datadogTagsFactory;
   }
@@ -259,6 +260,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private InstrumentationGateway instrumentationGateway;
     private TimeSource timeSource;
     private DataStreamsCheckpointer dataStreamsCheckpointer;
+    private boolean scopeDefaultAsyncPropagation;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -362,6 +364,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder scopeDefaultAsyncPropagation(boolean scopeDefaultAsyncPropagation) {
+      this.scopeDefaultAsyncPropagation = scopeDefaultAsyncPropagation;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -386,6 +393,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       taggedHeaders(config.getRequestHeaderTags());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
+      scopeDefaultAsyncPropagation(config.isScopeDefaultAsyncPropagation());
 
       return this;
     }
@@ -411,7 +419,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           strictTraceWrites,
           instrumentationGateway,
           timeSource,
-          dataStreamsCheckpointer);
+          dataStreamsCheckpointer,
+          scopeDefaultAsyncPropagation);
     }
   }
 
@@ -436,13 +445,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final boolean strictTraceWrites,
       final InstrumentationGateway instrumentationGateway,
       final TimeSource timeSource,
-      final DataStreamsCheckpointer dataStreamsCheckpointer) {
+      final DataStreamsCheckpointer dataStreamsCheckpointer,
+      final boolean scopeDefaultAsyncPropagation) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
 
+    this.scopeDefaultAsyncPropagation = scopeDefaultAsyncPropagation;
     this.timeSource = timeSource == null ? SystemTimeSource.INSTANCE : timeSource;
     this.startTimeNano = this.timeSource.getCurrentTimeNanos();
     this.startNanoTicks = this.timeSource.getNanoTicks();
@@ -487,7 +498,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.getScopeDepthLimit(),
               this.statsDClient,
               config.isScopeStrictMode(),
-              config.isScopeInheritAsyncPropagation());
+              config.isScopeInheritAsyncPropagation(),
+              this.scopeDefaultAsyncPropagation);
       this.scopeManager = csm;
 
     } else {
@@ -693,7 +705,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+    return scopeManager.activate(
+        span, ScopeSource.INSTRUMENTATION, this.scopeDefaultAsyncPropagation);
   }
 
   @Override
@@ -704,6 +717,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
     return scopeManager.activate(span, source, isAsyncPropagating);
+  }
+
+  @Override
+  public boolean defaultAsyncPropagation() {
+    return scopeDefaultAsyncPropagation;
   }
 
   @Override

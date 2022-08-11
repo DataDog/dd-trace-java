@@ -1,6 +1,5 @@
 package datadog.trace.core.scopemanager;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -60,17 +59,20 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   private final int depthLimit;
   private final boolean strictMode;
   private final boolean inheritAsyncPropagation;
+  private final boolean defaultAsyncPropagation;
 
   public ContinuableScopeManager(
       final int depthLimit,
       final StatsDClient statsDClient,
       final boolean strictMode,
-      final boolean inheritAsyncPropagation) {
+      final boolean inheritAsyncPropagation,
+      final boolean defaultAsyncPropagation) {
 
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
+    this.defaultAsyncPropagation = defaultAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
   }
@@ -121,7 +123,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
             ? isAsyncPropagating
             : inheritAsyncPropagation && top != null
                 ? top.isAsyncPropagating()
-                : DEFAULT_ASYNC_PROPAGATING;
+                : defaultAsyncPropagation;
 
     final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
 
@@ -183,9 +185,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     final ContinuableScope top = scopeStack.top;
 
     boolean asyncPropagation =
-        inheritAsyncPropagation && top != null
-            ? top.isAsyncPropagating()
-            : DEFAULT_ASYNC_PROPAGATING;
+        inheritAsyncPropagation && top != null ? top.isAsyncPropagating() : defaultAsyncPropagation;
 
     final ContinuableScope scope =
         new ContinuableScope(this, span, ScopeSource.ITERATION.id(), asyncPropagation);

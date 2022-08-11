@@ -268,6 +268,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.SCOPE_DEFAULT_ASYNC_PROPAGATION;
 import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
 import static datadog.trace.api.config.TracerConfig.SCOPE_ITERATION_KEEP_ALIVE;
@@ -412,6 +413,7 @@ public class Config {
   private final Set<String> splitByTags;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
+  private final boolean scopeDefaultAsyncPropagation;
   private final boolean scopeInheritAsyncPropagation;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
@@ -829,6 +831,8 @@ public class Config {
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
+
+    scopeDefaultAsyncPropagation = configProvider.getBoolean(SCOPE_DEFAULT_ASYNC_PROPAGATION, true);
 
     scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
@@ -1407,6 +1411,10 @@ public class Config {
 
   public boolean isScopeStrictMode() {
     return scopeStrictMode;
+  }
+
+  public boolean isScopeDefaultAsyncPropagation() {
+    return scopeDefaultAsyncPropagation;
   }
 
   public boolean isScopeInheritAsyncPropagation() {
@@ -2688,6 +2696,8 @@ public class Config {
         + scopeDepthLimit
         + ", scopeStrictMode="
         + scopeStrictMode
+        + ", scopeDefaultAsyncPropagation="
+        + scopeDefaultAsyncPropagation
         + ", scopeInheritAsyncPropagation="
         + scopeInheritAsyncPropagation
         + ", scopeIterationKeepAlive="

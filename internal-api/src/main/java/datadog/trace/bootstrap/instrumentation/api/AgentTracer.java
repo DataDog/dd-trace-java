@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
 import datadog.trace.api.PropagationStyle;
@@ -66,7 +64,8 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+    TracerAPI tracer = get();
+    return tracer.activateSpan(span, ScopeSource.INSTRUMENTATION, tracer.defaultAsyncPropagation());
   }
 
   public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
@@ -151,6 +150,8 @@ public class AgentTracer {
     AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+
+    boolean defaultAsyncPropagation();
 
     AgentScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
 
@@ -259,6 +260,11 @@ public class AgentTracer {
     public AgentScope activateSpan(
         final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopAgentScope.INSTANCE;
+    }
+
+    @Override
+    public boolean defaultAsyncPropagation() {
+      return false;
     }
 
     @Override

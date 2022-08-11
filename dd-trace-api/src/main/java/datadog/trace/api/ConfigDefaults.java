@@ -100,8 +100,6 @@ public final class ConfigDefaults {
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final int DEFAULT_TRACE_RATE_LIMIT = 100;
 
-  public static final boolean DEFAULT_ASYNC_PROPAGATING = true;
-
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
