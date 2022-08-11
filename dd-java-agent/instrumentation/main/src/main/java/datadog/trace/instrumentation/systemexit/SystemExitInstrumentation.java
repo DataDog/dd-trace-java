@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.main;
+package datadog.trace.instrumentation.systemexit;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -21,7 +21,7 @@ public class SystemExitInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
 
   public SystemExitInstrumentation() {
-    super("system-exit");
+    super("systemexit");
   }
 
   @Override

@@ -9,4 +9,4 @@ configurations {
 dependencies {
 }
 
-forbiddenApisMain.exclude('datadog/trace/instrumentation/main/MainInstrumentation$MainAdvice.class')
+// forbiddenApisMain.exclude('datadog/trace/instrumentation/main/MainInstrumentation$MainAdvice.class')
