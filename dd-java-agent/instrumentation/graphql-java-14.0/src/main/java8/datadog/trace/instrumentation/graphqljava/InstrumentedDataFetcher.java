@@ -29,23 +29,25 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
   @Override
   public Object get(DataFetchingEnvironment environment) throws Exception {
     if (parameters.isTrivialDataFetcher()) {
-      // have this method
       try (AgentScope scope = activateSpan(this.requestSpan)) {
         return dataFetcher.get(environment);
       }
     } else {
-      final AgentSpan span = startSpan("graphql.field", this.requestSpan.context());
-      DECORATE.afterStart(span);
+      final AgentSpan fieldSpan = startSpan("graphql.field", this.requestSpan.context());
+      DECORATE.afterStart(fieldSpan);
       GraphQLOutputType fieldType = environment.getFieldType();
       if (fieldType instanceof GraphQLNamedType) {
         String typeName = ((GraphQLNamedType) fieldType).getName();
-        span.setTag("graphql.type", typeName);
+        fieldSpan.setTag("graphql.type", typeName);
       }
-      try (AgentScope scope = activateSpan(span)) {
+      try (AgentScope scope = activateSpan(fieldSpan)) {
         return dataFetcher.get(environment);
+      } catch (Exception e) {
+        fieldSpan.addThrowable(e);
+        throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        DECORATE.beforeFinish(fieldSpan);
+        fieldSpan.finish();
       }
     }
   }

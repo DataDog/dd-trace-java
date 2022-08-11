@@ -19,8 +19,7 @@ public final class ValidationInstrumentationContext
   public void onCompleted(List<ValidationError> result, Throwable t) {
     if (t != null) {
       DECORATE.onError(span, t);
-    }
-    if (!result.isEmpty()) {
+    } else if (!result.isEmpty()) {
       span.setError(true);
     }
     DECORATE.beforeFinish(span);

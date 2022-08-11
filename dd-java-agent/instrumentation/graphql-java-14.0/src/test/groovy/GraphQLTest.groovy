@@ -10,7 +10,6 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
-import org.junit.jupiter.api.Test
 
 import java.nio.charset.StandardCharsets
 
@@ -42,6 +41,12 @@ class GraphQLTest extends AgentTestRunner {
             return Author.getById(authorId)
           }
         }))
+        .type(newTypeWiring("Book").dataFetcher("cover", new DataFetcher<String>() {
+          @Override
+          String get(DataFetchingEnvironment environment) throws Exception {
+            throw new IllegalStateException("TEST")
+          }
+        }))
         .build()
       SchemaGenerator schemaGenerator = new SchemaGenerator()
       GraphQLSchema graphqlSchema = schemaGenerator.makeExecutableSchema(typeRegistry, runtimeWiring)
@@ -50,7 +55,6 @@ class GraphQLTest extends AgentTestRunner {
     }
   }
 
-  @Test
   def "successful query produces spans"() {
     setup:
     def query = 'query findBookById {\n' +
@@ -157,7 +161,8 @@ class GraphQLTest extends AgentTestRunner {
     def query = 'query findBookById {\n' +
       '  bookById(id: "book-1") {\n' +
       '    id\n' +
-      '    title\n' + // title doesn't exist
+      '    title\n' + // field doesn't exist
+      '    color\n' + // field doesn't exist
       '  }\n' +
       '}'
     ExecutionResult result =
@@ -179,7 +184,7 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" query
             "graphql.operation.name" null
-            "error.msg" "Validation error of type FieldUndefined: Field 'title' in type 'Book' is undefined @ 'bookById/title'"
+            "error.msg" "Validation error of type FieldUndefined: Field 'title' in type 'Book' is undefined @ 'bookById/title' (and 1 more errors)"
             defaultTags()
           }
         }
@@ -250,9 +255,9 @@ class GraphQLTest extends AgentTestRunner {
           measured true
           tags {
             "$Tags.COMPONENT" "graphql-java"
+            "error.type" "graphql.parser.InvalidSyntaxException"
             "error.msg" "Invalid Syntax : offending token ')' at line 2 column 25"
             "error.stack" String
-            "error.type" "graphql.parser.InvalidSyntaxException"
             defaultTags()
           }
         }
@@ -260,6 +265,103 @@ class GraphQLTest extends AgentTestRunner {
     }
   }
 
+  def "query fetch error"() {
+    setup:
+    def query = 'query findBookById {\n' +
+      '  bookById(id: "book-1") {\n' +
+      '    id\n' +
+      '    cover\n' + // throws an exception when fetched
+      '  }\n' +
+      '}'
+    ExecutionResult result =
+      graphql.execute(query)
 
-  //TODO test errors
+    expect:
+    !result.getErrors().isEmpty()
+
+    assertTraces(1) {
+      trace(6) {
+        span {
+          operationName "query findBookById"
+          resourceName "query findBookById"
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.query" query
+            "graphql.operation.name" "findBookById"
+            "error.msg" "Exception while fetching data (/bookById/cover) : TEST"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "graphql.field"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "String"
+            "error.type" "java.lang.IllegalStateException"
+            "error.msg" "TEST"
+            "error.stack" String
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "graphql.field"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "Book"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "getBookById"
+          resourceName "book"
+          childOf(span(2))
+          spanType null
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.validation"
+          resourceName "graphql.validation"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.parsing"
+          resourceName "graphql.parsing"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
 }

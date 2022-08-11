@@ -2,7 +2,6 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Book {
-
   private String id;
   private String name;
   private int pageCount;

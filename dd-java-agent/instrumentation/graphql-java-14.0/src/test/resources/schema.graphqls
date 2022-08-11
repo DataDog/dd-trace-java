@@ -12,6 +12,7 @@ type Book {
   name: String
   pageCount: Int
   author: Author
+  cover: String
 }
 
 type Author {

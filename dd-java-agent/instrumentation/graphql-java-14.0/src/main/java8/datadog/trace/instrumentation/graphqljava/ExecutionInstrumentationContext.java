@@ -7,7 +7,6 @@ import graphql.ExecutionResult;
 import graphql.GraphQLError;
 import graphql.execution.instrumentation.SimpleInstrumentationContext;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ExecutionInstrumentationContext extends SimpleInstrumentationContext<ExecutionResult> {
   private final AgentSpan requestSpan;
@@ -19,13 +18,19 @@ public class ExecutionInstrumentationContext extends SimpleInstrumentationContex
   @Override
   public void onCompleted(ExecutionResult result, Throwable t) {
     List<GraphQLError> errors = result.getErrors();
-    if (!errors.isEmpty()) {
-      String errorMessage =
-          errors.stream().map(GraphQLError::getMessage).collect(Collectors.joining("\n"));
-      requestSpan.setErrorMessage(errorMessage);
-      requestSpan.setError(true);
+    if (t != null) {
+      DECORATE.onError(requestSpan, t);
+    } else {
+      int errorCounter = errors.size();
+      if (errorCounter >= 1) {
+        String error = errors.get(0).getMessage();
+        if (errorCounter > 1) {
+          error += " (and " + (errorCounter - 1) + " more errors)";
+        }
+        requestSpan.setErrorMessage(error);
+        requestSpan.setError(true);
+      }
     }
-    DECORATE.onError(requestSpan, t);
     DECORATE.beforeFinish(requestSpan);
     requestSpan.finish();
   }
