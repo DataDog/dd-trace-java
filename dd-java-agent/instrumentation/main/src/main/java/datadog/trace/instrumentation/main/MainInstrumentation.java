@@ -50,19 +50,19 @@ public class MainInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter() {
-      // System.err.printf("MainAdvice.methodEnter%n");
+      System.err.printf("MainAdvice.methodEnter%n");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit() {
-      // System.err.printf("MainAdvice.methodExit%n");
-      // try {
-      //   Class.forName("datadog.trace.bootstrap.Agent")
-      //       .getMethod("shutdown", Boolean.TYPE)
-      //       .invoke(null, true);
-      // } catch (Throwable t) {
-      //   System.err.printf("Failed to shutdown Agent: %s%n", t);
-      // }
+      System.err.printf("MainAdvice.methodExit%n");
+      try {
+        Class.forName("datadog.trace.bootstrap.Agent")
+            .getMethod("shutdown", Boolean.TYPE)
+            .invoke(null, true);
+      } catch (Throwable t) {
+        System.err.printf("Failed to shutdown Agent: %s%n", t);
+      }
     }
 
     public static void muzzleCheck() {
