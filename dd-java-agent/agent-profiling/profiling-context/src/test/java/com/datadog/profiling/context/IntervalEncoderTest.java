@@ -16,7 +16,7 @@ class IntervalEncoderTest {
   @BeforeEach
   void setup() {
     now = Instant.now();
-    nowNanos = now.toEpochMilli() * 1_000_000L + now.getNano();
+    nowNanos = now.getEpochSecond() * 1_000_000_000L + now.getNano();
     instance = new IntervalEncoder(nowNanos, 1000, 2, 32);
   }
 
