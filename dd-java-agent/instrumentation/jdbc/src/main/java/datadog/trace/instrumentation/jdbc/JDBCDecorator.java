@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -11,14 +9,17 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
@@ -175,6 +176,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (null != info) {
       span.setResourceName(info.getSql());
       span.setTag(DB_OPERATION, info.getOperation());
+      String originSlq = info.getOriginSql().toString();
+      if (!originSlq.equals("")) {
+        //  span.setTag("db.sql.origin", originSlq);
+        span.setTag("db.sql.origin", info.getOriginSql());
+      }
     } else {
       span.setResourceName(DB_QUERY);
     }
