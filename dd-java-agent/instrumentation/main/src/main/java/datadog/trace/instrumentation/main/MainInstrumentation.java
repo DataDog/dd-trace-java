@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.main;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -10,11 +11,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public class MainInstrumentation extends Instrumenter.Tracing {
+public class MainInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForTypeHierarchy {
 
   private static final Logger log = LoggerFactory.getLogger(MainInstrumentation.class);
 
@@ -25,6 +29,11 @@ public class MainInstrumentation extends Instrumenter.Tracing {
   @Override
   protected boolean defaultEnabled() {
     return false;
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named("java.lang.Object"));
   }
 
   @Override
