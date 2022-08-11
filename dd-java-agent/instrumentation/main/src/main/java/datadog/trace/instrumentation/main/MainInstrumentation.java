@@ -20,8 +20,6 @@ import org.slf4j.LoggerFactory;
 public class MainInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
-  private static final Logger log = LoggerFactory.getLogger(MainInstrumentation.class);
-
   public MainInstrumentation() {
     super("main");
   }
@@ -49,14 +47,17 @@ public class MainInstrumentation extends Instrumenter.Tracing
   }
 
   public static class MainAdvice {
+
+    private static final Logger log = LoggerFactory.getLogger(MainAdvice.class);
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter() {
-      System.err.printf("MainAdvice.methodEnter%n");
+      log.warn("MainAdvice.methodEnter%n");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit() {
-      System.err.printf("MainAdvice.methodExit%n");
+      log.warn("MainAdvice.methodExit%n");
       try {
         Class.forName("datadog.trace.bootstrap.Agent")
             .getMethod("shutdown", Boolean.TYPE)
@@ -64,9 +65,6 @@ public class MainInstrumentation extends Instrumenter.Tracing
       } catch (Throwable t) {
         log.debug("Failed to shutdown Agent", t);
       }
-    }
-
-    public static void muzzleCheck() {
     }
   }
 }
