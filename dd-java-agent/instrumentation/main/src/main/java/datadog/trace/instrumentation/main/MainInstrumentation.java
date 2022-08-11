@@ -48,22 +48,20 @@ public class MainInstrumentation extends Instrumenter.Tracing
 
   public static class MainAdvice {
 
-    private static final Logger log = LoggerFactory.getLogger(MainAdvice.class);
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter() {
-      log.warn("MainAdvice.methodEnter%n");
+      System.err.printf("MainAdvice.methodEnter%n");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit() {
-      log.warn("MainAdvice.methodExit%n");
+      System.err.printf("MainAdvice.methodExit%n");
       try {
         Class.forName("datadog.trace.bootstrap.Agent")
             .getMethod("shutdown", Boolean.TYPE)
             .invoke(null, true);
       } catch (Throwable t) {
-        log.debug("Failed to shutdown Agent", t);
+        System.err.printf("Failed to shutdown Agent: %s%n", t);
       }
     }
   }
