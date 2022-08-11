@@ -170,7 +170,7 @@ metadata:
     tags.datadoghq.com/version: local
     admission.datadoghq.com/enabled: "true"
   annotations:
-    admission.datadoghq.com/java-tracer.custom-image: ${INIT_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
+    admission.datadoghq.com/java-lib.custom-image: ${INIT_DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_TAG}
   name: my-app
 spec:
 EOF
