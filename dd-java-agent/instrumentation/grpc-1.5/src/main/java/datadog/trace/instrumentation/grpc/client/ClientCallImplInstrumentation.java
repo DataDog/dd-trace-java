@@ -86,7 +86,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         propagate().injectPathwayContext(span, headers, SETTER);
         // span has been retrieved from the context - resume
         span.finishThreadMigration();
-        return activateSpan(span);
+        return activateSpan(span, true);
       }
       return null;
     }
@@ -131,7 +131,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       if (span != null) {
         // span has been retrieved from the context - resume
         span.finishThreadMigration();
-        return activateSpan(span);
+        return activateSpan(span, true);
       }
       return null;
     }

@@ -63,7 +63,7 @@ public class QueryAdvice {
             new QueryResultHandlerWrapper<>(
                 (Handler<AsyncResult<R>>) maybeHandler, clientSpan, parentContinuation);
       }
-      return activateSpan(clientSpan);
+      return activateSpan(clientSpan, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -41,7 +41,7 @@ public class Servlet3Advice {
       AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
       // span could have been originated on a different thread and migrated
       castDispatchSpan.finishThreadMigration();
-      return activateSpan(castDispatchSpan);
+      return activateSpan(castDispatchSpan, true);
     }
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
@@ -58,8 +58,7 @@ public class Servlet3Advice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    final AgentScope scope = activateSpan(span, true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(

@@ -68,7 +68,7 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing
         AgentSpan span = startSpan(AXIS2_MESSAGE);
         DECORATE.afterStart(span);
         DECORATE.onMessage(span, message);
-        return activateSpan(span);
+        return activateSpan(span, true);
       }
       return null;
     }

@@ -27,7 +27,7 @@ public class ChannelRead0Advice {
     request.setAttribute(SPAN_ATTRIBUTE, span);
     request.setAttribute(PARENT_SPAN_ATTRIBUTE, nettySpan);
 
-    return activateSpan(span);
+    return activateSpan(span, true);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

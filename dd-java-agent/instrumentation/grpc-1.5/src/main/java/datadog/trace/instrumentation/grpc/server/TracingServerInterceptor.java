@@ -82,7 +82,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     DECORATE.onCall(span, call);
 
     final ServerCall.Listener<ReqT> result;
-    try (AgentScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateSpan(span, true)) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
@@ -116,7 +116,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void close(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, true)) {
         // resume the span related work on this thread
         span.finishThreadMigration();
         delegate().close(status, trailers);
@@ -148,7 +148,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
           startSpan(GRPC_MESSAGE, this.span.context())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
-      try (AgentScope scope = activateSpan(msgSpan)) {
+      try (AgentScope scope = activateSpan(msgSpan, true)) {
         callIGCallbackGrpcMessage(msgSpan, message);
         delegate().onMessage(message);
       } catch (final Throwable e) {
@@ -168,7 +168,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onHalfClose() {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, true)) {
         delegate().onHalfClose();
       } catch (final Throwable e) {
         if (span.phasedFinish()) {
@@ -184,7 +184,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onCancel() {
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, true)) {
         delegate().onCancel();
         span.setTag("canceled", true);
       } catch (CancellationException e) {
@@ -205,7 +205,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onComplete() {
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, true)) {
         delegate().onComplete();
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -225,7 +225,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onReady() {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, true)) {
         delegate().onReady();
       } catch (final Throwable e) {
         if (span.phasedFinish()) {

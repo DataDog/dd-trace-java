@@ -71,7 +71,7 @@ public final class MessagesAvailableInstrumentation extends Instrumenter.Tracing
         AgentSpan messageSpan =
             startSpan(GRPC_MESSAGE).setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
-        return activateSpan(messageSpan);
+        return activateSpan(messageSpan, true);
       }
       return null;
     }

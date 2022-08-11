@@ -80,7 +80,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }
-      return activateSpan(span);
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

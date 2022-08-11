@@ -26,7 +26,7 @@ public class CurrentEventHelper {
       if (null != eventContext) {
         AgentSpan span = contextStore.get(eventContext);
         if (null != span) {
-          newScope = activateSpan(span);
+          newScope = activateSpan(span, true);
           newScope.span().finishThreadMigration();
         }
       }

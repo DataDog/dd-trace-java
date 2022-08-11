@@ -66,7 +66,7 @@ public final class ResourceInstrumentation extends Instrumenter.Tracing
       DECORATE.onRestletSpan(span, parent, serverResource, annotationInfo.getJavaMethod());
       DECORATE.afterStart(span);
 
-      return activateSpan(span);
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

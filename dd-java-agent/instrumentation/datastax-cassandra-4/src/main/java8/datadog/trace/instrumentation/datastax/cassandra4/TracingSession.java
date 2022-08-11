@@ -56,7 +56,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
     DECORATE.onConnection(span, getDelegate());
     DECORATE.onStatement(span, getQuery(request));
 
-    try (AgentScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateSpan(span, true)) {
       ResultSet resultSet = getDelegate().execute(request, Statement.SYNC);
       DECORATE.onResponse(span, resultSet);
       DECORATE.beforeFinish(span);
@@ -79,7 +79,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
     DECORATE.onConnection(span, getDelegate());
     DECORATE.onStatement(span, getQuery(request));
 
-    try (AgentScope scope = activateSpan(span)) {
+    try (AgentScope scope = activateSpan(span, true)) {
       CompletionStage<AsyncResultSet> completionStage =
           getDelegate().execute(request, Statement.ASYNC);
 

@@ -75,7 +75,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing
       final AgentSpan span = startSpan(REDIS_COMMAND);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, DECORATE.className(cmd.getClass()));
-      return activateSpan(span);
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

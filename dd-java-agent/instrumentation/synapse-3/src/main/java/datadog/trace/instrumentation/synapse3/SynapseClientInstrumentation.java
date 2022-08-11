@@ -90,7 +90,7 @@ public final class SynapseClientInstrumentation extends Instrumenter.Tracing
       // capture span to be finished by one of the various client response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
 
-      return activateSpan(span);
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -110,7 +110,7 @@ public final class SynapseClientInstrumentation extends Instrumenter.Tracing
       // check and remove span from context so it won't be finished twice
       AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
       if (null != span) {
-        return activateSpan(span);
+        return activateSpan(span, true);
       }
       return null;
     }

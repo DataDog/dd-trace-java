@@ -104,7 +104,7 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       if (span != null) {
         // Make sure the span thread migration is finished
         span.finishThreadMigration();
-        return activateSpan(span);
+        return activateSpan(span, true);
       }
       return null;
     }
@@ -135,7 +135,7 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       if (span != null) {
         // Make sure the span thread migration is finished
         span.finishThreadMigration();
-        return activateSpan(span);
+        return activateSpan(span, true);
       }
       return null;
     }

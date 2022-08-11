@@ -832,7 +832,8 @@ public class Config {
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
 
-    scopeDefaultAsyncPropagation = configProvider.getBoolean(SCOPE_DEFAULT_ASYNC_PROPAGATION, true);
+    scopeDefaultAsyncPropagation =
+        configProvider.getBoolean(SCOPE_DEFAULT_ASYNC_PROPAGATION, false);
 
     scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 

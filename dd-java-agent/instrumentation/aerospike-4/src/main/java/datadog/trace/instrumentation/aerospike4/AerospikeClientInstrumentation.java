@@ -51,7 +51,7 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(@Advice.Origin("#m") final String methodName) {
       AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
-      return activateSpan(clientSpan);
+      return activateSpan(clientSpan, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -68,7 +68,7 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Tracing
         @Advice.Origin("#m") final String methodName,
         @Advice.Argument(value = 1, readOnly = false, typing = DYNAMIC) Object listener) {
       AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
-      AgentScope scope = activateSpan(clientSpan);
+      AgentScope scope = activateSpan(clientSpan, true);
       // always want to wrap even when there's no listener so we get the true async time
       listener = new TracingListener(clientSpan, scope.capture(), listener);
       return scope;

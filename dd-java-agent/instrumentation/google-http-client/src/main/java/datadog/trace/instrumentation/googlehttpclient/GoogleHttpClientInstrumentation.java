@@ -100,7 +100,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {
-      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));
+      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request), true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

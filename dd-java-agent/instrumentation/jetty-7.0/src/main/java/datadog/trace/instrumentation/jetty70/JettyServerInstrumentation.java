@@ -97,7 +97,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
         // Request already gone through initial processing, so just activate the span.
-        return activateSpan((AgentSpan) existingSpan);
+        return activateSpan((AgentSpan) existingSpan, true);
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
@@ -105,7 +105,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, true);
       scope.setAsyncPropagation(true);
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

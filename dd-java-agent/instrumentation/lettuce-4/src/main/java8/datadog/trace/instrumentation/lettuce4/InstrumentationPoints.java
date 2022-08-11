@@ -37,7 +37,7 @@ public final class InstrumentationPoints {
     final AgentSpan span = startSpan(REDIS_QUERY);
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
-    return activateSpan(span);
+    return activateSpan(span, true);
   }
 
   public static void afterCommand(
@@ -75,7 +75,7 @@ public final class InstrumentationPoints {
     final AgentSpan span = startSpan(REDIS_QUERY);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
-    return activateSpan(span);
+    return activateSpan(span, true);
   }
 
   public static void afterConnect(final AgentScope scope, final Throwable throwable) {
