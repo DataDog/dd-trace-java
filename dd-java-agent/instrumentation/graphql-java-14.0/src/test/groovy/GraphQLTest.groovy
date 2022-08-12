@@ -59,7 +59,7 @@ class GraphQLTest extends AgentTestRunner {
     setup:
     def query = 'query findBookById {\n' +
       '  bookById(id: "book-1") {\n' +
-      '    id\n' +
+      '    id #test\n' +
       '    name\n' +
       '    pageCount\n' +
       '    author {\n' +
@@ -68,8 +68,19 @@ class GraphQLTest extends AgentTestRunner {
       '    }\n' +
       '  }\n' +
       '}'
-    ExecutionResult result =
-      graphql.execute(query)
+    def expectedQuery = 'query findBookById {\n' +
+      '  bookById(id: ?) {\n' +
+      '    id\n' +
+      '    name\n' +
+      '    pageCount\n' +
+      '    author {\n' +
+      '      firstName\n' +
+      '      lastName\n' +
+      '    }\n' +
+      '  }\n' +
+      '}\n'
+
+    ExecutionResult result = graphql.execute(query)
 
     expect:
     result.getErrors().isEmpty()
@@ -77,15 +88,15 @@ class GraphQLTest extends AgentTestRunner {
     assertTraces(1) {
       trace(6) {
         span {
-          operationName "query findBookById"
-          resourceName "query findBookById"
+          operationName "graphql.request"
+          resourceName "graphql.request"
           spanType DDSpanTypes.GRAPHQL
           errored false
           measured true
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" query
+            "graphql.query" expectedQuery
             "graphql.operation.name" "findBookById"
             defaultTags()
           }
@@ -160,11 +171,18 @@ class GraphQLTest extends AgentTestRunner {
     setup:
     def query = 'query findBookById {\n' +
       '  bookById(id: "book-1") {\n' +
-      '    id\n' +
+      '    id #test\n' +
       '    title\n' + // field doesn't exist
       '    color\n' + // field doesn't exist
       '  }\n' +
       '}'
+    def expectedQuery = 'query findBookById {\n' +
+      '  bookById(id: ?) {\n' +
+      '    id\n' +
+      '    title\n' +
+      '    color\n' +
+      '  }\n' +
+      '}\n'
     ExecutionResult result =
       graphql.execute(query)
 
@@ -182,7 +200,7 @@ class GraphQLTest extends AgentTestRunner {
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" query
+            "graphql.query" expectedQuery
             "graphql.operation.name" null
             "error.msg" "Validation error of type FieldUndefined: Field 'title' in type 'Book' is undefined @ 'bookById/title' (and 1 more errors)"
             defaultTags()
@@ -220,7 +238,7 @@ class GraphQLTest extends AgentTestRunner {
     setup:
     def query = 'query findBookById {\n' +
       '  bookById(id: "book-1")) {\n' + // double closing brace
-      '    id\n' +
+      '    id #test\n' +
       '  }\n' +
       '}'
     ExecutionResult result =
@@ -269,12 +287,17 @@ class GraphQLTest extends AgentTestRunner {
     setup:
     def query = 'query findBookById {\n' +
       '  bookById(id: "book-1") {\n' +
-      '    id\n' +
+      '    id #test\n' +
       '    cover\n' + // throws an exception when fetched
       '  }\n' +
       '}'
-    ExecutionResult result =
-      graphql.execute(query)
+    def expectedQuery = 'query findBookById {\n' +
+      '  bookById(id: ?) {\n' +
+      '    id\n' +
+      '    cover\n' +
+      '  }\n' +
+      '}\n'
+    ExecutionResult result = graphql.execute(query)
 
     expect:
     !result.getErrors().isEmpty()
@@ -282,15 +305,15 @@ class GraphQLTest extends AgentTestRunner {
     assertTraces(1) {
       trace(6) {
         span {
-          operationName "query findBookById"
-          resourceName "query findBookById"
+          operationName "graphql.request"
+          resourceName "graphql.request"
           spanType DDSpanTypes.GRAPHQL
           errored true
           measured true
           parent()
           tags {
             "$Tags.COMPONENT" "graphql-java"
-            "graphql.query" query
+            "graphql.query" expectedQuery
             "graphql.operation.name" "findBookById"
             "error.msg" "Exception while fetching data (/bookById/cover) : TEST"
             defaultTags()

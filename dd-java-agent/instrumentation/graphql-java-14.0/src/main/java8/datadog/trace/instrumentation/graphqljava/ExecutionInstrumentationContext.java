@@ -9,15 +9,16 @@ import graphql.execution.instrumentation.SimpleInstrumentationContext;
 import java.util.List;
 
 public class ExecutionInstrumentationContext extends SimpleInstrumentationContext<ExecutionResult> {
-  private final AgentSpan requestSpan;
+  private final GraphQLInstrumentation.State state;
 
-  public ExecutionInstrumentationContext(AgentSpan requestSpan) {
-    this.requestSpan = requestSpan;
+  public ExecutionInstrumentationContext(GraphQLInstrumentation.State state) {
+    this.state = state;
   }
 
   @Override
   public void onCompleted(ExecutionResult result, Throwable t) {
     List<GraphQLError> errors = result.getErrors();
+    AgentSpan requestSpan = state.getRequestSpan();
     if (t != null) {
       DECORATE.onError(requestSpan, t);
     } else {
@@ -31,6 +32,7 @@ public class ExecutionInstrumentationContext extends SimpleInstrumentationContex
         requestSpan.setError(true);
       }
     }
+    requestSpan.setTag("graphql.query", state.getQuery());
     DECORATE.beforeFinish(requestSpan);
     requestSpan.finish();
   }

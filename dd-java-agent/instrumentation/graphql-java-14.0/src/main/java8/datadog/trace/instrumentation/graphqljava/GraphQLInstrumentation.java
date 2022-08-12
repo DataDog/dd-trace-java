@@ -24,7 +24,6 @@ import graphql.schema.DataFetcher;
 import graphql.validation.ValidationError;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
@@ -51,6 +50,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
   public static final class State implements InstrumentationState {
     private AgentSpan requestSpan;
+    private String query;
 
     public AgentSpan getRequestSpan() {
       return requestSpan;
@@ -58,6 +58,14 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
     public void setRequestSpan(AgentSpan requestSpan) {
       this.requestSpan = requestSpan;
+    }
+
+    public String getQuery() {
+      return query;
+    }
+
+    public void setQuery(String query) {
+      this.query = query;
     }
   }
 
@@ -69,18 +77,14 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   @Override
   public InstrumentationContext<ExecutionResult> beginExecution(
       InstrumentationExecutionParameters parameters) {
-
     final AgentSpan requestSpan = startSpan(GRAPHQL_REQUEST);
     DECORATE.afterStart(requestSpan);
 
     State state = parameters.getInstrumentationState();
     state.setRequestSpan(requestSpan);
-    requestSpan.setTag(
-        "graphql.query",
-        parameters.getQuery()); // TODO maybe keep it aside until the span is about to finish?
     // parameters.getOperation() is null
 
-    return new ExecutionInstrumentationContext(requestSpan);
+    return new ExecutionInstrumentationContext(state);
   }
 
   @Override
@@ -91,20 +95,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
     OperationDefinition operationDefinition =
         parameters.getExecutionContext().getOperationDefinition();
-    OperationDefinition.Operation operation = operationDefinition.getOperation();
-    String operationType = operation.name().toLowerCase(Locale.ROOT);
     String operationName = operationDefinition.getName();
 
-    String spanName = operationType;
-    if (operationName != null && !operationName.isEmpty()) {
-      spanName += " " + operationName;
-    }
-    requestSpan.setSpanName(spanName);
-
     requestSpan.setTag("graphql.operation.name", operationName);
-    // TODO sanitize query? and update it
-    //    String query = AstPrinter.printAst(operationDefinition);
-    //    requestSpan.setTag("graphql.query", query);
 
     return SimpleInstrumentationContext.noOp();
   }
@@ -121,10 +114,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   public InstrumentationContext<Document> beginParse(
       InstrumentationExecutionParameters parameters) {
     State state = parameters.getInstrumentationState();
-
-    final AgentSpan span = startSpan(GRAPHQL_PARSING, state.getRequestSpan().context());
-    DECORATE.afterStart(span);
-    return new ParsingInstrumentationContext(span);
+    final AgentSpan parsingSpan = startSpan(GRAPHQL_PARSING, state.getRequestSpan().context());
+    DECORATE.afterStart(parsingSpan);
+    return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
   }
 
   @Override
