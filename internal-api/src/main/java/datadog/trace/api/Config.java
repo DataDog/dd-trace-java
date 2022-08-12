@@ -2258,7 +2258,7 @@ public class Config {
     } else {
       // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
       // locally
-      return "http://" + agentHost + ":" + agentPort + "/crashTracking/v1/input";
+      return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
     }
   }
 
