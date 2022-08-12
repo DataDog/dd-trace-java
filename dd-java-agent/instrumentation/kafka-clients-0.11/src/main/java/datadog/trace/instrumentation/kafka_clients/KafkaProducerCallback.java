@@ -35,7 +35,6 @@ public class KafkaProducerCallback implements Callback {
           scope.setAsyncPropagation(true);
           parent.finishThreadMigration();
           callback.onCompletion(metadata, exception);
-          parent.finishWork();
         }
       } else {
         callback.onCompletion(metadata, exception);
