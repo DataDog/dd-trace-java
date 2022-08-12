@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -265,6 +266,11 @@ public class ConfigurationPoller
       return;
     }
 
+    if (log.isDebugEnabled() && fleetResponse.getTargetsSigned() != null) {
+      log.debug(
+          "Got configuration with targets version {}", fleetResponse.getTargetsSigned().version);
+    }
+
     List<String> configsToApply = fleetResponse.getClientConfigs();
     String errorMessage = null;
     this.durationHint = null;
@@ -315,7 +321,8 @@ public class ConfigurationPoller
           try {
             dl.listener.accept(null, hinter);
           } catch (Exception e) {
-            ratelimitedLogger.warn("Error unapplying configuration for " + previousProduct);
+            ratelimitedLogger.warn(
+                "Error unapplying configuration for " + previousProduct + ": " + e.getMessage());
           }
         }
       }
@@ -372,6 +379,7 @@ public class ConfigurationPoller
     byte[] fileContent = maybeFileContent.get();
 
     try {
+      log.debug("Applying configuration for {}", configKey);
       boolean result = dl.deserializeAndAccept(fileContent, pollingRateHinter);
       return result;
     } catch (IOException | RuntimeException ex) {
@@ -439,6 +447,15 @@ public class ConfigurationPoller
         this.cachedTargetFiles.put(configKey, newCTF);
       }
     }
+    // remove cachedTargetFiles for the pulled configurations
+
+    Iterator<String> cachedConfigKeysIter = this.cachedTargetFiles.keySet().iterator();
+    while (cachedConfigKeysIter.hasNext()) {
+      String configKey = cachedConfigKeysIter.next();
+      if (!inspectedConfigKeys.contains(configKey)) {
+        cachedConfigKeysIter.remove();
+      }
+    }
   }
 
   private static final Pattern EXTRACT_PRODUCT_REGEX =
@@ -493,6 +510,11 @@ public class ConfigurationPoller
   // because this method is only called from synchronized methods anyway
   private synchronized boolean featuresChangeListener(
       FeaturesConfig fconfig, PollingRateHinter hinter) {
+    if (fconfig == null) {
+      log.warn("Features configuration was pulled, which is unexpected");
+      return true;
+    }
+
     this.lastFeaturesConfig = fconfig;
 
     for (String product : fconfig.getProducts()) {

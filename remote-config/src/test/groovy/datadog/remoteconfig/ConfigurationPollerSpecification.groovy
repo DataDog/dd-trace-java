@@ -212,6 +212,52 @@ class ConfigurationPollerSpecification extends DDSpecification {
     }
   }
 
+  void 'removes cached file if configuration is pulled'() {
+    when:
+    poller.addListener(Product.ASM_DD,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      { Object[] args -> true } as ConfigurationChangesListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { call }
+    1 * call.execute() >> {
+      SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+        it['client_configs'] = []
+        buildOKResponse(JsonOutput.toJson(it))
+      }
+    }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    then:
+    def body = parseBody(request.body())
+    with(body) {
+      cached_target_files == null
+    }
+  }
+
   void 'applies configuration only if the hash has changed'() {
     ConfigurationChangesListener listener = Mock()
 
