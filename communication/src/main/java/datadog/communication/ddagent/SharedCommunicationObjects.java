@@ -10,8 +10,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SharedCommunicationObjects {
+  private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
+
   public OkHttpClient okHttpClient;
   public HttpUrl agentUrl;
   public Monitoring monitoring;
@@ -52,6 +56,7 @@ public class SharedCommunicationObjects {
         | InstantiationException
         | IllegalAccessException
         | InvocationTargetException e) {
+      log.error("Error creating remote configuration poller", e);
       return null;
     }
 
