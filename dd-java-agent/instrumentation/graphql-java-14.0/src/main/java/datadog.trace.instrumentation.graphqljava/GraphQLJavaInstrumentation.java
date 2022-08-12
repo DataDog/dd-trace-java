@@ -32,6 +32,7 @@ public class GraphQLJavaInstrumentation extends Instrumenter.Tracing
       packageName + ".ValidationInstrumentationContext",
       packageName + ".GraphQLInstrumentation$State",
       packageName + ".GraphQLInstrumentation",
+      packageName + ".GraphQLQuerySanitizer",
       packageName + ".InstrumentedDataFetcher"
     };
   }
