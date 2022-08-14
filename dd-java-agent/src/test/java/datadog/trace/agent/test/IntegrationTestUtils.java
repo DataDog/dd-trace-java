@@ -47,7 +47,7 @@ public class IntegrationTestUtils {
     }
   }
 
-  /** Returns the classloader use for bootstrap resources. */
+  /** Returns the classloader to use for bootstrap resources. */
   public static ClassLoader getBootstrapProxy() {
     return BootstrapProxy.INSTANCE;
   }

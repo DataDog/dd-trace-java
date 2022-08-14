@@ -23,6 +23,9 @@ import java.util.zip.ZipEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Maintains an index to map class/resource names under nested jar prefixes (inst, metrics, etc.)
+ */
 public final class AgentJarIndex {
   private static final Logger log = LoggerFactory.getLogger(AgentJarIndex.class);
 
@@ -36,6 +39,7 @@ public final class AgentJarIndex {
     this.prefixTrie = prefixTrie;
   }
 
+  /** Returns the resolved entry name in the jar for the given resource. */
   public String resourceEntryName(String name) {
     int prefixId = prefixTrie.apply(name);
     if (prefixId == 0) {
@@ -47,6 +51,7 @@ public final class AgentJarIndex {
     }
   }
 
+  /** Returns the resolved entry name in the jar for the given class. */
   public String classEntryName(String name) {
     int prefixId = prefixTrie.apply(name);
     if (prefixId == 0) {
@@ -58,6 +63,7 @@ public final class AgentJarIndex {
     }
   }
 
+  /** For testing purposes only. */
   public static AgentJarIndex emptyIndex() {
     return new AgentJarIndex(new String[0], ClassNameTrie.Builder.EMPTY_TRIE);
   }
@@ -80,6 +86,10 @@ public final class AgentJarIndex {
     }
   }
 
+  /**
+   * Generates an index from the contents of the 'build/resources' directory that makes up the agent
+   * jar.
+   */
   static class IndexGenerator extends SimpleFileVisitor<Path> {
     private static final Set<String> ignoredFileNames =
         new HashSet<>(Arrays.asList("MANIFEST.MF", "NOTICE", "LICENSE.renamed"));
@@ -134,6 +144,7 @@ public final class AgentJarIndex {
         if (null != entryKey) {
           prefixTrie.put(entryKey, prefixId);
           if (entryKey.endsWith("*")) {
+            // optimization: wildcard will match everything under here so can skip
             return FileVisitResult.SKIP_SIBLINGS;
           }
         }
@@ -152,11 +163,14 @@ public final class AgentJarIndex {
       if (entryKey.startsWith("datadog/trace/instrumentation/")) {
         return "datadog.trace.instrumentation.*";
       }
+      // use number of elements in the path to decide how 'unique' this path is
       int nameCount = path.getNameCount();
       if (nameCount > 1) {
-        if (entryKey.startsWith("META-INF")) {
+        if (entryKey.startsWith("META-INF")) { // don't count META-INF as a unique element
           nameCount--;
         }
+        // paths with three or more elements, or nested paths containing '.classdata' files
+        // are considered unique enough that we can use the directory name as a wildcard key
         if (nameCount > 2 || entryKey.endsWith(".classdata")) {
           entryKey = entryKey.substring(0, entryKey.lastIndexOf('/') + 1) + "*";
         }
