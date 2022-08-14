@@ -97,19 +97,14 @@ public final class Strings {
   }
 
   /** com.foo.Bar -> com/foo/Bar */
-  public static String getInternalName(final String resourceName) {
-    return resourceName.replace('.', '/');
+  public static String getInternalName(final String className) {
+    return className.replace('.', '/');
   }
 
-  /**
-   * Convert class name to a format that can be used as part of inner class name by replacing all
-   * '.'s with '$'s.
-   *
-   * @param className class named to be converted
-   * @return convertd name
-   */
-  public static String getInnerClassName(final String className) {
-    return className.replace('.', '$');
+  /** com.foo.Bar -> com.foo */
+  public static String getPackageName(final String className) {
+    int lastDot = className.lastIndexOf('.');
+    return lastDot < 0 ? "" : className.substring(0, lastDot);
   }
 
   public static String join(CharSequence joiner, Iterable<? extends CharSequence> strings) {

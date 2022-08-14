@@ -17,26 +17,26 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.test.util.GCUtils.awaitGC
 
 class HelperInjectionTest extends DDSpecification {
+  static final String HELPER_CLASS_NAME = 'datadog.trace.agent.test.HelperClass'
 
   @Timeout(10)
   def "helpers injected to non-delegating classloader"() {
     setup:
-    String helperClassName = HelperInjectionTest.getPackage().getName() + '.HelperClass'
-    HelperInjector injector = new HelperInjector("test", helperClassName)
+    HelperInjector injector = new HelperInjector("test", HELPER_CLASS_NAME)
     AtomicReference<URLClassLoader> emptyLoader = new AtomicReference<>(new URLClassLoader(new URL[0], (ClassLoader) null))
 
     when:
-    emptyLoader.get().loadClass(helperClassName)
+    emptyLoader.get().loadClass(HELPER_CLASS_NAME)
     then:
     thrown ClassNotFoundException
 
     when:
     injector.transform(null, null, emptyLoader.get(), null)
-    emptyLoader.get().loadClass(helperClassName)
+    emptyLoader.get().loadClass(HELPER_CLASS_NAME)
     then:
-    isClassLoaded(helperClassName, emptyLoader.get())
+    isClassLoaded(HELPER_CLASS_NAME, emptyLoader.get())
     // injecting into emptyLoader should not load on agent's classloader
-    !isClassLoaded(helperClassName, Utils.getAgentClassLoader())
+    !isClassLoaded(HELPER_CLASS_NAME, Utils.getAgentClassLoader())
 
     when: "references to emptyLoader are gone"
     emptyLoader.get().close() // cleanup
@@ -52,33 +52,31 @@ class HelperInjectionTest extends DDSpecification {
   def "helpers injected on bootstrap classloader"() {
     setup:
     Utils.setInstrumentation(ByteBuddyAgent.install())
-    String helperClassName = HelperInjectionTest.getPackage().getName() + '.HelperClass'
-    HelperInjector injector = new HelperInjector("test", helperClassName)
+    HelperInjector injector = new HelperInjector("test", HELPER_CLASS_NAME)
     URLClassLoader bootstrapChild = new URLClassLoader(new URL[0], (ClassLoader) null)
 
     when:
-    bootstrapChild.loadClass(helperClassName)
+    bootstrapChild.loadClass(HELPER_CLASS_NAME)
     then:
     thrown ClassNotFoundException
 
     when:
     injector.transform(null, null, BOOTSTRAP_CLASSLOADER, null)
-    Class<?> helperClass = bootstrapChild.loadClass(helperClassName)
+    Class<?> helperClass = bootstrapChild.loadClass(HELPER_CLASS_NAME)
     then:
     helperClass.getClassLoader() == BOOTSTRAP_CLASSLOADER
   }
 
   def "check hard references on class injection"() {
     setup:
-    String helperClassName = HelperInjectionTest.getPackage().getName() + '.HelperClass'
 
     // Copied from HelperInjector:
     final ClassFileLocator locator =
       ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader())
-    final byte[] classBytes = locator.locate(helperClassName).resolve()
+    final byte[] classBytes = locator.locate(HELPER_CLASS_NAME).resolve()
     final TypeDescription typeDesc =
       new TypeDescription.Latent(
-      helperClassName, 0, null, Collections.<TypeDescription.Generic> emptyList())
+      HELPER_CLASS_NAME, 0, null, Collections.<TypeDescription.Generic> emptyList())
 
     AtomicReference<URLClassLoader> emptyLoader = new AtomicReference<>(new URLClassLoader(new URL[0], (ClassLoader) null))
     AtomicReference<ClassInjector> injector = new AtomicReference<>(new ClassInjector.UsingReflection(emptyLoader.get()))
