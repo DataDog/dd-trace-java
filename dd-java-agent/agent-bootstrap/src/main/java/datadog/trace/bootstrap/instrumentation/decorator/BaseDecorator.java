@@ -68,7 +68,6 @@ public abstract class BaseDecorator {
     if (traceAnalyticsEnabled) {
       span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
     }
-    span.setMeasured(true);
     return span;
   }
 

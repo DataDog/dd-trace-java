@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.graphqljava;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -27,5 +28,11 @@ public class GraphQLDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return GRAPHQL_JAVA;
+  }
+
+  @Override
+  public AgentSpan afterStart(final AgentSpan span) {
+    span.setMeasured(true);
+    return super.afterStart(span);
   }
 }

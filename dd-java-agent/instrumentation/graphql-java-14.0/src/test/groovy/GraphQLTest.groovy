@@ -133,7 +133,7 @@ class GraphQLTest extends AgentTestRunner {
           childOf(span(2))
           spanType null
           errored false
-          measured true
+          measured false
           tags {
             "$Tags.COMPONENT" "trace"
             defaultTags()
@@ -354,7 +354,7 @@ class GraphQLTest extends AgentTestRunner {
           childOf(span(2))
           spanType null
           errored false
-          measured true
+          measured false
           tags {
             "$Tags.COMPONENT" "trace"
             defaultTags()

@@ -124,8 +124,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
       InstrumentationValidationParameters parameters) {
     State state = parameters.getInstrumentationState();
 
-    final AgentSpan span = startSpan(GRAPHQL_VALIDATION, state.getRequestSpan().context());
-    DECORATE.afterStart(span);
-    return new ValidationInstrumentationContext(span);
+    final AgentSpan validationSpan =
+        startSpan(GRAPHQL_VALIDATION, state.getRequestSpan().context());
+    DECORATE.afterStart(validationSpan);
+    return new ValidationInstrumentationContext(validationSpan);
   }
 }
