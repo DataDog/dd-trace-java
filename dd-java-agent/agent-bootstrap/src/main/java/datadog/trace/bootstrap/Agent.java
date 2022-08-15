@@ -73,7 +73,8 @@ public class Agent {
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
-    TELEMETRY("dd.instrumentation.telemetry.enabled", false);
+    TELEMETRY("dd.instrumentation.telemetry.enabled", false),
+    DEBUGGER("dd.debugger.enabled", false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -112,6 +113,7 @@ public class Agent {
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = false;
+  private static boolean debuggerEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL) {
     createAgentClassloader(agentJarURL);
@@ -148,6 +150,7 @@ public class Agent {
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
+    debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -181,6 +184,9 @@ public class Agent {
      */
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst);
+    if (debuggerEnabled) {
+      startDebuggerAgent(inst);
+    }
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -687,6 +693,28 @@ public class Agent {
       log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down profiling agent", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
+  }
+
+  private static synchronized void startDebuggerAgent(final Instrumentation inst) {
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> debuggerAgentClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.debugger.agent.DebuggerAgent");
+      final Method debuggerInstallerMethod =
+          debuggerAgentClass.getMethod("run", Instrumentation.class);
+      debuggerInstallerMethod.invoke(null, inst);
+    } catch (final ClassFormatError e) {
+      /*
+      Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
+      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
+      */
+      log.debug("Debugger requires OpenJDK 8 or above - skipping");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
