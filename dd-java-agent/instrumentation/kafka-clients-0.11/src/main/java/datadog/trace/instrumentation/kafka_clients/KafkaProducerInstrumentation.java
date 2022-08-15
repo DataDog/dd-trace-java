@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
@@ -88,7 +89,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER);
+          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, Arrays.asList("type:internal"));
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -101,7 +102,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER);
+          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, Arrays.asList("type:internal"));
         }
         if (!KAFKA_LEGACY_TRACING) {
           SETTER.injectTimeInQueue(record.headers());

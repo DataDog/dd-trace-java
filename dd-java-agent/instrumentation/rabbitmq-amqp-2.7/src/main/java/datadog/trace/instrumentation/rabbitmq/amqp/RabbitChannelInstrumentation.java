@@ -14,6 +14,10 @@ import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_LEGACY_TRACING;
+import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.EXCHANGE_TAG_CACHE;
+import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.EXCHANGE_TAG_PREFIX;
+import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.ROUTING_KEY_TAG_CACHE;
+import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.ROUTING_KEY_TAG_PREFIX;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.canThrow;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
@@ -37,6 +41,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -65,9 +70,11 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RabbitDecorator",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer"
+        packageName + ".RabbitDecorator",
+        packageName + ".TextMapInjectAdapter",
+        packageName + ".TracedDelegatingConsumer",
+        packageName + ".TagsCache",
+        packageName + ".TagsCache$StringPrefix"
     };
   }
 
@@ -148,6 +155,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(1) final String routingKey,
         @Advice.Argument(value = 4, readOnly = false) AMQP.BasicProperties props,
         @Advice.Argument(5) final byte[] body) {
+      System.out.println("[TEST_LOGS] About to inject");
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
         return null;
@@ -181,7 +189,15 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER);
+        try {
+          propagate().injectPathwayContext(span, headers, SETTER,
+              Arrays.asList(
+                  "type:internal",
+                  EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
+                  ROUTING_KEY_TAG_CACHE.computeIfAbsent(routingKey, ROUTING_KEY_TAG_PREFIX)));
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

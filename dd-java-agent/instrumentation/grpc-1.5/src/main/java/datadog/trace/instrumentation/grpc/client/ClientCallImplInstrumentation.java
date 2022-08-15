@@ -18,6 +18,7 @@ import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -83,7 +84,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
       span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER);
+        propagate().injectPathwayContext(span, headers, SETTER, Arrays.asList("type:internal"));
         // span has been retrieved from the context - resume
         span.finishThreadMigration();
         return activateSpan(span);
