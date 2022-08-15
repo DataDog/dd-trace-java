@@ -155,7 +155,6 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(1) final String routingKey,
         @Advice.Argument(value = 4, readOnly = false) AMQP.BasicProperties props,
         @Advice.Argument(5) final byte[] body) {
-      System.out.println("[TEST_LOGS] About to inject");
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
         return null;
@@ -189,15 +188,11 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);
-        try {
-          propagate().injectPathwayContext(span, headers, SETTER,
-              Arrays.asList(
-                  "type:internal",
-                  EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
-                  ROUTING_KEY_TAG_CACHE.computeIfAbsent(routingKey, ROUTING_KEY_TAG_PREFIX)));
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
+        propagate().injectPathwayContext(span, headers, SETTER,
+            Arrays.asList(
+                "type:internal",
+                EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
+                ROUTING_KEY_TAG_CACHE.computeIfAbsent(routingKey, ROUTING_KEY_TAG_PREFIX)));
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

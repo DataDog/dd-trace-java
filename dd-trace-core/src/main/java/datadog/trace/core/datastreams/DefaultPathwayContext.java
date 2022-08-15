@@ -234,9 +234,9 @@ public class DefaultPathwayContext implements PathwayContext {
         new PathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
-      System.out.println("No context extracted");
+      log.debug("No context extracted");
     } else {
-      System.out.println("Extracted context: " + pathwayContextExtractor.extractedContext);
+      log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
     }
     return pathwayContextExtractor.extractedContext;
   }
@@ -250,9 +250,9 @@ public class DefaultPathwayContext implements PathwayContext {
         new BinaryPathwayContextExtractor(timeSource, wellKnownTags);
     getter.forEachKey(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
-      System.out.println("No context extracted");
+      log.debug("No context extracted");
     } else {
-      System.out.println("Extracted context: " + pathwayContextExtractor.extractedContext);
+      log.debug("Extracted context: {} ", pathwayContextExtractor.extractedContext);
     }
     return pathwayContextExtractor.extractedContext;
   }
