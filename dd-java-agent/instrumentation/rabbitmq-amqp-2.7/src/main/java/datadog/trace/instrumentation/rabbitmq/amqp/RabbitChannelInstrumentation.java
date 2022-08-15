@@ -16,8 +16,6 @@ import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUC
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_LEGACY_TRACING;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.EXCHANGE_TAG_CACHE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.EXCHANGE_TAG_PREFIX;
-import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.ROUTING_KEY_TAG_CACHE;
-import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.ROUTING_KEY_TAG_PREFIX;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.canThrow;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
@@ -190,9 +188,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         propagate().inject(span, headers, SETTER);
         propagate().injectPathwayContext(span, headers, SETTER,
             Arrays.asList(
-                "type:internal",
                 EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
-                ROUTING_KEY_TAG_CACHE.computeIfAbsent(routingKey, ROUTING_KEY_TAG_PREFIX)));
+                routingKey == null || routingKey.equals("") ? "has_routing_key:false" : "has_routing_key:true",
+                "type:internal"));
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

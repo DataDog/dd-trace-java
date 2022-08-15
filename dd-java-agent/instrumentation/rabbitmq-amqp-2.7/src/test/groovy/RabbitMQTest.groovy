@@ -153,7 +153,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "routing_key:" + routingKey])
+        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:true"])
         edgeTags.size() == 3
       }
 
@@ -207,7 +207,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:", "routing_key:<generated>"])
+        edgeTags.containsAll(["type:internal", "exchange:", "has_routing_key:true"])
         edgeTags.size() == 3
       }
 
@@ -304,7 +304,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
       producerPoints.each { producerPoint ->
         verifyAll(producerPoint) {
-          edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "routing_key:"])
+          edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:false"])
           edgeTags.size() == 3
         }
       }
@@ -396,7 +396,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "routing_key:"])
+        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:false"])
         edgeTags.size() == 3
       }
 
@@ -481,7 +481,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:", "routing_key:" + "some-routing-queue"])
+        edgeTags.containsAll(["type:internal", "exchange:", "has_routing_key:true"])
         edgeTags.size() == 3
       }
 
@@ -565,7 +565,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "routing_key:" + routingKey])
+        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:true"])
         edgeTags.size() == 3
       }
 
@@ -658,7 +658,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "routing_key:" + routingKey])
+        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:true"])
         edgeTags.size() == 3
       }
 
