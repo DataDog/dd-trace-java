@@ -11,59 +11,122 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The implementation of the {@code CallbackProvider} and {@code SubscriptionService}. Only supports
- * one callback of each type right now.
- */
-public class InstrumentationGateway implements CallbackProvider, SubscriptionService {
+/** The implementation of the {@code CallbackProvider} and {@code SubscriptionService}. */
+public class InstrumentationGateway {
   private static final Logger log = LoggerFactory.getLogger(InstrumentationGateway.class);
 
-  private final AtomicReferenceArray<Object> callbacks;
+  private final IGCallbackRegistry callbackRegistryAppSec;
+  private final IGCallbackRegistry callbackRegistryIast;
+  private final UniversalCallbackProvider universalCallbackProvider;
 
   public InstrumentationGateway() {
-    callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
+    this.callbackRegistryAppSec = new IGCallbackRegistry();
+    this.callbackRegistryIast = new IGCallbackRegistry();
+    this.universalCallbackProvider = new UniversalCallbackProvider();
+  }
+
+  public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
+    if (slot == RequestContextSlot.APPSEC) {
+      return this.callbackRegistryAppSec;
+    } else if (slot == RequestContextSlot.IAST) {
+      return this.callbackRegistryIast;
+    } else {
+      return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
+    }
+  }
+
+  public CallbackProvider getCallbackProvider(RequestContextSlot slot) {
+    if (slot == RequestContextSlot.APPSEC) {
+      return this.callbackRegistryAppSec;
+    } else if (slot == RequestContextSlot.IAST) {
+      return this.callbackRegistryIast;
+    } else {
+      return CallbackProvider.CallbackProviderNoop.INSTANCE;
+    }
   }
 
   // for tests
   void reset() {
-    for (int i = 0; i < callbacks.length(); i++) {
-      callbacks.set(i, null);
+    this.callbackRegistryAppSec.reset();
+    this.callbackRegistryIast.reset();
+    this.universalCallbackProvider.reset();
+  }
+
+  public CallbackProvider getUniversalCallbackProvider() {
+    return this.universalCallbackProvider;
+  }
+
+  private class UniversalCallbackProvider implements CallbackProvider {
+    final AtomicReferenceArray<Object> callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
+
+    @Override
+    public <C> C getCallback(EventType<C> eventType) {
+      int id = eventType.getId();
+      C cb = (C) callbacks.get(id);
+      if (cb != null) {
+        return cb;
+      }
+
+      cb = universalCallback(eventType);
+      if (!callbacks.compareAndSet(id, null, cb)) {
+        return getCallback(eventType);
+      }
+      return cb;
+    }
+
+    void reset() {
+      for (int i = 0; i < callbacks.length(); i++) {
+        callbacks.set(i, null);
+      }
     }
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <C> C getCallback(EventType<C> eventType) {
-    return (C) callbacks.get(eventType.getId());
-  }
+  private class IGCallbackRegistry implements CallbackProvider, SubscriptionService {
+    private final AtomicReferenceArray<Object> callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <C> Subscription registerCallback(final EventType<C> eventType, final C callback) {
-    final C wrapped = wrap(eventType, callback);
-    final int id = eventType.getId();
-    if (!callbacks.compareAndSet(id, null, wrapped)) {
-      C existing = (C) callbacks.get(id);
-      String message =
-          "Trying to overwrite existing callback " + existing + " for event type " + eventType;
-      log.warn(message);
-      throw new IllegalStateException(message);
+    // for tests
+    void reset() {
+      for (int i = 0; i < callbacks.length(); i++) {
+        callbacks.set(i, null);
+      }
     }
 
-    return new Subscription() {
-      @Override
-      public void cancel() {
-        if (!callbacks.compareAndSet(id, wrapped, null)) {
-          if (log.isDebugEnabled()) {
-            log.debug("Failed to unregister callback {} for event type {}", callback, eventType);
+    @Override
+    @SuppressWarnings("unchecked")
+    public <C> C getCallback(EventType<C> eventType) {
+      return (C) callbacks.get(eventType.getId());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <C> Subscription registerCallback(final EventType<C> eventType, final C callback) {
+      final C wrapped = wrap(eventType, callback);
+      final int id = eventType.getId();
+      if (!callbacks.compareAndSet(id, null, wrapped)) {
+        C existing = (C) callbacks.get(id);
+        String message =
+            "Trying to overwrite existing callback " + existing + " for event type " + eventType;
+        log.warn(message);
+        throw new IllegalStateException(message);
+      }
+
+      universalCallbackProvider.callbacks.set(id, null);
+
+      return new Subscription() {
+        @Override
+        public void cancel() {
+          if (!callbacks.compareAndSet(id, wrapped, null)) {
+            if (log.isDebugEnabled()) {
+              log.debug("Failed to unregister callback {} for event type {}", callback, eventType);
+            }
           }
         }
-      }
-    };
+      };
+    }
   }
 
   /** Ensure that callbacks don't leak exceptions */
-  @SuppressWarnings({"unchecked", "rawtypes"})
+  @SuppressWarnings({"unchecked", "rawtypes", "DuplicateBranchesInSwitch"})
   public static <C> C wrap(final EventType<C> eventType, final C callback) {
     switch (eventType.getId()) {
       case REQUEST_STARTED_ID:
@@ -259,5 +322,58 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
         log.warn("Unwrapped callback for {}", eventType);
         return callback;
     }
+  }
+
+  private <C> C universalCallback(final EventType<C> eventType) {
+    final C callbackAppSec =
+        InstrumentationGateway.this.callbackRegistryAppSec.getCallback(eventType);
+    final C callbackIast = InstrumentationGateway.this.callbackRegistryIast.getCallback(eventType);
+    if (callbackAppSec == null && callbackIast == null) {
+      return null;
+    }
+    if (callbackAppSec != null && callbackIast == null) {
+      return callbackAppSec;
+    }
+    if (callbackAppSec == null && callbackIast != null) {
+      return callbackIast;
+    }
+
+    switch (eventType.getId()) {
+      case REQUEST_ENDED_ID:
+        return (C)
+            new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, IGSpanInfo agentSpan) {
+                Flow<Void> flowAppSec =
+                    ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
+                        .apply(ctx, agentSpan);
+                Flow<Void> flowIast =
+                    ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
+                        .apply(ctx, agentSpan);
+                return mergeFlows(flowAppSec, flowIast);
+              }
+            };
+    }
+    return null;
+  }
+
+  public static <T> Flow<T> mergeFlows(final Flow<T> flow1, final Flow<T> flow2) {
+    if (flow1 == flow2) {
+      return flow1;
+    }
+    return new Flow<T>() {
+      @Override
+      public Action getAction() {
+        return flow1.getAction().isBlocking() ? flow1.getAction() : flow2.getAction();
+      }
+
+      @Override
+      public T getResult() {
+        if (flow2.getResult() != null) {
+          return flow2.getResult();
+        }
+        return flow1.getResult();
+      }
+    };
   }
 }

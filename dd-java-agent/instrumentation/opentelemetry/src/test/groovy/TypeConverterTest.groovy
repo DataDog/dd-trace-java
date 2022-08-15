@@ -2,13 +2,13 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.instrumentation.opentelemetry.TypeConverter
 
@@ -69,7 +69,6 @@ class TypeConverterTest extends AgentTestRunner {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       [:],
       false,
@@ -77,8 +76,10 @@ class TypeConverterTest extends AgentTestRunner {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
-      false) {
+      false,
+      DatadogTags.factory().empty()) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor
           // because it causes NPE when calls trace.getTracer from within setServiceName

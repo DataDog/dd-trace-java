@@ -9,12 +9,12 @@ import datadog.trace.api.DDId
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -216,7 +216,6 @@ class DDIntakeApiTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.SAMPLER_KEEP,
-      SamplingMechanism.UNKNOWN,
       null,
       [:],
       false,
@@ -224,8 +223,10 @@ class DDIntakeApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

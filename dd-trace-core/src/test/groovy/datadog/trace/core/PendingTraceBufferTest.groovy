@@ -5,17 +5,16 @@ import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
-
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -155,8 +154,6 @@ class PendingTraceBufferTest extends DDSpecification {
     }
     0 *  _
     metadataChecker.hasSamplingPriority
-
-
   }
 
   def "buffer full yields immediate write"() {
@@ -408,7 +405,6 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
       false,
@@ -416,8 +412,10 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     return DDSpan.create(0, context)
   }
 
@@ -432,7 +430,6 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       Collections.emptyMap(),
       false,
@@ -440,8 +437,10 @@ class PendingTraceBufferTest extends DDSpecification {
       0,
       trace,
       null,
+      null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     return DDSpan.create(0, context)
   }
 }

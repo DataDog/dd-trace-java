@@ -58,7 +58,7 @@ public final class AgentJar {
   private static void printUsage() {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
-    System.out.println("  uploadCrash [FILES]");
+    System.out.println("  uploadCrash file ...");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
@@ -91,14 +91,13 @@ public final class AgentJar {
   }
 
   private static void uploadCrash(final String[] args) throws Exception {
-    Object cookie = installAgentClassLoader();
-    try {
-      installAgentCLI()
-          .getMethod("uploadCrash", String[].class)
-          .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
-    } finally {
-      uninstallAgentClassLoader(cookie);
+    if (args.length < 2) {
+      throw new IllegalArgumentException("missing file");
     }
+
+    installAgentCLI()
+        .getMethod("uploadCrash", String[].class)
+        .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
   }
 
   private static void printIntegrationNames() throws Exception {
@@ -113,21 +112,6 @@ public final class AgentJar {
 
     return (Class<?>)
         agentClass.getMethod("installAgentCLI", URL.class).invoke(null, codeSource.getLocation());
-  }
-
-  private static Object installAgentClassLoader() throws Exception {
-    CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
-    if (codeSource == null || codeSource.getLocation() == null) {
-      throw new MalformedURLException("Could not get jar location from code source");
-    }
-
-    return agentClass
-        .getMethod("installAgentClassLoader", URL.class)
-        .invoke(null, codeSource.getLocation());
-  }
-
-  private static void uninstallAgentClassLoader(Object cookie) throws Exception {
-    agentClass.getMethod("uninstallAgentClassLoader", Object.class).invoke(null, cookie);
   }
 
   private static void printAgentVersion() {

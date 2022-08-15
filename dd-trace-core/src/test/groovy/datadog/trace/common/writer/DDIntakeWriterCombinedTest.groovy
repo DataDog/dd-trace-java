@@ -9,7 +9,6 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
@@ -19,6 +18,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import spock.lang.Retry
@@ -740,7 +740,6 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       "",
       "",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       "",
       [:],
       false,
@@ -748,8 +747,10 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       0,
       trace,
       null,
+      null,
       AgentTracer.NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
   }
 
   def createMinimalTrace() {

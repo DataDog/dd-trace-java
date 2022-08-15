@@ -11,8 +11,13 @@ import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.GROUP_TAG_CACHE;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.GROUP_TAG_PREFIX;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.TOPIC_TAG_CACHE;
+import static datadog.trace.instrumentation.kafka_streams.TagsCache.TOPIC_TAG_PREFIX;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -24,10 +29,15 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
@@ -53,17 +63,40 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       packageName + ".KafkaStreamsDecorator",
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
+      packageName + ".StreamTaskContext",
+      packageName + ".TagsCache",
+      packageName + ".TagsCache$StringPrefix",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "org.apache.kafka.streams.processor.internals.StreamTask", AgentScope.class.getName());
+        "org.apache.kafka.streams.processor.internals.StreamTask",
+        StreamTaskContext.class.getName());
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    // StreamsConfig was the 4th input argument to StreamTask's constructor in kafka versions 2.6 to
+    // 3.1.
+    // Starting from 3.2 StreamsConfig was no longer an input argument into StreamTask.
+    transformation.applyAdvice(
+        isConstructor().and(takesArgument(4, named("org.apache.kafka.streams.StreamsConfig"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$Constructor4Advice");
+
+    // StreamsConfig was the 5th input argument to StreamTask's constructor in kafka versions 1.1 to
+    // 2.5
+    transformation.applyAdvice(
+        isConstructor().and(takesArgument(5, named("org.apache.kafka.streams.StreamsConfig"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$Constructor5Advice");
+
+    // StreamsConfig was the 6th input argument to StreamTask's constructor in kafka versions 0.11
+    // to 1.0.
+    transformation.applyAdvice(
+        isConstructor().and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$Constructor6Advice");
+
     transformation.applyAdvice(
         isMethod().and(named("addRecords")).and(takesArgument(1, named("java.lang.Iterable"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$UnwrapIterableAdvice");
@@ -101,6 +134,60 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         KafkaStreamTaskInstrumentation.class.getName() + "$StopSpanAdvice");
   }
 
+  public static class Constructor4Advice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This StreamTask task, @Advice.Argument(4) StreamsConfig streamsConfig) {
+      String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
+
+      if (applicationId != null && !applicationId.isEmpty()) {
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        if (context == null) {
+          context = new StreamTaskContext();
+        }
+        context.setApplicationId(applicationId);
+        InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, context);
+      }
+    }
+  }
+
+  public static class Constructor5Advice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This StreamTask task, @Advice.Argument(5) StreamsConfig streamsConfig) {
+      String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
+
+      if (applicationId != null && !applicationId.isEmpty()) {
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        if (context == null) {
+          context = new StreamTaskContext();
+        }
+        context.setApplicationId(applicationId);
+        InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, context);
+      }
+    }
+  }
+
+  public static class Constructor6Advice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This StreamTask task, @Advice.Argument(6) StreamsConfig streamsConfig) {
+      String applicationId = streamsConfig.getString(StreamsConfig.APPLICATION_ID_CONFIG);
+
+      if (applicationId != null && !applicationId.isEmpty()) {
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        if (context == null) {
+          context = new StreamTaskContext();
+        }
+        context.setApplicationId(applicationId);
+        InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, context);
+      }
+    }
+  }
+
   public static class UnwrapIterableAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
@@ -118,7 +205,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
   /** Very similar to StartSpanAdvice27, but with a different argument type for record. */
   public static class StartSpanAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void start(
         @Advice.Argument(0) final StampedRecord record,
@@ -130,6 +216,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       }
 
       AgentSpan span, queueSpan = null;
+      StreamTaskContext streamTaskContext =
+          InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, SR_GETTER);
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
@@ -146,6 +234,21 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
+
+        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
+        span.mergePathwayContext(pathwayContext);
+        List<String> edgeTags = new ArrayList<>(3);
+        edgeTags.add("type:kafka");
+        edgeTags.add(TOPIC_TAG_CACHE.computeIfAbsent(record.topic(), TOPIC_TAG_PREFIX));
+
+        if (streamTaskContext != null) {
+          String applicationId = streamTaskContext.getApplicationId();
+          if (applicationId != null) {
+            edgeTags.add(GROUP_TAG_CACHE.computeIfAbsent(applicationId, GROUP_TAG_PREFIX));
+          }
+        }
+        // Kafka Streams uses the application ID as the consumer group.id.
+        AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -157,13 +260,17 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         queueSpan.finish();
       }
 
-      InstrumentationContext.get(StreamTask.class, AgentScope.class).put(task, agentScope);
+      if (streamTaskContext == null) {
+        streamTaskContext = new StreamTaskContext();
+      }
+      streamTaskContext.setAgentScope(agentScope);
+      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+          .put(task, streamTaskContext);
     }
   }
 
   /** Very similar to StartSpanAdvice, but with a different argument type for record. */
   public static class StartSpanAdvice27 {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void start(
         @Advice.Argument(0) final ProcessorNode node,
@@ -175,6 +282,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       }
 
       AgentSpan span, queueSpan = null;
+      StreamTaskContext streamTaskContext =
+          InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         final AgentSpan.Context extractedContext = propagate().extract(record, PR_GETTER);
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
@@ -191,6 +300,21 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
           // The queueSpan will be finished after inner span has been activated to ensure that
           // spans are written out together by TraceStructureWriter when running in strict mode
         }
+
+        PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
+        span.mergePathwayContext(pathwayContext);
+        List<String> edgeTags = new ArrayList<>(3);
+        edgeTags.add("type:kafka");
+        edgeTags.add(TOPIC_TAG_CACHE.computeIfAbsent(record.topic(), TOPIC_TAG_PREFIX));
+
+        if (streamTaskContext != null) {
+          String applicationId = streamTaskContext.getApplicationId();
+          if (applicationId != null) {
+            edgeTags.add(GROUP_TAG_CACHE.computeIfAbsent(applicationId, GROUP_TAG_PREFIX));
+          }
+        }
+        // Kafka Streams uses the application ID as the consumer group.id.
+        AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -202,7 +326,12 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
         queueSpan.finish();
       }
 
-      InstrumentationContext.get(StreamTask.class, AgentScope.class).put(task, agentScope);
+      if (streamTaskContext == null) {
+        streamTaskContext = new StreamTaskContext();
+      }
+      streamTaskContext.setAgentScope(agentScope);
+      InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+          .put(task, streamTaskContext);
     }
   }
 
@@ -211,14 +340,18 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stop(
         @Advice.Thrown final Throwable throwable, @Advice.This StreamTask task) {
-      AgentScope scope =
-          InstrumentationContext.get(StreamTask.class, AgentScope.class).remove(task);
-      if (scope != null) {
-        AgentSpan span = scope.span();
-        CONSUMER_DECORATE.onError(span, throwable);
-        CONSUMER_DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
+      StreamTaskContext streamTaskContext =
+          InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      if (streamTaskContext != null) {
+        AgentScope scope = streamTaskContext.getAgentScope();
+        if (scope != null) {
+          AgentSpan span = scope.span();
+          CONSUMER_DECORATE.onError(span, throwable);
+          CONSUMER_DECORATE.beforeFinish(span);
+          scope.close();
+          span.finish();
+          streamTaskContext.setAgentScope(null);
+        }
       }
     }
   }

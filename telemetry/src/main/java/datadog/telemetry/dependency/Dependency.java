@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -129,17 +130,20 @@ public final class Dependency {
   public static synchronized Dependency guessFallbackNoPom(
       Manifest manifest, String source, InputStream is) throws IOException {
     String artifactId;
+    String groupId = null;
     String version;
     String hash = null;
 
     // Guess from manifest
     String bundleSymbolicName = null;
     String implementationTitle = null;
+    String bundleName = null;
     String bundleVersion = null;
     String implementationVersion = null;
     if (manifest != null) {
       Attributes mainAttributes = manifest.getMainAttributes();
       bundleSymbolicName = mainAttributes.getValue("bundle-symbolicname");
+      bundleName = mainAttributes.getValue("bundle-name");
       bundleVersion = mainAttributes.getValue("bundle-version");
       implementationTitle = mainAttributes.getValue("implementation-title");
       implementationVersion = mainAttributes.getValue("implementation-version");
@@ -152,19 +156,34 @@ public final class Dependency {
     if (m.matches()) {
       fileNameArtifact = m.group(1);
       fileNameVersion = m.group(2);
+    } else {
+      // name without the version?
+      int idx = source.lastIndexOf('.');
+      if (idx > 0) {
+        String nameOnly = source.substring(0, idx); // name without the extension
+        if (isValidArtifactId(nameOnly)) {
+          fileNameArtifact = nameOnly;
+        }
+      }
     }
 
     // Find for the most suitable name (based on priority)
     if (isValidArtifactId(bundleSymbolicName)) {
       artifactId = bundleSymbolicName;
+    } else if (isValidArtifactId(bundleName)) {
+      artifactId = bundleName;
     } else if (isValidArtifactId(implementationVersion)) {
       artifactId = implementationTitle;
     } else if (fileNameArtifact != null) {
       artifactId = fileNameArtifact;
-    } else if (implementationVersion != null) {
-      artifactId = implementationVersion;
     } else {
       artifactId = bundleSymbolicName;
+    }
+
+    // Try to get groupId from bundleSymbolicName and bundleName
+    if (isValidGroupId(bundleSymbolicName) && isValidArtifactId(bundleName)) {
+      groupId = parseGroupId(bundleSymbolicName, artifactId);
+      artifactId = bundleName;
     }
 
     // Find version string only if any 2 variables are equal
@@ -201,7 +220,15 @@ public final class Dependency {
       }
     }
 
-    return new Dependency(artifactId, version, source, hash);
+    String name;
+    if (groupId != null) {
+      name = groupId + ":" + artifactId;
+    } else {
+      // no group resolved. use only artifactId
+      name = artifactId;
+    }
+
+    return new Dependency(name, version, source, hash);
   }
 
   /** Check is string is valid artifactId. Should be a non-capital single word. */
@@ -212,7 +239,30 @@ public final class Dependency {
         && !Character.isUpperCase(artifactId.charAt(0));
   }
 
+  /** Check is string is valid groupId. Should be a non-capital plural-word separated with dot. */
+  private static boolean isValidGroupId(String group) {
+    return group != null
+        && !group.contains(" ")
+        && group.contains(".")
+        && !Character.isUpperCase(group.charAt(0));
+  }
+
   private static boolean equalsNonNull(String s1, String s2) {
     return s1 != null && s1.equals(s2);
+  }
+
+  private static String parseGroupId(String bundleSymbolicName, String bundleName) {
+    // Usually bundleSymbolicName contains bundleName at the end. Check this
+
+    // Bundle name can contains dash, so normalize it
+    String normalizedBundleName = Strings.replace(bundleName, "-", ".");
+
+    String bundleNameWithPrefix = "." + normalizedBundleName;
+    if (bundleSymbolicName.endsWith(bundleNameWithPrefix)) {
+      int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
+      return bundleSymbolicName.substring(0, truncateLen);
+    }
+
+    return null;
   }
 }

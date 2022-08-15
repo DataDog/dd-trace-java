@@ -13,6 +13,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -240,30 +241,39 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   //  }
 
   private AgentSpan.Context.Extracted callIGCallbackStart(AgentSpan.Context.Extracted context) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    if (null != cbp) {
-      Supplier<Flow<Object>> startedCB = cbp.getCallback(EVENTS.requestStarted());
-      if (null != startedCB) {
-        Object requestContextData = startedCB.get().getResult();
-        if (null != requestContextData) {
-          TagContext tagContext = null;
-          if (context == null) {
-            tagContext = new TagContext();
-          } else if (context instanceof TagContext) {
-            tagContext = (TagContext) context;
-          }
-          if (null != tagContext) {
-            context = tagContext.withRequestContextData(requestContextData);
-          }
-        }
-      }
+    AgentTracer.TracerAPI tracer = tracer();
+    Supplier<Flow<Object>> startedCbAppSec =
+        tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
+    Supplier<Flow<Object>> startedCbIast =
+        tracer.getCallbackProvider(RequestContextSlot.IAST).getCallback(EVENTS.requestStarted());
+
+    if (startedCbAppSec == null && startedCbIast == null) {
+      return context;
     }
+
+    TagContext tagContext = null;
+    if (context == null) {
+      tagContext = new TagContext();
+    } else if (context instanceof TagContext) {
+      tagContext = (TagContext) context;
+    }
+
+    if (tagContext != null) {
+      if (startedCbAppSec != null) {
+        tagContext.withRequestContextDataAppSec(startedCbAppSec.get().getResult());
+      }
+      if (startedCbIast != null) {
+        tagContext.withRequestContextDataIast(startedCbIast.get().getResult());
+      }
+      return tagContext;
+    }
+
     return context;
   }
 
   private void callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext<Object> requestContext = span.getRequestContext();
+    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (requestContext == null || cbp == null || getter == null) {
       return;
@@ -280,12 +290,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext<Object> requestContext = span.getRequestContext();
+    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    RequestContext requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
       return;
     }
-    BiFunction<RequestContext<Object>, Integer, Flow<Void>> addrCallback =
+    BiFunction<RequestContext, Integer, Flow<Void>> addrCallback =
         cbp.getCallback(EVENTS.responseStarted());
     if (null != addrCallback) {
       addrCallback.apply(requestContext, status);
@@ -308,13 +318,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private void callIGCallbackURI(
       @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
     // TODO:appsec there must be some better way to do this?
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext<Object> requestContext = span.getRequestContext();
+    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+    RequestContext requestContext = span.getRequestContext();
     if (requestContext == null || cbp == null) {
       return;
     }
 
-    TriFunction<RequestContext<Object>, String, URIDataAdapter, Flow<Void>> callback =
+    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestMethodUriRaw());
     if (callback != null) {
       callback.apply(requestContext, method, url);
@@ -331,10 +341,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (span.getLocalRootSpan() != span) {
       return;
     }
-    CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext<Object> requestContext = span.getRequestContext();
+    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
+    RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
-      BiFunction<RequestContext<Object>, IGSpanInfo, Flow<Void>> callback =
+      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestEnded());
       if (callback != null) {
         callback.apply(requestContext, span);
@@ -344,13 +354,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private Flow<Void> callIGCallbackSocketAddress(
       @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
-    CallbackProvider cbp = tracer().instrumentationGateway();
+    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     if (cbp == null || (ip == null && port == UNSET_PORT)) {
       return Flow.ResultFlow.empty();
     }
-    RequestContext<Object> ctx = span.getRequestContext();
+    RequestContext ctx = span.getRequestContext();
     if (ctx != null) {
-      TriFunction<RequestContext<Object>, String, Integer, Flow<Void>> addrCallback =
+      TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
           cbp.getCallback(EVENTS.requestClientSocketAddress());
       if (null != addrCallback) {
         return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
@@ -363,23 +373,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
 
     private static IGKeyClassifier create(
-        RequestContext<Object> requestContext,
-        TriConsumer<RequestContext<Object>, String, String> headerCallback,
-        Function<RequestContext<Object>, Flow<Void>> doneCallback) {
+        RequestContext requestContext,
+        TriConsumer<RequestContext, String, String> headerCallback,
+        Function<RequestContext, Flow<Void>> doneCallback) {
       if (null == requestContext || null == headerCallback) {
         return null;
       }
       return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
     }
 
-    private final RequestContext<Object> requestContext;
-    private final TriConsumer<RequestContext<Object>, String, String> headerCallback;
-    private final Function<RequestContext<Object>, Flow<Void>> doneCallback;
+    private final RequestContext requestContext;
+    private final TriConsumer<RequestContext, String, String> headerCallback;
+    private final Function<RequestContext, Flow<Void>> doneCallback;
 
     private IGKeyClassifier(
-        RequestContext<Object> requestContext,
-        TriConsumer<RequestContext<Object>, String, String> headerCallback,
-        Function<RequestContext<Object>, Flow<Void>> doneCallback) {
+        RequestContext requestContext,
+        TriConsumer<RequestContext, String, String> headerCallback,
+        Function<RequestContext, Flow<Void>> doneCallback) {
       this.requestContext = requestContext;
       this.headerCallback = headerCallback;
       this.doneCallback = doneCallback;

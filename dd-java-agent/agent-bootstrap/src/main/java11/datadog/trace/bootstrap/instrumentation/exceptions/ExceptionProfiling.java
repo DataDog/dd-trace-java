@@ -8,7 +8,10 @@ import datadog.trace.api.Config;
  */
 public final class ExceptionProfiling {
 
-  private static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
+  /** Lazy initialization-on-demand. */
+  private static final class Holder {
+    static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
+  }
 
   /**
    * Get a pre-configured shared instance.
@@ -16,7 +19,7 @@ public final class ExceptionProfiling {
    * @return the shared instance
    */
   public static ExceptionProfiling getInstance() {
-    return ExceptionProfiling.INSTANCE;
+    return Holder.INSTANCE;
   }
 
   private final ExceptionHistogram histogram;

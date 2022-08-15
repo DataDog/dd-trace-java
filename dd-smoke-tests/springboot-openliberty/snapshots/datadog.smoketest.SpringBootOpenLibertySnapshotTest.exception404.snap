@@ -14,6 +14,7 @@
            "version" "99"
            "http.url" "http://localhost:57690/randomEndpoint"
            "http.hostname" "localhost"
+           "_dd.p.dm" "-1"
            "http.useragent" "okhttp/x.x.x"
            "http.client_ip" "127.0.0.1"
            "component" "liberty-server"

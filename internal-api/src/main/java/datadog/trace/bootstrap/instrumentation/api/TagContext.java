@@ -12,7 +12,8 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   private final String origin;
   private final Map<String, String> tags;
-  private Object requestContextData;
+  private Object requestContextDataAppSec;
+  private Object requestContextDataIast;
   private final HttpHeaders httpHeaders;
 
   public TagContext() {
@@ -162,12 +163,21 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
-  public final Object getRequestContextData() {
-    return requestContextData;
+  public final Object getRequestContextDataAppSec() {
+    return requestContextDataAppSec;
   }
 
-  public final TagContext withRequestContextData(Object requestContextData) {
-    this.requestContextData = requestContextData;
+  public final TagContext withRequestContextDataAppSec(Object requestContextData) {
+    this.requestContextDataAppSec = requestContextData;
+    return this;
+  }
+
+  public final Object getRequestContextDataIast() {
+    return requestContextDataIast;
+  }
+
+  public final TagContext withRequestContextDataIast(Object requestContextData) {
+    this.requestContextDataIast = requestContextData;
     return this;
   }
 

@@ -35,7 +35,6 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       samplingPriority,
-      samplingMechanism,
       "fakeOrigin",
       ["k1": "v1", "k2": "v2"],
       false,
@@ -43,8 +42,10 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
 
     final Map<String, String> carrier = Mock()
 
@@ -96,7 +97,6 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       UNSET,
-      UNKNOWN,
       "fakeOrigin",
       ["k1": "v1", "k2": "v2"],
       false,
@@ -104,8 +104,10 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      DatadogTags.factory().empty())
     final Map<String, String> carrier = Mock()
 
     when:

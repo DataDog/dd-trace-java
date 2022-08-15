@@ -9,7 +9,6 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 
@@ -22,6 +21,7 @@ import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.propagation.DatadogTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -134,17 +134,18 @@ class DDAgentApiTest extends DDCoreSpecification {
     // Populate thread info dynamically as it is different when run via gradle vs idea.
     where:
     // spotless:off
-    traces                                              | expectedRequestBody
-    []                                                  | []
-    [[buildSpan(1L, "service.name", "my-service")]]     | [[new TreeMap<>([
+    traces                                                                                                           | expectedRequestBody
+    []                                                                                                               | []
+    // service propagation enabled
+    [[buildSpan(1L, "service.name", "my-service", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]]          | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName()],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
         (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
-        "thread.id": Thread.currentThread().id
+        "thread.id"                                 : Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -155,15 +156,16 @@ class DDAgentApiTest extends DDCoreSpecification {
       "trace_id" : 1,
       "type"     : "fakeType"
     ])]]
-    [[buildSpan(100L, "resource.name", "my-resource")]] | [[new TreeMap<>([
+    // service propagation disabled
+    [[buildSpan(100L, "resource.name", "my-resource", DatadogTags.factory().fromHeaderValue("_dd.p.usr=123"))]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName()],
+      "meta"     : ["thread.name": Thread.currentThread().getName(), "_dd.p.usr": "123", "_dd.p.dm": "-1"],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
         (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
-        "thread.id": Thread.currentThread().id
+        "thread.id"                                 : Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -420,9 +422,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 
-  DDSpan buildSpan(long timestamp, String tag, String value) {
+  DDSpan buildSpan(long timestamp, String tag, String value, DatadogTags datadogTags) {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-
     def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
@@ -432,7 +433,6 @@ class DDAgentApiTest extends DDCoreSpecification {
       "fakeOperation",
       "fakeResource",
       PrioritySampling.UNSET,
-      SamplingMechanism.UNKNOWN,
       null,
       [:],
       false,
@@ -440,8 +440,10 @@ class DDAgentApiTest extends DDCoreSpecification {
       0,
       tracer.pendingTraceFactory.create(DDId.from(1)),
       null,
+      null,
       NoopPathwayContext.INSTANCE,
-      false)
+      false,
+      datadogTags)
 
     def span = DDSpan.create(timestamp, context)
     span.setTag(tag, value)

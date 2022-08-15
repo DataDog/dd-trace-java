@@ -41,6 +41,7 @@ compileMain_java11Java.configure {
 
 dependencies {
   main_java11CompileOnly project(':internal-api:internal-api-8')
+  main_java11CompileOnly sourceSets.main.output
 }
 
 jar {

@@ -55,16 +55,20 @@ public class JUnit5Decorator extends TestDecorator {
         .getThrowable()
         .ifPresent(
             throwable -> {
-              // If the test assumption fails, one of the following exceptions will be thrown.
-              // The consensus is to treat "assumptions failure" as skipped tests.
-              if (throwable.getClass().getName().equals("org.opentest4j.TestAbortedException")
-                  || throwable.getClass().getName().equals("org.opentest4j.TestSkippedException")) {
-                span.setTag(Tags.TEST_STATUS, TEST_SKIP);
-                span.setTag(Tags.TEST_SKIP_REASON, throwable.getMessage());
-              } else {
-                span.setError(true);
-                span.addThrowable(throwable);
-                span.setTag(Tags.TEST_STATUS, TEST_FAIL);
+              switch (throwable.getClass().getName()) {
+                case "org.junit.AssumptionViolatedException":
+                case "org.junit.internal.AssumptionViolatedException":
+                case "org.opentest4j.TestAbortedException":
+                case "org.opentest4j.TestSkippedException":
+                  // If the test assumption fails, one of the following exceptions will be thrown.
+                  // The consensus is to treat "assumptions failure" as skipped tests.
+                  span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+                  span.setTag(Tags.TEST_SKIP_REASON, throwable.getMessage());
+                  break;
+                default:
+                  span.setError(true);
+                  span.addThrowable(throwable);
+                  span.setTag(Tags.TEST_STATUS, TEST_FAIL);
               }
             });
   }

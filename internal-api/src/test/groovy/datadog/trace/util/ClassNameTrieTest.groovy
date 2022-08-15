@@ -178,4 +178,27 @@ class ClassNameTrieTest extends DDSpecification {
       assert trie.apply(it.key) == (0x1000 | it.value)
     })
   }
+
+  def 'trie content can be exported and re-imported'() {
+    setup:
+    def mapping = (0..128).collectEntries({
+      [UUID.randomUUID().toString().replace('-', '.'), it]
+    }) as TreeMap<String, Integer>
+    when:
+    def exporter = new ClassNameTrie.Builder()
+    // initial values
+    mapping.each { className, number ->
+      exporter.put(className, number)
+    }
+    // export
+    def sink = new ByteArrayOutputStream()
+    exporter.writeTo(new DataOutputStream(sink))
+    // re-import
+    def source = new ByteArrayInputStream(sink.toByteArray())
+    def importer = ClassNameTrie.readFrom(new DataInputStream(source))
+    then:
+    mapping.each({
+      assert importer.apply(it.key) == it.value
+    })
+  }
 }

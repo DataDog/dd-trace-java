@@ -26,6 +26,7 @@ class DatadogHttpCodec {
   private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
   private static final String ORIGIN_KEY = "x-datadog-origin";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
+  private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -56,16 +57,27 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
+
+      // inject x-datadog-tags
+      String datadogTags = context.getDatadogTags().headerValue();
+      if (datadogTags != null) {
+        setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
+      }
     }
   }
 
   public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+    return newExtractor(tagMapping, Config.get());
+  }
+
+  public static HttpCodec.Extractor newExtractor(
+      final Map<String, String> tagMapping, final Config config) {
     return new TagContextExtractor(
         tagMapping,
         new ContextInterpreter.Factory() {
           @Override
           protected ContextInterpreter construct(Map<String, String> mapping) {
-            return new DatadogContextInterpreter(mapping);
+            return new DatadogContextInterpreter(mapping, config);
           }
         });
   }
@@ -79,10 +91,16 @@ class DatadogHttpCodec {
     private static final int TAGS = 4;
     private static final int OT_BAGGAGE = 5;
     private static final int E2E_START = 6;
+    private static final int DD_TAGS = 7;
     private static final int IGNORE = -1;
 
-    private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
+    private final boolean isAwsPropagationEnabled;
+    private final DatadogTags.Factory datadogTagsFactory;
+
+    private DatadogContextInterpreter(Map<String, String> taggedHeaders, Config config) {
       super(taggedHeaders);
+      isAwsPropagationEnabled = config.isAwsPropagationEnabled();
+      datadogTagsFactory = DatadogTags.factory(config);
     }
 
     @Override
@@ -106,12 +124,13 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
-          } else if (Config.get().isAwsPropagationEnabled()
-              && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
+          } else if (isAwsPropagationEnabled && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
             return true;
           } else if (handledXForwarding(key, value)) {
             return true;
+          } else if (DATADOG_TAGS_KEY.equalsIgnoreCase(key)) {
+            classification = DD_TAGS;
           }
           break;
         case 'f':
@@ -164,6 +183,9 @@ class DatadogHttpCodec {
                 break;
               case E2E_START:
                 endToEndStartTime = extractEndToEndStartTime(firstValue);
+                break;
+              case DD_TAGS:
+                datadogTags = datadogTagsFactory.fromHeaderValue(value);
                 break;
               case TAGS:
                 {

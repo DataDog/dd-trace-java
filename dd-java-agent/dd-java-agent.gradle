@@ -85,6 +85,7 @@ includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
+includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
@@ -122,6 +123,24 @@ shadowJar generalShadowJarConfig >> {
   }
 }
 
+tasks.register('generateAgentJarIndex', JavaExec) {
+  def contentDir = "${sourceSets.main.output.resourcesDir}"
+  def indexFile = "${contentDir}/dd-java-agent.index"
+
+  it.group = 'Build'
+  it.description = "Generate dd-java-agent.index"
+  it.inputs.files(contentDir)
+  it.outputs.files(indexFile)
+  it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
+  it.classpath = project.configurations.shadowInclude
+  it.args = [contentDir]
+
+  dependsOn 'processResources'
+  dependsOn 'writeVersionNumberFile'
+}
+
+compileJava.dependsOn 'generateAgentJarIndex'
+
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
@@ -152,9 +171,13 @@ dependencies {
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
+  shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
+  // force a controlled version of ASM that is used by Debugger while pulled transitively by jnr
+  sharedShadowInclude deps.asm
+  sharedShadowInclude deps.asmcommons
   sharedShadowInclude project(':communication'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects

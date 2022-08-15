@@ -1,16 +1,10 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.bootstrap.DatadogClassLoader;
-import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
+import datadog.trace.bootstrap.BootstrapProxy;
 import java.lang.instrument.Instrumentation;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Utils {
-
-  private static final ClassLoader bootstrapProxy =
-      getAgentClassLoader() instanceof DatadogClassLoader
-          ? ((DatadogClassLoader) getAgentClassLoader()).getBootstrapProxy()
-          : new BootstrapClassLoaderProxy(); // only used during unit tests
 
   /** Return the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
@@ -19,7 +13,7 @@ public class Utils {
 
   /** Return a classloader which can be used to look up bootstrap resources. */
   public static ClassLoader getBootstrapProxy() {
-    return bootstrapProxy;
+    return BootstrapProxy.INSTANCE;
   }
 
   private static final AtomicReference<Instrumentation> instrumentationRef =

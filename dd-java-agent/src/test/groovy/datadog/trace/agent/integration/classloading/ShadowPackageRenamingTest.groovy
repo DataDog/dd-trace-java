@@ -25,8 +25,8 @@ class ShadowPackageRenamingTest extends Specification {
       ddClass.getProtectionDomain().getCodeSource().getLocation()
 
     expect:
-    agentSource.getFile() == "/"
-    agentSource.getProtocol() == "x-internal-jar"
+    agentSource.getFile() =~ ".*/dd-java-agent/build/libs/dd-java-agent-.*.jar"
+    agentSource.getProtocol() == "file"
     agentSource == agentOkioDep
     agentSource.getFile() != userOkio.getFile()
   }
