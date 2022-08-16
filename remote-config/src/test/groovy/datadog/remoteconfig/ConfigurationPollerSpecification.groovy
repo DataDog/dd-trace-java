@@ -258,6 +258,65 @@ class ConfigurationPollerSpecification extends DDSpecification {
     }
   }
 
+  void 'does not update targets version number if there is an error'() {
+    when:
+    poller.addListener(Product.ASM_DD,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      { Object[] args -> true } as ConfigurationChangesListener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { call }
+    1 * call.execute() >> {
+      SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+        def targetDecoded = Base64.decoder.decode(it['targets'])
+        Map target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+        target['signed']['targets'].remove('employee/ASM_DD/1.recommended.json/config')
+        target['signed']['version'] = 42
+        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        buildOKResponse(JsonOutput.toJson(it))
+      }
+    }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    0 * _._
+
+    then:
+    def body = parseBody(request.body())
+    with(body) {
+      cached_target_files == null // previous hash should be cleared too
+      with(client['state']) {
+        backend_client_state == 'foobar'
+        config_states == []
+        has_error == true
+        error == 'Told to apply config for employee/ASM_DD/1.recommended.json/config but no corresponding entry ' +
+          'exists in targets.targets_signed.targets'
+        root_version == 1
+        targets_version == 23337393
+      }
+    }
+  }
+
   void 'applies configuration only if the hash has changed'() {
     ConfigurationChangesListener listener = Mock()
 

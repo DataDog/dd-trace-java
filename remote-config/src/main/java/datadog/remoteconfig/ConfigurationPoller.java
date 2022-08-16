@@ -275,6 +275,13 @@ public class ConfigurationPoller
     String errorMessage = null;
     this.durationHint = null;
     for (String configKey : configsToApply) {
+      // The spec specifies that everything should stop once there is a problem
+      // applying one of the configurations. This would make the configurations
+      // be applied or not depending solely on the (unspecified) iteration order, with
+      // unpredictable results. We continue trying to process configurations after
+      // we encounter an error. This is (arguably) in spec, as it corresponds
+      // to a situation where the (unspecified) iteration order where the error
+      // triggering config keys would be processed at the end.
       try {
         boolean res = processConfigKey(fleetResponse, configKey, inspectedConfigurationKeys, this);
         if (res) {
@@ -352,6 +359,12 @@ public class ConfigurationPoller
     // check if the hash of this configuration file actually changed
     CachedTargetFile cachedTargetFile = this.cachedTargetFiles.get(configKey);
     RemoteConfigResponse.Targets.ConfigTarget target = fleetResponse.getTarget(configKey);
+    if (target == null) {
+      throw new ReportableException(
+          "Told to apply config for "
+              + configKey
+              + " but no corresponding entry exists in targets.targets_signed.targets");
+    }
     if (cachedTargetFile != null && cachedTargetFile.hashesMatch(target.hashes)) {
       log.debug("No change in configuration for key {}", configKey);
       inspectedConfigurationKeys.add(configKey);
@@ -391,50 +404,79 @@ public class ConfigurationPoller
   /**
    * @param fleetResponse the response the agent sent
    * @param inspectedConfigKeys the configurations that were applied to the tracer either a) in this
-   *     iteration or b) after a previous request, and the configuration has not changed. The spec
-   *     is unclear about what happens to config_states if there is an error early enough that no
-   *     configurations are even available. The option taken is to empty config_states (but not
-   *     cached_target_files).
+   *     iteration or b) in a previous request, and the configuration has not changed. If there is
+   *     an error that resulted in no config keys even be inspected then the config states and
+   *     cached files are emptied.
    * @param errorMessage a procedural error that occurred during the update; it does not include
-   *     errors during registered deserializers and config listeners.
+   *     errors during registered deserializers and config listeners. If there is an error, the
+   *     targets_version in client.state is not updated (but the rest is).
    */
   private void updateNextState(
       RemoteConfigResponse fleetResponse, List<String> inspectedConfigKeys, String errorMessage) {
     RemoteConfigResponse.Targets.TargetsSigned targetsSigned = fleetResponse.getTargetsSigned();
     List<ConfigState> configStates = this.nextClientState.configStates;
 
-    // have the same number of ConfigState objects as inspected configurations
-    int numConfigStates = configStates.size();
     int numInspectedConfigs = inspectedConfigKeys.size();
-    // add extra ones
-    for (int i = numConfigStates; i < numInspectedConfigs; i++) {
-      configStates.add(new ConfigState());
-    }
-    // or remove excess ones
-    for (int i = numInspectedConfigs; i < numConfigStates; i++) {
-      configStates.remove(configStates.size() - 1);
+
+    if (targetsSigned == null || targetsSigned.targets == null) {
+      ratelimitedLogger.warn("No targets in response; can't properly " + "set config_states");
+      numInspectedConfigs = 0;
     }
 
+    // Do config_states
+    int csi = 0; // config_states index
     for (int i = 0; i < numInspectedConfigs; i++) {
       String configKey = inspectedConfigKeys.get(i);
       RemoteConfigResponse.Targets.ConfigTarget target = targetsSigned.targets.get(configKey);
+
+      if (target == null || target.custom == null) {
+        ratelimitedLogger.warn(
+            "Target for {} does not exist or does not define 'custom' field", configKey);
+        continue;
+      }
       long version = target.custom.version;
 
-      ConfigState configState = configStates.get(i);
+      ConfigState configState;
+      if (csi >= configStates.size()) {
+        configState = new ConfigState();
+        configStates.add(configState);
+      } else {
+        // recycle objects if possible
+        configState = configStates.get(csi);
+      }
+      csi++;
+
       configState.setState(configKey, version, extractProductFromKey(configKey));
     }
+    // remove excess configStates
+    int numConfigStates = configStates.size();
+    for (int i = csi; i < numConfigStates; i++) {
+      configStates.remove(configStates.size() - 1);
+    }
 
-    long targetsVersion = targetsSigned.version;
+    long newTargetsVersion = targetsSigned.version;
     this.nextClientState.setState(
-        targetsVersion,
+        // if there was an error, we did not apply the configurations fully
+        // the system tests expect here the targets version not to be updated
+        errorMessage == null ? newTargetsVersion : this.nextClientState.targetsVersion,
         configStates,
         errorMessage,
         targetsSigned.custom != null ? targetsSigned.custom.opaqueBackendState : null);
 
-    // update cachedTargetFiles too
+    // Do cached_target_files
     for (String configKey : inspectedConfigKeys) {
       CachedTargetFile curCTF = this.cachedTargetFiles.get(configKey);
       RemoteConfigResponse.Targets.ConfigTarget target = targetsSigned.targets.get(configKey);
+      if (target == null) {
+        // we already issued a warning in the previous loop
+        this.cachedTargetFiles.remove(configKey);
+        continue;
+      }
+      if (target.hashes == null) {
+        ratelimitedLogger.warn("No hashes for config key {}", configKey);
+        this.cachedTargetFiles.remove(configKey);
+        continue;
+      }
 
       if (curCTF != null) {
         if (curCTF.length != target.length || !curCTF.hashesMatch(target.hashes)) {
@@ -447,8 +489,8 @@ public class ConfigurationPoller
         this.cachedTargetFiles.put(configKey, newCTF);
       }
     }
-    // remove cachedTargetFiles for the pulled configurations
 
+    // remove cachedTargetFiles for the pulled configurations
     Iterator<String> cachedConfigKeysIter = this.cachedTargetFiles.keySet().iterator();
     while (cachedConfigKeysIter.hasNext()) {
       String configKey = cachedConfigKeysIter.next();
