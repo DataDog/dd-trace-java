@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    group = "org.apache.dubbo"
+    module = "dubbo"
+    versions = "[2.7.15,3)"
+//    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+dependencies {
+  compileOnly(group: 'org.apache.dubbo', name: 'dubbo', version: '2.7.15')
+}
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
