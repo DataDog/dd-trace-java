@@ -10,12 +10,14 @@ import org.junit.jupiter.api.Test;
 
 class IntervalEncoderTest {
   private Instant now;
+  private long nowNanos;
   private IntervalEncoder instance;
 
   @BeforeEach
   void setup() {
     now = Instant.now();
-    instance = new IntervalEncoder(now.toEpochMilli(), 1000, 2, 32);
+    nowNanos = now.getEpochSecond() * 1_000_000_000L + now.getNano();
+    instance = new IntervalEncoder(nowNanos, 1000, 2, 32);
   }
 
   @Test
@@ -47,7 +49,7 @@ class IntervalEncoderTest {
     instance.startThread(1);
     assertThrows(IllegalStateException.class, () -> instance.startThread(2));
 
-    IntervalEncoder instance1 = new IntervalEncoder(System.currentTimeMillis(), 1000, 1, 100);
+    IntervalEncoder instance1 = new IntervalEncoder(nowNanos, 1000, 1, 100);
     instance1.startThread(1);
     assertThrows(IllegalStateException.class, () -> instance1.startThread(2));
   }
@@ -63,7 +65,7 @@ class IntervalEncoderTest {
 
     List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(data.array());
     IntervalParser.Interval i1 = intervals.get(0);
-    assertEquals(now.toEpochMilli() * 1_000_000L + 200, i1.from);
+    assertEquals(nowNanos + 200, i1.from);
   }
 
   @Test
@@ -77,7 +79,7 @@ class IntervalEncoderTest {
 
     List<IntervalParser.Interval> intervals = new IntervalParser().parseIntervals(data.array());
     IntervalParser.Interval i1 = intervals.get(0);
-    assertEquals(now.toEpochMilli() * 1_000_000L + 200, i1.from);
+    assertEquals(nowNanos + 200, i1.from);
   }
 
   @Test

@@ -1,8 +1,8 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.sink.DebuggerSinkTest.SINK_FIXTURE_PREFIX;
 import static utils.TestHelper.getFixtureContent;
 
-import com.datadog.debugger.sink.DebuggerSinkTest;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -22,12 +22,9 @@ import org.junit.jupiter.api.condition.JRE;
 public class SnapshotSerializationTest {
 
   private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
-
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation(
           "java.lang.String", "indexOf", "String.java", Arrays.asList("12-15", "23"));
-  private static final String FIXTURE_PREFIX =
-      "/" + DebuggerSinkTest.class.getPackage().getName().replaceAll("\\.", "/");
 
   @BeforeEach
   public void setup() {
@@ -68,7 +65,8 @@ public class SnapshotSerializationTest {
         new Snapshot.CapturedValue[] {normalValuedField, normalNullField, notCapturedField});
     captures.setReturn(context);
     String buffer = adapter.toJson(snapshot);
-    String snapshotRegex = getFixtureContent(FIXTURE_PREFIX + "/snapshotCapturedValueRegex.txt");
+    String snapshotRegex =
+        getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotCapturedValueRegex.txt");
     snapshotRegex = snapshotRegex.replaceAll("\\n", "");
     Assert.assertTrue(buffer, buffer.matches(snapshotRegex));
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);

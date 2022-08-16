@@ -9,8 +9,11 @@ ext {
     "com.datadog.profiling.context.PositionDecoder.*",
     "com.datadog.profiling.context.JfrTimestampPatch",
     // jacoco does not allow per-method excludes so, here we go
-    "com.datadog.profiling.context.ProfilerTracingContextTrackerFactory*",
-    "com.datadog.profiling.context.ProfilerTracingContextTracker.TimeTicksProvider*",
+    "com.datadog.profiling.context.AsyncProfilerTracingContextTracker",
+    "com.datadog.profiling.context.AsyncProfilerTracingContextTracker.Context",
+    "com.datadog.profiling.context.AsyncProfilerTracingContextTrackerFactory",
+    "com.datadog.profiling.context.PerSpanTracingContextTrackerFactory*",
+    "com.datadog.profiling.context.PerSpanTracingContextTracker.TimeTicksProvider*",
     "com.datadog.profiling.context.StatsDAccessor"
   ]
 }
@@ -23,6 +26,9 @@ sourceSets {
 
 dependencies {
   api project(':internal-api')
+  implementation project(path: ':dd-java-agent:agent-profiling:profiling-async', configuration: 'shadow')
+  implementation project(':dd-java-agent:agent-profiling:profiling-controller')
+  implementation project(':dd-java-agent:agent-profiling:profiling-utils')
 
   implementation deps.slf4j
   main_java11CompileOnly deps.slf4j

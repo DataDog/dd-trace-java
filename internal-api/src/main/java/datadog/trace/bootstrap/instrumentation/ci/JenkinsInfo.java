@@ -22,6 +22,7 @@ class JenkinsInfo extends CIProviderInfo {
   public static final String JENKINS_GIT_REPOSITORY_URL_ALT = "GIT_URL_1";
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
+  public static final String JENKINS_DD_CUSTOM_TRACE_ID = "DD_CUSTOM_TRACE_ID";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -43,6 +44,7 @@ class JenkinsInfo extends CIProviderInfo {
         .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
         .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+        .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
         .build();
   }
 

@@ -3,6 +3,8 @@ plugins {
 }
 
 ext {
+  // need access to sun.misc.SharedSecrets
+  skipSettingCompilerRelease = true
   enableJunitPlatform = true
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
@@ -12,9 +14,20 @@ apply from: "$rootDir/gradle/java.gradle"
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
-minimumBranchCoverage = 0.8
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it).configureEach {
+    setJavaVersion(it, 8)
+  }
+}
 
-excludedClassesCoverage += ["datadog.trace.api.sampling.ConstantSampler",]
+minimumBranchCoverage = 0.8
+minimumInstructionCoverage = 0.8
+
+excludedClassesCoverage += ["datadog.trace.api.sampling.ConstantSampler"]
+
+excludedClassesBranchCoverage = ['datadog.trace.util.stacktrace.HotSpotStackWalker']
+
+excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
 
 dependencies {
   api project(':internal-api')

@@ -42,20 +42,26 @@ class LEB128SupportTest {
       size = instance.varintSize(value);
       buffer.rewind();
       instance.putVarint(buffer, value);
-      assertEquals(i, size);
       assertEquals(buffer.position(), size);
+      assertEquals(i, size);
 
       if (i == 9) {
         value = value << 1;
         size = instance.varintSize(value);
         buffer.rewind();
         instance.putVarint(buffer, value);
-        assertEquals(i, size);
         assertEquals(buffer.position(), size);
+        assertEquals(i, size);
       } else {
         value = value << 7;
       }
     }
+
+    value = 8738041250962L;
+    size = instance.varintSize(value);
+    buffer.rewind();
+    instance.putVarint(buffer, value);
+    assertEquals(buffer.position(), size);
   }
 
   @Test

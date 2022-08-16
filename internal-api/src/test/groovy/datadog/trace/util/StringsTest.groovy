@@ -5,13 +5,42 @@ import datadog.trace.test.util.DDSpecification
 class StringsTest extends DDSpecification {
 
   def "test resource name from class"() {
-    expect:
-    "foo/bar/Class.class" == Strings.getResourceName("foo.bar.Class")
+    when:
+    String s = Strings.getResourceName(className)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    className       | expected
+    "foo.bar.Class" | "foo/bar/Class.class"
+    "Class"         | "Class.class"
+    // spotless:on
   }
 
   def "test class name from resource"() {
-    expect:
-    "foo.bar.Class" == Strings.getClassName("foo/bar/Class.class")
+    when:
+    String s = Strings.getClassName(resourceName)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    resourceName          | expected
+    "foo/bar/Class.class" | "foo.bar.Class"
+    "Class.class"         | "Class"
+    // spotless:on
+  }
+
+  def "test package name from class"() {
+    when:
+    String s = Strings.getPackageName(className)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    className       | expected
+    "foo.bar.Class" | "foo.bar"
+    "Class"         | ""
+    // spotless:on
   }
 
   def "test envvar from property"() {
@@ -126,5 +155,21 @@ class StringsTest extends DDSpecification {
     "hi" | 4 | "hi"
     "hélló" |5| "hélló"
     "hélló wórld" |5|"hélló"
+  }
+
+  def "test toJson"() {
+    when:
+    String json = Strings.toJson(input)
+
+    then:
+    json == expected
+
+    where:
+    input|expected
+    null|"{}"
+    new HashMap<>()|"{}"
+    ['key1':'value1'] |"{\"key1\":\"value1\"}"
+    ['key1':'value1', 'key2':'value2'] |"{\"key1\":\"value1\",\"key2\":\"value2\"}"
+    ['key1':'va"lu"e1', 'ke"y2':'value2'] |"{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}"
   }
 }

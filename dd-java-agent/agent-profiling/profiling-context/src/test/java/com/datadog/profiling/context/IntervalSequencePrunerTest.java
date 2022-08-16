@@ -22,8 +22,8 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneStartStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long stop = ProfilerTracingContextTracker.maskDeactivation(200, false);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(200, false);
     ls.add(start);
     ls.add(stop);
 
@@ -40,8 +40,8 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(200, true);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(200, true);
     ls.add(start);
     ls.add(maybeStop);
 
@@ -58,9 +58,9 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStopWithStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(200, true);
-    long stop = ProfilerTracingContextTracker.maskDeactivation(300, false);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(200, true);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(300, false);
 
     ls.add(start);
     ls.add(maybeStop);
@@ -79,10 +79,10 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStopWithRestartAndStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(200, true);
-    long restart = ProfilerTracingContextTracker.maskActivation(300);
-    long stop = ProfilerTracingContextTracker.maskDeactivation(400, false);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(200, true);
+    long restart = PerSpanTracingContextTracker.maskActivation(300);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(400, false);
 
     ls.add(start);
     ls.add(maybeStop);
@@ -102,9 +102,9 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStopWithRestartDangling() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(200, true);
-    long restart = ProfilerTracingContextTracker.maskActivation(300);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(200, true);
+    long restart = PerSpanTracingContextTracker.maskActivation(300);
 
     ls.add(start);
     ls.add(maybeStop);
@@ -120,16 +120,16 @@ public class IntervalSequencePrunerTest {
     assertFalse(iterator.hasNext());
     // the deactivation at 'finishTs' is added by the pruning not to have a dangling start
     assertEquals(
-        Arrays.asList(start, ProfilerTracingContextTracker.maskDeactivation(finishTs, false)),
+        Arrays.asList(start, PerSpanTracingContextTracker.maskDeactivation(finishTs, false)),
         values);
   }
 
   @Test
   void testPruneMaybeStopAfterStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long stop = ProfilerTracingContextTracker.maskDeactivation(200, false);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(300, true);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(200, false);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(300, true);
 
     ls.add(start);
     ls.add(stop);
@@ -148,12 +148,12 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneStartAfterMultiStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long stop1 = ProfilerTracingContextTracker.maskDeactivation(200, false);
-    long stop2 = ProfilerTracingContextTracker.maskDeactivation(300, false);
-    long stop3 = ProfilerTracingContextTracker.maskDeactivation(400, false);
-    long start1 = ProfilerTracingContextTracker.maskActivation(500);
-    long stop4 = ProfilerTracingContextTracker.maskDeactivation(600, false);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long stop1 = PerSpanTracingContextTracker.maskDeactivation(200, false);
+    long stop2 = PerSpanTracingContextTracker.maskDeactivation(300, false);
+    long stop3 = PerSpanTracingContextTracker.maskDeactivation(400, false);
+    long start1 = PerSpanTracingContextTracker.maskActivation(500);
+    long stop4 = PerSpanTracingContextTracker.maskDeactivation(600, false);
 
     ls.add(start);
     ls.add(stop1);
@@ -175,11 +175,11 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStopAfterStopMulti() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long stop = ProfilerTracingContextTracker.maskDeactivation(200, false);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(300, true);
-    long stop1 = ProfilerTracingContextTracker.maskDeactivation(400, false);
-    long stop2 = ProfilerTracingContextTracker.maskDeactivation(500, false);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(200, false);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(300, true);
+    long stop1 = PerSpanTracingContextTracker.maskDeactivation(400, false);
+    long stop2 = PerSpanTracingContextTracker.maskDeactivation(500, false);
 
     ls.add(start);
     ls.add(stop);
@@ -200,9 +200,9 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMultiStartStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long start1 = ProfilerTracingContextTracker.maskActivation(200);
-    long stop = ProfilerTracingContextTracker.maskDeactivation(300, false);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long start1 = PerSpanTracingContextTracker.maskActivation(200);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(300, false);
 
     ls.add(start);
     ls.add(start1);
@@ -221,10 +221,10 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStopMulti() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(200, true);
-    long maybeStop2 = ProfilerTracingContextTracker.maskDeactivation(300, true);
-    long maybeStop3 = ProfilerTracingContextTracker.maskDeactivation(400, true);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(200, true);
+    long maybeStop2 = PerSpanTracingContextTracker.maskDeactivation(300, true);
+    long maybeStop3 = PerSpanTracingContextTracker.maskDeactivation(400, true);
 
     ls.add(start);
     ls.add(maybeStop);
@@ -244,7 +244,7 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneStopWithNoStart() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long stop = ProfilerTracingContextTracker.maskDeactivation(100, false);
+    long stop = PerSpanTracingContextTracker.maskDeactivation(100, false);
 
     ls.add(stop);
 
@@ -255,7 +255,7 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneMaybeStopWithNoStart() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long maybeStop = ProfilerTracingContextTracker.maskDeactivation(100, true);
+    long maybeStop = PerSpanTracingContextTracker.maskDeactivation(100, true);
 
     ls.add(maybeStop);
 
@@ -266,7 +266,7 @@ public class IntervalSequencePrunerTest {
   @Test
   void testPruneStartWithNoStop() {
     LongSequence ls = new LongSequence(Allocators.heapAllocator(1024, 32));
-    long start = ProfilerTracingContextTracker.maskActivation(100);
+    long start = PerSpanTracingContextTracker.maskActivation(100);
     long stopTs = 200;
 
     ls.add(start);
@@ -280,7 +280,6 @@ public class IntervalSequencePrunerTest {
 
     assertFalse(iterator.hasNext());
     assertEquals(
-        Arrays.asList(start, ProfilerTracingContextTracker.maskDeactivation(stopTs, false)),
-        values);
+        Arrays.asList(start, PerSpanTracingContextTracker.maskDeactivation(stopTs, false)), values);
   }
 }

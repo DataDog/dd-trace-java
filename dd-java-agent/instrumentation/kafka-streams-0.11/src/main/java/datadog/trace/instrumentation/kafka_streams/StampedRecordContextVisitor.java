@@ -10,7 +10,9 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StampedRecordContextVisitor implements AgentPropagation.ContextVisitor<StampedRecord> {
+public class StampedRecordContextVisitor
+    implements AgentPropagation.ContextVisitor<StampedRecord>,
+        AgentPropagation.BinaryContextVisitor<StampedRecord> {
 
   private static final Logger log = LoggerFactory.getLogger(StampedRecordContextVisitor.class);
 
@@ -23,6 +25,19 @@ public class StampedRecordContextVisitor implements AgentPropagation.ContextVisi
       byte[] value = header.value();
       if (null != value) {
         if (!classifier.accept(key, new String(header.value(), StandardCharsets.UTF_8))) {
+          return;
+        }
+      }
+    }
+  }
+
+  @Override
+  public void forEachKey(StampedRecord carrier, AgentPropagation.BinaryKeyClassifier classifier) {
+    for (Header header : carrier.value.headers()) {
+      String key = header.key();
+      byte[] value = header.value();
+      if (null != value) {
+        if (!classifier.accept(key, value)) {
           return;
         }
       }

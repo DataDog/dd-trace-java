@@ -11,6 +11,7 @@ class CircleCIInfo extends CIProviderInfo {
   public static final String CIRCLECI_PIPELINE_ID = "CIRCLE_WORKFLOW_ID";
   public static final String CIRCLECI_PIPELINE_NAME = "CIRCLE_PROJECT_REPONAME";
   public static final String CIRCLECI_BUILD_URL = "CIRCLE_BUILD_URL";
+  public static final String CIRCLECI_BUILD_NUM = "CIRCLE_BUILD_NUM";
   public static final String CIRCLECI_WORKSPACE_PATH = "CIRCLE_WORKING_DIRECTORY";
   public static final String CIRCLECI_GIT_REPOSITORY_URL = "CIRCLE_REPOSITORY_URL";
   public static final String CIRCLECI_GIT_COMMIT = "CIRCLE_SHA1";
@@ -39,6 +40,7 @@ class CircleCIInfo extends CIProviderInfo {
         .ciJobName(System.getenv(CIRCLECI_JOB_NAME))
         .ciJobUrl(System.getenv(CIRCLECI_BUILD_URL))
         .ciWorkspace(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
+        .ciEnvVars(CIRCLECI_PIPELINE_ID, CIRCLECI_BUILD_NUM)
         .build();
   }
 

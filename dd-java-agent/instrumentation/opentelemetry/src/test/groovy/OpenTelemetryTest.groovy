@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
+import datadog.trace.core.propagation.DatadogTags
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 import datadog.trace.context.TraceScope
@@ -134,11 +135,11 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(parentId), SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
       builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, DEFAULT, null, 0, [:], [:])
+      def ctx = new ExtractedContext(DDId.ONE, DDId.from(linkId), SAMPLER_DROP, null, 0, [:], [:], null, DatadogTags.factory().empty())
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()
@@ -269,11 +270,15 @@ class OpenTelemetryTest extends AgentTestRunner {
     httpPropagator.inject(context, textMap, new TextMapSetter())
 
     then:
-    textMap == [
+    def expectedTextMap = [
       "x-datadog-trace-id"         : "$span.delegate.traceId",
       "x-datadog-parent-id"        : "$span.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
     ]
+    if (propagatedMechanism != UNKNOWN) {
+      expectedTextMap.put("x-datadog-tags", "_dd.p.dm=-" + propagatedMechanism)
+    }
+    textMap == expectedTextMap
 
     when:
     def extractedContext = httpPropagator.extract(context, textMap, new TextMapGetter())
@@ -288,12 +293,12 @@ class OpenTelemetryTest extends AgentTestRunner {
     span.end()
 
     where:
-    contextPriority | propagatedPriority
-    SAMPLER_DROP    | SAMPLER_DROP
-    SAMPLER_KEEP    | SAMPLER_KEEP
-    UNSET           | SAMPLER_KEEP
-    USER_KEEP       | USER_KEEP
-    USER_DROP       | USER_DROP
+    contextPriority | propagatedPriority | propagatedMechanism
+    SAMPLER_DROP    | SAMPLER_DROP       | UNKNOWN
+    SAMPLER_KEEP    | SAMPLER_KEEP       | UNKNOWN
+    UNSET           | SAMPLER_KEEP       | AGENT_RATE
+    USER_KEEP       | USER_KEEP          | UNKNOWN
+    USER_DROP       | USER_DROP          | UNKNOWN
   }
 
   def "tolerate null span activation"() {

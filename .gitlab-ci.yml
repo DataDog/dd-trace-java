@@ -124,8 +124,6 @@ deploy_to_docker_registries:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
     - if: '$CI_COMMIT_TAG =~ /^v.*/'
       when: on_success
     - when: manual
@@ -135,8 +133,8 @@ deploy_to_docker_registries:
     branch: main
     strategy: depend
   variables:
-    IMG_SOURCES: ghcr.io/datadog/dd-trace-java/dd-java-agent-init:$CI_COMMIT_SHA
-    IMG_DESTINATIONS: dd-java-agent-init:$CI_COMMIT_TAG
+    IMG_SOURCES: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:$CI_COMMIT_SHA
+    IMG_DESTINATIONS: dd-lib-java-init:$CI_COMMIT_TAG
     IMG_SIGNING: "false"
 
 create_key:

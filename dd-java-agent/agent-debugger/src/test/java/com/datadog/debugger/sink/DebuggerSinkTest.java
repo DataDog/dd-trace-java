@@ -34,10 +34,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class DebuggerSinkTest {
-  private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
-  private static final String FIXTURE_PREFIX =
-      "/" + DebuggerSinkTest.class.getPackage().getName().replaceAll("\\.", "/");
+  public static final String SINK_FIXTURE_PREFIX = "/com/datadog/debugger/sink";
 
+  private static final String PROBE_ID = "12fd-8490-c111-4374-ffde";
   private static final Snapshot.ProbeLocation PROBE_LOCATION =
       new Snapshot.ProbeLocation("java.lang.String", "indexOf", null, null);
   private static final Snapshot SNAPSHOT =
@@ -64,7 +63,7 @@ public class DebuggerSinkTest {
   public void addSnapshot() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     sink.addSnapshot(SNAPSHOT);
-    String fixtureContent = getFixtureContent(FIXTURE_PREFIX + "/snapshotRegex.txt");
+    String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -78,7 +77,7 @@ public class DebuggerSinkTest {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Arrays.asList(SNAPSHOT, SNAPSHOT).forEach(sink::addSnapshot);
 
-    String fixtureContent = getFixtureContent(FIXTURE_PREFIX + "/multipleSnapshotRegex.txt");
+    String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/multipleSnapshotRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -142,7 +141,7 @@ public class DebuggerSinkTest {
   public void addDiagnostics() throws URISyntaxException, IOException {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     sink.addReceived("1");
-    String fixtureContent = getFixtureContent(FIXTURE_PREFIX + "/diagnosticsRegex.txt");
+    String fixtureContent = getFixtureContent(SINK_FIXTURE_PREFIX + "/diagnosticsRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -158,7 +157,8 @@ public class DebuggerSinkTest {
       sink.addReceived(probeId);
     }
 
-    String fixtureContent = getFixtureContent(FIXTURE_PREFIX + "/multipleDiagnosticsRegex.txt");
+    String fixtureContent =
+        getFixtureContent(SINK_FIXTURE_PREFIX + "/multipleDiagnosticsRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
@@ -267,7 +267,7 @@ public class DebuggerSinkTest {
     SNAPSHOT.getCaptures().setEntry(entry);
     sink.addSnapshot(SNAPSHOT);
     String fixtureContent =
-        getFixtureContent(FIXTURE_PREFIX + "/snapshotWithCorrelationIdsRegex.txt");
+        getFixtureContent(SINK_FIXTURE_PREFIX + "/snapshotWithCorrelationIdsRegex.txt");
     String regex = fixtureContent.replaceAll("\\n", "");
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));

@@ -198,7 +198,8 @@ public class CrashUploader {
           response.message());
     } else {
       log.error(
-          "Failed to upload crash files, code = {} \"{}\", body = \"{}\"",
+          "Failed to upload crash files to {}, code = {} \"{}\", body = \"{}\"",
+          url,
           response.code(),
           response.message(),
           response.body() != null ? response.body().string().trim() : "<null>");

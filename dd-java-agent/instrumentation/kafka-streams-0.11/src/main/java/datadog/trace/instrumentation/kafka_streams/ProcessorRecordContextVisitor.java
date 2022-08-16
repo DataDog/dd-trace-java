@@ -15,7 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor
-    implements AgentPropagation.ContextVisitor<ProcessorRecordContext> {
+    implements AgentPropagation.ContextVisitor<ProcessorRecordContext>,
+        AgentPropagation.BinaryContextVisitor<ProcessorRecordContext> {
 
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
@@ -51,6 +52,28 @@ public class ProcessorRecordContextVisitor
         byte[] value = header.value();
         if (null != value) {
           if (!classifier.accept(key, new String(header.value(), StandardCharsets.UTF_8))) {
+            return;
+          }
+        }
+      }
+    } catch (Throwable ex) {
+      log.debug("Exception getting headers", ex);
+    }
+  }
+
+  @Override
+  public void forEachKey(
+      ProcessorRecordContext carrier, AgentPropagation.BinaryKeyClassifier classifier) {
+    if (HEADERS_METHOD == null) {
+      return;
+    }
+    try {
+      Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
+      for (Header header : headers) {
+        String key = header.key();
+        byte[] value = header.value();
+        if (null != value) {
+          if (!classifier.accept(key, value)) {
             return;
           }
         }
