@@ -7,12 +7,16 @@ import java.time.Instant;
 
 public class DatadogRequestSpan implements RequestSpan {
   private final AgentSpan span;
+  // When a QueryRequest is converted into a prepare or execute request, then we need to close
+  // the parent span as well, since Couchbase drops it on the floor
+  private DatadogRequestSpan convertedParent;
+  private DatadogRequestSpan convertedChild;
 
   private DatadogRequestSpan(AgentSpan span) {
     this.span = span;
   }
 
-  public static RequestSpan wrap(AgentSpan span) {
+  public static DatadogRequestSpan wrap(AgentSpan span) {
     return new DatadogRequestSpan(span);
   }
 
@@ -24,6 +28,24 @@ public class DatadogRequestSpan implements RequestSpan {
       return ((DatadogRequestSpan) span).span;
     } else {
       throw new IllegalArgumentException("RequestSpan must be of type DatadogRequestSpan");
+    }
+  }
+
+  public void setConvertedParent(RequestSpan convertedParent) {
+    if (convertedParent instanceof DatadogRequestSpan) {
+      // We need to keep track of previously converted child spans since a query
+      // that is converted to an execute statement will create a prepare-span
+      // which will be a converted child, but it will never get finished
+      DatadogRequestSpan parent = (DatadogRequestSpan) convertedParent;
+      this.convertedParent = parent;
+      DatadogRequestSpan previous = parent.convertedChild;
+      parent.convertedChild = this;
+      if (null != previous) {
+        previous.setConvertedParent(null);
+        previous.end();
+      }
+    } else {
+      this.convertedParent = null;
     }
   }
 
@@ -70,6 +92,10 @@ public class DatadogRequestSpan implements RequestSpan {
   public void end() {
     CouchbaseClientDecorator.DECORATE.beforeFinish(span);
     span.finish();
+    if (null != convertedParent) {
+      convertedParent.end();
+      convertedParent = null;
+    }
   }
 
   @Override

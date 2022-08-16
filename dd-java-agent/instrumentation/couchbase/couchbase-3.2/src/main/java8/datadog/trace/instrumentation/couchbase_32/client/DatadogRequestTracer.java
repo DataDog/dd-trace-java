@@ -44,7 +44,19 @@ public class DatadogRequestTracer implements RequestTracer {
     CouchbaseClientDecorator.DECORATE.afterStart(span);
     span.setResourceName(requestName);
     span.setMeasured(measured);
-    return DatadogRequestSpan.wrap(span);
+    DatadogRequestSpan requestSpan = DatadogRequestSpan.wrap(span);
+    // When Couchbase converts a query to a prepare statement or execute statement,
+    // it will not finish the original span
+    switch (requestName) {
+      case "prepare":
+      case "execute":
+        requestSpan.setConvertedParent(requestParent);
+        break;
+      default:
+        break;
+    }
+
+    return requestSpan;
   }
 
   @Override
