@@ -1,8 +1,8 @@
 package com.datadog.debugger.poller;
 
-import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.tuf.RemoteConfigRequest;
 import com.squareup.moshi.Moshi;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import java.util.UUID;
 import okhttp3.HttpUrl;
@@ -19,6 +19,7 @@ class PollerRequestFactory {
   private static final String HEADER_CONTAINER_ID = "Datadog-Container-ID";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PollerRequestFactory.class);
+  private static final String clientId = UUID.randomUUID().toString();
 
   static Request newConfigurationRequest(
       Config config, String url, Moshi moshi, String containerId) {
@@ -27,11 +28,13 @@ class PollerRequestFactory {
     RequestBody requestBody =
         RequestBody.create(applicationJson, buildRemoteConfigJson(config, moshi));
     requestBuilder.post(requestBody);
-    requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
+    if (containerId != null && !containerId.isEmpty()) {
+      requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
+    }
     return requestBuilder.build();
   }
 
-  private static String getTrackingId(Config config) {
+  private static String getRuntimeId(Config config) {
     String runtimeId = config.getRuntimeId();
     if (runtimeId == null || runtimeId.length() == 0) {
       LOGGER.debug("runtimeId not configured, generating a new UUID");
@@ -49,11 +52,11 @@ class PollerRequestFactory {
   }
 
   private static String buildRemoteConfigJson(Config config, Moshi moshi) {
-    String trackingId = getTrackingId(config);
     RemoteConfigRequest rcRequest =
         RemoteConfigRequest.newRequest(
-            trackingId,
-            DebuggerAgent.getAgentVersion(),
+            clientId,
+            getRuntimeId(config),
+            TracerVersion.TRACER_VERSION,
             config.getServiceName(),
             config.getEnv(),
             config.getVersion());

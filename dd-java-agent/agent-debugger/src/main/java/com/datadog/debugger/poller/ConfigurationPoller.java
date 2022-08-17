@@ -8,6 +8,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -49,17 +50,28 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
   }
 
   public ConfigurationPoller(
-      Config config,
-      ConfigurationChangesListener listener,
-      String configEndpoint,
-      String containerId) {
+      Config config, ConfigurationChangesListener listener, String configEndpoint) {
     this(
         config,
         listener,
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
         configEndpoint,
-        AgentTaskScheduler.INSTANCE,
-        containerId);
+        AgentTaskScheduler.INSTANCE);
+  }
+
+  ConfigurationPoller(
+      Config config,
+      ConfigurationChangesListener listener,
+      RatelimitedLogger ratelimitedLogger,
+      String configEndpoint,
+      AgentTaskScheduler taskScheduler) {
+    this(
+        config,
+        listener,
+        ratelimitedLogger,
+        configEndpoint,
+        taskScheduler,
+        ContainerInfo.get().getContainerId());
   }
 
   ConfigurationPoller(
@@ -106,8 +118,7 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
         listener,
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
         "",
-        AgentTaskScheduler.INSTANCE,
-        "");
+        AgentTaskScheduler.INSTANCE);
   }
 
   ConfigurationPoller(
@@ -117,8 +128,7 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
         listener,
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
         "",
-        taskScheduler,
-        "");
+        taskScheduler);
   }
 
   @Override

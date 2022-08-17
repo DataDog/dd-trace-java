@@ -3,6 +3,7 @@ package com.datadog.debugger.poller;
 import static com.datadog.debugger.poller.PollerRequestFactory.HEADER_DD_API_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,19 +65,17 @@ class PollerRequestFactoryTest {
     JsonAdapter<Map<String, Object>> adapter = MoshiHelper.createGenericAdapter();
     Map<String, Object> jsonMap = adapter.fromJson(buffer.buffer());
     Map<String, Object> clientMap = (Map<String, Object>) jsonMap.get("client");
-    assertEquals(runtimeId, clientMap.get("id"));
+    assertNotEquals(runtimeId, clientMap.get("id"));
     assertEquals("live-debugger-agent", clientMap.get("name"));
     assertTrue((Boolean) clientMap.get("is_tracer"));
     assertEquals("LIVE_DEBUGGING", ((List<String>) clientMap.get("products")).get(0));
-    // TODO: can we set a mock version in tests? SnapshotSink also uses null when testing the tags
-    assertNull(clientMap.get("version"));
     assertEquals(
         "{has_error=false, root_version=1.0, targets_version=0.0}",
         clientMap.get("state").toString());
 
     Map<String, Object> tracerClientJson = (Map<String, Object>) clientMap.get("client_tracer");
     assertEquals(runtimeId, tracerClientJson.get("runtime_id"));
-    assertNull(tracerClientJson.get("tracer_version"));
+    assertNotNull(tracerClientJson.get("tracer_version"));
     assertEquals("test-service", tracerClientJson.get("service"));
     assertEquals("test-service-env", tracerClientJson.get("env"));
     assertEquals("test-service-version", tracerClientJson.get("app_version"));

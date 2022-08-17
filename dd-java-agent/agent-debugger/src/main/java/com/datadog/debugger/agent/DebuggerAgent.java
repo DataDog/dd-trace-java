@@ -6,7 +6,6 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import com.datadog.debugger.poller.ConfigurationPoller;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.uploader.BatchUploader;
-import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
@@ -70,9 +69,8 @@ public class DebuggerAgent {
       setupInstrumentTheWorldTransformer(
           Config.get(), instrumentation, sink, statsdMetricForwarder);
     }
-    String containerId = ContainerInfo.get().getContainerId();
     configurationPoller =
-        new ConfigurationPoller(Config.get(), configurationUpdater, configEndpoint, containerId);
+        new ConfigurationPoller(Config.get(), configurationUpdater, configEndpoint);
     configurationPoller.start();
     try {
       /*

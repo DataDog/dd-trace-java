@@ -13,17 +13,17 @@ import java.util.stream.Collectors;
 public class RemoteConfigRequest {
 
   public static RemoteConfigRequest newRequest(
-      String trackingId,
+      String clientId,
+      String runtimeId,
       String tracerVersion,
       String serviceName,
       String serviceEnv,
       String serviceVersion) {
     ClientInfo.TracerInfo tracerInfo =
         new RemoteConfigRequest.ClientInfo.TracerInfo(
-            trackingId, tracerVersion, serviceName, serviceEnv, serviceVersion);
+            runtimeId, tracerVersion, serviceName, serviceEnv, serviceVersion);
     ClientInfo.ClientState state = new ClientInfo.ClientState(0, null, null, null);
-    ClientInfo clientInfo =
-        new RemoteConfigRequest.ClientInfo(trackingId, tracerVersion, tracerInfo, state);
+    ClientInfo clientInfo = new RemoteConfigRequest.ClientInfo(clientId, tracerInfo, state);
     return new RemoteConfigRequest(clientInfo);
   }
 
@@ -46,7 +46,6 @@ public class RemoteConfigRequest {
     private final String name = "live-debugger-agent";
     private final List<String> products = Collections.singletonList("LIVE_DEBUGGING");
     private final ClientState state;
-    private final String version;
 
     @Json(name = "client_tracer")
     private final TracerInfo tracerInfo;
@@ -54,9 +53,8 @@ public class RemoteConfigRequest {
     @Json(name = "is_tracer")
     private final Boolean isTracer = true;
 
-    public ClientInfo(String id, String version, TracerInfo tracerInfo, ClientState clientState) {
+    public ClientInfo(String id, TracerInfo tracerInfo, ClientState clientState) {
       this.id = id;
-      this.version = version;
       this.tracerInfo = tracerInfo;
       this.state = clientState;
     }
@@ -67,10 +65,6 @@ public class RemoteConfigRequest {
 
     public TracerInfo getTracerClient() {
       return tracerInfo;
-    }
-
-    public String getVersion() {
-      return version;
     }
 
     public String getName() {
