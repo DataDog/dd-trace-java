@@ -6,6 +6,8 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.DDId;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.Metadata;
+import datadog.trace.core.MetadataConsumer;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -73,8 +75,9 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.endObject();
     writer.name("meta");
     writer.beginObject();
-    final Map<String, Object> tags = span.getTags();
-    for (final Map.Entry<String, String> entry : span.context().getBaggageItems().entrySet()) {
+    Metadata metadata = spanMetadata(span);
+    final Map<String, Object> tags = metadata.getTags();
+    for (final Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
       if (!tags.containsKey(entry.getKey())) {
         writer.name(entry.getKey());
         writer.value(entry.getValue());
@@ -88,6 +91,18 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     }
     writer.endObject();
     writer.endObject();
+  }
+
+  private Metadata spanMetadata(DDSpan span) {
+    final Metadata[] metadata = new Metadata[1];
+    span.processTagsAndBaggage(
+        new MetadataConsumer() {
+          @Override
+          public void accept(Metadata md) {
+            metadata[0] = md;
+          }
+        });
+    return metadata[0];
   }
 
   private void writeId(final com.squareup.moshi.JsonWriter writer, final DDId id)
