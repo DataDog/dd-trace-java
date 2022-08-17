@@ -14,7 +14,7 @@ public class DependencyPeriodicAction implements TelemetryRunnable.TelemetryPeri
 
   @Override
   public void doIteration(TelemetryService telService) {
-    Collection<Dependency> dependencies = dependencyService.determineNewDependencies();
+    Collection<Dependency> dependencies = dependencyService.drainDeterminedDependencies();
     for (Dependency dep : dependencies) {
       datadog.telemetry.api.Dependency telDep = new datadog.telemetry.api.Dependency();
       telDep.setHash(dep.getHash());

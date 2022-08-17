@@ -14,7 +14,7 @@ class DependencyPeriodActionSpecification extends DDSpecification {
     periodicAction.doIteration(telemetryService)
 
     then:
-    1 * depService.determineNewDependencies() >> [new Dependency('name', '1.2.3', 'name-1.2.3.jar', 'DEADBEEF')]
+    1 * depService.drainDeterminedDependencies() >> [new Dependency('name', '1.2.3', 'name-1.2.3.jar', 'DEADBEEF')]
     1 * telemetryService.addDependency({ datadog.telemetry.api.Dependency dep ->
       dep.name == 'name' &&
         dep.version == '1.2.3' &&
