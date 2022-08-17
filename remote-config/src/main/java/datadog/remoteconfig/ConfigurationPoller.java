@@ -241,10 +241,6 @@ public class ConfigurationPoller
     }
   }
 
-  public PollerScheduler getScheduler() {
-    return scheduler;
-  }
-
   private void handleAgentResponse(ResponseBody body) {
     int successes = 0, failures = 0;
 
@@ -467,16 +463,8 @@ public class ConfigurationPoller
     for (String configKey : inspectedConfigKeys) {
       CachedTargetFile curCTF = this.cachedTargetFiles.get(configKey);
       RemoteConfigResponse.Targets.ConfigTarget target = targetsSigned.targets.get(configKey);
-      if (target == null) {
-        // we already issued a warning in the previous loop
-        this.cachedTargetFiles.remove(configKey);
-        continue;
-      }
-      if (target.hashes == null) {
-        ratelimitedLogger.warn("No hashes for config key {}", configKey);
-        this.cachedTargetFiles.remove(configKey);
-        continue;
-      }
+      // configuration is not applied without correct hashes, so this is guaranteedly non-null
+      assert target != null && target.hashes != null;
 
       if (curCTF != null) {
         if (curCTF.length != target.length || !curCTF.hashesMatch(target.hashes)) {

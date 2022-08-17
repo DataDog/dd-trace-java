@@ -181,6 +181,10 @@ public class RemoteConfigRequest {
     }
 
     public boolean hashesMatch(Map<String /*algo*/, String /*digest*/> hashesMap) {
+      if (this.hashes == null) {
+        return false;
+      }
+
       if (hashesMap.size() != this.hashes.size()) {
         return false;
       }

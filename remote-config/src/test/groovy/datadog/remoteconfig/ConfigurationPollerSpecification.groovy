@@ -362,6 +362,54 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._
   }
 
+  void 'configuration cannot be applied without hashes'() {
+    ConfigurationChangesListener listener = Mock()
+
+    when:
+    poller.addListener(Product.ASM_DD,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> {
+      task = it[0]
+      scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> {
+      SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+        def targetDecoded = Base64.decoder.decode(it['targets'])
+        def target = ConfigurationPollerSpecification.SLURPER.parse(targetDecoded)
+        target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes'].remove('sha256')
+        it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(target).getBytes('UTF-8'))
+        buildOKResponse(JsonOutput.toJson(it))
+      }
+    }
+    0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * listener.accept(_, _)
+    0 * _._
+
+    then:
+    def body = parseBody(request.body())
+    with(body.client.state) {
+      config_states.size() == 0
+      error == 'No sha256 hash present for employee/ASM_DD/1.recommended.json/config'
+      targets_version == 0
+    }
+  }
+
   void 'encoded file is not valid base64 data'() {
     ConfigurationChangesListener listener = Mock()
 
@@ -387,6 +435,21 @@ class ConfigurationPollerSpecification extends DDSpecification {
       }
     }
     0 * _._
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * listener.accept(_, _)
+    0 * _._
+
+    then:
+    def body = parseBody(request.body())
+    with(body.client.state) {
+      error == 'Could not get file contents from remote config, file employee/ASM_DD/1.recommended.json/config'
+    }
   }
 
   void 'deserializer can return null to indicate no config should be applied'() {
@@ -813,6 +876,61 @@ class ConfigurationPollerSpecification extends DDSpecification {
       { cfg -> cfg['enabled'] == true },
       _ as ConfigurationChangesListener.PollingRateHinter) >> true
     0 * _._
+  }
+
+  void 'error applying features'() {
+    boolean called
+
+    when:
+    poller.addFeaturesListener('asm',
+      {true } as ConfigurationDeserializer<Boolean>,
+      { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesListener<Boolean>)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    0 * _._
+    called == true
+    // error does not escape
+  }
+
+  void 'removing feature listeners'() {
+    ConfigurationChangesListener listener = Mock()
+
+    when:
+    poller.addFeaturesListener('foobar',
+      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesListener)
+    poller.addFeaturesListener('asm',
+      {true } as ConfigurationDeserializer<Boolean>,
+      listener)
+    poller.removeFeaturesListener('asm')
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    0 * _._ // in particular, listener is not called
+
+    when:
+    poller.removeFeaturesListener('foobar')
+    task.run(poller)
+
+    then:
+    0 * _._ // not even a request is made
   }
 
   private static final String SAMPLE_RESP_BODY = """

@@ -76,48 +76,49 @@ public class RemoteConfigResponse {
   }
 
   public Optional<byte[]> getFileContents(String configKey) {
-    Targets.ConfigTarget configTarget = getTarget(configKey);
-    // tolerate hash not being present for now
-    BigInteger expectedHash = null;
-    if (configTarget != null) {
-      String hashStr = configTarget.hashes.get("sha256");
-      if (hashStr != null) {
-        expectedHash = new BigInteger(hashStr, 16);
-      }
+
+    if (targetFiles == null) {
+      return Optional.empty();
     }
 
-    if (targetFiles != null) {
-      try {
-        for (TargetFile targetFile : this.targetFiles) {
-          if (!configKey.equals(targetFile.path)) {
-            continue;
-          }
-
-          String raw = targetFile.raw;
-          byte[] decode = Base64.getDecoder().decode(raw);
-          if (expectedHash != null) {
-            BigInteger gottenHash = sha256(decode);
-            if (!expectedHash.equals(gottenHash)) {
-              throw new IntegrityCheckException(
-                  "File "
-                      + configKey
-                      + " does not "
-                      + "have the expected sha256 hash: Expected "
-                      + expectedHash.toString(16)
-                      + ", but got "
-                      + gottenHash.toString(16));
-            }
-          }
-
-          return Optional.of(decode);
+    try {
+      for (TargetFile targetFile : this.targetFiles) {
+        if (!configKey.equals(targetFile.path)) {
+          continue;
         }
-      } catch (IntegrityCheckException e) {
-        throw e;
-      } catch (Exception exception) {
-        throw new IntegrityCheckException(
-            "Could not get file contents from remote config, file " + configKey, exception);
+
+        Targets.ConfigTarget configTarget = getTarget(configKey);
+        String hashStr;
+        if (configTarget == null
+            || configTarget.hashes == null
+            || (hashStr = configTarget.hashes.get("sha256")) == null) {
+          throw new IntegrityCheckException("No sha256 hash present for " + configKey);
+        }
+        BigInteger expectedHash = new BigInteger(hashStr, 16);
+
+        String raw = targetFile.raw;
+        byte[] decode = Base64.getDecoder().decode(raw);
+        BigInteger gottenHash = sha256(decode);
+        if (!expectedHash.equals(gottenHash)) {
+          throw new IntegrityCheckException(
+              "File "
+                  + configKey
+                  + " does not "
+                  + "have the expected sha256 hash: Expected "
+                  + expectedHash.toString(16)
+                  + ", but got "
+                  + gottenHash.toString(16));
+        }
+
+        return Optional.of(decode);
       }
+    } catch (IntegrityCheckException e) {
+      throw e;
+    } catch (Exception exception) {
+      throw new IntegrityCheckException(
+          "Could not get file contents from remote config, file " + configKey, exception);
     }
+
     return Optional.empty();
   }
 
