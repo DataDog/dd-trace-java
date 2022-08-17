@@ -3,6 +3,7 @@ package datadog.telemetry;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.common.container.ContainerInfo;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.SafeRequestBuilder;
 import datadog.telemetry.api.ApiVersion;
 import datadog.telemetry.api.Application;
@@ -12,10 +13,6 @@ import datadog.telemetry.api.RequestType;
 import datadog.telemetry.api.Telemetry;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -38,24 +35,12 @@ public class RequestBuilder {
           .add(new PolymorphicAdapterFactory(Payload.class))
           .build()
           .adapter(Telemetry.class);
-  private static final String AGENT_VERSION;
   private static final AtomicLong SEQ_ID = new AtomicLong();
 
   private final HttpUrl httpUrl;
   private final Application application;
   private final Host host;
   private final String runtimeId;
-
-  static {
-    String tracerVersion = "0.0.0";
-    try {
-      tracerVersion = getAgentVersion();
-    } catch (Throwable t) {
-      log.error("Unable to get tracer version ", t);
-    }
-
-    AGENT_VERSION = tracerVersion;
-  }
 
   public RequestBuilder(HttpUrl httpUrl) {
     this.httpUrl = httpUrl.newBuilder().addPathSegments(API_ENDPOINT).build();
@@ -68,7 +53,7 @@ public class RequestBuilder {
             .env(config.getEnv())
             .serviceName(config.getServiceName())
             .serviceVersion(config.getVersion())
-            .tracerVersion(AGENT_VERSION)
+            .tracerVersion(TracerVersion.TRACER_VERSION)
             .languageName("jvm")
             .languageVersion(Platform.getLangVersion())
             .runtimeName(Platform.getRuntimeVendor())
@@ -113,20 +98,5 @@ public class RequestBuilder {
         .addHeader("DD-Telemetry-Request-Type", requestType.toString())
         .post(body)
         .build();
-  }
-
-  private static String getAgentVersion() throws IOException {
-    final StringBuilder sb = new StringBuilder(32);
-    ClassLoader cl = ClassLoader.getSystemClassLoader();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                cl.getResourceAsStream("dd-java-agent.version"), StandardCharsets.ISO_8859_1))) {
-      for (int c = reader.read(); c != -1; c = reader.read()) {
-        sb.append((char) c);
-      }
-    }
-
-    return sb.toString().trim();
   }
 }

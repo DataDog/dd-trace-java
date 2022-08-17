@@ -26,8 +26,8 @@ final class CachedData {
     jnr_ffi       : '2.1.12', // dependency of jnr_unixsocket: update in tandem
     commons       : "3.2",
     mockito       : '4.4.0',
-    moshi         : '1.9.2',
     jctools       : '3.3.0',
+    moshi         : '1.11.0',
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
@@ -115,6 +115,7 @@ final class CachedData {
       exclude(project(':internal-api:internal-api-8'))
       exclude(project(':internal-api:internal-api-9'))
       exclude(project(':communication'))
+      exclude(project(':remote-config'))
       exclude(project(':telemetry'))
       exclude(project(':utils:container-utils'))
       exclude(project(':utils:process-utils'))

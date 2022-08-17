@@ -258,6 +258,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return dataStreamsEndpoint;
   }
 
+  public HttpUrl buildUrl(String endpoint) {
+    return agentBaseUrl.resolve(endpoint);
+  }
+
   public boolean supportsDataStreams() {
     return dataStreamsEndpoint != null;
   }

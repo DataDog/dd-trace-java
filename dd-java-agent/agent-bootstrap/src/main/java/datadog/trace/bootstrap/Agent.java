@@ -70,6 +70,7 @@ public class Agent {
     PROFILING("dd.profiling.enabled", false),
     APPSEC("dd.appsec.enabled", false),
     IAST("dd.iast.enabled", false),
+    REMOTE_CONFIG("dd.remote_config.enabled", false),
     CWS("dd.cws.enabled", false),
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
@@ -110,6 +111,7 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
   private static boolean iastEnabled = false;
+  private static boolean remoteConfigEnabled = true;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = false;
@@ -133,6 +135,7 @@ public class Agent {
       setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
       setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
@@ -148,6 +151,7 @@ public class Agent {
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
@@ -370,6 +374,7 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
+      maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -407,6 +412,27 @@ public class Agent {
       } catch (final Throwable ex) {
         log.error("Throwable thrown creating agent classloader", ex);
       }
+    }
+  }
+
+  private static void maybeStartRemoteConfig(Class<?> scoClass, Object sco) {
+    if (!remoteConfigEnabled || !isJavaVersionAtLeast(8)) {
+      return;
+    }
+
+    try {
+      Method pollerMethod = scoClass.getMethod("configurationPoller", Config.class);
+      Object poller = pollerMethod.invoke(sco, Config.get());
+      if (poller == null) {
+        log.debug("Remote config is not enabled");
+        return;
+      }
+      Class<?> pollerCls = AGENT_CLASSLOADER.loadClass("datadog.remoteconfig.ConfigurationPoller");
+      Method startMethod = pollerCls.getMethod("start");
+      log.info("Starting remote config poller");
+      startMethod.invoke(poller);
+    } catch (Exception e) {
+      log.error("Error starting remote config", e);
     }
   }
 

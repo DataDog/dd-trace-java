@@ -3,6 +3,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   implementation deps.slf4j
 
+  api project(':remote-config')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
@@ -31,8 +32,12 @@ ext {
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',
   ]
-  excludedClassesBranchCoverage = []
-  excludedClassesInstructionCoverage = [// can't reach the error condition now
-    'datadog.communication.fleet.FleetServiceImpl',]
+  excludedClassesBranchCoverage = ['datadog.communication.ddagent.TracerVersion',]
+  excludedClassesInstructionCoverage = [
+    // can't reach the error condition now
+    'datadog.communication.fleet.FleetServiceImpl',
+    'datadog.communication.ddagent.SharedCommunicationObjects',
+    'datadog.communication.ddagent.TracerVersion',
+  ]
   minJavaVersionForTests = JavaVersion.VERSION_1_7
 }

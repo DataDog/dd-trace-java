@@ -64,7 +64,7 @@ public class DefaultDataStreamsCheckpointer
             false,
             true,
             Collections.<String, String>emptyMap()),
-        sharedCommunicationObjects.featuresDiscovery,
+        sharedCommunicationObjects.featuresDiscovery(config),
         timeSource,
         config);
   }

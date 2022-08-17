@@ -50,6 +50,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -196,6 +199,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
@@ -513,6 +520,11 @@ public class Config {
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
+
+  private final boolean remoteConfigEnabled;
+  private final String remoteConfigUrl;
+  private final int remoteConfigInitialPollInterval;
+  private final long remoteConfigMaxPayloadSize;
 
   private final boolean debuggerEnabled;
   private final String debuggerSnapshotUrl;
@@ -1086,6 +1098,17 @@ public class Config {
     } else {
       ciVisibilityAgentlessUrl = null;
     }
+
+    remoteConfigEnabled =
+        configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
+    remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
+    remoteConfigInitialPollInterval =
+        configProvider.getInteger(
+            REMOTE_CONFIG_INITIAL_POLL_INTERVAL, DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL);
+    remoteConfigMaxPayloadSize =
+        configProvider.getInteger(
+                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+            * 1024;
 
     debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
     debuggerSnapshotUrl = configProvider.getString(DEBUGGER_SNAPSHOT_URL);
@@ -1731,6 +1754,22 @@ public class Config {
 
   public String getAppSecRulesFile() {
     return appSecRulesFile;
+  }
+
+  public long getRemoteConfigMaxPayloadSizeBytes() {
+    return remoteConfigMaxPayloadSize;
+  }
+
+  public boolean isRemoteConfigEnabled() {
+    return remoteConfigEnabled;
+  }
+
+  public String getFinalRemoteConfigUrl() {
+    return remoteConfigUrl;
+  }
+
+  public int getRemoteConfigInitialPollInterval() {
+    return remoteConfigInitialPollInterval;
   }
 
   public boolean isDebuggerEnabled() {
@@ -2823,6 +2862,14 @@ public class Config {
         + crashTrackingTags
         + ", crashTrackingAgentless="
         + crashTrackingAgentless
+        + ", remoteConfigEnabled="
+        + remoteConfigEnabled
+        + ", remoteConfigUrl="
+        + remoteConfigUrl
+        + ", remoteConfigInitialPollInterval="
+        + remoteConfigInitialPollInterval
+        + ", remoteConfigMaxPayloadSize="
+        + remoteConfigMaxPayloadSize
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="

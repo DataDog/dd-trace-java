@@ -69,6 +69,7 @@ include ':dd-java-agent:agent-crashtracking'
 
 include ':communication'
 include ':telemetry'
+include ':remote-config'
 
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
