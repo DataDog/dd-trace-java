@@ -1,9 +1,13 @@
 package com.datadog.debugger.tuf;
 
+import com.datadog.debugger.agent.DebuggerAgent;
 import com.squareup.moshi.Json;
+import datadog.communication.ddagent.TracerVersion;
+import datadog.trace.api.Config;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /** Handles requests to Remote Configuration */
 public class RemoteConfigRequest {
@@ -17,8 +21,9 @@ public class RemoteConfigRequest {
     ClientInfo.TracerInfo tracerInfo =
         new RemoteConfigRequest.ClientInfo.TracerInfo(
             trackingId, tracerVersion, serviceName, serviceEnv, serviceVersion);
+    ClientInfo.ClientState state = new ClientInfo.ClientState(0, null, null, null);
     ClientInfo clientInfo =
-        new RemoteConfigRequest.ClientInfo(trackingId, tracerVersion, tracerInfo);
+        new RemoteConfigRequest.ClientInfo(trackingId, tracerVersion, tracerInfo, state);
     return new RemoteConfigRequest(clientInfo);
   }
 
@@ -40,7 +45,7 @@ public class RemoteConfigRequest {
     private final String id;
     private final String name = "live-debugger-agent";
     private final List<String> products = Collections.singletonList("LIVE_DEBUGGING");
-    private final Map<String, String> state = Collections.emptyMap();
+    private final ClientState state;
     private final String version;
 
     @Json(name = "client_tracer")
@@ -49,10 +54,11 @@ public class RemoteConfigRequest {
     @Json(name = "is_tracer")
     private final Boolean isTracer = true;
 
-    public ClientInfo(String id, String version, TracerInfo tracerInfo) {
+    public ClientInfo(String id, String version, TracerInfo tracerInfo, ClientState clientState) {
       this.id = id;
       this.version = version;
       this.tracerInfo = tracerInfo;
+      this.state = clientState;
     }
 
     public String getId() {
@@ -75,8 +81,94 @@ public class RemoteConfigRequest {
       return products;
     }
 
-    public Map<String, String> getState() {
+    public ClientState getState() {
       return state;
+    }
+
+    public static class ClientState {
+      @Json(name = "root_version")
+      private final int rootVersion = 1;
+
+      @Json(name = "targets_version")
+      private final int targetsVersion;
+
+      @Json(name = "config_states")
+      private final List<ConfigState> configStates;
+
+      @Json(name = "has_error")
+      private final boolean hasError;
+
+      @Json(name = "error")
+      private final String error;
+
+      @Json(name = "backend_client_state")
+      private final String backendClientState;
+
+      public ClientState(
+          int targetsVersion,
+          List<ConfigState> configStates,
+          String error,
+          String backendClientState) {
+        this.targetsVersion = targetsVersion;
+        this.configStates = configStates;
+        this.error = error;
+        this.hasError = error != null;
+        this.backendClientState = backendClientState;
+      }
+
+      public int getRootVersion() {
+        return rootVersion;
+      }
+
+      public int getTargetsVersion() {
+        return targetsVersion;
+      }
+
+      public List<ConfigState> getConfigStates() {
+        return configStates;
+      }
+
+      public boolean getHasError() {
+        return hasError;
+      }
+
+      public String getError() {
+        return error;
+      }
+
+      public String getBackendClientState() {
+        return backendClientState;
+      }
+    }
+
+    public static class ConfigState {
+
+      @Json(name = "id")
+      private final String id;
+
+      @Json(name = "version")
+      private final int version;
+
+      @Json(name = "product")
+      private final String product;
+
+      public ConfigState(String id, int version, String product) {
+        this.id = id;
+        this.version = version;
+        this.product = product;
+      }
+
+      public String getId() {
+        return id;
+      }
+
+      public int getVersion() {
+        return version;
+      }
+
+      public String getProduct() {
+        return product;
+      }
     }
 
     public static class TracerInfo {
@@ -95,7 +187,9 @@ public class RemoteConfigRequest {
       @Json(name = "app_version")
       private final String serviceVersion;
 
-      private final String language = "jvm";
+      private final String language = "java";
+
+      private final List<String> tags;
 
       public TracerInfo(
           String tracerId,
@@ -108,6 +202,18 @@ public class RemoteConfigRequest {
         this.serviceName = serviceName;
         this.serviceEnv = serviceEnv;
         this.serviceVersion = serviceVersion;
+        List<String> tags =
+            Config.get().getGlobalTags().entrySet().stream()
+                .map(entry -> entry.getKey() + ":" + entry.getValue())
+                .collect(Collectors.toList());
+        tags.addAll(
+            Arrays.asList(
+                "env:" + Config.get().getEnv(),
+                "version:" + Config.get().getVersion(),
+                "tracer_version:" + TracerVersion.TRACER_VERSION,
+                "agent_version:" + DebuggerAgent.getAgentVersion(),
+                "host_name:" + Config.getHostName()));
+        this.tags = tags;
       }
 
       public String getTracerId() {

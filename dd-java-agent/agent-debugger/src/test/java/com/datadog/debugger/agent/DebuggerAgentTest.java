@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.datadog.debugger.util.RemoteConfigHelper;
+import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,6 +46,17 @@ public class DebuggerAgentTest {
       Field field = config.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
       field.set(config, value);
+    } catch (Throwable e) {
+      e.printStackTrace();
+    }
+  }
+
+  private static void setFieldInContainerInfo(
+      ContainerInfo containerInfo, String fieldName, Object value) {
+    try {
+      Field field = containerInfo.getClass().getDeclaredField(fieldName);
+      field.setAccessible(true);
+      field.set(containerInfo, value);
     } catch (Throwable e) {
       e.printStackTrace();
     }
@@ -87,6 +99,7 @@ public class DebuggerAgentTest {
     setFieldInConfig(Config.get(), "agentHost", "localhost");
     setFieldInConfig(Config.get(), "agentPort", datadogAgentServer.getPort());
     setFieldInConfig(Config.get(), "debuggerMaxPayloadSize", 4096L);
+    setFieldInContainerInfo(ContainerInfo.get(), "containerId", "");
     String infoContent =
         "{\"endpoints\": [\"v0.4/traces\", \"debugger/v1/input\", \"v0.7/config\"]}";
     datadogAgentServer.enqueue(new MockResponse().setResponseCode(200).setBody(infoContent));

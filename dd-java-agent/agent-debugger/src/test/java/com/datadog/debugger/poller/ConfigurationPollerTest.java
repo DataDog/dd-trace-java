@@ -201,7 +201,7 @@ public class ConfigurationPollerTest {
     IllegalArgumentException thrown =
         assertThrows(
             IllegalArgumentException.class,
-            () -> new ConfigurationPoller(config, debuggerProbes -> true, ""));
+            () -> new ConfigurationPoller(config, debuggerProbes -> true));
     assertEquals("Probe url is empty", thrown.getMessage());
   }
 

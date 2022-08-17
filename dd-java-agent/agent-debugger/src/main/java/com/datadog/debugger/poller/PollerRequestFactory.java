@@ -16,15 +16,18 @@ import org.slf4j.LoggerFactory;
 class PollerRequestFactory {
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final String HEADER_DEBUGGER_TRACKING_ID = "X-Datadog-HostId";
+  private static final String HEADER_CONTAINER_ID = "Datadog-Container-ID";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PollerRequestFactory.class);
 
-  static Request newConfigurationRequest(Config config, String url, Moshi moshi) {
+  static Request newConfigurationRequest(
+      Config config, String url, Moshi moshi, String containerId) {
     Request.Builder requestBuilder = new Request.Builder().url(parseUrl(url)).get();
     MediaType applicationJson = MediaType.parse("application/json");
     RequestBody requestBody =
         RequestBody.create(applicationJson, buildRemoteConfigJson(config, moshi));
     requestBuilder.post(requestBody);
+    requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
     return requestBuilder.build();
   }
 

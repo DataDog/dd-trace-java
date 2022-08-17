@@ -49,13 +49,17 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
   }
 
   public ConfigurationPoller(
-      Config config, ConfigurationChangesListener listener, String configEndpoint) {
+      Config config,
+      ConfigurationChangesListener listener,
+      String configEndpoint,
+      String containerId) {
     this(
         config,
         listener,
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
         configEndpoint,
-        AgentTaskScheduler.INSTANCE);
+        AgentTaskScheduler.INSTANCE,
+        containerId);
   }
 
   ConfigurationPoller(
@@ -63,7 +67,8 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
       ConfigurationChangesListener listener,
       RatelimitedLogger ratelimitedLogger,
       String configEndpoint,
-      AgentTaskScheduler taskScheduler) {
+      AgentTaskScheduler taskScheduler,
+      String containerId) {
     String probePrefixUrl = config.getFinalDebuggerProbeUrl();
     if (probePrefixUrl == null || probePrefixUrl.length() == 0) {
       throw new IllegalArgumentException("Probe url is empty");
@@ -86,7 +91,8 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
 
     moshi = MoshiHelper.createMoshiConfig();
 
-    Request request = PollerRequestFactory.newConfigurationRequest(config, appProbesUrl, moshi);
+    Request request =
+        PollerRequestFactory.newConfigurationRequest(config, appProbesUrl, moshi, containerId);
     // Use same timeout everywhere for simplicity
     // FIXME specific config for poll
     Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
@@ -100,7 +106,8 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
         listener,
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
         "",
-        AgentTaskScheduler.INSTANCE);
+        AgentTaskScheduler.INSTANCE,
+        "");
   }
 
   ConfigurationPoller(
@@ -110,7 +117,8 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
         listener,
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
         "",
-        taskScheduler);
+        taskScheduler,
+        "");
   }
 
   @Override

@@ -18,8 +18,6 @@ import org.slf4j.LoggerFactory;
 
 /** Handles http requests for fetching debugger configuration */
 class PollerHttpClient {
-  static final String HEADER_DD_API_KEY = "DD-API-KEY";
-  static final String HEADER_DEBUGGER_TRACKING_ID = "X-Datadog-HostId";
   private static final Logger LOGGER = LoggerFactory.getLogger(PollerHttpClient.class);
   private static final int MAX_RUNNING_REQUESTS = 1;
   private static final long TERMINATION_TIMEOUT = 5;

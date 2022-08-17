@@ -32,6 +32,7 @@ class PollerHttpClientTest {
 
   private static final String API_KEY = "1c0ffee11c0ffee11c0ffee11c0ffee1";
   private static final Moshi MOSHI = new Moshi.Builder().build();
+  private static final String CONTAINER_ID = "containerId";
 
   @Mock Config config;
 
@@ -45,7 +46,8 @@ class PollerHttpClientTest {
   public void setUp() {
     url = server.url(URL_PATH);
     when(config.getRuntimeId()).thenReturn(UUID.randomUUID().toString());
-    request = PollerRequestFactory.newConfigurationRequest(config, url.toString(), MOSHI);
+    request =
+        PollerRequestFactory.newConfigurationRequest(config, url.toString(), MOSHI, CONTAINER_ID);
   }
 
   @AfterEach
@@ -91,7 +93,8 @@ class PollerHttpClientTest {
   @Test
   public void httpsUsesMultipleConnectionSpecs() {
     Request httpRequest =
-        PollerRequestFactory.newConfigurationRequest(config, "https://127.0.0.1/", MOSHI);
+        PollerRequestFactory.newConfigurationRequest(
+            config, "https://127.0.0.1/", MOSHI, CONTAINER_ID);
     pollerHttpClient = new PollerHttpClient(httpRequest, Duration.ofSeconds(1));
     assertTrue(pollerHttpClient.getClient().connectionSpecs().size() > 1);
   }
@@ -99,7 +102,8 @@ class PollerHttpClientTest {
   @Test
   public void httpForcesClearText() {
     Request httpRequest =
-        PollerRequestFactory.newConfigurationRequest(config, "http://127.0.0.1/", MOSHI);
+        PollerRequestFactory.newConfigurationRequest(
+            config, "http://127.0.0.1/", MOSHI, CONTAINER_ID);
     pollerHttpClient = new PollerHttpClient(httpRequest, Duration.ofSeconds(1));
     assertEquals(1, pollerHttpClient.getClient().connectionSpecs().size());
     assertTrue(pollerHttpClient.getClient().connectionSpecs().contains(ConnectionSpec.CLEARTEXT));
@@ -111,7 +115,8 @@ class PollerHttpClientTest {
         new MockResponse().setResponseCode(200).setBody(getFixtureContent("/test_probe.json")));
     when(config.getEnv()).thenReturn(env);
     when(config.getVersion()).thenReturn(version);
-    request = PollerRequestFactory.newConfigurationRequest(config, url.toString(), MOSHI);
+    request =
+        PollerRequestFactory.newConfigurationRequest(config, url.toString(), MOSHI, CONTAINER_ID);
     pollerHttpClient = new PollerHttpClient(request, timeout);
     try (Response response = pollerHttpClient.fetchConfiguration()) {
       assertEquals(200, response.code());
