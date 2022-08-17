@@ -51,7 +51,7 @@ public class DubboDecorator extends BaseDecorator {
     String methodName = invocation.getMethodName();
     String resourceName = generateOperationName(url,invocation);
     String shortUrl = generateRequestURL(url,invocation);
-
+    System.out.println("isConsumer : "+isConsumer);
     if (log.isDebugEnabled()) {
       log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{},ProtocolServiceKey:{},serviceName:{}",
           isConsumer,
@@ -129,10 +129,6 @@ public class DubboDecorator extends BaseDecorator {
   }
 
   public AgentScope buildSpan(Invoker invoker, Invocation invocation) {
-    RpcContext rpcContext = RpcContext.getServerContext();
-    if (null == rpcContext) {
-      return null;
-    }
     AgentSpan span = startDubboSpan(invoker,invocation);
     span.startThreadMigration();
     AgentScope agentScope = activateSpan(span);

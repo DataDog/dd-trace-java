@@ -17,15 +17,19 @@ public class RequestAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beginRequest(@Advice.This Filter filter,@Advice.Argument(0) final Invoker invoker,
                                         @Advice.Argument(1) final Invocation invocation) {
+
+    System.out.println(filter.getClass().getName());
     final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(RpcContext.class);
+//    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(RpcContext.class);
     if (callDepth > 0) {
       return null;
     }
-    System.out.println(filter.getClass().getName());
-    if (filter instanceof ConsumerContextFilter || filter instanceof ContextFilter){
-      return DECORATE.buildSpan(invoker,invocation);
-    }
-    return null;
+//    if (filter instanceof ConsumerContextFilter || filter instanceof ContextFilter){
+//      return DECORATE.buildSpan(invoker,invocation);
+//    }
+    AgentScope agentScope = DECORATE.buildSpan(invoker, invocation);
+//    System.out.println("==============================  RequestAdvice end==============================  ");
+    return agentScope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -39,6 +43,6 @@ public class RequestAdvice {
 
     scope.close();
     scope.span().finish();
-    CallDepthThreadLocalMap.reset(Filter.class);
+    CallDepthThreadLocalMap.reset(RpcContext.class);
   }
 }
