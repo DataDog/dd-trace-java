@@ -7,5 +7,6 @@
 \}
 \},
 "message":"Received probe \d.",
-"service":"service-name"
+"service":"service-name",
+"timestamp":\d+
 \}\]
