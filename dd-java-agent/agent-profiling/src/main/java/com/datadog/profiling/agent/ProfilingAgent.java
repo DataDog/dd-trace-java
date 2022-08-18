@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -126,14 +127,18 @@ public class ProfilingAgent {
     shutdown(profiler, uploader, snapshot);
   }
 
+  private static final AtomicBoolean shutDownFlag = new AtomicBoolean();
+
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
-    if (profiler != null) {
-      profiler.shutdown(snapshot);
-    }
+    if (shutDownFlag.compareAndSet(false, true)) {
+      if (profiler != null) {
+        profiler.shutdown(snapshot);
+      }
 
-    if (uploader != null) {
-      uploader.shutdown();
+      if (uploader != null) {
+        uploader.shutdown();
+      }
     }
   }
 
