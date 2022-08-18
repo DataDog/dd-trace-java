@@ -39,6 +39,7 @@ class TimelineCheckpointer implements Checkpointer {
     ByteArrayOutputStream baostream = new ByteArrayOutputStream()
     PrintStream out = new PrintStream(baostream, false, charset)
 
+    out.println("== Checkpoints")
     out.println("=== Spans: ${trackedSpanIds*.toLong()}\n")
 
     def invalidEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, trackedSpanIds, out)
@@ -62,12 +63,13 @@ class TimelineCheckpointer implements Checkpointer {
     out.println("=== Timeline:")
     TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents*.event, out)
 
-    out.println("=== Checkpoints:")
+    out.println("=== Events:")
     orderedEvents.each { event ->
       invalidEvents.findAll { it.event == event }.each { out.println(it) }
       out.println(event)
     }
 
+    out.println("==")
     out.flush()
 
     // everything that was printed to `out`

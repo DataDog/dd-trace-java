@@ -7,6 +7,7 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
+import datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -122,6 +123,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
+
+  @SuppressWarnings('PropertyName')
+  @Shared
+  TimelineTracingContextTracker TEST_TRACKER = Spy(TimelineTracingContextTracker.register())
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -249,6 +254,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   def setup() {
+    // re-register in case a new JVM is spawned
+    TimelineTracingContextTracker.register()
+
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -264,18 +272,25 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_TRACER.flush()
     TEST_SPANS.clear()
     TEST_CHECKPOINTER.clear()
+    TEST_TRACKER.clear()
     TEST_WRITER.start()
     TEST_DATA_STREAMS_WRITER.clear()
 
-    new MockUtil().attachMock(STATS_D_CLIENT, this)
-    new MockUtil().attachMock(TEST_CHECKPOINTER, this)
+    def util = new MockUtil()
+    util.attachMock(STATS_D_CLIENT, this)
+    util.attachMock(TEST_CHECKPOINTER, this)
+    util.attachMock(TEST_TRACKER, this)
   }
 
   void cleanup() {
     TEST_TRACER.flush()
-    new MockUtil().detachMock(STATS_D_CLIENT)
-    new MockUtil().detachMock(TEST_CHECKPOINTER)
+    def util = new MockUtil()
+    util.detachMock(STATS_D_CLIENT)
+    util.detachMock(TEST_CHECKPOINTER)
+    util.detachMock(TEST_TRACKER)
 
+
+    TEST_TRACKER.print()
     TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
   }
 

@@ -78,7 +78,8 @@ public class DependencyServiceImplTests {
     CodeSource codeSource = new CodeSource(groovyJarURL, (Certificate[]) null);
     ProtectionDomain domain = new ProtectionDomain(codeSource, null);
     t.transform(getClass().getClassLoader(), "class.name", Object.class, domain, new byte[0]);
-    Collection<Dependency> deps = depService.determineNewDependencies();
+    depService.run(); // for test enforce instant dependency resolution
+    Collection<Dependency> deps = depService.drainDeterminedDependencies();
 
     if (deps.isEmpty()) {
       return null;

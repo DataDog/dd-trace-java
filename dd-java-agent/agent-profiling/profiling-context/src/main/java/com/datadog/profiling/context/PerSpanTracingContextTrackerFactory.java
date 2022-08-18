@@ -167,6 +167,9 @@ public final class PerSpanTracingContextTrackerFactory
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
+    if (span != null && span.eligibleForDropping()) {
+      return TracingContextTracker.EMPTY;
+    }
     PerSpanTracingContextTracker instance =
         new PerSpanTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);

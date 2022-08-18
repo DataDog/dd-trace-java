@@ -176,10 +176,6 @@ public class ConfigurationPoller implements AgentTaskScheduler.Target<Configurat
     }
   }
 
-  public PollerScheduler getScheduler() {
-    return scheduler;
-  }
-
   private void handleAgentResponse(ResponseBody body) {
     try (InputStream inputStream = new SizeCheckedInputStream(body.byteStream(), maxPayloadSize)) {
       RemoteConfigResponse fleetResponse = new RemoteConfigResponse(inputStream, moshi);

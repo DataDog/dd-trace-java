@@ -145,6 +145,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** mark that the work associated with the span has resumed on a new thread */
   void finishThreadMigration();
 
+  void startWork();
+
   /** Mark the end of a task associated with the span */
   void finishWork();
 

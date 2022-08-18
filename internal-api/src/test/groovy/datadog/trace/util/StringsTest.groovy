@@ -5,13 +5,42 @@ import datadog.trace.test.util.DDSpecification
 class StringsTest extends DDSpecification {
 
   def "test resource name from class"() {
-    expect:
-    "foo/bar/Class.class" == Strings.getResourceName("foo.bar.Class")
+    when:
+    String s = Strings.getResourceName(className)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    className       | expected
+    "foo.bar.Class" | "foo/bar/Class.class"
+    "Class"         | "Class.class"
+    // spotless:on
   }
 
   def "test class name from resource"() {
-    expect:
-    "foo.bar.Class" == Strings.getClassName("foo/bar/Class.class")
+    when:
+    String s = Strings.getClassName(resourceName)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    resourceName          | expected
+    "foo/bar/Class.class" | "foo.bar.Class"
+    "Class.class"         | "Class"
+    // spotless:on
+  }
+
+  def "test package name from class"() {
+    when:
+    String s = Strings.getPackageName(className)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    className       | expected
+    "foo.bar.Class" | "foo.bar"
+    "Class"         | ""
+    // spotless:on
   }
 
   def "test envvar from property"() {

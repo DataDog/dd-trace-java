@@ -65,7 +65,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
-        sharedCommunicationObjects.featuresDiscovery,
+        sharedCommunicationObjects.featuresDiscovery(config),
         new OkHttpSink(
             sharedCommunicationObjects.okHttpClient,
             config.getAgentUrl(),

@@ -27,9 +27,8 @@ class IntervalValidator extends AbstractValidator {
     }
   }
 
-  def openIntervalsBySpan = new HashMap<Long, Deque<SpanInterval>>()
-  def intervalsByTime = new ArrayDeque<>()
   def tick = 0
+  def taskStack = new ArrayDeque<>()
 
   IntervalValidator() {
     super("intervals", CheckpointValidationMode.INTERVALS)
@@ -37,28 +36,22 @@ class IntervalValidator extends AbstractValidator {
 
   @Override
   def startSpan() {
+    // ignore
     return startSpan(event.spanId.toLong())
   }
 
   def startSpan(def spanId) {
-    tick++
-
-    def spanIntervals = openIntervalsBySpan.get(spanId)
-    if (spanIntervals == null) {
-      spanIntervals = new ArrayDeque<SpanInterval>()
-      openIntervalsBySpan.put(spanId, spanIntervals)
-    }
-    if (spanIntervals.empty) {
-      def interval = new SpanInterval(spanId,  event, tick)
-      spanIntervals.push(interval)
-      intervalsByTime.push(interval)
-      return Result.OK
-    }
-    return Result.FAILED.withMessage("There is already an open interval for span ${spanId}")
+    return Result.OK
   }
 
   @Override
   def startTask() {
+    return startTask(event.spanId.toLong())
+  }
+
+  def startTask(def spanId) {
+    tick++
+    taskStack.push(spanId)
     return Result.OK
   }
 
@@ -69,110 +62,48 @@ class IntervalValidator extends AbstractValidator {
 
   def endTask(def spanId) {
     tick++
-    return closeInterval(spanId)
+    if (taskStack.isEmpty()) {
+      return Result.FAILED.withMessage("No active task")
+    }
+    def popped = taskStack.pop()
+    if (popped != spanId) {
+      return Result.FAILED.withMessage("Invalid active task. Expected ${popped}, got ${spanId}")
+    }
+    return Result.OK
   }
 
   @Override
   def suspendSpan() {
+    // ignore
     return suspendSpan(event.spanId.toLong())
   }
 
   def suspendSpan(def spanId) {
-    tick++
-    def ret = closeInterval(spanId)
-    if (ret != Result.OK) {
-      return ret
-    }
-    def interval = new SpanInterval(spanId, event, tick)
-    interval.state = IntervalState.INACTIVE
-    openIntervalsBySpan.get(spanId)?.push(interval)
-    intervalsByTime.push(interval)
-    return Result.OK
-  }
-
-  def closeInterval(def spanId, def requireExisting = false) {
-    def spanIntervals = openIntervalsBySpan.get(spanId)
-    if (spanIntervals == null || spanIntervals.empty) {
-      if (requireExisting) {
-        return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
-      }
-      return Result.OK
-    }
-    def interval = spanIntervals.pop()
-    if (interval == null) {
-      if (requireExisting) {
-        return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
-      }
-      return Result.OK
-    }
-
-    interval.close(tick)
-    if (interval.state == IntervalState.INACTIVE) {
-      return Result.OK
-    }
-
-    for (def it : intervalsByTime) {
-      if (it.spanId == spanId) {
-        continue
-      }
-      if (it.state != IntervalState.INACTIVE) {
-        if ((it.startTick <= interval.startTick && it.endTick >= interval.startTick && it.endTick <= tick) ||
-          (it.endTick >= tick && it.startTick >= interval.startTick && it.startTick <= tick)) {
-          return Result.FAILED.withMessage("Overlapping spans: ${spanId}, ${it.spanId}")
-        }
-      }
-    }
     return Result.OK
   }
 
   @Override
   def resumeSpan() {
+    // ignore
     return resumeSpan(event.spanId.toLong())
   }
 
   def resumeSpan(def spanId) {
-    tick++
-    def spanIntervals = openIntervalsBySpan.get(spanId)
-    if (spanIntervals == null) {
-      spanIntervals = new ArrayDeque<SpanInterval>()
-      openIntervalsBySpan.put(spanId, spanIntervals)
-    }
-    def interval = spanIntervals.peek()
-    if (interval != null) {
-      switch (interval.state) {
-        case IntervalState.INACTIVE:
-          interval = spanIntervals.pop()
-          intervalsByTime.remove(interval)
-          break
-        case IntervalState.ACTIVE:
-          def prevInterval = intervalsByTime.peek()
-          if (prevInterval != null && prevInterval.state == IntervalState.ACTIVE && prevInterval.spanId == interval.spanId) {
-            // just extend the preceding interval
-            return Result.OK
-          }
-          break
-        case IntervalState.CLOSED:
-          return Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
-      }
-    }
-    interval = new SpanInterval(spanId, event, tick)
-    spanIntervals.push(interval)
-    intervalsByTime.push(interval)
     return Result.OK
   }
 
   @Override
   def endSpan() {
+    // ignore
     return endSpan(event.spanId.toLong())
   }
 
   def endSpan(def spanId) {
-    tick++
-    closeInterval(spanId)
+    return Result.OK
   }
 
   @Override
   def endSequence() {
-    return intervalsByTime.findAll {it.state == IntervalState.ACTIVE}.empty ? Result.OK : Result.FAILED
+    return taskStack.isEmpty() ? Result.OK : Result.FAILED
   }
 }

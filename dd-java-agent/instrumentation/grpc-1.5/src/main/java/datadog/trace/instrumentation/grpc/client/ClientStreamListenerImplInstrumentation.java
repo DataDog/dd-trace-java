@@ -112,7 +112,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        scope.span().finishWork();
         scope.close();
       }
     }

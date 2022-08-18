@@ -2,12 +2,13 @@ package datadog.trace.bootstrap;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
+import java.io.InputStream;
 import java.net.URL;
-import java.net.URLClassLoader;
+import java.security.CodeSource;
+import java.security.SecureClassLoader;
+import java.security.cert.Certificate;
+import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -15,232 +16,117 @@ import java.util.jar.JarFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A classloader which maintains a package index of isolated delegate classloaders, and delegates
- * class loads according to package. Loads classes itself according to package, but delegates
- * upwards when a class cannot be loaded.
- */
-public class DatadogClassLoader extends URLClassLoader {
-
-  private static final Logger log = LoggerFactory.getLogger(DatadogClassLoader.class);
-
+/** Provides access to Datadog internal classes. */
+public final class DatadogClassLoader extends SecureClassLoader {
   static {
     ClassLoader.registerAsParallelCapable();
   }
 
-  protected final InternalJarURLHandler internalJarURLHandler;
+  private static final Logger log = LoggerFactory.getLogger(DatadogClassLoader.class);
 
-  // Calling java.lang.instrument.Instrumentation#appendToBootstrapClassLoaderSearch
-  // adds a jar to the bootstrap class lookup, but not to the resource lookup.
-  // As a workaround, we keep a reference to the bootstrap jar
-  // to use only for resource lookups.
-  private final ClassLoader bootstrapProxy;
-  private final String classLoaderName;
-  private final JarIndex jarIndex;
+  private final Set<String> definedPackages = new HashSet<>();
 
-  private String lastPackage = null;
+  private final JarFile agentJarFile;
+  private final CodeSource agentCodeSource;
+  private final String agentResourcePrefix;
+  private final AgentJarIndex agentJarIndex;
 
-  public DatadogClassLoader(
-      final URL bootstrapJarLocation,
-      final String internalJarFileName,
-      final ClassLoader bootstrapProxy,
-      final ClassLoader parent) {
-    super(new URL[] {}, parent);
-    this.jarIndex =
-        parent instanceof DatadogClassLoader
-            ? ((DatadogClassLoader) parent).jarIndex
-            : new JarIndex(bootstrapJarLocation);
-    this.bootstrapProxy = bootstrapProxy;
-    this.classLoaderName = null == internalJarFileName ? "datadog" : internalJarFileName;
-    this.internalJarURLHandler =
-        new InternalJarURLHandler(
-            internalJarFileName, jarIndex.index.get(internalJarFileName), jarIndex.jarFile);
-    try {
-      // The fields of the URL are mostly dummy.  InternalJarURLHandler is the only important
-      // field.  If extending this class from Classloader instead of URLClassloader required less
-      // boilerplate it could be used and the need for dummy fields would be reduced
-      addURL(new URL("x-internal-jar", null, 0, "/", internalJarURLHandler));
-    } catch (final MalformedURLException e) {
-      // This can't happen with current URL constructor
-      log.error("URL malformed.  Unsupported JDK?", e);
-    }
+  public DatadogClassLoader(final URL agentJarURL, final ClassLoader parent) throws Exception {
+    super(parent);
+
+    agentJarFile = new JarFile(new File(agentJarURL.toURI()), false);
+    agentCodeSource = new CodeSource(agentJarURL, (Certificate[]) null);
+    agentResourcePrefix = "jar:file:" + agentJarFile.getName() + "!/";
+    agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
+  }
+
+  /** For testing purposes only. */
+  public DatadogClassLoader() {
+    super(null);
+
+    agentCodeSource = null;
+    agentJarFile = null;
+    agentResourcePrefix = null;
+    agentJarIndex = AgentJarIndex.emptyIndex();
   }
 
   @Override
-  public URL getResource(final String resourceName) {
-    final URL bootstrapResource = bootstrapProxy.getResource(resourceName);
-    if (null == bootstrapResource) {
-      return super.getResource(resourceName);
-    } else {
+  public URL getResource(final String name) {
+    URL bootstrapResource = BootstrapProxy.INSTANCE.getResource(name);
+    if (null != bootstrapResource) {
       return bootstrapResource;
     }
+    return super.getResource(name);
   }
 
-  /**
-   * @param className binary name of class
-   * @return true if this loader has attempted to load the given class
-   */
-  public boolean hasLoadedClass(final String className) {
-    return findLoadedClass(className) != null;
-  }
-
-  Class<?> loadFromPackage(String packageName, String name) throws ClassNotFoundException {
-    if (internalJarURLHandler.hasPackage(packageName)) {
-      synchronized (getClassLoadingLock(name)) {
-        Class<?> loaded = findLoadedClass(name);
-        if (loaded != null) {
-          return loaded;
-        }
-        if (!packageName.startsWith("java.")) {
-          return findClass(name);
+  @Override
+  protected URL findResource(String name) {
+    String entryName = agentJarIndex.resourceEntryName(name);
+    if (null != entryName) {
+      JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
+      if (null != jarEntry) {
+        String location = agentResourcePrefix + entryName;
+        try {
+          return new URL(location);
+        } catch (Exception e) {
+          log.warn("Malformed location {}", location);
         }
       }
     }
-    return super.loadClass(name);
+    return null;
   }
 
-  String getPackageName(final String className) {
-    // intentionally not thread-safe: the worst case scenario is excess allocation/lookups
-    String packageName = lastPackage;
-    if (null == packageName || !className.startsWith(packageName)) {
-      int end = className.lastIndexOf('.');
-      if (end != -1) {
-        packageName = className.substring(0, end);
-        this.lastPackage = packageName;
+  @Override
+  protected Enumeration<URL> findResources(String name) {
+    URL resource = findResource(name);
+    if (null != resource) {
+      return Collections.enumeration(Collections.singleton(resource));
+    }
+    return Collections.emptyEnumeration();
+  }
+
+  @Override
+  protected Class<?> findClass(String name) throws ClassNotFoundException {
+    String entryName = agentJarIndex.classEntryName(name);
+    if (null != entryName) {
+      JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
+      if (null != jarEntry) {
+        byte[] buf = new byte[(int) jarEntry.getSize()];
+        try (InputStream in = agentJarFile.getInputStream(jarEntry)) {
+          int bytesRead = in.read(buf);
+          while (bytesRead < buf.length) {
+            int delta = in.read(buf, bytesRead, buf.length - bytesRead);
+            if (delta < 0) {
+              break;
+            }
+            bytesRead += delta;
+          }
+          if (bytesRead == buf.length) {
+            return defineClass(name, buf, 0, buf.length, agentCodeSource);
+          } else {
+            log.warn("Malformed class data at {}", jarEntry);
+          }
+        } catch (IOException e) {
+          log.warn("Problem reading class data at {}", jarEntry, e);
+        }
+      }
+    }
+    throw new ClassNotFoundException(name);
+  }
+
+  @Override
+  protected Package getPackage(String name) {
+    synchronized (definedPackages) {
+      if (definedPackages.add(name)) {
+        return definePackage(name, null, null, null, null, null, null, null);
       } else {
-        packageName = "";
+        return super.getPackage(name);
       }
-    }
-    return packageName;
-  }
-
-  public ClassLoader getBootstrapProxy() {
-    return bootstrapProxy;
-  }
-
-  /**
-   * A stand-in for the bootstrap classloader. Used to look up bootstrap resources and resources
-   * appended by instrumentation.
-   *
-   * <p>This class is thread safe.
-   */
-  public static final class BootstrapClassLoaderProxy extends URLClassLoader {
-    static {
-      ClassLoader.registerAsParallelCapable();
-    }
-
-    public BootstrapClassLoaderProxy(final URL url) {
-      super(new URL[] {url}, null);
-    }
-
-    public BootstrapClassLoaderProxy() {
-      super(new URL[0], null);
-    }
-
-    @Override
-    public void addURL(final URL url) {
-      super.addURL(url);
-    }
-
-    @Override
-    protected Class<?> findClass(final String name) throws ClassNotFoundException {
-      throw new ClassNotFoundException(name);
     }
   }
 
   @Override
   public String toString() {
-    return classLoaderName;
-  }
-
-  public static class DelegateClassLoader extends DatadogClassLoader {
-    static {
-      ClassLoader.registerAsParallelCapable();
-    }
-
-    private final DatadogClassLoader shared;
-
-    /**
-     * Construct a new DatadogClassLoader
-     *
-     * @param bootstrapJarLocation Used for resource lookups.
-     * @param internalJarFileName File name of the internal jar
-     * @param parent Classloader parent. Should null (bootstrap), or the platform classloader for
-     *     java 9+.
-     */
-    public DelegateClassLoader(
-        final URL bootstrapJarLocation,
-        final String internalJarFileName,
-        final ClassLoader bootstrapProxy,
-        final ClassLoader parent,
-        final ClassLoader shared) {
-      super(bootstrapJarLocation, internalJarFileName, bootstrapProxy, parent);
-      this.shared = (DatadogClassLoader) shared;
-    }
-
-    @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-      String packageName = shared.getPackageName(name);
-      if (internalJarURLHandler.hasPackage(packageName)) {
-        synchronized (getClassLoadingLock(name)) {
-          Class<?> loaded = findLoadedClass(name);
-          if (loaded != null) {
-            return loaded;
-          }
-          if (!packageName.startsWith("java.")) {
-            return findClass(name);
-          }
-        }
-      }
-      return shared.loadFromPackage(packageName, name);
-    }
-  }
-
-  static final class JarIndex {
-    private final HashMap<String, Set<String>> index;
-    private final JarFile jarFile;
-
-    private JarIndex(URL location) {
-      this.index = new HashMap<>();
-      JarFile jarFile = null;
-      try {
-        if (location != null) {
-          jarFile = new JarFile(new File(location.toURI()), false);
-          String currentFilePrefix = "$";
-          int prefixLength = Integer.MAX_VALUE;
-          Set<String> packages = null;
-          final Enumeration<JarEntry> entries = jarFile.entries();
-          while (entries.hasMoreElements()) {
-            final JarEntry entry = entries.nextElement();
-            String name = entry.getName();
-            if (entry.isDirectory() && !name.startsWith("META-INF/")) {
-              if (!name.startsWith(currentFilePrefix)) {
-                int end = name.indexOf('/');
-                currentFilePrefix = name.substring(0, end);
-                packages = new HashSet<>();
-                index.put(currentFilePrefix, packages);
-                prefixLength = end + 1;
-              }
-              if (name.length() > prefixLength && null != packages) {
-                String dir = name.substring(prefixLength, name.length() - 1);
-                String currentPackage = dir.replace('/', '.');
-                packages.add(currentPackage);
-              }
-            }
-          }
-        }
-      } catch (final URISyntaxException | IOException e) {
-        log.error("Unable to read internal jar", e);
-      }
-      this.jarFile = jarFile;
-    }
-
-    public Set<String> getPackages(String namespace) {
-      return index.get(namespace);
-    }
-
-    public JarFile getJarFile() {
-      return jarFile;
-    }
+    return "datadog";
   }
 }

@@ -27,7 +27,7 @@ public class ProbeStatusSink {
 
   private final Builder messageBuilder;
   private final Map<String, TimedMessage> probeStatuses = new ConcurrentHashMap<>();
-  private final ArrayBlockingQueue<ProbeStatus> queue = new ArrayBlockingQueue<>(1000);
+  private final ArrayBlockingQueue<ProbeStatus> queue;
   private final Duration interval;
   private final int batchSize;
   private final boolean isInstrumentTheWorld;
@@ -36,6 +36,7 @@ public class ProbeStatusSink {
     this.messageBuilder = new Builder(config);
     this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
     this.batchSize = config.getDebuggerUploadBatchSize();
+    this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
   }
 
@@ -77,18 +78,30 @@ public class ProbeStatusSink {
   }
 
   List<ProbeStatus> getDiagnostics(Clock clock) {
-    Instant now = Instant.now(clock);
-    for (TimedMessage entry : probeStatuses.values()) {
-      if (shouldEmitAgain(now, entry.getLastEmit())) {
-        if (!queue.contains(entry.getMessage())) {
-          enqueueDiagnosticMessage(entry.getMessage());
-        }
-        entry.setLastEmit(Instant.now(Clock.systemDefaultZone()));
-      }
-    }
+    int missingCapacity = enqueueAllProbesStatusIfNeeded(clock);
+
     List<ProbeStatus> diagnostics = new ArrayList<>();
     queue.drainTo(diagnostics, batchSize);
+
+    if (missingCapacity > 0) {
+      // if queue was full before, try re-emit probe status now that there is free capacity
+      enqueueAllProbesStatusIfNeeded(clock);
+    }
+
     return diagnostics;
+  }
+
+  private int enqueueAllProbesStatusIfNeeded(Clock clock) {
+    Instant now = Instant.now(clock);
+    int missingCapacity = 0;
+    for (TimedMessage entry : probeStatuses.values()) {
+      if (shouldEmitAgain(now, entry.getLastEmit())) {
+        if (!enqueueTimedMessage(entry, now)) {
+          missingCapacity++;
+        }
+      }
+    }
+    return missingCapacity;
   }
 
   public void removeDiagnostics(String probeId) {
@@ -103,26 +116,29 @@ public class ProbeStatusSink {
     String probeId = message.getDiagnostics().getProbeId();
     TimedMessage current = probeStatuses.get(probeId);
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
-      probeStatuses.put(probeId, new TimedMessage(Instant.now(Clock.systemDefaultZone()), message));
-      enqueueDiagnosticMessage(message);
+      TimedMessage newMessage = new TimedMessage(message);
+      probeStatuses.put(probeId, newMessage);
+      enqueueTimedMessage(newMessage, Instant.now(Clock.systemDefaultZone()));
     }
+  }
+
+  private boolean enqueueTimedMessage(TimedMessage message, Instant now) {
+    if (!queue.contains(message.getMessage())) {
+      if (queue.offer(
+          message.isAlreadySent()
+              ? message.getMessage().withNewTimestamp(now)
+              : message.getMessage())) {
+        message.setLastEmit(now);
+      } else {
+        return false;
+      }
+    }
+    return true;
   }
 
   private boolean shouldOverwrite(ProbeStatus current, ProbeStatus next) {
     return next.getDiagnostics().getStatus() == Status.ERROR
         || (current.getDiagnostics().getStatus() != next.getDiagnostics().getStatus());
-  }
-
-  private void enqueueDiagnosticMessage(ProbeStatus message) {
-    if (!queue.offer(message)) {
-      queue.clear();
-      for (TimedMessage entry : probeStatuses.values()) {
-        if (!queue.contains(entry.getMessage())) {
-          queue.offer(entry.getMessage());
-        }
-        entry.setLastEmit(Instant.now(Clock.systemDefaultZone()));
-      }
-    }
   }
 
   private boolean shouldEmitAgain(Instant now, Instant lastEmit) {
@@ -134,8 +150,9 @@ public class ProbeStatusSink {
     private final ProbeStatus message;
     private Instant lastEmit;
 
-    private TimedMessage(Instant lastEmit, ProbeStatus message) {
-      this.lastEmit = lastEmit;
+    private TimedMessage(ProbeStatus message) {
+      // mark it as never sent before
+      this.lastEmit = Instant.EPOCH;
       this.message = message;
     }
 
@@ -149,6 +166,10 @@ public class ProbeStatusSink {
 
     public void setLastEmit(Instant instant) {
       lastEmit = instant;
+    }
+
+    public boolean isAlreadySent() {
+      return !this.lastEmit.equals(Instant.EPOCH);
     }
   }
 }

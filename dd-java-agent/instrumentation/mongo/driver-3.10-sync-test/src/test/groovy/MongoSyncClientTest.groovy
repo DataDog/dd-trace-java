@@ -14,6 +14,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -51,6 +52,8 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "synchronous checkpoints span the driver activity"
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     0 * TEST_CHECKPOINTER._
@@ -95,6 +98,8 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "synchronous checkpoints span the driver activity"
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     0 * TEST_CHECKPOINTER._
@@ -133,6 +138,8 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     0 * TEST_CHECKPOINTER._
@@ -176,6 +183,8 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     0 * TEST_CHECKPOINTER._
@@ -217,6 +226,8 @@ class MongoSyncClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     0 * TEST_CHECKPOINTER._

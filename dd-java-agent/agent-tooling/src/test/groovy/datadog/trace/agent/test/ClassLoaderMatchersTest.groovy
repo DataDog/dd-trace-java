@@ -10,15 +10,14 @@ class ClassLoaderMatchersTest extends DDSpecification {
 
   def "skip non-delegating classloader"() {
     setup:
-    final URLClassLoader badLoader = new NonDelegatingClassLoader()
+    final ClassLoader badLoader = new NonDelegatingClassLoader()
     expect:
     ClassLoaderMatchers.skipClassLoader(badLoader)
   }
 
   def "skips agent classloader"() {
     setup:
-    URL root = new URL("file://")
-    final URLClassLoader agentLoader = new DatadogClassLoader(root, null, new DatadogClassLoader.BootstrapClassLoaderProxy(), null)
+    final ClassLoader agentLoader = new DatadogClassLoader()
     expect:
     ClassLoaderMatchers.skipClassLoader(agentLoader)
   }

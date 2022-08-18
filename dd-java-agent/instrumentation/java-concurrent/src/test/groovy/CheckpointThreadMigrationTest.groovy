@@ -23,7 +23,9 @@ class CheckpointThreadMigrationTest extends AgentTestRunner {
     (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    1 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    // minimum 2 tasks - the main task and the migrated one are present
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     cleanup:
@@ -53,7 +55,9 @@ class CheckpointThreadMigrationTest extends AgentTestRunner {
     (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    1 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    // minimum 2 tasks - the main task and the migrated one are present
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     cleanup:
