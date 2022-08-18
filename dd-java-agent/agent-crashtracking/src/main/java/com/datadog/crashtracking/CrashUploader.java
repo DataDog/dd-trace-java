@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +60,9 @@ public class CrashUploader {
   private final ConfigProvider configProvider;
 
   private final OkHttpClient client;
+  private final HttpUrl telemetryUrl;
+  private final HttpUrl logsUrl;
   private final boolean agentless;
-  private final HttpUrl url;
   private final String tags;
 
   public CrashUploader() {
@@ -71,7 +73,8 @@ public class CrashUploader {
     this.config = config;
     this.configProvider = configProvider;
 
-    url = HttpUrl.get(config.getFinalCrashTrackingUrl());
+    telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
+    logsUrl = HttpUrl.get(config.getFinalCrashTrackingLogsUrl());
     agentless = config.isCrashTrackingAgentless();
 
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
@@ -87,7 +90,7 @@ public class CrashUploader {
         OkHttpUtils.buildHttpClient(
             config,
             null, /* dispatcher */
-            url,
+            false, /* isHttp */
             true, /* retryOnConnectionFailure */
             null, /* maxRunningRequests */
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
@@ -107,16 +110,16 @@ public class CrashUploader {
   }
 
   public void upload(@Nonnull List<InputStream> files) throws IOException {
-    Call call = makeRequest(files);
-    try {
-      handleSuccess(call, call.execute());
-    } catch (IOException e) {
-      handleFailure(call, e);
+    List<String> filesContent = new ArrayList<>(files.size());
+    for (InputStream file : files) {
+      filesContent.add(readContent(file));
     }
+    handleCall(makeLogsRequest(filesContent));
+    handleCall(makeTelemetryRequest(filesContent));
   }
 
-  private Call makeRequest(@Nonnull List<InputStream> files) throws IOException {
-    final RequestBody requestBody = makeRequestBody(files);
+  private Call makeTelemetryRequest(@Nonnull List<String> filesContent) throws IOException {
+    final RequestBody requestBody = makeTelemetryRequestBody(filesContent);
 
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
@@ -129,14 +132,16 @@ public class CrashUploader {
     headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, REQUEST_TYPE);
 
     return client.newCall(
-        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
+        OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
+            .post(requestBody)
+            .build());
   }
 
-  private RequestBody makeRequestBody(@Nonnull List<InputStream> files) throws IOException {
+  private RequestBody makeTelemetryRequestBody(@Nonnull List<String> filesContent)
+      throws IOException {
     Buffer out = new Buffer();
     try (JsonWriter writer = JsonWriter.of(out)) {
       writer.beginObject();
-
       writer.name("api_version").value(API_VERSION);
       writer.name("request_type").value("logs");
       writer
@@ -148,9 +153,9 @@ public class CrashUploader {
       writer.name("debug").value(true);
       writer.name("payload");
       writer.beginArray();
-      for (InputStream file : files) {
+      for (String file : filesContent) {
         writer.beginObject();
-        writer.name("message").value(readContent(file));
+        writer.name("message").value(file);
         writer.name("level").value("ERROR");
         writer.endObject();
       }
@@ -178,6 +183,39 @@ public class CrashUploader {
     return RequestBody.create(APPLICATION_JSON, out.readByteString());
   }
 
+  private Call makeLogsRequest(@Nonnull List<String> filesContent) throws IOException {
+    final RequestBody requestBody = makeLogsRequestBody(filesContent);
+
+    final Map<String, String> headers = new HashMap<>();
+    headers.put("Content-Type", requestBody.contentType().toString());
+    headers.put("Content-Length", Long.toString(requestBody.contentLength()));
+    headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
+    headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
+
+    return client.newCall(
+        OkHttpUtils.prepareRequest(logsUrl, headers, config, agentless).post(requestBody).build());
+  }
+
+  private RequestBody makeLogsRequestBody(@Nonnull List<String> filesContent) throws IOException {
+    Buffer out = new Buffer();
+    try (JsonWriter writer = JsonWriter.of(out)) {
+      writer.beginArray();
+      for (String file : filesContent) {
+        writer.beginObject();
+        writer.name("ddsource").value("crashtracker");
+        writer.name("ddtags").value(tags);
+        writer.name("hostname").value(config.getHostName());
+        writer.name("service").value(config.getServiceName());
+        writer.name("message").value(file);
+        writer.name("level").value("ERROR");
+        writer.endObject();
+      }
+      writer.endArray();
+    }
+
+    return RequestBody.create(APPLICATION_JSON, out.readByteString());
+  }
+
   private String readContent(InputStream file) throws IOException {
     try (InputStreamReader reader = new InputStreamReader(file, StandardCharsets.UTF_8)) {
       int read;
@@ -190,16 +228,25 @@ public class CrashUploader {
     }
   }
 
+  private void handleCall(final Call call) {
+    try {
+      handleSuccess(call, call.execute());
+    } catch (IOException e) {
+      handleFailure(call, e);
+    }
+  }
+
   private void handleSuccess(final Call call, final Response response) throws IOException {
     if (response.isSuccessful()) {
       log.info(
-          "Successfully uploaded the crash files, code = {} \"{}\"",
+          "Successfully uploaded the crash files to {}, code = {} \"{}\"",
+          call.request().url(),
           response.code(),
           response.message());
     } else {
       log.error(
           "Failed to upload crash files to {}, code = {} \"{}\", body = \"{}\"",
-          url,
+          call.request().url(),
           response.code(),
           response.message(),
           response.body() != null ? response.body().string().trim() : "<null>");

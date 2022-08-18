@@ -73,7 +73,8 @@ public class CrashUploaderTest {
     when(config.getEnv()).thenReturn(ENV);
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
-    when(config.getFinalCrashTrackingUrl()).thenReturn(server.url(URL_PATH).toString());
+    when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
+    when(config.getFinalCrashTrackingLogsUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.getApiKey()).thenReturn(null);
   }

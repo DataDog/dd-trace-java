@@ -99,6 +99,31 @@ public final class OkHttpUtils {
         timeoutMillis);
   }
 
+  public static OkHttpClient buildHttpClient(
+      final Config config,
+      final Dispatcher dispatcher,
+      final boolean isHttp,
+      final Boolean retryOnConnectionFailure,
+      final Integer maxRunningRequests,
+      final String proxyHost,
+      final Integer proxyPort,
+      final String proxyUsername,
+      final String proxyPassword,
+      final long timeoutMillis) {
+    return buildHttpClient(
+        discoverApmSocket(config),
+        config.getAgentNamedPipe(),
+        dispatcher,
+        isHttp,
+        retryOnConnectionFailure,
+        maxRunningRequests,
+        proxyHost,
+        proxyPort,
+        proxyUsername,
+        proxyPassword,
+        timeoutMillis);
+  }
+
   private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
       final String namedPipe,

@@ -99,7 +99,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
@@ -502,7 +501,6 @@ public class Config {
   private final boolean profilingUploadSummaryOn413Enabled;
 
   private final boolean crashTrackingAgentless;
-  @Deprecated private final String crashTrackingUrl;
   private final Map<String, String> crashTrackingTags;
 
   private final boolean appSecEnabled;
@@ -1051,7 +1049,6 @@ public class Config {
 
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
-    crashTrackingUrl = configProvider.getString(CRASH_TRACKING_URL);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
     telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
@@ -2287,17 +2284,24 @@ public class Config {
     }
   }
 
-  public String getFinalCrashTrackingUrl() {
-    if (crashTrackingUrl != null) {
-      // when crashTrackingUrl is set we use it regardless of apiKey/agentless config
-      return crashTrackingUrl;
-    } else if (crashTrackingAgentless) {
+  public String getFinalCrashTrackingTelemetryUrl() {
+    if (crashTrackingAgentless) {
       // when agentless crashTracking is turned on we send directly to our intake
       return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
     } else {
-      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
-      // locally
+      // when agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
+    }
+  }
+
+  public String getFinalCrashTrackingLogsUrl() {
+    if (crashTrackingAgentless) {
+      // when agentless crashTracking is turned on we send directly to our intake
+      return "https://http-intake.logs." + site + "/api/v2/logs";
+
+    } else {
+      // when agentless are not set we send to the dd trace agent running locally
+      return "http://" + agentHost + ":" + agentPort + "/api/v2/logs";
     }
   }
 
@@ -2855,9 +2859,6 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
-        + ", crashTrackingUrl='"
-        + crashTrackingUrl
-        + '\''
         + ", crashTrackingTags="
         + crashTrackingTags
         + ", crashTrackingAgentless="
