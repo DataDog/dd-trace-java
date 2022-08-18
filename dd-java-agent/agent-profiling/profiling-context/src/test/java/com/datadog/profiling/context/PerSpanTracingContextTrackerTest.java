@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.context.allocator.Allocators;
 import datadog.trace.api.profiling.TracingContextTracker;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -146,7 +145,7 @@ class PerSpanTracingContextTrackerTest {
         new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
     PerSpanTracingContextTracker tracker =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
     AtomicInteger blobCounter = new AtomicInteger();
 
     tracker.activateContext();
@@ -171,9 +170,9 @@ class PerSpanTracingContextTrackerTest {
         new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
     PerSpanTracingContextTracker tracker1 =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
     PerSpanTracingContextTracker tracker2 =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
 
     TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
     TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
@@ -205,9 +204,9 @@ class PerSpanTracingContextTrackerTest {
         new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
     PerSpanTracingContextTracker tracker1 =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
     PerSpanTracingContextTracker tracker2 =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
 
     TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
     TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
@@ -222,9 +221,9 @@ class PerSpanTracingContextTrackerTest {
         new PerSpanTracingContextTrackerFactory(-1, 10L, 512);
 
     PerSpanTracingContextTracker tracker1 =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
     PerSpanTracingContextTracker tracker2 =
-        (PerSpanTracingContextTracker) instance.instance(AgentTracer.NoopAgentSpan.INSTANCE);
+        (PerSpanTracingContextTracker) instance.instance(new TestSpan());
 
     TracingContextTracker.DelayedTracker delayed1 = tracker1.asDelayed();
     TracingContextTracker.DelayedTracker delayed2 = tracker2.asDelayed();
