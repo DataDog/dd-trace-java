@@ -9,17 +9,24 @@ import java.util.concurrent.TimeUnit
 
 class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   List<Collection<StatsBucket>> payloads = []
+  List<StatsBucket.BucketType> payloadBucketTypes = []
   List<StatsGroup> groups = []
+  List<StatsBucket.BucketType> groupBucketTypes = []
 
   @Override
-  void writePayload(Collection<StatsBucket> data) {
+  void writePayload(Collection<StatsBucket> data, StatsBucket.BucketType bucketType) {
     payloads.add(data)
-    data.each { groups.addAll(it.groups) }
+    payloadBucketTypes.add(bucketType)
+    data.each {
+      groups.addAll(it.groups)
+      groupBucketTypes.add([bucketType] * it.groups.size())
+    }
   }
 
   void clear() {
     payloads.clear()
     groups.clear()
+    bucketTypes.clear()
   }
 
   void waitForPayloads(int count, long timeout = TimeUnit.SECONDS.toMillis(1)) {
