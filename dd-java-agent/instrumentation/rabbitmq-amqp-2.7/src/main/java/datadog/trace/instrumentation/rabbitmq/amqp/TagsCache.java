@@ -18,6 +18,6 @@ public class TagsCache {
     }
   }
 
-    public static final DDCache<String, String> EXCHANGE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
-    public static final Function<String, String> EXCHANGE_TAG_PREFIX = new StringPrefix("exchange:");
+  public static final DDCache<String, String> EXCHANGE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
+  public static final Function<String, String> EXCHANGE_TAG_PREFIX = new StringPrefix("exchange:");
 }

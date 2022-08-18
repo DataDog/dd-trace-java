@@ -68,11 +68,11 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        packageName + ".RabbitDecorator",
-        packageName + ".TextMapInjectAdapter",
-        packageName + ".TracedDelegatingConsumer",
-        packageName + ".TagsCache",
-        packageName + ".TagsCache$StringPrefix"
+      packageName + ".RabbitDecorator",
+      packageName + ".TextMapInjectAdapter",
+      packageName + ".TracedDelegatingConsumer",
+      packageName + ".TagsCache",
+      packageName + ".TagsCache$StringPrefix"
     };
   }
 
@@ -186,11 +186,17 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER,
-            Arrays.asList(
-                EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
-                routingKey == null || routingKey.equals("") ? "has_routing_key:false" : "has_routing_key:true",
-                "type:internal"));
+        propagate()
+            .injectPathwayContext(
+                span,
+                headers,
+                SETTER,
+                Arrays.asList(
+                    EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
+                    routingKey == null || routingKey.equals("")
+                        ? "has_routing_key:false"
+                        : "has_routing_key:true",
+                    "type:internal"));
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),
