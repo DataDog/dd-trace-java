@@ -24,6 +24,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] EDGE_TAGS = "EdgeTags".getBytes(ISO_8859_1);
   private static final byte[] HASH = "Hash".getBytes(ISO_8859_1);
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
+  private static final byte[] TIMESTAMP_TYPE = "TimestampType".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -49,7 +50,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   }
 
   @Override
-  public void writePayload(Collection<StatsBucket> data) {
+  public void writePayload(Collection<StatsBucket> data, StatsBucket.BucketType bucketType) {
     writer.startMap(6);
     /* 1 */
     writer.writeUTF8(ENV);
@@ -87,7 +88,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       /* 3 */
       writer.writeUTF8(STATS);
-      writeBucket(bucket, writer);
+      writeBucket(bucket, writer, bucketType);
     }
 
     buffer.mark();
@@ -95,7 +96,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     buffer.reset();
   }
 
-  private void writeBucket(StatsBucket bucket, Writable packer) {
+  private void writeBucket(StatsBucket bucket, Writable packer, StatsBucket.BucketType bucketType) {
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
@@ -127,6 +128,10 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
           packer.writeString(tag, null);
         }
       }
+
+      /* 6 */
+      packer.writeUTF8(TIMESTAMP_TYPE);
+      packer.writeString(bucketType.getValue(), null);
     }
   }
 }
