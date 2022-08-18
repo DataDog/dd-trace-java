@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.shutdown;
 
+import datadog.trace.bootstrap.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,13 +9,7 @@ public final class ShutdownHelper {
 
   public static void shutdownAgent() {
     log.debug("Shutting down agent ...");
-    try {
-      Class.forName("datadog.trace.bootstrap.Agent")
-          .getMethod("shutdown", Boolean.TYPE)
-          .invoke(null, true);
-      log.debug("Agent was properly shut down");
-    } catch (Throwable t) {
-      log.warn("Failed to shutdown Agent", t);
-    }
+    Agent.shutdown(true);
+    log.debug("Agent was properly shut down");
   }
 }
