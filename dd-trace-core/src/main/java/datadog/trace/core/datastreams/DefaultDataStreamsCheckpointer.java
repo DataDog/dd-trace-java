@@ -42,8 +42,7 @@ public class DefaultDataStreamsCheckpointer
   private static final StatsPoint POISON_PILL =
       new StatsPoint(Collections.<String>emptyList(), 0, 0, 0, 0, 0);
 
-  private final Map<Long, StatsBucket> tsCurrentBuckets = new HashMap<>();
-  private final Map<Long, StatsBucket> tsOriginBuckets = new HashMap<>();
+  private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<StatsPoint> inbox = new MpscBlockingConsumerArrayQueue<>(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
@@ -178,25 +177,18 @@ public class DefaultDataStreamsCheckpointer
             }
             break;
           } else if (supportsDataStreams) {
-            Long tsOriginBucket = currentBucket(statsPoint.getTimestampNanos() - statsPoint.getPathwayLatencyNano());
-            Long tsCurrentBucket = currentBucket(statsPoint.getTimestampNanos());
+            Long bucket = currentBucket(statsPoint.getTimestampNanos());
 
             // FIXME computeIfAbsent() is not available because Java 7
             // No easy way to have Java 8 in core even though datastreams monitoring is 8+ from
             // DDSketch
-            StatsBucket tsCurrentStatsBucket = tsCurrentBuckets.get(tsCurrentBucket);
-            if (tsCurrentStatsBucket == null) {
-              tsCurrentStatsBucket = new StatsBucket(tsCurrentBucket, bucketDurationNanos);
-              tsCurrentBuckets.put(tsCurrentBucket, tsCurrentStatsBucket);
+            StatsBucket statsBucket = timeToBucket.get(bucket);
+            if (statsBucket == null) {
+              statsBucket = new StatsBucket(bucket, bucketDurationNanos);
+              timeToBucket.put(bucket, statsBucket);
             }
-            tsCurrentStatsBucket.addPoint(statsPoint);
 
-            StatsBucket tsOriginStatsBucket = tsOriginBuckets.get(tsOriginBucket);
-            if (tsOriginStatsBucket == null) {
-              tsOriginStatsBucket = new StatsBucket(tsOriginBucket, bucketDurationNanos);
-              tsOriginBuckets.put(tsOriginBucket, tsOriginStatsBucket);
-            }
-            tsOriginStatsBucket.addPoint(statsPoint);
+            statsBucket.addPoint(statsPoint);
           }
         } catch (InterruptedException e) {
           currentThread.interrupt();
@@ -211,10 +203,11 @@ public class DefaultDataStreamsCheckpointer
     return timestampNanos - (timestampNanos % bucketDurationNanos);
   }
 
-  private void flush(long timestampNanos, Iterator<Map.Entry<Long, StatsBucket>> mapIterator, StatsBucket.BucketType bucketType) {
+  private void flush(long timestampNanos) {
     long currentBucket = currentBucket(timestampNanos);
 
     List<StatsBucket> includedBuckets = new ArrayList<>();
+    Iterator<Map.Entry<Long, StatsBucket>> mapIterator = timeToBucket.entrySet().iterator();
 
     while (mapIterator.hasNext()) {
       Map.Entry<Long, StatsBucket> entry = mapIterator.next();
@@ -227,16 +220,8 @@ public class DefaultDataStreamsCheckpointer
 
     if (!includedBuckets.isEmpty()) {
       log.debug("Flushing {} buckets", includedBuckets.size());
-      payloadWriter.writePayload(includedBuckets, bucketType);
+      payloadWriter.writePayload(includedBuckets);
     }
-  }
-
-  private void flush(long timestampNanos) {
-    Iterator<Map.Entry<Long, StatsBucket>> tsCurrentIterator = tsCurrentBuckets.entrySet().iterator();
-    flush(timestampNanos, tsCurrentIterator, StatsBucket.BucketType.TIMESTAMP_CURRENT);
-
-    Iterator<Map.Entry<Long, StatsBucket>> tsOriginIterator = tsOriginBuckets.entrySet().iterator();
-    flush(timestampNanos, tsOriginIterator, StatsBucket.BucketType.TIMESTAMP_ORIGIN);
   }
 
   void report() {

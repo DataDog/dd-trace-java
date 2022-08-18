@@ -6,19 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StatsBucket {
-  public enum BucketType {
-    TIMESTAMP_CURRENT("current"),
-    TIMESTAMP_ORIGIN("origin");
-
-    private final String value;
-
-    BucketType(String value) {
-      this.value = value;
-    }
-
-    public String getValue() { return value; }
-  }
-
   private final long startTimeNanos;
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
