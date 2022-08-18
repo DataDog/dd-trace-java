@@ -1,5 +1,6 @@
 package datadog.communication.ddagent;
 
+import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
@@ -73,12 +74,14 @@ public class SharedCommunicationObjects {
     Class<?> confPollerCls =
         getClass().getClassLoader().loadClass("datadog.remoteconfig.ConfigurationPoller");
     Constructor<?> constructor =
-        confPollerCls.getConstructor(Config.class, String.class, String.class, OkHttpClient.class);
+        confPollerCls.getConstructor(
+            Config.class, String.class, String.class, String.class, OkHttpClient.class);
 
+    String containerId = ContainerInfo.get().getContainerId();
     String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     if (remoteConfigUrl != null) {
       return constructor.newInstance(
-          config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
+          config, TracerVersion.TRACER_VERSION, containerId, remoteConfigUrl, okHttpClient);
     } else {
       createRemaining(config);
       DDAgentFeaturesDiscovery fd = featuresDiscovery(config);
@@ -86,7 +89,7 @@ public class SharedCommunicationObjects {
       if (configEndpoint != null) {
         remoteConfigUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
         return constructor.newInstance(
-            config, TracerVersion.TRACER_VERSION, remoteConfigUrl, okHttpClient);
+            config, TracerVersion.TRACER_VERSION, containerId, remoteConfigUrl, okHttpClient);
       }
     }
     return null;

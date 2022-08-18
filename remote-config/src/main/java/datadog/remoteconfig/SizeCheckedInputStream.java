@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /** Wraps input stream to check a maximum allowed size */
-class SizeCheckedInputStream extends InputStream {
+public class SizeCheckedInputStream extends InputStream {
   private final InputStream in;
   private final long maxSize;
   private long currentSize;
@@ -17,25 +17,40 @@ class SizeCheckedInputStream extends InputStream {
   @Override
   public int read() throws IOException {
     checkSize(1);
-    return in.read();
+    int v = in.read();
+    if (v != -1) {
+      updateCurrentSize(1);
+    }
+    return v;
   }
 
   @Override
   public int read(byte[] b) throws IOException {
-    checkSize(b.length);
-    return in.read(b);
+    if (maxSize == currentSize) {
+      throw new IOException("Reached maximum bytes for this stream: " + maxSize);
+    }
+
+    long maxLength = Math.min(b.length, maxSize - currentSize);
+    checkSize(maxLength);
+    return updateCurrentSize(in.read(b, 0, (int) maxLength));
   }
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
     checkSize(len);
-    return in.read(b, off, len);
+    return updateCurrentSize(in.read(b, off, len));
+  }
+
+  private int updateCurrentSize(int delta) {
+    if (delta > 0) {
+      currentSize += delta;
+    }
+    return delta;
   }
 
   private void checkSize(long neededBytes) throws IOException {
     if (currentSize + neededBytes > maxSize) {
       throw new IOException("Reached maximum bytes for this stream: " + maxSize);
     }
-    currentSize += neededBytes;
   }
 }

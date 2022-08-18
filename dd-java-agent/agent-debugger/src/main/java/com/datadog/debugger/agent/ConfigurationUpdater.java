@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.poller.ConfigurationPoller;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -25,8 +24,7 @@ import org.slf4j.LoggerFactory;
  * Handles configuration updates if required by installing a new ClassFileTransformer and triggering
  * re-transformation of required classes
  */
-public class ConfigurationUpdater
-    implements ConfigurationPoller.ConfigurationChangesListener, DebuggerContext.ProbeResolver {
+public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
 
   public static final int MAX_ALLOWED_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
