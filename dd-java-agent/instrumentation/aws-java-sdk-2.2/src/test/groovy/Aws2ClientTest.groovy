@@ -40,6 +40,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
@@ -159,6 +160,8 @@ class Aws2ClientTest extends AgentTestRunner {
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * TEST_CHECKPOINTER._
@@ -298,6 +301,8 @@ class Aws2ClientTest extends AgentTestRunner {
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _,_)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * TEST_CHECKPOINTER._

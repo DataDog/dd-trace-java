@@ -39,9 +39,6 @@ public class AdviceUtils {
 
   public static void endTaskScope(final AgentScope scope) {
     if (null != scope) {
-      if (scope.checkpointed()) {
-        scope.span().finishWork();
-      }
       scope.close();
     }
   }

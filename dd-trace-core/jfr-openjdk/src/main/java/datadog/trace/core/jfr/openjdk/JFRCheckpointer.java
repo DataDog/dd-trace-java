@@ -149,6 +149,10 @@ public class JFRCheckpointer implements Checkpointer, ProfilingListener<Profilin
   }
 
   private void tryEmitCheckpoint(final AgentSpan span, final int flags) {
+    if (flags != CPU && flags != (CPU | END)) {
+      // emit only CPU and CPU | END events
+      return;
+    }
     final boolean checkpointed;
     final Boolean isEmitting = span.isEmittingCheckpoints();
     if (isEmitting == null) {

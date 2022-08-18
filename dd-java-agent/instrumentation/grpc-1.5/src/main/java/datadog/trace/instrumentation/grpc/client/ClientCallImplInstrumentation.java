@@ -98,8 +98,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
         @Advice.Local("$$ddSpan") AgentSpan span)
         throws Throwable {
       if (null != scope) {
-        // the span is deactivated
-        scope.span().finishWork();
         scope.close();
       }
       if (null != error && null != span) {
@@ -139,8 +137,6 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        // the span is deactivated
-        scope.span().finishWork();
         scope.close();
       }
     }

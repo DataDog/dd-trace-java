@@ -130,7 +130,6 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void onExit(@Advice.Enter final AgentScope scope) {
       if (null != scope) {
-        scope.span().finishWork();
         scope.close();
       }
     }

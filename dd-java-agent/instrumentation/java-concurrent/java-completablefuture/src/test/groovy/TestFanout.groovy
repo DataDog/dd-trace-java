@@ -60,6 +60,7 @@ class TestFanout extends AgentTestRunner {
     // but the sequence is validated automatically on TEST_CHECKPOINTER
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
     _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     (traceChildTasks ? 4 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
@@ -88,6 +89,7 @@ class TestFanout extends AgentTestRunner {
     // but the sequence is validated automatically on TEST_CHECKPOINTER
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
     _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     (traceChildTasks ? 7 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
