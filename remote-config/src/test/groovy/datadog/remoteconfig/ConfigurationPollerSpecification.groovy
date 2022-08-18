@@ -53,6 +53,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     poller = new ConfigurationPoller(
       Config.get(),
       '0.0.0',
+      '',
       URL.toString(),
       okHttpClient,
       scheduler,
