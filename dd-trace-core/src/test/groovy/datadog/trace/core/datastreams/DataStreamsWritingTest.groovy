@@ -90,7 +90,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     then:
     conditions.eventually {
-      assert requestBodies.size() == 1
+      assert requestBodies.size() == 2
     }
     validateMessage(requestBodies[0])
 
@@ -127,11 +127,11 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2 // 2 groups in first bucket
 
-    Set availableSizes = [4, 5] // we don't know the order the groups will be reported
+    Set availableSizes = [5, 6] // we don't know the order the groups will be reported
     2.times {
       int mapHeaderSize = unpacker.unpackMapHeader()
       assert availableSizes.remove(mapHeaderSize)
-      if (mapHeaderSize == 4) {  // empty topic group
+      if (mapHeaderSize == 5) {  // empty topic group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"
@@ -140,6 +140,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackLong() == 9
         assert unpacker.unpackString() == "ParentHash"
         assert unpacker.unpackLong() == 0
+        assert unpacker.unpackString() == "TimestampType"
+        String timestampType = unpacker.unpackString()
+        assert timestampType == "current" || timestampType == "origin"
       } else { //other group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
@@ -154,6 +157,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackString() == "type:testType"
         assert unpacker.unpackString() == "group:testGroup"
         assert unpacker.unpackString() == "topic:testTopic"
+        assert unpacker.unpackString() == "TimestampType"
+        String timestampType = unpacker.unpackString()
+        assert timestampType == "current" || timestampType == "origin"
       }
     }
 
@@ -168,7 +174,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     Set<Long> availableHashes = [1L, 3L] // we don't know the order the groups will be reported
     2.times {
-      assert unpacker.unpackMapHeader() == 5
+      assert unpacker.unpackMapHeader() == 6
       assert unpacker.unpackString() == "PathwayLatency"
       unpacker.skipValue()
       assert unpacker.unpackString() == "EdgeLatency"
@@ -183,6 +189,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackString() == "type:testType"
       assert unpacker.unpackString() == "group:testGroup"
       assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
+      assert unpacker.unpackString() == "TimestampType"
+      String timestampType = unpacker.unpackString()
+      assert timestampType == "current" || timestampType == "origin"
     }
 
     return true

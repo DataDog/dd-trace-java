@@ -102,7 +102,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     for (StatsGroup group : groups) {
       boolean firstNode = group.getEdgeTags().isEmpty();
 
-      packer.startMap(firstNode ? 4 : 5);
+      packer.startMap(firstNode ? 5 : 6);
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
