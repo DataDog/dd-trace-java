@@ -2553,7 +2553,7 @@ public class Config {
         new BufferedReader(
             new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
-    } catch (final Exception ignore) {
+    } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
     }
 
