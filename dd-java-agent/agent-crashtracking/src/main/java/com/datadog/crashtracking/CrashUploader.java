@@ -34,7 +34,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.Buffer;
-import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +89,7 @@ public class CrashUploader {
         OkHttpUtils.buildHttpClient(
             config,
             null, /* dispatcher */
-            url,
+            telemetryUrl,
             true, /* retryOnConnectionFailure */
             null, /* maxRunningRequests */
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
@@ -122,7 +121,8 @@ public class CrashUploader {
     uploadToLogs(filesContent, System.out);
   }
 
-  void uploadToLogs(@Nonnull List<String> filesContent, @Nonnull PrintStream out) throws IOException {
+  void uploadToLogs(@Nonnull List<String> filesContent, @Nonnull PrintStream out)
+      throws IOException {
     // print on the output, and the application/container/host log will pick it up
     for (String message : filesContent) {
       try (Buffer buf = new Buffer()) {

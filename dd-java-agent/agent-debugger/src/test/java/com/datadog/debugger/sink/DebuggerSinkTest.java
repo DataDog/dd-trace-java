@@ -58,9 +58,9 @@ public class DebuggerSinkTest {
     when(config.getDebuggerUploadBatchSize()).thenReturn(1);
 
     EXPECTED_SNAPSHOT_TAGS =
-      "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?~[0-9a-f]+,agent_version:null,host_name:"
-          + config.getHostName()
-          + "$";
+        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?~[0-9a-f]+,agent_version:null,host_name:"
+            + config.getHostName()
+            + "$";
   }
 
   @Test

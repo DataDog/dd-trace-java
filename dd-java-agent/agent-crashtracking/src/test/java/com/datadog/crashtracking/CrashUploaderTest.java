@@ -12,9 +12,9 @@ import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -98,11 +98,11 @@ public class CrashUploaderTest {
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(out.toString(StandardCharsets.UTF_8.name()));
 
-    assertEquals("crashtracker", event.get(0).get("ddsource").asText());
-    assertEquals(HOSTNAME, event.get(0).get("hostname").asText());
-    assertEquals(SERVICE, event.get(0).get("service").asText());
-    assertEquals(CRASH, event.get(0).get("message").asText());
-    assertEquals("ERROR", event.get(0).get("level").asText());
+    assertEquals("crashtracker", event.get("ddsource").asText());
+    assertEquals(HOSTNAME, event.get("hostname").asText());
+    assertEquals(SERVICE, event.get("service").asText());
+    assertEquals(CRASH, event.get("message").asText());
+    assertEquals("ERROR", event.get("level").asText());
   }
 
   @Test
