@@ -376,6 +376,7 @@ public class Config {
    */
   private final String site;
 
+  private final String hostName;
   private final String serviceName;
   private final boolean serviceNameSetByUser;
   private final String rootContextServiceName;
@@ -648,6 +649,8 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
+
+    hostName = initHostName();
 
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
@@ -1271,6 +1274,10 @@ public class Config {
 
   public String getSite() {
     return site;
+  }
+
+  public String getHostName() {
+    return hostName;
   }
 
   public String getServiceName() {
@@ -2537,7 +2544,7 @@ public class Config {
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
-  public static String getHostName() {
+  private static String initHostName() {
     String possibleHostname;
 
     // Try environment variable.  This works in almost all environments
@@ -2642,6 +2649,9 @@ public class Config {
         + (apiKey == null ? "null" : "****")
         + ", site='"
         + site
+        + '\''
+        + ", hostName='"
+        + hostName
         + '\''
         + ", serviceName='"
         + serviceName

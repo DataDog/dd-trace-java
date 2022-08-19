@@ -31,6 +31,7 @@ public class CrashUploaderTest {
   private static final String URL_PATH = "/lalala";
   private static final String CRASH = "this is a crash file";
   private static final String ENV = "crash-env";
+  private static final String HOSTNAME = "crash-hostname";
   private static final String SERVICE = "crash-service";
   private static final String VERSION = "crash-version";
   // private static final Map<String, String> TAGS = Map.of("foo", "bar", "baz", "123", "null",
@@ -71,6 +72,7 @@ public class CrashUploaderTest {
     url = server.url(URL_PATH);
 
     when(config.getEnv()).thenReturn(ENV);
+    when(config.getHostName()).thenReturn(HOSTNAME);
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
     when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
@@ -80,15 +82,15 @@ public class CrashUploaderTest {
   }
 
   @Test
-  public void testHappyPath() throws Exception {
+  public void testLogsHappyPath() throws Exception {
     // Given
 
     // When
     uploader = new CrashUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
-    List<InputStream> files = new ArrayList<>();
-    files.add(new ByteArrayInputStream(CRASH.getBytes()));
-    uploader.upload(files);
+    List<String> filesContent = new ArrayList<>();
+    filesContent.add(CRASH);
+    uploader.uploadToLogs(filesContent);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
@@ -98,7 +100,33 @@ public class CrashUploaderTest {
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(new String(recordedRequest.getBody().readUtf8()));
 
-    assertEquals(CrashUploader.API_VERSION, event.get("api_version").asText());
+    assertEquals("crashtracker", event.get(0).get("ddsource").asText());
+    assertEquals(HOSTNAME, event.get(0).get("hostname").asText());
+    assertEquals(SERVICE, event.get(0).get("service").asText());
+    assertEquals(CRASH, event.get(0).get("message").asText());
+    assertEquals("ERROR", event.get(0).get("level").asText());
+  }
+
+  @Test
+  public void testTelemetryHappyPath() throws Exception {
+    // Given
+
+    // When
+    uploader = new CrashUploader(config, configProvider);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    List<String> filesContent = new ArrayList<>();
+    filesContent.add(CRASH);
+    uploader.uploadToTelemetry(filesContent);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(new String(recordedRequest.getBody().readUtf8()));
+
+    assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
     assertEquals("logs", event.get("request_type").asText());
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
@@ -113,6 +141,7 @@ public class CrashUploaderTest {
     assertEquals(VERSION, event.get("application").get("service_version").asText());
     assertEquals(VersionInfo.VERSION, event.get("application").get("tracer_version").asText());
     // host
+    assertEquals(HOSTNAME, event.get("host").get("hostname").asText());
     assertEquals(ENV, event.get("host").get("env").asText());
   }
 
@@ -164,5 +193,6 @@ public class CrashUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
+    // it would be nice if the test asserted the log line was written out, but it's not essential
   }
 }

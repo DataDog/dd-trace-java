@@ -47,9 +47,9 @@ public class CrashUploader {
   static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
   static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
   static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
-  static final String API_VERSION = "v1";
+  static final String TELEMETRY_API_VERSION = "v1";
   static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-  static final String REQUEST_TYPE = "logs";
+  static final String TELEMETRY_REQUEST_TYPE = "logs";
 
   private static final MediaType APPLICATION_JSON =
       MediaType.get("application/json; charset=utf-8");
@@ -114,7 +114,15 @@ public class CrashUploader {
     for (InputStream file : files) {
       filesContent.add(readContent(file));
     }
+    uploadToLogs(filesContent);
+    uploadToTelemetry(filesContent);
+  }
+
+  void uploadToLogs(@Nonnull List<String> filesContent) throws IOException {
     handleCall(makeLogsRequest(filesContent));
+  }
+
+  void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
     handleCall(makeTelemetryRequest(filesContent));
   }
 
@@ -128,8 +136,8 @@ public class CrashUploader {
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
-    headers.put(HEADER_DD_TELEMETRY_API_VERSION, API_VERSION);
-    headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, REQUEST_TYPE);
+    headers.put(HEADER_DD_TELEMETRY_API_VERSION, TELEMETRY_API_VERSION);
+    headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
     return client.newCall(
         OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
@@ -142,7 +150,7 @@ public class CrashUploader {
     Buffer out = new Buffer();
     try (JsonWriter writer = JsonWriter.of(out)) {
       writer.beginObject();
-      writer.name("api_version").value(API_VERSION);
+      writer.name("api_version").value(TELEMETRY_API_VERSION);
       writer.name("request_type").value("logs");
       writer
           .name("runtime_id")
