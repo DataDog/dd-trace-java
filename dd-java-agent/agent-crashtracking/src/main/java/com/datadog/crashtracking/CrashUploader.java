@@ -90,7 +90,7 @@ public class CrashUploader {
         OkHttpUtils.buildHttpClient(
             config,
             null, /* dispatcher */
-            agentless, /* isHttp */
+            url,
             true, /* retryOnConnectionFailure */
             null, /* maxRunningRequests */
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
