@@ -14,6 +14,9 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +79,6 @@ public class CrashUploaderTest {
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
     when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
-    when(config.getFinalCrashTrackingLogsUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.getApiKey()).thenReturn(null);
   }
@@ -87,18 +89,14 @@ public class CrashUploaderTest {
 
     // When
     uploader = new CrashUploader(config, configProvider);
-    server.enqueue(new MockResponse().setResponseCode(200));
     List<String> filesContent = new ArrayList<>();
     filesContent.add(CRASH);
-    uploader.uploadToLogs(filesContent);
-
-    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    uploader.uploadToLogs(filesContent, new PrintStream(out));
 
     // Then
-    assertEquals(url, recordedRequest.getRequestUrl());
-
     final ObjectMapper mapper = new ObjectMapper();
-    final JsonNode event = mapper.readTree(new String(recordedRequest.getBody().readUtf8()));
+    final JsonNode event = mapper.readTree(out.toString(StandardCharsets.UTF_8.name()));
 
     assertEquals("crashtracker", event.get(0).get("ddsource").asText());
     assertEquals(HOSTNAME, event.get(0).get("hostname").asText());

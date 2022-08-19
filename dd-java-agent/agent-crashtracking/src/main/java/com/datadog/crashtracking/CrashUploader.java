@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.Buffer;
+import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,9 +61,8 @@ public class CrashUploader {
   private final Config config;
   private final ConfigProvider configProvider;
 
-  private final OkHttpClient client;
+  private final OkHttpClient telemetryClient;
   private final HttpUrl telemetryUrl;
-  private final HttpUrl logsUrl;
   private final boolean agentless;
   private final String tags;
 
@@ -74,7 +75,6 @@ public class CrashUploader {
     this.configProvider = configProvider;
 
     telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
-    logsUrl = HttpUrl.get(config.getFinalCrashTrackingLogsUrl());
     agentless = config.isCrashTrackingAgentless();
 
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
@@ -86,11 +86,11 @@ public class CrashUploader {
     // Comma separated tags string for V2.4 format
     tags = tagsToString(tagsMap);
 
-    client =
+    telemetryClient =
         OkHttpUtils.buildHttpClient(
             config,
             null, /* dispatcher */
-            false, /* isHttp */
+            agentless, /* isHttp */
             true, /* retryOnConnectionFailure */
             null, /* maxRunningRequests */
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
@@ -119,7 +119,27 @@ public class CrashUploader {
   }
 
   void uploadToLogs(@Nonnull List<String> filesContent) throws IOException {
-    handleCall(makeLogsRequest(filesContent));
+    uploadToLogs(filesContent, System.out);
+  }
+
+  void uploadToLogs(@Nonnull List<String> filesContent, @Nonnull PrintStream out) throws IOException {
+    // print on the output, and the application/container/host log will pick it up
+    for (String message : filesContent) {
+      try (Buffer buf = new Buffer()) {
+        try (JsonWriter writer = JsonWriter.of(buf)) {
+          writer.beginObject();
+          writer.name("ddsource").value("crashtracker");
+          writer.name("ddtags").value(tags);
+          writer.name("hostname").value(config.getHostName());
+          writer.name("service").value(config.getServiceName());
+          writer.name("message").value(message);
+          writer.name("level").value("ERROR");
+          writer.endObject();
+        }
+
+        out.println(buf.readByteString().utf8());
+      }
+    }
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
@@ -139,7 +159,7 @@ public class CrashUploader {
     headers.put(HEADER_DD_TELEMETRY_API_VERSION, TELEMETRY_API_VERSION);
     headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
-    return client.newCall(
+    return telemetryClient.newCall(
         OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
             .post(requestBody)
             .build());
@@ -147,81 +167,49 @@ public class CrashUploader {
 
   private RequestBody makeTelemetryRequestBody(@Nonnull List<String> filesContent)
       throws IOException {
-    Buffer out = new Buffer();
-    try (JsonWriter writer = JsonWriter.of(out)) {
-      writer.beginObject();
-      writer.name("api_version").value(TELEMETRY_API_VERSION);
-      writer.name("request_type").value("logs");
-      writer
-          .name("runtime_id")
-          // randomly generated, https://xkcd.com/221/
-          .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
-      writer.name("tracer_time").value(Instant.now().getEpochSecond());
-      writer.name("seq_id").value(1);
-      writer.name("debug").value(true);
-      writer.name("payload");
-      writer.beginArray();
-      for (String file : filesContent) {
+    try (Buffer buf = new Buffer()) {
+      try (JsonWriter writer = JsonWriter.of(buf)) {
         writer.beginObject();
-        writer.name("message").value(file);
-        writer.name("level").value("ERROR");
+        writer.name("api_version").value(TELEMETRY_API_VERSION);
+        writer.name("request_type").value("logs");
+        writer
+            .name("runtime_id")
+            // randomly generated, https://xkcd.com/221/
+            .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
+        writer.name("tracer_time").value(Instant.now().getEpochSecond());
+        writer.name("seq_id").value(1);
+        writer.name("debug").value(true);
+        writer.name("payload");
+        writer.beginArray();
+        for (String message : filesContent) {
+          writer.beginObject();
+          writer.name("message").value(message);
+          writer.name("level").value("ERROR");
+          writer.endObject();
+        }
+        writer.endArray();
+        writer.name("application");
+        writer.beginObject();
+        writer.name("env").value(config.getEnv());
+        writer.name("language_name").value(JAVA_LANG);
+        writer.name("language_version").value(System.getProperty("java.version", "unknown"));
+        writer.name("service_name").value(config.getServiceName());
+        writer.name("service_version").value(config.getVersion());
+        writer.name("tracer_version").value(VersionInfo.VERSION);
         writer.endObject();
-      }
-      writer.endArray();
-      writer.name("application");
-      writer.beginObject();
-      writer.name("env").value(config.getEnv());
-      writer.name("language_name").value(JAVA_LANG);
-      writer.name("language_version").value(System.getProperty("java.version", "unknown"));
-      writer.name("service_name").value(config.getServiceName());
-      writer.name("service_version").value(config.getVersion());
-      writer.name("tracer_version").value(VersionInfo.VERSION);
-      writer.endObject();
-      writer.name("host");
-      writer.beginObject();
-      if (ContainerInfo.get().getContainerId() != null) {
-        writer.name("container_id").value(ContainerInfo.get().getContainerId());
-      }
-      writer.name("hostname").value(config.getHostName());
-      writer.name("env").value(config.getEnv());
-      writer.endObject();
-      writer.endObject();
-    }
-
-    return RequestBody.create(APPLICATION_JSON, out.readByteString());
-  }
-
-  private Call makeLogsRequest(@Nonnull List<String> filesContent) throws IOException {
-    final RequestBody requestBody = makeLogsRequestBody(filesContent);
-
-    final Map<String, String> headers = new HashMap<>();
-    headers.put("Content-Type", requestBody.contentType().toString());
-    headers.put("Content-Length", Long.toString(requestBody.contentLength()));
-    headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
-    headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
-
-    return client.newCall(
-        OkHttpUtils.prepareRequest(logsUrl, headers, config, agentless).post(requestBody).build());
-  }
-
-  private RequestBody makeLogsRequestBody(@Nonnull List<String> filesContent) throws IOException {
-    Buffer out = new Buffer();
-    try (JsonWriter writer = JsonWriter.of(out)) {
-      writer.beginArray();
-      for (String file : filesContent) {
+        writer.name("host");
         writer.beginObject();
-        writer.name("ddsource").value("crashtracker");
-        writer.name("ddtags").value(tags);
+        if (ContainerInfo.get().getContainerId() != null) {
+          writer.name("container_id").value(ContainerInfo.get().getContainerId());
+        }
         writer.name("hostname").value(config.getHostName());
-        writer.name("service").value(config.getServiceName());
-        writer.name("message").value(file);
-        writer.name("level").value("ERROR");
+        writer.name("env").value(config.getEnv());
+        writer.endObject();
         writer.endObject();
       }
-      writer.endArray();
-    }
 
-    return RequestBody.create(APPLICATION_JSON, out.readByteString());
+      return RequestBody.create(APPLICATION_JSON, buf.readByteString());
+    }
   }
 
   private String readContent(InputStream file) throws IOException {

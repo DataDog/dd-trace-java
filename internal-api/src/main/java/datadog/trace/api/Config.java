@@ -2301,17 +2301,6 @@ public class Config {
     }
   }
 
-  public String getFinalCrashTrackingLogsUrl() {
-    if (crashTrackingAgentless) {
-      // when agentless crashTracking is turned on we send directly to our intake
-      return "https://http-intake.logs." + site + "/api/v2/logs";
-
-    } else {
-      // when agentless are not set we send to the dd trace agent running locally
-      return "http://" + agentHost + ":" + agentPort + "/api/v2/logs";
-    }
-  }
-
   public boolean isIntegrationEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
