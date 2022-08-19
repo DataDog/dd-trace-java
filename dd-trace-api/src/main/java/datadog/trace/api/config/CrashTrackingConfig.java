@@ -8,8 +8,6 @@ package datadog.trace.api.config;
  */
 public final class CrashTrackingConfig {
 
-  public static final String CRASH_TRACKING_URL = "crashtracking.url";
-
   public static final String CRASH_TRACKING_TAGS = "crashtracking.tags";
 
   public static final String CRASH_TRACKING_UPLOAD_TIMEOUT = "crashtracking.upload.timeout";
