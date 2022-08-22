@@ -35,7 +35,7 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces() {
     // TODO is this really how quarkus requests should look?
-    return ["[jax-rs.request]", "[netty.request]"].toSet()
+    return ["[jax-rs.request]", "[netty.request[vertx.route-handler]]"].toSet()
   }
 
   @Shared
