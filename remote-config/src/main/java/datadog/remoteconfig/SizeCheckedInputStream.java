@@ -26,19 +26,18 @@ public class SizeCheckedInputStream extends InputStream {
 
   @Override
   public int read(byte[] b) throws IOException {
-    if (maxSize == currentSize) {
-      throw new IOException("Reached maximum bytes for this stream: " + maxSize);
-    }
-
-    long maxLength = Math.min(b.length, maxSize - currentSize);
-    checkSize(maxLength);
-    return updateCurrentSize(in.read(b, 0, (int) maxLength));
+    return read(b, 0, b.length);
   }
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
-    checkSize(len);
-    return updateCurrentSize(in.read(b, off, len));
+    if (maxSize == currentSize) {
+      throw new IOException("Reached maximum bytes for this stream: " + maxSize);
+    }
+
+    long safeLen = Math.min(len, maxSize - currentSize);
+    checkSize(safeLen);
+    return updateCurrentSize(in.read(b, off, (int) safeLen));
   }
 
   private int updateCurrentSize(int delta) {

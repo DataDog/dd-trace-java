@@ -37,7 +37,6 @@ public class AgentInstaller {
   public static void installBytebuddyAgent(Instrumentation inst) {
     if (Config.get().isTraceEnabled()
         || Config.get().isProfilingEnabled()
-        || Config.get().isDebuggerEnabled()
         || Config.get().isAppSecEnabled()
         || Config.get().isCiVisibilityEnabled()) {
       Utils.setInstrumentation(inst);

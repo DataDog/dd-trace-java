@@ -148,6 +148,7 @@ public class DebuggerAgentTest {
   public void readFromFile() throws URISyntaxException {
     URL res = getClass().getClassLoader().getResource("test_probe2.json");
     String probeDefinitionPath = Paths.get(res.toURI()).toFile().getAbsolutePath();
+    setFieldInConfig(Config.get(), "serviceName", "petclinic");
     setFieldInConfig(Config.get(), "debuggerEnabled", true);
     setFieldInConfig(Config.get(), "debuggerSnapshotUrl", url.toString());
     setFieldInConfig(Config.get(), "agentUrl", url.toString());
