@@ -178,7 +178,8 @@ public class DefaultDataStreamsCheckpointer
             }
             break;
           } else if (supportsDataStreams) {
-            Long tsOriginBucket = currentBucket(statsPoint.getTimestampNanos() - statsPoint.getPathwayLatencyNano());
+            Long tsOriginBucket =
+                currentBucket(statsPoint.getTimestampNanos() - statsPoint.getPathwayLatencyNano());
             Long tsCurrentBucket = currentBucket(statsPoint.getTimestampNanos());
 
             // FIXME computeIfAbsent() is not available because Java 7
@@ -211,7 +212,10 @@ public class DefaultDataStreamsCheckpointer
     return timestampNanos - (timestampNanos % bucketDurationNanos);
   }
 
-  private void flush(long timestampNanos, Iterator<Map.Entry<Long, StatsBucket>> mapIterator, StatsBucket.BucketType bucketType) {
+  private void flush(
+      long timestampNanos,
+      Iterator<Map.Entry<Long, StatsBucket>> mapIterator,
+      StatsBucket.BucketType bucketType) {
     long currentBucket = currentBucket(timestampNanos);
 
     List<StatsBucket> includedBuckets = new ArrayList<>();
@@ -232,7 +236,8 @@ public class DefaultDataStreamsCheckpointer
   }
 
   private void flush(long timestampNanos) {
-    Iterator<Map.Entry<Long, StatsBucket>> tsCurrentIterator = tsCurrentBuckets.entrySet().iterator();
+    Iterator<Map.Entry<Long, StatsBucket>> tsCurrentIterator =
+        tsCurrentBuckets.entrySet().iterator();
     flush(timestampNanos, tsCurrentIterator, StatsBucket.BucketType.TIMESTAMP_CURRENT);
 
     Iterator<Map.Entry<Long, StatsBucket>> tsOriginIterator = tsOriginBuckets.entrySet().iterator();

@@ -16,7 +16,9 @@ public class StatsBucket {
       this.value = value;
     }
 
-    public String getValue() { return value; }
+    public String getValue() {
+      return value;
+    }
   }
 
   private final long startTimeNanos;
