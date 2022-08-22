@@ -72,7 +72,8 @@ public class TransformerDefinitionMatcherTest {
 
   @Test
   public void sourceFileAbsoluteFileName() {
-    SnapshotProbe probe = createProbe(PROBE_ID1, "/home/user/project/src/main/java/java/lang/String.java", 23);
+    SnapshotProbe probe =
+        createProbe(PROBE_ID1, "/home/user/project/src/main/java/java/lang/String.java", 23);
     TransformerDefinitionMatcher matcher =
         createMatcher(Arrays.asList(probe), Collections.emptyList());
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
