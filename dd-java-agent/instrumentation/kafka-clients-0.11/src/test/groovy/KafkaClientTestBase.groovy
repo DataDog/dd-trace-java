@@ -108,7 +108,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       blockUntilChildSpansFinished(2)
     }
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     then:
@@ -141,16 +141,20 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
-        edgeTags.size() == 3
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+          edgeTags.size() == 3
+        }
       }
     }
 
@@ -206,7 +210,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       blockUntilChildSpansFinished(2)
     }
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     then:
@@ -239,16 +243,20 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
-        edgeTags.size() == 3
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+          edgeTags.size() == 3
+        }
       }
     }
 
@@ -638,7 +646,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
       blockUntilChildSpansFinished(2 * greetings.size())
     }
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     then:
@@ -692,16 +700,20 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
     }
 
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
-        edgeTags.size() == 3
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
+          edgeTags.size() == 3
+        }
       }
     }
 

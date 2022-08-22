@@ -115,7 +115,7 @@ abstract class GrpcTest extends AgentTestRunner {
     // wait here to make checkpoint asserts deterministic
     TEST_WRITER.waitForTraces(2)
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     then:
@@ -203,16 +203,20 @@ abstract class GrpcTest extends AgentTestRunner {
 
     and:
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:grpc"])
-        edgeTags.size() == 1
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:grpc"])
+          edgeTags.size() == 1
+        }
       }
     }
 

@@ -119,7 +119,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       return channel.basicGet(queueName, true)
     }
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     expect:
@@ -151,16 +151,20 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
-        edgeTags.size() == 2
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+          edgeTags.size() == 2
+        }
       }
     }
 
@@ -175,7 +179,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     channel.basicPublish("", queueName, null, "Hello, world!".getBytes())
     GetResponse response = channel.basicGet(queueName, true)
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     expect:
@@ -205,16 +209,20 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
-        edgeTags.size() == 2
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+          edgeTags.size() == 2
+        }
       }
     }
   }
@@ -253,7 +261,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       }
       TEST_WRITER.waitForTraces(5 + ((it - 1) * 2))
       if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-        TEST_DATA_STREAMS_WRITER.waitForGroups(it * 2)
+        TEST_DATA_STREAMS_WRITER.waitForGroups(it * 4)
       }
       phaser.arriveAndAwaitAdvance()
     }
@@ -355,7 +363,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     TEST_WRITER.waitForTraces(3)
     phaser.arriveAndAwaitAdvance()
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(4)
     }
 
     expect:
@@ -394,16 +402,20 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
-        edgeTags.size() == 2
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+          edgeTags.size() == 2
+        }
       }
     }
 
@@ -479,16 +491,20 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
 
     and:
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:some-routing-queue"])
-        edgeTags.size() == 2
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:rabbitmq", "topic:some-routing-queue"])
+          edgeTags.size() == 2
+        }
       }
     }
   }
@@ -562,17 +578,21 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
-        edgeTags.size() == 2
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+          edgeTags.size() == 2
+        }
       }
     }
 
@@ -655,17 +675,21 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     }
 
     and:
-    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+    if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
+      List<StatsGroup> producerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      producerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
-        edgeTags.size() == 2
+      List<StatsGroup> consumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == producerGroups.get(0).hash }
+      consumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+          edgeTags.size() == 2
+        }
       }
     }
 

@@ -73,7 +73,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           TEST_WRITER.waitForTraces(2)
           TEST_TRACER.activeSpan().setTag("testing", 123)
           if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-            TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+            TEST_DATA_STREAMS_WRITER.waitForGroups(2)
           }
           records.add(record)
         }
@@ -95,7 +95,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
           TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           TEST_TRACER.activeSpan().setTag("asdf", "testing")
           if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-            TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+            TEST_DATA_STREAMS_WRITER.waitForGroups(2)
           }
           return textLine.toLowerCase()
         }
@@ -251,28 +251,36 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[1][0].spanId}"
 
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
-      StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(originProducerPoint) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> originProducerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      originProducerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
-      verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags.containsAll(["type:kafka", "group:test-application", "topic:$STREAM_PENDING".toString()])
-        edgeTags.size() == 3
+      List<StatsGroup> kafkaStreamsConsumerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == originProducerGroups.get(0).hash }
+      kafkaStreamsConsumerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:kafka", "group:test-application", "topic:$STREAM_PENDING".toString()])
+          edgeTags.size() == 3
+        }
       }
 
-      StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
-      verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+      List<StatsGroup> kafkaStreamsProducerGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == kafkaStreamsConsumerGroups.get(0).hash }
+      kafkaStreamsProducerGroups.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:internal"])
+          edgeTags.size() == 1
+        }
       }
 
-      StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
-      verifyAll(finalConsumerPoint) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$STREAM_PROCESSED".toString()])
-        edgeTags.size() == 3
+      List<StatsGroup> finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == kafkaStreamsProducerGroups.get(0).hash }
+      finalConsumerPoint.each {
+        verifyAll(it) {
+          edgeTags.containsAll(["type:kafka", "group:sender", "topic:$STREAM_PROCESSED".toString()])
+          edgeTags.size() == 3
+        }
       }
     }
 
