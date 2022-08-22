@@ -26,7 +26,8 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   void clear() {
     payloads.clear()
     groups.clear()
-    bucketTypes.clear()
+    payloadBucketTypes.clear()
+    groupBucketTypes.clear()
   }
 
   void waitForPayloads(int count, long timeout = TimeUnit.SECONDS.toMillis(1)) {
