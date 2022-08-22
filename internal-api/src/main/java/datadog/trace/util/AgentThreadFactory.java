@@ -41,7 +41,7 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
 
-    DEBUGGER_UPLOAD_DISPATCHER("dd-debugger-upload-http-dispatcher");
+    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher");
 
     public final String threadName;
 
