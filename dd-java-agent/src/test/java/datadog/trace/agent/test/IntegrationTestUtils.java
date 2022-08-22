@@ -199,7 +199,29 @@ public class IntegrationTestUtils {
       final String classpath,
       final PrintStream out)
       throws Exception {
+    final Process process =
+        startOnSeparateJvm(mainClassName, jvmArgs, mainMethodArgs, envVars, classpath);
 
+    final StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream(), "ERROR", out);
+    final StreamGobbler outputGobbler = new StreamGobbler(process.getInputStream(), "OUTPUT", out);
+    outputGobbler.start();
+    errorGobbler.start();
+
+    waitFor(process, 30, TimeUnit.SECONDS);
+
+    outputGobbler.join();
+    errorGobbler.join();
+
+    return process.exitValue();
+  }
+
+  public static Process startOnSeparateJvm(
+      final String mainClassName,
+      final String[] jvmArgs,
+      final String[] mainMethodArgs,
+      final Map<String, String> envVars,
+      final String classpath)
+      throws Exception {
     final String separator = System.getProperty("file.separator");
     final String path = System.getProperty("java.home") + separator + "bin" + separator + "java";
 
@@ -229,19 +251,7 @@ public class IntegrationTestUtils {
     final ProcessBuilder processBuilder = new ProcessBuilder(commands.toArray(new String[0]));
     processBuilder.environment().putAll(envVars);
 
-    final Process process = processBuilder.start();
-
-    final StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream(), "ERROR", out);
-    final StreamGobbler outputGobbler = new StreamGobbler(process.getInputStream(), "OUTPUT", out);
-    outputGobbler.start();
-    errorGobbler.start();
-
-    waitFor(process, 30, TimeUnit.SECONDS);
-
-    outputGobbler.join();
-    errorGobbler.join();
-
-    return process.exitValue();
+    return processBuilder.start();
   }
 
   private static void waitFor(final Process process, final long timeout, final TimeUnit unit)

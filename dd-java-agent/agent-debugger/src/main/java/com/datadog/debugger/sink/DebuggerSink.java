@@ -87,7 +87,7 @@ public class DebuggerSink implements DebuggerContext.Sink {
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,
             "agent_version:" + DebuggerAgent.getAgentVersion(),
-            "host_name:" + Config.getHostName());
+            "host_name:" + config.getHostName());
     this.debuggerMetrics = debuggerMetrics;
     this.probeStatusSink = probeStatusSink;
     this.snapshotSink = snapshotSink;

@@ -16,3 +16,5 @@ dd-java-agent/instrumentation/junit-4.10/                              @DataDog/
 dd-java-agent/instrumentation/junit-5.3/                               @DataDog/ci-app-libraries-java
 dd-java-agent/instrumentation/testng-6.4/                              @DataDog/ci-app-libraries-java
 
+# @DataDog/debugger-java (Live Debugger)
+dd-java-agent/agent-debugger/ @DataDog/debugger-java

@@ -3,22 +3,3 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
 }
-
-// Forcing strict test execution order (no parallel execution) to ensure proper mongo executable initialization.
-List<Test> testTasks = []
-tasks.withType(Test).configureEach { Test testTask ->
-  testTasks.each {
-    testTask.shouldRunAfter(it)
-  }
-  testTasks.add(testTask)
-}
-subprojects {
-  afterEvaluate {
-    tasks.withType(Test).configureEach { Test testTask ->
-      testTasks.each {
-        testTask.shouldRunAfter(it)
-      }
-      testTasks.add(testTask)
-    }
-  }
-}

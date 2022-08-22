@@ -13,10 +13,16 @@ public class JmxStartedChecker {
     }
 
     if (!jmxStarted) {
-      throw new IllegalStateException("JMXFetch did not start");
+      System.out.println("ERROR: dd-jmx-collector did not start");
+      System.exit(1);
     }
 
-    // Give time for metrics to flush
-    Thread.sleep(500);
+    System.out.println("READY");
+    System.out.close();
+
+    // Give time for the test to finish if needed
+    if (args.length > 0) {
+      Thread.sleep(Long.parseLong(args[0]));
+    }
   }
 }

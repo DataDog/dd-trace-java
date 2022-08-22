@@ -17,8 +17,10 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +48,9 @@ public class CrashUploader {
   static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
   static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
   static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
-  static final String API_VERSION = "v1";
+  static final String TELEMETRY_API_VERSION = "v1";
   static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-  static final String REQUEST_TYPE = "logs";
+  static final String TELEMETRY_REQUEST_TYPE = "logs";
 
   private static final MediaType APPLICATION_JSON =
       MediaType.get("application/json; charset=utf-8");
@@ -58,9 +60,9 @@ public class CrashUploader {
   private final Config config;
   private final ConfigProvider configProvider;
 
-  private final OkHttpClient client;
+  private final OkHttpClient telemetryClient;
+  private final HttpUrl telemetryUrl;
   private final boolean agentless;
-  private final HttpUrl url;
   private final String tags;
 
   public CrashUploader() {
@@ -71,7 +73,7 @@ public class CrashUploader {
     this.config = config;
     this.configProvider = configProvider;
 
-    url = HttpUrl.get(config.getFinalCrashTrackingUrl());
+    telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
     agentless = config.isCrashTrackingAgentless();
 
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedCrashTrackingTags());
@@ -83,11 +85,11 @@ public class CrashUploader {
     // Comma separated tags string for V2.4 format
     tags = tagsToString(tagsMap);
 
-    client =
+    telemetryClient =
         OkHttpUtils.buildHttpClient(
             config,
             null, /* dispatcher */
-            url,
+            telemetryUrl,
             true, /* retryOnConnectionFailure */
             null, /* maxRunningRequests */
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
@@ -107,16 +109,45 @@ public class CrashUploader {
   }
 
   public void upload(@Nonnull List<InputStream> files) throws IOException {
-    Call call = makeRequest(files);
-    try {
-      handleSuccess(call, call.execute());
-    } catch (IOException e) {
-      handleFailure(call, e);
+    List<String> filesContent = new ArrayList<>(files.size());
+    for (InputStream file : files) {
+      filesContent.add(readContent(file));
+    }
+    uploadToLogs(filesContent);
+    uploadToTelemetry(filesContent);
+  }
+
+  void uploadToLogs(@Nonnull List<String> filesContent) throws IOException {
+    uploadToLogs(filesContent, System.out);
+  }
+
+  void uploadToLogs(@Nonnull List<String> filesContent, @Nonnull PrintStream out)
+      throws IOException {
+    // print on the output, and the application/container/host log will pick it up
+    for (String message : filesContent) {
+      try (Buffer buf = new Buffer()) {
+        try (JsonWriter writer = JsonWriter.of(buf)) {
+          writer.beginObject();
+          writer.name("ddsource").value("crashtracker");
+          writer.name("ddtags").value(tags);
+          writer.name("hostname").value(config.getHostName());
+          writer.name("service").value(config.getServiceName());
+          writer.name("message").value(message);
+          writer.name("level").value("ERROR");
+          writer.endObject();
+        }
+
+        out.println(buf.readByteString().utf8());
+      }
     }
   }
 
-  private Call makeRequest(@Nonnull List<InputStream> files) throws IOException {
-    final RequestBody requestBody = makeRequestBody(files);
+  void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
+    handleCall(makeTelemetryRequest(filesContent));
+  }
+
+  private Call makeTelemetryRequest(@Nonnull List<String> filesContent) throws IOException {
+    final RequestBody requestBody = makeTelemetryRequestBody(filesContent);
 
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
@@ -125,57 +156,60 @@ public class CrashUploader {
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
-    headers.put(HEADER_DD_TELEMETRY_API_VERSION, API_VERSION);
-    headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, REQUEST_TYPE);
+    headers.put(HEADER_DD_TELEMETRY_API_VERSION, TELEMETRY_API_VERSION);
+    headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
-    return client.newCall(
-        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
+    return telemetryClient.newCall(
+        OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
+            .post(requestBody)
+            .build());
   }
 
-  private RequestBody makeRequestBody(@Nonnull List<InputStream> files) throws IOException {
-    Buffer out = new Buffer();
-    try (JsonWriter writer = JsonWriter.of(out)) {
-      writer.beginObject();
-
-      writer.name("api_version").value(API_VERSION);
-      writer.name("request_type").value("logs");
-      writer
-          .name("runtime_id")
-          // randomly generated, https://xkcd.com/221/
-          .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
-      writer.name("tracer_time").value(Instant.now().getEpochSecond());
-      writer.name("seq_id").value(1);
-      writer.name("debug").value(true);
-      writer.name("payload");
-      writer.beginArray();
-      for (InputStream file : files) {
+  private RequestBody makeTelemetryRequestBody(@Nonnull List<String> filesContent)
+      throws IOException {
+    try (Buffer buf = new Buffer()) {
+      try (JsonWriter writer = JsonWriter.of(buf)) {
         writer.beginObject();
-        writer.name("message").value(readContent(file));
-        writer.name("level").value("ERROR");
+        writer.name("api_version").value(TELEMETRY_API_VERSION);
+        writer.name("request_type").value("logs");
+        writer
+            .name("runtime_id")
+            // randomly generated, https://xkcd.com/221/
+            .value("5e5b1180-2a0b-41a6-bed2-bc341d19f853");
+        writer.name("tracer_time").value(Instant.now().getEpochSecond());
+        writer.name("seq_id").value(1);
+        writer.name("debug").value(true);
+        writer.name("payload");
+        writer.beginArray();
+        for (String message : filesContent) {
+          writer.beginObject();
+          writer.name("message").value(message);
+          writer.name("level").value("ERROR");
+          writer.endObject();
+        }
+        writer.endArray();
+        writer.name("application");
+        writer.beginObject();
+        writer.name("env").value(config.getEnv());
+        writer.name("language_name").value(JAVA_LANG);
+        writer.name("language_version").value(System.getProperty("java.version", "unknown"));
+        writer.name("service_name").value(config.getServiceName());
+        writer.name("service_version").value(config.getVersion());
+        writer.name("tracer_version").value(VersionInfo.VERSION);
+        writer.endObject();
+        writer.name("host");
+        writer.beginObject();
+        if (ContainerInfo.get().getContainerId() != null) {
+          writer.name("container_id").value(ContainerInfo.get().getContainerId());
+        }
+        writer.name("hostname").value(config.getHostName());
+        writer.name("env").value(config.getEnv());
+        writer.endObject();
         writer.endObject();
       }
-      writer.endArray();
-      writer.name("application");
-      writer.beginObject();
-      writer.name("env").value(config.getEnv());
-      writer.name("language_name").value(JAVA_LANG);
-      writer.name("language_version").value(System.getProperty("java.version", "unknown"));
-      writer.name("service_name").value(config.getServiceName());
-      writer.name("service_version").value(config.getVersion());
-      writer.name("tracer_version").value(VersionInfo.VERSION);
-      writer.endObject();
-      writer.name("host");
-      writer.beginObject();
-      if (ContainerInfo.get().getContainerId() != null) {
-        writer.name("container_id").value(ContainerInfo.get().getContainerId());
-      }
-      writer.name("hostname").value(config.getHostName());
-      writer.name("env").value(config.getEnv());
-      writer.endObject();
-      writer.endObject();
-    }
 
-    return RequestBody.create(APPLICATION_JSON, out.readByteString());
+      return RequestBody.create(APPLICATION_JSON, buf.readByteString());
+    }
   }
 
   private String readContent(InputStream file) throws IOException {
@@ -190,16 +224,25 @@ public class CrashUploader {
     }
   }
 
+  private void handleCall(final Call call) {
+    try {
+      handleSuccess(call, call.execute());
+    } catch (IOException e) {
+      handleFailure(call, e);
+    }
+  }
+
   private void handleSuccess(final Call call, final Response response) throws IOException {
     if (response.isSuccessful()) {
       log.info(
-          "Successfully uploaded the crash files, code = {} \"{}\"",
+          "Successfully uploaded the crash files to {}, code = {} \"{}\"",
+          call.request().url(),
           response.code(),
           response.message());
     } else {
       log.error(
           "Failed to upload crash files to {}, code = {} \"{}\", body = \"{}\"",
-          url,
+          call.request().url(),
           response.code(),
           response.message(),
           response.body() != null ? response.body().string().trim() : "<null>");

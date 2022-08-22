@@ -42,21 +42,25 @@ public class DebuggerSinkTest {
   private static final Snapshot SNAPSHOT =
       new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
-  private static final String EXPECTED_SNAPSHOT_TAGS =
-      "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?~[0-9a-f]+,agent_version:null,host_name:"
-          + Config.getHostName()
-          + "$";
 
   @Mock private Config config;
   @Mock private BatchUploader batchUploader;
   @Captor private ArgumentCaptor<byte[]> payloadCaptor;
 
+  private String EXPECTED_SNAPSHOT_TAGS;
+
   @BeforeEach
   void setUp() {
+    when(config.getHostName()).thenReturn("host-name");
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
     when(config.getDebuggerUploadBatchSize()).thenReturn(1);
+
+    EXPECTED_SNAPSHOT_TAGS =
+        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?~[0-9a-f]+,agent_version:null,host_name:"
+            + config.getHostName()
+            + "$";
   }
 
   @Test
