@@ -44,7 +44,9 @@ public class DatadogRequestTracer implements RequestTracer {
     CouchbaseClientDecorator.DECORATE.afterStart(span);
     span.setResourceName(requestName);
     span.setMeasured(measured);
-    return DatadogRequestSpan.wrap(span);
+    DatadogRequestSpan requestSpan = DatadogRequestSpan.wrap(span);
+    requestSpan.setParent(requestParent);
+    return requestSpan;
   }
 
   @Override

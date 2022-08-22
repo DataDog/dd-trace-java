@@ -1,5 +1,7 @@
 import com.couchbase.client.core.env.TimeoutConfig
+import com.couchbase.client.core.error.CouchbaseException
 import com.couchbase.client.core.error.DocumentNotFoundException
+import com.couchbase.client.core.error.ParsingFailureException
 import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.ClusterOptions
@@ -9,6 +11,7 @@ import com.couchbase.client.java.query.QueryOptions
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import java.time.Duration
@@ -33,7 +36,8 @@ class CouchbaseClient32Test extends AgentTestRunner {
     def arch = System.getProperty("os.arch") == "aarch64" ? "-aarch64" : ""
     couchbase = new CouchbaseContainer("couchbase/server:7.1.0${arch}")
       .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(true))
-      .withStartupTimeout(Duration.ofSeconds(120))
+      .withStartupTimeout(Duration.ofSeconds(240))
+      .withStartupAttempts(3)
     couchbase.start()
 
     ClusterEnvironment environment = ClusterEnvironment.builder()
@@ -46,7 +50,7 @@ class CouchbaseClient32Test extends AgentTestRunner {
       .environment(environment))
     bucket = cluster.bucket(BUCKET)
     bucket.waitUntilReady(Duration.ofSeconds(30))
-    (1..1001).each {
+    (0..1000).each {
       def type = ['data', 'tada', 'todo'].get(it % 3)
       def something = ['other', 'like', 'else', 'wonderful'].get(it % 4)
       def orOther = ['foo', 'bar'].get(it % 2)
@@ -56,8 +60,8 @@ class CouchbaseClient32Test extends AgentTestRunner {
   }
 
   def cleanupSpec() {
-    cluster.disconnect()
-    couchbase.stop()
+    cluster?.disconnect()
+    couchbase?.stop()
   }
 
   private static void insertData(Bucket bucket, String id, String something, String orOther) {
@@ -73,11 +77,7 @@ class CouchbaseClient32Test extends AgentTestRunner {
     def collection = bucket.defaultCollection()
 
     when:
-    try {
-      collection.get("not_found")
-    } catch (DocumentNotFoundException ignored) {
-      // expected exception
-    }
+    collection.get("data 0")
 
     then:
     assertTraces(1) {
@@ -90,24 +90,50 @@ class CouchbaseClient32Test extends AgentTestRunner {
           'db.couchbase.scope'      : '_default',
           'db.couchbase.service'    : 'kv',
           'db.name'                 : BUCKET,
-          'db.operation'            : 'get',
-          'db.system'               : 'couchbase'
+          'db.operation'            : 'get'
         ])
-        assertCouchbaseCall(it, "dispatch_to_server", [
+        assertCouchbaseDispatchCall(it, span(0), [
           'db.couchbase.collection'     : '_default',
           'db.couchbase.document_id'    : { String },
-          'db.couchbase.local_id'       : { String },
-          'db.couchbase.operation_id'   : { String },
           'db.couchbase.scope'          : '_default',
-          'db.couchbase.server_duration': { Long },
-          'db.name'                     : BUCKET,
-          'net.host.name'               : { String },
-          'net.host.port'               : { Long },
-          'net.peer.name'               : { String },
-          'net.peer.port'               : { Long },
-          'net.transport'               : { String },
-          'db.system'                   : 'couchbase'
-        ], span(0), true)
+          'db.name'                     : BUCKET
+        ])
+      }
+    }
+  }
+
+  def "check basic error spans"() {
+    setup:
+    def collection = bucket.defaultCollection()
+    Throwable ex = null
+
+    when:
+    try {
+      collection.get("not_found")
+    } catch (DocumentNotFoundException expected) {
+      ex = expected
+    }
+
+    then:
+    ex != null
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        assertCouchbaseCall(it, "get", [
+          'db.couchbase.collection' : '_default',
+          'db.couchbase.document_id': { String },
+          'db.couchbase.retries'    : { Long },
+          'db.couchbase.scope'      : '_default',
+          'db.couchbase.service'    : 'kv',
+          'db.name'                 : BUCKET,
+          'db.operation'            : 'get'
+        ], false, ex)
+        assertCouchbaseDispatchCall(it, span(0), [
+          'db.couchbase.collection'     : '_default',
+          'db.couchbase.document_id'    : { String },
+          'db.couchbase.scope'          : '_default',
+          'db.name'                     : BUCKET
+        ])
       }
     }
   }
@@ -122,28 +148,20 @@ class CouchbaseClient32Test extends AgentTestRunner {
       trace(2) {
         assertCouchbaseCall(it, 'select * from `test-bucket` limit 1', [
           'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
-          'db.system'              : 'couchbase',
+          'db.couchbase.service'   : 'query'
         ])
-        assertCouchbaseCall(it, "dispatch_to_server", [
-          'db.couchbase.local_id'       : { String },
-          'db.couchbase.operation_id'   : { String },
-          'db.couchbase.server_duration': { Long },
-          'db.system'                   : 'couchbase',
-          'net.host.name'               : { String },
-          'net.host.port'               : { Long },
-          'net.peer.name'               : { String },
-          'net.peer.port'               : { Long },
-          'net.transport'               : { String },
-        ], span(0), true)
+        assertCouchbaseDispatchCall(it, span(0))
       }
     }
   }
 
   def "check query spans with parent"() {
+    setup:
+    def query = 'select * from `test-bucket` limit 1'
+
     when:
     runUnderTrace('query.parent') {
-      cluster.query('select * from `test-bucket` limit 1')
+      cluster.query(query)
     }
 
     then:
@@ -151,22 +169,11 @@ class CouchbaseClient32Test extends AgentTestRunner {
       sortSpansByStart()
       trace(3) {
         basicSpan(it, 'query.parent')
-        assertCouchbaseCall(it, 'select * from `test-bucket` limit 1', [
+        assertCouchbaseCall(it, query, [
           'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
-          'db.system'              : 'couchbase',
+          'db.couchbase.service'   : 'query'
         ], span(0))
-        assertCouchbaseCall(it, "dispatch_to_server", [
-          'db.couchbase.local_id'       : { String },
-          'db.couchbase.operation_id'   : { String },
-          'db.couchbase.server_duration': { Long },
-          'db.system'                   : 'couchbase',
-          'net.host.name'               : { String },
-          'net.host.port'               : { Long },
-          'net.peer.name'               : { String },
-          'net.peer.port'               : { Long },
-          'net.transport'               : { String },
-        ], span(1), true)
+        assertCouchbaseDispatchCall(it, span(1))
       }
     }
   }
@@ -194,27 +201,15 @@ class CouchbaseClient32Test extends AgentTestRunner {
         basicSpan(it, 'async.parent')
         assertCouchbaseCall(it, query, [
           'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
-          'db.system'              : 'couchbase',
+          'db.couchbase.service'   : 'query'
         ], span(0))
         if (!adhoc) {
           assertCouchbaseCall(it, "PREPARE $query", [
             'db.couchbase.retries': { Long },
-            'db.couchbase.service': 'query',
-            'db.system'           : 'couchbase',
+            'db.couchbase.service': 'query'
           ], span(1), true)
         }
-        assertCouchbaseCall(it, "dispatch_to_server", [
-          'db.couchbase.local_id'       : { String },
-          'db.couchbase.operation_id'   : { String },
-          'db.couchbase.server_duration': { Long },
-          'db.system'                   : 'couchbase',
-          'net.host.name'               : { String },
-          'net.host.port'               : { Long },
-          'net.peer.name'               : { String },
-          'net.peer.port'               : { Long },
-          'net.transport'               : { String },
-        ], span(adhoc ? 1 : 2), true)
+        assertCouchbaseDispatchCall(it, span(adhoc ? 1 : 2))
       }
     }
 
@@ -253,66 +248,141 @@ class CouchbaseClient32Test extends AgentTestRunner {
         basicSpan(it, 'async.multiple')
         assertCouchbaseCall(it, query, [
           'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
-          'db.system'              : 'couchbase',
+          'db.couchbase.service'   : 'query'
         ], span(0))
         assertCouchbaseCall(it, "PREPARE $query", [
           'db.couchbase.retries': { Long },
-          'db.couchbase.service': 'query',
-          'db.system'           : 'couchbase',
+          'db.couchbase.service': 'query'
         ], span(1), true)
-        assertCouchbaseCall(it, "dispatch_to_server", [
-          'db.couchbase.local_id'       : { String },
-          'db.couchbase.operation_id'   : { String },
-          'db.couchbase.server_duration': { Long },
-          'db.system'                   : 'couchbase',
-          'net.host.name'               : { String },
-          'net.host.port'               : { Long },
-          'net.peer.name'               : { String },
-          'net.peer.port'               : { Long },
-          'net.transport'               : { String },
-        ], span(2), true)
+        assertCouchbaseDispatchCall(it, span(2))
         assertCouchbaseCall(it, query, [
           'db.couchbase.retries'   : { Long },
-          'db.couchbase.service'   : 'query',
-          'db.system'              : 'couchbase',
+          'db.couchbase.service'   : 'query'
         ], span(0))
         if (extraPrepare) {
           assertCouchbaseCall(it, "PREPARE $query", [
             'db.couchbase.retries': { Long },
-            'db.couchbase.service': 'query',
-            'db.system'           : 'couchbase',
+            'db.couchbase.service': 'query'
           ], span(4), true)
         }
         assertCouchbaseCall(it, query, [
           'db.couchbase.retries': { Long },
-          'db.couchbase.service': 'query',
-          'db.system'           : 'couchbase',
+          'db.couchbase.service': 'query'
         ], span(4), true)
-        assertCouchbaseCall(it, "dispatch_to_server", [
-          'db.couchbase.local_id'       : { String },
-          'db.couchbase.operation_id'   : { String },
-          'db.couchbase.server_duration': { Long },
-          'db.system'                   : 'couchbase',
-          'net.host.name'               : { String },
-          'net.host.port'               : { Long },
-          'net.peer.name'               : { String },
-          'net.peer.port'               : { Long },
-          'net.transport'               : { String },
-        ], span(extraPrepare ? 6 : 5), true)
+        assertCouchbaseDispatchCall(it, span(extraPrepare ? 6 : 5))
       }
     }
   }
 
-  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan = null, boolean internal = false) {
+  def "check error query spans with parent"() {
+    setup:
+    def query = 'select * from `test-bucket` limeit 1'
+    Throwable ex = null
+
+    when:
+    runUnderTrace('query.failure') {
+      try {
+        cluster.query('select * from `test-bucket` limeit 1')
+      } catch (ParsingFailureException expected) {
+        ex = expected
+      }
+    }
+
+    then:
+    ex != null
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, 'query.failure')
+        assertCouchbaseCall(it, query, [
+          'db.couchbase.retries'   : { Long },
+          'db.couchbase.service'   : 'query',
+          'db.system'              : 'couchbase',
+        ], span(0), false, ex)
+        assertCouchbaseDispatchCall(it, span(1))
+      }
+    }
+  }
+
+  def "check multiple async error query spans with parent and adhoc false"() {
+    setup:
+    def query = 'select count(1) from `test-bucket` where (`something` = "wonderful") limeit 1'
+    int count1 = 0
+    int count2 = 0
+    Throwable ex1 = null
+    Throwable ex2 = null
+
+    when:
+    runUnderTrace('async.failure') {
+      // This results in a call to AsyncCluster.query(...)
+      try {
+        cluster.query(query, QueryOptions.queryOptions().adhoc(false)).each {
+          it.rowsAsObject().each {
+            count1 = it.getInt('$1')
+          }
+        }
+      } catch (CouchbaseException expected) {
+        ex1 = expected
+      }
+      try {
+        cluster.query(query, QueryOptions.queryOptions().adhoc(false)).each {
+          it.rowsAsObject().each {
+            count2 = it.getInt('$1')
+          }
+        }
+      } catch (CouchbaseException expected) {
+        ex2 = expected
+      }
+    }
+
+    then:
+    count1 == 0
+    count2 == 0
+    ex1 != null
+    ex2 != null
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(7) {
+        basicSpan(it, 'async.failure')
+        assertCouchbaseCall(it, query, [
+          'db.couchbase.retries'   : { Long },
+          'db.couchbase.service'   : 'query'
+        ], span(0), false, ex1)
+        assertCouchbaseCall(it, "PREPARE $query", [
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query'
+        ], span(1), true, ex1)
+        assertCouchbaseDispatchCall(it, span(2))
+        assertCouchbaseCall(it, query, [
+          'db.couchbase.retries'   : { Long },
+          'db.couchbase.service'   : 'query'
+        ], span(0), false, ex2)
+        assertCouchbaseCall(it, "PREPARE $query", [
+          'db.couchbase.retries': { Long },
+          'db.couchbase.service': 'query'
+        ], span(4), true, ex2)
+        assertCouchbaseDispatchCall(it, span(5))
+      }
+    }
+  }
+
+  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, boolean internal = false, Throwable ex = null) {
+    assertCouchbaseCall(trace, name, extraTags, null, internal, ex)
+  }
+
+  void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, Object parentSpan, boolean internal = false, Throwable ex = null) {
     def opName = internal ? 'couchbase.internal' : 'couchbase.call'
     def isMeasured = !internal
+    def isErrored = ex != null
+    // Later versions of the couchbase client adds more information at the end of the exception message in some cases,
+    // so let's just match on the start of the message when that happens
+    String exMessage = isErrored ? isLatestDepTest ? ex.message.split("\\{")[0] : ex.message: null
     trace.span {
       serviceName "couchbase"
       resourceName name
       operationName opName
       spanType DDSpanTypes.COUCHBASE
-      errored false
+      errored isErrored
       measured isMeasured
       if (parentSpan == null) {
         parent()
@@ -320,14 +390,37 @@ class CouchbaseClient32Test extends AgentTestRunner {
         childOf((DDSpan) parentSpan)
       }
       tags {
-        "$Tags.COMPONENT" "couchbase-client"
+        "$Tags.COMPONENT" 'couchbase-client'
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.DB_TYPE" "couchbase"
+        "$Tags.DB_TYPE" 'couchbase'
+        'db.system' 'couchbase'
+        if (isErrored) {
+          it.tag(DDTags.ERROR_MSG, { exMessage.length() > 0 && ((String) it).startsWith(exMessage) })
+          it.tag(DDTags.ERROR_TYPE, ex.class.name)
+          it.tag(DDTags.ERROR_STACK, String)
+        }
         if (extraTags != null) {
           addTags(extraTags)
         }
         defaultTags()
       }
     }
+  }
+
+  void assertCouchbaseDispatchCall(TraceAssert trace, Object parentSpan, Map<String, Serializable> extraTags = null) {
+    Map<String, Serializable> allExtraTags = [
+      'db.couchbase.local_id'       : { String },
+      'db.couchbase.operation_id'   : { String },
+      'db.couchbase.server_duration': { Long },
+      'net.host.name'               : { String },
+      'net.host.port'               : { Long },
+      'net.peer.name'               : { String },
+      'net.peer.port'               : { Long },
+      'net.transport'               : { String },
+    ]
+    if (extraTags != null) {
+      allExtraTags.putAll(extraTags)
+    }
+    assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true)
   }
 }

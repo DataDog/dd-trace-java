@@ -2,17 +2,34 @@ package datadog.trace.instrumentation.couchbase_31.client;
 
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.msg.RequestContext;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api8.java.concurrent.StatusSettable;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class DatadogRequestSpan implements RequestSpan {
+public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> {
   private final AgentSpan span;
+
+  // We need to keep track of the paren spans to propagate error information
+  private DatadogRequestSpan parent;
+
+  // The interaction between error setting in StatusSettingCompletableFuture and the span is a bit
+  // involved since we need to make sure that we don't finish the span before we have set the error
+  // on it. That's why we have a counter here and let the status setting code finish the span if
+  // the code tried to finish the span while the completable future was completed.
+  private AtomicInteger endCounter = new AtomicInteger(0);
+
+  // The code in DefaultErrorUtil is sometimes run from inside the completion of a completable
+  // future, so we need to ensure that the completion of the future does not overwrite the error
+  private AtomicBoolean statusSet = new AtomicBoolean(false);
 
   private DatadogRequestSpan(AgentSpan span) {
     this.span = span;
   }
 
-  public static RequestSpan wrap(AgentSpan span) {
+  public static DatadogRequestSpan wrap(AgentSpan span) {
     return new DatadogRequestSpan(span);
   }
 
@@ -24,6 +41,14 @@ public class DatadogRequestSpan implements RequestSpan {
       return ((DatadogRequestSpan) span).span;
     } else {
       throw new IllegalArgumentException("RequestSpan must be of type DatadogRequestSpan");
+    }
+  }
+
+  public void setParent(RequestSpan parent) {
+    if (endCounter.get() == 0) {
+      if (parent instanceof DatadogRequestSpan) {
+        this.parent = (DatadogRequestSpan) parent;
+      }
     }
   }
 
@@ -72,6 +97,12 @@ public class DatadogRequestSpan implements RequestSpan {
 
   @Override
   public void end() {
+    if (endCounter.getAndIncrement() == 0) {
+      endInternal();
+    }
+  }
+
+  private void endInternal() {
     CouchbaseClientDecorator.DECORATE.beforeFinish(span);
     span.finish();
   }
@@ -79,5 +110,62 @@ public class DatadogRequestSpan implements RequestSpan {
   @Override
   public void requestContext(RequestContext requestContext) {
     // TODO should we add tags/metrics based on the request context when the span ends?
+  }
+
+  private boolean shouldSetStatus() {
+    return statusSet.compareAndSet(false, true);
+  }
+
+  @Override
+  public Integer statusStart() {
+    return endCounter.getAndIncrement();
+  }
+
+  @Override
+  public void statusFinished(Integer context) {
+    int current = endCounter.decrementAndGet();
+    if (current > 0 && context == 0) {
+      // There was an attempt to end the RequestSpan while we were in status processing, so end it
+      this.endInternal();
+    }
+  }
+
+  @Override
+  public void setSuccess(Integer context) {
+    if (context == 0 && shouldSetStatus()) {
+      span.setError(false);
+    }
+  }
+
+  @Override
+  public void setError(Integer context, Throwable throwable) {
+    if (context == 0) {
+      setErrorDirectly(throwable);
+    }
+  }
+
+  public void setErrorDirectly(Throwable throwable) {
+    if (shouldSetStatus()) {
+      this.span.setError(true);
+      this.span.addThrowable(throwable);
+      if (null != parent) {
+        parent.setErrorDirectly(
+            span.getTag(DDTags.ERROR_MSG),
+            span.getTag(DDTags.ERROR_TYPE),
+            span.getTag(DDTags.ERROR_STACK));
+      }
+    }
+  }
+
+  private void setErrorDirectly(Object errorMsg, Object errorType, Object errorStack) {
+    if (shouldSetStatus()) {
+      span.setError(true);
+      span.setTag(DDTags.ERROR_MSG, errorMsg);
+      span.setTag(DDTags.ERROR_TYPE, errorType);
+      span.setTag(DDTags.ERROR_STACK, errorStack);
+      if (null != parent) {
+        parent.setErrorDirectly(errorMsg, errorType, errorStack);
+      }
+    }
   }
 }
