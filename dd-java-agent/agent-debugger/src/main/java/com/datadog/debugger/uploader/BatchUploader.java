@@ -1,6 +1,6 @@
 package com.datadog.debugger.uploader;
 
-import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_UPLOAD_DISPATCHER;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
 
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
@@ -82,7 +82,7 @@ public class BatchUploader {
             60,
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
-            new AgentThreadFactory(DEBUGGER_UPLOAD_DISPATCHER));
+            new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.containerId = containerId;
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
