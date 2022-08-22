@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Arrays;
+import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
@@ -29,6 +30,7 @@ import org.apache.kafka.common.record.RecordBatch;
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForSingleType {
+  private static final List<String> PATHWAY_EDGE_TAGS = Arrays.asList("type:internal");
 
   public KafkaProducerInstrumentation() {
     super("kafka");
@@ -89,7 +91,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, Arrays.asList("type:internal"));
+          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, PATHWAY_EDGE_TAGS);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -102,7 +104,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, Arrays.asList("type:internal"));
+          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, PATHWAY_EDGE_TAGS);
         }
         if (!KAFKA_LEGACY_TRACING) {
           SETTER.injectTimeInQueue(record.headers());
