@@ -1,19 +1,18 @@
 package datadog.trace.instrumentation.tomcat;
 
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
+import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TomcatBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(TomcatBlockingHelper.class);
-  private static final int STATUS_CODE = 403;
-  private static final String RESPONSE_TEXT = "Access denied (request blocked)";
-  private static final byte[] RESPONSE_BODY = RESPONSE_TEXT.getBytes(StandardCharsets.US_ASCII);
   private static final MethodHandle GET_OUTPUT_STREAM;
 
   static {
@@ -27,16 +26,20 @@ public class TomcatBlockingHelper {
     GET_OUTPUT_STREAM = mh;
   }
 
-  public static void commitBlockingResponse(Response resp) {
-    if (!start(resp, STATUS_CODE) || GET_OUTPUT_STREAM == null) {
+  public static void commitBlockingResponse(Request request, Response resp) {
+    int httpCode = BlockingActionHelper.getHttpCode(0);
+    if (!start(resp, httpCode) || GET_OUTPUT_STREAM == null) {
       return;
     }
 
-    resp.setHeader("Content-length", Integer.toString(RESPONSE_BODY.length));
-    resp.setHeader("Content-type", "text/plain");
+    TemplateType type = BlockingActionHelper.determineTemplateType(request.getHeader("Accept"));
+    byte[] template = BlockingActionHelper.getTemplate(type);
+
+    resp.setHeader("Content-length", Integer.toString(template.length));
+    resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
     try {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(resp);
-      os.write(RESPONSE_BODY);
+      os.write(template);
       os.close();
     } catch (Throwable e) {
       log.info("Error sending error page", e);

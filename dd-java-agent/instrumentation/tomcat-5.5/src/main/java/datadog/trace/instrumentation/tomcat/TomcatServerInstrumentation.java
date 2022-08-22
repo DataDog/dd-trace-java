@@ -168,7 +168,7 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
                 : null;
         DECORATE.onRequest(span, req, req, ctx);
         if (span.isToBeBlocked()) {
-          TomcatBlockingHelper.commitBlockingResponse(resp);
+          TomcatBlockingHelper.commitBlockingResponse(req, resp);
           ret = false; // skip pipeline
         }
       }

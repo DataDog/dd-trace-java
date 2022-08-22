@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>
  * if (span != null && span.isToBeBlocked()) {
- *   JettyBlockingHelper.block(this.getResponse());
+ *   JettyBlockingHelper.block(this.getRequest(), this.getResponse());
  * } else {
  *   server.handle(this);
  * }
@@ -90,6 +90,13 @@ public class HandleRequestVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           this.connClassInternalName,
+          "getRequest",
+          "()Lorg/eclipse/jetty/server/Request;",
+          false);
+      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitMethodInsn(
+          Opcodes.INVOKEVIRTUAL,
+          this.connClassInternalName,
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
@@ -97,7 +104,7 @@ public class HandleRequestVisitor extends MethodVisitor {
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
-          "(Lorg/eclipse/jetty/server/Response;)V",
+          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)V",
           false);
       super.visitJumpInsn(Opcodes.GOTO, afterHandle);
 

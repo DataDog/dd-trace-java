@@ -74,7 +74,7 @@ public class Servlet3Advice {
         CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
     if (span.isToBeBlocked()) {
-      ServletBlockingHelper.commitBlockingResponse(httpServletResponse);
+      ServletBlockingHelper.commitBlockingResponse(httpServletRequest, httpServletResponse);
       return true; // skip method body
     }
 

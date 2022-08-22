@@ -90,6 +90,8 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
@@ -524,6 +526,8 @@ public class Config {
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
+  private final String appSecHttpBlockedTemplateHtml;
+  private final String appSecHttpBlockedTemplateJson;
 
   private final boolean iastEnabled;
   private final int iastMaxConcurrentRequests;
@@ -1093,6 +1097,11 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
     appSecObfuscationParameterValueRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
+
+    appSecHttpBlockedTemplateHtml =
+        configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
+    appSecHttpBlockedTemplateJson =
+        configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
 
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
     iastMaxConcurrentRequests =
@@ -1780,6 +1789,14 @@ public class Config {
 
   public String getAppSecObfuscationParameterValueRegexp() {
     return appSecObfuscationParameterValueRegexp;
+  }
+
+  public String getAppSecHttpBlockedTemplateHtml() {
+    return appSecHttpBlockedTemplateHtml;
+  }
+
+  public String getAppSecHttpBlockedTemplateJson() {
+    return appSecHttpBlockedTemplateJson;
   }
 
   public boolean isIastEnabled() {
@@ -3047,6 +3064,10 @@ public class Config {
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
+        + ", appSecHttpBlockedTemplateHtml="
+        + appSecHttpBlockedTemplateHtml
+        + ", appSecHttpBlockedTemplateJson="
+        + appSecHttpBlockedTemplateJson
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="

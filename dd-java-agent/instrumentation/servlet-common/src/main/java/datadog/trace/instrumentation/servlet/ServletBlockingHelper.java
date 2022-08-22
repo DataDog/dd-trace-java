@@ -1,28 +1,34 @@
 package datadog.trace.instrumentation.servlet;
 
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ServletBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(ServletBlockingHelper.class);
-  private static final int STATUS_CODE = 403;
-  private static final String RESPONSE_TEXT = "Access denied (request blocked)";
-  private static final byte[] RESPONSE_BODY = RESPONSE_TEXT.getBytes(StandardCharsets.US_ASCII);
 
-  public static void commitBlockingResponse(HttpServletResponse resp) {
-    if (!start(resp, STATUS_CODE)) {
+  public static void commitBlockingResponse(
+      HttpServletRequest httpServletRequest, HttpServletResponse resp) {
+    int statusCode = BlockingActionHelper.getHttpCode(0);
+    if (!start(resp, statusCode)) {
       return;
     }
 
-    resp.setHeader("Content-length", Integer.toString(RESPONSE_BODY.length));
-    resp.setHeader("Content-type", "text/plain");
+    String acceptHeader = httpServletRequest.getHeader("Accept");
+    TemplateType type = BlockingActionHelper.determineTemplateType(acceptHeader);
+    byte[] template = BlockingActionHelper.getTemplate(type);
+    String contentType = BlockingActionHelper.getContentType(type);
+
+    resp.setHeader("Content-length", Integer.toString(template.length));
+    resp.setHeader("Content-type", contentType);
     try {
       OutputStream os = resp.getOutputStream();
-      os.write(RESPONSE_BODY);
+      os.write(template);
       os.close();
     } catch (IOException e) {
       log.warn("Error sending error page", e);

@@ -24,7 +24,6 @@ public class HandleVisitor extends MethodVisitor {
   private int agentSpanVar = -1;
   private boolean success;
   private final String methodName;
-  private boolean foundFirstDispatch;
 
   public HandleVisitor(int api, DelayCertainInsMethodVisitor methodVisitor, String methodName) {
     super(api, methodVisitor);
@@ -86,6 +85,13 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
+          "getRequest",
+          "()Lorg/eclipse/jetty/server/Request;",
+          false);
+      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitMethodInsn(
+          Opcodes.INVOKEVIRTUAL,
+          "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
@@ -93,7 +99,7 @@ public class HandleVisitor extends MethodVisitor {
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
-          "(Lorg/eclipse/jetty/server/Response;)V",
+          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)V",
           false);
       super.visitJumpInsn(Opcodes.GOTO, afterHandle);
 
@@ -164,7 +170,14 @@ public class HandleVisitor extends MethodVisitor {
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
       List<Function> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
       mv.commitVisitations(loadThisAndEnum);
-      // set up the argument to the method underlying the lambda (Response)
+      // set up the arguments to the method underlying the lambda (Request, Response)
+      super.visitVarInsn(Opcodes.ALOAD, 0);
+      super.visitMethodInsn(
+          Opcodes.INVOKEVIRTUAL,
+          "org/eclipse/jetty/server/HttpChannel",
+          "getRequest",
+          "()Lorg/eclipse/jetty/server/Request;",
+          false);
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
@@ -176,7 +189,7 @@ public class HandleVisitor extends MethodVisitor {
       // create the lambda
       super.visitInvokeDynamicInsn(
           "dispatch",
-          "(Lorg/eclipse/jetty/server/Response;)Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
+          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
           new Handle(
               Opcodes.H_INVOKESTATIC,
               "java/lang/invoke/LambdaMetafactory",
@@ -189,7 +202,7 @@ public class HandleVisitor extends MethodVisitor {
                 Opcodes.H_INVOKESTATIC,
                 Type.getInternalName(JettyBlockingHelper.class),
                 "block",
-                "(Lorg/eclipse/jetty/server/Response;)V",
+                "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)V",
                 false),
             Type.getType("()V")
           });
@@ -212,56 +225,11 @@ public class HandleVisitor extends MethodVisitor {
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }
 
-  static class Frame {
-    int numLocal;
-    List<Object> local = new ArrayList<>();
-    int numStack;
-    List<Object> stack;
-  }
-
-  final Frame effectiveFrame = new Frame();
-
   private static List<Object> fromArray(Object[] obj) {
     if (obj == null) {
       return new ArrayList<>();
     }
     return new ArrayList<>(Arrays.asList(obj));
-  }
-
-  @Override
-  public void visitFrame(int type, int numLocal, Object[] local, int numStack, Object[] stack) {
-    switch (type) {
-      case Opcodes.F_NEW:
-      case Opcodes.F_FULL:
-        effectiveFrame.numLocal = numLocal;
-        effectiveFrame.local = fromArray(local);
-        effectiveFrame.numStack = numStack;
-        effectiveFrame.stack = fromArray(stack);
-        break;
-      case Opcodes.F_SAME:
-        effectiveFrame.numStack = 0;
-        effectiveFrame.stack = null;
-        break;
-      case Opcodes.F_SAME1:
-        effectiveFrame.numStack = 1;
-        effectiveFrame.stack = fromArray(stack);
-        break;
-      case Opcodes.F_APPEND:
-        effectiveFrame.numLocal += numLocal;
-        effectiveFrame.local.addAll(fromArray(local));
-        effectiveFrame.numStack = 0;
-        effectiveFrame.stack = null;
-        break;
-      case Opcodes.F_CHOP:
-        effectiveFrame.numLocal -= numLocal;
-        for (int i = 0; i < numLocal; i++) {
-          effectiveFrame.local.remove(effectiveFrame.local.size() - 1);
-        }
-        effectiveFrame.numStack = 0;
-        effectiveFrame.stack = null;
-        break;
-    }
-    super.visitFrame(type, numLocal, local, numStack, stack);
   }
 
   @Override

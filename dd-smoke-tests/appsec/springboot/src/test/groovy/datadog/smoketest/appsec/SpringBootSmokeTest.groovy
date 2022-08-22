@@ -29,8 +29,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       .build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
-    assert responseBodyStr == 'Access denied (request blocked)'
-    assert response.code() == 403
+    assert responseBodyStr == "Sup AppSec Dawg"
+    assert response.code() == 200
   }
 
   def "malicious WAF request concurrently"() {
@@ -47,9 +47,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
     rootSpans.each {
-      assert it.meta['http.response.headers.content-type'].startsWith('text/plain')
-      assert it.meta['http.response.headers.content-length'] ==
-      'Access denied (request blocked)'.length() as String
+      assert it.meta['http.response.headers.content-type'] == 'text/plain;charset=UTF-8'
+      assert it.meta['http.response.headers.content-length'] == '15'
     }
   }
 

@@ -1068,12 +1068,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testBlocking())
 
-    def request = request(SUCCESS, 'GET', null).addHeader(IG_BLOCK_HEADER, 'true').build()
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'true')
+      .addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
+      .build()
     def response = client.newCall(request).execute()
 
     expect:
     response.code() == 403
-    response.body().charStream().text == 'Access denied (request blocked)'
+    response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
+    response.body().charStream().text.contains("<title>You've been blocked</title>")
 
     when:
     TEST_WRITER.waitForTraces(1)
