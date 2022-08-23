@@ -22,12 +22,12 @@ public final class DBQueryInfo {
       };
 
   public static DBQueryInfo ofStatement(String sql) {
-    return new DBQueryInfo(sql);
+    return NORMALIZE.apply(sql);
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {
     if (sql.length() > MAX_SQL_LENGTH_TO_CACHE){
-      return new DBQueryInfo(sql);
+      return NORMALIZE.apply(sql);
     } else {
       return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
     }
