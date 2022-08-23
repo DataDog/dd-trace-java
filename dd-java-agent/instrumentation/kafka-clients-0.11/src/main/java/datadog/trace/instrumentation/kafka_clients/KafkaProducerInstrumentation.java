@@ -44,8 +44,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".KafkaProducerCallback",
-      packageName + ".KafkaProducerInstrumentation"
+      packageName + ".KafkaProducerCallback"
     };
   }
 
