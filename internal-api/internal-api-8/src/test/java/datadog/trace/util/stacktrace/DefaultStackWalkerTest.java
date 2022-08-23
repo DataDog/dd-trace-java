@@ -52,9 +52,9 @@ public class DefaultStackWalkerTest {
   }
 
   @Test
-  public void filter_DataDog_AppSec_classes_from_StackTraceElements() {
+  public void filter_DataDog_Iast_classes_from_StackTraceElements() {
     // when
-    Stream<StackTraceElement> stream = Stream.of(element("com.datadog.appsec.Foo"));
+    Stream<StackTraceElement> stream = Stream.of(element("com.datadog.iast.Foo"));
     Stream<StackTraceElement> filtered = defaultStackWalker.doFilterStack(stream);
     // Then
     assertEquals(filtered.count(), 0);

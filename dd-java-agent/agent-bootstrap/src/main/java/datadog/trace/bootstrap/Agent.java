@@ -374,6 +374,7 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
+      maybeStartIast(scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
@@ -593,6 +594,33 @@ public class Agent {
       appSecInstallerMethod.invoke(null, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
+    }
+  }
+
+  private static void maybeStartIast(Class<?> scoClass, Object o) {
+    if (iastEnabled) {
+      if (isJavaVersionAtLeast(8)) {
+        try {
+          SubscriptionService ss =
+              AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+          startIast(ss, scoClass, o);
+        } catch (Exception e) {
+          log.error("Error starting IAST subsystem", e);
+        }
+      } else {
+        log.warn("IAST subsystem requires Java 8 or later to run");
+      }
+    }
+  }
+
+  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
+    try {
+      final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
+      final Method iastInstallerMethod =
+          appSecSysClass.getMethod("start", SubscriptionService.class);
+      iastInstallerMethod.invoke(null, ss);
+    } catch (final Throwable e) {
+      log.warn("Not starting IAST subsystem", e);
     }
   }
 
