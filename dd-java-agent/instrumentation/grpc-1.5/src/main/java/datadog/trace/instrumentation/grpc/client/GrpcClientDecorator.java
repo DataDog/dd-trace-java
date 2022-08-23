@@ -11,13 +11,16 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Set;
 
 public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_CLIENT = UTF8BytesString.create("grpc.client");
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
+  public static final List<String> PRODUCER_PATHWAY_EDGE_TAGS = Arrays.asList("type:internal");
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
