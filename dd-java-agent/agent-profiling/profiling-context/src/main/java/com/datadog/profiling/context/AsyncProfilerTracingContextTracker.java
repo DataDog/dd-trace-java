@@ -6,8 +6,12 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class AsyncProfilerTracingContextTracker implements TracingContextTracker {
+  private static final Logger log =
+      LoggerFactory.getLogger(AsyncProfilerTracingContextTracker.class);
 
   private static final AsyncProfiler ASYNC_PROFILER = AsyncProfiler.getInstance();
 
@@ -50,8 +54,6 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
         span != null
             ? span.getLocalRootSpan() != null ? span.getLocalRootSpan().getSpanId().toLong() : -1
             : -1;
-
-    activateAsyncProfilerContext();
   }
 
   @Override
@@ -66,7 +68,7 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
 
   @Override
   public void maybeDeactivateContext() {
-    deactivateAsyncProfilerContext();
+    // safe to ignore
   }
 
   private void activateAsyncProfilerContext() {
