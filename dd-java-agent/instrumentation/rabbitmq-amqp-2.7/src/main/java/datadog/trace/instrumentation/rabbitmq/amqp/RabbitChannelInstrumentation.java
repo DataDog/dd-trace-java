@@ -14,6 +14,8 @@ import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_LEGACY_TRACING;
+import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.EXCHANGE_TAG_CACHE;
+import static datadog.trace.instrumentation.rabbitmq.amqp.TagsCache.EXCHANGE_TAG_PREFIX;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.canThrow;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
@@ -37,6 +39,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -67,7 +70,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer"
+      packageName + ".TracedDelegatingConsumer",
+      packageName + ".TagsCache",
+      packageName + ".TagsCache$StringPrefix"
     };
   }
 
@@ -181,7 +186,17 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER);
+        propagate()
+            .injectPathwayContext(
+                span,
+                headers,
+                SETTER,
+                Arrays.asList(
+                    EXCHANGE_TAG_CACHE.computeIfAbsent(exchange, EXCHANGE_TAG_PREFIX),
+                    routingKey == null || routingKey.equals("")
+                        ? "has_routing_key:false"
+                        : "has_routing_key:true",
+                    "type:internal"));
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

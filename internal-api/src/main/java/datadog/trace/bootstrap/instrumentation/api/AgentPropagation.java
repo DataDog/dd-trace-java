@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.PropagationStyle;
+import java.util.List;
 
 public interface AgentPropagation {
 
@@ -12,9 +13,10 @@ public interface AgentPropagation {
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style);
 
-  <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter);
+  <C> void injectBinaryPathwayContext(
+      AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags);
 
-  <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter);
+  <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);
