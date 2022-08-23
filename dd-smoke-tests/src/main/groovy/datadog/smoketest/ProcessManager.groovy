@@ -144,7 +144,8 @@ abstract class ProcessManager extends Specification {
     logFilePaths.each { lfp ->
       def hasError = false
       new File(lfp).eachLine {
-        if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+        if (it.contains("ERROR") || it.contains("ASSERTION FAILED")
+          || it.contains("Failed to handle exception in instrumentation")) {
           println it
           hasError = logHasErrors = true
         }
