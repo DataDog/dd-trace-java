@@ -71,6 +71,17 @@ public class TransformerDefinitionMatcherTest {
   }
 
   @Test
+  public void sourceFileAbsoluteFileName() {
+    SnapshotProbe probe =
+        createProbe(PROBE_ID1, "/home/user/project/src/main/java/java/lang/String.java", 23);
+    TransformerDefinitionMatcher matcher =
+        createMatcher(Arrays.asList(probe), Collections.emptyList());
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(1, probeDefinitions.size());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
+  }
+
+  @Test
   public void sourceFileSimpleFileName() {
     SnapshotProbe probe = createProbe(PROBE_ID1, "String.java", 23);
     TransformerDefinitionMatcher matcher =
@@ -138,6 +149,15 @@ public class TransformerDefinitionMatcherTest {
     assertEquals(2, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getId());
     assertEquals(PROBE_ID2, probeDefinitions.get(1).getId());
+  }
+
+  @Test
+  public void partialSimpleNameShouldNotMatch() {
+    SnapshotProbe probe1 = createProbe(PROBE_ID1, "SuperString.java", 11);
+    TransformerDefinitionMatcher matcher =
+        createMatcher(Arrays.asList(probe1), Collections.emptyList());
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(0, probeDefinitions.size());
   }
 
   private TransformerDefinitionMatcher createMatcher(

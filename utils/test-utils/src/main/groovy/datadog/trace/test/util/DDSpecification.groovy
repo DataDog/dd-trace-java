@@ -112,7 +112,7 @@ abstract class DDSpecification extends Specification {
   void setupSpec() {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (getDDThreads().isEmpty()) {
       ignoreThreadCleanup = false
@@ -128,7 +128,7 @@ abstract class DDSpecification extends Specification {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
       rebuildConfig()
@@ -137,16 +137,17 @@ abstract class DDSpecification extends Specification {
     checkThreads()
   }
 
-  private Map<Object, Object> nonAppSecSystemProperties() {
+  private static Map<Object, Object> systemPropertiesExceptAllowed() {
+    def allowlist = ['dd.appsec.enabled', 'dd.iast.enabled']
     System.getProperties()
-      .findAll { key, value -> key as String != 'dd.appsec.enabled' }
+      .findAll { key, value -> !allowlist.contains(key as String) }
   }
 
   void setup() {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
       rebuildConfig()
@@ -157,7 +158,7 @@ abstract class DDSpecification extends Specification {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
       rebuildConfig()

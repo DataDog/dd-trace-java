@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
@@ -229,14 +230,16 @@ public class Agent {
       }
     }
 
+    boolean delayOkHttp = appUsingCustomLogManager && okHttpMayIndirectlyLoadJUL();
+
     /*
      * Similar thing happens with DatadogTracer on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
      * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
-     * logging facility.
+     * logging facility. Likewise on IBM JDKs OkHttp may indirectly load 'IBMSASL' which in turn loads LogManager.
      */
     InstallDatadogTracerCallback installDatadogTracerCallback =
         new InstallDatadogTracerCallback(inst);
-    if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
+    if (delayOkHttp) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
     } else {
@@ -244,14 +247,14 @@ public class Agent {
     }
 
     /*
-     * Similar thing happens with Profiler on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
+     * Similar thing happens with Profiler on zulu-8 because it is using OkHttp which indirectly loads JFR events which
+     * in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
      */
     if (profilingEnabled && !isOracleJDK8()) {
-      if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
-        log.debug("Custom logger detected. Delaying JMXFetch initialization.");
+      if (delayOkHttp) {
+        log.debug("Custom logger detected. Delaying Profiling initialization.");
         registerLogManagerCallback(new StartProfilingAgentCallback());
       } else {
-        // Anything above 8 is OpenJDK implementation and is safe to run synchronously
         startProfilingAgent(false);
         // only enable sampler when we know JFR is ready
         ExceptionSampling.enableExceptionSampling();
@@ -374,6 +377,7 @@ public class Agent {
 
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
+      maybeStartIast(scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
@@ -593,6 +597,33 @@ public class Agent {
       appSecInstallerMethod.invoke(null, ss, sco);
     } catch (final Throwable ex) {
       log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
+    }
+  }
+
+  private static void maybeStartIast(Class<?> scoClass, Object o) {
+    if (iastEnabled) {
+      if (isJavaVersionAtLeast(8)) {
+        try {
+          SubscriptionService ss =
+              AgentTracer.get().getSubscriptionService(RequestContextSlot.IAST);
+          startIast(ss, scoClass, o);
+        } catch (Exception e) {
+          log.error("Error starting IAST subsystem", e);
+        }
+      } else {
+        log.warn("IAST subsystem requires Java 8 or later to run");
+      }
+    }
+  }
+
+  private static void startIast(SubscriptionService ss, Class<?> scoClass, Object sco) {
+    try {
+      final Class<?> appSecSysClass = AGENT_CLASSLOADER.loadClass("com.datadog.iast.IastSystem");
+      final Method iastInstallerMethod =
+          appSecSysClass.getMethod("start", SubscriptionService.class);
+      iastInstallerMethod.invoke(null, ss);
+    } catch (final Throwable e) {
+      log.warn("Not starting IAST subsystem", e);
     }
   }
 
@@ -918,14 +949,20 @@ public class Agent {
     return System.getenv(toEnvVar(sysProp));
   }
 
-  private static boolean isJavaBefore9WithJFR() {
-    if (isJavaVersionAtLeast(9)) {
-      return false;
+  private static boolean okHttpMayIndirectlyLoadJUL() {
+    if ("IBM Corporation".equals(getRuntimeVendor())) {
+      return true; // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
     }
+    if (isJavaVersionAtLeast(9)) {
+      return false; // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
+    }
+    return isJFRSupported(); // assume OkHttp will indirectly load JUL via its JFR events
+  }
+
+  private static boolean isJFRSupported() {
     // FIXME: this is quite a hack because there maybe jfr classes on classpath somehow that have
-    // nothing to do with JDK but this should be safe because only thing this does is to delay
+    // nothing to do with JDK - but this should be safe because only thing this does is to delay
     // tracer install
-    return Thread.currentThread().getContextClassLoader().getResource("jdk/jfr/Recording.class")
-        != null;
+    return BootstrapProxy.INSTANCE.getResource("jdk/jfr/Recording.class") != null;
   }
 }

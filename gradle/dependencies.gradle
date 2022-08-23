@@ -31,7 +31,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8.3-DD-20220822",
+    asyncprofiler : "2.8.3-DD-20220822_1",
     asm           : "9.2"
   ]
 
@@ -90,7 +90,7 @@ final class CachedData {
       "org.openjdk.jmc:flightrecorder:${versions.jmc}"
     ],
 
-    // Shared between appsec, agent tooling, instrumentation, JMXFetch, and profiling
+    // Shared between appsec, agent tooling, iast, instrumentation, JMXFetch, and profiling
     shared               : [
       "com.squareup.okhttp3:okhttp:${versions.okhttp}",
       // Force specific version of okio required by com.squareup.moshi:moshi

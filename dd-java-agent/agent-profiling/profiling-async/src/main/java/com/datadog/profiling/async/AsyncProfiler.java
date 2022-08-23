@@ -248,7 +248,7 @@ public final class AsyncProfiler {
       // wall profiling is enabled.
       cmd.append(",wall=").append(getWallInterval()).append('m');
       if (getWallFilterOnContext()) {
-        cmd.append(",context");
+        cmd.append(",wallfilter");
       }
     }
     if (profilingModes.contains(ProfilingMode.ALLOCATION)) {
