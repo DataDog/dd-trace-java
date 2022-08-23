@@ -152,7 +152,7 @@ abstract class ProcessManager extends Specification {
         checker(it)
       }
       if (hasError) {
-        println "Test application log is containing errors. See full run logs in ${lfp}"
+        println "Test application log contains errors. See full run logs in ${lfp}"
       }
     }
   }

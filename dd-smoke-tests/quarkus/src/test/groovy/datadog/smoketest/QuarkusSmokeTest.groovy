@@ -59,6 +59,8 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
     // TODO quarkus requests are split in two, so we need to wait for the double amount
     waitForTraceCount(2 * totalInvocations) == 2 * totalInvocations
     validateLogInjection(resourceName()) == totalInvocations
+    checkLog()
+    !logHasErrors
   }
 
   void doAndValidateRequest(int id) {
