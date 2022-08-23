@@ -360,7 +360,8 @@ public class AgentTracer {
         AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags) {}
 
     @Override
-    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags) {}
+    public <C> void injectPathwayContext(
+        AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
@@ -773,7 +774,8 @@ public class AgentTracer {
         AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags) {}
 
     @Override
-    public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags) {}
+    public <C> void injectPathwayContext(
+        AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {

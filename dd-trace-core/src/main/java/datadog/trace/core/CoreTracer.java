@@ -69,7 +69,6 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -765,7 +764,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags) {
+  public <C> void injectBinaryPathwayContext(
+      AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     pathwayContext.setCheckpoint(edgeTags, dataStreamsCheckpointer);
 
@@ -782,7 +782,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags) {
+  public <C> void injectPathwayContext(
+      AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     pathwayContext.setCheckpoint(edgeTags, dataStreamsCheckpointer);
     try {

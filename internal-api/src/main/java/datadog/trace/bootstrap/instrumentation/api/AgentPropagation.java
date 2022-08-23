@@ -13,7 +13,8 @@ public interface AgentPropagation {
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style);
 
-  <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags);
+  <C> void injectBinaryPathwayContext(
+      AgentSpan span, C carrier, BinarySetter<C> setter, List<String> edgeTags);
 
   <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter, List<String> edgeTags);
 

@@ -89,7 +89,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, PRODUCER_PATHWAY_EDGE_TAGS);
+          propagate()
+              .injectBinaryPathwayContext(
+                  span, record.headers(), SETTER, PRODUCER_PATHWAY_EDGE_TAGS);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -102,7 +104,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, PRODUCER_PATHWAY_EDGE_TAGS);
+          propagate()
+              .injectBinaryPathwayContext(
+                  span, record.headers(), SETTER, PRODUCER_PATHWAY_EDGE_TAGS);
         }
         if (!KAFKA_LEGACY_TRACING) {
           SETTER.injectTimeInQueue(record.headers());
