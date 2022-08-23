@@ -1,17 +1,19 @@
 package com.datadog.debugger.uploader;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
+
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.http.SafeRequestBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -80,7 +82,7 @@ public class BatchUploader {
             60,
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
-            new UploaderThreadFactory("dd-debugger-upload-http-dispatcher"));
+            new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.containerId = containerId;
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
@@ -195,22 +197,6 @@ public class BatchUploader {
 
   private boolean canEnqueueMoreRequests() {
     return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
-  }
-
-  // FIXME: we should unify all thread factories in common library
-  private static class UploaderThreadFactory implements ThreadFactory {
-    private final String name;
-
-    public UploaderThreadFactory(final String name) {
-      this.name = name;
-    }
-
-    @Override
-    public Thread newThread(final Runnable r) {
-      final Thread t = new Thread(r, name);
-      t.setDaemon(true);
-      return t;
-    }
   }
 
   private static final class ResponseCallback implements Callback {

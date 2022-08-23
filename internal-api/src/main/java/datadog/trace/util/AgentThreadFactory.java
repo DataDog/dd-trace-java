@@ -39,7 +39,9 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     PROCESS_SUPERVISOR("dd-process-supervisor"),
 
-    DATA_STREAMS_MONITORING("dd-data-streams-monitor");
+    DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
+
+    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher");
 
     public final String threadName;
 
