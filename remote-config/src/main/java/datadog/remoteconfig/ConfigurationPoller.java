@@ -26,13 +26,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -138,7 +136,7 @@ public class ConfigurationPoller
 
     if (productFeaturesByteArray != null) {
       try {
-        dl.deserializeAndAccept(productFeaturesByteArray, PollingRateHinter.NOOP);
+        dl.deserializeAndAccept(name, productFeaturesByteArray, PollingRateHinter.NOOP);
       } catch (RuntimeException | IOException e) {
         log.warn("Error applying features for {}", name, e);
       }
@@ -292,12 +290,6 @@ public class ConfigurationPoller
       }
     }
 
-    try {
-      unapplyConfigs(configsToApply, this);
-    } catch (ReportableException e) {
-      errorMessage = e.getMessage();
-    }
-
     updateNextState(fleetResponse, inspectedConfigurationKeys, errorMessage);
 
     if (successes == 0 && failures > 0) {
@@ -308,35 +300,7 @@ public class ConfigurationPoller
     rescheduleBaseOnConfiguration(this.durationHint);
   }
 
-  private void unapplyConfigs(List<String> configsToApply, PollingRateHinter hinter) {
-    Set<String> activeProducts =
-        configsToApply.stream()
-            .map(ConfigurationPoller::extractProductFromKey)
-            .collect(Collectors.toSet());
-    // it WILL not unapply configurations for products that we're subscribed to
-    // but for which we see no configurations
-    for (ConfigState configState : this.nextClientState.configStates) {
-      String previousProduct = configState.product;
-      if (!activeProducts.contains(previousProduct)) {
-        DeserializerAndListener<?> dl = this.listeners.get(previousProduct);
-        if (dl != null) {
-          log.info("Unapplying configuration for {}", previousProduct);
-          try {
-            dl.listener.accept(null, hinter);
-          } catch (Exception e) {
-            ratelimitedLogger.warn(
-                "Error unapplying configuration for " + previousProduct + ": " + e.getMessage());
-          }
-        }
-      }
-    }
-  }
-
-  private boolean processConfigKey(
-      RemoteConfigResponse fleetResponse,
-      String configKey,
-      List<String> inspectedConfigurationKeys,
-      PollingRateHinter pollingRateHinter) {
+  private DeserializerAndListener<?> extractDeserializerAndListenerFromKey(String configKey) {
     String productName = extractProductFromKey(configKey);
     if (productName == null) {
       throw new ReportableException("Cannot extract product from key " + configKey);
@@ -351,6 +315,23 @@ public class ConfigurationPoller
               + productName
               + " is not being handled");
     }
+
+    return dl;
+  }
+
+  private boolean notifyConfigurationKeyRemoved(
+      String configKey, PollingRateHinter pollingRateHinter) throws IOException {
+    return extractDeserializerAndListenerFromKey(configKey)
+        .deserializeAndAccept(configKey, null, pollingRateHinter);
+  }
+
+  private boolean processConfigKey(
+      RemoteConfigResponse fleetResponse,
+      String configKey,
+      List<String> inspectedConfigurationKeys,
+      PollingRateHinter pollingRateHinter) {
+    // find right product from configKey
+    DeserializerAndListener<?> dl = extractDeserializerAndListenerFromKey(configKey);
 
     // check if the hash of this configuration file actually changed
     CachedTargetFile cachedTargetFile = this.cachedTargetFiles.get(configKey);
@@ -389,8 +370,7 @@ public class ConfigurationPoller
 
     try {
       log.debug("Applying configuration for {}", configKey);
-      boolean result = dl.deserializeAndAccept(fileContent, pollingRateHinter);
-      return result;
+      return dl.deserializeAndAccept(configKey, fileContent, pollingRateHinter);
     } catch (IOException | RuntimeException ex) {
       ratelimitedLogger.warn("Error handling configuration for " + configKey, ex);
       return false;
@@ -484,6 +464,12 @@ public class ConfigurationPoller
       String configKey = cachedConfigKeysIter.next();
       if (!inspectedConfigKeys.contains(configKey)) {
         cachedConfigKeysIter.remove();
+        try {
+          log.debug("Removing configuration for {}", configKey);
+          notifyConfigurationKeyRemoved(configKey, this);
+        } catch (IOException | RuntimeException ex) {
+          ratelimitedLogger.warn("Error handling configuration for " + configKey, ex);
+        }
       }
     }
   }
@@ -524,7 +510,7 @@ public class ConfigurationPoller
 
       boolean res =
           deserializerAndListener.deserializeAndAccept(
-              outputStream.toByteArray(), PollingRateHinter.NOOP);
+              file.getAbsolutePath(), outputStream.toByteArray(), PollingRateHinter.NOOP);
       if (!res) {
         ratelimitedLogger.warn("Failed reading or applying configuration from {}", file);
       } else {
@@ -539,7 +525,7 @@ public class ConfigurationPoller
   // marked as synchronized only to satisfy spotbugs,
   // because this method is only called from synchronized methods anyway
   private synchronized boolean featuresChangeListener(
-      FeaturesConfig fconfig, PollingRateHinter hinter) {
+      String configKey, FeaturesConfig fconfig, PollingRateHinter hinter) {
     if (fconfig == null) {
       log.warn("Features configuration was pulled, which is unexpected");
       return true;
@@ -556,7 +542,7 @@ public class ConfigurationPoller
 
       try {
         byte[] productFeaturesByteArray = fconfig.getProductFeaturesByteArray(product);
-        dl.deserializeAndAccept(productFeaturesByteArray, hinter);
+        dl.deserializeAndAccept(product, productFeaturesByteArray, hinter);
       } catch (IOException | RuntimeException e) {
         ratelimitedLogger.warn("Error processing features for {}", product);
       }
@@ -583,12 +569,19 @@ public class ConfigurationPoller
       this.listener = listener;
     }
 
-    boolean deserializeAndAccept(byte[] bytes, PollingRateHinter hinter) throws IOException {
-      T configuration = this.deserializer.deserialize(bytes);
-      if (configuration == null) {
-        return false;
+    boolean deserializeAndAccept(String configKey, byte[] bytes, PollingRateHinter hinter)
+        throws IOException {
+      T configuration = null;
+
+      if (bytes != null) {
+        configuration = this.deserializer.deserialize(bytes);
+        // ensure deserializer return a value.
+        if (configuration == null) {
+          throw new RuntimeException("Configuration deserializer didn't provide a configuration");
+        }
       }
-      return this.listener.accept(configuration, hinter);
+
+      return this.listener.accept(configKey, configuration, hinter);
     }
   }
 
