@@ -18,6 +18,7 @@ dd-java-agent/instrumentation/testng-6.4/                              @DataDog/
 
 # @DataDog/debugger-java (Live Debugger)
 dd-java-agent/agent-debugger/ @DataDog/debugger-java
+dd-smoke-tests/debugger-integration-tests/ @DataDog/debugger-java
 
 # @DataDog/iast-java
 **/iast/          @DataDog/iast-java
