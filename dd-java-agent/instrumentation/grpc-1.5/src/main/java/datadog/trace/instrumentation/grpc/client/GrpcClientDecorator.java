@@ -21,14 +21,14 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
-  private static final LinkedHashMap<String, String> createProducerPathwaySortedTags() {
+  private static final LinkedHashMap<String, String> createClientPathwaySortedTags() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
     result.put(TYPE_TAG, "internal");
     return result;
   }
 
-  public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS =
-      createProducerPathwaySortedTags();
+  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS =
+      createClientPathwaySortedTags();
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
