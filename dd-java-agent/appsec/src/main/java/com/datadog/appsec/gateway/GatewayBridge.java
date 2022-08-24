@@ -287,6 +287,14 @@ public class GatewayBridge {
         });
 
     subscriptionService.registerCallback(
+        EVENTS.requestInferredClientAddress(),
+        (ctx_, ip) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          ctx.setInferredClientIp(ip);
+          return NoopFlow.INSTANCE; // expected to be called before requestClientSocketAddress
+        });
+
+    subscriptionService.registerCallback(
         EVENTS.responseStarted(),
         (ctx_, status) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
@@ -465,7 +473,8 @@ public class GatewayBridge {
               KnownAddresses.REQUEST_URI_RAW,
               KnownAddresses.REQUEST_QUERY,
               KnownAddresses.REQUEST_CLIENT_IP,
-              KnownAddresses.REQUEST_CLIENT_PORT);
+              KnownAddresses.REQUEST_CLIENT_PORT,
+              KnownAddresses.REQUEST_INFERRED_CLIENT_IP);
     }
     MapDataBundle bundle =
         new MapDataBundle.Builder(CAPACITY_6_10)
@@ -477,6 +486,7 @@ public class GatewayBridge {
             .add(KnownAddresses.REQUEST_QUERY, queryParams)
             .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getPeerAddress())
             .add(KnownAddresses.REQUEST_CLIENT_PORT, ctx.getPeerPort())
+            .add(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, ctx.getInferredClientIp())
             .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);

@@ -36,6 +36,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
+  private static final int UNSET_PORT = 0;
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
@@ -176,25 +177,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String ip = null;
+    int port = UNSET_PORT;
     if (connection != null) {
       ip = peerHostIP(connection);
-      final int port = peerPort(connection);
-      if (ip != null) {
-        if (ip.indexOf(':') > 0) {
-          span.setTag(Tags.PEER_HOST_IPV6, ip);
-        } else {
-          span.setTag(Tags.PEER_HOST_IPV4, ip);
-        }
-      }
-      setPeerPort(span, port);
-      Flow<Void> flow = callIGCallbackSocketAddress(span, ip, port);
-      if (flow.getAction().isBlocking()) {
-        span.markForBlocking();
-      }
+      port = peerPort(connection);
     }
 
+    String inferredAddressStr = null;
     if (config.isTraceClientIpResolverEnabled()) {
-      InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context);
       // As a fallback, if no IP was resolved, the peer IP address should be checked
       // to see if it is public and used as the resolved IP if it is.
       // If no public IP address, then a private IP address should reported as a fall back.
@@ -202,8 +193,22 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
       }
       if (inferredAddress != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
+        inferredAddressStr = inferredAddress.getHostAddress();
+        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
       }
+    }
+
+    if (ip != null) {
+      if (ip.indexOf(':') > 0) {
+        span.setTag(Tags.PEER_HOST_IPV6, ip);
+      } else {
+        span.setTag(Tags.PEER_HOST_IPV4, ip);
+      }
+    }
+    setPeerPort(span, port);
+    Flow<Void> flow = callIGCallbackAddressAndPort(span, ip, port, inferredAddressStr);
+    if (flow.getAction().isBlocking()) {
+      span.markForBlocking();
     }
 
     return span;
@@ -362,17 +367,32 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
-  private Flow<Void> callIGCallbackSocketAddress(
-      @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
+  private Flow<Void> callIGCallbackAddressAndPort(
+      @Nonnull final AgentSpan span,
+      final String ip,
+      final int port,
+      final String inferredClientIp) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    if (cbp == null || (ip == null && port == UNSET_PORT)) {
+    if (cbp == null || (ip == null && inferredClientIp == null && port == UNSET_PORT)) {
       return Flow.ResultFlow.empty();
     }
     RequestContext ctx = span.getRequestContext();
-    if (ctx != null) {
+    if (ctx == null) {
+      return Flow.ResultFlow.empty();
+    }
+
+    if (inferredClientIp != null) {
+      BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
+          cbp.getCallback(EVENTS.requestInferredClientAddress());
+      if (inferredAddrCallback != null) {
+        inferredAddrCallback.apply(ctx, inferredClientIp);
+      }
+    }
+
+    if (ip != null || port != UNSET_PORT) {
       TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
           cbp.getCallback(EVENTS.requestClientSocketAddress());
-      if (null != addrCallback) {
+      if (addrCallback != null) {
         return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
       }
     }
