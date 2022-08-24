@@ -111,6 +111,9 @@ public class GatewayBridge {
           if (traceSeg != null) {
             traceSeg.setTagTop("_dd.appsec.enabled", 1);
             traceSeg.setTagTop("_dd.runtime_family", "jvm");
+            if (spanInfo.isToBeBlocked()) {
+              traceSeg.setTagTop("appsec.blocked", "true");
+            }
 
             Collection<AppSecEvent100> collectedEvents = ctx.transferCollectedEvents();
 
