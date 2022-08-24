@@ -15,11 +15,11 @@ import graphql.util.TraverserContext;
 import graphql.util.TreeTransformerUtil;
 
 public final class GraphQLQuerySanitizer extends NodeVisitorStub {
-  private static final NodeVisitor ReplaceValuesVisitor = new GraphQLQuerySanitizer();
-  private static final AstTransformer astTransformer = new AstTransformer();
+  private static final NodeVisitor REPLACE_VALUES_VISITOR = new GraphQLQuerySanitizer();
+  private static final AstTransformer AST_TRANSFORMER = new AstTransformer();
 
   public static String sanitizeQuery(Node<?> node) {
-    Node sanitizedQuery = astTransformer.transform(node, ReplaceValuesVisitor);
+    Node sanitizedQuery = AST_TRANSFORMER.transform(node, REPLACE_VALUES_VISITOR);
     return AstPrinter.printAst(sanitizedQuery);
   }
 
