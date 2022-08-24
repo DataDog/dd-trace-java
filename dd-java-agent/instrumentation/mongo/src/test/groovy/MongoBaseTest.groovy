@@ -34,14 +34,6 @@ class MongoBaseTest extends AgentTestRunner {
   MongodProcess mongod
 
   def setupSpec() throws Exception {
-    port = PortUtils.randomOpenPort()
-
-    final IMongodConfig mongodConfig =
-      new MongodConfigBuilder()
-      .version(Version.Main.PRODUCTION)
-      .net(new Net("localhost", port, Network.localhostIsIPv6()))
-      .build()
-
     // The embedded MongoDB library will fail if it starts preparing the
     // distribution and then finds that one of the files already exists.
     // Since we usually execute multiple test modules in parallel, we use
@@ -56,6 +48,15 @@ class MongoBaseTest extends AgentTestRunner {
         final lock = it.tryLock()
         assert lock != null
         try {
+          // Create the MongodConfig here, including the allocation of the port.
+          // If we allocate the port before acquiring the lock, some other process
+          // might bind to the same port, resulting in a port conflict.
+          port = PortUtils.randomOpenPort()
+          final IMongodConfig mongodConfig = new MongodConfigBuilder()
+            .version(Version.Main.PRODUCTION)
+            .net(new Net("localhost", port, Network.localhostIsIPv6()))
+            .build()
+
           return STARTER.prepare(mongodConfig)
         } finally {
           lock.release()
