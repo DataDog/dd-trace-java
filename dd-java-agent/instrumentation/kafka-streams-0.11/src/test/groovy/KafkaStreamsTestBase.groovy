@@ -33,7 +33,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
 
   @Shared
   @ClassRule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, STREAM_PENDING, STREAM_PROCESSED)
+  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
 
   abstract String expectedServiceName()
 
@@ -61,7 +61,8 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
 
     def consumerContainer = new KafkaMessageListenerContainer<>(consumerFactory, new ContainerProperties(STREAM_PROCESSED))
 
-    // create a thread safe queue to store the processed message
+    // create 2 thread safe queues to store the processed message
+    def streamRecords = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
 
     // setup a Kafka message listener
@@ -253,26 +254,26 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags == ["topic:$STREAM_PENDING", "type:internal"]
+        edgeTags.size() == 2
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        edgeTags.containsAll(["type:kafka", "group:test-application", "topic:$STREAM_PENDING".toString()])
-        edgeTags.size() == 3
+        edgeTags == ["group:test-application", "partition:0", "topic:$STREAM_PENDING".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags == ["topic:$STREAM_PROCESSED", "type:internal"]
+        edgeTags.size() == 2
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$STREAM_PROCESSED".toString()])
-        edgeTags.size() == 3
+        edgeTags == ["group:sender", "partition:0", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
     }
 
