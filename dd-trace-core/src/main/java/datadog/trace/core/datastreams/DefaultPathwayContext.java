@@ -85,8 +85,7 @@ public class DefaultPathwayContext implements PathwayContext {
     lock.lock();
     try {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
-      // the number of
-      // tag keys for now. We should revisit this later if it's no longer the case.
+      // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
       List<String> hashableTags = new ArrayList<>(sortedTags.size());
 
