@@ -7,7 +7,7 @@ import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class DBQueryInfo {
-  
+
   private static final int MAX_SQL_LENGTH_TO_CACHE = 4096;
 
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
@@ -26,7 +26,7 @@ public final class DBQueryInfo {
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {
-    if (sql.length() > MAX_SQL_LENGTH_TO_CACHE){
+    if (sql.length() > MAX_SQL_LENGTH_TO_CACHE) {
       return NORMALIZE.apply(sql);
     } else {
       return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
