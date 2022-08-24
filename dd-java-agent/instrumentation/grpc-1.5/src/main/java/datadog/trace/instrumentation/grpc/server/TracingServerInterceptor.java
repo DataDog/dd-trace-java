@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_MESSAGE;
@@ -36,7 +37,7 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import javax.annotation.Nonnull;
@@ -70,7 +71,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     PathwayContext pathwayContext = propagate().extractPathwayContext(headers, GETTER);
     span.mergePathwayContext(pathwayContext);
-    AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:grpc"));
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(TYPE_TAG, "grpc");
+    AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {
