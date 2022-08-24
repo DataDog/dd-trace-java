@@ -34,12 +34,7 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
   }
 
   private static final ThreadLocal<ArrayDeque<Context>> contextsThreadLocal =
-      new ThreadLocal<ArrayDeque<Context>>() {
-        @Override
-        protected ArrayDeque<Context> initialValue() {
-          return new ArrayDeque<Context>();
-        }
-      };
+      ThreadLocal.withInitial(() -> new ArrayDeque<>());
 
   private final long spanId;
   private final long rootSpanId;
