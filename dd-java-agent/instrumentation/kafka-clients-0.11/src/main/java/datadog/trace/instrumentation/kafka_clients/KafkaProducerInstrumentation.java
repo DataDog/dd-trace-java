@@ -91,7 +91,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(PARTITION_TAG, record.partition().toString());
+        if (record.partition() != null) {
+          sortedTags.put(PARTITION_TAG, record.partition().toString());
+        }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "internal");
         try {
