@@ -61,8 +61,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
 
     def consumerContainer = new KafkaMessageListenerContainer<>(consumerFactory, new ContainerProperties(STREAM_PROCESSED))
 
-    // create 2 thread safe queues to store the processed message
-    def streamRecords = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
+    // create a thread safe queue to store the processed message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
 
     // setup a Kafka message listener
