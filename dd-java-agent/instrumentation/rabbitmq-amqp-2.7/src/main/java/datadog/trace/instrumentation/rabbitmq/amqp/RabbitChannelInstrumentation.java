@@ -72,8 +72,6 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
       packageName + ".TracedDelegatingConsumer",
-      packageName + ".TagsCache",
-      packageName + ".TagsCache$StringPrefix"
     };
   }
 
