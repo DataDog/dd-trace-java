@@ -105,9 +105,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     savedConfChangesListener.accept(
+      _ as String,
       savedConfDeserializer.deserialize(
       '{"version": "2.0"}, "foo": {"version": "1.0"}'.bytes), null)
     savedFeaturesListener.accept(
+      'asm',
       savedFeaturesDeserializer.deserialize(
       '{"enabled": true}'.bytes), null)
 
@@ -136,6 +138,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     savedConfChangesListener.accept(
+      _ as String,
       savedConfDeserializer.deserialize(
       '{"version": "1.1"}, "foo": {"version": "2.0"}'.bytes), null)
 

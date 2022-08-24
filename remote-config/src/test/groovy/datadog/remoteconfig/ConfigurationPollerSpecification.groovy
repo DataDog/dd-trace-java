@@ -115,7 +115,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, _ as ConfigurationChangesListener.PollingRateHinter) >> true
+    1 * listener.accept(_, _, _ as ConfigurationChangesListener.PollingRateHinter) >> true
     0 * _._
 
     def body = parseBody(request.body())
@@ -146,7 +146,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   void 'reschedules if instructed to do so'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer, { cfg, hinter ->
+      { SLURPER.parse(it) } as ConfigurationDeserializer, { cngKey, cfg, hinter ->
         hinter.suggestPollingRate(Duration.ofMillis(124))
         hinter.suggestPollingRate(Duration.ofMillis(123))
         hinter.suggestPollingRate(Duration.ofMillis(1230)) // higher is ignored
@@ -335,7 +335,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, _ as ConfigurationChangesListener.PollingRateHinter) >> true
+    1 * listener.accept(_, _, _ as ConfigurationChangesListener.PollingRateHinter) >> true
     0 * _._
 
     when:
@@ -358,7 +358,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
         buildOKResponse(JsonOutput.toJson(it))
       }
     }
-    1 * listener.accept(_, _ as ConfigurationChangesListener.PollingRateHinter) >> true
+    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _ as ConfigurationChangesListener.PollingRateHinter) >> true
     0 * _._
   }
 
@@ -398,7 +398,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, _)
+    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _)
     0 * _._
 
     then:
@@ -442,7 +442,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept(_, _)
+    1 * listener.accept(_, _, _)
     0 * _._
 
     then:
@@ -547,7 +547,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
-    1 * listener.accept({ it != null }, _) >> false // should still unapply afterwards even if failed
+    1 * listener.accept(_, { it != null }, _) >> false // should still unapply afterwards even if failed
     0 * _._
 
     when:
@@ -556,7 +556,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
-    1 * listener.accept(null, _) >> true
+    1 * listener.accept(_, null, _) >> true
     0 * _._
 
     // the next time it doesn't unapply it
@@ -566,6 +566,68 @@ class ConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    0 * _._
+  }
+
+  void 'support multiple configurations'() {
+    ConfigurationChangesListener<Map<String, Object>> listener = Mock()
+    String multiConfigs = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = ['employee/ASM_DD/1.recommended.json/config', 'employee/ASM_DD/2.suggested.json/config']
+      JsonOutput.toJson(it)
+    }
+
+    String noConfigs = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
+      it['client_configs'] = []
+      JsonOutput.toJson(it)
+    }
+
+    when:
+    poller.addListener(Product.ASM_DD,
+      { SLURPER.parse(it) } as ConfigurationDeserializer,
+      listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    //apply first configuration
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', { it != null }, _) >> false // should still unapply afterwards even if failed
+    0 * _._
+
+    // apply second configuration
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(multiConfigs) }
+    1 * listener.accept('employee/ASM_DD/2.suggested.json/config', { it != null }, _) >> true
+    0 * _._
+
+    //remove second configuration if it no longer sent
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * listener.accept('employee/ASM_DD/2.suggested.json/config', null, _) >> false // should still unapply afterwards even if failed
+    0 * _._
+
+    //remove all configurations
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(noConfigs) }
+    1 * listener.accept('employee/ASM_DD/1.recommended.json/config', null, _) >> false // should still unapply afterwards even if failed
     0 * _._
   }
 
@@ -795,7 +857,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     when:
     poller.addFileListener(file,
       { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { conf, hinter -> savedConf = conf } as ConfigurationChangesListener)
+      { path, conf, hinter -> savedConf = conf } as ConfigurationChangesListener)
     poller.start()
     file << '{"foo":"bar"}'.getBytes('UTF-8')
 
@@ -841,6 +903,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
     1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
     1 * listener.accept(
+      _,
       { cfg -> cfg['enabled'] == true },
       _ as ConfigurationChangesListener.PollingRateHinter) >> true
     0 * _._
@@ -873,6 +936,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
 
     then:
     1 * listener.accept(
+      _,
       { cfg -> cfg['enabled'] == true },
       _ as ConfigurationChangesListener.PollingRateHinter) >> true
     0 * _._
@@ -943,6 +1007,10 @@ class ConfigurationPollerSpecification extends DDSpecification {
       {
          "path" : "employee/ASM_DD/1.recommended.json/config",
          "raw" : "${Base64.encoder.encodeToString(SAMPLE_APPSEC_CONFIG.getBytes('UTF-8'))}"
+      },
+      {
+         "path" : "employee/ASM_DD/2.suggested.json/config",
+         "raw" : "${Base64.encoder.encodeToString(SAMPLE_APPSEC_CONFIG.getBytes('UTF-8'))}"
       }
    ],
    "targets" : "${Base64.encoder.encodeToString(SAMPLE_TARGETS.getBytes('UTF-8'))}"
@@ -1012,6 +1080,15 @@ class ConfigurationPollerSpecification extends DDSpecification {
             },
             "length" : 919
          },
+         "employee/ASM_DD/2.suggested.json/config" : {
+            "custom" : {
+               "v" : 1
+            },
+            "hashes" : {
+               "sha256" : "6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819"
+            },
+            "length" : 919
+         },
          "employee/CWS_DD/2.default.policy/config" : {
             "custom" : {
                "v" : 2
@@ -1026,6 +1103,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
    }
 }
 '''
+
   private static final FEATURES_RESP_BODY = JsonOutput.toJson(
   client_configs: ['datadog/2/FEATURES/asm_features_activation/config'],
   roots: [],

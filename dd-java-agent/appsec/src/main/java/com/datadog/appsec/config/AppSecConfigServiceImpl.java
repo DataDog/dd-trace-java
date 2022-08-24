@@ -47,7 +47,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addListener(
         Product.ASM_DD,
         AppSecConfigDeserializer.INSTANCE,
-        (newConfig, hinter) -> {
+        (configKey, newConfig, hinter) -> {
           if (newConfig == null) {
             // TODO: disable appsec
             return true;
@@ -61,7 +61,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addFeaturesListener(
         "asm",
         AppSecFeaturesDeserializer.INSTANCE,
-        (newConfig, hinter) -> {
+        (product, newConfig, hinter) -> {
           // TODO: disable appsec
           return true;
         });
