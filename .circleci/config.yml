@@ -627,6 +627,21 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
 
+  # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
+  # and it will be simpler to require different JVM versions for different branches and old releases
+  - fan_in:
+      requires:
+        - check
+        - agent_integration_tests
+        - test_7
+        - test_8
+        - test_11
+        - test_15
+        - test_17
+        - test_ZULU8
+      name: required
+      testJvm: "required tasks" # only used in a print statement
+
 workflows:
   build_test:
     jobs:
