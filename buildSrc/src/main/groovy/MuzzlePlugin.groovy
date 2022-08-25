@@ -20,6 +20,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.tasks.SourceSet
 
 import java.lang.reflect.Method
 import java.security.SecureClassLoader
@@ -97,7 +98,11 @@ class MuzzlePlugin implements Plugin<Project> {
         assertionMethod.invoke(null, instrumentationCL)
       }
     }
-    [bootstrapProject, toolingProject]*.afterEvaluate {
+    bootstrapProject.afterEvaluate {
+      compileMuzzle.dependsOn it.tasks.compileJava
+      compileMuzzle.dependsOn it.tasks.compileMain_java11Java
+    }
+    toolingProject.afterEvaluate {
       compileMuzzle.dependsOn it.tasks.compileJava
     }
     muzzle.dependsOn(compileMuzzle)
@@ -229,9 +234,13 @@ class MuzzlePlugin implements Plugin<Project> {
       userUrls.add(jarFile.toURI().toURL())
     }
 
-    for (File f : bootstrapProject.sourceSets.main.runtimeClasspath.getFiles()) {
-      project.getLogger().info("-- Added to instrumentation bootstrap classpath: $f")
-      userUrls.add(f.toURI().toURL())
+    for (SourceSet sourceSet: bootstrapProject.sourceSets) {
+      if (sourceSet.name.startsWith('main')) {
+        for (File f : sourceSet.runtimeClasspath.getFiles()) {
+          project.getLogger().info("-- Added to instrumentation bootstrap classpath: $f")
+          userUrls.add(f.toURI().toURL())
+        }
+      }
     }
     return new URLClassLoader(userUrls.toArray(new URL[0]), (ClassLoader) null)
   }

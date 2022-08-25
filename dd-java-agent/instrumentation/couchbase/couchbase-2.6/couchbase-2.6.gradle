@@ -48,8 +48,8 @@ dependencies {
 
   compileOnly group: 'com.couchbase.client', name: 'java-client', version: '2.6.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:couchbase-2.0')
-  testImplementation project(path: ':dd-java-agent:instrumentation:couchbase-2.0', configuration: 'testArtifacts')
+  testImplementation project(':dd-java-agent:instrumentation:couchbase:couchbase-2.0')
+  testImplementation project(path: ':dd-java-agent:instrumentation:couchbase:couchbase-2.0', configuration: 'testArtifacts')
   testImplementation group: 'com.couchbase.mock', name: 'CouchbaseMock', version: '1.5.19'
 
   testImplementation group: 'org.springframework.data', name: 'spring-data-couchbase', version: '3.1.0.RELEASE'
