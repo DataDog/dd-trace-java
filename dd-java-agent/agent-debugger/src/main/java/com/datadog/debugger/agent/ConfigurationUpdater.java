@@ -1,9 +1,9 @@
 package com.datadog.debugger.agent;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.poller.ConfigurationPoller;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
+import com.datadog.debugger.util.TagsHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
@@ -25,8 +25,7 @@ import org.slf4j.LoggerFactory;
  * Handles configuration updates if required by installing a new ClassFileTransformer and triggering
  * re-transformation of required classes
  */
-public class ConfigurationUpdater
-    implements ConfigurationPoller.ConfigurationChangesListener, DebuggerContext.ProbeResolver {
+public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
 
   public static final int MAX_ALLOWED_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
@@ -46,6 +45,7 @@ public class ConfigurationUpdater
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
   private final EnvironmentAndVersionChecker envAndVersionCheck;
   private final DebuggerSink sink;
+  private final String serviceName;
 
   private final Map<String, InstrumentationResult> instrumentationResults =
       new ConcurrentHashMap<>();
@@ -65,22 +65,34 @@ public class ConfigurationUpdater
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.envAndVersionCheck = new EnvironmentAndVersionChecker(config);
+    this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.sink = sink;
   }
 
   // Should be called by only one thread
-  // Should return true if configuration is correctly applied
-  // otherwise false to trigger polling backoff due to an error
+  // Should return true if configuration is correctly applied/un-applied
+  // otherwise false to indicate a probelem
   public boolean accept(Configuration configuration) {
     try {
+      // handle null configuration
       if (configuration == null) {
-        log.debug("debugConfig == null, apply empty configuration with no probes");
+        log.debug("configuration is null, apply empty configuration with no probes");
         applyNewConfiguration(createEmptyConfiguration());
-        return false;
+        return true;
       }
+
+      // handle mismatched configurations
+      if (!configuration.getId().equals(serviceName)) {
+        log.debug(
+            "got debugConfig.serviceName = {}, ignoring configuration", configuration.getId());
+        return true;
+      }
+
+      // apply new configuration
       Configuration newConfiguration = applyConfigurationFilters(configuration);
       applyNewConfiguration(newConfiguration);
       return true;
+
     } catch (Exception e) {
       ExceptionHelper.logException(log, e, "Error during accepting new debugger configuration:");
       return false;

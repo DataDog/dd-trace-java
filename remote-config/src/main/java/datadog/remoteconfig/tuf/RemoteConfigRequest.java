@@ -18,12 +18,13 @@ public class RemoteConfigRequest {
       String serviceName,
       String serviceEnv,
       String serviceVersion,
+      List<String> tags,
       ClientInfo.ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles) {
 
     ClientInfo.TracerInfo tracerInfo =
         new RemoteConfigRequest.ClientInfo.TracerInfo(
-            runtimeId, tracerVersion, serviceName, serviceEnv, serviceVersion);
+            runtimeId, tracerVersion, serviceName, serviceEnv, serviceVersion, tags);
 
     ClientInfo clientInfo =
         new RemoteConfigRequest.ClientInfo(clientState, clientId, productNames, tracerInfo);
@@ -127,6 +128,8 @@ public class RemoteConfigRequest {
 
       private final String language = "java";
 
+      private final List<String> tags;
+
       @Json(name = "tracer_version")
       private final String tracerVersion;
 
@@ -144,12 +147,14 @@ public class RemoteConfigRequest {
           String tracerVersion,
           String serviceName,
           String serviceEnv,
-          String serviceVersion) {
+          String serviceVersion,
+          List<String> tags) {
         this.runtimeId = runtimeId;
         this.tracerVersion = tracerVersion;
         this.serviceName = serviceName;
         this.serviceEnv = serviceEnv;
         this.serviceVersion = serviceVersion;
+        this.tags = tags;
       }
     }
 

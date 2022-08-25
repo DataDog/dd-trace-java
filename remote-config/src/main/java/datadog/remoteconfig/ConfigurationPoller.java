@@ -67,14 +67,19 @@ public class ConfigurationPoller
   private Duration durationHint;
 
   public ConfigurationPoller(
-      Config config, String tracerVersion, String configUrl, OkHttpClient client) {
-    this(config, tracerVersion, configUrl, client, AgentTaskScheduler.INSTANCE);
+      Config config,
+      String tracerVersion,
+      String containerId,
+      String configUrl,
+      OkHttpClient client) {
+    this(config, tracerVersion, containerId, configUrl, client, AgentTaskScheduler.INSTANCE);
   }
 
   // for testing
   public ConfigurationPoller(
       Config config,
       String tracerVersion,
+      String containerId,
       String configUrl,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
@@ -95,7 +100,8 @@ public class ConfigurationPoller
             .add(Instant.class, new InstantJsonAdapter())
             .add(ByteString.class, new RawJsonAdapter())
             .build();
-    this.requestFactory = new PollerRequestFactory(config, tracerVersion, configUrl, moshi);
+    this.requestFactory =
+        new PollerRequestFactory(config, tracerVersion, containerId, configUrl, moshi);
     this.responseFactory = new RemoteConfigResponse.Factory(moshi);
     this.httpClient = httpClient;
   }

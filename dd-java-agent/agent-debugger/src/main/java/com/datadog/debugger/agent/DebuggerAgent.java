@@ -1,23 +1,28 @@
 package com.datadog.debugger.agent;
 
-import static datadog.communication.http.OkHttpUtils.buildHttpClient;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import com.datadog.debugger.poller.ConfigurationPoller;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.monitor.Monitoring;
+import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.remoteconfig.ConfigurationPoller;
+import datadog.remoteconfig.Product;
+import datadog.remoteconfig.SizeCheckedInputStream;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Snapshot;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Objects;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,19 +33,23 @@ public class DebuggerAgent {
   private static DebuggerSink sink;
   private static String agentVersion;
 
-  public static synchronized void run(Instrumentation instrumentation) {
-    if (!Config.get().isDebuggerEnabled()) {
+  public static synchronized void run(
+      Instrumentation instrumentation, SharedCommunicationObjects sco) {
+
+    Config config = Config.get();
+
+    if (!config.isDebuggerEnabled()) {
       log.info("Debugger agent disabled");
       return;
     }
 
-    String finalDebuggerSnapshotUrl = Config.get().getFinalDebuggerSnapshotUrl();
-    String agentUrl = Config.get().getAgentUrl();
+    String finalDebuggerSnapshotUrl = config.getFinalDebuggerSnapshotUrl();
+    String agentUrl = config.getAgentUrl();
     boolean isSnapshotUploadThroughAgent = Objects.equals(finalDebuggerSnapshotUrl, agentUrl);
-    String configEndpoint = null;
-    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = getDdAgentFeaturesDiscovery();
-    ddAgentFeaturesDiscovery.discover();
+
+    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
     agentVersion = ddAgentFeaturesDiscovery.getVersion();
+
     if (isSnapshotUploadThroughAgent && !ddAgentFeaturesDiscovery.supportsDebugger()) {
       log.error(
           "No endpoint detected to upload snapshots to from datadog agent at "
@@ -55,33 +64,81 @@ public class DebuggerAgent {
               + ". Consider upgrading the datadog agent.");
       return;
     }
-    configEndpoint = ddAgentFeaturesDiscovery.getConfigEndpoint();
 
-    sink = new DebuggerSink(Config.get());
+    sink = new DebuggerSink(config);
     sink.start();
     ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            instrumentation, DebuggerAgent::createTransformer, Config.get(), sink);
-    StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(Config.get());
+        new ConfigurationUpdater(instrumentation, DebuggerAgent::createTransformer, config, sink);
+    StatsdMetricForwarder statsdMetricForwarder = new StatsdMetricForwarder(config);
     DebuggerContext.init(sink, configurationUpdater, statsdMetricForwarder);
     DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
-    if (Config.get().isDebuggerInstrumentTheWorld()) {
-      setupInstrumentTheWorldTransformer(
-          Config.get(), instrumentation, sink, statsdMetricForwarder);
+    if (config.isDebuggerInstrumentTheWorld()) {
+      setupInstrumentTheWorldTransformer(config, instrumentation, sink, statsdMetricForwarder);
     }
-    configurationPoller =
-        new ConfigurationPoller(Config.get(), configurationUpdater, configEndpoint);
-    configurationPoller.start();
-    try {
-      /*
-      Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
-      GC for anything that is reachable from it.
-       */
-      Runtime.getRuntime()
-          .addShutdownHook(new ShutdownHook(configurationPoller, sink.getSnapshotUploader()));
-    } catch (final IllegalStateException ex) {
-      // The JVM is already shutting down.
+
+    String probeFileLocation = config.getDebuggerProbeFileLocation();
+
+    if (probeFileLocation != null) {
+      Path probeFilePath = Paths.get(probeFileLocation);
+      loadFromFile(probeFilePath, configurationUpdater, config.getDebuggerMaxPayloadSize());
+      return;
     }
+
+    configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
+    if (configurationPoller != null) {
+      subscribeConfigurationPoller(configurationUpdater);
+      configurationPoller.start();
+
+      try {
+        /*
+        Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
+        GC for anything that is reachable from it.
+         */
+        Runtime.getRuntime()
+            .addShutdownHook(new ShutdownHook(configurationPoller, sink.getSnapshotUploader()));
+      } catch (final IllegalStateException ex) {
+        // The JVM is already shutting down.
+      }
+    }
+  }
+
+  private static void loadFromFile(
+      Path probeFilePath, ConfigurationUpdater configurationUpdater, long maxPayloadSize) {
+    log.debug("try to load from file...");
+    try (InputStream inputStream =
+        new SizeCheckedInputStream(new FileInputStream(probeFilePath.toFile()), maxPayloadSize)) {
+      byte[] buffer = new byte[4096];
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
+      int bytesRead;
+      do {
+        bytesRead = inputStream.read(buffer);
+        if (bytesRead > -1) {
+          outputStream.write(buffer, 0, bytesRead);
+        }
+      } while (bytesRead > -1);
+      Configuration configuration =
+          ConfigurationDeserializer.INSTANCE.deserialize(outputStream.toByteArray());
+      log.debug("Probe definitions loaded from file {}", probeFilePath);
+      configurationUpdater.accept(configuration);
+    } catch (IOException ex) {
+      log.error("Unable to load config file {}: {}", probeFilePath, ex);
+    }
+  }
+
+  private static void subscribeConfigurationPoller(ConfigurationUpdater configurationUpdater) {
+    configurationPoller.addListener(
+        Product.LIVE_DEBUGGING,
+        ConfigurationDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> configurationUpdater.accept(newConfig));
+
+    configurationPoller.addFeaturesListener(
+        // what is live debugger feature name?
+        "live_debugging",
+        DebuggerFeaturesDeserializer.INSTANCE,
+        (prod, newConfig, hinter) -> {
+          // TODO: disable debugger
+          return true;
+        });
   }
 
   static ClassFileTransformer setupInstrumentTheWorldTransformer(
@@ -99,13 +156,6 @@ public class DebuggerAgent {
 
   public static String getAgentVersion() {
     return agentVersion;
-  }
-
-  private static DDAgentFeaturesDiscovery getDdAgentFeaturesDiscovery() {
-    HttpUrl httpUrl = HttpUrl.get(Config.get().getFinalDebuggerProbeUrl());
-    log.debug("Datadog agent features discovery from: {}", httpUrl);
-    OkHttpClient client = buildHttpClient(httpUrl, 30 * 1000);
-    return new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, httpUrl, false, false);
   }
 
   private static DebuggerTransformer createTransformer(

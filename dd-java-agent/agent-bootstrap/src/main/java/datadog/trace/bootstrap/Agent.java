@@ -189,9 +189,6 @@ public class Agent {
      */
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst);
-    if (debuggerEnabled) {
-      startDebuggerAgent(inst);
-    }
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -379,6 +376,10 @@ public class Agent {
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
+
+      if (debuggerEnabled) {
+        startDebuggerAgent(instrumentation, scoClass, sco);
+      }
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -755,15 +756,16 @@ public class Agent {
     }
   }
 
-  private static synchronized void startDebuggerAgent(final Instrumentation inst) {
+  private static synchronized void startDebuggerAgent(
+      final Instrumentation inst, Class<?> scoClass, Object sco) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
       final Class<?> debuggerAgentClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.debugger.agent.DebuggerAgent");
       final Method debuggerInstallerMethod =
-          debuggerAgentClass.getMethod("run", Instrumentation.class);
-      debuggerInstallerMethod.invoke(null, inst);
+          debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
+      debuggerInstallerMethod.invoke(null, inst, sco);
     } catch (final ClassFormatError e) {
       /*
       Debugger is compiled for Java8. Loading it on Java7 results in ClassFormatError
