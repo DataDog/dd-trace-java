@@ -6,7 +6,6 @@ import org.apache.rocketmq.client.hook.ConsumeMessageContext;
 import org.apache.rocketmq.client.hook.ConsumeMessageHook;
 
 final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
-
   private final RocketMqDecorator rocketMqDecorator;
 
   TracingConsumeMessageHookImpl() {

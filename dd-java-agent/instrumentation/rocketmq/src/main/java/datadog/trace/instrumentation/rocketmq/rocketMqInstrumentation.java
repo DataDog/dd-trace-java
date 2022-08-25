@@ -27,7 +27,6 @@ public class RocketMqInstrumentation extends Instrumenter.Tracing
     return hasClassesNamed(CLASS_NAME);
   }
 
-
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return named(CLASS_NAME);
