@@ -202,7 +202,8 @@ class GraphQLTest extends AgentTestRunner {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.query" expectedQuery
             "graphql.operation.name" null
-            "error.msg" "Validation error of type FieldUndefined: Field 'title' in type 'Book' is undefined @ 'bookById/title' (and 1 more errors)"
+            "error.msg" { it.contains("Field 'title' in type 'Book' is undefined") }
+            "error.msg" { it.contains("(and 1 more errors)") }
             defaultTags()
           }
         }
