@@ -27,10 +27,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
   public static final int PROFILING_START_DELAY_DEFAULT = 10;
-  // DANGEROUS! May lead on sigsegv on JVMs before 14
-  // Not intended for production use
-  public static final String PROFILING_START_FORCE_FIRST =
-      "profiling.experimental.start-force-first";
+  public static final String PROFILING_START_FORCE_FIRST = "profiling.start-force-first";
   public static final boolean PROFILING_START_FORCE_FIRST_DEFAULT = false;
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
   public static final int PROFILING_UPLOAD_PERIOD_DEFAULT = 60;
