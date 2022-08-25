@@ -16,12 +16,12 @@ public class IastModuleImpl implements IastModule {
     if (Config.get().getWeakHashingAlgorithms().contains(algorithm.toUpperCase())) {
       // get StackTraceElement for the callee of MessageDigest
       StackTraceElement stackTraceElement =
-          StackWalkerFactory.INSTANCE
-              .walk(
-                  stack ->
-                      stack.filter(s -> !s.getClassName().equals("java.security.MessageDigest")))
-              .findFirst()
-              .get();
+          StackWalkerFactory.INSTANCE.walk(
+              stack ->
+                  stack
+                      .filter(s -> !s.getClassName().equals("java.security.MessageDigest"))
+                      .findFirst()
+                      .get());
 
       Vulnerability vulnerability =
           new Vulnerability(
