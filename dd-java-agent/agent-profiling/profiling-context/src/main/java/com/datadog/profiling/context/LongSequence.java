@@ -273,6 +273,10 @@ final class LongSequence {
     return capturedSize;
   }
 
+  void adjustCapturedSize(int diff) {
+    capturedSize += diff;
+  }
+
   public int sizeInBytes() {
     return sizeInBytes;
   }
