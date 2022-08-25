@@ -7,8 +7,6 @@ import org.apache.dubbo.rpc.Filter;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.RpcContext;
-import org.apache.dubbo.rpc.filter.ConsumerContextFilter;
-import org.apache.dubbo.rpc.filter.ContextFilter;
 
 import static datadog.trace.instrumentation.dubbo_2_7x.DubboDecorator.DECORATE;
 

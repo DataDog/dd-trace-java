@@ -9,6 +9,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import java.util.Map;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -23,7 +24,8 @@ public class DubboInstrumentation extends Instrumenter.Tracing
     super("apache-dubbo", "apache-dubbo-2.7");
   }
 
-  public static final String CLASS_NAME = "org.apache.dubbo.rpc.Filter";
+//  public static final String CLASS_NAME = "org.apache.dubbo.rpc.Filter";
+  public static final String CLASS_NAME = "org.apache.dubbo.monitor.support.MonitorFilter";
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
@@ -32,7 +34,8 @@ public class DubboInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(CLASS_NAME));
+    return extendsClass(named(CLASS_NAME));
+//    return implementsInterface(named(CLASS_NAME));
 //    return implementsInterface(named(CLASS_NAME)).and(not(named("org.apache.dubbo.monitor.dubbo.MetricsFilter")));
   }
 
@@ -70,6 +73,7 @@ public class DubboInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.dubbo.rpc.Invocation", AgentSpan.class.getName());
+//    return singletonMap("org.apache.dubbo.rpc.Invocation", AgentSpan.class.getName());
+    return singletonMap("org.apache.dubbo.rpc.RpcContext", AgentSpan.class.getName());
   }
 }

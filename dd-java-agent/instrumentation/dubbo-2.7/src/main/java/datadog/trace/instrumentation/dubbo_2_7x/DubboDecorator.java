@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.dubbo_2_7x;
 
-import com.alibaba.dubbo.common.Constants;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -16,9 +15,6 @@ import org.slf4j.LoggerFactory;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersInjectAdapter.SETTER;
-import static org.apache.dubbo.common.constants.CommonConstants.PROVIDER_SIDE;
-import static org.apache.dubbo.common.constants.CommonConstants.SIDE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.CONSUMER_SIDE;
 
 public class DubboDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(DubboDecorator.class);
@@ -29,6 +25,13 @@ public class DubboDecorator extends BaseDecorator {
 
   public static final DubboDecorator DECORATE = new DubboDecorator();
 
+  public static final String SIDE_KEY = "side";
+
+  public static final String PROVIDER_SIDE = "provider";
+
+  public static final String CONSUMER_SIDE = "consumer";
+
+  public static final String GROUP_KEY = "group";
   @Override
   protected String[] instrumentationNames() {
     return new String[]{"apache-dubbo.2.7"};
@@ -53,24 +56,22 @@ public class DubboDecorator extends BaseDecorator {
     String shortUrl = generateRequestURL(url,invocation);
     System.out.println("isConsumer : "+isConsumer);
     if (log.isDebugEnabled()) {
-      log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{},ProtocolServiceKey:{},serviceName:{}",
+      log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{}",
           isConsumer,
           methodName,
           resourceName,
           shortUrl,
-          url.toString(),
-          invocation.getProtocolServiceKey(),
-          invocation.getServiceName()
+          url.toString()
           );
     }
     AgentSpan span;
-
+    RpcContext rpcContext = RpcContext.getContext();
     if (isConsumer){
       // this is consumer
       span = startSpan(DUBBO_REQUEST);
     }else{
       // this is provider
-      AgentSpan.Context parentContext = propagate().extract(invocation, GETTER);
+      AgentSpan.Context parentContext = propagate().extract(rpcContext, GETTER);
       span = startSpan(DUBBO_REQUEST,parentContext);
     }
     span.setTag("url", url.toString());
@@ -80,7 +81,7 @@ public class DubboDecorator extends BaseDecorator {
 
     withMethod(span, resourceName);
     if (isConsumer){
-      propagate().inject(span, invocation, SETTER);
+      propagate().inject(span, rpcContext, SETTER);
 //      InstrumentationContext.get(Invocation.class, AgentSpan.class).put(invocation, span);
     }
     return span;
@@ -99,7 +100,7 @@ public class DubboDecorator extends BaseDecorator {
 
   private String generateOperationName(URL requestURL, Invocation invocation) {
     StringBuilder operationName = new StringBuilder();
-    String groupStr = requestURL.getParameter(Constants.GROUP_KEY);
+    String groupStr = requestURL.getParameter(GROUP_KEY);
     groupStr = StringUtils.isEmpty(groupStr) ? "" : groupStr + "/";
     operationName.append(groupStr);
     operationName.append(requestURL.getPath());
