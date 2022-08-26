@@ -14,6 +14,7 @@ import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -194,6 +195,7 @@ public class CrashUploader {
               "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
+  @SuppressForbidden
   private String extractErrorMessage(String fileContent) {
     Matcher matcher = errorMessagePattern.matcher(fileContent);
     if (!matcher.find()) {
