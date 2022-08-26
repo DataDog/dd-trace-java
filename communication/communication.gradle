@@ -39,5 +39,4 @@ ext {
     'datadog.communication.ddagent.SharedCommunicationObjects',
     'datadog.communication.ddagent.TracerVersion',
   ]
-  minJavaVersionForTests = JavaVersion.VERSION_1_7
 }

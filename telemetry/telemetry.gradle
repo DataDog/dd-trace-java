@@ -33,7 +33,6 @@ ext {
     'datadog.telemetry.HostInfo.Os',
   ]
   excludedClassesInstructionCoverage = []
-  minJavaVersionForTests = JavaVersion.VERSION_1_7
 }
 
 openApiGenerate {

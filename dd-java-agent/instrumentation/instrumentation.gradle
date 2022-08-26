@@ -39,6 +39,7 @@ subprojects { Project subProj ->
 
   subProj.afterEvaluate {
     String jdkCompile = null
+    // TODO:java8 this should be changed and the *_java8 directories folded into the main directory
     if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
       def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
       def name = "java$version.majorVersion"

@@ -71,7 +71,7 @@ abstract class GrpcTest extends AgentTestRunner {
     } as Function<RequestContext, Flow<Void>>)
     ig.registerCallback(EVENTS.grpcServerRequestMessage(), { reqCtx, obj ->
       collectedAppSecReqMsgs << obj
-    } as BiFunction<RequestContext, Object>)
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
   }
 
   def cleanup() {
