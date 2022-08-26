@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -184,9 +185,10 @@ public class CrashUploader {
               , "|"
               , "# There is insufficient memory for the Java Runtime Environment to continue\\."
               , ")"
-              , "\n"
-              , ".*"
-              , ", pid=-?\\d+, tid=-?\\d+"
+              , "\\n"
+              , "("
+              , ".*, pid=-?\\d+, tid=-?\\d+"
+              , ")"
               , "$"
               ),
           Pattern.DOTALL | Pattern.MULTILINE);
@@ -197,7 +199,14 @@ public class CrashUploader {
       System.err.println("No match found for error.message");
       return null;
     }
-    return matcher.group();
+    return Arrays.stream(matcher.group().split(System.lineSeparator()))
+      .filter(s ->
+          !s.equals("# A fatal error has been detected by the Java Runtime Environment:") &&
+          !s.equals("# There is insufficient memory for the Java Runtime Environment to continue."))
+      .map(s -> s.replaceFirst("^#\\s*", ""))
+      .map(s -> s.trim())
+      .collect(Collectors.joining("\n"))
+      .trim();
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
