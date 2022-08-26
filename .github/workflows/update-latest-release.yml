@@ -54,6 +54,11 @@ jobs:
                 const match = release.tag_name.match(downloadLatestPattern);
                 if (match) {
                   const releaseMajor = parseInt(match[1]);
+                  releases[releaseMajor] = {
+                    tag: 'v' + releaseMajor + '.0.0',
+                    minor: 0,
+                    bugfix: 0
+                  };
                   // Look for the linked version from release body
                   for (const bodyLine of release.body.split('\n')) {
                     const lineMatch = bodyLine.match(versionPattern);
@@ -111,7 +116,7 @@ jobs:
                 }
                 // Check if the tag is newer than the one used in the latest release
                 if (latest.releases[major].minor < minor
-                  || (latest.releases[major].minor == minor && latest.releases[major].bugfix < bugfix)
+                  || (latest.releases[major].minor == minor && latest.releases[major].bugfix <= bugfix)
                 ) {
                   needUpdate = true;
                   outputTag = tag;
