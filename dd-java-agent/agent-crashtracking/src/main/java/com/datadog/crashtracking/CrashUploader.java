@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import okhttp3.Call;
@@ -134,12 +136,68 @@ public class CrashUploader {
           writer.name("service").value(config.getServiceName());
           writer.name("message").value(message);
           writer.name("level").value("ERROR");
+          writer.name("error");
+          writer.beginObject();
+          writer.name("kind").value(extractErrorKind(message));
+          writer.name("message").value(extractErrorMessage(message));
+          writer.endObject();
           writer.endObject();
         }
 
         out.println(buf.readByteString().utf8());
       }
     }
+  }
+
+  private final static Pattern errorKindPattern =
+      Pattern.compile(
+          String.join("",
+                "^"
+              , "("
+              , "# A fatal error has been detected by the Java Runtime Environment:"
+              , "|"
+              , "# There is insufficient memory for the Java Runtime Environment to continue\\."
+              , ")"
+              , "$"
+              ),
+          Pattern.DOTALL);
+
+  private String extractErrorKind(String fileContent) {
+    Matcher matcher = errorMessagePattern.matcher(fileContent);
+    if (!matcher.find()) {
+      System.err.println("No match found for error.kind");
+      return null;
+    }
+    
+    if (matcher.group().startsWith("# There is insufficient memory")) {
+      return "OutOfMemory";
+    }
+    return "NativeCrash";
+  }
+
+  private final static Pattern errorMessagePattern =
+      Pattern.compile(
+          String.join("",
+                "^"
+              , "("
+              , "# A fatal error has been detected by the Java Runtime Environment:"
+              , "|"
+              , "# There is insufficient memory for the Java Runtime Environment to continue\\."
+              , ")"
+              , "\n"
+              , ".*"
+              , ", pid=-?\\d+, tid=-?\\d+"
+              , "$"
+              ),
+          Pattern.DOTALL | Pattern.MULTILINE);
+
+  private String extractErrorMessage(String fileContent) {
+    Matcher matcher = errorMessagePattern.matcher(fileContent);
+    if (!matcher.find()) {
+      System.err.println("No match found for error.message");
+      return null;
+    }
+    return matcher.group();
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
