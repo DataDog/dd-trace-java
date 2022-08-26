@@ -35,7 +35,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     injectSysConfig("dd.integration.grizzly.enabled", "true")
   }
 
-  private class GrizzlyServer implements datadog.trace.agent.test.base.HttpServer {
+  protected class GrizzlyServer implements datadog.trace.agent.test.base.HttpServer {
     final HttpServer server
     int port = 0
 

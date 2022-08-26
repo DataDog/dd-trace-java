@@ -33,8 +33,8 @@ if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 // when building with Java 9+, lazily set compiler --release flag to match target
 def skipSettingCompilerRelease = project.findProperty('skipSettingCompilerRelease')
@@ -44,6 +44,7 @@ if (!skipSettingCompilerRelease && JavaVersion.current().isJava9Compatible()) {
   }
 }
 
+// TODO:java8 this should be changed and the *_java8 directories folded into the main directory
 if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
   def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
   def name = "java$version.majorVersion"
@@ -85,23 +86,6 @@ java {
   disableAutoTargetJvm()
   withJavadocJar()
   withSourcesJar()
-}
-
-[JavaCompile, ScalaCompile].each { type ->
-  tasks.withType(type).configureEach {
-    doFirst {
-      // We do this specifically for Java7 bytecode generation because we would like to be able to compile
-      // with Java8+ compiler. This likely would require some modifications when we switch to java11 compiler.
-      // Using proper Java7 bootstrap and extensions allows to be sure our code will run on real Java7.
-      if (JavaVersion.toVersion(sourceCompatibility) == JavaVersion.VERSION_1_7
-        && JavaVersion.current() != JavaVersion.VERSION_1_7
-        && System.env.JAVA_7_HOME != null) {
-        options.fork = true
-        options.bootstrapClasspath = fileTree(include: ['*.jar'], dir: "${System.env.JAVA_7_HOME}/jre/lib/")
-        options.extensionDirs = "${System.env.JAVA_7_HOME}/jre/lib/ext/"
-      }
-    }
-  }
 }
 
 jar {
