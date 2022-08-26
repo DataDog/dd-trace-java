@@ -20,8 +20,8 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -151,17 +151,17 @@ public class CrashUploader {
     }
   }
 
-  private final static Pattern errorKindPattern =
+  private static final Pattern errorKindPattern =
       Pattern.compile(
-          String.join("",
-                "^"
-              , "("
-              , "# A fatal error has been detected by the Java Runtime Environment:"
-              , "|"
-              , "# There is insufficient memory for the Java Runtime Environment to continue\\."
-              , ")"
-              , "$"
-              ),
+          String.join(
+              "",
+              "^",
+              "(",
+              "# A fatal error has been detected by the Java Runtime Environment:",
+              "|",
+              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+              ")",
+              "$"),
           Pattern.DOTALL);
 
   private String extractErrorKind(String fileContent) {
@@ -170,28 +170,28 @@ public class CrashUploader {
       System.err.println("No match found for error.kind");
       return null;
     }
-    
+
     if (matcher.group().startsWith("# There is insufficient memory")) {
       return "OutOfMemory";
     }
     return "NativeCrash";
   }
 
-  private final static Pattern errorMessagePattern =
+  private static final Pattern errorMessagePattern =
       Pattern.compile(
-          String.join("",
-                "^"
-              , "("
-              , "# A fatal error has been detected by the Java Runtime Environment:"
-              , "|"
-              , "# There is insufficient memory for the Java Runtime Environment to continue\\."
-              , ")"
-              , "\\n"
-              , "("
-              , ".*, pid=-?\\d+, tid=-?\\d+"
-              , ")"
-              , "$"
-              ),
+          String.join(
+              "",
+              "^",
+              "(",
+              "# A fatal error has been detected by the Java Runtime Environment:",
+              "|",
+              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+              ")",
+              "\\n",
+              "(",
+              ".*, pid=-?\\d+, tid=-?\\d+",
+              ")",
+              "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
   private String extractErrorMessage(String fileContent) {
@@ -201,21 +201,31 @@ public class CrashUploader {
       return null;
     }
     return Arrays.stream(matcher.group().split(System.lineSeparator()))
-      .filter(s ->
-          !s.equals("# A fatal error has been detected by the Java Runtime Environment:") &&
-          !s.equals("# There is insufficient memory for the Java Runtime Environment to continue."))
-      .map(s -> s.replaceFirst("^#\\s*", ""))
-      .map(s -> s.trim())
-      .collect(Collectors.joining("\n"))
-      .trim();
+        .filter(
+            s ->
+                !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
+                    && !s.equals(
+                        "# There is insufficient memory for the Java Runtime Environment to continue."))
+        .map(s -> s.replaceFirst("^#\\s*", ""))
+        .map(s -> s.trim())
+        .collect(Collectors.joining("\n"))
+        .trim();
   }
 
-  private final static Pattern errorStackTracePattern =
+  private static final Pattern errorStackTracePattern =
       Pattern.compile(
-          String.join("",
-                "^"
-              , "$"
-              ),
+          String.join(
+              "",
+              "^",
+              "(",
+              "# A fatal error has been detected by the Java Runtime Environment:",
+              "|",
+              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+              ")",
+              "\n",
+              ".*",
+              ", pid=-?\\d+, tid=-?\\d+",
+              "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
   private String extractErrorStackTrace(String fileContent) {
