@@ -129,7 +129,7 @@ public class ProfilingAgent {
     return Platform.isJavaVersionAtLeast(14)
         || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
         || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8))
-        || (Platform.isJavaVersion(8) && Platform.isJavaVersion(8, 0, 272));
+        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 272));
   }
 
   public static void shutdown() {
