@@ -87,7 +87,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
-      List<String> hashableTags = new ArrayList<>(sortedTags.size());
+      PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
 
       if (!started) {
         pathwayStartNanos = startNanos;
@@ -101,12 +101,12 @@ public class DefaultPathwayContext implements PathwayContext {
       for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
         String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
         if (hashableTagKeys.contains(entry.getKey())) {
-          hashableTags.add(tag);
+          pathwayHashBuilder.addTag(tag);
         }
         allTags.add(tag);
       }
 
-      long newHash = generatePathwayHash(hashableTags, hash);
+      long newHash = generatePathwayHash(pathwayHashBuilder, hash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -312,25 +312,35 @@ public class DefaultPathwayContext implements PathwayContext {
         hash);
   }
 
-  private long generateNodeHash(List<String> edgeTags) {
-    StringBuilder builder = new StringBuilder();
-    builder.append(wellKnownTags.getService());
-    builder.append(wellKnownTags.getEnv());
+  private static class PathwayHashBuilder {
+    private StringBuilder builder;
 
-    String primaryTag = Config.get().getPrimaryTag();
-    if (primaryTag != null) {
-      builder.append(primaryTag);
+    public PathwayHashBuilder(WellKnownTags wellKnownTags) {
+      builder = new StringBuilder();
+      builder.append(wellKnownTags.getService());
+      builder.append(wellKnownTags.getEnv());
+
+      String primaryTag = Config.get().getPrimaryTag();
+      if (primaryTag != null) {
+        builder.append(primaryTag);
+      }
     }
 
-    for (String tag : edgeTags) {
+    public void addTag(String tag) {
       builder.append(tag);
     }
 
-    return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    public long generateHash() {
+      return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    }
   }
 
-  private long generatePathwayHash(List<String> edgeTags, long parentHash) {
-    long nodeHash = generateNodeHash(edgeTags);
+  private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {
+    return pathwayHashBuilder.generateHash();
+  }
+
+  private long generatePathwayHash(PathwayHashBuilder pathwayHashBuilder, long parentHash) {
+    long nodeHash = generateNodeHash(pathwayHashBuilder);
 
     lock.lock();
     try {

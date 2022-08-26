@@ -72,8 +72,10 @@ public class TagsProcessor {
   }
 
   public static final String createTag(String tagKey, String tagValue) {
-    if (TAG_TO_CACHE.containsKey(tagKey) && TAG_TO_PREFIX.containsKey(tagKey)) {
-      return TAG_TO_CACHE.get(tagKey).computeIfAbsent(tagValue, TAG_TO_PREFIX.get(tagKey));
+    DDCache<String, String> cache = TAG_TO_CACHE.get(tagKey);
+    Function<String, String> prefix = TAG_TO_PREFIX.get(tagKey);
+    if (cache != null && prefix != null) {
+      return cache.computeIfAbsent(tagValue, prefix);
     }
     return tagKey + ":" + tagValue;
   }
