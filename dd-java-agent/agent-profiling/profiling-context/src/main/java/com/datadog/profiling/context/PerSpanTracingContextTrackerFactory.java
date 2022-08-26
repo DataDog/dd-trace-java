@@ -73,14 +73,15 @@ public final class PerSpanTracingContextTrackerFactory
           int drainedAll = 0;
           int drained = 0;
           int queue = 0;
-          while (queue < target.length
-              && (drained = target[queue++].drainTo(timeouts, capacity)) > 0) {
-            if (log.isDebugEnabled()) {
-              log.debug("Drained {} inactive trackers", drained);
+          while (queue < target.length) {
+            while ((drained = target[queue++].drainTo(timeouts, capacity)) > 0) {
+              if (log.isDebugEnabled()) {
+                log.debug("Drained {} inactive trackers", drained);
+              }
+              timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
+              timeouts.clear();
+              drainedAll += drained;
             }
-            timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
-            timeouts.clear();
-            drainedAll += drained;
           }
           if (drainedAll > 0) {
             statsd.count("tracing.context.spans.drained_inactive", drainedAll);
