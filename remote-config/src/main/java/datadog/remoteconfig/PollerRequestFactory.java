@@ -71,13 +71,15 @@ public class PollerRequestFactory {
   public Request newConfigurationRequest(
       Collection<String> productNames,
       ClientState clientState,
-      Collection<CachedTargetFile> cachedTargetFiles) {
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
     Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
     MediaType applicationJson = MediaType.parse("application/json");
     RequestBody requestBody =
         RequestBody.create(
             applicationJson,
-            buildRemoteConfigRequestJson(productNames, clientState, cachedTargetFiles));
+            buildRemoteConfigRequestJson(
+                productNames, clientState, cachedTargetFiles, capabilities));
     requestBuilder.post(requestBody);
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
@@ -91,7 +93,8 @@ public class PollerRequestFactory {
   private String buildRemoteConfigRequestJson(
       Collection<String> productNames,
       ClientState clientState,
-      Collection<CachedTargetFile> cachedTargetFiles) {
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
     RemoteConfigRequest rcRequest =
         RemoteConfigRequest.newRequest(
             this.clientId,
@@ -103,7 +106,8 @@ public class PollerRequestFactory {
             this.ddVersion,
             buildRequestTags(),
             clientState,
-            cachedTargetFiles);
+            cachedTargetFiles,
+            capabilities);
 
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
   }

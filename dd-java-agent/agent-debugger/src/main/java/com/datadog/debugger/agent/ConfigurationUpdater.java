@@ -72,30 +72,30 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   // Should be called by only one thread
   // Should return true if configuration is correctly applied/un-applied
   // otherwise false to indicate a probelem
-  public boolean accept(Configuration configuration) {
+  public void accept(Configuration configuration) {
     try {
       // handle null configuration
       if (configuration == null) {
         log.debug("configuration is null, apply empty configuration with no probes");
         applyNewConfiguration(createEmptyConfiguration());
-        return true;
+        return;
       }
 
       // handle mismatched configurations
       if (!configuration.getId().equals(serviceName)) {
         log.debug(
             "got debugConfig.serviceName = {}, ignoring configuration", configuration.getId());
-        return true;
+        return;
       }
 
       // apply new configuration
       Configuration newConfiguration = applyConfigurationFilters(configuration);
       applyNewConfiguration(newConfiguration);
-      return true;
+      return;
 
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       ExceptionHelper.logException(log, e, "Error during accepting new debugger configuration:");
-      return false;
+      throw e;
     }
   }
 

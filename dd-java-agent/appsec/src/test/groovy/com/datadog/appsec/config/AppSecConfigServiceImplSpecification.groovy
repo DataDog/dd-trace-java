@@ -27,7 +27,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.init()
 
     when:
-    appSecConfigService.maybeStartConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _)
@@ -77,7 +77,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     setup:
     appSecConfigService.init()
-    appSecConfigService.maybeStartConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling()
 
     expect:
     AppSecConfigService.TransactionalAppSecModuleConfigurer configurer = appSecConfigService.createAppSecModuleConfigurer()
@@ -100,7 +100,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     AppSecSystem.ACTIVE = false
     appSecConfigService.init()
-    appSecConfigService.maybeStartConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling()
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
     initialWafData = configurer.addSubConfigListener("waf_data", wafDataListener)
@@ -122,6 +122,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       savedFeaturesListener = it[2]
       true
     }
+    1 * poller.addCapabilities(14L)
     0 * _._
     initialWafConfig.get() != null
     initialWafData.present == false
@@ -133,7 +134,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       '{"version": "2.0"}'.bytes), null)
     savedWafDataChangesListener.accept(
       'ignored config key',
-      savedWafDataDeserializer.deserialize('{"rules_data":[{"foo":"bar"}]}'.bytes), null
+      savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null
       )
     savedFeaturesListener.accept(
       'ignored config key',
@@ -142,7 +143,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']), _)
-    1 * wafDataListener.onNewSubconfig([[foo: 'bar']], _)
+    1 * wafDataListener.onNewSubconfig([[id: 'foo', type: '', data: []]], _)
     0 * _._
     AppSecSystem.ACTIVE == true
 
@@ -171,7 +172,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     configurer.addSubConfigListener("foo", fooListener)
     configurer.commit()
     appSecConfigService.init()
-    appSecConfigService.maybeStartConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _) >> {

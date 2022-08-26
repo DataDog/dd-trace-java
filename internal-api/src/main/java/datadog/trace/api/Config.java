@@ -57,7 +57,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -212,7 +215,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -539,9 +545,12 @@ public class Config {
   private final String ciVisibilityAgentlessUrl;
 
   private final boolean remoteConfigEnabled;
+  private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
   private final int remoteConfigInitialPollInterval;
   private final long remoteConfigMaxPayloadSize;
+  private final String remoteConfigTargetsKeyId;
+  private final String remoteConfigTargetsKey;
 
   private final boolean debuggerEnabled;
   private final String debuggerSnapshotUrl;
@@ -1144,6 +1153,9 @@ public class Config {
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
+    remoteConfigIntegrityCheckEnabled =
+        configProvider.getBoolean(
+            REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
     remoteConfigInitialPollInterval =
         configProvider.getInteger(
@@ -1152,6 +1164,11 @@ public class Config {
         configProvider.getInteger(
                 REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
             * 1024;
+    remoteConfigTargetsKeyId =
+        configProvider.getString(
+            REMOTE_CONFIG_TARGETS_KEY_ID, DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID);
+    remoteConfigTargetsKey =
+        configProvider.getString(REMOTE_CONFIG_TARGETS_KEY, DEFAULT_REMOTE_CONFIG_TARGETS_KEY);
 
     debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
     debuggerSnapshotUrl = configProvider.getString(DEBUGGER_SNAPSHOT_URL);
@@ -1839,12 +1856,24 @@ public class Config {
     return remoteConfigEnabled;
   }
 
+  public boolean isRemoteConfigIntegrityCheckEnabled() {
+    return remoteConfigIntegrityCheckEnabled;
+  }
+
   public String getFinalRemoteConfigUrl() {
     return remoteConfigUrl;
   }
 
   public int getRemoteConfigInitialPollInterval() {
     return remoteConfigInitialPollInterval;
+  }
+
+  public String getRemoteConfigTargetsKeyId() {
+    return remoteConfigTargetsKeyId;
+  }
+
+  public String getRemoteConfigTargetsKey() {
+    return remoteConfigTargetsKey;
   }
 
   public boolean isDebuggerEnabled() {

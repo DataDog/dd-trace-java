@@ -1,5 +1,12 @@
 package datadog.remoteconfig;
 
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
+
+import cafe.cryptography.curve25519.InvalidEncodingException;
+import cafe.cryptography.ed25519.Ed25519PublicKey;
+import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
 import datadog.remoteconfig.tuf.FeaturesConfig;
@@ -47,10 +54,13 @@ public class ConfigurationPoller
   private static final Logger log = LoggerFactory.getLogger(ConfigurationPoller.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
+  private final String keyId;
+  private final Ed25519PublicKey key;
   private final OkHttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
   private final PollerScheduler scheduler;
   private final long maxPayloadSize;
+  private final boolean integrityChecks;
   private final PollerRequestFactory requestFactory;
   private final RemoteConfigResponse.Factory responseFactory;
 
@@ -66,6 +76,7 @@ public class ConfigurationPoller
   private final Moshi moshi;
 
   private Duration durationHint;
+  private final Map<String /*cfg key*/, String /*error msg*/> collectedCfgErrors = new HashMap<>();
 
   public ConfigurationPoller(
       Config config,
@@ -94,6 +105,14 @@ public class ConfigurationPoller
       throw new IllegalArgumentException("Remote config url is empty");
     }
 
+    this.keyId = config.getRemoteConfigTargetsKeyId();
+    String keyStr = config.getRemoteConfigTargetsKey();
+    try {
+      this.key = Ed25519PublicKey.fromByteArray(HexUtils.fromHexString(keyStr));
+    } catch (InvalidEncodingException e) {
+      throw new IllegalArgumentException("Bad public key: " + keyStr, e);
+    }
+
     this.scheduler = new PollerScheduler(config, this, taskScheduler);
     log.debug(
         "Started remote config poller every {} ms with target url {}",
@@ -102,6 +121,7 @@ public class ConfigurationPoller
     this.ratelimitedLogger =
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
     this.maxPayloadSize = config.getRemoteConfigMaxPayloadSizeBytes();
+    this.integrityChecks = config.isRemoteConfigIntegrityCheckEnabled();
     this.moshi =
         new Moshi.Builder()
             .add(Instant.class, new InstantJsonAdapter())
@@ -211,9 +231,18 @@ public class ConfigurationPoller
   private Response fetchConfiguration() throws IOException {
     Request request =
         this.requestFactory.newConfigurationRequest(
-            getSubscribedProductNames(), this.nextClientState, this.cachedTargetFiles.values());
+            getSubscribedProductNames(),
+            this.nextClientState,
+            this.cachedTargetFiles.values(),
+            calculateCapabilities());
     Call call = this.httpClient.newCall(request);
     return call.execute();
+  }
+
+  private long calculateCapabilities() {
+    return (this.featureListeners.containsKey("asm") ? CAPABILITY_ASM_ACTIVATION : 0)
+        | (this.listeners.containsKey(Product.ASM_DATA.name()) ? CAPABILITY_ASM_IP_BLOCKING : 0)
+        | (this.listeners.containsKey(Product.ASM_DD.name()) ? CAPABILITY_ASM_DD_RULES : 0);
   }
 
   private Collection<String> getSubscribedProductNames() {
@@ -278,9 +307,20 @@ public class ConfigurationPoller
           "Got configuration with targets version {}", fleetResponse.getTargetsSigned().version);
     }
 
+    try {
+      verifyTargetsSignature(fleetResponse);
+      verifyTargetsPresence(fleetResponse);
+    } catch (RuntimeException rte) {
+      ratelimitedLogger.warn("Error doing initial verifications: {}", rte.getMessage(), rte);
+      this.nextClientState.hasError = true;
+      this.nextClientState.error = rte.getMessage();
+      return;
+    }
+
     List<String> configsToApply = fleetResponse.getClientConfigs();
     String errorMessage = null;
     this.durationHint = null;
+    this.collectedCfgErrors.clear();
     for (String configKey : configsToApply) {
       // The spec specifies that everything should stop once there is a problem
       // applying one of the configurations. This would make the configurations
@@ -290,16 +330,18 @@ public class ConfigurationPoller
       // to a situation where the (unspecified) iteration order where the error
       // triggering config keys would be processed at the end.
       try {
-        boolean res = processConfigKey(fleetResponse, configKey, inspectedConfigurationKeys, this);
-        if (res) {
-          successes++;
-        } else {
-          failures++;
-        }
-      } catch (Exception e) {
-        this.ratelimitedLogger.warn("Error processing config key {}", configKey, e);
+        processConfigKey(fleetResponse, configKey, inspectedConfigurationKeys, this);
+        successes++;
+      } catch (ReportableException rpe) {
+        this.ratelimitedLogger.warn(
+            "Error processing config key {}: {}", configKey, rpe.getMessage());
         failures++;
-        errorMessage = e.getMessage();
+        errorMessage = rpe.getMessage();
+      } catch (Exception e) {
+        this.ratelimitedLogger.warn(
+            "Error processing config key {}: {}", configKey, e.getMessage());
+        this.collectedCfgErrors.put(configKey, e.getMessage());
+        failures++;
       }
     }
 
@@ -332,13 +374,13 @@ public class ConfigurationPoller
     return dl;
   }
 
-  private boolean notifyConfigurationKeyRemoved(
-      String configKey, PollingRateHinter pollingRateHinter) throws IOException {
-    return extractDeserializerAndListenerFromKey(configKey)
+  private void notifyConfigurationKeyRemoved(String configKey, PollingRateHinter pollingRateHinter)
+      throws IOException {
+    extractDeserializerAndListenerFromKey(configKey)
         .deserializeAndAccept(configKey, null, pollingRateHinter);
   }
 
-  private boolean processConfigKey(
+  private void processConfigKey(
       RemoteConfigResponse fleetResponse,
       String configKey,
       List<String> inspectedConfigurationKeys,
@@ -358,11 +400,16 @@ public class ConfigurationPoller
     if (cachedTargetFile != null && cachedTargetFile.hashesMatch(target.hashes)) {
       log.debug("No change in configuration for key {}", configKey);
       inspectedConfigurationKeys.add(configKey);
-      return true;
+      return;
     }
 
     // fetch the content
-    Optional<byte[]> maybeFileContent = fleetResponse.getFileContents(configKey);
+    Optional<byte[]> maybeFileContent;
+    try {
+      maybeFileContent = fleetResponse.getFileContents(configKey);
+    } catch (Exception e) {
+      throw new ReportableException(e.getMessage());
+    }
     if (!maybeFileContent.isPresent()) {
       if (this.cachedTargetFiles.containsKey(configKey)) {
         throw new ReportableException(
@@ -383,10 +430,11 @@ public class ConfigurationPoller
 
     try {
       log.debug("Applying configuration for {}", configKey);
-      return dl.deserializeAndAccept(configKey, fileContent, pollingRateHinter);
-    } catch (IOException | RuntimeException ex) {
-      ratelimitedLogger.warn("Error handling configuration for " + configKey, ex);
-      return false;
+      dl.deserializeAndAccept(configKey, fileContent, pollingRateHinter);
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    } catch (RuntimeException ex) {
+      throw ex;
     }
   }
 
@@ -435,7 +483,11 @@ public class ConfigurationPoller
       }
       csi++;
 
-      configState.setState(configKey, version, extractProductFromKey(configKey));
+      configState.setState(
+          configKey,
+          version,
+          extractProductFromKey(configKey),
+          this.collectedCfgErrors.get(configKey));
     }
     // remove excess configStates
     int numConfigStates = configStates.size();
@@ -481,7 +533,7 @@ public class ConfigurationPoller
           log.debug("Removing configuration for {}", configKey);
           notifyConfigurationKeyRemoved(configKey, this);
         } catch (IOException | RuntimeException ex) {
-          ratelimitedLogger.warn("Error handling configuration for " + configKey, ex);
+          ratelimitedLogger.warn("Error handling configuration removal for " + configKey, ex);
         }
       }
     }
@@ -521,13 +573,13 @@ public class ConfigurationPoller
         }
       } while (bytesRead > -1);
 
-      boolean res =
-          deserializerAndListener.deserializeAndAccept(
-              file.getAbsolutePath(), outputStream.toByteArray(), PollingRateHinter.NOOP);
-      if (!res) {
-        ratelimitedLogger.warn("Failed reading or applying configuration from {}", file);
-      } else {
+      try {
+        deserializerAndListener.deserializeAndAccept(
+            file.getAbsolutePath(), outputStream.toByteArray(), PollingRateHinter.NOOP);
         log.debug("Loaded configuration from file {}", file);
+      } catch (Exception ex) {
+        ratelimitedLogger.warn(
+            "Failed reading or applying configuration from {}: {}", file, ex.getMessage());
       }
     } catch (IOException | RuntimeException ex) {
       ExceptionHelper.rateLimitedLogException(
@@ -582,7 +634,7 @@ public class ConfigurationPoller
       this.listener = listener;
     }
 
-    boolean deserializeAndAccept(String configKey, byte[] bytes, PollingRateHinter hinter)
+    void deserializeAndAccept(String configKey, byte[] bytes, PollingRateHinter hinter)
         throws IOException {
       T configuration = null;
 
@@ -593,8 +645,7 @@ public class ConfigurationPoller
           throw new RuntimeException("Configuration deserializer didn't provide a configuration");
         }
       }
-
-      return this.listener.accept(configKey, configuration, hinter);
+      this.listener.accept(configKey, configuration, hinter);
     }
   }
 
@@ -602,6 +653,49 @@ public class ConfigurationPoller
   public static class ReportableException extends RuntimeException {
     public ReportableException(String message) {
       super(message);
+    }
+
+    public ReportableException(String message, Throwable t) {
+      super(message, t);
+    }
+  }
+
+  private void verifyTargetsSignature(RemoteConfigResponse resp) {
+    if (!integrityChecks) {
+      return;
+    }
+
+    Ed25519Signature sig;
+    byte[] canonicalTargetsSigned;
+    try {
+      {
+        String targetsSignatureStr = resp.getTargetsSignature(this.keyId);
+        sig = Ed25519Signature.fromByteArray(HexUtils.fromHexString(targetsSignatureStr));
+      }
+      {
+        Map<String, Object> untypedTargetsSigned = resp.getUntypedTargetsSigned();
+        canonicalTargetsSigned = JsonCanonicalizer.canonicalize(untypedTargetsSigned);
+      }
+    } catch (RuntimeException rte) {
+      throw new ReportableException(
+          "Error reading signature or canonicalizing targets.signed: " + rte.getMessage(), rte);
+    }
+    boolean valid = this.key.verify(canonicalTargetsSigned, sig);
+    if (!valid) {
+      throw new ReportableException("Signature verification failed for targets.signed");
+    }
+  }
+
+  private void verifyTargetsPresence(RemoteConfigResponse resp) {
+    if (resp.targetFiles == null) {
+      throw new ReportableException("target_files not present");
+    }
+    for (RemoteConfigResponse.TargetFile file : resp.targetFiles) {
+      RemoteConfigResponse.Targets.ConfigTarget target = resp.getTarget(file.path);
+      if (target == null) {
+        throw new ReportableException(
+            "Path " + file.path + " is in target_files, but not in targets.signed");
+      }
     }
   }
 }

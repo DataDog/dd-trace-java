@@ -138,7 +138,7 @@ public class DebuggerAgent {
         DebuggerFeaturesDeserializer.INSTANCE,
         (prod, newConfig, hinter) -> {
           // TODO: disable debugger
-          return true;
+          return;
         });
   }
 

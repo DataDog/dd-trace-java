@@ -58,7 +58,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         (configKey, newConfig, hinter) -> {
           if (newConfig == null) {
             log.warn("AppSec configuration was pulled out by remote config. This has no effect");
-            return true;
+            return;
           }
           Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
           this.lastConfig.put("waf", newConfig);
@@ -66,7 +66,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           log.info(
               "New AppSec configuration has been applied. AppSec status: {}",
               AppSecSystem.ACTIVE ? "active" : "inactive");
-          return true;
+          return;
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
@@ -78,7 +78,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", newConfig);
           this.lastConfig.put("waf_data", wafDataConfigMap);
           distributeSubConfigurations(wafDataConfigMap, reconfiguration);
-          return true;
+          return;
         });
 
     this.configurationPoller.addFeaturesListener(
@@ -89,7 +89,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             log.warn("AppSec {} (runtime)", newConfig.enabled ? "enabled" : "disabled");
           }
           AppSecSystem.ACTIVE = newConfig.enabled;
-          return true;
+          return;
         });
   }
 
@@ -132,7 +132,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     lastConfig.put("waf", wafConfig);
   }
 
-  public void maybeStartConfigPolling() {
+  public void maybeSubscribeConfigPolling() {
     if (this.configurationPoller != null) {
       if (hasUserWafConfig) {
         log.info("AppSec will not use remote config because there is a custom user configuration");

@@ -117,6 +117,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.dynamic.instrumentation.enabled=true",
             "-Ddd.remote_config.enabled=true",
             "-Ddd.remote_config.initial.poll.interval=1",
+            "-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
                 + probeServer.getPort()
                 + PROBE_URL_PATH,

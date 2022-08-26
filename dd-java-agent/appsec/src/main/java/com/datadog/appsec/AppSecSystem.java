@@ -82,7 +82,7 @@ public class AppSecSystem {
     loadModules(eventDispatcher);
     gatewayBridge.init();
 
-    APP_SEC_CONFIG_SERVICE.maybeStartConfigPolling();
+    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 
     STARTED.set(true);
 
