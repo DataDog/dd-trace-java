@@ -219,24 +219,11 @@ public class CrashUploader {
           String.join(
               "",
               "^",
-              "(",
-              "# A fatal error has been detected by the Java Runtime Environment:",
-              "|",
-              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
-              ")",
-              "\n",
-              ".*",
-              ", pid=-?\\d+, tid=-?\\d+",
               "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
   private String extractErrorStackTrace(String fileContent) {
-    // Matcher matcher = errorStackTracePattern.matcher(fileContent);
-    // if (!matcher.find()) {
-    //   System.err.println("No match found for error.stack");
-    //   return null;
-    // }
-    // return matcher.group();
+    // TODO: implement errorStackTracePattern
     return null;
   }
 
