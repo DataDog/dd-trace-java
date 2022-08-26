@@ -215,12 +215,7 @@ public class CrashUploader {
   }
 
   private static final Pattern errorStackTracePattern =
-      Pattern.compile(
-          String.join(
-              "",
-              "^",
-              "$"),
-          Pattern.DOTALL | Pattern.MULTILINE);
+      Pattern.compile(String.join("", "^", "$"), Pattern.DOTALL | Pattern.MULTILINE);
 
   private String extractErrorStackTrace(String fileContent) {
     // TODO: implement errorStackTracePattern
