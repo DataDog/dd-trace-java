@@ -141,6 +141,7 @@ public class CrashUploader {
           writer.beginObject();
           writer.name("kind").value(extractErrorKind(message));
           writer.name("message").value(extractErrorMessage(message));
+          writer.name("stack").value(extractErrorStackTrace(message));
           writer.endObject();
           writer.endObject();
         }
@@ -207,6 +208,24 @@ public class CrashUploader {
       .map(s -> s.trim())
       .collect(Collectors.joining("\n"))
       .trim();
+  }
+
+  private final static Pattern errorStackTracePattern =
+      Pattern.compile(
+          String.join("",
+                "^"
+              , "$"
+              ),
+          Pattern.DOTALL | Pattern.MULTILINE);
+
+  private String extractErrorStackTrace(String fileContent) {
+    // Matcher matcher = errorStackTracePattern.matcher(fileContent);
+    // if (!matcher.find()) {
+    //   System.err.println("No match found for error.stack");
+    //   return null;
+    // }
+    // return matcher.group();
+    return null;
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
