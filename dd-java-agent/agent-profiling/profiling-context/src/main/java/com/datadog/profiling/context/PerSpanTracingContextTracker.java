@@ -394,7 +394,8 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     long[] threadIds = shuffleArray(threadSequences.keySetLong());
     for (LongSequence sequence : threadSequences.values()) {
       int size = sequence.captureSize();
-      totalSequenceBufferSize += size;
+      totalSequenceBufferSize +=
+          (size + 8); // each sequence can receive a synthetic 'start' with length of 8 bytes
     }
 
     IntervalEncoder encoder =
@@ -426,6 +427,10 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
        */
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
+        sequenceSize =
+            rawIntervals
+                .getCapturedSize(); // refetch the captured size as it may have been modified by
+        // pruning
         int sequenceIndex = 0;
         while (iterator.hasNext() && sequenceIndex++ < sequenceSize) {
           long from = iterator.next();
