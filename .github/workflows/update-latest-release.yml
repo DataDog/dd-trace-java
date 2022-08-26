@@ -31,7 +31,7 @@ jobs:
               { owner: context.repo.owner, repo: context.repo.repo }
             ).then((releases) => {
               const versionPattern = /v(\d+)\.(\d+)\.(\d+)/;
-              const downloadLatestPattern = /download-latest-v\d+/;
+              const downloadLatestPattern = /download-latest-v(\d+)/;
               const publishedVersions = releases.filter(release => !release.draft && !release.prerelease)
                                                 .map(release => release.tag_name);
               // Find latest published version, indexed by major version
@@ -52,15 +52,21 @@ jobs:
               }, {});
               // Find "download latest" releases, indexed by major version
               const latestReleases = releases.reduce((releases, release) => {
-                if (release.tag_name.match(downloadLatestPattern)) {
+                const match = release.tag_name.match(downloadLatestPattern);
+                if (match) {
+                  const releaseMajor = parseInt(match[1]);
                   // Look for the linked version from release body
                   for (const bodyLine of release.body.split('\n')) {
-                    const match = bodyLine.match(versionPattern);
-                    if (match) {
-                      const tag = match[0]
-                      const major = parseInt(match[1]);
-                      const minor = parseInt(match[2]);
-                      const bugfix = parseInt(match[3]);
+                    const lineMatch = bodyLine.match(versionPattern);
+                    if (lineMatch) {
+                      const tag = lineMatch[0]
+                      const major = parseInt(lineMatch[1]);
+                      const minor = parseInt(lineMatch[2]);
+                      const bugfix = parseInt(lineMatch[3]);
+                      if (releaseMajor !== major) {
+                        throw 'Latest release \'download-latest-v' + releaseMajor + '\' for version ' + releaseMajor +
+                              ' contains a mismatching link to the version ' + major + ': ' + tag + '.';
+                      }
                       releases[major] = { tag, major, minor, bugfix };
                       break;
                     }
