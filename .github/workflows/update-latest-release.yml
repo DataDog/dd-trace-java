@@ -1,0 +1,250 @@
+name: Update latest release
+
+on:
+  release:
+    types: [ "released" ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to force update'
+        required: true
+        type: 'choice'
+        options:
+        - 'v0'
+        - 'v1'
+        default: 'v1'
+
+jobs:
+  update-release:
+    name: Update latest release
+    runs-on: ubuntu-latest
+    steps:
+
+      - id: get-latest
+        name: Get latest releases
+        uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
+        with:
+          debug: true
+          script: |
+            const latest = await github.paginate(
+              "GET /repos/{owner}/{repo}/releases",
+              { owner: context.repo.owner, repo: context.repo.repo }
+            ).then((releases) => {
+              const versionPattern = /v(\d+)\.(\d+)\.(\d+)/;
+              const downloadLatestPattern = /download-latest-v\d+/;
+              const publishedVersions = releases.filter(release => !release.draft && !release.prerelease)
+                                                .map(release => release.tag_name);
+              // Find latest published version, indexed by major version
+              const latestVersions = publishedVersions.reduce((versions, tag) => {
+                const match = tag.match(versionPattern);
+                if (match) {
+                  const major = parseInt(match[1]);
+                  const minor = parseInt(match[2]);
+                  const bugfix = parseInt(match[3]);
+                  if (!versions[major] // If there is no similar major version
+                    || versions[major].minor < minor // Or if there is an older minor version
+                    || (versions[major].minor == minor && versions[major].bugfix < bugfix) // Of if there is an older bugfix version
+                  ) {
+                    versions[major] = { tag, major, minor, bugfix };
+                  }
+                }
+                return versions;
+              }, {});
+              // Find "download latest" releases, indexed by major version
+              const latestReleases = releases.reduce((releases, release) => {
+                if (release.tag_name.match(downloadLatestPattern)) {
+                  // Look for the linked version from release body
+                  for (const bodyLine of release.body.split('\n')) {
+                    const match = bodyLine.match(versionPattern);
+                    if (match) {
+                      const tag = match[0]
+                      const major = parseInt(match[1]);
+                      const minor = parseInt(match[2]);
+                      const bugfix = parseInt(match[3]);
+                      releases[major] = { tag, major, minor, bugfix };
+                      break;
+                    }
+                  }
+                }
+                return releases;
+              }, {});
+              return {
+                versions: latestVersions,
+                releases: latestReleases
+              };
+            });
+            core.summary.addHeading('Version Discovery', 5)
+                        .addRaw('Latest versions found:')
+                        .addList(Object.values(latest.versions).map(v => v.tag))
+                        .addRaw('Latest releases found:')
+                        .addList(Object.values(latest.releases).map(v => v.tag))
+                        .write();
+            return latest;
+
+      - id: check-update
+        name: Check if release update is needed
+        uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
+        with:
+          debug: true
+          script: |
+            const latest = ${{ steps.get-latest.outputs.result }};
+            var needUpdate = false;
+            var outputTag, outputMajor;
+            // Check if update is needed from this new release
+            if (context.eventName === 'release') {
+              const tag = '${{ github.event.release.tag_name }}';
+              const versionPattern = /v(\d+)\.(\d+)\.(\d+)/;
+              const match = tag.match(versionPattern);
+              if (match) {
+                const major = parseInt(match[1]);
+                const minor = parseInt(match[2]);
+                const bugfix = parseInt(match[3]);
+                // Ensure there is a related major latest release
+                if (!latest.releases[major]) {
+                  throw "Latest release 'download-latest-v" + major + "' for version " + major + " does not exit. Please create it first."
+                }
+                // Check if the tag is newer than the one used in the latest release
+                if (latest.releases[major].minor < minor
+                  || (latest.releases[major].minor == minor && latest.releases[major].bugfix < bugfix)
+                ) {
+                  needUpdate = true;
+                  outputTag = tag;
+                  outputMajor = major;
+                }
+              }
+            } 
+            // Check if there is a more recent version for this release
+            else if (context.eventName === 'workflow_dispatch') {
+              const major = parseInt("${{ inputs.version }}".substring(1));
+              const latestVersion = latest.versions[major];
+              const latestRelease = latest.releases[major];
+              // Ensure there is an existing matching version
+              if (!latestVersion) {
+                throw new "No version found for version " + major + ".";
+              }
+              const tag = latestVersion.tag;
+              // Ensure there is a related major latest release
+              if (!latest.releases[major]) {
+                throw "Latest release for version " + major + " does not exit. Create it first.";
+              }
+              // Check if the version is newer than the one used in the latest release
+              if (latestRelease.minor < latestVersion.minor
+                || (latestRelease.minor == latestVersion.minor && latestRelease.bugfix < latestVersion.bugfix)
+              ) {
+                needUpdate = true;
+                outputTag = tag;
+                outputMajor = major;
+              }
+            }
+            // Write summay and step outputs
+            core.summary.addHeading('Update check', 5)
+            if (needUpdate) {
+              core.setOutput('tag', outputTag);
+              core.setOutput('major', outputMajor);
+              core.summary.addRaw('Updating release v' + outputMajor + ' to version ' + outputTag + '.');
+            } else {
+              core.summary.addRaw('All releases are up-to-date.');
+            }
+            core.summary.write();
+            return needUpdate;
+
+      - id: fetch-release-asset
+        name: Fetch latest release asset
+        if: ${{ steps.check-update.outputs.result == 'true' }}
+        run: wget https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.check-update.outputs.tag }}/dd-java-agent.jar
+
+      - id: Update-release
+        name: Update latest release
+        if: ${{ steps.check-update.outputs.result == 'true' }}
+        uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
+        with:
+          debug: true
+          script: |
+            const fs = require('fs');
+            const major = '${{ steps.check-update.outputs.major}}';
+            const downloadLatestTag = 'download-latest-v' + major;
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: downloadLatestTag
+            }).then(response => {
+              if (response.status === 200) {
+                return response.data;
+              } else {
+                core.setFailed('Failed to find release from tag: ' + downloadLatestTag + '.');
+              }
+            }).catch(error => {
+              core.setFailed('Failed to find release: ' + error.message);
+            });
+            const assetFile = 'dd-java-agent.jar';
+            const newAssetFile = 'dd-java-agent-${{ steps.check-update.outputs.tag }}.jar';
+            // Upload the new version to the release
+            const newAsset = await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              name: newAssetFile,
+              data: fs.readFileSync(assetFile)
+            }).then(response => {
+              if (response.status === 201) {
+                return response.data;
+              } else {
+                core.setFailed('Failed to upload ' + newAssetFile + ' to release ' + downloadLatestTag + '.');
+              }
+            }).catch(error => {
+              core.setFailed('Failed to upload asset: ' + error.message);
+            });
+            // Delete the old asset from the release then rename the new one
+            github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id
+            }).then(response => {
+              if (response.status === 200) {
+                for (const asset of response.data) {
+                  if (asset.name === assetFile) {
+                    return asset.id;
+                  }
+                }
+                core.setFailed('Failed to find release asset id.');
+              } else {
+                core.setFailed('Failed to list release assets.');
+              }
+            }).then(assetId => {
+              return github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: assetId
+              });
+            }).then(response => {
+              if (response.status === 204) {
+                return github.rest.repos.updateReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: newAsset.id,
+                  name: assetFile
+                })
+              } else {
+                core.setFailed('Failed to delete old asset.');
+              }
+            }).then(response => {
+              if (response.status === 200) {
+                // Update release body with new version
+                return github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: release.id,
+                  body: '# Download\n' +
+                        '\n' +
+                        'This release tracks the latest v' + major + ' available, currently ${{ steps.check-update.outputs.tag }}.'
+                });
+              } else {
+                core.setFailed('Failed to update new asset name as default asset.');
+              }
+            }).then(response => {
+              if (response.status !== 200) {
+                core.setFailed('Failed to update latest release body.');
+              }
+            }).catch(error => {
+              core.setFailed('Failed to update release: ' + error.message);
+            });
