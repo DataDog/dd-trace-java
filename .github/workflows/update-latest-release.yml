@@ -186,14 +186,31 @@ jobs:
             }).catch(error => {
               core.setFailed('Failed to find release: ' + error.message);
             });
+            // Get the current release asset
             const assetFile = 'dd-java-agent.jar';
             const newAssetFile = 'dd-java-agent-${{ steps.check-update.outputs.tag }}.jar';
+            const asset = await github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id
+            }).then(response => {
+              if (response.status === 200) {
+                for (const asset of response.data) {
+                  if (asset.name === assetFile) {
+                    return asset;
+                  }
+                }
+                return false;
+              } else {
+                core.setFailed('Failed to list release assets.');
+              }
+            });
             // Upload the new version to the release
             const newAsset = await github.rest.repos.uploadReleaseAsset({
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: release.id,
-              name: newAssetFile,
+              name: asset ? newAssetFile : assetFile,
               data: fs.readFileSync(assetFile)
             }).then(response => {
               if (response.status === 201) {
@@ -204,53 +221,39 @@ jobs:
             }).catch(error => {
               core.setFailed('Failed to upload asset: ' + error.message);
             });
-            // Delete the old asset from the release then rename the new one
-            github.rest.repos.listReleaseAssets({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.id
-            }).then(response => {
-              if (response.status === 200) {
-                for (const asset of response.data) {
-                  if (asset.name === assetFile) {
-                    return asset.id;
-                  }
-                }
-                core.setFailed('Failed to find release asset id.');
-              } else {
-                core.setFailed('Failed to list release assets.');
-              }
-            }).then(assetId => {
-              return github.rest.repos.deleteReleaseAsset({
+            // Delete the old asset if exists, then rename the new one
+            if (asset) {
+              github.rest.repos.deleteReleaseAsset({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                asset_id: assetId
+                asset_id: asset.id
+              }).then(response => {
+                if (response.status === 204) {
+                  return github.rest.repos.updateReleaseAsset({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    asset_id: newAsset.id,
+                    name: assetFile
+                  });
+                } else {
+                  core.setFailed('Failed to delete old asset.');
+                }
+              }).then(response => {
+                if (response.status !== 200) {
+                  core.setFailed('Failed to update new asset name as default asset.');
+                }
+              }).catch(error => {
+                core.setFailed('Failed to rename release asset: ' + error.message);
               });
-            }).then(response => {
-              if (response.status === 204) {
-                return github.rest.repos.updateReleaseAsset({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  asset_id: newAsset.id,
-                  name: assetFile
-                })
-              } else {
-                core.setFailed('Failed to delete old asset.');
-              }
-            }).then(response => {
-              if (response.status === 200) {
-                // Update release body with new version
-                return github.rest.repos.updateRelease({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  release_id: release.id,
-                  body: '# Download\n' +
-                        '\n' +
-                        'This release tracks the latest v' + major + ' available, currently ${{ steps.check-update.outputs.tag }}.'
-                });
-              } else {
-                core.setFailed('Failed to update new asset name as default asset.');
-              }
+            }
+            // Update release body with new version
+            github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: '# Download\n' +
+                    '\n' +
+                    'This release tracks the latest v' + major + ' available, currently ${{ steps.check-update.outputs.tag }}.'
             }).then(response => {
               if (response.status !== 200) {
                 core.setFailed('Failed to update latest release body.');
