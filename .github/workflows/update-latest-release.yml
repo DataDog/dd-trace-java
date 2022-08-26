@@ -11,8 +11,8 @@ on:
         type: 'choice'
         options:
         - 'v0'
-        - 'v1'
-        default: 'v1'
+        # - 'v1'
+        default: 'v0'
 
 jobs:
   update-release:
