@@ -91,12 +91,14 @@ jobs:
         uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
         with:
           script: |
+            core.summary.addHeading('Update check', 5);
             const latest = ${{ steps.get-latest.outputs.result }};
             var needUpdate = false;
             var outputTag, outputMajor;
             // Check if update is needed from this new release
             if (context.eventName === 'release') {
               const tag = '${{ github.event.release.tag_name }}';
+              core.summary.addRaw('Start by release push: ' + tag + '. ')
               const versionPattern = /v(\d+)\.(\d+)\.(\d+)/;
               const match = tag.match(versionPattern);
               if (match) {
@@ -120,6 +122,7 @@ jobs:
             // Check if there is a more recent version for this release
             else if (context.eventName === 'workflow_dispatch') {
               const major = parseInt("${{ inputs.version }}".substring(1));
+              core.summary.addRaw('Start manually for v' + major + '. ')
               const latestVersion = latest.versions[major];
               const latestRelease = latest.releases[major];
               // Ensure there is an existing matching version
@@ -140,14 +143,13 @@ jobs:
                 outputMajor = major;
               }
             }
-            // Write summay and step outputs
-            core.summary.addHeading('Update check', 5)
+            // Write summay and set outputs
             if (needUpdate) {
               core.setOutput('tag', outputTag);
               core.setOutput('major', outputMajor);
               core.summary.addRaw('Updating release v' + outputMajor + ' to version ' + outputTag + '.');
             } else {
-              core.summary.addRaw('All releases are up-to-date.');
+              core.summary.addRaw('No update found.');
             }
             core.summary.write();
             return needUpdate;
