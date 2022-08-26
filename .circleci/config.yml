@@ -52,7 +52,7 @@ build_cache_paths: &build_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "7", "IBM8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+    testJvm: [ "IBM8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
 
 profiling_test_matrix: &profiling_test_matrix
   parameters:
@@ -859,7 +859,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - test_published_artifacts
         - agent_integration_tests
-        - test_7
         - test_8
         - test_IBM8
         - test_11
