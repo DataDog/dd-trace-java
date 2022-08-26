@@ -24,7 +24,6 @@ jobs:
         name: Get latest releases
         uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
         with:
-          debug: true
           script: |
             const latest = await github.paginate(
               "GET /repos/{owner}/{repo}/releases",
@@ -91,7 +90,6 @@ jobs:
         name: Check if release update is needed
         uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
         with:
-          debug: true
           script: |
             const latest = ${{ steps.get-latest.outputs.result }};
             var needUpdate = false;
@@ -164,7 +162,6 @@ jobs:
         if: ${{ steps.check-update.outputs.result == 'true' }}
         uses: actions/github-script@d50f485531ba88479582bc2da03ff424389af5c1 # v6.1.1
         with:
-          debug: true
           script: |
             const fs = require('fs');
             const major = '${{ steps.check-update.outputs.major}}';
