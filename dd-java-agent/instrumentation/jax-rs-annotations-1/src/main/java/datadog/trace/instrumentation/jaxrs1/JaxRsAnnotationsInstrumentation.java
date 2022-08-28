@@ -34,12 +34,12 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
     super("jax-rs", "jaxrs", "jax-rs-annotations");
   }
 
-  // this is required to make sure instrumentation won't apply to jax-rs 2
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return not(hasClassNamed("javax.ws.rs.container.AsyncResponse"))
-        // Optimization for expensive typeMatcher.
-        .and(hasClassNamed("javax.ws.rs.Path"));
+    // Optimization for expensive typeMatcher.
+    return hasClassNamed("javax.ws.rs.Path")
+        // ...but avoid matching JAX-RS 2+ which has its own instrumentation.
+        .and(not(hasClassNamed("javax.ws.rs.container.AsyncResponse")));
   }
 
   @Override
