@@ -1,15 +1,14 @@
 package datadog.trace.instrumentation.java.security;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.InstrumentationBridge;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
@@ -30,7 +29,7 @@ public class WeakHashInstrumentation extends Instrumenter.Iast
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        NameMatchers.<MethodDescription>named("getInstance")
+        named("getInstance")
             .and(takesArgument(0, String.class))
             .and(isPublic())
             .and(ElementMatchers.isStatic()),
