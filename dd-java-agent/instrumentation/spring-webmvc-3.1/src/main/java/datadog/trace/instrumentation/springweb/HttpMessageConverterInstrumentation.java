@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springweb;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -35,7 +35,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // class chosen so it's only applied when the other instrumentations are applied
-    return hasClassesNamed(
+    return hasClassNamed(
         "org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping");
   }
 

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.playws;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -22,7 +22,7 @@ public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Traci
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("play.shaded.ahc.org.asynchttpclient.AsyncHttpClient");
+    return hasClassNamed("play.shaded.ahc.org.asynchttpclient.AsyncHttpClient");
   }
 
   @Override

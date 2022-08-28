@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -47,7 +47,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("scala.concurrent.forkjoin.ForkJoinTask");
+    return hasClassNamed("scala.concurrent.forkjoin.ForkJoinTask");
   }
 
   @Override

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.netty41;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -34,7 +34,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("io.netty.channel.ChannelFutureListener");
+    return hasClassNamed("io.netty.channel.ChannelFutureListener");
   }
 
   @Override

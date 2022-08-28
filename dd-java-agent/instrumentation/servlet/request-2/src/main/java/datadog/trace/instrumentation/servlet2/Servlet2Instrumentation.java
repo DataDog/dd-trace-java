@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -26,8 +26,8 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
 
   // this is required to make sure servlet 2 instrumentation won't apply to servlet 3
   static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("javax.servlet.http.HttpServletResponse")
-          .and(not(hasClassesNamed("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener")));
+      hasClassNamed("javax.servlet.http.HttpServletResponse")
+          .and(not(hasClassNamed("javax.servlet.AsyncEvent")));
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
