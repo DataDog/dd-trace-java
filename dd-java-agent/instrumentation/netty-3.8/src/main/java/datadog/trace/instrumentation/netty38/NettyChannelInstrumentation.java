@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.netty38;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
@@ -29,7 +29,7 @@ public class NettyChannelInstrumentation extends Instrumenter.Tracing
   }
 
   static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("org.jboss.netty.channel.Channel");
+      hasClassNamed("org.jboss.netty.channel.Channel");
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {

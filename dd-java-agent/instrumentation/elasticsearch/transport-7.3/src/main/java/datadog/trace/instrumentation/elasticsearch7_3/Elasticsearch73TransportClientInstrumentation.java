@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch7_3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -32,7 +32,7 @@ public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.
 
   // this is required to make sure ES7 instrumentation won't apply to previous releases
   static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("org.elasticsearch.action.ActionType");
+      hasClassNamed("org.elasticsearch.action.ActionType");
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {

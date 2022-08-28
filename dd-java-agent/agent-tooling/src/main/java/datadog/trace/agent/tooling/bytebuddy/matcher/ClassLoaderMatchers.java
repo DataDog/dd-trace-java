@@ -9,7 +9,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
-import java.util.Arrays;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,21 +78,10 @@ public final class ClassLoaderMatchers {
    * NOTICE: Does not match the bootstrap classpath. Don't use with classes expected to be on the
    * bootstrap.
    *
-   * @param classNames list of names to match. returns true if empty.
-   * @return true if class is available as a resource and not the bootstrap classloader.
-   */
-  public static ElementMatcher.Junction<ClassLoader> hasClassesNamed(final String... classNames) {
-    return new ClassLoaderHasClassesNamedMatcher(classNames);
-  }
-
-  /**
-   * NOTICE: Does not match the bootstrap classpath. Don't use with classes expected to be on the
-   * bootstrap.
-   *
    * @param className the className to match.
    * @return true if class is available as a resource and not the bootstrap classloader.
    */
-  public static ElementMatcher.Junction<ClassLoader> hasClassesNamed(final String className) {
+  public static ElementMatcher.Junction<ClassLoader> hasClassNamed(final String className) {
     return new ClassLoaderHasClassNamedMatcher(className);
   }
 
@@ -159,39 +147,6 @@ public final class ClassLoaderMatchers {
     }
 
     protected abstract boolean checkMatch(ClassLoader cl);
-  }
-
-  private static class ClassLoaderHasClassesNamedMatcher extends ClassLoaderHasNameMatcher {
-
-    private final String[] resources;
-
-    private ClassLoaderHasClassesNamedMatcher(final String... classNames) {
-      resources = classNames;
-      for (int i = 0; i < resources.length; i++) {
-        resources[i] = getResourceName(resources[i]);
-      }
-    }
-
-    protected boolean checkMatch(final ClassLoader cl) {
-      PROBING_CLASSLOADER.begin();
-      try {
-        for (final String resource : resources) {
-          if (cl.getResource(resource) == null) {
-            return false;
-          }
-        }
-        return true;
-      } catch (final Throwable ignored) {
-        return false;
-      } finally {
-        PROBING_CLASSLOADER.end();
-      }
-    }
-
-    @Override
-    public String toString() {
-      return "ClassLoaderHasClassesNamedMatcher{named=" + Arrays.toString(resources) + "}";
-    }
   }
 
   private static class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
