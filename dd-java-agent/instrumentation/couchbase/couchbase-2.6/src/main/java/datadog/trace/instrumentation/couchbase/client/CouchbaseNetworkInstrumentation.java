@@ -42,8 +42,7 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     // Exact class because private fields are used
     return nameStartsWith("com.couchbase.client.")
-        .<TypeDescription>and(
-            extendsClass(named("com.couchbase.client.core.endpoint.AbstractGenericHandler")));
+        .and(extendsClass(named("com.couchbase.client.core.endpoint.AbstractGenericHandler")));
   }
 
   @Override
