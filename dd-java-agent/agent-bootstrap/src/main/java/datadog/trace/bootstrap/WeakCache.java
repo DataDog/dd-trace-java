@@ -9,6 +9,8 @@ public interface WeakCache<K, V> {
 
   void put(final K key, final V value);
 
+  void clear();
+
   abstract class Supplier {
     private static volatile Supplier SUPPLIER;
 

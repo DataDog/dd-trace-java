@@ -76,6 +76,11 @@ public class WeakCaches {
       weakMap.put(key, value);
     }
 
+    @Override
+    public void clear() {
+      weakMap.clear();
+    }
+
     private void expungeIfNecessary() {
       if (weakMap.approximateSize() >= maxSize) {
         weakMap.expungeStaleEntries();
