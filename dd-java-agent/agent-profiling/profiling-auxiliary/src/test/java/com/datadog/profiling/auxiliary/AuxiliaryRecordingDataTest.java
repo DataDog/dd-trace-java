@@ -25,7 +25,7 @@ class AuxiliaryRecordingDataTest {
     volatile boolean isReleased = false;
 
     public TestRecordingData(
-        String name, Instant start, Instant end, SnapshotKind kind, byte[] testData) {
+        String name, Instant start, Instant end, Kind kind, byte[] testData) {
       super(start, end, kind);
       this.name = name;
       this.testData = testData;
@@ -50,16 +50,16 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  void testNullMaindata(ProfilingSnapshot.SnapshotKind kind) {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  void testNullMaindata(ProfilingSnapshot.Kind kind) {
     assertThrows(
         IllegalArgumentException.class,
         () -> new AuxiliaryRecordingData(Instant.now(), Instant.now(), kind, null));
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  void testMainDataThrowing(ProfilingSnapshot.SnapshotKind kind) throws IOException {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  void testMainDataThrowing(ProfilingSnapshot.Kind kind) throws IOException {
     RecordingData mainData = Mockito.mock(RecordingData.class);
     RecordingData auxiliaryData = Mockito.mock(RecordingData.class);
 
@@ -78,8 +78,8 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  void testAuxiliaryDataThrowing(ProfilingSnapshot.SnapshotKind kind) throws IOException {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  void testAuxiliaryDataThrowing(ProfilingSnapshot.Kind kind) throws IOException {
     RecordingData mainData = Mockito.mock(RecordingData.class);
     RecordingData auxiliaryData = Mockito.mock(RecordingData.class);
 
@@ -108,8 +108,8 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  void testMainDataOnly(ProfilingSnapshot.SnapshotKind kind) throws IOException {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  void testMainDataOnly(ProfilingSnapshot.Kind kind) throws IOException {
     String mainName = "main";
     TestRecordingData mainData =
         new TestRecordingData(
@@ -131,8 +131,8 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  void testCombinedData(ProfilingSnapshot.SnapshotKind kind) throws IOException {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  void testCombinedData(ProfilingSnapshot.Kind kind) throws IOException {
     String mainName = "main";
     String auxName = "auxiliary";
     TestRecordingData mainData =

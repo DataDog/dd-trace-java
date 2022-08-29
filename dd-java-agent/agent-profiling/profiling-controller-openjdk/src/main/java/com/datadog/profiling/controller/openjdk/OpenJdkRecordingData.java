@@ -27,12 +27,12 @@ public class OpenJdkRecordingData extends RecordingData {
 
   private final Recording recording;
 
-  OpenJdkRecordingData(final Recording recording, SnapshotKind kind) {
+  OpenJdkRecordingData(final Recording recording, Kind kind) {
     this(recording, recording.getStartTime(), recording.getStopTime(), kind);
   }
 
   OpenJdkRecordingData(
-      final Recording recording, final Instant start, final Instant end, SnapshotKind kind) {
+      final Recording recording, final Instant start, final Instant end, Kind kind) {
     super(start, end, kind);
     this.recording = recording;
   }

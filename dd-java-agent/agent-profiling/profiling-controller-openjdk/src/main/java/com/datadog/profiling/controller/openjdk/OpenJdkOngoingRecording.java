@@ -112,12 +112,12 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
 
     recording.stop();
     OpenJdkRecordingData mainData =
-        new OpenJdkRecordingData(recording, ProfilingSnapshot.SnapshotKind.PERIODIC);
+        new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
     return auxiliaryRecording != null
         ? new AuxiliaryRecordingData(
             mainData.getStart(),
             mainData.getEnd(),
-            ProfilingSnapshot.SnapshotKind.PERIODIC,
+            ProfilingSnapshot.Kind.PERIODIC,
             mainData,
             auxiliaryRecording.stop())
         : mainData;
@@ -125,12 +125,12 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
 
   // @VisibleForTesting
   final RecordingData snapshot(@Nonnull final Instant start) {
-    return snapshot(start, ProfilingSnapshot.SnapshotKind.PERIODIC);
+    return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }
 
   @Override
   public RecordingData snapshot(
-      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.SnapshotKind kind) {
+      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }

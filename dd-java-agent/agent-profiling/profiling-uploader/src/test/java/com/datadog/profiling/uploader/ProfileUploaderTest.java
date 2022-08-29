@@ -175,8 +175,8 @@ public class ProfileUploaderTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  public void testHappyPath(ProfilingSnapshot.SnapshotKind kind) throws Exception {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  public void testHappyPath(ProfilingSnapshot.Kind kind) throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
 
@@ -227,8 +227,8 @@ public class ProfileUploaderTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
-  public void testHappyPathSync(ProfilingSnapshot.SnapshotKind kind) throws Exception {
+  @EnumSource(ProfilingSnapshot.Kind.class)
+  public void testHappyPathSync(ProfilingSnapshot.Kind kind) throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
 
@@ -784,14 +784,14 @@ public class ProfileUploaderTest {
   }
 
   private RecordingData mockRecordingData() throws IOException {
-    return mockRecordingData(false, ProfilingSnapshot.SnapshotKind.PERIODIC);
+    return mockRecordingData(false, ProfilingSnapshot.Kind.PERIODIC);
   }
 
   private RecordingData mockRecordingData(final boolean zip) throws IOException {
-    return mockRecordingData(zip, ProfilingSnapshot.SnapshotKind.PERIODIC);
+    return mockRecordingData(zip, ProfilingSnapshot.Kind.PERIODIC);
   }
 
-  private RecordingData mockRecordingData(final boolean zip, ProfilingSnapshot.SnapshotKind kind)
+  private RecordingData mockRecordingData(final boolean zip, ProfilingSnapshot.Kind kind)
       throws IOException {
     final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
     when(recordingData.getStream())

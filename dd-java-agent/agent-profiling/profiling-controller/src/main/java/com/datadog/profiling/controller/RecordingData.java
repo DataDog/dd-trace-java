@@ -24,9 +24,9 @@ import javax.annotation.Nonnull;
 public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant start;
   protected final Instant end;
-  protected final SnapshotKind kind;
+  protected final Kind kind;
 
-  public RecordingData(final Instant start, final Instant end, SnapshotKind kind) {
+  public RecordingData(final Instant start, final Instant end, Kind kind) {
     this.start = start;
     this.end = end;
     this.kind = kind;
@@ -86,7 +86,7 @@ public abstract class RecordingData implements ProfilingSnapshot {
   }
 
   @Nonnull
-  public final SnapshotKind getKind() {
+  public final Kind getKind() {
     return kind;
   }
 }

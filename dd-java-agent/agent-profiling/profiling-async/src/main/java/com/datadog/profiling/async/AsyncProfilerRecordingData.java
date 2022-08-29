@@ -12,7 +12,7 @@ final class AsyncProfilerRecordingData extends RecordingData {
   private final Path recordingFile;
 
   public AsyncProfilerRecordingData(
-      Path recordingFile, Instant start, Instant end, SnapshotKind kind) {
+      Path recordingFile, Instant start, Instant end, Kind kind) {
     super(start, end, kind);
     this.recordingFile = recordingFile;
   }

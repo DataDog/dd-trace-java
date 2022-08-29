@@ -18,7 +18,7 @@ public final class AuxiliaryRecordingData extends RecordingData {
   public AuxiliaryRecordingData(
       Instant start,
       Instant end,
-      SnapshotKind kind,
+      Kind kind,
       @Nonnull RecordingData main,
       RecordingData... secondary) {
     super(start, end, kind);
