@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "org.apache.dubbo"
     module = "dubbo"
-    versions = "[2.7.0,3)"
+    versions = "[2.7.0,)"
 //    assertInverse = true
   }
 }

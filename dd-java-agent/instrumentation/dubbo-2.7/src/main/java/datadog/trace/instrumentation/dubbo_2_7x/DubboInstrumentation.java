@@ -21,7 +21,7 @@ public class DubboInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public DubboInstrumentation() {
-    super("apache-dubbo", "apache-dubbo-2.7");
+    super("apache-dubbo");
   }
 
 //  public static final String CLASS_NAME = "org.apache.dubbo.rpc.Filter";

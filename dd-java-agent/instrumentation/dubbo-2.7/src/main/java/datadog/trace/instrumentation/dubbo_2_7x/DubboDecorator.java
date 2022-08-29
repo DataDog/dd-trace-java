@@ -21,7 +21,6 @@ public class DubboDecorator extends BaseDecorator {
   public static final CharSequence DUBBO_REQUEST = UTF8BytesString.create("dubbo");
 
   public static final CharSequence DUBBO_SERVER = UTF8BytesString.create("apache-dubbo");
-  public static final CharSequence DUBBO_VERSION = UTF8BytesString.create("2.7");
 
   public static final DubboDecorator DECORATE = new DubboDecorator();
 
@@ -32,9 +31,11 @@ public class DubboDecorator extends BaseDecorator {
   public static final String CONSUMER_SIDE = "consumer";
 
   public static final String GROUP_KEY = "group";
+
+  public static final String VERSION = "release";
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"apache-dubbo.2.7"};
+    return new String[]{"apache-dubbo"};
   }
 
   @Override
@@ -56,12 +57,13 @@ public class DubboDecorator extends BaseDecorator {
     String shortUrl = generateRequestURL(url,invocation);
     System.out.println("isConsumer : "+isConsumer);
     if (log.isDebugEnabled()) {
-      log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{}",
+      log.debug("isConsumer:{},method:{},resourceName:{},shortUrl:{},longUrl:{},version:{}",
           isConsumer,
           methodName,
           resourceName,
           shortUrl,
-          url.toString()
+          url.toString(),
+          getVersion(url)
           );
     }
     AgentSpan span;
@@ -77,6 +79,7 @@ public class DubboDecorator extends BaseDecorator {
     span.setTag("url", url.toString());
     span.setTag("short_url", shortUrl);
     span.setTag("method", methodName);
+    span.setTag("dubbo-version",getVersion(url));
     afterStart(span);
 
     withMethod(span, resourceName);
@@ -93,7 +96,6 @@ public class DubboDecorator extends BaseDecorator {
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
-    span.setTag("dubbo-version",DUBBO_VERSION);
     return super.afterStart(span);
   }
 
@@ -108,7 +110,6 @@ public class DubboDecorator extends BaseDecorator {
     for (Class<?> classes : invocation.getParameterTypes()) {
       operationName.append(classes.getSimpleName() + ",");
     }
-
     if (invocation.getParameterTypes().length > 0) {
       operationName.delete(operationName.length() - 1, operationName.length());
     }
@@ -134,5 +135,9 @@ public class DubboDecorator extends BaseDecorator {
     span.startThreadMigration();
     AgentScope agentScope = activateSpan(span);
     return agentScope;
+  }
+
+  private String getVersion(URL url){
+    return url.getParameter(VERSION);
   }
 }
