@@ -42,7 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Crash Reporter implementation */
-public class CrashUploader {
+public final class CrashUploader {
 
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
@@ -165,7 +165,8 @@ public class CrashUploader {
               "$"),
           Pattern.DOTALL);
 
-  private String extractErrorKind(String fileContent) {
+  // @VisibleForTesting
+  static String extractErrorKind(String fileContent) {
     Matcher matcher = errorMessagePattern.matcher(fileContent);
     if (!matcher.find()) {
       System.err.println("No match found for error.kind");
@@ -195,8 +196,9 @@ public class CrashUploader {
               "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
+  // @VisibleForTesting
   @SuppressForbidden
-  private String extractErrorMessage(String fileContent) {
+  static String extractErrorMessage(String fileContent) {
     Matcher matcher = errorMessagePattern.matcher(fileContent);
     if (!matcher.find()) {
       System.err.println("No match found for error.message");
