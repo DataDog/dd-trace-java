@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenters;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -58,6 +59,8 @@ public class MuzzleVersionScanPlugin {
         final ReferenceMatcher muzzle = (ReferenceMatcher) m.invoke(instrumenter);
         final List<Reference.Mismatch> mismatches =
             muzzle.getMismatchedReferenceSources(userClassLoader);
+
+        ClassLoaderMatchers.reset();
 
         final boolean classLoaderMatch =
             ((Instrumenter.Default) instrumenter).classLoaderMatcher().matches(userClassLoader);

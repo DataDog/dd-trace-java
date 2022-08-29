@@ -1,14 +1,18 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
-import static datadog.trace.util.Strings.getResourceName;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
 import datadog.trace.agent.tooling.WeakCaches;
 import datadog.trace.api.Config;
 import datadog.trace.api.Tracer;
+import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.util.Strings;
+import java.util.BitSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,10 +83,14 @@ public final class ClassLoaderMatchers {
    * bootstrap.
    *
    * @param className the className to match.
-   * @return true if class is available as a resource and not the bootstrap classloader.
+   * @return true if class is available as a resource, not on the bootstrap classloader.
    */
-  public static ElementMatcher.Junction<ClassLoader> hasClassNamed(final String className) {
-    return new ClassLoaderHasClassNamedMatcher(className);
+  public static ElementMatcher.Junction<ClassLoader> hasClassNamed(String className) {
+    ElementMatcher.Junction<ClassLoader> matcher = hasClassMatchers.get(className);
+    if (null == matcher) {
+      hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassMatchers.size()));
+    }
+    return matcher;
   }
 
   /**
@@ -99,6 +107,10 @@ public final class ClassLoaderMatchers {
       matchers[i] = hasClassNamed(classNames[i]);
     }
     return new ElementMatcher.Junction.Disjunction<>(matchers);
+  }
+
+  public static void reset() {
+    hasClassCache.clear();
   }
 
   /**
@@ -129,64 +141,52 @@ public final class ClassLoaderMatchers {
     }
   }
 
-  private abstract static class ClassLoaderHasNameMatcher
-      extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
+  /** Mapping of class-name to has-class matcher. */
+  static final Map<String, ElementMatcher.Junction<ClassLoader>> hasClassMatchers =
+      new LinkedHashMap<>();
 
-    // Initialize this lazily because of startup ordering and muzzle plugin usage patterns
-    private volatile WeakCache<ClassLoader, Boolean> cacheHolder = null;
+  /** Cache of classloader-instance -> has-class mask. */
+  static final WeakCache<ClassLoader, BitSet> hasClassCache = WeakCaches.newWeakCache();
 
-    protected WeakCache<ClassLoader, Boolean> getCache() {
-      if (cacheHolder == null) {
-        synchronized (this) {
-          if (cacheHolder == null) {
-            cacheHolder = WeakCaches.newWeakCache(25);
-          }
+  /** Function that generates a has-class mask for a given class-loader. */
+  static final Function<ClassLoader, BitSet> buildHasClassMask =
+      new Function<ClassLoader, BitSet>() {
+        @Override
+        public BitSet apply(ClassLoader input) {
+          return buildHasClassMask(input);
         }
-      }
-      return cacheHolder;
-    }
+      };
 
-    @Override
-    public boolean matches(final ClassLoader cl) {
-      if (cl == BOOTSTRAP_CLASSLOADER) {
-        // Can't match the bootstrap classloader.
-        return false;
+  static BitSet buildHasClassMask(ClassLoader cl) {
+    PROBING_CLASSLOADER.begin();
+    try {
+      BitSet hasClassMask = new BitSet();
+      int hasClassId = 0;
+      for (String className : hasClassMatchers.keySet()) {
+        try {
+          if (cl.getResource(Strings.getResourceName(className)) != null) {
+            hasClassMask.set(hasClassId);
+          }
+        } catch (final Throwable ignored) {
+        }
+        hasClassId++;
       }
-      final Boolean cached;
-      WeakCache<ClassLoader, Boolean> cache = getCache();
-      if ((cached = cache.getIfPresent(cl)) != null) {
-        return cached;
-      }
-      final boolean value = checkMatch(cl);
-      cache.put(cl, value);
-      return value;
+      return hasClassMask;
+    } finally {
+      PROBING_CLASSLOADER.end();
     }
-
-    protected abstract boolean checkMatch(ClassLoader cl);
   }
 
-  private static class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
+  static final class HasClassMatcher extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
+    private final int hasClassId;
 
-    private final String resource;
-
-    private ClassLoaderHasClassNamedMatcher(final String className) {
-      resource = getResourceName(className);
-    }
-
-    protected boolean checkMatch(final ClassLoader cl) {
-      PROBING_CLASSLOADER.begin();
-      try {
-        return cl.getResource(resource) != null;
-      } catch (final Throwable ignored) {
-        return false;
-      } finally {
-        PROBING_CLASSLOADER.end();
-      }
+    private HasClassMatcher(int hasClassId) {
+      this.hasClassId = hasClassId;
     }
 
     @Override
-    public String toString() {
-      return "ClassLoaderHasClassNamedMatcher{named='" + resource + "\'}";
+    protected boolean doMatch(final ClassLoader cl) {
+      return hasClassCache.computeIfAbsent(cl, buildHasClassMask).get(hasClassId);
     }
   }
 }
