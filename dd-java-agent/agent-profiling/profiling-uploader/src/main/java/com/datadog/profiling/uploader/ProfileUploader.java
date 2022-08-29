@@ -348,7 +348,7 @@ public final class ProfileUploader {
             + "\":\""
             + tags
             + ",snapshot:"
-            + data.getReason().name().toLowerCase()
+            + data.getKind().name().toLowerCase()
             + "\",");
     os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
     os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");

@@ -48,10 +48,10 @@ public class OpenJdkRecordingDataTest {
     when(recording.getStopTime()).thenReturn(end);
     when(recording.getName()).thenReturn(TEST_NAME);
 
-    recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.SnapshotReason.REGULAR);
+    recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.SnapshotKind.PERIODIC);
     customRecordingData =
         new OpenJdkRecordingData(
-            recording, customStart, customEnd, ProfilingSnapshot.SnapshotReason.REGULAR);
+            recording, customStart, customEnd, ProfilingSnapshot.SnapshotKind.PERIODIC);
   }
 
   @Test

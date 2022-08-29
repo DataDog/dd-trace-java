@@ -241,8 +241,8 @@ public final class ProfilingSystem {
             recording.snapshot(
                 lastSnapshot,
                 onShutdown
-                    ? ProfilingSnapshot.SnapshotReason.ON_SHUTDOWN
-                    : ProfilingSnapshot.SnapshotReason.REGULAR);
+                    ? ProfilingSnapshot.SnapshotKind.ON_SHUTDOWN
+                    : ProfilingSnapshot.SnapshotKind.PERIODIC);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be
           // the last recording end time plus one nano second. The reason for this is that when

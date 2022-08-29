@@ -43,7 +43,7 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
               recordingId,
               start,
               getEndTime(helper, recordingId, Instant.now()),
-              ProfilingSnapshot.SnapshotReason.REGULAR,
+              ProfilingSnapshot.SnapshotKind.PERIODIC,
               helper);
       log.debug("Recording {} has been stopped and its data collected", name);
       return data;
@@ -54,13 +54,13 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
 
   // @VisibleForTesting
   final OracleJdkRecordingData snapshot(@Nonnull final Instant start) {
-    return snapshot(start, ProfilingSnapshot.SnapshotReason.REGULAR);
+    return snapshot(start, ProfilingSnapshot.SnapshotKind.PERIODIC);
   }
 
   @Override
   @Nonnull
   public OracleJdkRecordingData snapshot(
-      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.SnapshotReason reason) {
+      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.SnapshotKind kind) {
     log.debug("Taking recording snapshot for time range {} - {}", start, Instant.now());
     ObjectName targetName = recordingId;
     try {
@@ -70,7 +70,7 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
 
       targetName = helper.cloneRecording(targetName);
       return new OracleJdkRecordingData(
-          name, targetName, start, getEndTime(helper, targetName, Instant.now()), reason, helper);
+          name, targetName, start, getEndTime(helper, targetName, Instant.now()), kind, helper);
     } catch (IOException e) {
       throw new RuntimeException("Unable to take snapshot for recording " + name, e);
     }

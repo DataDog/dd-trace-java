@@ -47,12 +47,12 @@ public class AsyncOngoingRecording implements OngoingRecording {
 
   // @VisibleForTesting
   final RecordingData snapshot(final Instant start) {
-    return snapshot(start, ProfilingSnapshot.SnapshotReason.REGULAR);
+    return snapshot(start, ProfilingSnapshot.SnapshotKind.PERIODIC);
   }
 
   @Override
-  public RecordingData snapshot(final Instant start, ProfilingSnapshot.SnapshotReason reason) {
-    return recording.snapshot(start, reason);
+  public RecordingData snapshot(final Instant start, ProfilingSnapshot.SnapshotKind kind) {
+    return recording.snapshot(start, kind);
   }
 
   @Override

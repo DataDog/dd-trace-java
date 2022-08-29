@@ -1,8 +1,8 @@
 package datadog.trace.api.profiling;
 
 public interface ProfilingSnapshot extends ObservableType {
-  enum SnapshotReason {
-    REGULAR,
+  enum SnapshotKind {
+    PERIODIC,
     ON_SHUTDOWN
   }
 }

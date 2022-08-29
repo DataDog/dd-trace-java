@@ -21,11 +21,11 @@ public interface OngoingRecording extends Closeable {
    * called.
    *
    * @param start start time of the snapshot
-   * @param reason the snapshot reason
+   * @param kind the snapshot reason
    * @return {@link RecordingData} with snapshot information
    */
   @Nonnull
-  RecordingData snapshot(@Nonnull final Instant start, ProfilingSnapshot.SnapshotReason reason);
+  RecordingData snapshot(@Nonnull final Instant start, ProfilingSnapshot.SnapshotKind kind);
 
   /** Close recording without capturing any data */
   @Override

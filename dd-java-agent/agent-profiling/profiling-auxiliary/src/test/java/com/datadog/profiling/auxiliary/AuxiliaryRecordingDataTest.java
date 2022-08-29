@@ -25,8 +25,8 @@ class AuxiliaryRecordingDataTest {
     volatile boolean isReleased = false;
 
     public TestRecordingData(
-        String name, Instant start, Instant end, SnapshotReason reason, byte[] testData) {
-      super(start, end, reason);
+        String name, Instant start, Instant end, SnapshotKind kind, byte[] testData) {
+      super(start, end, kind);
       this.name = name;
       this.testData = testData;
     }
@@ -50,21 +50,21 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
-  void testNullMaindata(ProfilingSnapshot.SnapshotReason reason) {
+  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
+  void testNullMaindata(ProfilingSnapshot.SnapshotKind kind) {
     assertThrows(
         IllegalArgumentException.class,
-        () -> new AuxiliaryRecordingData(Instant.now(), Instant.now(), reason, null));
+        () -> new AuxiliaryRecordingData(Instant.now(), Instant.now(), kind, null));
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
-  void testMainDataThrowing(ProfilingSnapshot.SnapshotReason reason) throws IOException {
+  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
+  void testMainDataThrowing(ProfilingSnapshot.SnapshotKind kind) throws IOException {
     RecordingData mainData = Mockito.mock(RecordingData.class);
     RecordingData auxiliaryData = Mockito.mock(RecordingData.class);
 
-    Mockito.when(mainData.getReason()).thenReturn(reason);
-    Mockito.when(auxiliaryData.getReason()).thenReturn(reason);
+    Mockito.when(mainData.getKind()).thenReturn(kind);
+    Mockito.when(auxiliaryData.getKind()).thenReturn(kind);
 
     byte[] auxDataRaw = new byte[10];
     Mockito.when(mainData.getStream()).thenThrow(new IOException());
@@ -72,19 +72,19 @@ class AuxiliaryRecordingDataTest {
         .thenReturn(new RecordingInputStream(new ByteArrayInputStream(auxDataRaw)));
 
     AuxiliaryRecordingData combined =
-        new AuxiliaryRecordingData(Instant.now(), Instant.now(), reason, mainData, auxiliaryData);
+        new AuxiliaryRecordingData(Instant.now(), Instant.now(), kind, mainData, auxiliaryData);
 
     assertEquals(0, readFromStream(combined.getStream()));
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
-  void testAuxiliaryDataThrowing(ProfilingSnapshot.SnapshotReason reason) throws IOException {
+  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
+  void testAuxiliaryDataThrowing(ProfilingSnapshot.SnapshotKind kind) throws IOException {
     RecordingData mainData = Mockito.mock(RecordingData.class);
     RecordingData auxiliaryData = Mockito.mock(RecordingData.class);
 
-    Mockito.when(mainData.getReason()).thenReturn(reason);
-    Mockito.when(auxiliaryData.getReason()).thenReturn(reason);
+    Mockito.when(mainData.getKind()).thenReturn(kind);
+    Mockito.when(auxiliaryData.getKind()).thenReturn(kind);
 
     byte[] mainDataRaw = new byte[10];
     Mockito.when(mainData.getStream())
@@ -92,7 +92,7 @@ class AuxiliaryRecordingDataTest {
     Mockito.when(auxiliaryData.getStream()).thenThrow(new IOException());
 
     AuxiliaryRecordingData combined =
-        new AuxiliaryRecordingData(Instant.now(), Instant.now(), reason, mainData, auxiliaryData);
+        new AuxiliaryRecordingData(Instant.now(), Instant.now(), kind, mainData, auxiliaryData);
 
     assertEquals(mainDataRaw.length, readFromStream(combined.getStream()));
   }
@@ -108,15 +108,15 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
-  void testMainDataOnly(ProfilingSnapshot.SnapshotReason reason) throws IOException {
+  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
+  void testMainDataOnly(ProfilingSnapshot.SnapshotKind kind) throws IOException {
     String mainName = "main";
     TestRecordingData mainData =
         new TestRecordingData(
-            mainName, Instant.now(), Instant.now().plus(5, ChronoUnit.MINUTES), reason, MAIN_DATA);
+            mainName, Instant.now(), Instant.now().plus(5, ChronoUnit.MINUTES), kind, MAIN_DATA);
     AuxiliaryRecordingData data =
         new AuxiliaryRecordingData(
-            Instant.now(), Instant.now().plus(5, ChronoUnit.MINUTES), reason, mainData);
+            Instant.now(), Instant.now().plus(5, ChronoUnit.MINUTES), kind, mainData);
 
     assertEquals(mainName, data.getName());
     assertFalse(mainData.isReleased);
@@ -131,26 +131,26 @@ class AuxiliaryRecordingDataTest {
   }
 
   @ParameterizedTest
-  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
-  void testCombinedData(ProfilingSnapshot.SnapshotReason reason) throws IOException {
+  @EnumSource(ProfilingSnapshot.SnapshotKind.class)
+  void testCombinedData(ProfilingSnapshot.SnapshotKind kind) throws IOException {
     String mainName = "main";
     String auxName = "auxiliary";
     TestRecordingData mainData =
         new TestRecordingData(
-            mainName, Instant.now(), Instant.now().plus(5, ChronoUnit.MINUTES), reason, MAIN_DATA);
+            mainName, Instant.now(), Instant.now().plus(5, ChronoUnit.MINUTES), kind, MAIN_DATA);
     TestRecordingData auxiliaryData =
         new TestRecordingData(
             auxName,
             Instant.now(),
             Instant.now().plus(5, ChronoUnit.MINUTES),
-            reason,
+            kind,
             AUXILIARY_DATA);
 
     AuxiliaryRecordingData data =
         new AuxiliaryRecordingData(
             Instant.now(),
             Instant.now().plus(5, ChronoUnit.MINUTES),
-            reason,
+            kind,
             mainData,
             auxiliaryData);
 

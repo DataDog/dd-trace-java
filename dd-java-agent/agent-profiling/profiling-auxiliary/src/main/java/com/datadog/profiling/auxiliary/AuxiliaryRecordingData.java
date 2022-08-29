@@ -18,10 +18,10 @@ public final class AuxiliaryRecordingData extends RecordingData {
   public AuxiliaryRecordingData(
       Instant start,
       Instant end,
-      SnapshotReason reason,
+      SnapshotKind kind,
       @Nonnull RecordingData main,
       RecordingData... secondary) {
-    super(start, end, reason);
+    super(start, end, kind);
     if (main == null) {
       throw new IllegalArgumentException("Main data must be specified and not null");
     }

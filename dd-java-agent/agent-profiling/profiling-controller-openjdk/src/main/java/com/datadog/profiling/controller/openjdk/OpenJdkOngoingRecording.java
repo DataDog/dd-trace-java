@@ -112,12 +112,12 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
 
     recording.stop();
     OpenJdkRecordingData mainData =
-        new OpenJdkRecordingData(recording, ProfilingSnapshot.SnapshotReason.REGULAR);
+        new OpenJdkRecordingData(recording, ProfilingSnapshot.SnapshotKind.PERIODIC);
     return auxiliaryRecording != null
         ? new AuxiliaryRecordingData(
             mainData.getStart(),
             mainData.getEnd(),
-            ProfilingSnapshot.SnapshotReason.REGULAR,
+            ProfilingSnapshot.SnapshotKind.PERIODIC,
             mainData,
             auxiliaryRecording.stop())
         : mainData;
@@ -125,12 +125,12 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
 
   // @VisibleForTesting
   final RecordingData snapshot(@Nonnull final Instant start) {
-    return snapshot(start, ProfilingSnapshot.SnapshotReason.REGULAR);
+    return snapshot(start, ProfilingSnapshot.SnapshotKind.PERIODIC);
   }
 
   @Override
   public RecordingData snapshot(
-      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.SnapshotReason reason) {
+      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.SnapshotKind kind) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
@@ -143,15 +143,15 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     // very close to now, so use that end time to minimize the risk of gaps or
     // overlaps in the data.
     OpenJdkRecordingData openJdkData =
-        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime(), reason);
+        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime(), kind);
     RecordingData ret =
         auxiliaryRecording != null
             ? new AuxiliaryRecordingData(
                 start,
                 snapshot.getStopTime(),
-                reason,
+                kind,
                 openJdkData,
-                auxiliaryRecording.snapshot(start, reason))
+                auxiliaryRecording.snapshot(start, kind))
             : openJdkData;
 
     ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(ret);
