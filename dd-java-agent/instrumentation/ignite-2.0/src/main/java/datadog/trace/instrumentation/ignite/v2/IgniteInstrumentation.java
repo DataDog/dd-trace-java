@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.ignite.v2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -31,6 +32,12 @@ public class IgniteInstrumentation extends Instrumenter.Tracing
   @Override
   protected boolean defaultEnabled() {
     return false;
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassNamed("org.apache.ignite.Ignite");
   }
 
   @Override

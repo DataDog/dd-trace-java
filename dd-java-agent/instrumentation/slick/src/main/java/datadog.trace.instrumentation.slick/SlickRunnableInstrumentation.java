@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.slick;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -25,6 +26,12 @@ public final class SlickRunnableInstrumentation extends Instrumenter.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public SlickRunnableInstrumentation() {
     super("slick");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassNamed("slick.util.AsyncExecutor");
   }
 
   @Override
