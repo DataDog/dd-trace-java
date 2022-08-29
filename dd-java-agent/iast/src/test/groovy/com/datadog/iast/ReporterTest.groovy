@@ -15,6 +15,7 @@ class ReporterTest extends DDSpecification {
 
   void 'basic vulnerability reporting'() {
     given:
+    final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext()
     final reqCtx = Stub(RequestContext)
@@ -32,7 +33,7 @@ class ReporterTest extends DDSpecification {
       )
 
     when:
-    Reporter.report(span, v)
+    reporter.report(span, v)
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
@@ -42,6 +43,7 @@ class ReporterTest extends DDSpecification {
 
   void 'two vulnerabilities'() {
     given:
+    final Reporter reporter = new Reporter()
     final traceSegment = Mock(TraceSegment)
     final ctx = new IastRequestContext()
     final reqCtx = Stub(RequestContext)
@@ -64,8 +66,8 @@ class ReporterTest extends DDSpecification {
       )
 
     when:
-    Reporter.report(span, v1)
-    Reporter.report(span, v2)
+    reporter.report(span, v1)
+    reporter.report(span, v2)
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
@@ -75,6 +77,7 @@ class ReporterTest extends DDSpecification {
 
   void 'null span does not throw'() {
     given:
+    final Reporter reporter = new Reporter()
     final span = null
     final v = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
@@ -83,7 +86,7 @@ class ReporterTest extends DDSpecification {
       )
 
     when:
-    Reporter.report(span, v)
+    reporter.report(span, v)
 
     then:
     noExceptionThrown()
@@ -92,7 +95,8 @@ class ReporterTest extends DDSpecification {
 
   void 'null RequestContext does not throw'() {
     given:
-    final span = Stub(AgentSpan)
+    final Reporter reporter = new Reporter()
+    final span = Mock(AgentSpan)
     span.getRequestContext() >> null
     final v = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
@@ -101,10 +105,34 @@ class ReporterTest extends DDSpecification {
       )
 
     when:
-    Reporter.report(span, v)
+    reporter.report(span, v)
 
     then:
     noExceptionThrown()
+    1 * span.getRequestContext()
+    0 * _
+  }
+
+  void 'null IastRequestContext does not throw'() {
+    given:
+    final Reporter reporter = new Reporter()
+    final reqCtx = Mock(RequestContext)
+    reqCtx.getData(RequestContextSlot.IAST) >> null
+    final span = Mock(AgentSpan)
+    span.getRequestContext() >> reqCtx
+    final v = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("MD5")
+      )
+
+    when:
+    reporter.report(span, v)
+
+    then:
+    noExceptionThrown()
+    1 * span.getRequestContext() >> reqCtx
+    1 * reqCtx.getData(RequestContextSlot.IAST)
     0 * _
   }
 }
