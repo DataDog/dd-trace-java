@@ -328,7 +328,7 @@ public class ProfilingSystemTest {
   @Test
   public void testDoesntSendPeriodicRecordingIfPeriodicRecordingIsDisabled()
       throws InterruptedException, ConfigurationException {
-    when(recording.snapshot(any())).thenReturn(recordingData);
+    when(recording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
         new ProfilingSystem(
             configProvider,
@@ -397,7 +397,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotError() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any()))
+    when(recording.snapshot(any(), any()))
         .thenThrow(new RuntimeException("Test"))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
@@ -426,7 +426,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotNoData() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any()))
+    when(recording.snapshot(any(), any()))
         .thenReturn(null)
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 

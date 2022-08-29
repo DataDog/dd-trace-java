@@ -20,14 +20,16 @@ import java.io.IOException;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 
-/** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
+/** Platform-agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant start;
   protected final Instant end;
+  protected final SnapshotReason reason;
 
-  public RecordingData(final Instant start, final Instant end) {
+  public RecordingData(final Instant start, final Instant end, SnapshotReason reason) {
     this.start = start;
     this.end = end;
+    this.reason = reason;
   }
 
   /**
@@ -81,5 +83,10 @@ public abstract class RecordingData implements ProfilingSnapshot {
   @Nonnull
   public final Instant getEnd() {
     return end;
+  }
+
+  @Nonnull
+  public final SnapshotReason getReason() {
+    return reason;
   }
 }

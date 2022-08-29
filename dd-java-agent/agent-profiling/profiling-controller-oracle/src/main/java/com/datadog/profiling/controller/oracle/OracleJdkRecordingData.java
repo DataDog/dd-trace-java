@@ -36,8 +36,9 @@ public class OracleJdkRecordingData extends RecordingData {
       @Nonnull ObjectName recordingId,
       @Nonnull Instant start,
       @Nonnull Instant end,
+      @Nonnull SnapshotReason reason,
       @Nonnull JfrMBeanHelper helper) {
-    super(start, end);
+    super(start, end, reason);
     this.name = name;
     this.recordingId = recordingId;
     this.helper = helper;

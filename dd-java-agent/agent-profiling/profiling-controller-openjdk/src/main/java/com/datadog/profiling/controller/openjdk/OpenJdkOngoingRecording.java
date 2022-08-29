@@ -10,6 +10,7 @@ import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
@@ -110,15 +111,26 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     CONFIG_MEMENTO.publish();
 
     recording.stop();
-    OpenJdkRecordingData mainData = new OpenJdkRecordingData(recording);
+    OpenJdkRecordingData mainData =
+        new OpenJdkRecordingData(recording, ProfilingSnapshot.SnapshotReason.REGULAR);
     return auxiliaryRecording != null
         ? new AuxiliaryRecordingData(
-            mainData.getStart(), mainData.getEnd(), mainData, auxiliaryRecording.stop())
+            mainData.getStart(),
+            mainData.getEnd(),
+            ProfilingSnapshot.SnapshotReason.REGULAR,
+            mainData,
+            auxiliaryRecording.stop())
         : mainData;
   }
 
+  // @VisibleForTesting
+  final RecordingData snapshot(@Nonnull final Instant start) {
+    return snapshot(start, ProfilingSnapshot.SnapshotReason.REGULAR);
+  }
+
   @Override
-  public RecordingData snapshot(final Instant start) {
+  public RecordingData snapshot(
+      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.SnapshotReason reason) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
@@ -131,11 +143,15 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     // very close to now, so use that end time to minimize the risk of gaps or
     // overlaps in the data.
     OpenJdkRecordingData openJdkData =
-        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime());
+        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime(), reason);
     RecordingData ret =
         auxiliaryRecording != null
             ? new AuxiliaryRecordingData(
-                start, snapshot.getStopTime(), openJdkData, auxiliaryRecording.snapshot(start))
+                start,
+                snapshot.getStopTime(),
+                reason,
+                openJdkData,
+                auxiliaryRecording.snapshot(start, reason))
             : openJdkData;
 
     ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(ret);

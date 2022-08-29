@@ -23,7 +23,7 @@ public class ShutdownInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return true;
   }
 
   @Override

@@ -342,7 +342,14 @@ public final class ProfileUploader {
     final StringBuilder os = new StringBuilder();
     os.append("{");
     os.append("\"attachments\":[\"" + V4_ATTACHMENT_FILENAME + "\"],");
-    os.append("\"" + V4_PROFILE_TAGS_PARAM + "\":\"" + tags + "\",");
+    os.append(
+        "\""
+            + V4_PROFILE_TAGS_PARAM
+            + "\":\""
+            + tags
+            + ",snapshot:"
+            + data.getReason().name().toLowerCase()
+            + "\",");
     os.append("\"" + V4_PROFILE_START_PARAM + "\":\"" + data.getStart() + "\",");
     os.append("\"" + V4_PROFILE_END_PARAM + "\":\"" + data.getEnd() + "\",");
     os.append("\"family\":\"" + V4_FAMILY + "\",");

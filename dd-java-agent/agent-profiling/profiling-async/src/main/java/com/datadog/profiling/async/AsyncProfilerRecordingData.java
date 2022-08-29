@@ -11,8 +11,9 @@ import javax.annotation.Nonnull;
 final class AsyncProfilerRecordingData extends RecordingData {
   private final Path recordingFile;
 
-  public AsyncProfilerRecordingData(Path recordingFile, Instant start, Instant end) {
-    super(start, end);
+  public AsyncProfilerRecordingData(
+      Path recordingFile, Instant start, Instant end, SnapshotReason reason) {
+    super(start, end, reason);
     this.recordingFile = recordingFile;
   }
 

@@ -43,6 +43,7 @@ import com.google.common.io.ByteStreams;
 import datadog.common.process.PidHelper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
 import delight.fileupload.FileUpload;
@@ -61,6 +62,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
@@ -80,6 +82,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.internal.verification.VerificationModeFactory;
@@ -110,17 +113,14 @@ public class ProfileUploaderTest {
 
   // We sort tags to have expected parameters to have expected result
   private static final Map<String, String> EXPECTED_TAGS =
-      ImmutableMap.of(
-          "baz",
-          "123",
-          "foo",
-          "bar",
-          PidHelper.PID_TAG,
-          PidHelper.PID.toString(),
-          VersionInfo.PROFILER_VERSION_TAG,
-          VersionInfo.VERSION,
-          VersionInfo.LIBRARY_VERSION_TAG,
-          VersionInfo.VERSION);
+      ImmutableMap.<String, String>builder()
+          .put("baz", "123")
+          .put("foo", "bar")
+          .put("snapshot", "regular")
+          .put(PidHelper.PID_TAG, PidHelper.PID.toString())
+          .put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION)
+          .put(VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION)
+          .build();
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int PROFILE_START = 1000;
@@ -171,15 +171,16 @@ public class ProfileUploaderTest {
     }
   }
 
-  @Test
-  public void testHappyPath() throws Exception {
+  @ParameterizedTest
+  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
+  public void testHappyPath(ProfilingSnapshot.SnapshotReason reason) throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
 
     // When
     uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploadAndWait(RECORDING_TYPE, mockRecordingData(true));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(true, reason));
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
     // Then
@@ -214,14 +215,17 @@ public class ProfileUploaderTest {
         event.get(V4_PROFILE_START_PARAM).asText());
     assertEquals(
         Instant.ofEpochSecond(PROFILE_END).toString(), event.get(V4_PROFILE_END_PARAM).asText());
+    Map<String, String> expectedTags = new TreeMap<>(EXPECTED_TAGS);
+    expectedTags.put("snapshot", reason.name().toLowerCase());
     assertEquals(
-        EXPECTED_TAGS,
+        expectedTags,
         ProfilingTestUtils.parseTags(
             Arrays.asList(event.get("tags_profiler").asText().split(","))));
   }
 
-  @Test
-  public void testHappyPathSync() throws Exception {
+  @ParameterizedTest
+  @EnumSource(ProfilingSnapshot.SnapshotReason.class)
+  public void testHappyPathSync(ProfilingSnapshot.SnapshotReason reason) throws Exception {
     // Given
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
 
@@ -229,7 +233,7 @@ public class ProfileUploaderTest {
     uploader = new ProfileUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
     // upload synchronously
-    uploader.upload(RECORDING_TYPE, mockRecordingData(true), true);
+    uploader.upload(RECORDING_TYPE, mockRecordingData(true, reason), true);
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
     // Then
@@ -264,8 +268,10 @@ public class ProfileUploaderTest {
         event.get(V4_PROFILE_START_PARAM).asText());
     assertEquals(
         Instant.ofEpochSecond(PROFILE_END).toString(), event.get(V4_PROFILE_END_PARAM).asText());
+    Map<String, String> expectedTags = new TreeMap<>(EXPECTED_TAGS);
+    expectedTags.put("snapshot", reason.name().toLowerCase());
     assertEquals(
-        EXPECTED_TAGS,
+        expectedTags,
         ProfilingTestUtils.parseTags(
             Arrays.asList(event.get("tags_profiler").asText().split(","))));
   }
@@ -775,10 +781,15 @@ public class ProfileUploaderTest {
   }
 
   private RecordingData mockRecordingData() throws IOException {
-    return mockRecordingData(false);
+    return mockRecordingData(false, ProfilingSnapshot.SnapshotReason.REGULAR);
   }
 
   private RecordingData mockRecordingData(final boolean zip) throws IOException {
+    return mockRecordingData(zip, ProfilingSnapshot.SnapshotReason.REGULAR);
+  }
+
+  private RecordingData mockRecordingData(
+      final boolean zip, ProfilingSnapshot.SnapshotReason reason) throws IOException {
     final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
     when(recordingData.getStream())
         .then(
@@ -787,6 +798,7 @@ public class ProfileUploaderTest {
     when(recordingData.getName()).thenReturn(RECORDING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));
+    when(recordingData.getReason()).thenReturn(reason);
     return recordingData;
   }
 
