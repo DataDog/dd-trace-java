@@ -14,6 +14,7 @@ import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -21,10 +22,13 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import okhttp3.Call;
@@ -38,7 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Crash Reporter implementation */
-public class CrashUploader {
+public final class CrashUploader {
 
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
 
@@ -134,12 +138,90 @@ public class CrashUploader {
           writer.name("service").value(config.getServiceName());
           writer.name("message").value(message);
           writer.name("level").value("ERROR");
+          writer.name("error");
+          writer.beginObject();
+          writer.name("kind").value(extractErrorKind(message));
+          writer.name("message").value(extractErrorMessage(message));
+          writer.name("stack").value(extractErrorStackTrace(message));
+          writer.endObject();
           writer.endObject();
         }
 
         out.println(buf.readByteString().utf8());
       }
     }
+  }
+
+  private static final Pattern errorKindPattern =
+      Pattern.compile(
+          String.join(
+              "",
+              "^",
+              "(",
+              "# A fatal error has been detected by the Java Runtime Environment:",
+              "|",
+              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+              ")",
+              "$"),
+          Pattern.DOTALL);
+
+  // @VisibleForTesting
+  static String extractErrorKind(String fileContent) {
+    Matcher matcher = errorMessagePattern.matcher(fileContent);
+    if (!matcher.find()) {
+      System.err.println("No match found for error.kind");
+      return null;
+    }
+
+    if (matcher.group().startsWith("# There is insufficient memory")) {
+      return "OutOfMemory";
+    }
+    return "NativeCrash";
+  }
+
+  private static final Pattern errorMessagePattern =
+      Pattern.compile(
+          String.join(
+              "",
+              "^",
+              "(",
+              "# A fatal error has been detected by the Java Runtime Environment:",
+              "|",
+              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+              ")",
+              "\\n",
+              "(",
+              ".*, pid=-?\\d+, tid=-?\\d+",
+              ")",
+              "$"),
+          Pattern.DOTALL | Pattern.MULTILINE);
+
+  // @VisibleForTesting
+  @SuppressForbidden
+  static String extractErrorMessage(String fileContent) {
+    Matcher matcher = errorMessagePattern.matcher(fileContent);
+    if (!matcher.find()) {
+      System.err.println("No match found for error.message");
+      return null;
+    }
+    return Arrays.stream(matcher.group().split(System.lineSeparator()))
+        .filter(
+            s ->
+                !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
+                    && !s.equals(
+                        "# There is insufficient memory for the Java Runtime Environment to continue."))
+        .map(s -> s.replaceFirst("^#\\s*", ""))
+        .map(s -> s.trim())
+        .collect(Collectors.joining("\n"))
+        .trim();
+  }
+
+  private static final Pattern errorStackTracePattern =
+      Pattern.compile(String.join("", "^", "$"), Pattern.DOTALL | Pattern.MULTILINE);
+
+  private String extractErrorStackTrace(String fileContent) {
+    // TODO: implement errorStackTracePattern
+    return null;
   }
 
   void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {

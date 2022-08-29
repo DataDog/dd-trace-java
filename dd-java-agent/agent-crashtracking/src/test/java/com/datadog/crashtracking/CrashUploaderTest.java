@@ -21,12 +21,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class CrashUploaderTest {
 
@@ -192,5 +196,34 @@ public class CrashUploaderTest {
     assertNotNull(recordedRequest);
     assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
     // it would be nice if the test asserted the log line was written out, but it's not essential
+  }
+
+  @ParameterizedTest
+  @MethodSource("extractionArgs")
+  void extractInfo(String content, String kind, String msg) throws Exception {
+    assertEquals(kind, CrashUploader.extractErrorKind(content));
+    assertEquals(msg, CrashUploader.extractErrorMessage(content));
+  }
+
+  private static Stream<Arguments> extractionArgs() {
+    return Stream.of(
+        Arguments.of(
+            "# A fatal error has been detected by the Java Runtime Environment:\n"
+                + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+                + "# \nOther stuff\n",
+            "NativeCrash",
+            "SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522"),
+        Arguments.of(
+            "# There is insufficient memory for the Java Runtime Environment to continue.\n"
+                + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+                + "# \nOther stuff\n",
+            "OutOfMemory",
+            "SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522"),
+        Arguments.of(
+            "# Completely unknown error:\n"
+                + "# BOOM (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+                + "# \nOther stuff\n",
+            null,
+            null));
   }
 }
