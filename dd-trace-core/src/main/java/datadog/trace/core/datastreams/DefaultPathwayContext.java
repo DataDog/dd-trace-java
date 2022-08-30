@@ -49,7 +49,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final Set<String> hashableTagKeys =
       new HashSet<String>(
           Arrays.asList(
-              TagsProcessor.TYPE_TAG, TagsProcessor.TOPIC_TAG, TagsProcessor.EXCHANGE_TAG));
+              TagsProcessor.GROUP_TAG, TagsProcessor.TYPE_TAG, TagsProcessor.TOPIC_TAG, TagsProcessor.EXCHANGE_TAG));
 
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
