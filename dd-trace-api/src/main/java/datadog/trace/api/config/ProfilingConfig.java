@@ -109,6 +109,10 @@ public final class ProfilingConfig {
   public static final int PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT =
       5_000; // 5 secs default
 
+  public static final String PROFILING_TRACING_CONTEXT_MAX_SPANS =
+      "profiling.tracing_context.inflight_spans.max";
+  public static final int PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT = 1_000_000;
+
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
   public static final boolean PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT = true;

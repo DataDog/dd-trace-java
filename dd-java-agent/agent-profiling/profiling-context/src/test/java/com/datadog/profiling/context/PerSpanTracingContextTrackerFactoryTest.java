@@ -31,7 +31,7 @@ class PerSpanTracingContextTrackerFactoryTest {
 
   @Test
   void testReleasedAfterInactivity() throws Exception {
-    long inactivityMs = 100;
+    long inactivityMs = 200;
     PerSpanTracingContextTrackerFactory instance =
         new PerSpanTracingContextTrackerFactory(
             TimeUnit.NANOSECONDS.convert(inactivityMs, TimeUnit.MILLISECONDS), 10L, 512);
