@@ -161,7 +161,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -197,7 +197,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -233,7 +233,7 @@ jobs:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -290,7 +290,7 @@ jobs:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew :dd-java-agent:instrumentation:<< parameters.testTask >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -341,7 +341,7 @@ jobs:
           name: Run Tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew stageMainDist :dd-smoke-test:<< parameters.testTask >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -417,7 +417,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -427,7 +427,7 @@ jobs:
           command: |
             mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
             cd test-published-dependencies
             ./gradlew check --max-workers=3
@@ -469,7 +469,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx950M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx950M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
