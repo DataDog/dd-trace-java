@@ -41,7 +41,7 @@ public final class SQLNormalizer {
   }
 
   public static UTF8BytesString normalize(String sql) {
-    log.debug("Raw sql: {}", sql);
+    log.info("Raw sql: {}", sql);
     byte[] utf8 = sql.getBytes(UTF_8);
     try {
       BitSet splitters = findSplitterPositions(utf8);
@@ -76,7 +76,7 @@ public final class SQLNormalizer {
       }
       if (modified) {
         UTF8BytesString normalizedSql = UTF8BytesString.create(Arrays.copyOf(utf8, outputLength));
-        log.debug("Normalized sql: {}", normalizedSql.toString());
+        log.info("Normalized sql: {}", normalizedSql.toString());
         return normalizedSql;
       }
     } catch (Throwable paranoid) {
