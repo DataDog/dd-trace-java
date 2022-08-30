@@ -25,6 +25,70 @@ public class ConfigurationTest {
     deserialize(buffer);
   }
 
+  @Test
+  public void captureDeserialization() throws IOException {
+    doCaptureDeserialization(
+        "{\"maxReferenceDepth\":3,\"maxCollectionSize\":123,\"maxLength\":242,\"maxFieldDepth\":7,\"maxFieldCount\":2}",
+        3,
+        123,
+        242,
+        7,
+        2);
+    doCaptureDeserialization(
+        "{\"maxReferenceDepth\":3}",
+        3,
+        ValueConverter.DEFAULT_COLLECTION_SIZE,
+        ValueConverter.DEFAULT_LENGTH,
+        FieldExtractor.DEFAULT_FIELD_DEPTH,
+        ValueConverter.DEFAULT_FIELD_COUNT);
+    doCaptureDeserialization(
+        "{\"maxCollectionSize\":123}",
+        ValueConverter.DEFAULT_REFERENCE_DEPTH,
+        123,
+        ValueConverter.DEFAULT_LENGTH,
+        FieldExtractor.DEFAULT_FIELD_DEPTH,
+        ValueConverter.DEFAULT_FIELD_COUNT);
+    doCaptureDeserialization(
+        "{\"maxLength\":242}",
+        ValueConverter.DEFAULT_REFERENCE_DEPTH,
+        ValueConverter.DEFAULT_COLLECTION_SIZE,
+        242,
+        FieldExtractor.DEFAULT_FIELD_DEPTH,
+        ValueConverter.DEFAULT_FIELD_COUNT);
+    doCaptureDeserialization(
+        "{\"maxFieldDepth\":7}",
+        ValueConverter.DEFAULT_REFERENCE_DEPTH,
+        ValueConverter.DEFAULT_COLLECTION_SIZE,
+        ValueConverter.DEFAULT_LENGTH,
+        7,
+        ValueConverter.DEFAULT_FIELD_COUNT);
+    doCaptureDeserialization(
+        "{\"maxFieldCount\":2}",
+        ValueConverter.DEFAULT_REFERENCE_DEPTH,
+        ValueConverter.DEFAULT_COLLECTION_SIZE,
+        ValueConverter.DEFAULT_LENGTH,
+        FieldExtractor.DEFAULT_FIELD_DEPTH,
+        2);
+  }
+
+  private void doCaptureDeserialization(
+      String json,
+      int expectedMaxRef,
+      int expectedMaxCol,
+      int expectedMaxLen,
+      int expectedMaxFieldDepth,
+      int expectedMaxFieldCount)
+      throws IOException {
+    JsonAdapter<SnapshotProbe.Capture> adapter =
+        MoshiHelper.createMoshiConfig().adapter(SnapshotProbe.Capture.class);
+    SnapshotProbe.Capture capture = adapter.fromJson(json);
+    assertEquals(expectedMaxRef, capture.getMaxReferenceDepth());
+    assertEquals(expectedMaxCol, capture.getMaxCollectionSize());
+    assertEquals(expectedMaxLen, capture.getMaxLength());
+    assertEquals(expectedMaxFieldDepth, capture.getMaxFieldDepth());
+    assertEquals(expectedMaxFieldCount, capture.getMaxFieldCount());
+  }
+
   private String serialize() throws IOException {
     SnapshotProbe probe1 =
         createProbe("probe1", "service1", "java.lang.String", "indexOf", "(String)");
