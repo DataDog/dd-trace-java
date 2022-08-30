@@ -174,7 +174,7 @@ public class DebuggerSinkTest {
   public void splitDiagnosticsBatch() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    StringBuilder largeMessageBuilder = new StringBuilder();
+    StringBuilder largeMessageBuilder = new StringBuilder(100_001);
     for (int i = 0; i < 100_000; i++) {
       largeMessageBuilder.append("f");
     }
@@ -193,7 +193,7 @@ public class DebuggerSinkTest {
   public void tooLargeDiagnostic() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    StringBuilder tooLargeMessageBuilder = new StringBuilder();
+    StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
     for (int i = 0; i < MAX_PAYLOAD; i++) {
       tooLargeMessageBuilder.append("f");
     }
@@ -207,8 +207,8 @@ public class DebuggerSinkTest {
   public void tooLargeUTF8Diagnostic() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    StringBuilder tooLargeMessageBuilder = new StringBuilder();
-    for (int i = 0; i < MAX_PAYLOAD / 2; i++) {
+    StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 4);
+    for (int i = 0; i < MAX_PAYLOAD; i += 4) {
       tooLargeMessageBuilder.append("\uD80C\uDCF0"); // 4 bytes
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();
