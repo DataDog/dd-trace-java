@@ -7,6 +7,7 @@ import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +24,9 @@ public final class PerSpanTracingContextTrackerFactory
     implements TracingContextTrackerFactory.Implementation {
   private static final Logger log =
       LoggerFactory.getLogger(PerSpanTracingContextTrackerFactory.class);
+  private static final RatelimitedLogger warnlog = new RatelimitedLogger(log, 30, TimeUnit.SECONDS);
 
-  private final DelayQueue<TracingContextTracker.DelayedTracker> delayQueue = new DelayQueue<>();
+  private final DelayQueue<TracingContextTracker.DelayedTracker>[] delayQueues;
   private final StatsDClient statsd = StatsDAccessor.getStatsdClient();
 
   public static boolean isEnabled(ConfigProvider configProvider) {
@@ -69,19 +72,22 @@ public final class PerSpanTracingContextTrackerFactory
           Collection<TracingContextTracker.DelayedTracker> timeouts = new ArrayList<>(capacity);
           int drainedAll = 0;
           int drained = 0;
-          while ((drained = target.drainTo(timeouts, capacity)) > 0) {
-            if (log.isDebugEnabled()) {
-              log.debug("Drained {} inactive trackers", drained);
+          int queue = 0;
+          while (queue < target.length) {
+            while ((drained = target[queue++].drainTo(timeouts, capacity)) > 0) {
+              if (log.isDebugEnabled()) {
+                log.debug("Drained {} inactive trackers", drained);
+              }
+              timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
+              timeouts.clear();
+              drainedAll += drained;
             }
-            timeouts.forEach(TracingContextTracker.DelayedTracker::cleanup);
-            timeouts.clear();
-            drainedAll += drained;
           }
           if (drainedAll > 0) {
             statsd.count("tracing.context.spans.drained_inactive", drainedAll);
           }
         },
-        delayQueue,
+        delayQueues,
         refreshRateMs,
         refreshRateMs,
         TimeUnit.MILLISECONDS);
@@ -91,12 +97,17 @@ public final class PerSpanTracingContextTrackerFactory
   private final IntervalSequencePruner sequencePruner = new IntervalSequencePruner();
   private final PerSpanTracingContextTracker.TimeTicksProvider timeTicksProvider;
   private final long inactivityDelay;
+  private final AtomicInteger inFlightSpans = new AtomicInteger(0);
+  private final int maxInFlightSpans;
+
+  private volatile boolean trackingEnabled = true;
 
   PerSpanTracingContextTrackerFactory(
       long inactivityDelayNs, long inactivityCheckPeriodMs, int reservedMemorySize) {
     this(inactivityDelayNs, inactivityCheckPeriodMs, reservedMemorySize, "heap");
   }
 
+  @SuppressWarnings("unchecked")
   PerSpanTracingContextTrackerFactory(
       long inactivityDelayNs,
       long inactivityCheckPeriodMs,
@@ -109,6 +120,16 @@ public final class PerSpanTracingContextTrackerFactory
             ? Allocators.directAllocator(reservedMemorySize, 32)
             : Allocators.heapAllocator(reservedMemorySize, 32);
     this.inactivityDelay = inactivityDelayNs;
+    int numDelayQueues = Math.min(Math.max(Runtime.getRuntime().availableProcessors() / 2, 2), 8);
+    this.delayQueues = new DelayQueue[numDelayQueues];
+    for (int i = 0; i < numDelayQueues; i++) {
+      delayQueues[i] = new DelayQueue<>();
+    }
+    this.maxInFlightSpans =
+        ConfigProvider.getInstance()
+            .getInteger(
+                ProfilingConfig.PROFILING_TRACING_CONTEXT_MAX_SPANS,
+                ProfilingConfig.PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT);
 
     if (inactivityDelay > 0) {
       initializeInactiveTrackerCleanup(inactivityCheckPeriodMs);
@@ -167,15 +188,23 @@ public final class PerSpanTracingContextTrackerFactory
 
   @Override
   public TracingContextTracker instance(AgentSpan span) {
-    if (span != null && span.eligibleForDropping()) {
+    if ((span != null && span.eligibleForDropping()) || !trackingEnabled) {
       return TracingContextTracker.EMPTY;
     }
     PerSpanTracingContextTracker instance =
         new PerSpanTracingContextTracker(
             allocator, span, timeTicksProvider, sequencePruner, inactivityDelay);
+    DelayQueue<TracingContextTracker.DelayedTracker> delayQueue =
+        delayQueues[(int) (Thread.currentThread().getId() % delayQueues.length)];
     if (inactivityDelay > 0) {
       statsd.incrementCounter("tracing.context.spans.tracked");
       delayQueue.offer(instance.asDelayed());
+    }
+    if (inFlightSpans.incrementAndGet() > maxInFlightSpans) {
+      warnlog.warn(
+          "The amount of in-flight spans is too high (max. {} in-flight spans) for the per-span context tracking. Disabling the tracking.",
+          maxInFlightSpans);
+      trackingEnabled = false;
     }
     return instance;
   }

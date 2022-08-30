@@ -13,6 +13,7 @@ import java.util.Random;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -146,6 +147,8 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
 
   private volatile DelayedTrackerImpl delayedTrackerRef = null;
 
+  private final AtomicInteger inFlightSpans;
+
   static {
     SPAN_ACTIVATION_DATA_LIMIT =
         ConfigProvider.getInstance()
@@ -160,7 +163,7 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       int maxDataSize) {
-    this(allocator, span, timeTicksProvider, sequencePruner, -1L, maxDataSize);
+    this(allocator, span, timeTicksProvider, sequencePruner, -1L, maxDataSize, null);
   }
 
   PerSpanTracingContextTracker(
@@ -175,7 +178,8 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
         timeTicksProvider,
         sequencePruner,
         inactivityDelay,
-        SPAN_ACTIVATION_DATA_LIMIT);
+        SPAN_ACTIVATION_DATA_LIMIT,
+        null);
   }
 
   PerSpanTracingContextTracker(
@@ -184,7 +188,8 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
       TimeTicksProvider timeTicksProvider,
       IntervalSequencePruner sequencePruner,
       long inactivityDelay,
-      int maxDataSize) {
+      int maxDataSize,
+      AtomicInteger inFlightSpans) {
     this.startTimestampTicks = timeTicksProvider.ticks();
     this.startTimestampNanos = currentTimeNanos();
     this.timeTicksProvider = timeTicksProvider;
@@ -196,6 +201,7 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     this.inactivityDelay = inactivityDelay;
     this.delayedActivationTimestamp = timeTicksProvider.ticks();
     this.maxDataSize = maxDataSize;
+    this.inFlightSpans = inFlightSpans;
   }
 
   private static long currentTimeNanos() {
@@ -302,6 +308,9 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
   public boolean release() {
     boolean result = releaseThreadSequences();
     releaseDelayed();
+    if (inFlightSpans != null) {
+      inFlightSpans.decrementAndGet();
+    }
     return result;
   }
 
@@ -394,7 +403,8 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
     long[] threadIds = shuffleArray(threadSequences.keySetLong());
     for (LongSequence sequence : threadSequences.values()) {
       int size = sequence.captureSize();
-      totalSequenceBufferSize += size;
+      totalSequenceBufferSize +=
+          (size + 8); // each sequence can receive a synthetic 'start' with length of 8 bytes
     }
 
     IntervalEncoder encoder =
@@ -426,6 +436,10 @@ public final class PerSpanTracingContextTracker implements TracingContextTracker
        */
       synchronized (rawIntervals) {
         LongIterator iterator = pruneIntervals(rawIntervals);
+        sequenceSize =
+            rawIntervals
+                .getCapturedSize(); // refetch the captured size as it may have been modified by
+        // pruning
         int sequenceIndex = 0;
         while (iterator.hasNext() && sequenceIndex++ < sequenceSize) {
           long from = iterator.next();

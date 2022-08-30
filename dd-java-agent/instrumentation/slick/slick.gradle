@@ -44,6 +44,7 @@ dependencies {
   testImplementation group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
   testImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
 
-  latestDepTestImplementation group: 'com.typesafe.slick', name: 'slick_2.13', version: '+'
-  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '+'
+  // Slick 3.4+ pulls in slf4j-2.+ which doesn't work with the test harness
+  latestDepTestImplementation group: 'com.typesafe.slick', name: 'slick_2.13', version: '[+,3.4.0)'
+  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.+'
 }

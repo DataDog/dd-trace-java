@@ -46,9 +46,15 @@ public class ProfilingAgent {
       final Config config = Config.get();
       final ConfigProvider configProvider = ConfigProvider.getInstance();
 
-      final boolean startForceFirst =
+      boolean startForceFirst =
           configProvider.getBoolean(
               PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+
+      if (!isStartForceFirstSafe()) {
+        log.debug(
+            "Starting profiling in premain can lead to crashes in this JDK. Delaying the startup.");
+        startForceFirst = false;
+      }
 
       if (isStartingFirst && !startForceFirst) {
         log.debug("Profiling: not starting first");
@@ -117,6 +123,13 @@ public class ProfilingAgent {
         log.debug("Failed to initialize profiling agent!", e);
       }
     }
+  }
+
+  private static boolean isStartForceFirstSafe() {
+    return Platform.isJavaVersionAtLeast(14)
+        || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
+        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8))
+        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 272));
   }
 
   public static void shutdown() {
