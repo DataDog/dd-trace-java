@@ -39,7 +39,7 @@ public class TagsHelperTest {
 
   @Test
   public void tagTrimmedToMaxLength() {
-    StringBuilder tag = new StringBuilder();
+    StringBuilder tag = new StringBuilder(401);
     for (int i = 0; i < 400; i++) {
       tag.append("a");
     }
@@ -49,7 +49,7 @@ public class TagsHelperTest {
 
   @Test
   public void tagTrimmedToMaxLengthWorkWithUnicode() {
-    StringBuilder tag = new StringBuilder();
+    StringBuilder tag = new StringBuilder(401);
     for (int i = 0; i < 400; i++) {
       tag.append("\u1234");
     }
