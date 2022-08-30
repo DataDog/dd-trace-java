@@ -1,15 +1,9 @@
 package datadog.trace.util.stacktrace;
 
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public abstract class AbstractStackWalker implements StackWalker {
-
-  private static final Predicate<StackTraceElement> NOT_DD_TRACE_STACK_ELEMENT =
-      (stackTraceElement) ->
-          !stackTraceElement.getClassName().startsWith("datadog.trace.")
-              && !stackTraceElement.getClassName().startsWith("com.datadog.iast.");
 
   @Override
   public <T> T walk(Function<Stream<StackTraceElement>, T> consumer) {
@@ -17,8 +11,13 @@ public abstract class AbstractStackWalker implements StackWalker {
   }
 
   final Stream<StackTraceElement> doFilterStack(Stream<StackTraceElement> stream) {
-    return stream.filter(NOT_DD_TRACE_STACK_ELEMENT);
+    return stream.filter(AbstractStackWalker::isNotDatadogTraceStackElement);
   }
 
   abstract <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer);
+
+  private static boolean isNotDatadogTraceStackElement(final StackTraceElement el) {
+    final String clazz = el.getClassName();
+    return !clazz.startsWith("datadog.trace.") && !clazz.startsWith("com.datadog.iast.");
+  }
 }
