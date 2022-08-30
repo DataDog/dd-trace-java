@@ -89,4 +89,9 @@ public abstract class RecordingData implements ProfilingSnapshot {
   public final Kind getKind() {
     return kind;
   }
+
+  @Override
+  public final String toString() {
+    return "name=" + getName() + ", kind=" + getKind();
+  }
 }

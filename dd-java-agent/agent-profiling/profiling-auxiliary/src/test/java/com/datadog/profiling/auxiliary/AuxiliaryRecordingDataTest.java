@@ -24,8 +24,7 @@ class AuxiliaryRecordingDataTest {
     private final byte[] testData;
     volatile boolean isReleased = false;
 
-    public TestRecordingData(
-        String name, Instant start, Instant end, Kind kind, byte[] testData) {
+    public TestRecordingData(String name, Instant start, Instant end, Kind kind, byte[] testData) {
       super(start, end, kind);
       this.name = name;
       this.testData = testData;

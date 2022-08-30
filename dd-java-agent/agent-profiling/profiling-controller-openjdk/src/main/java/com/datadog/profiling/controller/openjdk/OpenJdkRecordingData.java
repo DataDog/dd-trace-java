@@ -54,11 +54,6 @@ public class OpenJdkRecordingData extends RecordingData {
     return recording.getName();
   }
 
-  @Override
-  public String toString() {
-    return "OpenJdkRecording: " + getName();
-  }
-
   // Visible for testing
   Recording getRecording() {
     return recording;

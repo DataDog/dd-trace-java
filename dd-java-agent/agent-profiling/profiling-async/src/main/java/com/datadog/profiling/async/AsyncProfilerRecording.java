@@ -44,8 +44,7 @@ final class AsyncProfilerRecording implements OngoingRecording {
 
   @Nonnull
   @Override
-  public RecordingData snapshot(
-      @Nonnull Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
+  public RecordingData snapshot(@Nonnull Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     profiler.stop(this);
     RecordingData data = new AsyncProfilerRecordingData(recordingFile, start, Instant.now(), kind);
     try {

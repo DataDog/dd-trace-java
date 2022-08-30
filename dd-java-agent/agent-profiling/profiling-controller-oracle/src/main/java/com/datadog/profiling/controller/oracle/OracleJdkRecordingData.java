@@ -61,11 +61,6 @@ public class OracleJdkRecordingData extends RecordingData {
     return name;
   }
 
-  @Override
-  public String toString() {
-    return "OracleJdkRecording: " + getName();
-  }
-
   private class JfrRecordingStream extends InputStream {
     private byte[] buf = new byte[0];
     private int count = 0;

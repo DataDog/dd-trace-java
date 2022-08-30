@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -52,6 +53,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -620,6 +622,29 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testSyncDoesNotStayBlocked() throws Exception {
+    // We need to muck around with the 'uploadTimeout' field to actually force
+    // the uploader to take the 'safety-break' route. Otherwise, the request
+    // will always fail first on socket timeouts.
+    Field fld = ProfileUploader.class.getDeclaredField("uploadTimeout");
+    fld.setAccessible(true);
+    fld.set(uploader, Duration.ofSeconds(1));
+    // ---
+
+    server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.STALL_SOCKET_AT_START));
+    final RecordingData recording = mockRecordingData();
+    uploader.upload(RECORDING_TYPE, recording, true);
+
+    // Wait longer than termination timeout
+    assertNotNull(server.takeRequest(REQUEST_TIMEOUT.getSeconds() + 1, TimeUnit.SECONDS));
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(recording).release();
+    verify(ioLogger).error(eq("Failed to upload profile to " + url), (Exception) isNull());
+  }
+
+  @Test
   public void testTimeout() throws Exception {
     server.enqueue(
         new MockResponse()
@@ -655,7 +680,7 @@ public class ProfileUploaderTest {
 
     // Wait longer than request timeout
     assertNotNull(
-        server.takeRequest(REQUEST_IO_OPERATION_TIMEOUT.getSeconds() + 2, TimeUnit.SECONDS));
+        server.takeRequest(REQUEST_IO_OPERATION_TIMEOUT.getSeconds() + 10, TimeUnit.SECONDS));
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
