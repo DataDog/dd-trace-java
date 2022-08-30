@@ -31,7 +31,7 @@ final class CachedData {
     testcontainers: '1.17.3',
     jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7",
-    asyncprofiler : "2.8.3-DD-20220829",
+    asyncprofiler : "2.8.3-DD-20220830",
     asm           : "9.2"
   ]
 
