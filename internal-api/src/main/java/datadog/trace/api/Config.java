@@ -38,6 +38,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASHING_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
@@ -85,6 +86,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_IAST_WEAK_HASHING_ALGORITHMS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
@@ -604,6 +606,8 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
 
+  private final Set<String> weakHashingAlgorithms;
+
   private final boolean telemetryEnabled;
 
   private final boolean azureAppServices;
@@ -979,6 +983,11 @@ public class Config {
             PROFILING_LEGACY_TRACING_INTEGRATION, PROFILING_LEGACY_TRACING_INTEGRATION_DEFAULT);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
+    weakHashingAlgorithms =
+        tryMakeImmutableSet(
+            configProvider.getSet(
+                APPSEC_IAST_WEAK_HASHING_ALGORITHMS, DEFAULT_IAST_WEAK_HASHING_ALGORITHMS));
+
     if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile = configProvider.getString(PROFILING_API_KEY_FILE_OLD);
       tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
@@ -1350,6 +1359,10 @@ public class Config {
 
   public boolean isTraceResolverEnabled() {
     return traceResolverEnabled;
+  }
+
+  public Set<String> getWeakHashingAlgorithms() {
+    return weakHashingAlgorithms;
   }
 
   public Map<String, String> getServiceMapping() {
