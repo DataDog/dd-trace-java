@@ -17,7 +17,12 @@ import datadog.trace.core.Base64Encoder;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -40,6 +45,14 @@ public class DefaultPathwayContext implements PathwayContext {
   private long edgeStartNanoTicks;
   private long hash;
   private boolean started;
+
+  private static final Set<String> hashableTagKeys =
+      new HashSet<String>(
+          Arrays.asList(
+              TagsProcessor.GROUP_TAG,
+              TagsProcessor.TYPE_TAG,
+              TagsProcessor.TOPIC_TAG,
+              TagsProcessor.EXCHANGE_TAG));
 
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
@@ -68,12 +81,16 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer) {
+  public void setCheckpoint(
+      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
     try {
-      List<String> edgeTags = new ArrayList<>();
+      // So far, each tag key has only one tag value, so we're initializing the capacity to match
+      // the number of tag keys for now. We should revisit this later if it's no longer the case.
+      List<String> allTags = new ArrayList<>(sortedTags.size());
+      PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
 
       if (!started) {
         pathwayStartNanos = startNanos;
@@ -83,16 +100,23 @@ public class DefaultPathwayContext implements PathwayContext {
         started = true;
         log.debug("Started {}", this);
       }
-      edgeTags.addAll(tags);
 
-      long newHash = generatePathwayHash(edgeTags, hash);
+      for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
+        String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
+        if (hashableTagKeys.contains(entry.getKey())) {
+          pathwayHashBuilder.addTag(tag);
+        }
+        allTags.add(tag);
+      }
+
+      long newHash = generatePathwayHash(pathwayHashBuilder, hash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
 
       StatsPoint point =
           new StatsPoint(
-              edgeTags,
+              allTags,
               newHash,
               hash,
               timeSource.getCurrentTimeNanos(),
@@ -291,25 +315,35 @@ public class DefaultPathwayContext implements PathwayContext {
         hash);
   }
 
-  private long generateNodeHash(List<String> edgeTags) {
-    StringBuilder builder = new StringBuilder();
-    builder.append(wellKnownTags.getService());
-    builder.append(wellKnownTags.getEnv());
+  private static class PathwayHashBuilder {
+    private StringBuilder builder;
 
-    String primaryTag = Config.get().getPrimaryTag();
-    if (primaryTag != null) {
-      builder.append(primaryTag);
+    public PathwayHashBuilder(WellKnownTags wellKnownTags) {
+      builder = new StringBuilder();
+      builder.append(wellKnownTags.getService());
+      builder.append(wellKnownTags.getEnv());
+
+      String primaryTag = Config.get().getPrimaryTag();
+      if (primaryTag != null) {
+        builder.append(primaryTag);
+      }
     }
 
-    for (String tag : edgeTags) {
+    public void addTag(String tag) {
       builder.append(tag);
     }
 
-    return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    public long generateHash() {
+      return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    }
   }
 
-  private long generatePathwayHash(List<String> edgeTags, long parentHash) {
-    long nodeHash = generateNodeHash(edgeTags);
+  private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {
+    return pathwayHashBuilder.generateHash();
+  }
+
+  private long generatePathwayHash(PathwayHashBuilder pathwayHashBuilder, long parentHash) {
+    long nodeHash = generateNodeHash(pathwayHashBuilder);
 
     lock.lock();
     try {
