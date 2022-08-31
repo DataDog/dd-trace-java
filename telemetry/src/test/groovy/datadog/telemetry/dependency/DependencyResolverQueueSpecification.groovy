@@ -11,7 +11,7 @@ class DependencyResolverQueueSpecification extends DepSpecification {
     resolverQueue.queueURI(getJar('bson-4.2.0.jar').toURI())
 
     and:
-    def dep = resolverQueue.pollDependency()
+    def dep = resolverQueue.pollDependency().get(0)
 
     then:
     assert dep != null
@@ -21,7 +21,7 @@ class DependencyResolverQueueSpecification extends DepSpecification {
     assert dep.hash == '4376590587C49AC6DA6935564233F36B092412AE'
 
     when:
-    dep = resolverQueue.pollDependency()
+    dep = resolverQueue.pollDependency().get(0)
 
     then:
     assert dep != null
@@ -31,7 +31,7 @@ class DependencyResolverQueueSpecification extends DepSpecification {
     assert dep.hash == '9A5AEC2CB852B8BD20DAF5D2CE9174891267FE27'
 
     when:
-    dep = resolverQueue.pollDependency()
+    dep = resolverQueue.pollDependency().get(0)
 
     then:
     assert dep != null
@@ -41,9 +41,9 @@ class DependencyResolverQueueSpecification extends DepSpecification {
     assert dep.hash == 'F87C3A90DA4BB1DA6D3A73CA18004545AD2EF06A'
 
     when:
-    dep = resolverQueue.pollDependency()
+    def deps = resolverQueue.pollDependency()
 
     then:
-    assert dep == null
+    assert deps.isEmpty()
   }
 }

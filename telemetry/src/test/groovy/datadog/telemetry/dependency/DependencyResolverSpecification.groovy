@@ -17,7 +17,7 @@ class DependencyResolverSpecification extends DepSpecification {
       version: version)
 
     where:
-    jar                       |  name                        | hash                                       | version
+    jar                       | name                         | hash                                       | version
     'bson4jackson-2.11.0.jar' | 'de.undercouch:bson4jackson' | '428A23E33D19DACD6E04CA7DD746206849861A95' | '2.11.0'
     'bson-4.2.0.jar'          | 'org.mongodb:bson'           | 'F87C3A90DA4BB1DA6D3A73CA18004545AD2EF06A' | '4.2.0'
   }
@@ -31,10 +31,10 @@ class DependencyResolverSpecification extends DepSpecification {
       version: version)
 
     where:
-    jar                  |  name        | hash    | version
-    'asm-util-9.2.jar'   | 'asm-util'   | '9A5AEC2CB852B8BD20DAF5D2CE9174891267FE27' | '9.2'
-    'agrona-1.7.2.jar'   | 'agrona'     | '0646535BE30190223DA51F5AACB080DC1F25FFF9' | '1.7.2'
-    'caffeine-2.8.5.jar' | 'caffeine'   | 'E4CD34260D3AF66A928E6DB1D2BB6807C6136859' | '2.8.5'
+    jar                  | name       | hash                                       | version
+    'asm-util-9.2.jar'   | 'asm-util' | '9A5AEC2CB852B8BD20DAF5D2CE9174891267FE27' | '9.2'
+    'agrona-1.7.2.jar'   | 'agrona'   | '0646535BE30190223DA51F5AACB080DC1F25FFF9' | '1.7.2'
+    'caffeine-2.8.5.jar' | 'caffeine' | 'E4CD34260D3AF66A928E6DB1D2BB6807C6136859' | '2.8.5'
   }
 
   void 'no version in file name'() {
@@ -87,8 +87,8 @@ class DependencyResolverSpecification extends DepSpecification {
     knownJarCheck(
       jarName: 'groovy-no-manifest-info.jar',
       name: 'groovy-no-manifest-info.jar',
-      expectedVersion: '',
-      expectedInfo: '1C1C8E5547A54F593B97584D45F3636F479B9498')
+      version: '',
+      hash: '1C1C8E5547A54F593B97584D45F3636F479B9498')
   }
 
   void 'guess artifact name from jar'() {
@@ -129,7 +129,7 @@ class DependencyResolverSpecification extends DepSpecification {
     File temp = File.createTempFile('temp', '.zip')
 
     expect:
-    DependencyResolver.identifyLibrary(temp) == null
+    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
 
     cleanup:
     temp.delete()
@@ -143,7 +143,7 @@ class DependencyResolverSpecification extends DepSpecification {
     String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
     URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
 
-    Dependency dep = DependencyResolver.resolve(uri)
+    Dependency dep = DependencyResolver.resolve(uri).get(0)
 
     then:
     dep != null
@@ -151,6 +151,60 @@ class DependencyResolverSpecification extends DepSpecification {
     dep.version == '0.33.0'
     dep.hash == '132630F17E198A1748F23CE33597EFDF4A807FB9'
     dep.source == 'opentracing-util-0.33.0.jar'
+  }
+
+  void 'fat jar with multiple pom.properties'() throws IOException {
+    setup:
+    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+
+    when:
+    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetapp.jar').toURI()
+
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+
+    then:
+    deps.size() == 105
+  }
+
+  void 'fat jar with two pom.properties'() throws IOException {
+    setup:
+    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+
+    when:
+    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreduced.jar').toURI()
+
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+    Dependency dep1 = deps.get(0)
+    Dependency dep2 = deps.get(1)
+
+    then:
+    deps.size() == 2
+    dep1.name == 'org.yaml:snakeyaml' || dep2.name == 'org.yaml:snakeyaml'
+  }
+
+  void 'fat jar with two pom.properties one of them bad'() throws IOException {
+    setup:
+    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
+
+    when:
+    URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreducedbadproperties.jar').toURI()
+
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+    Dependency dep1 = deps.get(0)
+
+    then:
+    deps.size() == 1
+    dep1.name == 'org.yaml:snakeyaml'
+  }
+
+  void 'known jar from filename cause bad pom.properties'() {
+    // this jar has an invalid pom.properties and it should be resolved with its file name
+    expect:
+    knownJarCheck(
+      jarName: 'invalidpomproperties.jar',
+      name: 'invalidpomproperties.jar',
+      version: '',
+      hash: '6438819DAB9C9AC18D8A6922C8A923C2ADAEA85D')
   }
 
   void 'retrieve manifest attributes'() {
@@ -161,15 +215,17 @@ class DependencyResolverSpecification extends DepSpecification {
     attributes != null
 
     attributes.getValue('implementation-title') == 'JUnit'
-    attributes.getValue('implementation-version') ==  '4.12'
+    attributes.getValue('implementation-version') == '4.12'
     attributes.getValue('implementation-vendor') == 'JUnit'
     attributes.getValue('built-by') == 'jenkins'
   }
 
   private static void knownJarCheck(Map opts) {
     File jarFile = getJar(opts['jarName'])
-    Dependency dep = DependencyResolver.identifyLibrary(jarFile)
+    List<Dependency> deps = DependencyResolver.extractDependenciesFromJar(jarFile)
 
+    assert deps.size() == 1
+    Dependency dep = deps.get(0)
     assert dep != null
     assert dep.source == opts['jarName']
     assert dep.name == opts['name']
@@ -177,7 +233,7 @@ class DependencyResolverSpecification extends DepSpecification {
     assert dep.hash == opts['hash']
   }
 
-  private static Attributes manifestAttributesFromJar(String jarName){
+  private static Attributes manifestAttributesFromJar(String jarName) {
     File jarFile = getJar(jarName)
 
     Attributes attributes = DependencyResolver.getManifestAttributes(jarFile)

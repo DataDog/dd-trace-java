@@ -5,8 +5,13 @@ import java.lang.instrument.Instrumentation;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,10 +35,12 @@ public class DependencyServiceImpl implements DependencyService, Runnable {
   }
 
   public void resolveOneDependency() {
-    Dependency dep = resolverQueue.pollDependency();
-    if (dep != null) {
-      log.info("Resolved dependency {}", dep.getName());
-      newDependencies.add(dep);
+    List<Dependency> dependencies = resolverQueue.pollDependency();
+    if (!dependencies.isEmpty()) {
+      for (Dependency dependency : dependencies) {
+        log.info("Resolved dependency {}", dependency.getName());
+        newDependencies.add(dependency);
+      }
     }
   }
 
