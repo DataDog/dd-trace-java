@@ -31,6 +31,6 @@ class WeakHashTest  extends AgentTestRunner {
     MessageDigest.getInstance("MD2")
 
     then:
-    1 * module.onHashingAlgorithm(_)
+    1 * module.onHashingAlgorithm("MD2")
   }
 }
