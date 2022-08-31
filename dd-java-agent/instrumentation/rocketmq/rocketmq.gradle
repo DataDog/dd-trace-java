@@ -1,8 +1,8 @@
 muzzle {
   pass {
-    group = "org.apache.rocketmq.client"
+    group = "org.apache.rocketmq"
     module = "rocketmq-client"
-    versions = "[4.8.0,3)"
+    versions = "[4.8.0,)"
     assertInverse = true
   }
 }
