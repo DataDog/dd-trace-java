@@ -1,66 +1,47 @@
 package datadog.trace.util.stacktrace;
 
+import static datadog.trace.util.stacktrace.StackWalkerTestUtil.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 public class DefaultStackWalkerTest {
 
-  private final DefaultStackWalker defaultStackWalker = new DefaultStackWalker();
+  private final StackWalker stackWalker = new DefaultStackWalker();
 
   @Test
   public void defaultStackWalker_must_be_enabled() {
-    assertTrue(defaultStackWalker.isEnabled());
+    assertTrue(stackWalker.isEnabled());
   }
 
   @Test
-  public void walk_retrieves_stackTraceElements() {
+  public void walk_from_non_datadog_class() {
     // When
-    List<StackTraceElement> list = defaultStackWalker.walk(StackWalkerTestUtil::toList);
+    final List<StackTraceElement> stack = getStackWalkFrom(stackWalker, NOT_DD_CLASS_NAME);
     // Then
-    assertFalse(list.isEmpty());
+    assertFalse(stack.isEmpty());
+    assertEquals(NOT_DD_CLASS_NAME, stack.get(0).getClassName());
   }
 
   @Test
-  public void get_stack_trace() {
+  public void walk_from_datadog_class() {
     // When
-    List<StackTraceElement> list = defaultStackWalker.doGetStack(StackWalkerTestUtil::toList);
+    final List<StackTraceElement> stack = getStackWalkFrom(stackWalker, DD_CLASS_NAME);
     // Then
-    assertFalse(list.isEmpty());
+    assertFalse(stack.isEmpty());
+    assertNotEquals(DD_CLASS_NAME, stack.get(0).getClassName());
   }
 
   @Test
-  public void stack_element_not_in_DD_trace_project_is_not_filtered() {
-    // when
-    Stream<StackTraceElement> stream = Stream.of(element("com.foo.Foo"));
-    Stream<StackTraceElement> filtered = defaultStackWalker.doFilterStack(stream);
+  public void walk_from_datadog_iast_class() {
+    // When
+    final List<StackTraceElement> stack = getStackWalkFrom(stackWalker, DD_IAST_CLASS_NAME);
     // Then
-    assertEquals(filtered.count(), 1);
-  }
-
-  @Test
-  public void filter_DataDog_Trace_classes_from_StackTraceElements() {
-    // when
-    Stream<StackTraceElement> stream = Stream.of(element("datadog.trace.Foo"));
-    Stream<StackTraceElement> filtered = defaultStackWalker.doFilterStack(stream);
-    // Then
-    assertEquals(filtered.count(), 0);
-  }
-
-  @Test
-  public void filter_DataDog_Iast_classes_from_StackTraceElements() {
-    // when
-    Stream<StackTraceElement> stream = Stream.of(element("com.datadog.iast.Foo"));
-    Stream<StackTraceElement> filtered = defaultStackWalker.doFilterStack(stream);
-    // Then
-    assertEquals(filtered.count(), 0);
-  }
-
-  private StackTraceElement element(final String className) {
-    return new StackTraceElement(className, "method", "fileName", 1);
+    assertFalse(stack.isEmpty());
+    assertNotEquals(DD_IAST_CLASS_NAME, stack.get(0).getClassName());
   }
 }

@@ -15,6 +15,6 @@ public class DefaultStackWalker extends AbstractStackWalker {
 
   @Override
   <T> T doGetStack(final Function<Stream<StackTraceElement>, T> consumer) {
-    return consumer.apply(Arrays.stream(Thread.currentThread().getStackTrace()));
+    return consumer.apply(Arrays.stream(new Throwable().getStackTrace()));
   }
 }
