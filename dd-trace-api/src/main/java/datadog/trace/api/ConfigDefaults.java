@@ -119,6 +119,32 @@ public final class ConfigDefaults {
 
   static final Set<String> DEFAULT_IAST_WEAK_HASHING_ALGORITHMS =
       new HashSet<>(Arrays.asList("MD2", "MD5", "RIPEMD128", "MD4"));
+  static final Set<String> DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
+      new HashSet<>(
+          Arrays.asList(
+              "DES",
+              "DESEDE",
+              "DESEDEWRAP",
+              "PBEWITHMD5ANDDES",
+              "PBEWITHMD5ANDTRIPLEDES",
+              "PBEWITHSHA1ANDDESEDE",
+              "PBEWITHSHA1ANDRC2_40",
+              "PBEWITHSHA1ANDRC2_128",
+              "PBEWITHSHA1ANDRC4_40",
+              "PBEWITHSHA1ANDRC4_128",
+              "PBEWITHHMACSHA1ANDAES_128",
+              "PBEWITHHMACSHA224ANDAES_128",
+              "PBEWITHHMACSHA256ANDAES_128",
+              "PBEWITHHMACSHA384ANDAES_128",
+              "PBEWITHHMACSHA512ANDAES_128",
+              "PBEWITHHMACSHA1ANDAES_256",
+              "PBEWITHHMACSHA224ANDAES_256",
+              "PBEWITHHMACSHA256ANDAES_256",
+              "PBEWITHHMACSHA384ANDAES_256",
+              "PBEWITHHMACSHA512ANDAES_256",
+              "RC2",
+              "BLOWFISH",
+              "ARCFOUR"));
 
   static final boolean DEFAULT_TELEMETRY_ENABLED = false;
 
