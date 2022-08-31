@@ -1,10 +1,13 @@
 package com.datadog.iast;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.TraceSegment;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -33,4 +36,18 @@ public class IastSystem {
     final EventType<Supplier<Flow<Object>>> event = Events.get().requestStarted();
     ss.registerCallback(event, () -> new Flow.ResultFlow<>(new IastRequestContext()));
   }
+
+  private static void registerRequestEndedCallback(final SubscriptionService ss) {
+    ss.registerCallback(
+        Events.get().requestEnded(),
+        (RequestContext ctx_, IGSpanInfo spanInfo) -> {
+          TraceSegment traceSeg = ctx_.getTraceSegment();
+
+          if (traceSeg != null) {
+            traceSeg.setTagTop("_dd.iast.enabled", 1);
+          }
+          return Flow.ResultFlow.empty();
+        });
+  }
 }
+
