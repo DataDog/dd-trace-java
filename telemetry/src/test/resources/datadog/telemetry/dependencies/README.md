@@ -1,4 +1,4 @@
-These are mostly original pubic libraries for which most files were removed to
+These are mostly original public libraries for which most files were removed to
 leave only the manifest.
 
 In `groovy-no-manifest-info.jar`, the manifest was also removed. `junit.zip` is

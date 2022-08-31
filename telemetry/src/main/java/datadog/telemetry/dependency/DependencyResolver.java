@@ -7,6 +7,8 @@ import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -18,8 +20,8 @@ public class DependencyResolver {
   private static final Logger log = LoggerFactory.getLogger(DependencyResolver.class);
   private static final String JAR_SUFFIX = ".jar";
 
-  public static Dependency resolve(URI uri) {
-    return identifyLibrary(uri);
+  public static List<Dependency> resolve(URI uri) {
+    return extractDependenciesFromURI(uri);
   }
 
   /**
@@ -29,14 +31,17 @@ public class DependencyResolver {
    * @return dependency, or null if unable to qualify jar
    */
   // package private for testing
-  static Dependency identifyLibrary(URI uri) {
+  static List<Dependency> extractDependenciesFromURI(URI uri) {
     String scheme = uri.getScheme();
-    Dependency dependency = null;
+    List<Dependency> dependencies = Collections.emptyList();
     try {
       if ("file".equals(scheme)) {
-        dependency = identifyLibrary(new File(uri));
+        dependencies = extractDependenciesFromJar(new File(uri));
       } else if ("jar".equals(scheme)) {
-        dependency = getNestedDependency(uri);
+        Dependency dependency = getNestedDependency(uri);
+        if (dependency != null) {
+          dependencies = Collections.singletonList(dependency);
+        }
       }
     } catch (RuntimeException rte) {
       log.warn("Failed to determine dependency for uri {}", uri, rte);
@@ -45,7 +50,7 @@ public class DependencyResolver {
     // it might however require to do somme checks to make sure it's only applied to jboss
     // and not any application server that also uses vfs:// locations
 
-    return dependency;
+    return dependencies;
   }
 
   /**
@@ -54,32 +59,33 @@ public class DependencyResolver {
    * @param jar jar dependency
    * @return detected dependency, {@code null} if unable to get dependency from jar
    */
-  static Dependency identifyLibrary(File jar) {
+  static List<Dependency> extractDependenciesFromJar(File jar) {
     if (!jar.exists()) {
       log.warn("unable to find dependency {}", jar);
-      return null;
+      return Collections.emptyList();
     } else if (!jar.getName().endsWith(JAR_SUFFIX)) {
       log.debug("unsupported file dependency type : {}", jar);
-      return null;
+      return Collections.emptyList();
     }
 
-    Dependency dependency = null;
+    List<Dependency> dependencies = Collections.emptyList();
     try (JarFile file = new JarFile(jar, false /* no verify */);
         InputStream is = Files.newInputStream(jar.toPath())) {
 
       // Try to get from maven properties
-      dependency = Dependency.fromMavenPom(file);
+      dependencies = Dependency.fromMavenPom(file);
 
       // Try to guess from manifest or file name
-      if (dependency == null) {
+      if (dependencies.isEmpty()) {
         Manifest manifest = file.getManifest();
-        dependency = Dependency.guessFallbackNoPom(manifest, jar.getName(), is);
+        dependencies =
+            Collections.singletonList(Dependency.guessFallbackNoPom(manifest, jar.getName(), is));
       }
     } catch (IOException e) {
       log.debug("unable to read jar file {}", jar, e);
     }
 
-    return dependency;
+    return dependencies;
   }
 
   /* for jar urls as handled by spring boot */

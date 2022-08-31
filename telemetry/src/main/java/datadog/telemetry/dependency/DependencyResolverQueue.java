@@ -1,7 +1,9 @@
 package datadog.telemetry.dependency;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -16,8 +18,8 @@ public class DependencyResolverQueue {
   private final Set<URI> processedUrlsSet; // guarded by this
 
   public DependencyResolverQueue() {
-    this.newUrlsQueue = new ConcurrentLinkedQueue<>();
-    this.processedUrlsSet = new HashSet<>();
+    newUrlsQueue = new ConcurrentLinkedQueue<>();
+    processedUrlsSet = new HashSet<>();
   }
 
   public void queueURI(URI uri) {
@@ -41,22 +43,22 @@ public class DependencyResolverQueue {
     newUrlsQueue.add(uri);
   }
 
-  public Dependency pollDependency() {
+  public List<Dependency> pollDependency() {
     URI uri = newUrlsQueue.poll();
 
     // no new deps
     if (uri == null) {
-      return null;
+      return Collections.emptyList();
     }
 
-    Dependency dep = DependencyResolver.resolve(uri);
-    if (dep == null) {
+    List<Dependency> dep = DependencyResolver.resolve(uri);
+    if (dep.isEmpty()) {
       if ("jrt".equals(uri.getScheme()) || "x-internal-jar".equals(uri.getScheme())) {
         log.debug("unable to detect dependency for URI {}", uri);
       } else {
         log.warn("unable to detect dependency for URI {}", uri);
       }
-      return null;
+      return Collections.emptyList();
     }
     if (log.isDebugEnabled()) {
       log.debug("dependency detected {} for {}", dep, uri);
