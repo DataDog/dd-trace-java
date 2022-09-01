@@ -32,10 +32,10 @@ class RequestBuilderSpecification extends DDSpecification {
     when:
     AppStarted payload = new AppStarted(
       requestType: RequestType.APP_STARTED,
-      _configuration: [new KeyValue(name: 'name', value: 'value')],
+      configuration: [new KeyValue(name: 'name', value: 'value')],
       dependencies: [
         new Dependency(
-        hash: 'hash', name: 'name', type: DependencyType.SHAREDSYSTEMLIBRARY, version: '1.2.3')
+        hash: 'hash', name: 'name', type: DependencyType.SHARED_SYSTEM_LIBRARY, version: '1.2.3')
       ]
       )
     req = reqBuilder.build(RequestType.APP_STARTED, payload)

@@ -20,7 +20,7 @@ public class DependencyPeriodicAction implements TelemetryRunnable.TelemetryPeri
       telDep.setHash(dep.getHash());
       telDep.setName(dep.getName());
       telDep.setVersion(dep.getVersion());
-      telDep.setType(DependencyType.PLATFORMSTANDARD);
+      telDep.setType(DependencyType.PLATFORM_STANDARD);
       telService.addDependency(telDep);
     }
   }
