@@ -70,7 +70,6 @@ jobs:
     env:
       TEST_LIBRARY: java
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
-      LIBRARY_INJECTION_ENABLED: ${{ matrix.lib-injection-enabled }}
       LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
       LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-admission-controller }}
       LIBRARY_INJECTION_INIT_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:${{ github.sha }}
@@ -89,10 +88,10 @@ jobs:
           path: 'binaries/dd-trace-java'
 
       - name: Build
-        run: ./build.sh
+        run: ./lib-injection/build.sh
 
       - name: Run
-        run: ./run.sh
+        run: ./lib-injection/run.sh
 
       - name: Compress artifact
         if: ${{ always() }}
