@@ -16,9 +16,10 @@ class IastSystemTest extends DDSpecification {
     final ig = new InstrumentationGateway()
     final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
     final cbp = ig.getCallbackProvider(RequestContextSlot.IAST)
-    final traceSegment= Mock(TraceSegment)
-    final reqCtx = Mock(RequestContext)
-    reqCtx.getTraceSegment() >> traceSegment
+    final traceSegment = Mock(TraceSegment)
+    final RequestContext reqCtx = Stub(RequestContext) {
+      getTraceSegment() >> traceSegment
+    }
     final igSpanInfo = Mock(IGSpanInfo)
 
 
@@ -28,6 +29,7 @@ class IastSystemTest extends DDSpecification {
     then:
     1 * ss.registerCallback(Events.get().requestStarted(), _)
     1 * ss.registerCallback(Events.get().requestEnded(), _)
+    0 * _
 
     when:
     final startCallback = cbp.getCallback(Events.get().requestStarted())
@@ -36,6 +38,7 @@ class IastSystemTest extends DDSpecification {
     then:
     startCallback != null
     endCallback != null
+    0 * _
 
     when:
     startCallback.get()
@@ -43,7 +46,6 @@ class IastSystemTest extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
-    _ * reqCtx._
     0 * _
     noExceptionThrown()
   }
