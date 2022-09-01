@@ -12,7 +12,7 @@ import datadog.trace.util.stacktrace.StackWalkerFactory;
 public class IastModuleImpl implements IastModule {
   public void onCipherAlgorithm(String algorithm) {
     if (null != algorithm
-        && Config.get().getWeakCipherAlgorithms().contains(algorithm.toUpperCase())) {
+        && Config.get().getIastWeakCipherAlgorithms().contains(algorithm.toUpperCase())) {
       // get StackTraceElement for the callee of MessageDigest
       StackTraceElement stackTraceElement =
           StackWalkerFactory.INSTANCE.walk(
@@ -33,7 +33,7 @@ public class IastModuleImpl implements IastModule {
 
   public void onHashingAlgorithm(String algorithm) {
     if (null != algorithm
-        && Config.get().getWeakHashingAlgorithms().contains(algorithm.toUpperCase())) {
+        && Config.get().getIastWeakHashAlgorithms().contains(algorithm.toUpperCase())) {
       // get StackTraceElement for the callee of MessageDigest
       StackTraceElement stackTraceElement =
           StackWalkerFactory.INSTANCE.walk(
