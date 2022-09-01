@@ -1,7 +1,12 @@
 package com.datadog.iast
 
 import datadog.trace.api.TraceSegment
-import datadog.trace.api.gateway.*
+import datadog.trace.api.gateway.InstrumentationGateway
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.IGSpanInfo
+import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.test.util.DDSpecification
 
 class IastSystemTest extends DDSpecification {
@@ -11,7 +16,7 @@ class IastSystemTest extends DDSpecification {
     final ig = new InstrumentationGateway()
     final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
     final cbp = ig.getCallbackProvider(RequestContextSlot.IAST)
-    final traceSegment =Mock(TraceSegment)
+    final traceSegment= Mock(TraceSegment)
     final reqCtx = Mock(RequestContext)
     reqCtx.getTraceSegment() >> traceSegment
     final igSpanInfo = Mock(IGSpanInfo)
@@ -38,6 +43,8 @@ class IastSystemTest extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
+    _ * reqCtx._
+    0 * _
     noExceptionThrown()
   }
 
@@ -52,14 +59,5 @@ class IastSystemTest extends DDSpecification {
 
     then:
     0 * _
-  }
-
-  void 'NoopFlow code coverage'(){
-    when:
-    NoopFlow.INSTANCE.getAction()
-    NoopFlow.INSTANCE.getResult()
-
-    then:
-    noExceptionThrown()
   }
 }
