@@ -466,12 +466,13 @@ class PortForwarder:
     """
     Tries to forward via SSH the port that is booked by the local socket
     """
-    if self._is_forwarding() or not self.socket:
+    if self._is_forwarding():
       return
 
     if self._is_remote_port_listening():
-      self.socket.close()
-      self.socket = None
+      if self.socket:
+        self.socket.close()
+        self.socket = None
       try:
         self.process = self._forward_port()
         logging.info('SSH_FORWARD %s -> %s established', self.remote_port, self.local_port)
@@ -496,7 +497,8 @@ class PortForwarder:
   def _forward_port(self):
     process = subprocess.Popen(
       [
-        'ssh',
+        'autossh',
+        '-M', '0',
         '-gNC',
         '-o', 'ExitOnForwardFailure=yes',
         '-o', 'ServerAliveInterval=10',
