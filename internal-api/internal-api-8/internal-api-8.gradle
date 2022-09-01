@@ -25,7 +25,10 @@ minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += ["datadog.trace.api.sampling.ConstantSampler"]
 
-excludedClassesBranchCoverage = ['datadog.trace.util.stacktrace.HotSpotStackWalker']
+excludedClassesBranchCoverage = [
+  'datadog.trace.util.stacktrace.HotSpotStackWalker',
+  'datadog.trace.util.stacktrace.StackWalkerFactory'
+]
 
 excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
 
