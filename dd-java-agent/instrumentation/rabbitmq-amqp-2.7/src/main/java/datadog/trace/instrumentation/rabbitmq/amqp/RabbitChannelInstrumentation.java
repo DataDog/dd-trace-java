@@ -9,6 +9,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.EXCHANGE_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.HAS_ROUTING_KEY_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.AMQP_COMMAND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
@@ -38,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -67,7 +71,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer"
+      packageName + ".TracedDelegatingConsumer",
     };
   }
 
@@ -181,7 +185,12 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         propagate().inject(span, headers, SETTER);
-        propagate().injectPathwayContext(span, headers, SETTER);
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(EXCHANGE_TAG, exchange);
+        sortedTags.put(
+            HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.equals("") ? "false" : "true");
+        sortedTags.put(TYPE_TAG, "internal");
+        propagate().injectPathwayContext(span, headers, SETTER, sortedTags);
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

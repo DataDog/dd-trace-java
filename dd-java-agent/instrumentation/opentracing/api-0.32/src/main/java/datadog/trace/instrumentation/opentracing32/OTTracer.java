@@ -53,7 +53,7 @@ public class OTTracer implements Tracer {
 
   @Override
   public SpanBuilder buildSpan(final String operationName) {
-    return new OTSpanBuilder(tracer.buildSpan(operationName), converter);
+    return new OTSpanBuilder(tracer.buildSpan(operationName));
   }
 
   @Override
@@ -87,11 +87,9 @@ public class OTTracer implements Tracer {
 
   public class OTSpanBuilder implements Tracer.SpanBuilder {
     private final AgentTracer.SpanBuilder delegate;
-    private final TypeConverter converter;
 
-    public OTSpanBuilder(final AgentTracer.SpanBuilder delegate, final TypeConverter converter) {
+    public OTSpanBuilder(final AgentTracer.SpanBuilder delegate) {
       this.delegate = delegate;
-      this.converter = converter;
     }
 
     @Override

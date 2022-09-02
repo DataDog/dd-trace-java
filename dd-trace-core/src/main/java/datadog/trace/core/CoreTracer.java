@@ -69,7 +69,6 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -765,9 +764,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter) {
+  public <C> void injectBinaryPathwayContext(
+      AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsCheckpointer);
 
     try {
       byte[] encodedContext = span.context().getPathwayContext().encode();
@@ -782,9 +782,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter) {
+  public <C> void injectPathwayContext(
+      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
-    pathwayContext.setCheckpoint(Arrays.asList("type:internal"), dataStreamsCheckpointer);
+    pathwayContext.setCheckpoint(sortedTags, dataStreamsCheckpointer);
     try {
       String encodedContext = pathwayContext.strEncode();
       if (encodedContext != null) {
@@ -828,8 +829,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void setDataStreamCheckpoint(AgentSpan span, List<String> tags) {
-    span.context().getPathwayContext().setCheckpoint(tags, dataStreamsCheckpointer);
+  public void setDataStreamCheckpoint(AgentSpan span, LinkedHashMap<String, String> sortedTags) {
+    span.context().getPathwayContext().setCheckpoint(sortedTags, dataStreamsCheckpointer);
   }
 
   @Override

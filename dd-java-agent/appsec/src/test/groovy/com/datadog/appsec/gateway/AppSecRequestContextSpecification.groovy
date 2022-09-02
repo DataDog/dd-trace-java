@@ -164,7 +164,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
   private Additive createAdditive() {
     Powerwaf.initialize false
     def service = new StubAppSecConfigService()
-    service.init false
+    service.init()
     AppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
     PowerwafContext context = Powerwaf.createContext(uniqueId, config.rawConfig)

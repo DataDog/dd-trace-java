@@ -17,9 +17,9 @@ configurations {
 }
 
 /*
- * 6 shadow jars are created
+ * 7 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
- * - 4 jars based on projects (instrumentation, jmxfetch, profiling, appsec)
+ * - 5 jars based on projects (instrumentation, jmxfetch, profiling, appsec, iast)
  * - 1 based on the shared dependencies
  * This general config is shared by all of them
  */
@@ -85,6 +85,7 @@ includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
+includeSubprojShadowJar ':dd-java-agent:iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
@@ -187,6 +188,9 @@ dependencies {
     transitive = false
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
+  }
+  sharedShadowInclude project(':remote-config'), {
+    transitive = false
   }
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false

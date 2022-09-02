@@ -34,12 +34,7 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
   }
 
   private static final ThreadLocal<ArrayDeque<Context>> contextsThreadLocal =
-      new ThreadLocal<ArrayDeque<Context>>() {
-        @Override
-        protected ArrayDeque<Context> initialValue() {
-          return new ArrayDeque<Context>();
-        }
-      };
+      ThreadLocal.withInitial(() -> new ArrayDeque<>());
 
   private final long spanId;
   private final long rootSpanId;
@@ -50,8 +45,6 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
         span != null
             ? span.getLocalRootSpan() != null ? span.getLocalRootSpan().getSpanId().toLong() : -1
             : -1;
-
-    activateAsyncProfilerContext();
   }
 
   @Override
@@ -66,7 +59,7 @@ public final class AsyncProfilerTracingContextTracker implements TracingContextT
 
   @Override
   public void maybeDeactivateContext() {
-    deactivateAsyncProfilerContext();
+    // safe to ignore
   }
 
   private void activateAsyncProfilerContext() {

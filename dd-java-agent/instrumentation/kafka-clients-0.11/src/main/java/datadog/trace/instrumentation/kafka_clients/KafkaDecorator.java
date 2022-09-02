@@ -20,17 +20,14 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends MessagingClientDecorator {
-
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
   public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
   public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create("kafka.produce");
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
-
   public static final boolean KAFKA_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(true, "kafka");
 
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
-
   private final String spanKind;
   private final CharSequence spanType;
   private final String serviceName;

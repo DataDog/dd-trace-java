@@ -62,7 +62,7 @@ public class TransformerDefinitionMatcher {
         continue;
       }
       List<ProbeDefinition> definitionByFileName =
-          resultMap.computeIfAbsent(fileName, key -> new ArrayList<>());
+          resultMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>());
       definitionByFileName.add(definition);
     }
     return resultMap;
@@ -148,10 +148,10 @@ public class TransformerDefinitionMatcher {
     if (sourceFileName == null) {
       return Collections.emptyList();
     }
-    String reversedSourceFileName = reverseStr(sourceFileName);
+    String reversedSourceFileName = reverseStr("/" + sourceFileName);
     StringBuilder sb = new StringBuilder(reversedSourceFileName);
     if (hasPackageName) {
-      sb.append('/').append(reversedPackageName);
+      sb.append(reversedPackageName);
     }
     String reversedFileName = sb.toString();
     String fullFileName = reverseStr(definitionFileNames.getStringStartingWith(reversedFileName));

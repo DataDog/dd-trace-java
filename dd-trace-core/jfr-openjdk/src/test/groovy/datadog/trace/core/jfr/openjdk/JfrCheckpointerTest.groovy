@@ -21,11 +21,11 @@ class JfrCheckpointerTest extends DDSpecification {
     AgentSpan span = mockSpan(checkpointed)
 
     when:
-    checkpointer.checkpoint(span, 0)
+    checkpointer.checkpoint(span, 2)
     then:
     setEmitting * span.setEmittingCheckpoints(true)
     setDropping * span.setEmittingCheckpoints(false)
-    checkpoints * checkpointer.emitCheckpoint(span, 0)
+    checkpoints * checkpointer.emitCheckpoint(span, 2)
     (1 - checkpoints) * checkpointer.dropCheckpoint()
 
     where:
@@ -56,11 +56,11 @@ class JfrCheckpointerTest extends DDSpecification {
     when:
     // generate more checkpoints than the hard limit
     for (int i = 0; i < 10; i++) {
-      checkpointer.checkpoint(span, 0)
+      checkpointer.checkpoint(span, 2)
     }
 
     then:
-    5 * checkpointer.emitCheckpoint(span, 0)
+    5 * checkpointer.emitCheckpoint(span, 2)
     5 * checkpointer.dropCheckpoint()
   }
 

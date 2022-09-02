@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -25,14 +26,24 @@ public class ProbeStatus {
 
   private final String service;
   private final String message;
+  private final long timestamp;
 
   @Json(name = "debugger")
   private final Diagnostics diagnostics;
 
   public ProbeStatus(String service, String message, Diagnostics diagnostics) {
+    this(service, message, diagnostics, System.currentTimeMillis());
+  }
+
+  public ProbeStatus(String service, String message, Diagnostics diagnostics, long timestamp) {
     this.service = service;
     this.message = message;
     this.diagnostics = diagnostics;
+    this.timestamp = timestamp;
+  }
+
+  public ProbeStatus withNewTimestamp(Instant now) {
+    return new ProbeStatus(service, message, diagnostics, now.toEpochMilli());
   }
 
   public String getDdSource() {
@@ -47,6 +58,10 @@ public class ProbeStatus {
     return message;
   }
 
+  public long getTimestamp() {
+    return timestamp;
+  }
+
   public Diagnostics getDiagnostics() {
     return diagnostics;
   }
@@ -57,10 +72,10 @@ public class ProbeStatus {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ProbeStatus that = (ProbeStatus) o;
-    return ddSource.equals(that.ddSource)
-        && service.equals(that.service)
-        && message.equals(that.message)
-        && diagnostics.equals(that.diagnostics);
+    return Objects.equals(ddSource, that.ddSource)
+        && Objects.equals(service, that.service)
+        && Objects.equals(message, that.message)
+        && Objects.equals(diagnostics, that.diagnostics);
   }
 
   @Generated

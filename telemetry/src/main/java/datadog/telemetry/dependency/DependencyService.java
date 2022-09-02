@@ -4,7 +4,9 @@ import java.net.URL;
 import java.util.Collection;
 
 public interface DependencyService {
-  Collection<Dependency> determineNewDependencies();
+  Collection<Dependency> drainDeterminedDependencies();
 
   void addURL(URL uri);
+
+  void stop();
 }

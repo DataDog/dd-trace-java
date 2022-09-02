@@ -109,7 +109,8 @@ public final class ProfilingSystem {
       throw new ConfigurationException("Upload period must be positive.");
     }
 
-    // Note: is is important to not keep reference to the threadLocalRandom beyond the constructor
+    // Note: it is important to not keep reference to the threadLocalRandom beyond the
+    // constructor
     // since it is expected to be thread local.
     startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
   }
@@ -139,7 +140,6 @@ public final class ProfilingSystem {
   private void startProfilingRecording() {
     try {
       final Instant now = Instant.now();
-      log.debug("Initiating profiling recording");
       recording = controller.createRecording(RECORDING_NAME);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,

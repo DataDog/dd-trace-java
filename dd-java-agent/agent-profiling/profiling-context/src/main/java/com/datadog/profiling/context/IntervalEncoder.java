@@ -287,7 +287,8 @@ final class IntervalEncoder {
                 + leb128Support.varintSize(freqMultiplier));
     this.dataChunkBuffer = ByteBuffer.allocate(maxDataSize * 8 + 4);
     this.groupVarintMapBuffer =
-        ByteBuffer.allocate(leb128Support.align((int) (Math.ceil(maxDataSize / 8d) * 3), 4));
+        ByteBuffer.allocate(
+            leb128Support.align((((maxDataSize / 8) + (maxDataSize % 8 == 0 ? 0 : 1)) * 3), 4));
 
     prologueBuffer.put((byte) 0); // pre-allocated space for the truncated flag
     prologueBuffer.putInt(0); // pre-allocate space for the datachunk offset

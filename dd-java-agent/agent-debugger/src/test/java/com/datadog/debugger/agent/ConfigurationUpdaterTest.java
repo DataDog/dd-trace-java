@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -59,7 +58,10 @@ public class ConfigurationUpdaterTest {
 
   @BeforeEach
   void setUp() {
+    lenient().when(tracerConfig.getServiceName()).thenReturn(SERVICE_NAME);
     lenient().when(tracerConfig.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost");
+    lenient().when(tracerConfig.getDebuggerUploadBatchSize()).thenReturn(100);
+
     debuggerSinkWithMockStatusSink = new DebuggerSink(tracerConfig, probeStatusSink);
   }
 
@@ -67,7 +69,7 @@ public class ConfigurationUpdaterTest {
   public void acceptNoProbes() {
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(inst, this::createTransformer, tracerConfig, debuggerSink);
-    assertFalse(configurationUpdater.accept(null));
+    assertTrue(configurationUpdater.accept(null));
     verify(inst, never()).addTransformer(any(), eq(true));
     verifyNoInteractions(debuggerSink);
   }
@@ -455,11 +457,24 @@ public class ConfigurationUpdaterTest {
             SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
     assertTrue(configurationUpdater.accept(createApp(snapshotProbes)));
     verify(probeStatusSink).addReceived(eq(PROBE_ID));
-    assertFalse(configurationUpdater.accept(null));
+    assertTrue(configurationUpdater.accept(null));
     verify(probeStatusSink).removeDiagnostics(eq(PROBE_ID));
     verify(inst).removeTransformer(any());
     verify(inst, times(2)).retransformClasses(any());
     Assertions.assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
+  }
+
+  @Test
+  public void rejectConfigurationsFromOtherServices() {
+    ConfigurationUpdater configurationUpdater =
+        new ConfigurationUpdater(inst, this::createTransformer, tracerConfig, debuggerSink);
+    List<SnapshotProbe> snapshotProbes =
+        Collections.singletonList(
+            SnapshotProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build());
+    assertTrue(
+        configurationUpdater.accept(createAppWithSeriveName("other-service", snapshotProbes)));
+    verify(inst, never()).addTransformer(any(), eq(true));
+    verifyNoInteractions(debuggerSink);
   }
 
   @Test
@@ -608,7 +623,7 @@ public class ConfigurationUpdaterTest {
         Collections.singletonList(
             MetricProbe.builder().metricId(METRIC_ID).where("java.lang.String", "concat").build());
     assertTrue(configurationUpdater.accept(createAppMetrics(metricProbes)));
-    assertFalse(configurationUpdater.accept(null));
+    assertTrue(configurationUpdater.accept(null));
     verify(inst).removeTransformer(any());
     verify(inst, times(2)).retransformClasses(any());
     assertEquals(0, configurationUpdater.getAppliedDefinitions().size());
@@ -666,6 +681,11 @@ public class ConfigurationUpdaterTest {
 
   private static Configuration createAppMetrics(List<MetricProbe> metricProbes) {
     return new Configuration(SERVICE_NAME, ORG_ID, null, metricProbes);
+  }
+
+  private static Configuration createAppWithSeriveName(
+      String serviceName, List<SnapshotProbe> snapshotProbes) {
+    return new Configuration(serviceName, ORG_ID, snapshotProbes);
   }
 
   private DebuggerTransformer createTransformer(

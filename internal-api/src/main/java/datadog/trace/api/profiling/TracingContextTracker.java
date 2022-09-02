@@ -64,6 +64,11 @@ public interface TracingContextTracker {
         public DelayedTracker asDelayed() {
           return DelayedTracker.EMPTY;
         }
+
+        @Override
+        public String toString() {
+          return "Empty context tracker";
+        }
       };
 
   /**

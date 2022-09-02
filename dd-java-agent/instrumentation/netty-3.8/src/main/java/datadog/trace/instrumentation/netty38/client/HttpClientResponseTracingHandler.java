@@ -55,8 +55,6 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
       scope.setAsyncPropagation(true);
       ctx.sendUpstream(msg);
     }
-    // close the interval of active work for the recently activated parent span
-    parent.finishWork();
   }
 
   @Override

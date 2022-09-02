@@ -22,15 +22,10 @@ public final class ProfilingConfig {
   public static final String PROFILING_API_KEY_VERY_OLD = "profiling.apikey";
   @Deprecated // Use dd.api-key-file instead
   public static final String PROFILING_API_KEY_FILE_VERY_OLD = "profiling.apikey.file";
-  public static final String PROFILING_TEMPLATE = "profiling.template";
-  public static final String PROFILING_TEMPLATE_DEFAULT = "default";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
   public static final int PROFILING_START_DELAY_DEFAULT = 10;
-  // DANGEROUS! May lead on sigsegv on JVMs before 14
-  // Not intended for production use
-  public static final String PROFILING_START_FORCE_FIRST =
-      "profiling.experimental.start-force-first";
+  public static final String PROFILING_START_FORCE_FIRST = "profiling.start-force-first";
   public static final boolean PROFILING_START_FORCE_FIRST_DEFAULT = false;
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
   public static final int PROFILING_UPLOAD_PERIOD_DEFAULT = 60;
@@ -88,10 +83,6 @@ public final class ProfilingConfig {
   public static final String PROFILING_ASYNC_MEMLEAK_INTERVAL = "profiling.async.memleak.interval";
   public static final String PROFILING_ASYNC_MEMLEAK_CAPACITY = "profiling.async.memleak.capacity";
   public static final int PROFILING_ASYNC_MEMLEAK_CAPACITY_DEFAULT = 1024;
-  public static final String PROFILING_ASYNC_TRACING_CONTEXT_ENABLED =
-      "profiling.async.tracing_context.enabled";
-  public static final boolean PROFILING_ASYNC_TRACING_CONTEXT_ENABLED_DEFAULT = false;
-
   public static final String PROFILING_TRACING_CONTEXT_ENABLED =
       "profiling.tracing_context.enabled";
   public static final boolean PROFILING_TRACING_CONTEXT_ENABLED_DEFAULT = false;
@@ -117,6 +108,10 @@ public final class ProfilingConfig {
 
   public static final int PROFILING_TRACING_CONTEXT_SPAN_INACTIVITY_CHECK_DEFAULT =
       5_000; // 5 secs default
+
+  public static final String PROFILING_TRACING_CONTEXT_MAX_SPANS =
+      "profiling.tracing_context.inflight_spans.max";
+  public static final int PROFILING_TRACING_CONTEXT_MAX_SPANS_DEFAULT = 1_000_000;
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";

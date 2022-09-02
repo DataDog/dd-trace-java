@@ -42,21 +42,25 @@ public class DebuggerSinkTest {
   private static final Snapshot SNAPSHOT =
       new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
   public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
-  private static final String EXPECTED_SNAPSHOT_TAGS =
-      "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?~[0-9a-f]+,agent_version:null,host_name:"
-          + Config.getHostName()
-          + "$";
 
   @Mock private Config config;
   @Mock private BatchUploader batchUploader;
   @Captor private ArgumentCaptor<byte[]> payloadCaptor;
 
+  private String EXPECTED_SNAPSHOT_TAGS;
+
   @BeforeEach
   void setUp() {
+    when(config.getHostName()).thenReturn("host-name");
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
     when(config.getDebuggerUploadBatchSize()).thenReturn(1);
+
+    EXPECTED_SNAPSHOT_TAGS =
+        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?~[0-9a-f]+,agent_version:null,host_name:"
+            + config.getHostName()
+            + "$";
   }
 
   @Test
@@ -170,7 +174,7 @@ public class DebuggerSinkTest {
   public void splitDiagnosticsBatch() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    StringBuilder largeMessageBuilder = new StringBuilder();
+    StringBuilder largeMessageBuilder = new StringBuilder(100_001);
     for (int i = 0; i < 100_000; i++) {
       largeMessageBuilder.append("f");
     }
@@ -189,7 +193,7 @@ public class DebuggerSinkTest {
   public void tooLargeDiagnostic() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    StringBuilder tooLargeMessageBuilder = new StringBuilder();
+    StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
     for (int i = 0; i < MAX_PAYLOAD; i++) {
       tooLargeMessageBuilder.append("f");
     }
@@ -203,8 +207,8 @@ public class DebuggerSinkTest {
   public void tooLargeUTF8Diagnostic() {
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
-    StringBuilder tooLargeMessageBuilder = new StringBuilder();
-    for (int i = 0; i < MAX_PAYLOAD / 2; i++) {
+    StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 4);
+    for (int i = 0; i < MAX_PAYLOAD; i += 4) {
       tooLargeMessageBuilder.append("\uD80C\uDCF0"); // 4 bytes
     }
     String tooLargeMessage = tooLargeMessageBuilder.toString();

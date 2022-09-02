@@ -6,10 +6,9 @@ import java.util.stream.Collectors
 
 class JDK9StackWalkerTest extends DDSpecification {
 
-  def 'stack walker enabled'() {
-    given:
-    final walker = new JDK9StackWalker()
+  final walker = new JDK9StackWalker()
 
+  def 'stack walker enabled'() {
     when:
     final enabled = walker.isEnabled()
 
@@ -18,11 +17,8 @@ class JDK9StackWalkerTest extends DDSpecification {
   }
 
   def 'walk retrieves stackTraceElements'() {
-    given:
-    final walker = new JDK9StackWalker()
-
     when:
-    final stream = walker.walk { it.collect() }
+    final stream = getStackTrace()
 
     then:
     !stream.empty
@@ -30,13 +26,14 @@ class JDK9StackWalkerTest extends DDSpecification {
 
 
   def 'walk retrieves no datadog stack elements'() {
-    given:
-    final walker = new JDK9StackWalker()
-
     when:
-    final stream = walker.walk { it.collect(Collectors.toList()) }
+    final stream = getStackTrace()
 
     then:
     stream.findAll { it.className.startsWith('datadog') } == []
+  }
+
+  List<StackTraceElement> getStackTrace() {
+    walker.walk { it.collect(Collectors.toList()) }
   }
 }

@@ -270,7 +270,9 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    0 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    // this should be 2 invocations but the last invocation happens outside of Spock tracking ¯\_(ツ)_/¯
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     where:

@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.PropagationStyle;
+import java.util.LinkedHashMap;
 
 public interface AgentPropagation {
 
@@ -12,9 +13,13 @@ public interface AgentPropagation {
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style);
 
-  <C> void injectBinaryPathwayContext(AgentSpan span, C carrier, BinarySetter<C> setter);
+  // The input tags should be sorted.
+  <C> void injectBinaryPathwayContext(
+      AgentSpan span, C carrier, BinarySetter<C> setter, LinkedHashMap<String, String> sortedTags);
 
-  <C> void injectPathwayContext(AgentSpan span, C carrier, Setter<C> setter);
+  // The input tags should be sorted.
+  <C> void injectPathwayContext(
+      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);

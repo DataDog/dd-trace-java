@@ -5,6 +5,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
@@ -19,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
@@ -43,7 +47,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".KafkaProducerCallback",
+      packageName + ".KafkaProducerCallback"
     };
   }
 
@@ -86,9 +90,15 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        if (record.partition() != null) {
+          sortedTags.put(PARTITION_TAG, record.partition().toString());
+        }
+        sortedTags.put(TOPIC_TAG, record.topic());
+        sortedTags.put(TYPE_TAG, "internal");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER);
+          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
           record =
@@ -101,7 +111,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER);
+          propagate().injectBinaryPathwayContext(span, record.headers(), SETTER, sortedTags);
         }
         if (!KAFKA_LEGACY_TRACING) {
           SETTER.injectTimeInQueue(record.headers());

@@ -9,7 +9,10 @@ import java.math.BigInteger;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Properties;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -86,11 +89,11 @@ public final class Dependency {
         + '}';
   }
 
-  public static Dependency fromMavenPom(JarFile jar) {
+  public static List<Dependency> fromMavenPom(JarFile jar) {
     if (jar == null) {
-      return null;
+      return Collections.emptyList();
     }
-
+    List<Dependency> dependencies = new ArrayList<>(1);
     Enumeration<JarEntry> entries = jar.entries();
     while (entries.hasMoreElements()) {
       JarEntry jarEntry = entries.nextElement();
@@ -98,7 +101,7 @@ public final class Dependency {
       if (filename.endsWith("pom.properties")) {
         try (InputStream is = jar.getInputStream(jarEntry)) {
           if (is == null) {
-            return null;
+            return Collections.emptyList();
           }
           Properties properties = new Properties();
           properties.load(is);
@@ -110,21 +113,22 @@ public final class Dependency {
           if (groupId == null || artifactId == null || version == null) {
             log.debug(
                 "'pom.properties' does not have all the required properties: "
-                    + "jar={} groupId={}, artifactId={}, version={}",
+                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
                 jar.getName(),
+                jarEntry.getName(),
                 groupId,
                 artifactId,
                 version);
-            return null;
+          } else {
+            dependencies.add(new Dependency(name, version, (new File(jar.getName())).getName()));
           }
-          return new Dependency(name, version, (new File(jar.getName())).getName());
         } catch (IOException e) {
           log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
-          return null;
+          return Collections.emptyList();
         }
       }
     }
-    return null;
+    return dependencies;
   }
 
   public static synchronized Dependency guessFallbackNoPom(
@@ -132,7 +136,7 @@ public final class Dependency {
     String artifactId;
     String groupId = null;
     String version;
-    String hash = null;
+    String hash;
 
     // Guess from manifest
     String bundleSymbolicName = null;
@@ -194,19 +198,6 @@ public final class Dependency {
     } else if (equalsNonNull(bundleVersion, fileNameVersion)) {
       version = fileNameVersion;
     } else {
-      // No reliable version calculate hash and use any version
-      MessageDigest md;
-      try {
-        md = MessageDigest.getInstance("SHA-1");
-      } catch (NoSuchAlgorithmException e) {
-        // should not happen
-        throw new UndeclaredThrowableException(e);
-      }
-      is = new DigestInputStream(is, md);
-      while (is.read(buf, 0, buf.length) > 0) {}
-
-      hash = String.format("%040X", new BigInteger(1, md.digest()));
-
       artifactId = source;
 
       if (implementationVersion != null) {
@@ -227,6 +218,19 @@ public final class Dependency {
       // no group resolved. use only artifactId
       name = artifactId;
     }
+
+    // Compute hash for all dependencies that has no pom
+    // No reliable version calculate hash and use any version
+    MessageDigest md;
+    try {
+      md = MessageDigest.getInstance("SHA-1");
+    } catch (NoSuchAlgorithmException e) {
+      // should not happen
+      throw new UndeclaredThrowableException(e);
+    }
+    is = new DigestInputStream(is, md);
+    while (is.read(buf, 0, buf.length) > 0) {}
+    hash = String.format("%040X", new BigInteger(1, md.digest()));
 
     return new Dependency(name, version, source, hash);
   }

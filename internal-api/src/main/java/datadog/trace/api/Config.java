@@ -38,6 +38,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
@@ -50,6 +52,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -96,7 +101,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
-import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_URL;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
@@ -145,6 +149,8 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
+import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
@@ -196,6 +202,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_CLIENT_ERROR_STATUSES;
@@ -370,6 +380,7 @@ public class Config {
    */
   private final String site;
 
+  private final String hostName;
   private final String serviceName;
   private final boolean serviceNameSetByUser;
   private final String rootContextServiceName;
@@ -495,7 +506,6 @@ public class Config {
   private final boolean profilingUploadSummaryOn413Enabled;
 
   private final boolean crashTrackingAgentless;
-  @Deprecated private final String crashTrackingUrl;
   private final Map<String, String> crashTrackingTags;
 
   private final boolean appSecEnabled;
@@ -513,6 +523,11 @@ public class Config {
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
   private final String ciVisibilityAgentlessUrl;
+
+  private final boolean remoteConfigEnabled;
+  private final String remoteConfigUrl;
+  private final int remoteConfigInitialPollInterval;
+  private final long remoteConfigMaxPayloadSize;
 
   private final boolean debuggerEnabled;
   private final String debuggerSnapshotUrl;
@@ -593,6 +608,10 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
 
+  private final Set<String> iastWeakHashAlgorithms;
+
+  private final Set<String> iastWeakCipherAlgorithms;
+
   private final boolean telemetryEnabled;
 
   private final boolean azureAppServices;
@@ -638,6 +657,8 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
+
+    hostName = initHostName();
 
     String userProvidedServiceName =
         configProvider.getStringExcludingSource(
@@ -1039,7 +1060,6 @@ public class Config {
 
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
-    crashTrackingUrl = configProvider.getString(CRASH_TRACKING_URL);
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
     telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
@@ -1064,6 +1084,13 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
 
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+    iastWeakHashAlgorithms =
+        tryMakeImmutableSet(
+            configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
+    iastWeakCipherAlgorithms =
+        tryMakeImmutableSet(
+            configProvider.getSet(
+                IAST_WEAK_CIPHER_ALGORITHMS, DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS));
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1086,6 +1113,17 @@ public class Config {
     } else {
       ciVisibilityAgentlessUrl = null;
     }
+
+    remoteConfigEnabled =
+        configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
+    remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
+    remoteConfigInitialPollInterval =
+        configProvider.getInteger(
+            REMOTE_CONFIG_INITIAL_POLL_INTERVAL, DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL);
+    remoteConfigMaxPayloadSize =
+        configProvider.getInteger(
+                REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
+            * 1024;
 
     debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
     debuggerSnapshotUrl = configProvider.getString(DEBUGGER_SNAPSHOT_URL);
@@ -1253,6 +1291,10 @@ public class Config {
     return site;
   }
 
+  public String getHostName() {
+    return hostName;
+  }
+
   public String getServiceName() {
     return serviceName;
   }
@@ -1323,6 +1365,14 @@ public class Config {
 
   public boolean isTraceResolverEnabled() {
     return traceResolverEnabled;
+  }
+
+  public Set<String> getIastWeakHashAlgorithms() {
+    return iastWeakHashAlgorithms;
+  }
+
+  public Set<String> getIastWeakCipherAlgorithms() {
+    return iastWeakCipherAlgorithms;
   }
 
   public Map<String, String> getServiceMapping() {
@@ -1731,6 +1781,22 @@ public class Config {
 
   public String getAppSecRulesFile() {
     return appSecRulesFile;
+  }
+
+  public long getRemoteConfigMaxPayloadSizeBytes() {
+    return remoteConfigMaxPayloadSize;
+  }
+
+  public boolean isRemoteConfigEnabled() {
+    return remoteConfigEnabled;
+  }
+
+  public String getFinalRemoteConfigUrl() {
+    return remoteConfigUrl;
+  }
+
+  public int getRemoteConfigInitialPollInterval() {
+    return remoteConfigInitialPollInterval;
   }
 
   public boolean isDebuggerEnabled() {
@@ -2248,16 +2314,12 @@ public class Config {
     }
   }
 
-  public String getFinalCrashTrackingUrl() {
-    if (crashTrackingUrl != null) {
-      // when crashTrackingUrl is set we use it regardless of apiKey/agentless config
-      return crashTrackingUrl;
-    } else if (crashTrackingAgentless) {
+  public String getFinalCrashTrackingTelemetryUrl() {
+    if (crashTrackingAgentless) {
       // when agentless crashTracking is turned on we send directly to our intake
       return "https://all-http-intake.logs." + site + "/api/v2/apmtelemetry";
     } else {
-      // when crashTrackingUrl and agentless are not set we send to the dd trace agent running
-      // locally
+      // when agentless are not set we send to the dd trace agent running locally
       return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
     }
   }
@@ -2494,7 +2556,7 @@ public class Config {
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
-  public static String getHostName() {
+  private static String initHostName() {
     String possibleHostname;
 
     // Try environment variable.  This works in almost all environments
@@ -2514,7 +2576,7 @@ public class Config {
         new BufferedReader(
             new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
-    } catch (final Exception ignore) {
+    } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
     }
 
@@ -2599,6 +2661,9 @@ public class Config {
         + (apiKey == null ? "null" : "****")
         + ", site='"
         + site
+        + '\''
+        + ", hostName='"
+        + hostName
         + '\''
         + ", serviceName='"
         + serviceName
@@ -2816,13 +2881,18 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
-        + ", crashTrackingUrl='"
-        + crashTrackingUrl
-        + '\''
         + ", crashTrackingTags="
         + crashTrackingTags
         + ", crashTrackingAgentless="
         + crashTrackingAgentless
+        + ", remoteConfigEnabled="
+        + remoteConfigEnabled
+        + ", remoteConfigUrl="
+        + remoteConfigUrl
+        + ", remoteConfigInitialPollInterval="
+        + remoteConfigInitialPollInterval
+        + ", remoteConfigMaxPayloadSize="
+        + remoteConfigMaxPayloadSize
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="

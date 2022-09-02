@@ -5,7 +5,7 @@ import java.io.Closeable;
 import java.util.Optional;
 
 public interface AppSecConfigService extends Closeable {
-  void init(boolean initFleetService);
+  void init();
 
   Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener);
 

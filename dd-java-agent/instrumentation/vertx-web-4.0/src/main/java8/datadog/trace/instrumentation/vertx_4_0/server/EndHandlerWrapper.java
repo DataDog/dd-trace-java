@@ -13,7 +13,7 @@ import io.vertx.ext.web.RoutingContext;
 public class EndHandlerWrapper implements Handler<Void> {
   private final RoutingContext routingContext;
 
-  Handler<Void> actual;
+  public Handler<Void> actual;
 
   EndHandlerWrapper(RoutingContext routingContext) {
     this.routingContext = routingContext;

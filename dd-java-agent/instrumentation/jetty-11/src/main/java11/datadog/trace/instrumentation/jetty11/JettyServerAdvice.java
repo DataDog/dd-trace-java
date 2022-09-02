@@ -43,7 +43,6 @@ public class JettyServerAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(@Advice.Enter final AgentScope scope) {
-      scope.span().finishWork();
       scope.close();
     }
   }

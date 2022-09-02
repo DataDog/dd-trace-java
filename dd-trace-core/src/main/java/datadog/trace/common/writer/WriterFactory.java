@@ -119,14 +119,14 @@ public class WriterFactory {
           new DDAgentApi(
               commObjects.okHttpClient,
               commObjects.agentUrl,
-              commObjects.featuresDiscovery,
+              commObjects.featuresDiscovery(config),
               commObjects.monitoring,
               config.isTracerMetricsEnabled());
 
       remoteWriter =
           DDAgentWriter.builder()
               .agentApi(ddAgentApi)
-              .featureDiscovery(commObjects.featuresDiscovery)
+              .featureDiscovery(commObjects.featuresDiscovery(config))
               .prioritization(prioritization)
               .healthMetrics(new HealthMetrics(statsDClient))
               .monitoring(commObjects.monitoring)

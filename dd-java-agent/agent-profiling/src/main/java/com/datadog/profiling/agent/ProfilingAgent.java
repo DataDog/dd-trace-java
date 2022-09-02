@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -45,9 +46,15 @@ public class ProfilingAgent {
       final Config config = Config.get();
       final ConfigProvider configProvider = ConfigProvider.getInstance();
 
-      final boolean startForceFirst =
+      boolean startForceFirst =
           configProvider.getBoolean(
               PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+
+      if (!isStartForceFirstSafe()) {
+        log.debug(
+            "Starting profiling in premain can lead to crashes in this JDK. Delaying the startup.");
+        startForceFirst = false;
+      }
 
       if (isStartingFirst && !startForceFirst) {
         log.debug("Profiling: not starting first");
@@ -118,6 +125,13 @@ public class ProfilingAgent {
     }
   }
 
+  private static boolean isStartForceFirstSafe() {
+    return Platform.isJavaVersionAtLeast(14)
+        || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
+        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8))
+        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 272));
+  }
+
   public static void shutdown() {
     shutdown(profiler, uploader, false);
   }
@@ -126,14 +140,18 @@ public class ProfilingAgent {
     shutdown(profiler, uploader, snapshot);
   }
 
+  private static final AtomicBoolean shutDownFlag = new AtomicBoolean();
+
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
-    if (profiler != null) {
-      profiler.shutdown(snapshot);
-    }
+    if (shutDownFlag.compareAndSet(false, true)) {
+      if (profiler != null) {
+        profiler.shutdown(snapshot);
+      }
 
-    if (uploader != null) {
-      uploader.shutdown();
+      if (uploader != null) {
+        uploader.shutdown();
+      }
     }
   }
 

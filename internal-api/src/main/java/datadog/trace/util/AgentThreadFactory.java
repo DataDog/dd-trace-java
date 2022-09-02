@@ -33,12 +33,15 @@ public final class AgentThreadFactory implements ThreadFactory {
     TELEMETRY("dd-telemetry"),
 
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
+    REMOTE_CONFIG("dd-remote-config"),
 
     CWS_TLS("dd-cws-tls"),
 
     PROCESS_SUPERVISOR("dd-process-supervisor"),
 
-    DATA_STREAMS_MONITORING("dd-data-streams-monitor");
+    DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
+
+    DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher");
 
     public final String threadName;
 

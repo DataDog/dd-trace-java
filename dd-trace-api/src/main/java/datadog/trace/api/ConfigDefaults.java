@@ -1,6 +1,9 @@
 package datadog.trace.api;
 
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class ConfigDefaults {
 
@@ -76,9 +79,41 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
 
   static final boolean DEFAULT_IAST_ENABLED = false;
+  static final Set<String> DEFAULT_IAST_WEAK_HASH_ALGORITHMS =
+      new HashSet<>(Arrays.asList("MD2", "MD5", "RIPEMD128", "MD4"));
+  static final Set<String> DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
+      new HashSet<>(
+          Arrays.asList(
+              "DES",
+              "DESEDE",
+              "DESEDEWRAP",
+              "PBEWITHMD5ANDDES",
+              "PBEWITHMD5ANDTRIPLEDES",
+              "PBEWITHSHA1ANDDESEDE",
+              "PBEWITHSHA1ANDRC2_40",
+              "PBEWITHSHA1ANDRC2_128",
+              "PBEWITHSHA1ANDRC4_40",
+              "PBEWITHSHA1ANDRC4_128",
+              "PBEWITHHMACSHA1ANDAES_128",
+              "PBEWITHHMACSHA224ANDAES_128",
+              "PBEWITHHMACSHA256ANDAES_128",
+              "PBEWITHHMACSHA384ANDAES_128",
+              "PBEWITHHMACSHA512ANDAES_128",
+              "PBEWITHHMACSHA1ANDAES_256",
+              "PBEWITHHMACSHA224ANDAES_256",
+              "PBEWITHHMACSHA256ANDAES_256",
+              "PBEWITHHMACSHA384ANDAES_256",
+              "PBEWITHHMACSHA512ANDAES_256",
+              "RC2",
+              "BLOWFISH",
+              "ARCFOUR"));
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
+
+  static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
+  static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
+  static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
 
   static final boolean DEFAULT_DEBUGGER_ENABLED = false;
   static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds

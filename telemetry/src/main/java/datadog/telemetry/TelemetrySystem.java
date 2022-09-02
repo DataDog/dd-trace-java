@@ -19,11 +19,13 @@ public class TelemetrySystem {
   private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
 
   private static Thread TELEMETRY_THREAD;
+  private static DependencyService DEPENDENCY_SERVICE;
 
   static DependencyService createDependencyService(Instrumentation instrumentation) {
     if (instrumentation != null) {
       DependencyServiceImpl dependencyService = new DependencyServiceImpl();
       dependencyService.installOn(instrumentation);
+      dependencyService.schedulePeriodicResolution();
       return dependencyService;
     }
     return null;
@@ -33,6 +35,7 @@ public class TelemetrySystem {
       TelemetryService telemetryService,
       OkHttpClient okHttpClient,
       DependencyService dependencyService) {
+    DEPENDENCY_SERVICE = dependencyService;
     TelemetryRunnable telemetryRunnable =
         new TelemetryRunnable(
             okHttpClient,
@@ -55,6 +58,9 @@ public class TelemetrySystem {
   }
 
   public static void stop() {
+    if (DEPENDENCY_SERVICE != null) {
+      DEPENDENCY_SERVICE.stop();
+    }
     if (TELEMETRY_THREAD != null) {
       TELEMETRY_THREAD.interrupt();
       try {

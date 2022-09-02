@@ -12,18 +12,25 @@ import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class CrashUploaderTest {
 
@@ -31,6 +38,7 @@ public class CrashUploaderTest {
   private static final String URL_PATH = "/lalala";
   private static final String CRASH = "this is a crash file";
   private static final String ENV = "crash-env";
+  private static final String HOSTNAME = "crash-hostname";
   private static final String SERVICE = "crash-service";
   private static final String VERSION = "crash-version";
   // private static final Map<String, String> TAGS = Map.of("foo", "bar", "baz", "123", "null",
@@ -71,23 +79,46 @@ public class CrashUploaderTest {
     url = server.url(URL_PATH);
 
     when(config.getEnv()).thenReturn(ENV);
+    when(config.getHostName()).thenReturn(HOSTNAME);
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
-    when(config.getFinalCrashTrackingUrl()).thenReturn(server.url(URL_PATH).toString());
+    when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.getApiKey()).thenReturn(null);
   }
 
   @Test
-  public void testHappyPath() throws Exception {
+  public void testLogsHappyPath() throws Exception {
+    // Given
+
+    // When
+    uploader = new CrashUploader(config, configProvider);
+    List<String> filesContent = new ArrayList<>();
+    filesContent.add(CRASH);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    uploader.uploadToLogs(filesContent, new PrintStream(out));
+
+    // Then
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(out.toString(StandardCharsets.UTF_8.name()));
+
+    assertEquals("crashtracker", event.get("ddsource").asText());
+    assertEquals(HOSTNAME, event.get("hostname").asText());
+    assertEquals(SERVICE, event.get("service").asText());
+    assertEquals(CRASH, event.get("message").asText());
+    assertEquals("ERROR", event.get("level").asText());
+  }
+
+  @Test
+  public void testTelemetryHappyPath() throws Exception {
     // Given
 
     // When
     uploader = new CrashUploader(config, configProvider);
     server.enqueue(new MockResponse().setResponseCode(200));
-    List<InputStream> files = new ArrayList<>();
-    files.add(new ByteArrayInputStream(CRASH.getBytes()));
-    uploader.upload(files);
+    List<String> filesContent = new ArrayList<>();
+    filesContent.add(CRASH);
+    uploader.uploadToTelemetry(filesContent);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
@@ -97,7 +128,7 @@ public class CrashUploaderTest {
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(new String(recordedRequest.getBody().readUtf8()));
 
-    assertEquals(CrashUploader.API_VERSION, event.get("api_version").asText());
+    assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
     assertEquals("logs", event.get("request_type").asText());
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
@@ -112,6 +143,7 @@ public class CrashUploaderTest {
     assertEquals(VERSION, event.get("application").get("service_version").asText());
     assertEquals(VersionInfo.VERSION, event.get("application").get("tracer_version").asText());
     // host
+    assertEquals(HOSTNAME, event.get("host").get("hostname").asText());
     assertEquals(ENV, event.get("host").get("env").asText());
   }
 
@@ -163,5 +195,35 @@ public class CrashUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
+    // it would be nice if the test asserted the log line was written out, but it's not essential
+  }
+
+  @ParameterizedTest
+  @MethodSource("extractionArgs")
+  void extractInfo(String content, String kind, String msg) throws Exception {
+    assertEquals(kind, CrashUploader.extractErrorKind(content));
+    assertEquals(msg, CrashUploader.extractErrorMessage(content));
+  }
+
+  private static Stream<Arguments> extractionArgs() {
+    return Stream.of(
+        Arguments.of(
+            "# A fatal error has been detected by the Java Runtime Environment:\n"
+                + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+                + "# \nOther stuff\n",
+            "NativeCrash",
+            "SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522"),
+        Arguments.of(
+            "# There is insufficient memory for the Java Runtime Environment to continue.\n"
+                + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+                + "# \nOther stuff\n",
+            "OutOfMemory",
+            "SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522"),
+        Arguments.of(
+            "# Completely unknown error:\n"
+                + "# BOOM (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+                + "# \nOther stuff\n",
+            null,
+            null));
   }
 }

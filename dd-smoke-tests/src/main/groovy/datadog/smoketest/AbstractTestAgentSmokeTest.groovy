@@ -45,6 +45,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     "-Ddd.version=${VERSION}",
     "-Ddd.profiling.enabled=false",
     "-Ddd.${ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT}=0",
+    "-Ddd.test.no.early.discovery=true",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
   ]

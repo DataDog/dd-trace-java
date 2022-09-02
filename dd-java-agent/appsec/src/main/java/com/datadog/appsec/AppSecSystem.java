@@ -7,16 +7,18 @@ import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.fleet.FleetService;
-import datadog.communication.fleet.FleetServiceImpl;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
+import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.Strings;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,16 +49,10 @@ public class AppSecSystem {
     }
     log.debug("AppSec is starting");
 
-    //  TODO: FleetService should be shared with other components
-    FleetService fleetService =
-        new FleetServiceImpl(
-            sco, new AgentThreadFactory(AgentThreadFactory.AgentThread.FLEET_MANAGEMENT_POLLER));
-    // do not start its thread, support not merged in agent yet
-    //    fleetService.init();
+    ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
     // may throw and abort startup
-    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, fleetService);
-    // no point initializing fleet service, as it will receive no notifications
-    APP_SEC_CONFIG_SERVICE.init(false);
+    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, configurationPoller);
+    APP_SEC_CONFIG_SERVICE.init();
 
     sco.createRemaining(config);
 

@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class DBQueryInfo {
 
+  private static final int MAX_SQL_LENGTH_TO_CACHE = 4096;
+
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
       DDCaches.newFixedSizeCache(512);
   private static final Function<String, DBQueryInfo> NORMALIZE =
@@ -20,11 +22,15 @@ public final class DBQueryInfo {
       };
 
   public static DBQueryInfo ofStatement(String sql) {
-    return new DBQueryInfo(sql);
+    return NORMALIZE.apply(sql);
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {
-    return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
+    if (sql.length() > MAX_SQL_LENGTH_TO_CACHE) {
+      return NORMALIZE.apply(sql);
+    } else {
+      return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
+    }
   }
 
   private final UTF8BytesString operation;

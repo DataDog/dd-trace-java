@@ -673,4 +673,51 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * pp.processTraceSegment(traceSegment, ctx.data, [])
   }
+
+  void 'no appsec events if was not created request context in request_start event'() {
+    RequestContext emptyCtx = new RequestContext() {
+        final Object data = null
+
+        @Override
+        Object getData(RequestContextSlot slot) {
+          data
+        }
+
+        @Override
+        final TraceSegment getTraceSegment() {
+          GatewayBridgeSpecification.this.traceSegment
+        }
+
+        @Override
+        void close() throws IOException {}
+      }
+
+    StoredBodySupplier supplier = Mock()
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+    Object obj = 'obj'
+
+    when:
+    // request start event doesn't happen and not create AppSecRequestContext
+    def flowMethod = requestMethodURICB.apply(emptyCtx, 'GET', TestURIDataAdapter.create('/a'))
+    def flowParams = pathParamsCB.apply(emptyCtx, [a: 'b'])
+    def flowSock = requestSocketAddressCB.apply(emptyCtx, '0.0.0.0', 5555)
+    reqHeaderCB.accept(emptyCtx, 'header_name', 'header_value')
+    def flowHeadersDone = reqHeadersDoneCB.apply(emptyCtx)
+    requestBodyStartCB.apply(emptyCtx, supplier)
+    def flowBodyEnd = requestBodyDoneCB.apply(emptyCtx, supplier)
+    def flowBodyProc = requestBodyProcessedCB.apply(emptyCtx, obj)
+    def flowReqEnd = requestEndedCB.apply(emptyCtx, spanInfo)
+    def appSecReqCtx = emptyCtx.getData(RequestContextSlot.APPSEC)
+
+    then:
+    appSecReqCtx == null
+    flowMethod == NoopFlow.INSTANCE
+    flowParams == NoopFlow.INSTANCE
+    flowSock == NoopFlow.INSTANCE
+    flowHeadersDone == NoopFlow.INSTANCE
+    flowBodyEnd == NoopFlow.INSTANCE
+    flowBodyProc == NoopFlow.INSTANCE
+    flowReqEnd == NoopFlow.INSTANCE
+    0 * _
+  }
 }

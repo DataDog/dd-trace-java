@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class AgentTaskScheduler implements Executor {
+public class AgentTaskScheduler implements Executor {
   private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
   public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
@@ -42,7 +42,7 @@ public final class AgentTaskScheduler implements Executor {
     }
   }
 
-  public static final class Scheduled<T> implements Target<T> {
+  public static class Scheduled<T> implements Target<T> {
     private volatile T referent;
 
     private Scheduled(final T referent) {

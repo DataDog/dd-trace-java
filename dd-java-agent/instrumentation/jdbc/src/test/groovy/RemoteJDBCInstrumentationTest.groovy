@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -158,6 +159,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
     mysql = new MySQLContainer("mysql:8.0")
       .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+    // https://github.com/testcontainers/testcontainers-java/issues/914
+    mysql.addParameter("TC_MY_CNF", null)
     mysql.start()
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
@@ -221,6 +224,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * _
@@ -286,6 +291,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * _
@@ -349,6 +356,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * _
@@ -412,6 +421,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * _
@@ -475,6 +486,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
     0 * _

@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter.GETTE
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_SERVER;
+import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.function.BiFunction;
@@ -36,7 +37,6 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import javax.annotation.Nonnull;
@@ -70,7 +70,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     PathwayContext pathwayContext = propagate().extractPathwayContext(headers, GETTER);
     span.mergePathwayContext(pathwayContext);
-    AgentTracer.get().setDataStreamCheckpoint(span, Arrays.asList("type:grpc"));
+    AgentTracer.get().setDataStreamCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS);
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {

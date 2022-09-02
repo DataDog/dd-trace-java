@@ -141,6 +141,7 @@ final class IntervalSequencePruner {
           "Dangling 'started' transition. Creating synthetic 'finished' transition @{} delta",
           timestampDelta);
       sequence.add(PerSpanTracingContextTracker.maskDeactivation(timestampDelta, false));
+      sequence.adjustCapturedSize(8); // adjust the captured size
     }
     return new PruningLongIterator(sequence.iterator());
   }

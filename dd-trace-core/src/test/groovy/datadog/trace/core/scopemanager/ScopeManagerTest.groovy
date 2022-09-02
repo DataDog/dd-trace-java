@@ -17,6 +17,7 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
+import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
@@ -206,6 +208,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     concurrent << [false, true]
   }
 
+  @Retry
   def "test continuation doesn't have hard reference on scope"() {
     when:
     def span = tracer.buildSpan("test").start()
@@ -461,6 +464,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE])
     2 * checkpointer.checkpoint(_, SPAN) // two spans started by test
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
+    _ * checkpointer.checkpoint(_, CPU)
+    _ * checkpointer.checkpoint(_, CPU | END)
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * checkpointer.onRootSpanStarted(_)
     0 * _
@@ -471,7 +476,10 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
+    _ * checkpointer.checkpoint(_, CPU)
+    _ * checkpointer.checkpoint(_, CPU | END)
     1 * checkpointer.onRootSpanWritten(_, _, _)
+    _ * statsDClient.close()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -498,6 +506,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
     1 * checkpointer.checkpoint(_, SPAN) // span started by test
+    _ * checkpointer.checkpoint(_, CPU)
+    _ * checkpointer.checkpoint(_, CPU | END)
     1 * checkpointer.onRootSpanStarted(_)
     0 * _
 
@@ -507,6 +517,8 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN) // span started by test
+    _ * checkpointer.checkpoint(_, CPU)
+    _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
@@ -519,6 +531,8 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN) // span started by test
+    _ * checkpointer.checkpoint(_, CPU)
+    _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
@@ -545,6 +559,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeScope() == firstScope
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
+    _ * checkpointer.checkpoint(_, _)
+    _ * statsDClient.close()
     0 * _
 
     when:
@@ -570,6 +586,8 @@ class ScopeManagerTest extends DDCoreSpecification {
       ACTIVATE,
       CLOSE
     ])
+    _ * checkpointer.checkpoint(_, _)
+    _ * statsDClient.close()
     0 * _
   }
 
@@ -596,6 +614,8 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN) // span started by test
+    _ * checkpointer.checkpoint(_, CPU)
+    _ * checkpointer.checkpoint(_, CPU | END)
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
@@ -617,6 +637,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
     1 * checkpointer.checkpoint(_, SPAN | END) // span finished by test
+    _ * checkpointer.checkpoint(_, _)
+    _ * statsDClient.close()
     0 * _
 
     when:

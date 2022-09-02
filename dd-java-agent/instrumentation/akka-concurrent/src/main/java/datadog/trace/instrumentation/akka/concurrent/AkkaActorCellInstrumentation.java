@@ -84,7 +84,6 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing
         @Advice.Enter AgentScope scope, @Advice.Local(value = "localScope") AgentScope localScope) {
       if (localScope != null) {
         // then we have invoked an Envelope and need to mark the work complete
-        localScope.span().finishWork();
         localScope.close();
       }
       // Clean up any leaking scopes from akka-streams/akka-http et.c.
