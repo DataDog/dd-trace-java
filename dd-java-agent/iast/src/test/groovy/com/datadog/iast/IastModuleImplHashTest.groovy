@@ -1,30 +1,30 @@
 package com.datadog.iast
 
+import com.datadog.iast.model.Evidence
+import com.datadog.iast.model.Vulnerability
+import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.test.util.DDSpecification
 
-class IastModuleImplHashTest extends DDSpecification {
+class IastModuleImplHashTest extends IastModuleImplTestBase {
 
   void 'iast module vulnerable hash algorithm'(){
     given:
-    IastModuleImpl module = new IastModuleImpl()
-    AgentSpan mockAgentSpan = Mock(AgentSpan)
-    def mockCoreTracer = Mock(AgentTracer.TracerAPI)
-    mockCoreTracer.activeSpan() >> mockAgentSpan
-    AgentTracer.forceRegister(mockCoreTracer)
-
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
 
     when:
     module.onHashingAlgorithm(algorithm)
 
-
     then:
-    1 * mockAgentSpan.getRequestContext()
-
-    cleanup:
-    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER)
-
+    1 * tracer.activeSpan()
+    1 * reporter.report(_, _) >> { args ->
+      Vulnerability vuln = args[1] as Vulnerability
+      assert vuln != null
+      assert vuln.getType() == VulnerabilityType.WEAK_HASH
+      assert vuln.getEvidence() == new Evidence(algorithm)
+      assert vuln.getLocation() != null
+    }
+    0 * _
 
     where:
     algorithm | _
@@ -38,40 +38,26 @@ class IastModuleImplHashTest extends DDSpecification {
 
   void 'iast module called with null argument'(){
     given:
-    IastModuleImpl module = new IastModuleImpl()
-    AgentSpan mockAgentSpan = Mock(AgentSpan)
-    def mockCoreTracer = Mock(AgentTracer.TracerAPI)
-    mockCoreTracer.activeSpan() >> mockAgentSpan
-    AgentTracer.forceRegister(mockCoreTracer)
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
 
     when:
     module.onHashingAlgorithm(null)
 
-
     then:
     noExceptionThrown()
-
-    cleanup:
-    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER)
+    0 * _
   }
 
   void 'iast module secure hash algorithm'(){
     given:
-    IastModuleImpl module = new IastModuleImpl()
-    AgentSpan mockAgentSpan = Mock(AgentSpan)
-    def mockCoreTracer = Mock(AgentTracer.TracerAPI)
-    mockCoreTracer.activeSpan() >> mockAgentSpan
-    AgentTracer.forceRegister(mockCoreTracer)
-
+    final span = Mock(AgentSpan)
+    tracer.activeSpan() >> span
 
     when:
     module.onHashingAlgorithm("SHA-256")
 
-
     then:
-    0 * mockAgentSpan.getRequestContext()
-
-    cleanup:
-    AgentTracer.forceRegister(AgentTracer.NOOP_TRACER)
+    0 * _
   }
 }
