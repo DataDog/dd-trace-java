@@ -16,8 +16,16 @@ apply from: "$rootDir/gradle/java.gradle"
 def rmic = tasks.register('rmic') {
   dependsOn testClasses
   def clazz = 'rmi.app.ServerLegacy'
-  String command = """rmic -g -keep -classpath ${sourceSets.test.output.classesDirs.asPath} -d ${buildDir}/classes/java/test ${clazz}"""
+  String command = getRmicPath() + """ -g -keep -classpath ${sourceSets.test.output.classesDirs.asPath} -d ${buildDir}/classes/java/test ${clazz}"""
   command.execute().text
+}
+
+String getRmicPath() {
+  String rmicPath = System.getenv('JAVA_8_HOME') + '/bin/rmic'
+  if (new File(rmicPath).exists()) {
+    return rmicPath
+  }
+  return 'rmic' 
 }
 
 tasks.named("test").configure {
