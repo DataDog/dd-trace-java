@@ -37,9 +37,11 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.hsqldb.jdbc.JDBCConnection",
     "org.hsqldb.jdbc.jdbcConnection",
     // complete
-    "org.mariadb.jdbc.MariaDbConnection",
     "org.mariadb.jdbc.MySQLConnection",
-
+    // MariaDB Connector/J v2.x
+    "org.mariadb.jdbc.MariaDbConnection",
+    // MariaDB Connector/J v3.x
+    "org.mariadb.jdbc.Connection",
     // postgresql seems to be complete
     "org.postgresql.jdbc.PgConnection",
     "org.postgresql.jdbc1.Connection",
