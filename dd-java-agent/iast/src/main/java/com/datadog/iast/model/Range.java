@@ -40,4 +40,15 @@ public final class Range {
   public int hashCode() {
     return Objects.hash(start, length, source);
   }
+
+  public boolean isValid() {
+    return start >= 0 && length >= 0 && source != null;
+  }
+
+  public Range shift(final int offset) {
+    if (offset == 0) {
+      return this;
+    }
+    return new Range(start + offset, length, source);
+  }
 }
