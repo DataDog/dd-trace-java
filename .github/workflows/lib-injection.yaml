@@ -91,7 +91,7 @@ jobs:
         run: ./lib-injection/build.sh
 
       - name: Run
-        run: ./lib-injection/run.sh
+        run: ./lib-injection/run-lib-injection.sh
 
       - name: Compress artifact
         if: ${{ always() }}
