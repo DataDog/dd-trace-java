@@ -30,7 +30,7 @@ public class App {
     waitForSpecificLogLine(
       Paths.get(LOG_FILENAME),
       line -> {
-        // when instrumentatiob is done by main thread, we are good to go
+        // when instrumentation is done by main thread, we are good to go
         if (line.contains(
           "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: App")) {
           return true;

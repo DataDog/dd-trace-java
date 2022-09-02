@@ -9,7 +9,7 @@ shadowJar {
     mainClassName = 'App'
 }
 
-def latestJdk = 16
+def latestJdk = 17
 
 def latestJdkHome = System.getenv("JAVA_${latestJdk}_HOME")
 if (latestJdkHome != null) {

@@ -31,12 +31,12 @@ tasks.register('buildLatestJdkApp', GradleBuild) {
   tasks = ['shadowJar']
 }
 
-def latestJdk = '16'
+def latestJdk = '17'
 
 tasks.withType(Test).configureEach {
   dependsOn shadowJar
 
-  def isLatestJdk = it.name.contains(latestJdk)
+  def isLatestJdk = project.findProperty("testJvm") == latestJdk
   def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
   if (isLatestJdk && latestJavaHome) {
     dependsOn buildLatestJdkApp
