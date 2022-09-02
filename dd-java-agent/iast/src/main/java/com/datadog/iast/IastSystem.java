@@ -30,6 +30,7 @@ public class IastSystem {
     final IastModule iastModule = new IastModuleImpl(config, reporter);
     InstrumentationBridge.registerIastModule(iastModule);
     registerRequestStartedCallback(ss);
+    registerRequestEndedCallback(ss);
   }
 
   private static void registerRequestStartedCallback(final SubscriptionService ss) {
@@ -50,4 +51,3 @@ public class IastSystem {
         });
   }
 }
-
