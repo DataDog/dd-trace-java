@@ -25,6 +25,10 @@ String getRmicPath() {
   if (new File(rmicPath).exists()) {
     return rmicPath
   }
+  rmicPath = System.getenv('JAVA_11_HOME') + '/bin/rmic'
+  if (new File(rmicPath).exists()) {
+    return rmicPath
+  }
   return 'rmic' 
 }
 
