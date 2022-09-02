@@ -18,7 +18,7 @@ class DependencyPeriodActionSpecification extends DDSpecification {
     1 * telemetryService.addDependency({ datadog.telemetry.api.Dependency dep ->
       dep.name == 'name' &&
         dep.version == '1.2.3' &&
-        dep.type == DependencyType.PLATFORMSTANDARD &&
+        dep.type == DependencyType.PLATFORM_STANDARD &&
         dep.hash == 'DEADBEEF'
     })
     0 * _._

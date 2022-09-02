@@ -1,13 +1,3 @@
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-  dependencies {
-    classpath "org.openapitools:openapi-generator-gradle-plugin:5.4.0"
-  }
-}
-
-apply plugin: 'org.openapi.generator'
 apply from: "$rootDir/gradle/java.gradle"
 
 ext {
@@ -35,51 +25,6 @@ ext {
   excludedClassesInstructionCoverage = []
   minJavaVersionForTests = JavaVersion.VERSION_1_7
 }
-
-openApiGenerate {
-  generatorName = 'java'
-  inputSpec = "$projectDir/src/main/schemas/telemetry-api-v1.yaml"
-  outputDir = "$buildDir/generated"
-  modelPackage = "datadog.telemetry.api"
-  templateDir = "$projectDir/src/main/templates"
-
-  typeMappings = [
-    // Java representation of ambiguous types
-    "OneOfnumberbooleanstring": "Object", // number/boolean/string
-    "OneOfintegerdouble": "Number",       // integer/double
-    "integer": "Long"
-  ]
-  importMappings = [
-    // Java representation of ambiguous imports
-    'OneOfnumberbooleanstring': 'java.lang.Object',
-    'OneOfintegerdouble': 'java.lang.Number',
-  ]
-
-  configOptions = [
-    dateLibrary: 'leggacy',
-    library: 'microprofile',
-    openApiNullable: 'false',
-    useOneOfInterfaces: 'true',
-    legacyDiscriminatorBehavior: 'false',
-  ]
-  globalProperties = [
-    // force generate only the models
-    apis: 'false',
-    invokers: 'false',
-    models: '',
-    modelDocs: 'false',
-    modelTests: 'false'
-  ]
-}
-
-def openApiSrcDir = "$buildDir/generated/src/main/java" as String
-sourceSets.main.java.srcDirs += [openApiSrcDir]
-compileJava.dependsOn 'openApiGenerate'
-
-forbiddenApisMain.exclude('datadog/telemetry/api/*.class')
-
-packageSources.dependsOn 'openApiGenerate'
-sourcesJar.dependsOn 'openApiGenerate'
 
 dependencies {
   implementation deps.slf4j
