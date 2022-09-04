@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class WebServiceProviderInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   private static final String WEB_SERVICE_PROVIDER_INTERFACE_NAME = "javax.xml.ws.Provider";
   private static final String WEB_SERVICE_PROVIDER_ANNOTATION_NAME =
       "javax.xml.ws.WebServiceProvider";

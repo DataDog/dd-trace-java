@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(Instrumenter.class)
 public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
   public WrapRunnableAsNewTaskInstrumentation() {
     super("java_concurrent", "new-task-for");
   }

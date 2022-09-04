@@ -31,7 +31,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(Instrumenter.class)
 public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForKnownTypes, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, ExcludeFilterProvider {
 
   private static final String[] CLASS_NAMES = {
     "java.util.concurrent.CompletableFuture$AsyncSupply",
