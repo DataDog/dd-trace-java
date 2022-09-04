@@ -1,16 +1,13 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresContextField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import datadog.trace.agent.tooling.AgentTransformerBuilder;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.security.ProtectionDomain;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,7 +36,7 @@ import org.slf4j.LoggerFactory;
  *   <li>Delegating to weak-map if neither this class or superclass have a field for the context
  * </ol>
  */
-public final class FieldBackedContextProvider implements InstrumentationContextProvider {
+public final class FieldBackedContextProvider {
 
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextProvider.class);
 
@@ -65,7 +62,6 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
     this.fieldInjectionEnabled = Config.get().isRuntimeContextFieldInjection();
   }
 
-  @Override
   public AgentBuilder.Identified.Extendable instrumentationTransformer(
       AgentBuilder.Identified.Extendable builder) {
     if (!matchedContextStores.isEmpty()) {
@@ -87,7 +83,6 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
     }
   }
 
-  @Override
   public AgentBuilder.Identified.Extendable additionalInstrumentation(
       AgentBuilder.Identified.Extendable builder) {
 
@@ -165,62 +160,6 @@ public final class FieldBackedContextProvider implements InstrumentationContextP
         contextStore.putAll(matcherAndStores.getValue());
       }
       return contextStore;
-    }
-  }
-
-  static final class ShouldInjectFieldsRawMatcher implements AgentBuilder.RawMatcher {
-    private final String keyType;
-    private final String valueType;
-
-    private final ElementMatcher.Junction<TypeDescription> shouldInjectContextField;
-
-    ShouldInjectFieldsRawMatcher(String keyType, String valueType) {
-      this.keyType = keyType;
-      this.valueType = valueType;
-
-      shouldInjectContextField = declaresContextField(keyType, valueType);
-    }
-
-    @Override
-    public boolean matches(
-        TypeDescription typeDescription,
-        ClassLoader classLoader,
-        JavaModule module,
-        Class<?> classBeingRedefined,
-        ProtectionDomain protectionDomain) {
-
-      /*
-       * The idea here is that we can add fields if class is just being loaded
-       * (classBeingRedefined == null) and we have to add same fields again if
-       * the class we added fields before is being transformed again.
-       *
-       * Note: here we assume that Class#getInterfaces() returns list of interfaces
-       * defined immediately on a given class, not inherited from its parents. It
-       * looks like current JVM implementation does exactly this but javadoc is not
-       * explicit about that.
-       */
-      boolean canInjectContextField =
-          classBeingRedefined == null
-              || Arrays.asList(classBeingRedefined.getInterfaces())
-                  .contains(FieldBackedContextAccessor.class);
-
-      if (canInjectContextField) {
-        return shouldInjectContextField.matches(typeDescription);
-      }
-
-      if (log.isDebugEnabled()) {
-        // must be a redefine of a class that we weren't able to field-inject on startup
-        // - make sure we'd have field-injected (if we'd had the chance) before tracking
-        if (shouldInjectContextField.matches(typeDescription)) {
-          log.debug(
-              "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
-              typeDescription.getName(),
-              keyType,
-              valueType);
-        }
-      }
-
-      return false;
     }
   }
 }

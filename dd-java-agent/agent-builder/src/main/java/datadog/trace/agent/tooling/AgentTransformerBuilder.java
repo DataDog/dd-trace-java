@@ -14,8 +14,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
-import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
-import datadog.trace.agent.tooling.context.NoopContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.IntegrationsCollector;
 import java.lang.instrument.Instrumentation;
@@ -93,17 +91,17 @@ public class AgentTransformerBuilder
               new HelperTransformer(instrumenter.getClass().getSimpleName(), helperClassNames));
     }
 
-    InstrumentationContextProvider contextProvider;
+    FieldBackedContextProvider contextProvider = null;
     Map<String, String> matchedContextStores = instrumenter.contextStore();
-    if (matchedContextStores.isEmpty()) {
-      contextProvider = NoopContextProvider.INSTANCE;
-    } else {
+    if (!matchedContextStores.isEmpty()) {
       contextProvider =
           new FieldBackedContextProvider(
               instrumenter, singletonMap(instrumenter.classLoaderMatcher(), matchedContextStores));
     }
 
-    adviceBuilder = contextProvider.instrumentationTransformer(adviceBuilder);
+    if (null != contextProvider) {
+      adviceBuilder = contextProvider.instrumentationTransformer(adviceBuilder);
+    }
 
     final Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
     if (customTransformer != null) {
@@ -123,7 +121,9 @@ public class AgentTransformerBuilder
 
     instrumenter.adviceTransformations(this);
 
-    adviceBuilder = contextProvider.additionalInstrumentation(adviceBuilder);
+    if (null != contextProvider) {
+      adviceBuilder = contextProvider.additionalInstrumentation(adviceBuilder);
+    }
 
     return adviceBuilder;
   }
