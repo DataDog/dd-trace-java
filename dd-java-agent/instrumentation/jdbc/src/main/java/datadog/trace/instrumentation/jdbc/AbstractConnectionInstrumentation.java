@@ -18,7 +18,8 @@ import java.sql.Statement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForBootstrap {
   public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);
   }
