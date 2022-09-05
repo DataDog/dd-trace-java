@@ -117,6 +117,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.debugger.snapshot.url=http://localhost:"
                 + snapshotServer.getPort()
                 + SNAPSHOT_URL_PATH,
+            "-Ddd.trace.agent.url=http://localhost:" + probeServer.getPort(),
             "-Ddd.debugger.upload.batch.size=1", // to verify each snapshot upload one by one
             "-Ddd.debugger.upload.flush.interval=100" // flush uploads every 100ms to have quick
             // tests
