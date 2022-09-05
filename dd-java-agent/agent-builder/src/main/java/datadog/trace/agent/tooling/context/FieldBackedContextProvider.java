@@ -8,7 +8,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -23,8 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * InstrumentationContextProvider which stores context in a field that is injected into a class and
- * falls back to tracking the context association in a global weak-map if the field wasn't injected.
+ * Stores context in a field injected into a class by redefining it; falls back to tracking the
+ * context association in a global weak-map if the field wasn't injected, e.g. if the class was
+ * already loaded.
  *
  * <p>This is accomplished by
  *
@@ -49,22 +49,23 @@ public final class FieldBackedContextProvider {
       INSTALLED_CONTEXT_MATCHERS = new HashMap<>();
 
   private final String instrumenterName;
-  private final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores;
+  private final ElementMatcher<ClassLoader> classLoaderMatcher;
   private final Map<String, String> contextStore;
   private final boolean fieldInjectionEnabled;
 
   public FieldBackedContextProvider(
       final Instrumenter.Default instrumenter,
-      final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores) {
+      final ElementMatcher<ClassLoader> classLoaderMatcher,
+      final Map<String, String> contextStore) {
     this.instrumenterName = instrumenter.getClass().getName();
-    this.matchedContextStores = matchedContextStores;
-    this.contextStore = unpackContextStore(matchedContextStores);
+    this.classLoaderMatcher = classLoaderMatcher;
+    this.contextStore = contextStore;
     this.fieldInjectionEnabled = Config.get().isRuntimeContextFieldInjection();
   }
 
   public AgentBuilder.Identified.Extendable instrumentationTransformer(
       AgentBuilder.Identified.Extendable builder) {
-    if (!matchedContextStores.isEmpty()) {
+    if (!contextStore.isEmpty()) {
       /*
        * Install transformer that rewrites accesses to context store with specialized bytecode that
        * invokes appropriate storage implementation.
@@ -87,47 +88,42 @@ public final class FieldBackedContextProvider {
       AgentBuilder.Identified.Extendable builder) {
 
     if (fieldInjectionEnabled) {
-      for (Map.Entry<ElementMatcher<ClassLoader>, Map<String, String>> matcherAndStores :
-          matchedContextStores.entrySet()) {
-        ElementMatcher<ClassLoader> classLoaderMatcher = matcherAndStores.getKey();
-        for (Map.Entry<String, String> entry : matcherAndStores.getValue().entrySet()) {
+      for (Map.Entry<String, String> entry : contextStore.entrySet()) {
+        /*
+         * For each context store defined in a current instrumentation we create an agent builder
+         * that injects necessary fields.
+         * Note: this synchronization should not have any impact on performance
+         * since this is done when agent builder is being made, it doesn't affect actual
+         * class transformation.
+         */
+        Set<Map.Entry<String, String>> installedContextMatchers;
+        synchronized (INSTALLED_CONTEXT_MATCHERS) {
+          installedContextMatchers = INSTALLED_CONTEXT_MATCHERS.get(classLoaderMatcher);
+          if (installedContextMatchers == null) {
+            installedContextMatchers = new HashSet<>();
+            INSTALLED_CONTEXT_MATCHERS.put(classLoaderMatcher, installedContextMatchers);
+          }
+        }
+        synchronized (installedContextMatchers) {
+          final String keyClassName = entry.getKey();
+          final String contextClassName = entry.getValue();
+
+          if (!installedContextMatchers.add(entry)) {
+            // skip duplicate builder as we've already got one for this context store
+            continue;
+          }
+
           /*
            * For each context store defined in a current instrumentation we create an agent builder
            * that injects necessary fields.
-           * Note: this synchronization should not have any impact on performance
-           * since this is done when agent builder is being made, it doesn't affect actual
-           * class transformation.
            */
-          Set<Map.Entry<String, String>> installedContextMatchers;
-          synchronized (INSTALLED_CONTEXT_MATCHERS) {
-            installedContextMatchers = INSTALLED_CONTEXT_MATCHERS.get(classLoaderMatcher);
-            if (installedContextMatchers == null) {
-              installedContextMatchers = new HashSet<>();
-              INSTALLED_CONTEXT_MATCHERS.put(classLoaderMatcher, installedContextMatchers);
-            }
-          }
-          synchronized (installedContextMatchers) {
-            final String keyClassName = entry.getKey();
-            final String contextClassName = entry.getValue();
-
-            if (!installedContextMatchers.add(entry)) {
-              // skip duplicate builder as we've already got one for this context store
-              continue;
-            }
-
-            /*
-             * For each context store defined in a current instrumentation we create an agent builder
-             * that injects necessary fields.
-             */
-            builder =
-                builder
-                    .type(hasSuperType(named(keyClassName)), classLoaderMatcher)
-                    .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
-                    .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
-                    .transform(
-                        wrapVisitor(
-                            new FieldBackedContextInjector(keyClassName, contextClassName)));
-          }
+          builder =
+              builder
+                  .type(hasSuperType(named(keyClassName)), classLoaderMatcher)
+                  .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
+                  .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
+                  .transform(
+                      wrapVisitor(new FieldBackedContextInjector(keyClassName, contextClassName)));
         }
       }
     }
@@ -145,21 +141,5 @@ public final class FieldBackedContextProvider {
         return builder.visit(visitor);
       }
     };
-  }
-
-  static Map<String, String> unpackContextStore(
-      Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores) {
-    if (matchedContextStores.isEmpty()) {
-      return Collections.emptyMap();
-    } else if (matchedContextStores.size() == 1) {
-      return matchedContextStores.entrySet().iterator().next().getValue();
-    } else {
-      Map<String, String> contextStore = new HashMap<>();
-      for (Map.Entry<ElementMatcher<ClassLoader>, Map<String, String>> matcherAndStores :
-          matchedContextStores.entrySet()) {
-        contextStore.putAll(matcherAndStores.getValue());
-      }
-      return contextStore;
-    }
   }
 }

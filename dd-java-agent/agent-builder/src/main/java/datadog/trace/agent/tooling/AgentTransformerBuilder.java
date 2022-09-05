@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransf
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -96,7 +95,7 @@ public class AgentTransformerBuilder
     if (!matchedContextStores.isEmpty()) {
       contextProvider =
           new FieldBackedContextProvider(
-              instrumenter, singletonMap(instrumenter.classLoaderMatcher(), matchedContextStores));
+              instrumenter, instrumenter.classLoaderMatcher(), matchedContextStores);
     }
 
     if (null != contextProvider) {
