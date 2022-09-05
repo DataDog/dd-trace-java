@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
@@ -11,15 +12,21 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
-import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
+import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
+import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.IntegrationsCollector;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
+import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -33,6 +40,9 @@ public class AgentTransformerBuilder
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
   public static final ElementMatcher.Junction<TypeDescription> NOT_DECORATOR_MATCHER =
       not(declaresAnnotation(named("javax.decorator.Decorator")));
+
+  private final HashMap<ElementMatcher<ClassLoader>, Set<Map.Entry<String, String>>>
+      installedContextStores = new HashMap<>();
 
   private AgentBuilder agentBuilder;
   private ElementMatcher<? super MethodDescription> ignoreMatcher;
@@ -90,16 +100,13 @@ public class AgentTransformerBuilder
               new HelperTransformer(instrumenter.getClass().getSimpleName(), helperClassNames));
     }
 
-    FieldBackedContextProvider contextProvider = null;
-    Map<String, String> matchedContextStores = instrumenter.contextStore();
-    if (!matchedContextStores.isEmpty()) {
-      contextProvider =
-          new FieldBackedContextProvider(
-              instrumenter, instrumenter.classLoaderMatcher(), matchedContextStores);
-    }
-
-    if (null != contextProvider) {
-      adviceBuilder = contextProvider.instrumentationTransformer(adviceBuilder);
+    Map<String, String> contextStore = instrumenter.contextStore();
+    if (!contextStore.isEmpty()) {
+      // rewrite context store access to call FieldBackedContextStores with assigned store-id
+      adviceBuilder =
+          adviceBuilder.transform(
+              wrapVisitor(
+                  new FieldBackedContextRequestRewriter(contextStore, instrumenter.name())));
     }
 
     final Instrumenter.AdviceTransformer customTransformer = instrumenter.transformer();
@@ -120,8 +127,8 @@ public class AgentTransformerBuilder
 
     instrumenter.adviceTransformations(this);
 
-    if (null != contextProvider) {
-      adviceBuilder = contextProvider.additionalInstrumentation(adviceBuilder);
+    if (!contextStore.isEmpty() && Config.get().isRuntimeContextFieldInjection()) {
+      installContextStoreMatcher(contextStore, instrumenter.classLoaderMatcher());
     }
 
     return adviceBuilder;
@@ -212,5 +219,60 @@ public class AgentTransformerBuilder
                 .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                 .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
                 .advice(not(ignoreMatcher).and(matcher), name));
+  }
+
+  static AgentBuilder.Transformer wrapVisitor(final AsmVisitorWrapper visitor) {
+    return new AgentBuilder.Transformer() {
+      @Override
+      public DynamicType.Builder<?> transform(
+          final DynamicType.Builder<?> builder,
+          final TypeDescription typeDescription,
+          final ClassLoader classLoader,
+          final JavaModule module) {
+        return builder.visit(visitor);
+      }
+    };
+  }
+
+  private void installContextStoreMatcher(
+      Map<String, String> contextStore, ElementMatcher<ClassLoader> classLoaderMatcher) {
+    for (Map.Entry<String, String> entry : contextStore.entrySet()) {
+      /*
+       * For each context store defined in a current instrumentation we create an agent builder
+       * that injects necessary fields.
+       * Note: this synchronization should not have any impact on performance
+       * since this is done when agent builder is being made, it doesn't affect actual
+       * class transformation.
+       */
+      Set<Map.Entry<String, String>> installedContextMatchers;
+      synchronized (installedContextStores) {
+        installedContextMatchers = installedContextStores.get(classLoaderMatcher);
+        if (installedContextMatchers == null) {
+          installedContextMatchers = new HashSet<>();
+          installedContextStores.put(classLoaderMatcher, installedContextMatchers);
+        }
+      }
+      synchronized (installedContextMatchers) {
+        final String keyClassName = entry.getKey();
+        final String contextClassName = entry.getValue();
+
+        if (!installedContextMatchers.add(entry)) {
+          // skip duplicate builder as we've already got one for this context store
+          continue;
+        }
+
+        /*
+         * For each context store defined in a current instrumentation we create an agent builder
+         * that injects necessary fields.
+         */
+        adviceBuilder =
+            adviceBuilder
+                .type(hasSuperType(named(keyClassName)), classLoaderMatcher)
+                .and(new ShouldInjectFieldsRawMatcher(keyClassName, contextClassName))
+                .and(AgentTransformerBuilder.NOT_DECORATOR_MATCHER)
+                .transform(
+                    wrapVisitor(new FieldBackedContextInjector(keyClassName, contextClassName)));
+      }
+    }
   }
 }
