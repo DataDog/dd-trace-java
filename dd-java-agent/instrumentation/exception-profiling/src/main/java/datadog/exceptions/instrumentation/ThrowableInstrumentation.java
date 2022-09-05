@@ -1,18 +1,14 @@
 package datadog.exceptions.instrumentation;
 
-import static net.bytebuddy.matcher.ElementMatchers.is;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
-/** Provides instrumentation of {@linkplain Throwable} constructor. <br> */
+/** Provides instrumentation of {@linkplain Throwable} constructor. */
 @AutoService(Instrumenter.class)
 public final class ThrowableInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForSingleType {
   private final boolean hasJfr;
 
   public ThrowableInstrumentation() {
@@ -28,17 +24,17 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    if (hasJfr) {
-      return is(Throwable.class);
-    }
-    return none();
+  public boolean isEnabled() {
+    return hasJfr && super.isEnabled();
+  }
+
+  @Override
+  public String instrumentedType() {
+    return "java.lang.Throwable";
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    if (hasJfr) {
-      transformation.applyAdvice(isConstructor(), packageName + ".ThrowableInstanceAdvice");
-    }
+    transformation.applyAdvice(isConstructor(), packageName + ".ThrowableInstanceAdvice");
   }
 }
