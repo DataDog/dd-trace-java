@@ -15,15 +15,19 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   ConfigurationPoller poller = Mock()
   def config = Mock(Class.forName('datadog.trace.api.Config'))
-  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller)
+  AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
 
   void cleanup() {
     appSecConfigService.close()
   }
 
-  void 'maybeInitPoller subscribes to the configuration poller'() {
+  void 'maybeStartConfigPolling subscribes to the configuration poller'() {
+    setup:
+    appSecConfigService.init()
+
     when:
-    appSecConfigService.maybeInitPoller()
+    appSecConfigService.maybeStartConfigPolling()
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _)
@@ -34,7 +38,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     setup:
     Path p = Files.createTempFile('appsec', '.json')
     p.toFile() << '{"version":"2.0", "rules": []}'
-    AppSecConfigService.SubconfigListener listener = Mock()
+    AppSecModuleConfigurer.SubconfigListener listener = Mock()
 
     when:
     appSecConfigService.init()
@@ -42,7 +46,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
     def expected = AppSecConfig.valueOf([version: '2.0', rules: []])
-    def actual = appSecConfigService.addSubConfigListener('waf', listener).get()
+    def actual = appSecConfigService.createAppSecModuleConfigurer().addSubConfigListener('waf', listener).get()
     actual == expected
   }
 
@@ -69,55 +73,78 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'provides initial subconfiguration upon subscription'() {
-    AppSecConfigService.SubconfigListener listener = Mock()
+    AppSecModuleConfigurer.SubconfigListener listener = Mock()
 
     setup:
     appSecConfigService.init()
+    appSecConfigService.maybeStartConfigPolling()
 
     expect:
-    appSecConfigService.addSubConfigListener("waf", listener).get() instanceof AppSecConfig
-    appSecConfigService.addSubConfigListener("waf2", listener) == Optional.empty()
+    AppSecConfigService.TransactionalAppSecModuleConfigurer configurer = appSecConfigService.createAppSecModuleConfigurer()
+    configurer.addSubConfigListener("waf", listener).get() instanceof AppSecConfig
+    configurer.addSubConfigListener("waf2", listener) == Optional.empty()
   }
 
   void 'provides updated configuration to waf subscription'() {
-    AppSecConfigService.SubconfigListener subconfigListener = Mock()
+    AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
+    AppSecModuleConfigurer.SubconfigListener wafDataListener = Mock()
     ConfigurationDeserializer<AppSecConfig> savedConfDeserializer
     ConfigurationChangesListener<AppSecConfig> savedConfChangesListener
+    ConfigurationDeserializer<List<Map<String, Object>>> savedWafDataDeserializer
+    ConfigurationChangesListener<List<Map<String, Object>>> savedWafDataChangesListener
     ConfigurationDeserializer<AppSecFeatures> savedFeaturesDeserializer
     ConfigurationChangesListener<AppSecFeatures> savedFeaturesListener
     def initialWafConfig
+    def initialWafData
 
     when:
     AppSecSystem.ACTIVE = false
     appSecConfigService.init()
-    appSecConfigService.maybeInitPoller()
-    initialWafConfig = appSecConfigService.addSubConfigListener("waf", subconfigListener)
+    appSecConfigService.maybeStartConfigPolling()
+    def configurer = appSecConfigService.createAppSecModuleConfigurer()
+    initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
+    initialWafData = configurer.addSubConfigListener("waf_data", wafDataListener)
+    configurer.commit()
 
     then:
+    1 * config.getAppSecRulesFile() >> null
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       savedConfDeserializer = it[1]
       savedConfChangesListener = it[2]
       true
+    }
+    1 * poller.addListener(Product.ASM_DATA, _, _) >> {
+      savedWafDataDeserializer = it[1]
+      savedWafDataChangesListener = it[2]
     }
     1 * poller.addFeaturesListener('asm', _, _) >> {
       savedFeaturesDeserializer = it[1]
       savedFeaturesListener = it[2]
       true
     }
+    1 * poller.start()
+    0 * _._
     initialWafConfig.get() != null
+    initialWafData.present == false
 
     when:
     savedConfChangesListener.accept(
-      _ as String,
+      'ignored config key',
       savedConfDeserializer.deserialize(
-      '{"version": "2.0"}, "foo": {"version": "1.0"}'.bytes), null)
+      '{"version": "2.0"}'.bytes), null)
+    savedWafDataChangesListener.accept(
+      'ignored config key',
+      savedWafDataDeserializer.deserialize('{"rules_data":[{"foo":"bar"}]}'.bytes), null
+      )
     savedFeaturesListener.accept(
-      'asm',
+      'ignored config key',
       savedFeaturesDeserializer.deserialize(
       '{"enabled": true}'.bytes), null)
 
     then:
-    1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']))
+    1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']), _)
+    1 * wafDataListener.onNewSubconfig([[foo: 'bar']], _)
+    0 * _._
     AppSecSystem.ACTIVE == true
 
     when:
@@ -133,17 +160,19 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'error in one listener does not prevent others from running'() {
-    AppSecConfigService.SubconfigListener fooListener = Mock()
+    AppSecModuleConfigurer.SubconfigListener fooListener = Mock()
     ConfigurationDeserializer<AppSecConfig> savedConfDeserializer
     ConfigurationChangesListener<AppSecConfig> savedConfChangesListener
 
     when:
-    appSecConfigService.addSubConfigListener("waf", {
+    def configurer = appSecConfigService.createAppSecModuleConfigurer()
+    configurer.addSubConfigListener("waf", { Object[] args ->
       throw new RuntimeException('bar')
-    } as AppSecConfigService.SubconfigListener)
-    appSecConfigService.addSubConfigListener("foo", fooListener)
+    } as AppSecModuleConfigurer.SubconfigListener)
+    configurer.addSubConfigListener("foo", fooListener)
+    configurer.commit()
     appSecConfigService.init()
-    appSecConfigService.maybeInitPoller()
+    appSecConfigService.maybeStartConfigPolling()
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
@@ -159,7 +188,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       '{"version": "1.1"}, "foo": {"version": "2.0"}'.bytes), null)
 
     then:
-    appSecConfigService.lastConfig.get()['waf'].@version == '1.1'
+    appSecConfigService.lastConfig['waf'].@version == '1.1'
   }
 
   void 'config should not be created'() {
