@@ -1,0 +1,184 @@
+# Generates 'IastExclusionsTrie.java'
+
+# This file lists classes that are globally ignored for matching/transformation
+# Use 0 to allow transformation of packages or classes beneath ignored packages
+# Wildcard lines end with '.' or '$' and match any sub-packages/nested-classes
+
+# 0 = global allows
+# 1 = system-level ignores
+
+# -------- JDK --------
+1 com.sun.*
+1 java.*
+1 javax.*
+1 jdk.*
+1 org.omg.*
+1 org.w3c.*
+1 org.xml.*
+1 sun.*
+
+# -------- Groovy --------
+1 groovy*
+1 groovyx.*
+1 org.groovy.*
+
+# -------- Scala --------
+1 scala.*
+
+# -------- Kotlin --------
+1 kotlin.*
+
+# -------- DataDog --------
+com.datadog.*
+datadog.*
+
+# -------- Libraries --------
+1 antlr.*
+1 brave.*
+1 ch.qos.*
+1 com.adobe.*
+1 com.amazonaws.*
+1 com.arjuna.*
+1 com.bea.*
+1 com.blogspot.*
+1 com.codahale.*
+1 com.cognos.*
+1 com.couchbase.*
+1 com.cystaldecisions.*
+1 com.datastax.*
+1 com.datical.liquibase.*
+1 com.denodo.vdb.jdbcdriver.*
+1 com.ecwid.consul.*
+1 com.esotericsoftware.kryo.*
+1 com.fasterxml.*
+1 com.filenet.*
+1 com.github.benmanes.caffeine.*
+1 com.google.*
+1 com.googlecode.*
+1 com.hazelcast.*
+1 com.ibm.*
+1 com.intellij.*
+1 com.itextpdf.*
+1 com.jhlabs.*
+1 com.jprofiler.*
+1 com.lowagie.*
+1 com.mchange.*
+1 com.mysql.*
+1 com.neo4j.*
+1 com.netscape.*
+1 com.novell.*
+1 com.opencsv.*
+1 com.opto.captcha.*
+1 com.rabbitmq.*
+1 com.squareup.*
+1 com.tangosol.*
+1 com.typesafe.*
+1 com.zaxxer.*
+1 freemarker.*
+1 graphql.*
+1 io.dropwizard.*
+1 io.github.lukehutch.fastclasspathscanner.*
+1 io.grpc.*
+1 io.leangen.geantyref.*
+1 io.jsonwebtoken.*
+1 io.ktor.*
+1 io.prometheus.*
+1 io.quarkus.*
+1 io.micrometer.*
+1 io.micronaut.*
+1 io.netty.*
+1 io.r2dbc.*
+1 io.reactivex.*
+1 io.smallrye.*
+1 io.springfox.*
+1 io.swagger.*
+1 io.undertow.*
+1 io.vertx.*
+# https://github.com/tsegismont/vertx-musicstore
+0 io.vertx.demo.*
+1 jakarta.*
+1 jasperreports.*
+1 javassist.*
+1 jnr.ffi.*
+1 jnr.posix.*
+1 joptsimple.*
+1 liquibase.*
+1 net.bytebuddy.*
+1 net.logstash.*
+1 net.sf.ehcache.*
+1 net.sf.jasperreports.*
+1 net.sf.jsqlparser.*
+1 net.sf.saxon.*
+1 net.sourceforge.argparse4j.*
+1 net.sourceforge.barbecue.*
+1 netscape.*
+1 okhttp3.*
+1 oracle.jdbc.*
+1 oracle.sql.*
+1 org.aopalliance.*
+1 org.antlr.*
+1 org.apache.*
+1 org.apiguardian.*
+1 org.aspectj.*
+1 org.bson.*
+1 org.clojure.*
+1 org.codehaus.*
+1 org.crac.*
+1 org.dom4j.*
+1 org.eclipse.*
+1 org.ehcache.*
+1 org.flywaydb.*
+1 org.glassfish.*
+1 org.graalvm.*
+1 org.h2.*
+1 org.hamcrest.*
+1 org.hibernate.*
+1 org.hsqldb.*
+1 org.ietf.*
+1 org.infinispan.*
+1 org.jaxen.*
+1 org.jboss.*
+1 org.jcp.xml.*
+1 org.jdbcdslog
+1 org.jdbi.*
+1 org.jetbrains.*
+1 org.jfree.*
+1 org.joda.*
+1 org.jooq.*
+1 org.jruby.*
+1 org.json.*
+1 org.junit.*
+1 org.jvnet.hk2.*
+1 org.liquibase.*
+1 org.mariadb.*
+1 org.mockito.*
+1 org.modelmapper.*
+1 org.mongodb.*
+1 org.osgi.*
+1 org.owasp.*
+# https://github.com/WebGoat/WebGoat
+0 org.owasp.webgoat.*
+1 org.picketlink.*
+1 org.postgresql.*
+1 org.reactivestreams.*
+1 org.relaxng.*
+1 org.renjin.*
+1 org.slf4j.*
+1 org.springdoc.*
+1 org.springframework.*
+# https://github.com/spring-projects/spring-petclinic
+0 org.springframework.samples.*
+1 org.synchronoss.*
+1 org.terracotta.*
+1 org.testcontainers.*
+1 org.testng.*
+1 org.thymeleaf.*
+1 org.tigris.gef.*
+1 org.wildfly.*
+1 org.xnio.*
+1 org.yaml.*
+1 reactor.*
+1 springfox.*
+1 tech.jhipster.*
+1 weblogic.*
+1 zipkin2.*
