@@ -2,6 +2,7 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
+apply from: "$rootDir/gradle/tries.gradle"
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
@@ -44,10 +45,14 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
+compileJava.dependsOn 'generateClassNameTries'
+packageSources.dependsOn 'generateClassNameTries'
+sourcesJar.dependsOn 'generateClassNameTries'
+
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.iast.enabled=true']
 }
-def rootDir = project.rootDir
+
 spotless {
   java {
     target 'src/**/*.java'
