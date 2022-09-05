@@ -54,13 +54,17 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     // covers mariadb
     "org.mariadb.jdbc.JdbcPreparedStatement",
     "org.mariadb.jdbc.JdbcCallableStatement",
-    "org.mariadb.jdbc.ServerSidePreparedStatement",
-    "org.mariadb.jdbc.ClientSidePreparedStatement",
     "org.mariadb.jdbc.MariaDbServerPreparedStatement",
     "org.mariadb.jdbc.MariaDbClientPreparedStatement",
     "org.mariadb.jdbc.MySQLPreparedStatement",
     "org.mariadb.jdbc.MySQLCallableStatement",
     "org.mariadb.jdbc.MySQLServerSidePreparedStatement",
+    // MariaDB Connector/J v2.x
+    "org.mariadb.jdbc.ServerSidePreparedStatement",
+    "org.mariadb.jdbc.ClientSidePreparedStatement",
+    // MariaDB Connector/J v3.x
+    "org.mariadb.jdbc.ServerPreparedStatement",
+    "org.mariadb.jdbc.ClientPreparedStatement",
     // should completely cover postgresql
     "org.postgresql.jdbc1.PreparedStatement",
     "org.postgresql.jdbc1.CallableStatement",
