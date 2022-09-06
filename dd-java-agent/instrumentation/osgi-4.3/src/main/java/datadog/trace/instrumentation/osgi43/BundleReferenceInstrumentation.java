@@ -29,6 +29,7 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Avoid matching older versions of OSGi that don't have the wiring API.
     return hasClassNamed("org.osgi.framework.wiring.BundleWiring");
   }
 

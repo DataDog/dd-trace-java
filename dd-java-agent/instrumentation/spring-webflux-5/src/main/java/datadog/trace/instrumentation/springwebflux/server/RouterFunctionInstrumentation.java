@@ -31,10 +31,10 @@ public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrume
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    // TODO: this doesn't handle nested routes (DefaultNestedRouterFunction)
     return not(isAbstract())
         .and(
             extendsClass(
-                // TODO: this doesn't handle nested routes (DefaultNestedRouterFunction)
                 named(
                     "org.springframework.web.reactive.function.server.RouterFunctions$DefaultRouterFunction")));
   }

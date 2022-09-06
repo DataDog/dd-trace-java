@@ -38,7 +38,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
     return hasClassNamed("javax.ws.rs.Path")
-        // ...but avoid matching JAX-RS 2+ which has its own instrumentation.
+        // ...but avoid matching JAX-RS 2 which has its own instrumentation.
         .and(not(hasClassNamed("javax.ws.rs.container.AsyncResponse")));
   }
 

@@ -29,13 +29,10 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracin
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");
   }
 
-  // this is required to make sure ES7 instrumentation won't apply to previous releases
-  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassNamed("org.elasticsearch.client.RestClient$InternalRequest");
-
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
+    // Avoid matching pre-ES7 releases which have their own instrumentations.
+    return hasClassNamed("org.elasticsearch.client.RestClient$InternalRequest");
   }
 
   @Override
