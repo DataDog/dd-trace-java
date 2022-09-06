@@ -1,12 +1,8 @@
 package datadog.smoketest;
 
 import datadog.trace.util.Strings;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-import java.util.UUID;
 
 public class RemoteConfigHelper {
   public static String encode(String config, String serviceName) {
@@ -16,22 +12,24 @@ public class RemoteConfigHelper {
     } catch (NoSuchAlgorithmException e) {
       e.printStackTrace();
     }
-    String targetsStr = String.format(
-        "{\"signed\":\n" +
-        "  { \"_type\":\"targets\",\n" +
-        "    \"spec_version\": \"1.0\",\n" +
-        "    \"version\": \"2\",\n" +
-        "    \"targets\":\n" +
-        "     { \"datadog/2/LIVE_DEBUGGING/%s/config\":{" +
-        "           \"length\": %d,\n" +
-        "           \"hashes\":\n" +
-        "            {\n" +
-        "               \"sha256\": \"%s\"\n" +
-        "            }" +
-        "         }" +
-        "     }" +
-        "  }" +
-        "}", serviceName, config.length(), hashStr);
+    String targetsStr =
+        String.format(
+            "{\"signed\":\n"
+                + "  { \"_type\":\"targets\",\n"
+                + "    \"spec_version\": \"1.0\",\n"
+                + "    \"version\": \"2\",\n"
+                + "    \"targets\":\n"
+                + "     { \"datadog/2/LIVE_DEBUGGING/%s/config\":{"
+                + "           \"length\": %d,\n"
+                + "           \"hashes\":\n"
+                + "            {\n"
+                + "               \"sha256\": \"%s\"\n"
+                + "            }"
+                + "         }"
+                + "     }"
+                + "  }"
+                + "}",
+            serviceName, config.length(), hashStr);
     String targetsEncoding = new String(Base64.getEncoder().encode(targetsStr.getBytes()));
     String encodedConfig = new String(Base64.getEncoder().encode(config.getBytes()));
     return String.format(
@@ -41,10 +39,10 @@ public class RemoteConfigHelper {
             + "    {\n"
             + "      \"path\": \"datadog/2/LIVE_DEBUGGING/%s/config\",\n"
             + "      \"raw\": \"%s\"\n"
-            + "}]," +
-            "\"client_configs\": [\n" +
-            "                        \"datadog/2/LIVE_DEBUGGING/%s/config\"\n" +
-            "                ]"
+            + "}],"
+            + "\"client_configs\": [\n"
+            + "                        \"datadog/2/LIVE_DEBUGGING/%s/config\"\n"
+            + "                ]"
             + "}",
         targetsEncoding, serviceName, encodedConfig, serviceName);
   }
