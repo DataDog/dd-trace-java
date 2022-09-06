@@ -1,6 +1,6 @@
-package datadog.trace.agent.tooling.context
+package datadog.trace.agent.tooling.bytebuddy.matcher
 
-import datadog.trace.agent.tooling.bytebuddy.matcher.AbstractHierarchyMatcherTest
+import datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher
 
 class ShouldInjectFieldsMatcherTest extends AbstractHierarchyMatcherTest {
 

@@ -7,7 +7,6 @@ import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
-import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -74,8 +73,6 @@ public class AgentInstaller {
       final boolean skipAdditionalLibraryMatcher,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
-
-    FieldBackedContextProvider.resetContextMatchers();
 
     if (Config.get().isResolverOutlinePoolEnabled()) {
       DDOutlinePoolStrategy.registerTypePoolFacade();
