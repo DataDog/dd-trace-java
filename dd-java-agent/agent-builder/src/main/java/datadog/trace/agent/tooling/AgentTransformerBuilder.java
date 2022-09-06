@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -259,7 +260,23 @@ public class AgentTransformerBuilder
   /** Tracks which class-loader matchers are associated with each store request. */
   private void registerContextStoreInjection(
       Map<String, String> contextStore, Instrumenter.Default instrumenter) {
-    ElementMatcher<ClassLoader> activation = instrumenter.classLoaderMatcher();
+    ElementMatcher<ClassLoader> activation;
+
+    if (instrumenter instanceof Instrumenter.ForBootstrap) {
+      activation = ANY_CLASS_LOADER;
+    } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
+      String hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
+      activation = null != hierarchyHint ? hasClassNamed(hierarchyHint) : ANY_CLASS_LOADER;
+    } else if (instrumenter instanceof Instrumenter.ForSingleType) {
+      activation = hasClassNamed(((Instrumenter.ForSingleType) instrumenter).instrumentedType());
+    } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
+      activation =
+          hasClassNamedOneOf(((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes());
+    } else {
+      activation = ANY_CLASS_LOADER;
+    }
+
+    activation = requireBoth(activation, instrumenter.classLoaderMatcher());
 
     for (Map.Entry<String, String> storeEntry : contextStore.entrySet()) {
       ElementMatcher<ClassLoader> oldActivation = contextStoreInjection.get(storeEntry);
