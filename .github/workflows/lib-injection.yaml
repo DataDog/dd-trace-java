@@ -80,7 +80,6 @@ jobs:
         uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
         with:
           repository: 'DataDog/system-tests'
-          ref: 'injection-tests'  # TODO: update when https://github.com/DataDog/system-tests/pull/453 merged
 
       - name: Checkout dd-trace-java
         uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
