@@ -27,7 +27,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // ContextDataInjectorFactory is in log4j 2.7+. That has its own instrumentation
+    // Avoid matching log4j 2.7+ which has its own instrumentation.
     return not(hasClassNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory"));
   }
 

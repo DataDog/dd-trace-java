@@ -26,7 +26,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Introduced in 1.0.0
+    // Avoid matching pre-1.0 releases which are not compatible.
     return hasClassNamed("reactor.netty.transport.AddressUtils");
   }
 

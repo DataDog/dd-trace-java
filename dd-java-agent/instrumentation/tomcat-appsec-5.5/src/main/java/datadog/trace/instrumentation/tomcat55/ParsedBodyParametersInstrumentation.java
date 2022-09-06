@@ -33,7 +33,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // class that's not present in tomcat 5.0.x, which we don't support in the tomcat-5.5 instr
+    // Avoid matching Tomcat 5.0.x which is not supported by this instrumentation.
     return hasClassNamed("org.apache.tomcat.util.buf.StringCache");
   }
 

@@ -34,7 +34,7 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // class chosen so it's only applied when the other instrumentations are applied
+    // Only apply this spring-framework instrumentation when spring-webmvc is also deployed.
     return hasClassNamed(
         "org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping");
   }
