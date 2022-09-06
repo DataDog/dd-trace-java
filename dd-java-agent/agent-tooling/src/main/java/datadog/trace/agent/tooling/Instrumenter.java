@@ -69,6 +69,9 @@ public interface Instrumenter {
 
   /** Instrumentation that matches based on the type hierarchy. */
   interface ForTypeHierarchy {
+    /** Hint that class-loaders without this type can skip this hierarchy matcher. */
+    String hierarchyMarkerType();
+
     ElementMatcher<TypeDescription> hierarchyMatcher();
   }
 
@@ -140,6 +143,10 @@ public interface Instrumenter {
 
     public Iterable<String> names() {
       return instrumentationNames;
+    }
+
+    public String hierarchyMarkerType() {
+      return null; // placeholder
     }
 
     @Override
@@ -228,15 +235,7 @@ public interface Instrumenter {
       return null;
     }
 
-    /**
-     * A type matcher used to match the classloader under transform.
-     *
-     * <p>This matcher needs to either implement equality checks or be the same for different
-     * instrumentations that share context stores to avoid enabling the context store
-     * instrumentations multiple times.
-     *
-     * @return A type matcher used to match the classloader under transform.
-     */
+    /** Override this to supply additional class-loader requirements. */
     public ElementMatcher<ClassLoader> classLoaderMatcher() {
       return ANY_CLASS_LOADER;
     }
