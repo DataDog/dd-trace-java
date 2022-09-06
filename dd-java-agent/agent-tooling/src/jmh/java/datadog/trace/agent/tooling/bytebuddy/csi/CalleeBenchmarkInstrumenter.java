@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -25,7 +24,7 @@ public class CalleeBenchmarkInstrumenter extends Instrumenter.Default
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.ServletRequest"));
+    return named("org.apache.catalina.connector.Request");
   }
 
   @Override

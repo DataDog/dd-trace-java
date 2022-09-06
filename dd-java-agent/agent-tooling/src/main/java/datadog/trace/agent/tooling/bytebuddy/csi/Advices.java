@@ -178,8 +178,8 @@ public class Advices {
     }
 
     /**
-     * This class will try to parse the constant pool of the class in order to discover the required
-     * advices to parse it.
+     * This class will try to parse the constant pool of the class in order to discover if any
+     * configured advices should be applied.
      */
     class ConstantPoolInstrospector implements AdviceIntrospector {
 
