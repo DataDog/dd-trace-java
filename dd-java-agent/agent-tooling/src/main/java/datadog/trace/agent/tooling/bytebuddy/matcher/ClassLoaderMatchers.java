@@ -86,6 +86,22 @@ public final class ClassLoaderMatchers {
   }
 
   /**
+   * NOTICE: Does not match the bootstrap classpath. Don't use with classes expected to be on the
+   * bootstrap.
+   *
+   * @param classNames the classNames to match.
+   * @return true if any class is available as a resource and not the bootstrap classloader.
+   */
+  public static ElementMatcher.Junction<ClassLoader> hasClassNamedOneOf(
+      final String... classNames) {
+    ElementMatcher<ClassLoader>[] matchers = new ElementMatcher[classNames.length];
+    for (int i = 0; i < matchers.length; i++) {
+      matchers[i] = hasClassNamed(classNames[i]);
+    }
+    return new ElementMatcher.Junction.Disjunction<>(matchers);
+  }
+
+  /**
    * TODO: this turns out to be useless with OSGi: {@code
    * org.eclipse.osgi.internal.loader.BundleLoader#isRequestFromVM} returns {@code true} when class
    * loading is issued from this check and {@code false} for 'real' class loads. We should come up
