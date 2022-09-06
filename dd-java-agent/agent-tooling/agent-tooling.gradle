@@ -1,3 +1,6 @@
+plugins {
+  id 'me.champeau.jmh'
+}
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
@@ -33,4 +36,22 @@ dependencies {
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
+
+  jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
 }
+
+jmh {
+  jmhVersion = '1.32'
+  includeTests = true
+}
+
+forbiddenApisJmh {
+  ignoreFailures = true
+}
+
+final compileTestJava = project.tasks.compileTestJava
+compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
+
+final jmh = project.tasks.jmh
+jmh.outputs.upToDateWhen { false }
+jmh.dependsOn(compileTestJava)

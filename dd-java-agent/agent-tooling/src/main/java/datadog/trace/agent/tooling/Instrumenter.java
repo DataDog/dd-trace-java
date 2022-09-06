@@ -72,6 +72,11 @@ public interface Instrumenter {
     ElementMatcher<TypeDescription> hierarchyMatcher();
   }
 
+  /** Instrumentation that matches based on the caller of an instruction. */
+  interface ForCallSite {
+    ElementMatcher<TypeDescription> callerType();
+  }
+
   /** Instrumentation that can optionally widen matching to consider the type hierarchy. */
   interface CanShortcutTypeMatching extends ForKnownTypes, ForTypeHierarchy {
     boolean onlyMatchKnownTypes();
