@@ -117,6 +117,8 @@ include ':dd-smoke-tests:wildfly'
 include ':dd-smoke-tests:appsec'
 include ':dd-smoke-tests:appsec:springboot'
 include ':dd-smoke-tests:appsec:springboot-grpc'
+include ':dd-smoke-tests:debugger-integration-tests'
+include ':dd-smoke-tests:debugger-integration-tests:latest-jdk-app'
 
 // instrumentation:
 include ':dd-java-agent:instrumentation:aerospike-4'
