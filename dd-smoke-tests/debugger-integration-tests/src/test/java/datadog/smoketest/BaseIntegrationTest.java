@@ -113,6 +113,8 @@ public abstract class BaseIntegrationTest {
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.debugger.enabled=true",
+            "-Ddd.remote_config.enabled=true",
+            "-Ddd.remote_config.initial.poll.interval=1",
             "-Ddd.debugger.probe.url=http://localhost:" + probeServer.getPort() + PROBE_URL_PATH,
             "-Ddd.debugger.snapshot.url=http://localhost:"
                 + snapshotServer.getPort()
