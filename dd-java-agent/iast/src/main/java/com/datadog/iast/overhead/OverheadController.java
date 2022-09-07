@@ -37,23 +37,12 @@ public class OverheadController {
     if (availableRequests.get() <= 0) {
       return false;
     }
-    final int availableAfterAcquire = availableRequests.decrementAndGet();
-    if (availableAfterAcquire < 0) {
-      availableRequests.incrementAndGet();
-      return false;
-    }
-    return true;
+    final int beforeUpdate = availableRequests.getAndUpdate(x -> (x > 0) ? x - 1 : x);
+    return beforeUpdate >= 1;
   }
 
   public void releaseRequest() {
-    final int availableAfterRelease = availableRequests.incrementAndGet();
-    if (availableAfterRelease > maxConcurrentRequests) {
-      // This means that:
-      // - An acquire was buggy, or
-      // - we received the same release event twice, or
-      // - more likely, that the periodic counter reset (see ResetTask) has kicked in.
-      availableRequests.decrementAndGet();
-    }
+    availableRequests.updateAndGet(x -> (x < maxConcurrentRequests) ? x + 1 : x);
   }
 
   public boolean hasQuota(final Operation operation, final AgentSpan span) {

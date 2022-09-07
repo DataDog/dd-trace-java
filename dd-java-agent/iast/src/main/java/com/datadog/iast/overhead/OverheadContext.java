@@ -14,12 +14,9 @@ public class OverheadContext {
   }
 
   public boolean consumeQuota(final int delta) {
-    final int availableAfter = availableOperations.addAndGet(-delta);
-    if (availableAfter < 0) {
-      availableOperations.addAndGet(delta);
-      return false;
-    }
-    return true;
+    final int beforeUpdate =
+        availableOperations.getAndAccumulate(delta, (v, d) -> (v < d) ? v : v - d);
+    return beforeUpdate >= delta;
   }
 
   public void reset() {
