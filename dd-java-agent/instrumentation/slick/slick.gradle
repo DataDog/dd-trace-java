@@ -4,10 +4,7 @@ ext {
 
 muzzle {
   pass {
-    group = 'com.typesafe.slick'
-    module = "slick_2.11"
-    versions = "[3,)"
-    assertInverse = true
+    coreJdk()
   }
 }
 
