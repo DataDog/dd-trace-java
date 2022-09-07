@@ -27,7 +27,7 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     final String algorithmId = algorithm.toUpperCase(Locale.ROOT);
-    if (!config.getIastWeakCipherAlgorithms().contains(algorithmId)) {
+    if (!config.getIastWeakCipherAlgorithms().matcher(algorithmId).matches()) {
       return;
     }
     // get StackTraceElement for the callee of MessageDigest

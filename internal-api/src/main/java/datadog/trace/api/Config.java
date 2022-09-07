@@ -339,6 +339,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -610,7 +611,7 @@ public class Config {
 
   private final Set<String> iastWeakHashAlgorithms;
 
-  private final Set<String> iastWeakCipherAlgorithms;
+  private final Pattern iastWeakCipherAlgorithms;
 
   private final boolean telemetryEnabled;
 
@@ -1087,10 +1088,9 @@ public class Config {
     iastWeakHashAlgorithms =
         tryMakeImmutableSet(
             configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
-    iastWeakCipherAlgorithms =
-        tryMakeImmutableSet(
-            configProvider.getSet(
-                IAST_WEAK_CIPHER_ALGORITHMS, DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS));
+    String pattern =
+        configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS, DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS);
+    iastWeakCipherAlgorithms = Pattern.compile(pattern);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1371,7 +1371,7 @@ public class Config {
     return iastWeakHashAlgorithms;
   }
 
-  public Set<String> getIastWeakCipherAlgorithms() {
+  public Pattern getIastWeakCipherAlgorithms() {
     return iastWeakCipherAlgorithms;
   }
 
