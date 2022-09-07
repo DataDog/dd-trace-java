@@ -1088,9 +1088,10 @@ public class Config {
     iastWeakHashAlgorithms =
         tryMakeImmutableSet(
             configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
-    String pattern =
-        configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS, DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS);
-    iastWeakCipherAlgorithms = Pattern.compile(pattern);
+    iastWeakCipherAlgorithms =
+        getPattern(
+            DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS,
+            configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -2605,6 +2606,17 @@ public class Config {
       ConfigCollector.get().put(name, value);
     }
     return value;
+  }
+
+  private static Pattern getPattern(String defaultValue, String userValue) {
+    try {
+      if (userValue != null) {
+        return Pattern.compile(userValue);
+      }
+    } catch (Exception e) {
+      log.debug("Cannot create pattern from user value {}", userValue);
+    }
+    return Pattern.compile(defaultValue);
   }
 
   private static String getProp(String name) {
