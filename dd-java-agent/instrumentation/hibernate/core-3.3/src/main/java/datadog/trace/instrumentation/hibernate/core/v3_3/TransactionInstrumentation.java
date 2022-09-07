@@ -39,8 +39,13 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.hibernate.Transaction";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.Transaction"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

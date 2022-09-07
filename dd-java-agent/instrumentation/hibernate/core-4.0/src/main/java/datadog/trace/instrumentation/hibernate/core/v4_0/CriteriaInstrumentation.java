@@ -36,8 +36,13 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.hibernate.Criteria";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.Criteria"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

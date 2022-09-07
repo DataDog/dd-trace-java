@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -46,21 +45,20 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassNamed("akka.dispatch.forkjoin.ForkJoinTask");
+  public Map<String, String> contextStore() {
+    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
+  public String hierarchyMarkerType() {
+    return "akka.dispatch.forkjoin.ForkJoinTask";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));
+        .and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override
