@@ -1,0 +1,82 @@
+name: "Dependency scan"
+
+# The action has to be run on the default branch.
+# Running it as part of a PR won't update the Dependency graph of your projects Insights
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Dependency scan
+    runs-on: ubuntu-latest
+    permissions: # The Dependency Submission API requires write permission
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 11
+      - run: echo "JAVA_11_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      - name: Set up Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 8
+          cache: 'gradle'
+      - run: echo "JAVA_8_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      - name: Compute dependency trees and upload them to GH
+        uses: mikepenz/gradle-dependency-submission@db37418dfa1a02b8218b79a3f29241d835f20f92 # 0.8.0
+        with:
+          gradle-build-module: |-
+            :dd-trace-api
+            :dd-trace-ot
+            :internal-api
+            :internal-api:internal-api-8
+            :internal-api:internal-api-9
+            :dd-trace-core
+            :dd-trace-core:jfr-openjdk
+            :dd-java-agent
+            :dd-java-agent:agent-bootstrap
+            :dd-java-agent:agent-builder
+            :dd-java-agent:agent-installer
+            :dd-java-agent:agent-tooling
+            :dd-java-agent:agent-jmxfetch
+            :dd-java-agent:agent-logging
+            :dd-java-agent:load-generator
+            :dd-java-agent:agent-profiling
+            :dd-java-agent:agent-profiling:profiling-async
+            :dd-java-agent:agent-profiling:profiling-auxiliary
+            :dd-java-agent:agent-profiling:profiling-auxiliary-async
+            :dd-java-agent:agent-profiling:profiling-context
+            :dd-java-agent:agent-profiling:profiling-controller
+            :dd-java-agent:agent-profiling:profiling-controller-jfr
+            :dd-java-agent:agent-profiling:profiling-controller-async
+            :dd-java-agent:agent-profiling:profiling-controller-openjdk
+            :dd-java-agent:agent-profiling:profiling-controller-oracle
+            :dd-java-agent:agent-profiling:profiling-testing
+            :dd-java-agent:agent-profiling:profiling-uploader
+            :dd-java-agent:agent-profiling:profiling-utils
+            :dd-java-agent:agent-debugger:debugger-bootstrap
+            :dd-java-agent:agent-debugger:debugger-test-scala
+            :dd-java-agent:agent-debugger:debugger-el
+            :dd-java-agent:agent-crashtracking
+            :communication
+            :telemetry
+            :remote-config
+            :dd-java-agent:appsec
+            :dd-java-agent:appsec:weblog:weblog-common
+            :dd-java-agent:iast
+            :dd-java-agent:testing
+            :utils:container-utils
+            :utils:histograms
+            :utils:process-utils
+            :utils:socket-utils
+            :utils:test-agent-utils:decoder
+            :utils:test-utils
+            :utils:time-utils
+            :utils:version-utils
+          gradle-build-configuration: "compileClasspath"
