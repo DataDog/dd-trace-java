@@ -182,3 +182,10 @@ datadog.*
 1 tech.jhipster.*
 1 weblogic.*
 1 zipkin2.*
+
+
+# --------- testing ----------------
+
+1 org.spockframework.*
+1 worker.org.gradle.*
+1 org.gradle.*

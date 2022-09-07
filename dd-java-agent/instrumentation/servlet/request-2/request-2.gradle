@@ -17,6 +17,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'call-site-instrumentation'
 
 testSets {
   latestDepTest {
@@ -26,6 +27,9 @@ testSets {
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'
+
+  implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.12.12'
+  implementation project(':dd-java-agent:iast')
 
   testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'

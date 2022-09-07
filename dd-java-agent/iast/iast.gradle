@@ -6,12 +6,18 @@ apply from: "$rootDir/gradle/tries.gradle"
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
+apply plugin: 'call-site-instrumentation'
+
 dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-8')
   implementation project(':internal-api:internal-api-9')
+  implementation project(':dd-java-agent:agent-tooling')
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
 
   testImplementation deps.bytebuddy
   testImplementation project(':utils:test-utils')
