@@ -38,18 +38,18 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return AsyncHttpClientInstrumentation.CLASS_LOADER_MATCHER;
-  }
-
-  @Override
   protected boolean defaultEnabled() {
     return false;
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "com.ning.http.client.AsyncCompletionHandler";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("com.ning.http.client.AsyncCompletionHandler"));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

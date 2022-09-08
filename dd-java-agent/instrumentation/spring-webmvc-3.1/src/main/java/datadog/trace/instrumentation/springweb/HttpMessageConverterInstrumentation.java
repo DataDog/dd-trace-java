@@ -40,8 +40,13 @@ public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.springframework.http.converter.HttpMessageConverter";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.springframework.http.converter.HttpMessageConverter"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
