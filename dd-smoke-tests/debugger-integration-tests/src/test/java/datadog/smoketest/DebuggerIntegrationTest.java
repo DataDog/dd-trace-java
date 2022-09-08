@@ -10,6 +10,7 @@ import com.datadog.debugger.agent.SnapshotProbe;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.Snapshot;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -174,6 +175,10 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void assertFullMethodCaptureArgs(Snapshot.CapturedContext context) {
+    if ("IBM Corporation".equals(Platform.getRuntimeVendor())) {
+      // skip for IBM as we cannot get local variable debug info.
+      return;
+    }
     assertCaptureArgs(context, "argInt", "int", "42");
     assertCaptureArgs(context, "argStr", "java.lang.String", "foobar");
     assertCaptureArgs(context, "argDouble", "double", "3.42");
