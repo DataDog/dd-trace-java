@@ -111,7 +111,7 @@ public class Agent {
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled;
-  private static boolean appSecNotFullyDisabled;
+  private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled;
   private static boolean iastEnabled = false;
   private static boolean cwsEnabled = false;
@@ -153,7 +153,7 @@ public class Agent {
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
-    appSecNotFullyDisabled = isAppSecNotFullyDisabled();
+    appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
@@ -576,7 +576,7 @@ public class Agent {
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
-    if (!(appSecEnabled || (remoteConfigEnabled && appSecNotFullyDisabled))) {
+    if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
       return;
     }
 
@@ -855,7 +855,7 @@ public class Agent {
   }
 
   /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
-  private static boolean isAppSecNotFullyDisabled() {
+  private static boolean isAppSecFullyDisabled() {
     // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
     String settingValue = System.getProperty(featureEnabledSysprop);
@@ -864,10 +864,10 @@ public class Agent {
     }
 
     // defaults to inactive
-    return settingValue == null
+    return !(settingValue == null
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
-        || settingValue.equalsIgnoreCase("inactive");
+        || settingValue.equalsIgnoreCase("inactive"));
   }
 
   /** @return configured JMX start delay in seconds */

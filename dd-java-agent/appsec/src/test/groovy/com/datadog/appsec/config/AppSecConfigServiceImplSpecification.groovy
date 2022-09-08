@@ -122,7 +122,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     savedFeaturesListener.accept('config_key',
-      savedFeaturesDeserializer.deserialize('{"enabled": false}'.bytes))
+      savedFeaturesDeserializer.deserialize('{"enabled": false}'.bytes),
+      ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then:
     AppSecSystem.ACTIVE == false
