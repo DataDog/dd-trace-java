@@ -94,7 +94,8 @@ public class DebuggerSinkTest {
     when(config.getDebuggerUploadBatchSize()).thenReturn(10);
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION), 15_000);
     for (int i = 0; i < 15_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -112,7 +113,8 @@ public class DebuggerSinkTest {
   public void tooLargeSnapshot() {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION), 150_000);
     for (int i = 0; i < 150_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
     }
@@ -125,7 +127,8 @@ public class DebuggerSinkTest {
   public void tooLargeUTF8Snapshot() {
     DebuggerSink sink = new DebuggerSink(config, batchUploader);
     Snapshot largeSnapshot =
-        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+        new Snapshot(
+            Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION), 140_000);
     for (int i = 0; i < 140_000; i++) {
       largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
     }

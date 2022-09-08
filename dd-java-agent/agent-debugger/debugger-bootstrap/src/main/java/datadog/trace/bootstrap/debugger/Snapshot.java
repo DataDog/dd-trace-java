@@ -28,7 +28,7 @@ public class Snapshot {
   private final transient int version;
   private final long timestamp;
   private transient long duration;
-  private final List<CapturedStackFrame> stack = new ArrayList<>();
+  private final List<CapturedStackFrame> stack;
   private final Captures captures;
   private final ProbeDetails probe;
   private final String language;
@@ -46,6 +46,7 @@ public class Snapshot {
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
     this.probe = probe;
+    this.stack = new ArrayList<>();
   }
 
   public Snapshot(
@@ -65,13 +66,24 @@ public class Snapshot {
     this.version = version;
     this.timestamp = timestamp;
     this.duration = duration;
-    this.stack.addAll(stack);
+    this.stack = new ArrayList<>(stack);
     this.captures = captures;
     this.probe = probeDetails;
     this.language = language;
     this.thread = thread;
     this.traceId = traceId;
     this.spanId = spanId;
+  }
+
+  public Snapshot(java.lang.Thread thread, ProbeDetails probe, int stackSize) {
+    this.startTs = System.nanoTime();
+    this.version = VERSION;
+    this.timestamp = System.currentTimeMillis();
+    this.captures = new Captures();
+    this.language = LANGUAGE;
+    this.thread = new CapturedThread(thread);
+    this.probe = probe;
+    this.stack = new ArrayList<>(stackSize);
   }
 
   public void setEntry(CapturedContext context) {
