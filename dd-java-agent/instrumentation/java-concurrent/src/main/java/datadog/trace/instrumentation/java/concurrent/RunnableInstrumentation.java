@@ -32,6 +32,11 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE)
         .and(implementsInterface(named(Runnable.class.getName())))

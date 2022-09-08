@@ -37,6 +37,11 @@ public final class WebServiceProviderInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(WEB_SERVICE_PROVIDER_INTERFACE_NAME))
         .and(declaresAnnotation(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));

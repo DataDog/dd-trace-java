@@ -145,10 +145,6 @@ public interface Instrumenter {
       return instrumentationNames;
     }
 
-    public String hierarchyMarkerType() {
-      return null; // placeholder
-    }
-
     @Override
     public final void instrument(TransformerBuilder transformerBuilder) {
       if (isEnabled()) {

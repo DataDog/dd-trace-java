@@ -45,6 +45,11 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(
         named("java.util.concurrent.RejectedExecutionHandler")

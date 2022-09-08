@@ -41,6 +41,11 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE_FUTURE)
         .and(
