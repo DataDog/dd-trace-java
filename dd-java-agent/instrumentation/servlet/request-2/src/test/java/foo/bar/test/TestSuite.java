@@ -1,4 +1,4 @@
-package com.jsantos.test;
+package foo.bar.test;
 
 import java.util.Enumeration;
 import javax.servlet.ServletRequest;

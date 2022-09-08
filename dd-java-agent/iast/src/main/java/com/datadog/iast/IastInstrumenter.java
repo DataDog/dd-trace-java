@@ -3,6 +3,7 @@ package com.datadog.iast;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumenter;
+import datadog.trace.api.iast.IastAdvice;
 import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;

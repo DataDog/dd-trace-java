@@ -1,4 +1,4 @@
-import com.jsantos.test.TestSuite
+import foo.bar.test.TestSuite
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.instrumentation.servlet2.callsite.MockTainter

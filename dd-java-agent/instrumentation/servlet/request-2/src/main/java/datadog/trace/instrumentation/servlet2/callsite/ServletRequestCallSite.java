@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.servlet2.callsite;
 
-import com.datadog.iast.IastAdvice;
 import datadog.trace.agent.tooling.csi.CallSite;
+import datadog.trace.api.iast.IastAdvice;
 import java.util.Enumeration;
 import javax.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;

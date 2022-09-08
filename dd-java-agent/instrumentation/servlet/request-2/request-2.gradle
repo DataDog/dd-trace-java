@@ -28,7 +28,7 @@ testSets {
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'
 
-  implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.12.12'
+  implementation deps.bytebuddy
   implementation project(':dd-java-agent:iast')
 
   testImplementation(project(':dd-java-agent:testing')) {
