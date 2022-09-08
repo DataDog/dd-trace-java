@@ -20,13 +20,15 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing
     super("servlet", "servlet-3");
   }
 
-  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassNamed("javax.servlet.http.HttpServletResponse");
-
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return CLASS_LOADER_MATCHER;
+    // Avoid matching servlet 2 which has its own instrumentation
+    return hasClassNamed("javax.servlet.AsyncEvent");
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "javax.servlet.http.HttpServlet";
   }
 
   @Override
