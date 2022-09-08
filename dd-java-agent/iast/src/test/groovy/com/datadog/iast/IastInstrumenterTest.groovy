@@ -6,6 +6,7 @@ import net.bytebuddy.description.type.TypeDescription
 
 class IastInstrumenterTest extends DDSpecification{
   def 'test Iast Instrumenter'(){
+    given:
     IastInstrumenter instrumenter = new IastInstrumenter()
     TypeDescription typeDescription1 = Mock (TypeDescription)
     typeDescription1.getName() >> "org.jsantos.Tool"

@@ -32,6 +32,6 @@ public class IastInstrumenter extends CallSiteInstrumenter
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return true;
+    return enabledSystems.contains(TargetSystem.IAST);
   }
 }
