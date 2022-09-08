@@ -70,7 +70,6 @@ jobs:
     env:
       TEST_LIBRARY: java
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
-      LIBRARY_INJECTION_ENABLED: ${{ matrix.lib-injection-enabled }}
       LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
       LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-admission-controller }}
       LIBRARY_INJECTION_INIT_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:${{ github.sha }}
@@ -81,7 +80,6 @@ jobs:
         uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
         with:
           repository: 'DataDog/system-tests'
-          ref: 'injection-tests'  # TODO: update when https://github.com/DataDog/system-tests/pull/453 merged
 
       - name: Checkout dd-trace-java
         uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
@@ -89,10 +87,10 @@ jobs:
           path: 'binaries/dd-trace-java'
 
       - name: Build
-        run: ./build.sh
+        run: ./lib-injection/build.sh
 
       - name: Run
-        run: ./run.sh
+        run: ./lib-injection/run-lib-injection.sh
 
       - name: Compress artifact
         if: ${{ always() }}

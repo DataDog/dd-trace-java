@@ -4,6 +4,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_LEGACY_TRACING;
@@ -16,8 +20,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,9 +87,13 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           PathwayContext pathwayContext =
               propagate().extractBinaryPathwayContext(val.headers(), GETTER);
           span.mergePathwayContext(pathwayContext);
-          AgentTracer.get()
-              .setDataStreamCheckpoint(
-                  span, Arrays.asList("type:kafka", "group:" + group, "topic:" + val.topic()));
+
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+          sortedTags.put(GROUP_TAG, group);
+          sortedTags.put(PARTITION_TAG, String.valueOf(val.partition()));
+          sortedTags.put(TOPIC_TAG, val.topic());
+          sortedTags.put(TYPE_TAG, "kafka");
+          AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
         } else {
           span = startSpan(operationName, null);
         }

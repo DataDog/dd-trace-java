@@ -21,7 +21,7 @@ import org.springframework.amqp.core.Queue
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
-import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.RabbitMQContainer
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -35,9 +35,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+// Do not run tests on Java7 since testcontainers are not compatible with Java7
+@Requires({ jvm.java8Compatible })
 abstract class RabbitMQTestBase extends AgentTestRunner {
   @Shared
   def rabbitMQContainer
@@ -69,20 +68,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 
   def setupSpec() {
-    // Please note that Testcontainers and forked runs seem to fail for this test
-    // intermittently, both locally and on CI, so that is why we have a rabbitmq
-    // container running along side our build on CI.
-    // When building locally, however, we need to use Testcontainers.
-    if ("true" != System.getenv("CI")) {
-      rabbitMQContainer = new GenericContainer('rabbitmq:3.9.20-alpine')
-        .withExposedPorts(defaultRabbitMQPort)
-        .withStartupTimeout(Duration.ofSeconds(120))
-      rabbitMQContainer.start()
-      rabbitmqAddress = new InetSocketAddress(
-        rabbitMQContainer.containerIpAddress,
-        rabbitMQContainer.getMappedPort(defaultRabbitMQPort)
-        )
-    }
+    rabbitMQContainer = new RabbitMQContainer('rabbitmq:3.9.20-alpine')
+      .withExposedPorts(defaultRabbitMQPort)
+      .withStartupTimeout(Duration.ofSeconds(120))
+    rabbitMQContainer.start()
+    rabbitmqAddress = new InetSocketAddress(
+      rabbitMQContainer.getHost(),
+      rabbitMQContainer.getMappedPort(defaultRabbitMQPort)
+      )
     PortUtils.waitForPortToOpen(rabbitmqAddress.hostString, rabbitmqAddress.port, 5, TimeUnit.SECONDS)
   }
 
@@ -153,13 +146,13 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:true"])
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
         edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -207,13 +200,13 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:", "has_routing_key:true"])
+        edgeTags == ["exchange:", "has_routing_key:true", "type:internal"]
         edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -304,14 +297,14 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
       producerPoints.each { producerPoint ->
         verifyAll(producerPoint) {
-          edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:false"])
+          edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
           edgeTags.size() == 3
         }
       }
 
       StatsGroup consumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == producerPoints.get(0).hash }
       verifyAll(consumerPoint) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -396,13 +389,13 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:false"])
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:false", "type:internal"]
         edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -481,13 +474,13 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:", "has_routing_key:true"])
+        edgeTags.containsAll(["exchange:", "has_routing_key:true", "type:internal"])
         edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:some-routing-queue"])
+        edgeTags == ["topic:some-routing-queue", "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -565,13 +558,13 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:true"])
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
         edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -658,13 +651,13 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8) && isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal", "exchange:" + exchangeName, "has_routing_key:true"])
+        edgeTags == ["exchange:" + exchangeName, "has_routing_key:true", "type:internal"]
         edgeTags.size() == 3
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:rabbitmq", "topic:" + queueName])
+        edgeTags == ["topic:" + queueName, "type:rabbitmq"]
         edgeTags.size() == 2
       }
     }
@@ -843,7 +836,7 @@ abstract class RabbitMQTestBase extends AgentTestRunner {
   }
 }
 
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ jvm.java8Compatible })
 class RabbitMQForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -868,7 +861,7 @@ class RabbitMQForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ jvm.java8Compatible })
 class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -898,7 +891,7 @@ class RabbitMQDatastreamsDisabledForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ jvm.java8Compatible })
 class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {
@@ -924,7 +917,7 @@ class RabbitMQSplitByDestinationForkedTest extends RabbitMQTestBase {
   }
 }
 
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ jvm.java8Compatible })
 class RabbitMQLegacyTracingForkedTest extends RabbitMQTestBase {
   @Override
   void configurePreAgent() {

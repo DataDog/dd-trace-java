@@ -89,13 +89,15 @@ final class DatadogTagsFactory implements DatadogTags.Factory {
         log.warn("Invalid datadog tags header value: '{}' invalid tag key at {}", value, tagPos);
         return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
       }
-      if (!validateTagValue(tagKey, tagValue)) {
-        log.warn(
-            "Invalid datadog tags header value: '{}' invalid tag value at {}", value, tagValuePos);
-        return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
-      }
       if (tagKey.startsWith(ALLOWED_TAG_PREFIX)
           && !tagKey.startsWith(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
+        if (!validateTagValue(tagKey, tagValue)) {
+          log.warn(
+              "Invalid datadog tags header value: '{}' invalid tag value at {}",
+              value,
+              tagValuePos);
+          return new InvalidDatadogTags(PROPAGATION_ERROR_DECODING_ERROR);
+        }
         tagPairs.add(tagKey);
         tagPairs.add(tagValue);
       }

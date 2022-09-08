@@ -1,5 +1,7 @@
 package com.datadog.iast.model;
 
+import java.util.Arrays;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -24,5 +26,20 @@ public final class Evidence {
 
   public Range[] getRanges() {
     return ranges;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Evidence evidence = (Evidence) o;
+    return Objects.equals(value, evidence.value) && Arrays.equals(ranges, evidence.ranges);
+  }
+
+  @Override
+  public int hashCode() {
+    int result = Objects.hash(value);
+    result = 31 * result + Arrays.hashCode(ranges);
+    return result;
   }
 }

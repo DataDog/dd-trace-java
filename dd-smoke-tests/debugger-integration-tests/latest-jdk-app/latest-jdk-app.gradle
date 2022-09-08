@@ -1,0 +1,21 @@
+plugins {
+    // Apply the application plugin to add support for building a CLI application in Java.
+    id 'application'
+    id 'com.github.johnrengelman.shadow'
+}
+
+shadowJar {
+    // Define the main class for the application.
+    mainClassName = 'App'
+}
+
+def latestJdk = 17
+
+def latestJdkHome = System.getenv("JAVA_${latestJdk}_HOME")
+if (latestJdkHome != null) {
+  tasks.withType(JavaCompile) {
+    options.fork = true
+    options.release = latestJdk
+    compileJava.options.forkOptions.javaHome = file(latestJdkHome)
+  }
+}

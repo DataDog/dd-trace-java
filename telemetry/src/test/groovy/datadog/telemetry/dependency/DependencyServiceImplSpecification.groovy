@@ -74,6 +74,48 @@ class DependencyServiceImplSpecification extends DepSpecification {
     assertThat(set.first().version, is('4.12'))
   }
 
+  void 'build dependency set from a fat jar'() {
+    when:
+    File budgetappJar = getJar('budgetapp.jar')
+
+    depService.addURL(new File(budgetappJar.getAbsolutePath()).toURL())
+    depService.resolveOneDependency()
+
+    then:
+    def set = depService.drainDeterminedDependencies() as Set
+    assertThat(set.size(), is(105))
+  }
+
+  void 'build dependency set from a small fat jar'() {
+    when:
+    File budgetappJar = getJar('budgetappreduced.jar')
+
+    depService.addURL(new File(budgetappJar.getAbsolutePath()).toURL())
+    depService.resolveOneDependency()
+
+    then:
+    def set = depService.drainDeterminedDependencies() as Set
+    assertThat(set.size(), is(2))
+    assertThat(set.first().name, is('cglib:cglib'))
+    assertThat(set.first().version, is('3.2.4'))
+    assertThat(set.last().name, is('org.yaml:snakeyaml'))
+    assertThat(set.last().version, is('1.17'))
+  }
+
+  void 'build dependency set from a small fat jar with one incorrect pom.properties'() {
+    when:
+    File budgetappJar = getJar('budgetappreducedbadproperties.jar')
+
+    depService.addURL(new File(budgetappJar.getAbsolutePath()).toURL())
+    depService.resolveOneDependency()
+
+    then:
+    def set = depService.drainDeterminedDependencies() as Set
+    assertThat(set.size(), is(1))
+    assertThat(set.first().name, is('org.yaml:snakeyaml'))
+    assertThat(set.first().version, is('1.17'))
+  }
+
   void 'transformer invalid code source'() throws IllegalClassFormatException, MalformedURLException {
     Instrumentation instrumentation = Mock()
     ClassFileTransformer t

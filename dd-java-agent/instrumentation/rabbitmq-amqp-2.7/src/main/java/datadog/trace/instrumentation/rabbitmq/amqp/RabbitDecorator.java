@@ -7,6 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
@@ -22,7 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -191,8 +193,10 @@ public class RabbitDecorator extends MessagingClientDecorator {
       PathwayContext pathwayContext =
           propagate().extractPathwayContext(headers, ContextVisitors.objectValuesMap());
       span.mergePathwayContext(pathwayContext);
-      AgentTracer.get()
-          .setDataStreamCheckpoint(span, Arrays.asList("type:rabbitmq", "topic:" + queue));
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(TOPIC_TAG, queue);
+      sortedTags.put(TYPE_TAG, "rabbitmq");
+      AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
     }
 
     if (null != body) {

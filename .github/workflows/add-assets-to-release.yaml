@@ -30,6 +30,8 @@ jobs:
           asset_path: dd-java-agent.jar
           asset_name: dd-java-agent.jar
           asset_content_type: application/java-archive
+      - name: Update download release
+        uses: DataDog/download-release-action@ea1f13c0cad08eafeebec8b7d9b2d6ee74efb92a # 0.0.2
   dd-trace-api:
     runs-on: ubuntu-latest
     steps:

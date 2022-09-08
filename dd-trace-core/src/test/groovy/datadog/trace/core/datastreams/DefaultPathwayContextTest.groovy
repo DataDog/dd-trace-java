@@ -40,7 +40,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     then:
     context.isStarted()
@@ -55,16 +55,17 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(
+      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 2
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -80,18 +81,20 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(
+      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
     timeSource.advance(30)
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(
+      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -99,7 +102,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       edgeLatencyNano == 25
     }
     with(pointConsumer.points[2]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
@@ -128,19 +131,19 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
     def encoded = context.strEncode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
 
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -157,19 +160,19 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.strEncode()
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -182,13 +185,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topicB"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topicB"])
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
@@ -206,20 +209,20 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.strEncode()
     Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -233,13 +236,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topicB"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topicB"])
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
@@ -256,19 +259,19 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, wellKnownTags, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
 
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -285,19 +288,19 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.decode(timeSource, wellKnownTags, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -310,13 +313,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.decode(timeSource, wellKnownTags, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topicB"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topicB"])
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
@@ -334,20 +337,20 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     def encoded = context.encode()
     Map<String, byte[]> carrier = [(PathwayContext.PROPAGATION_KEY): encoded, "someotherkey": new byte[0]]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
 
     then:
     decodedContext.isStarted()
     pointConsumer.points.size() == 2
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -361,13 +364,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extractBinary(carrier, contextVisitor, timeSource, wellKnownTags)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(Arrays.asList("type:kafka", "group:group", "topic:topicB"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
 
     then:
     secondDecode.isStarted()
     pointConsumer.points.size() == 3
     with(pointConsumer.points[2]) {
-      edgeTags.containsAll(["type:kafka", "group:group", "topic:topicB"])
+      edgeTags == ["group:group", "topic:topicB", "type:kafka"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[1].hash
       hash != 0
@@ -383,18 +386,18 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(Arrays.asList("type:type", "group:group", "topic:topic"), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "type"]), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(Arrays.asList(), pointConsumer)
+    context.setCheckpoint(new LinkedHashMap<>(), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 3
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags.containsAll(["type:type", "group:group", "topic:topic"])
+      edgeTags == ["group:group", "topic:topic", "type:type"]
       edgeTags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
@@ -417,12 +420,12 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     def firstContext = new DefaultPathwayContext(timeSource, wellKnownTags)
     timeSource.advance(50)
-    firstContext.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    firstContext.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     injectSysConfig(PRIMARY_TAG, "region-2")
     def secondContext = new DefaultPathwayContext(timeSource, wellKnownTags)
     timeSource.advance(25)
-    secondContext.setCheckpoint(Arrays.asList("type:internal"), pointConsumer)
+    secondContext.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
 
     then:
     pointConsumer.points.size() == 2

@@ -4,6 +4,8 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.MethodProbeInstrumentor;
 import com.squareup.moshi.Json;
 import datadog.trace.bootstrap.debugger.DiagnosticMessage;
+import datadog.trace.bootstrap.debugger.FieldExtractor;
+import datadog.trace.bootstrap.debugger.ValueConverter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -16,11 +18,15 @@ public class SnapshotProbe extends ProbeDefinition {
 
   /** Stores capture limits */
   public static final class Capture {
-    private final int maxReferenceDepth;
-    private final int maxCollectionSize;
-    private final int maxLength;
-    private final int maxFieldDepth;
-    private final int maxFieldCount;
+    private int maxReferenceDepth = ValueConverter.DEFAULT_REFERENCE_DEPTH;
+    private int maxCollectionSize = ValueConverter.DEFAULT_COLLECTION_SIZE;
+    private int maxLength = ValueConverter.DEFAULT_LENGTH;
+    private int maxFieldDepth = FieldExtractor.DEFAULT_FIELD_DEPTH;
+    private int maxFieldCount = ValueConverter.DEFAULT_FIELD_COUNT;
+
+    private Capture() {
+      // for Moshi to assign default values
+    }
 
     public Capture(
         int maxReferenceDepth,

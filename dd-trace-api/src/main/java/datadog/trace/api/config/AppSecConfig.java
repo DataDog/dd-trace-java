@@ -15,8 +15,5 @@ public final class AppSecConfig {
   public static final String APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP =
       "appsec.obfuscation.parameter_value_regexp";
 
-  public static final String APPSEC_IAST_WEAK_HASHING_ALGORITHMS =
-      "appsec.iast.weak_hashing_algorithms";
-
   private AppSecConfig() {}
 }

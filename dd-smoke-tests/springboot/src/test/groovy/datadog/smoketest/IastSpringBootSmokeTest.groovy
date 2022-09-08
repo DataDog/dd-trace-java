@@ -63,7 +63,26 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     responseBodyStr.contains("Sup Dawg")
     response.body().contentType().toString().contains("text/plain")
     response.code() == 200
+
     checkLog()
     !logHasErrors
+  }
+
+  def "iast.enabled tag is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/greeting"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    Boolean foundEnabledTag = false
+    checkLog {
+      if (it.contains("_dd.iast.enabled=1")) {
+        foundEnabledTag = true
+      }
+    }
+    foundEnabledTag
   }
 }

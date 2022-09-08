@@ -1,6 +1,7 @@
 package com.datadog.iast.model;
 
 import com.datadog.iast.model.json.SourceIndex;
+import java.util.Objects;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
@@ -25,5 +26,18 @@ public final class Range {
 
   public Source getSource() {
     return source;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Range range = (Range) o;
+    return start == range.start && length == range.length && Objects.equals(source, range.source);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(start, length, source);
   }
 }
