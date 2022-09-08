@@ -39,8 +39,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_N
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONTEXT_OPERATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
@@ -153,8 +153,8 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
-import static datadog.trace.api.config.IastConfig.IAST_MAX_CONTEXT_OPERATIONS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -526,7 +526,7 @@ public class Config {
 
   private final boolean iastEnabled;
   private final int iastMaxConcurrentRequests;
-  private final int iastMaxContextOperations;
+  private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
 
   private final boolean ciVisibilityEnabled;
@@ -1096,8 +1096,9 @@ public class Config {
     iastMaxConcurrentRequests =
         configProvider.getInteger(
             IAST_MAX_CONCURRENT_REQUESTS, DEFAULT_IAST_MAX_CONCURRENT_REQUESTS);
-    iastMaxContextOperations =
-        configProvider.getInteger(IAST_MAX_CONTEXT_OPERATIONS, DEFAULT_IAST_MAX_CONTEXT_OPERATIONS);
+    iastVulnerabilitiesPerRequest =
+        configProvider.getInteger(
+            IAST_VULNERABILITIES_PER_REQUEST, DEFAULT_IAST_VULNERABILITIES_PER_REQUEST);
     iastRequestSampling =
         configProvider.getFloat(IAST_REQUEST_SAMPLING, DEFAULT_IAST_REQUEST_SAMPLING);
     iastWeakHashAlgorithms =
@@ -1787,8 +1788,8 @@ public class Config {
     return iastMaxConcurrentRequests;
   }
 
-  public int getIastMaxContextOperations() {
-    return iastMaxContextOperations;
+  public int getIastVulnerabilitiesPerRequest() {
+    return iastVulnerabilitiesPerRequest;
   }
 
   public float getIastRequestSampling() {

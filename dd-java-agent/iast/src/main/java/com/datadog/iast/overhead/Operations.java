@@ -7,7 +7,7 @@ public class Operations {
   public static final Operation REPORT_VULNERABILITY =
       new Operation() {
         @Override
-        public boolean hasQuota(OverheadContext context) {
+        public boolean hasQuota(final OverheadContext context) {
           if (context == null) {
             return false;
           }
@@ -15,7 +15,7 @@ public class Operations {
         }
 
         @Override
-        public boolean consumeQuota(OverheadContext context) {
+        public boolean consumeQuota(final OverheadContext context) {
           if (context == null) {
             return false;
           }

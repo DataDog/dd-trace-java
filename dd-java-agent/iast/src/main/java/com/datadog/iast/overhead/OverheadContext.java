@@ -5,21 +5,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class OverheadContext {
 
-  private static final int MAX_OPERATIONS = Config.get().getIastMaxContextOperations();
+  private static final int VULNERABILITIES_PER_REQUEST =
+      Config.get().getIastVulnerabilitiesPerRequest();
 
-  private final AtomicInteger availableOperations = new AtomicInteger(MAX_OPERATIONS);
+  private final AtomicInteger availableVulnerabilities =
+      new AtomicInteger(VULNERABILITIES_PER_REQUEST);
 
   public int getAvailableQuota() {
-    return availableOperations.get();
+    return availableVulnerabilities.get();
   }
 
   public boolean consumeQuota(final int delta) {
     final int beforeUpdate =
-        availableOperations.getAndAccumulate(delta, (v, d) -> (v < d) ? v : v - d);
+        availableVulnerabilities.getAndAccumulate(delta, (v, d) -> (v < d) ? v : v - d);
     return beforeUpdate >= delta;
   }
 
   public void reset() {
-    availableOperations.set(MAX_OPERATIONS);
+    availableVulnerabilities.set(VULNERABILITIES_PER_REQUEST);
   }
 }
