@@ -1,0 +1,58 @@
+# Generates 'IastTrie.java'
+
+# This file lists classes that are globally ignored for matching.transformation
+# Use 0 to allow transformation of packages or classes beneath ignored packages
+# Wildcard lines end with '.' or '$' and match any sub-packages.nested-classes
+
+# system-level ignores are classes that are unsafe or pointless to transform
+
+# additional ignores are an optimization to reduce the cost of expensive matchers
+
+# 0 = allowed elements
+# 1 = ignored elements
+
+# -------- IGNORED ELEMENTS --------
+
+1 antlr.*
+1 ch.qos.logback.*
+1 java.lang.*
+1 java.net.URLClassLoader
+1 java.net.URLDecoder
+1 java.net.URLEncoder
+1 java.util.*
+1 javax.activation.*
+1 javax.annotation.*
+1 javax.crypto.*
+1 javax.management.*
+1 javax.naming.*
+1 javax.net.*
+1 javax.persistence.*
+1 javax.validation.*
+1 jnr.posix.*
+1 jnr.ffi.*
+1 net.sf.ehcache.*
+1 org.aopalliance.*
+1 org.apache.commons.logging.*
+1 org.apache.el.parser.ELParserTokenManager
+1 org.apache.el.parser.ParseException
+1 org.apache.el.parser.TokenMgrError
+1 org.apache.jasper.compiler.*
+1 org.apache.juli.*
+1 org.apache.tomcat.util.*
+1 org.eclipse.jdt.*
+1 org.eclipse.jetty.*
+1 org.jboss.logging.*
+1 org.hibernate.*
+1 org.hsqldb.*
+1 org.jboss.*
+1 org.jcp.xml.*
+1 org.slf4j.*
+1 org.springframework.*
+1 org.terracotta.*
+1 sun.net.*
+
+# -------- ALLOWED ELEMENTS --------
+0 org.springframework.web.*
+0 org.springframework.jdbc.*
+0 org.springframework.security.web.*
+0 org.springframework.samples.*
