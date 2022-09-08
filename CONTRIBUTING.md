@@ -12,7 +12,9 @@ To build the full project from the command line:
 * `JAVA_8_HOME` must point to the JDK-8 location.
 * `JAVA_11_HOME` must point to the JDK-11 location.
 * The JDK-8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
-* `JAVA_HOME` must be unset or point to JDK-8 (same as `JAVA_8_HOME`).
+* `JAVA_HOME` may be unset. If set, it must point to JDK-8 (same as `JAVA_8_HOME`).
+
+MacOS users, remember that `/usr/libexec/java_home` may control which JDK is in your path. 
 
 In contrast to the [IntelliJ IDEA setup](#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
 
