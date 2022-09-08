@@ -24,8 +24,13 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "javax.servlet.http.HttpServletResponse";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.http.HttpServletResponse"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
