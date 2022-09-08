@@ -61,6 +61,11 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(Executor.class.getName()));
   }

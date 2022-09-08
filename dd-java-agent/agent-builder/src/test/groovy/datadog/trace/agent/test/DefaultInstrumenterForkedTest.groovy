@@ -165,6 +165,11 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     }
 
     @Override
+    String hierarchyMarkerType() {
+      return null
+    }
+
+    @Override
     ElementMatcher<? super TypeDescription> hierarchyMatcher() {
       applyCalled = true
       return none()
