@@ -7,9 +7,11 @@ dependencies {
   api('com.datadoghq:jmxfetch:0.45.3') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+    exclude group: 'org.yaml', module: 'snakeyaml'
   }
   api deps.slf4j
   api project(':internal-api')
+  implementation 'org.yaml:snakeyaml:1.31' // override to mitigate CVE-2022-25857 until jmxfetch is fixed
 }
 
 shadowJar {

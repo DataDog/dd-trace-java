@@ -12,11 +12,7 @@ class TimelinePrinter {
       }
       // allows rendering threads top to bottom by when they were first encountered
       Map<Thread, BitSet> timelines = new LinkedHashMap<>()
-      int maxNameLength = 0
       String[] renderings = new String[orderedEvents.size()]
-      for (Thread thread : threadEvents.keySet()) {
-        maxNameLength = Math.max(maxNameLength, thread.name.length())
-      }
       int position = 0
       for (Event event : orderedEvents) {
         if (position >= renderings.length) {
@@ -34,6 +30,10 @@ class TimelinePrinter {
           timelines[event.thread] = timeline = new BitSet()
         }
         timeline.set(position++)
+      }
+      int maxNameLength = 0
+      for (Thread thread : timelines.keySet()) {
+        maxNameLength = Math.max(maxNameLength, thread.name.length())
       }
       for (Map.Entry<Thread, BitSet> timeline : timelines) {
         Thread thread = timeline.key

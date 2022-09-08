@@ -4,6 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
@@ -11,10 +15,6 @@ import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_LEGACY_TRACING;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
 import static datadog.trace.instrumentation.kafka_streams.StampedRecordContextVisitor.SR_GETTER;
-import static datadog.trace.instrumentation.kafka_streams.TagsCache.GROUP_TAG_CACHE;
-import static datadog.trace.instrumentation.kafka_streams.TagsCache.GROUP_TAG_PREFIX;
-import static datadog.trace.instrumentation.kafka_streams.TagsCache.TOPIC_TAG_CACHE;
-import static datadog.trace.instrumentation.kafka_streams.TagsCache.TOPIC_TAG_PREFIX;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -32,8 +32,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -64,8 +63,6 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
       packageName + ".ProcessorRecordContextVisitor",
       packageName + ".StampedRecordContextVisitor",
       packageName + ".StreamTaskContext",
-      packageName + ".TagsCache",
-      packageName + ".TagsCache$StringPrefix",
     };
   }
 
@@ -237,18 +234,18 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, SR_GETTER);
         span.mergePathwayContext(pathwayContext);
-        List<String> edgeTags = new ArrayList<>(3);
-        edgeTags.add("type:kafka");
-        edgeTags.add(TOPIC_TAG_CACHE.computeIfAbsent(record.topic(), TOPIC_TAG_PREFIX));
-
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
-            edgeTags.add(GROUP_TAG_CACHE.computeIfAbsent(applicationId, GROUP_TAG_PREFIX));
+            // Kafka Streams uses the application ID as the consumer group.id.
+            sortedTags.put(GROUP_TAG, applicationId);
           }
         }
-        // Kafka Streams uses the application ID as the consumer group.id.
-        AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
+        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
+        sortedTags.put(TOPIC_TAG, record.topic());
+        sortedTags.put(TYPE_TAG, "kafka");
+        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }
@@ -303,18 +300,18 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
 
         PathwayContext pathwayContext = propagate().extractBinaryPathwayContext(record, PR_GETTER);
         span.mergePathwayContext(pathwayContext);
-        List<String> edgeTags = new ArrayList<>(3);
-        edgeTags.add("type:kafka");
-        edgeTags.add(TOPIC_TAG_CACHE.computeIfAbsent(record.topic(), TOPIC_TAG_PREFIX));
-
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         if (streamTaskContext != null) {
           String applicationId = streamTaskContext.getApplicationId();
           if (applicationId != null) {
-            edgeTags.add(GROUP_TAG_CACHE.computeIfAbsent(applicationId, GROUP_TAG_PREFIX));
+            // Kafka Streams uses the application ID as the consumer group.id.
+            sortedTags.put(GROUP_TAG, applicationId);
           }
         }
-        // Kafka Streams uses the application ID as the consumer group.id.
-        AgentTracer.get().setDataStreamCheckpoint(span, edgeTags);
+        sortedTags.put(PARTITION_TAG, String.valueOf(record.partition()));
+        sortedTags.put(TOPIC_TAG, record.topic());
+        sortedTags.put(TYPE_TAG, "kafka");
+        AgentTracer.get().setDataStreamCheckpoint(span, sortedTags);
       } else {
         span = startSpan(KAFKA_CONSUME, null);
       }

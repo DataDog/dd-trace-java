@@ -24,6 +24,7 @@ dependencies {
   testImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '1.1.0.RELEASE'
 
   testImplementation deps.testcontainers
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
 
   latestDepTestImplementation group: 'com.rabbitmq', name: 'amqp-client', version: '+'
   latestDepTestImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '+'

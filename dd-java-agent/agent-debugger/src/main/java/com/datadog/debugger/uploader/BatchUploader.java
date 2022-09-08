@@ -70,7 +70,7 @@ public class BatchUploader {
     if (url == null || url.length() == 0) {
       throw new IllegalArgumentException("Snapshot url is empty");
     }
-    urlBase = HttpUrl.parse(url);
+    urlBase = HttpUrl.get(url);
     log.debug("Started SnapshotUploader with target url {}", urlBase);
     apiKey = config.getApiKey();
     responseCallback = new ResponseCallback(ratelimitedLogger, inflightRequests);

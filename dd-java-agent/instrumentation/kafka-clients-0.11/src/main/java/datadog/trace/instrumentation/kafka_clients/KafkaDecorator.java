@@ -15,8 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
@@ -26,14 +24,10 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
   public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create("kafka.produce");
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
-
   public static final boolean KAFKA_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(true, "kafka");
 
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
-
-  public static final List<String> PRODUCER_PATHWAY_EDGE_TAGS = Arrays.asList("type:internal");
-
   private final String spanKind;
   private final CharSequence spanType;
   private final String serviceName;

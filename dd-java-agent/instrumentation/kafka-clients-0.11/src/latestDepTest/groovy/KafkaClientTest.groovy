@@ -164,14 +164,14 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
+        edgeTags.size() == 2
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
-        edgeTags.size() == 3
+        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
     }
 
@@ -285,14 +285,14 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
+        edgeTags.size() == 2
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
-        edgeTags.size() == 3
+        edgeTags == ["group:sender", "partition:" + received.partition(), "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
     }
 
@@ -740,6 +740,7 @@ class KafkaClientTest extends AgentTestRunner {
     TEST_DATA_STREAMS_WRITER.waitForGroups(2)
 
     then:
+    int partition = records.first().partition()
     def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
       def received = records.poll(5, TimeUnit.SECONDS)
@@ -863,14 +864,14 @@ class KafkaClientTest extends AgentTestRunner {
     if (Platform.isJavaVersionAtLeast(8)) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["type:internal"])
-        edgeTags.size() == 1
+        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
+        edgeTags.size() == 2
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["type:kafka", "group:sender", "topic:$SHARED_TOPIC".toString()])
-        edgeTags.size() == 3
+        edgeTags == ["group:sender", "partition:" + partition, "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
     }
 

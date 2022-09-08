@@ -1,0 +1,41 @@
+# Generates 'CallSiteTrie.java'
+
+# 0 = allowed elements
+# 1 = ignored elements
+
+# -------- IGNORED ELEMENTS --------
+
+# jdk
+1 java.util.*
+1 java.lang.*
+1 java.net.*
+1 javax.accessibility.*
+1 javax.activation.*
+1 javax.annotation.*
+1 javax.management.*
+1 javax.naming.*
+1 javax.net.*
+1 javax.script.*
+1 javax.servlet.*
+1 javax.security.*
+1 javax.sql.*
+1 javax.swing.*
+1 javax.websocket.*
+1 sun.*
+
+# jmh
+1 org.openjdk.*
+
+# libraries
+1 ch.qos.*
+1 com.blogspot.*
+1 com.googlecode.*
+1 groovy.*
+1 joptsimple.*
+1 org.apache.*
+1 org.eclipse.*
+1 org.codehaus.*
+1 org.ietf.*
+1 org.slf4j.*
+1 org.springframework.*
+1 org.w3c.*

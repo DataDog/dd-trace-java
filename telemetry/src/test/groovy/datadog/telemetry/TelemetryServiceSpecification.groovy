@@ -58,7 +58,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   void 'added dependencies are report in app_start'() {
     when:
     def dep = new Dependency(
-      hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHAREDSYSTEMLIBRARY)
+      hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHARED_SYSTEM_LIBRARY)
     telemetryService.addDependency(dep)
     telemetryService.addStartedRequest()
 
@@ -67,7 +67,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.requestType == RequestType.APP_STARTED &&
         p.dependencies.first().with {
           return it.name == 'dep name' && it.hash == 'deadbeef' &&
-            version == '1.2.3' && it.type.is(DependencyType.SHAREDSYSTEMLIBRARY)
+            version == '1.2.3' && it.type.is(DependencyType.SHARED_SYSTEM_LIBRARY)
         }
     }) >> REQUEST
     0 * requestBuilder._
@@ -76,7 +76,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   void 'added dependencies are reported in app_dependencies_loaded'() {
     when:
     def dep = new Dependency(
-      hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHAREDSYSTEMLIBRARY)
+      hash: 'deadbeef', name: 'dep name', version: '1.2.3', type: DependencyType.SHARED_SYSTEM_LIBRARY)
     telemetryService.addDependency(dep)
     def queue = telemetryService.prepareRequests()
 
@@ -85,7 +85,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       p.requestType == RequestType.APP_DEPENDENCIES_LOADED &&
         p.dependencies.first().with {
           return it.name == 'dep name' && it.hash == 'deadbeef' &&
-            version == '1.2.3' && it.type.is(DependencyType.SHAREDSYSTEMLIBRARY)
+            version == '1.2.3' && it.type.is(DependencyType.SHARED_SYSTEM_LIBRARY)
         }
     }) >> REQUEST
     queue.first().is(REQUEST)

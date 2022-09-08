@@ -90,33 +90,10 @@ commands:
           docker_layer_caching: true
 
       - run:
-          name: Show local ports
-          command: |
-            sudo sysctl net.ipv4.ip_local_port_range
-
-      - run:
-          name: Show remote Docker ports
-          command: |
-            ssh remote-docker 'sudo sysctl net.ipv4.ip_local_port_range'
-
-      - run:
-          name: Offset remote Docker ports to avoid tunnel collisions
-          command: |
-            ssh remote-docker 'sudo sysctl -w net.ipv4.ip_local_port_range="59095 60906"'
-
-      - run:
-          name: Restart remote Docker
-          command: |
-            ssh remote-docker 'sudo sh -c "systemctl daemon-reload; systemctl restart docker"'
-
-      - run:
-          name: Show remote Docker ports
-          command: |
-            ssh remote-docker 'sudo sysctl net.ipv4.ip_local_port_range'
-
-      - run:
           name: Testcontainers environment variables
           command: |
+            echo "export FORWARDED_DOCKER_HOST=$DOCKER_HOST" >> $BASH_ENV
+            echo "export DOCKER_HOST=tcp://localhost:60906" >> $BASH_ENV
             echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost" >> $BASH_ENV
             echo "export TESTCONTAINERS_RYUK_DISABLED=true" >> $BASH_ENV
 
@@ -124,7 +101,28 @@ commands:
           name: Testcontainers tunnels
           background: true
           command: |
-            .circleci/autoforward.py
+            cd $DOCKER_CERT_PATH
+            mv key.pem remote-key.pem
+            mv cert.pem remote-cert.pem
+            mv ca.pem remote-ca.pem
+            
+            openssl genrsa -out ca-key.pem 4096
+            openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -subj "/C=US/CN=localhost/emailAddress=admin@datadoghq.com" -out ca.pem
+            openssl genrsa -out server-key.pem 4096
+            openssl req -subj "/CN=localhost" -sha256 -new -key server-key.pem -out server.csr
+            echo subjectAltName = DNS:localhost,IP:10.10.10.20,IP:127.0.0.1 >> extfile.cnf
+            echo extendedKeyUsage = serverAuth >> extfile.cnf
+            openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -extfile extfile.cnf
+            openssl genrsa -out key.pem 4096
+            openssl req -subj '/CN=client' -new -key key.pem -out client.csr
+            echo extendedKeyUsage = clientAuth > extfile-client.cnf
+            openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.pem -extfile extfile-client.cnf
+            rm -v client.csr server.csr extfile.cnf extfile-client.cnf
+            chmod -v 0400 ca-key.pem key.pem server-key.pem
+            chmod -v 0444 ca.pem server-cert.pem cert.pem
+            
+            cd ~/dd-trace-java
+            .circleci/autoforward.py --port 60906 --remote $FORWARDED_DOCKER_HOST --forward remote-docker --secure --server-key $DOCKER_CERT_PATH/server-key.pem --server-cert $DOCKER_CERT_PATH/server-cert.pem --remote-key $DOCKER_CERT_PATH/remote-key.pem --remote-cert $DOCKER_CERT_PATH/remote-cert.pem --remote-ca $DOCKER_CERT_PATH/remote-ca.pem
 
   early_return_for_forked_pull_requests:
     description: >-
@@ -161,7 +159,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -197,7 +195,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
@@ -233,7 +231,7 @@ jobs:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -281,16 +279,10 @@ jobs:
       - setup_testcontainers
 
       - run:
-          name: Start RabbitMQ (since the forked AmqpTests are having issues with Testcontainers)
-          background: true
-          command: |
-            docker run -p 5672:5672 rabbitmq:3.9.20-alpine
-
-      - run:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew :dd-java-agent:instrumentation:<< parameters.testTask >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -341,7 +333,7 @@ jobs:
           name: Run Tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew stageMainDist :dd-smoke-test:<< parameters.testTask >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -417,7 +409,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -427,7 +419,7 @@ jobs:
           command: |
             mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
             cd test-published-dependencies
             ./gradlew check --max-workers=3
@@ -469,7 +461,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx950M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx950M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=4

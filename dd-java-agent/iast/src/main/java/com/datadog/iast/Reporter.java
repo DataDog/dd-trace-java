@@ -7,11 +7,11 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Reports IAST vulnerabilities. */
-public final class Reporter {
+public class Reporter {
 
-  private Reporter() {}
+  public Reporter() {}
 
-  public static void report(final AgentSpan span, final Vulnerability vulnerability) {
+  public void report(final AgentSpan span, final Vulnerability vulnerability) {
     if (span == null) {
       return;
     }

@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * Rewrites {@link InstrumentationContext} calls by allocating {@link ContextStore} ids during
  * transformation and using them to retrieve {@link ContextStore} instances at execution time.
  */
-final class FieldBackedContextRequestRewriter implements AsmVisitorWrapper {
+public final class FieldBackedContextRequestRewriter implements AsmVisitorWrapper {
 
   private static final Logger log =
       LoggerFactory.getLogger(FieldBackedContextRequestRewriter.class);

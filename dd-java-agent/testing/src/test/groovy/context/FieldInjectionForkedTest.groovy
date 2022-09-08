@@ -10,6 +10,7 @@ import net.bytebuddy.utility.JavaModule
 import net.sf.cglib.proxy.Enhancer
 import net.sf.cglib.proxy.MethodInterceptor
 import net.sf.cglib.proxy.MethodProxy
+import spock.lang.Retry
 
 import java.lang.instrument.ClassDefinition
 import java.lang.ref.WeakReference
@@ -155,6 +156,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     noExceptionThrown()
   }
 
+  @Retry
   def "backing map should not create strong refs to key class instances #keyValue.get().getClass().getName()"() {
     when:
     final int count = keyValue.get().incrementContextCount()

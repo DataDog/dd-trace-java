@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.function.Consumer;
 import java.io.IOException;
-import java.util.List;
+import java.util.LinkedHashMap;
 
 public interface PathwayContext {
   String PROPAGATION_KEY = "dd-pathway-ctx";
@@ -10,7 +10,8 @@ public interface PathwayContext {
 
   boolean isStarted();
 
-  void setCheckpoint(List<String> tags, Consumer<StatsPoint> pointConsumer);
+  // The input tags should be sorted.
+  void setCheckpoint(LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer);
 
   byte[] encode() throws IOException;
 

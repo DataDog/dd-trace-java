@@ -159,6 +159,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
     mysql = new MySQLContainer("mysql:8.0")
       .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+    // https://github.com/testcontainers/testcontainers-java/issues/914
+    mysql.addParameter("TC_MY_CNF", null)
     mysql.start()
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
