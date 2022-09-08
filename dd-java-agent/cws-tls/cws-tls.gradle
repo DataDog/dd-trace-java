@@ -1,8 +1,12 @@
+// This component is only included in the Java Agent if the gradle property agentIncludeCwsTls is true
+
 plugins {
   id "com.github.johnrengelman.shadow"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+// We do not publish a separate jar, but having a version file is useful for checking if cws is included
+apply from: "$rootDir/gradle/version.gradle"
 
 excludedClassesCoverage += ['datadog.cws.erpc.*', 'datadog.cws.tls.*',]
 
