@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.communication.http.SafeRequestBuilder;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,6 +11,7 @@ import datadog.trace.core.propagation.DatadogTags;
 import datadog.trace.core.propagation.ExtractedContext;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.slf4j.Logger;
@@ -67,7 +67,7 @@ public class LambdaHandler {
     try (Response response =
         HTTP_CLIENT
             .newCall(
-                new SafeRequestBuilder()
+                new Request.Builder()
                     .url(EXTENSION_BASE_URL + START_INVOCATION)
                     .addHeader(DATADOG_META_LANG, "java")
                     .post(body)
@@ -118,8 +118,7 @@ public class LambdaHandler {
       return false;
     }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
-    SafeRequestBuilder builder =
-        new SafeRequestBuilder()
+    Request.Builder builder = new Request.Builder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
