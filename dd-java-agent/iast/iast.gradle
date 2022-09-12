@@ -27,7 +27,10 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 shadowJar {
-  dependencies deps.excludeShared
+  dependencies {
+    deps.excludeShared
+    exclude(project(':dd-java-agent:agent-tooling'))
+  }
 }
 
 jar {
