@@ -169,7 +169,7 @@ public final class IastModuleImpl implements IastModule {
     taintedObjects.taint(result, ranges);
   }
 
-  private boolean canBeTainted(final String s) {
+  private static boolean canBeTainted(final String s) {
     return s != null && !s.isEmpty();
   }
 }
