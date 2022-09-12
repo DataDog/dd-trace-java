@@ -47,7 +47,7 @@ public final class DefaultTaintedMap implements TaintedMap {
    */
   private final AtomicInteger estimatedSize = new AtomicInteger(0);
   /** Reference queue for garbage-collected entries. */
-  private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
+  private ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
   /**
    * Whether flat mode is enabled or not. Once this is true, it is not set to false again unless
    * {@link #clear()} is called.
@@ -140,25 +140,27 @@ public final class DefaultTaintedMap implements TaintedMap {
       return;
     }
 
-    // Remove GC'd entries.
-    Reference<?> ref;
-    int removedCount = 0;
-    while ((ref = referenceQueue.poll()) != null) {
-      // This would be an extremely rare bug, and maybe it should produce a health metric or
-      // warning.
-      if (!(ref instanceof TaintedObject)) {
-        continue;
+    try {
+      // Remove GC'd entries.
+      Reference<?> ref;
+      int removedCount = 0;
+      while ((ref = referenceQueue.poll()) != null) {
+        // This would be an extremely rare bug, and maybe it should produce a health metric or
+        // warning.
+        if (!(ref instanceof TaintedObject)) {
+          continue;
+        }
+        final TaintedObject entry = (TaintedObject) ref;
+        removedCount += remove(entry);
       }
-      final TaintedObject entry = (TaintedObject) ref;
-      removedCount += remove(entry);
-    }
 
-    if (estimatedSize.addAndGet(-removedCount) > flatModeThreshold) {
-      isFlat = true;
+      if (estimatedSize.addAndGet(-removedCount) > flatModeThreshold) {
+        isFlat = true;
+      }
+    } finally {
+      // Reset purging flag.
+      isPurging.set(false);
     }
-
-    // Reset purging flag.
-    isPurging.set(false);
   }
 
   /**
@@ -189,10 +191,10 @@ public final class DefaultTaintedMap implements TaintedMap {
 
   @Override
   public void clear() {
-    while (referenceQueue.poll() != null) {}
     isFlat = false;
     estimatedSize.set(0);
     Arrays.fill(table, null);
+    referenceQueue = new ReferenceQueue<>();
   }
 
   @Override
