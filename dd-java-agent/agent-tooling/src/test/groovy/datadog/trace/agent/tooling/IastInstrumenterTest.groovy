@@ -1,6 +1,6 @@
-package com.datadog.iast
+package datadog.trace.agent.tooling
 
-import datadog.trace.agent.tooling.Instrumenter
+
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 

@@ -2,22 +2,15 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-apply from: "$rootDir/gradle/tries.gradle"
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
-
-apply plugin: 'call-site-instrumentation'
 
 dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-8')
   implementation project(':internal-api:internal-api-9')
-  implementation project(':dd-java-agent:agent-tooling')
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
-
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
 
   testImplementation deps.bytebuddy
   testImplementation project(':utils:test-utils')
@@ -27,10 +20,7 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 shadowJar {
-  dependencies {
-    deps.excludeShared
-    exclude(project(':dd-java-agent:agent-tooling'))
-  }
+  dependencies deps.excludeShared
 }
 
 jar {
@@ -53,10 +43,6 @@ ext {
   excludedClassesInstructionCoverage = []
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
-
-compileJava.dependsOn 'generateClassNameTries'
-packageSources.dependsOn 'generateClassNameTries'
-sourcesJar.dependsOn 'generateClassNameTries'
 
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.iast.enabled=true']
