@@ -1,0 +1,30 @@
+
+// This environment variable can hold a comma-separated list of environment variable names that will be passed to tests.
+final passEnvKey = "PASS_ENV"
+
+// List of environment variables that are always passed to tests.
+def passEnv = [
+  'HOME',
+  'PATH',
+  'PWD',
+  'CI',
+  'DOCKER_HOST',
+  'DOCKER_TLS_VERIFY',
+  'DOCKER_CERT_PATH',
+  'TESTCONTAINERS_HOST_OVERRIDE',
+  'TESTCONTAINERS_RYUK_DISABLED',
+  'TEST_LIBASYNC',
+]
+
+def customPassEnv = System.getenv(passEnvKey)
+if (customPassEnv != null && !customPassEnv.trim().isEmpty()) {
+  passEnv += ystem.getenv(passEnvKey).split(",").collect { it.trim() }
+}
+
+tasks.withType(Test).configureEach {
+  System.getenv().each { key, value ->
+    if (!passEnv.contains(key)) {
+      environment.remove(key)
+    }
+  }
+}

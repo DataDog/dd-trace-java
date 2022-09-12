@@ -69,6 +69,7 @@ allprojects {
 
   apply from: "$rootDir/gradle/dependencies.gradle"
   apply from: "$rootDir/gradle/util.gradle"
+  apply from: "$rootDir/gradle/clean_env.gradle"
 
   compileTask.configure {
     dependsOn tasks.withType(AbstractCompile)
