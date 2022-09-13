@@ -22,6 +22,7 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker
 import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Retry
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -31,6 +32,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
+@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
 
