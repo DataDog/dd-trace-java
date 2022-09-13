@@ -131,6 +131,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   static final String DEFAULT_TRACE_METHODS = null;
+  static final String DEFAULT_MEASURE_METHODS = null;
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final int DEFAULT_TRACE_RATE_LIMIT = 100;
