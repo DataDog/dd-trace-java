@@ -72,7 +72,7 @@ public class DebuggerSinkTest {
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    assertTrue(strPayload.matches(regex));
+    assertTrue(strPayload.matches(regex), strPayload);
   }
 
   @Test
@@ -86,7 +86,7 @@ public class DebuggerSinkTest {
     sink.flush(sink);
     verify(batchUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
     String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    assertTrue(strPayload.matches(regex));
+    assertTrue(strPayload.matches(regex), strPayload);
   }
 
   @Test

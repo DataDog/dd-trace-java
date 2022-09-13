@@ -9,9 +9,11 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -33,9 +35,9 @@ public class Snapshot {
   private final ProbeDetails probe;
   private final String language;
   private final transient CapturedThread thread;
+  private final transient Set<String> capturingProbeIds = new HashSet<>();
   private String traceId; // trace_id
   private String spanId; // span_id
-
   private transient boolean isCapturing = true;
 
   public Snapshot(java.lang.Thread thread, ProbeDetails probe) {
@@ -150,8 +152,10 @@ public class Snapshot {
 
   public void commit() {
     if (!isCapturing) {
-      // should we also report skipped for all additional probes?
-      DebuggerContext.skipSnapshot(getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
+      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
+      for (ProbeDetails probeDetails : probe.additionalProbes) {
+        DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
+      }
       return;
     }
     // generates id only when effectively committing
@@ -164,21 +168,29 @@ public class Snapshot {
      * - Snapshot.commit()
      */
     recordStackTrace(3);
-    DebuggerContext.addSnapshot(this);
+    if (capturingProbeIds.contains(probe.id)) {
+      DebuggerContext.addSnapshot(this);
+    } else {
+      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
+    }
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
-      DebuggerContext.addSnapshot(
-          new Snapshot(
-              UUID.randomUUID().toString(),
-              version,
-              timestamp,
-              duration,
-              stack,
-              captures,
-              new ProbeDetails(additionalProbe.id, probe.location, probe.script, probe.tags),
-              language,
-              thread,
-              traceId,
-              spanId));
+      if (capturingProbeIds.contains(additionalProbe.id)) {
+        DebuggerContext.addSnapshot(
+            new Snapshot(
+                UUID.randomUUID().toString(),
+                version,
+                timestamp,
+                duration,
+                stack,
+                captures,
+                new ProbeDetails(additionalProbe.id, probe.location, probe.script, probe.tags),
+                language,
+                thread,
+                traceId,
+                spanId));
+      } else {
+        DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
+      }
     }
   }
 
@@ -188,19 +200,37 @@ public class Snapshot {
   }
 
   private boolean checkCapture(CapturedContext capture) {
-    DebuggerScript script = getProbe().getScript();
+    DebuggerScript script = probe.getScript();
+    isCapturing = executeScript(script, capture, probe.getId());
+    if (isCapturing) {
+      capturingProbeIds.add(probe.id);
+    }
+    List<ProbeDetails> additionalProbes = probe.additionalProbes;
+    if (!additionalProbes.isEmpty()) {
+      for (ProbeDetails additionalProbe : additionalProbes) {
+        if (executeScript(additionalProbe.getScript(), capture, additionalProbe.getId())) {
+          isCapturing = true; // force capturing the current Snapshot
+          capturingProbeIds.add(additionalProbe.getId());
+        }
+      }
+    }
+    return isCapturing;
+  }
+
+  private static boolean executeScript(
+      DebuggerScript script, CapturedContext capture, String probeId) {
     if (script == null) {
       return true;
     }
     long startTs = System.nanoTime();
     try {
       if (!script.execute(capture)) {
-        isCapturing = false;
+        return false;
       }
-      return isCapturing;
     } finally {
-      LOG.debug("Script evaluated in {}ns", (System.nanoTime() - startTs));
+      LOG.debug("Script for probe[{}] evaluated in {}ns", probeId, (System.nanoTime() - startTs));
     }
+    return true;
   }
 
   private void recordStackTrace(int offset) {
