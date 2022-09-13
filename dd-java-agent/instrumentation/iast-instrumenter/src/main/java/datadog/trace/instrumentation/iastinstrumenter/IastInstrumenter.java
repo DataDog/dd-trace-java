@@ -1,6 +1,7 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.instrumentation.iastinstrumenter;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.IastExclusionTrie;
 import datadog.trace.api.iast.IastAdvice;
