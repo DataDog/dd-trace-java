@@ -1,5 +1,6 @@
 package com.datadog.appsec.gateway
 
+import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -88,6 +89,22 @@ class GatewayBridgeSpecification extends DDSpecification {
     Object producedCtx = startFlow.getResult()
     producedCtx instanceof AppSecRequestContext
     startFlow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'request_start returns null context if appsec is disabled'() {
+    setup:
+    AppSecSystem.ACTIVE = false
+
+    when:
+    Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
+
+    then:
+    Object producedCtx = startFlow.getResult()
+    producedCtx == null
+    0 * _._
+
+    cleanup:
+    AppSecSystem.ACTIVE = true
   }
 
   void 'request_end closes context reports attacks and publishes event'() {
