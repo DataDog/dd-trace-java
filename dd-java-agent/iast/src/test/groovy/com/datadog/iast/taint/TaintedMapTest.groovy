@@ -3,6 +3,7 @@ package com.datadog.iast.taint
 import com.datadog.iast.model.Range
 import datadog.trace.test.util.CircularBuffer
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.test.util.GCUtils
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -48,6 +49,40 @@ class TaintedMapTest extends DDSpecification {
       final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
       map.put(to)
       assert map.get(o) == to
+    }
+  }
+
+  def 'garbage-collected entries are purged'() {
+    given:
+    int iters = 10
+    int nObjectsPerIter = 1024
+    int nRetainedObjects = 8
+    def map = new DefaultTaintedMap()
+    def objectBuffer = new CircularBuffer<Object>(nRetainedObjects)
+
+    when:
+    (1..nRetainedObjects).each {
+      final o = new Object()
+      final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+      map.put(to)
+      objectBuffer.add(o)
+      assert map.get(o) == to
+    }
+    (1..iters).each {
+      (1..nObjectsPerIter).each {
+        final o = new Object()
+        final to = new TaintedObject(o, [] as Range[], map.getReferenceQueue())
+        map.put(to)
+      }
+      GCUtils.awaitGC()
+    }
+
+    then:
+    map.toList().size() <= nRetainedObjects + nObjectsPerIter
+    objectBuffer.each { o ->
+      final to = map.get(o)
+      assert to != null
+      assert to.get() == o
     }
   }
 
