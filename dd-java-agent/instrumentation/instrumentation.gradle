@@ -20,6 +20,7 @@ Project parent_project = project
 subprojects { Project subProj ->
   apply plugin: 'instrument'
   apply plugin: 'muzzle'
+  println('MUZZLE APPLIED TO: ' + subProj.name)
 
   configurations {
     // classpath used by the instrumentation muzzle plugin
