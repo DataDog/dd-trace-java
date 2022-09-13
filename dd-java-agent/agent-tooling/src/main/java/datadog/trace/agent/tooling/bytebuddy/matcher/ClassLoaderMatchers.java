@@ -30,7 +30,7 @@ public final class ClassLoaderMatchers {
       !Config.get().getExcludedClassLoaders().isEmpty();
 
   /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
-  private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache();
+  private static final WeakCache<ClassLoader, Boolean> skipCache = WeakCaches.newWeakCache(64);
 
   /** A private constructor that must not be invoked. */
   private ClassLoaderMatchers() {
@@ -151,7 +151,7 @@ public final class ClassLoaderMatchers {
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
-  static final WeakCache<ClassLoader, BitSet> hasClassCache = WeakCaches.newWeakCache();
+  static final WeakCache<ClassLoader, BitSet> hasClassCache = WeakCaches.newWeakCache(64);
 
   static final BitSet NO_CLASS_NAME_MATCHES = new BitSet();
 
