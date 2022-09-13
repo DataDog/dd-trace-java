@@ -7,13 +7,13 @@ public final class SourceType {
   public static final byte NONE = 0;
 
   public static final byte REQUEST_QUERY_PARAMETER = 1;
-  private static final String REQUEST_QUERY_PARAMETER_STRING = "http.url_details.queryString";
+  static final String REQUEST_QUERY_PARAMETER_STRING = "http.url_details.queryString";
   public static final byte REQUEST_PATH = 2;
-  private static final String REQUEST_PATH_STRING = "http.url_details.path";
+  static final String REQUEST_PATH_STRING = "http.url_details.path";
   public static final byte REQUEST_PARAMETER_NAME = 3;
-  private static final String REQUEST_PARAMETER_NAME_STRING = "http.param.name";
+  static final String REQUEST_PARAMETER_NAME_STRING = "http.param.name";
   public static final byte REQUEST_PARAMETER_VALUE = 4;
-  private static final String REQUEST_PARAMETER_VALUE_STRING = "http.param.value";
+  static final String REQUEST_PARAMETER_VALUE_STRING = "http.param.value";
 
   public static String toString(final byte sourceType) {
     switch (sourceType) {
