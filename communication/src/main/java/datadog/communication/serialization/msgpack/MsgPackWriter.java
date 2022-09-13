@@ -11,6 +11,9 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CoderResult;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +64,12 @@ public class MsgPackWriter implements WritableFormatter {
   private final Codec codec;
 
   private final StreamingBuffer buffer;
+
+  private final CharsetEncoder encoderUtf8 = UTF_8.newEncoder();
+  private final CharBuffer utf8EncodingInBuffer = CharBuffer.allocate(256);
+  private final char[] utf8EncodingInArray = utf8EncodingInBuffer.array();
+  private final byte[] utf8EncodingOutArray = new byte[utf8EncodingInBuffer.length() * 4];
+  private final ByteBuffer utf8EncodingOutBuffer = ByteBuffer.wrap(utf8EncodingOutArray);
 
   public MsgPackWriter(StreamingBuffer buffer) {
     this(Codec.INSTANCE, buffer);
@@ -149,7 +158,7 @@ public class MsgPackWriter implements WritableFormatter {
           return;
         }
       }
-      writeUTF8(s.getBytes(UTF_8));
+      writeStringUtf8(s);
     }
   }
 
@@ -178,9 +187,36 @@ public class MsgPackWriter implements WritableFormatter {
       if (s instanceof UTF8BytesString) {
         writeUTF8((UTF8BytesString) s);
       } else {
-        writeUTF8(String.valueOf(s).getBytes(UTF_8));
+        writeStringUtf8(String.valueOf(s));
       }
     }
+  }
+
+  private void writeStringUtf8(String str) {
+    if (str.length() > utf8EncodingInArray.length) {
+      log.warn("Couldn't encode string size {} in UTF-8", str.length());
+      // fallback to encoding with a byte array allocation
+      writeUTF8(str.getBytes(UTF_8));
+      return;
+    }
+
+    str.getChars(0, str.length(), utf8EncodingInArray, 0);
+    utf8EncodingInBuffer.position(0);
+    utf8EncodingInBuffer.limit(str.length());
+
+    utf8EncodingOutBuffer.clear();
+    encoderUtf8.reset();
+    CoderResult result = encoderUtf8.encode(utf8EncodingInBuffer, utf8EncodingOutBuffer, true);
+
+    if (result.isError()) {
+      log.warn("Couldn't encode string size {} in UTF-8: {}", str.length(), result);
+      // fallback to encoding with a byte array allocation
+      writeUTF8(str.getBytes(UTF_8));
+      return;
+    }
+
+    encoderUtf8.flush(utf8EncodingOutBuffer);
+    writeUTF8(utf8EncodingOutArray, 0, utf8EncodingOutBuffer.position());
   }
 
   @Override
