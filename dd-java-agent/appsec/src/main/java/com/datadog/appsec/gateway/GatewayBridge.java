@@ -85,7 +85,7 @@ public class GatewayBridge {
         events.requestStarted(),
         () -> {
           if (!AppSecSystem.ACTIVE) {
-            return null;
+            return RequestContextSupplier.EMPTY;
           }
 
           RequestContextSupplier requestContextSupplier = new RequestContextSupplier();
@@ -299,9 +299,12 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         EVENTS.responseHeader(),
-        (ctx, name, value) ->
-            ctx.<AppSecRequestContext>getData(RequestContextSlot.APPSEC)
-                .addResponseHeader(name, value));
+        (ctx_, name, value) -> {
+          AppSecRequestContext ctx = ctx_.<AppSecRequestContext>getData(RequestContextSlot.APPSEC);
+          if (ctx != null) {
+            ctx.addResponseHeader(name, value);
+          }
+        });
     subscriptionService.registerCallback(
         EVENTS.responseHeaderDone(),
         ctx_ -> {
@@ -341,7 +344,17 @@ public class GatewayBridge {
   }
 
   private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
-    private final AppSecRequestContext appSecRequestContext = new AppSecRequestContext();
+    private static final Flow<AppSecRequestContext> EMPTY = new RequestContextSupplier(null);
+
+    private final AppSecRequestContext appSecRequestContext;
+
+    public RequestContextSupplier() {
+      this(new AppSecRequestContext());
+    }
+
+    public RequestContextSupplier(AppSecRequestContext ctx) {
+      appSecRequestContext = ctx;
+    }
 
     @Override
     public Action getAction() {
