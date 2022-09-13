@@ -10,7 +10,7 @@ import org.junit.Assume
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
-  void 'nothing populated'() {
+  private static ensureJava8() {
     def exc
     try {
       Class.forName('java.util.Optional')
@@ -18,6 +18,10 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
       exc = t
     }
     Assume.assumeNoException(exc)
+  }
+
+  void 'nothing populated'() {
+    ensureJava8()
 
     Config config = Mock()
 
@@ -54,6 +58,24 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     then:
     1 * config.remoteConfigEnabled >> true
     1 * config.finalRemoteConfigUrl >> 'http://localhost:8080/config'
+    1 * config.remoteConfigTargetsKeyId >> Config.get().remoteConfigTargetsKeyId
+    1 * config.remoteConfigTargetsKey >> Config.get().remoteConfigTargetsKey
+    sco.configurationPoller != null
+  }
+
+  void 'populates ConfigurationPoller even without config endpoint'() {
+    ensureJava8()
+    Config config = Mock()
+
+    when:
+    sco.configurationPoller(config)
+
+    then:
+    1 * config.agentUrl >> 'http://example.com/'
+    1 * config.remoteConfigEnabled >> true
+    1 * config.finalRemoteConfigUrl >> null
+    1 * config.remoteConfigTargetsKeyId >> Config.get().remoteConfigTargetsKeyId
+    1 * config.remoteConfigTargetsKey >> Config.get().remoteConfigTargetsKey
     sco.configurationPoller != null
   }
 

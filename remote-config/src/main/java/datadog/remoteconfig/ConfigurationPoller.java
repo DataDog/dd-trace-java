@@ -17,6 +17,7 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.api.Config;
+import datadog.trace.api.function.Supplier;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
@@ -61,7 +62,6 @@ public class ConfigurationPoller
   private final PollerScheduler scheduler;
   private final long maxPayloadSize;
   private final boolean integrityChecks;
-  private final PollerRequestFactory requestFactory;
   private final RemoteConfigResponse.Factory responseFactory;
 
   /** Map from product name to deserializer/listener. */
@@ -74,6 +74,7 @@ public class ConfigurationPoller
   private final Map<String /*cfg key*/, CachedTargetFile> cachedTargetFiles = new HashMap<>();
   private final AtomicInteger startCount = new AtomicInteger(0);
   private final Moshi moshi;
+  private PollerRequestFactory requestFactory;
 
   private Duration durationHint;
   private final Map<String /*cfg key*/, String /*error msg*/> collectedCfgErrors = new HashMap<>();
@@ -82,13 +83,13 @@ public class ConfigurationPoller
       Config config,
       String tracerVersion,
       String containerId,
-      String configUrl,
+      Supplier<String> urlSupplier,
       OkHttpClient client) {
     this(
         config,
         tracerVersion,
         containerId,
-        configUrl,
+        urlSupplier,
         client,
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.REMOTE_CONFIG));
   }
@@ -98,13 +99,9 @@ public class ConfigurationPoller
       Config config,
       String tracerVersion,
       String containerId,
-      String configUrl,
+      Supplier<String> urlSupplier,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
-    if (configUrl == null || configUrl.length() == 0) {
-      throw new IllegalArgumentException("Remote config url is empty");
-    }
-
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
     try {
@@ -114,10 +111,7 @@ public class ConfigurationPoller
     }
 
     this.scheduler = new PollerScheduler(config, this, taskScheduler);
-    log.debug(
-        "Started remote config poller every {} ms with target url {}",
-        scheduler.getInitialPollInterval(),
-        configUrl);
+    log.debug("Started remote config poller every {} ms", scheduler.getInitialPollInterval());
     this.ratelimitedLogger =
         new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
     this.maxPayloadSize = config.getRemoteConfigMaxPayloadSizeBytes();
@@ -128,7 +122,7 @@ public class ConfigurationPoller
             .add(ByteString.class, new RawJsonAdapter())
             .build();
     this.requestFactory =
-        new PollerRequestFactory(config, tracerVersion, containerId, configUrl, moshi);
+        new PollerRequestFactory(config, tracerVersion, containerId, urlSupplier, moshi);
     this.responseFactory = new RemoteConfigResponse.Factory(moshi);
     this.httpClient = httpClient;
   }
@@ -223,7 +217,9 @@ public class ConfigurationPoller
             log,
             ex,
             "Failed to poll remote configuration from {}",
-            requestFactory.url.url().toString());
+            requestFactory.url != null
+                ? requestFactory.url.toString()
+                : "(no endpoint discovered yet)");
       }
     }
   }
@@ -235,6 +231,9 @@ public class ConfigurationPoller
             this.nextClientState,
             this.cachedTargetFiles.values(),
             calculateCapabilities());
+    if (request == null) {
+      throw new IOException("Endpoint has not been discovered yet");
+    }
     Call call = this.httpClient.newCall(request);
     return call.execute();
   }

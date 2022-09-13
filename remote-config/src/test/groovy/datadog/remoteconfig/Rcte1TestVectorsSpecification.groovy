@@ -50,7 +50,7 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
       Config.get(),
       '0.0.0',
       'containerid',
-      URL.toString(),
+      { -> URL.toString() },
       okHttpClient,
       scheduler
       )

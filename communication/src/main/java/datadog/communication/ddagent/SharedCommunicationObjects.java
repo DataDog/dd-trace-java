@@ -6,6 +6,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
+import datadog.trace.api.function.Supplier;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.TimeUnit;
@@ -75,24 +76,27 @@ public class SharedCommunicationObjects {
         getClass().getClassLoader().loadClass("datadog.remoteconfig.ConfigurationPoller");
     Constructor<?> constructor =
         confPollerCls.getConstructor(
-            Config.class, String.class, String.class, String.class, OkHttpClient.class);
+            Config.class, String.class, String.class, Supplier.class, OkHttpClient.class);
 
     String containerId = ContainerInfo.get().getContainerId();
     String remoteConfigUrl = config.getFinalRemoteConfigUrl();
+    Supplier<String> configUrlSupplier;
     if (remoteConfigUrl != null) {
-      return constructor.newInstance(
-          config, TracerVersion.TRACER_VERSION, containerId, remoteConfigUrl, okHttpClient);
+      configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
     } else {
       createRemaining(config);
       DDAgentFeaturesDiscovery fd = featuresDiscovery(config);
       String configEndpoint = fd.getConfigEndpoint();
       if (configEndpoint != null) {
         remoteConfigUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
-        return constructor.newInstance(
-            config, TracerVersion.TRACER_VERSION, containerId, remoteConfigUrl, okHttpClient);
+        configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
+      } else {
+        configUrlSupplier = new RetryConfigUrlSupplier(this.featuresDiscovery);
       }
     }
-    return null;
+
+    return constructor.newInstance(
+        config, TracerVersion.TRACER_VERSION, containerId, configUrlSupplier, okHttpClient);
   }
 
   private static boolean isAtLeastJava8() {
@@ -119,5 +123,52 @@ public class SharedCommunicationObjects {
       }
     }
     return featuresDiscovery;
+  }
+
+  private static final class FixedConfigUrlSupplier implements Supplier<String> {
+    private final String configUrl;
+
+    private FixedConfigUrlSupplier(String configUrl) {
+      this.configUrl = configUrl;
+    }
+
+    @Override
+    public String get() {
+      return this.configUrl;
+    }
+  }
+
+  private static final class RetryConfigUrlSupplier implements Supplier<String> {
+    private final DDAgentFeaturesDiscovery featuresDiscovery;
+    private String configUrl;
+    private long lastTry = System.currentTimeMillis();
+    private long retryInterval = 5000;
+
+    private RetryConfigUrlSupplier(DDAgentFeaturesDiscovery featuresDiscovery) {
+      this.featuresDiscovery = featuresDiscovery;
+    }
+
+    @Override
+    public String get() {
+      if (configUrl != null) {
+        return configUrl;
+      }
+      long now = System.currentTimeMillis();
+      long elapsed = now - lastTry;
+      if (elapsed > retryInterval) {
+        this.featuresDiscovery.discover();
+        retryInterval = 60000;
+      } else {
+        return null;
+      }
+      lastTry = now;
+      String configEndpoint = this.featuresDiscovery.getConfigEndpoint();
+      if (configEndpoint == null) {
+        return null;
+      }
+
+      this.configUrl = featuresDiscovery.buildUrl(configEndpoint).toString();
+      return this.configUrl;
+    }
   }
 }

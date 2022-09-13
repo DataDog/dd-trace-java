@@ -7,6 +7,7 @@ import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.JsonCanonicalizer
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
+import datadog.trace.api.function.Supplier
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import groovy.json.JsonOutput
@@ -55,6 +56,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
   AgentTaskScheduler.Task task
   Request request
   Call call = Mock()
+  Supplier<String> configUrlSupplier = { -> URL.toString() } as Supplier<String>
 
   void setup() {
     injectSysConfig('dd.rc.targets.key.id', KEY_ID)
@@ -65,7 +67,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
       Config.get(),
       '0.0.0',
       '',
-      URL.toString(),
+      { -> configUrlSupplier.get() } as Supplier<String>,
       okHttpClient,
       scheduler,
       )
@@ -153,6 +155,51 @@ class ConfigurationPollerSpecification extends DDSpecification {
         }
       }
     }
+  }
+
+  void 'issues no request if the config url supplier returns null'() {
+    setup:
+    def deserializer = Mock(ConfigurationDeserializer)
+    def listener = Mock(ConfigurationChangesListener)
+    configUrlSupplier = { -> }
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    0 * _._
+  }
+
+  void 'once the supplier provides a url it is not called anymore'() {
+    setup:
+    def deserializer = Mock(ConfigurationDeserializer)
+    def listener = Mock(ConfigurationChangesListener)
+    configUrlSupplier = Mock(Supplier)
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listener)
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    2.times { task.run(poller) }
+
+    then:
+    1 * configUrlSupplier.get() >> URL.toString()
+    2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * deserializer.deserialize(_) >> true
+    1 * listener.accept(_, _, _)
+    0 * _._
   }
 
   void 'reschedules if instructed to do so'() {
