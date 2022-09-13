@@ -118,7 +118,8 @@ include ':dd-smoke-tests:appsec'
 include ':dd-smoke-tests:appsec:springboot'
 include ':dd-smoke-tests:appsec:springboot-grpc'
 include ':dd-smoke-tests:debugger-integration-tests'
-include ':dd-smoke-tests:debugger-integration-tests:latest-jdk-app'
+// TODO this fails too often with a jgit failure, so disable until fixed
+//include ':dd-smoke-tests:debugger-integration-tests:latest-jdk-app'
 
 // instrumentation:
 include ':dd-java-agent:instrumentation:aerospike-4'
