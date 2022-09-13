@@ -26,26 +26,28 @@ dependencies {
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
-tasks.register('buildLatestJdkApp', GradleBuild) {
-  buildFile = 'latest-jdk-app/latest-jdk-app.gradle'
-  tasks = ['shadowJar']
-}
-
-def latestJdk = '17'
+// TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
+//tasks.register('buildLatestJdkApp', GradleBuild) {
+//  buildFile = 'latest-jdk-app/latest-jdk-app.gradle'
+//  tasks = ['shadowJar']
+//}
+//
+//def latestJdk = '17'
 
 tasks.withType(Test).configureEach {
   dependsOn shadowJar
 
-  def isLatestJdk = project.findProperty("testJvm") == latestJdk
-  def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
-  if (isLatestJdk && latestJavaHome) {
-    dependsOn buildLatestJdkApp
-  }
-  doFirst {
-    if (isLatestJdk) {
-      jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archivePath}"
-    }
-  }
+  // TODO latest-jdk-app fails too often with a jgit failure, so disable until fixed
+  //  def isLatestJdk = project.findProperty("testJvm") == latestJdk
+  //  def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
+  //  if (isLatestJdk && latestJavaHome) {
+  //    dependsOn buildLatestJdkApp
+  //  }
+  //  doFirst {
+  //    if (isLatestJdk) {
+  //      jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archivePath}"
+  //    }
+  //  }
 
   jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archivePath}"
 }
