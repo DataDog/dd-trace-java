@@ -19,6 +19,7 @@ dependencies {
   api project(':dd-trace-api')
   api project(':internal-api')
   api project(':internal-api:internal-api-8')
+  api project(':internal-api:internal-api-9')
   api project(':dd-java-agent:agent-logging')
   api deps.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
