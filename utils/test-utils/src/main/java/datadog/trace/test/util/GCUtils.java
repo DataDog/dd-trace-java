@@ -24,6 +24,8 @@ public abstract class GCUtils {
       throws InterruptedException {
     final long waitNanos = unit.toNanos(duration);
     final long start = System.nanoTime();
+    int fillerBytes = 1024 * 1024 * 10;
+    byte[] filler;
     while (System.nanoTime() - start < waitNanos) {
       if (ref.get() == null) {
         return;
@@ -33,8 +35,20 @@ public abstract class GCUtils {
       }
       System.gc();
       System.runFinalization();
+      if (ref.get() == null) {
+        return;
+      }
+
+      // Allocate large memory chunks in an attempt to trigger GC on OpenJ9 gencon policy (default).
+      filler = new byte[fillerBytes];
+      if (fillerBytes <= 1024 * 1024 * 200) {
+        fillerBytes *= 2;
+      }
+      if (ref.get() == null) {
+        return;
+      }
       try {
-        Thread.sleep(100);
+        Thread.sleep(50);
       } catch (final InterruptedException e) {
         throw new RuntimeException("Interrupted while waiting for " + ref.get() + " to be GCed");
       }

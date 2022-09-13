@@ -2,13 +2,10 @@ package datadog.trace.agent.tooling
 
 import datadog.trace.test.util.GCUtils
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Retry
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
 
-@Retry
-// These tests fail sometimes in CI.
 class WeakMapTest extends DDSpecification {
 
   def "WeakMap accepts null values"() {

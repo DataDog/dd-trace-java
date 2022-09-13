@@ -18,7 +18,6 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -211,7 +210,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     concurrent << [false, true]
   }
 
-  @Retry
   def "test continuation doesn't have hard reference on scope"() {
     when:
     def span = tracer.buildSpan("test").start()
