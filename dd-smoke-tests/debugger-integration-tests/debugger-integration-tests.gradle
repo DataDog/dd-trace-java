@@ -39,11 +39,11 @@ tasks.withType(Test).configureEach {
   def isLatestJdk = project.findProperty("testJvm") == latestJdk
   def latestJavaHome = System.getenv("JAVA_${latestJdk}_HOME")
   if (isLatestJdk && latestJavaHome) {
-    dependsOn buildLatestJdkApp
+    //dependsOn buildLatestJdkApp
   }
   doFirst {
     if (isLatestJdk) {
-      jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archivePath}"
+      //jvmArgs "-Ddatadog.smoketest.shadowJar.external.path=${project(':dd-smoke-tests:debugger-integration-tests:latest-jdk-app').tasks.shadowJar.archivePath}"
     }
   }
 
