@@ -264,7 +264,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       }
       if (startedCbIast != null) {
         Flow<Object> flowIast = startedCbIast.get();
-        tagContext.withRequestContextDataAppSec(flowIast.getResult());
+        tagContext.withRequestContextDataIast(flowIast.getResult());
       }
       return tagContext;
     }

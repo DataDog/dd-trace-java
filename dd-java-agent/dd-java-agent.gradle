@@ -87,6 +87,9 @@ includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 includeSubprojShadowJar ':dd-java-agent:iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
+if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
+  includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
+}
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
@@ -233,7 +236,8 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert shadowJar.archiveFile.get().getAsFile().length() < 21 * 1024 * 1024
+    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 21 : 19
+    assert shadowJar.archiveFile.get().getAsFile().length() <= megs * 1024 * 1024
   }
 
   dependsOn "shadowJar"
