@@ -641,6 +641,10 @@ public class Agent {
   }
 
   private static void startCwsAgent() {
+    if (AGENT_CLASSLOADER.getResource("cws-tls.version") == null) {
+      log.warn("CWS support not included in this build of `dd-java-agent`");
+      return;
+    }
     log.debug("Scheduling scope event factory registration");
     WithGlobalTracer.registerOrExecute(
         new WithGlobalTracer.Callback() {
