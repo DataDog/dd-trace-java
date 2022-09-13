@@ -10,8 +10,10 @@ import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.util.Strings;
+import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
@@ -89,6 +91,7 @@ public final class ClassLoaderMatchers {
     ElementMatcher.Junction<ClassLoader> matcher = hasClassMatchers.get(className);
     if (null == matcher) {
       hasClassMatchers.put(className, matcher = new HasClassMatcher(hasClassMatchers.size()));
+      hasClassResourceNames.add(Strings.getResourceName(className));
     }
     return matcher;
   }
@@ -142,11 +145,15 @@ public final class ClassLoaderMatchers {
   }
 
   /** Mapping of class-name to has-class matcher. */
-  static final Map<String, ElementMatcher.Junction<ClassLoader>> hasClassMatchers =
-      new LinkedHashMap<>();
+  static final Map<String, ElementMatcher.Junction<ClassLoader>> hasClassMatchers = new HashMap<>();
+
+  /** Sequence of class resource-names, in order of assigned hasClassId. */
+  static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
   static final WeakCache<ClassLoader, BitSet> hasClassCache = WeakCaches.newWeakCache();
+
+  static final BitSet NO_CLASS_NAME_MATCHES = new BitSet();
 
   /** Function that generates a has-class mask for a given class-loader. */
   static final Function<ClassLoader, BitSet> buildHasClassMask =
@@ -160,16 +167,18 @@ public final class ClassLoaderMatchers {
   static BitSet buildHasClassMask(ClassLoader cl) {
     PROBING_CLASSLOADER.begin();
     try {
-      BitSet hasClassMask = new BitSet();
-      int hasClassId = 0;
-      for (String className : hasClassMatchers.keySet()) {
+      BitSet hasClassMask = NO_CLASS_NAME_MATCHES;
+      for (int hasClassId = hasClassResourceNames.size() - 1; hasClassId >= 0; hasClassId--) {
         try {
-          if (cl.getResource(Strings.getResourceName(className)) != null) {
+          if (cl.getResource(hasClassResourceNames.get(hasClassId)) != null) {
+            if (hasClassMask.isEmpty()) {
+              hasClassMask = new BitSet(hasClassId + 1);
+            }
             hasClassMask.set(hasClassId);
           }
         } catch (final Throwable ignored) {
+          // continue to next check
         }
-        hasClassId++;
       }
       return hasClassMask;
     } finally {
