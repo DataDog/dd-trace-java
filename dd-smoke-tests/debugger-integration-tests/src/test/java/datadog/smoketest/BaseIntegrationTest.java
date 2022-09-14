@@ -59,7 +59,9 @@ public abstract class BaseIntegrationTest {
   private HttpUrl snapshotUrl;
   protected Path logFilePath;
   protected Process targetProcess;
-  private volatile Configuration currentConfiguration;
+  private Configuration currentConfiguration;
+  private boolean configProvided;
+  protected final Object configLock = new Object();
 
   @BeforeAll
   static void setupAll() throws Exception {
@@ -157,7 +159,12 @@ public abstract class BaseIntegrationTest {
     if (request.getPath().equals("/info")) {
       return agentInfoResponse;
     }
-    Configuration configuration = getCurrentConfiguration();
+    Configuration configuration;
+    synchronized (configLock) {
+      configuration = getCurrentConfiguration();
+      configProvided = true;
+      configLock.notifyAll();
+    }
     if (configuration == null) {
       configuration = createConfig(Collections.emptyList());
     }
@@ -173,7 +180,15 @@ public abstract class BaseIntegrationTest {
   }
 
   private Configuration getCurrentConfiguration() {
-    return currentConfiguration;
+    synchronized (configLock) {
+      return currentConfiguration;
+    }
+  }
+
+  protected boolean isConfigProvided() {
+    synchronized (configLock) {
+      return configProvided;
+    }
   }
 
   protected JsonAdapter<List<SnapshotSink.IntakeRequest>> createAdapterForSnapshot() {
@@ -182,7 +197,10 @@ public abstract class BaseIntegrationTest {
   }
 
   protected void setCurrentConfiguration(Configuration configuration) {
-    this.currentConfiguration = configuration;
+    synchronized (configLock) {
+      this.currentConfiguration = configuration;
+      configProvided = false;
+    }
   }
 
   protected Configuration createConfig(SnapshotProbe snapshotProbe) {

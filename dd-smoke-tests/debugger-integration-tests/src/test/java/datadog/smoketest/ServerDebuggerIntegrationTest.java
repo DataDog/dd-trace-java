@@ -204,7 +204,11 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void stopApp(String appUrl) throws IOException {
-    sendRequest(appUrl + "/stop");
+    try {
+      sendRequest(appUrl + "/stop");
+    } catch (Exception ex) {
+      LOG.warn("Exception while stopping server app", ex);
+    }
     LOG.info("Stop done");
   }
 

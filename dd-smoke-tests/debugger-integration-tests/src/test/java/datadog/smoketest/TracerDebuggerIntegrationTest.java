@@ -61,6 +61,20 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
         Duration.ofSeconds(30));
     sendRequest("http://localhost:" + httpPort + "/greeting");
     RecordedRequest snapshotRequest = retrieveSnapshotRequest();
+    if (snapshotRequest == null) {
+      System.out.println("retry instrumentation because probable race with Tracer...");
+      // may encounter a race with Tracer, try again to re-instrument by removing config and
+      // re-installing instrumentation
+      synchronized (configLock) {
+        setCurrentConfiguration(null);
+        configLock.wait(10_000);
+        if (!isConfigProvided()) {
+          System.out.println("Empty config was not provided!");
+        }
+      }
+      setCurrentConfiguration(createConfig(snapshotProbe));
+      snapshotRequest = retrieveSnapshotRequest();
+    }
     assertNotNull(snapshotRequest);
     String bodyStr = snapshotRequest.getBody().readUtf8();
     JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
