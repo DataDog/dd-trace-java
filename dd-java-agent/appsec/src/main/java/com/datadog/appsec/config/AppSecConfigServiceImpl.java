@@ -66,19 +66,28 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           log.info(
               "New AppSec configuration has been applied. AppSec status: {}",
               AppSecSystem.ACTIVE ? "active" : "inactive");
-          return;
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
         AppSecDataDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
-          if (newConfig == null) {
-            newConfig = Collections.emptyList();
+          MergedAsmData wafData = (MergedAsmData) this.lastConfig.get("waf_data");
+          if (wafData == null) {
+            if (newConfig == null) {
+              return;
+            }
+            wafData = new MergedAsmData(new HashMap<>());
+            wafData.addConfig(configKey, newConfig);
+          } else {
+            if (newConfig == null) {
+              wafData.removeConfig(configKey);
+            } else {
+              wafData.addConfig(configKey, newConfig);
+            }
           }
-          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", newConfig);
-          this.lastConfig.put("waf_data", wafDataConfigMap);
+          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", wafData);
+          this.lastConfig.put("waf_data", wafData);
           distributeSubConfigurations(wafDataConfigMap, reconfiguration);
-          return;
         });
 
     this.configurationPoller.addFeaturesListener(
@@ -89,7 +98,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             log.warn("AppSec {} (runtime)", newConfig.enabled ? "enabled" : "disabled");
           }
           AppSecSystem.ACTIVE = newConfig.enabled;
-          return;
         });
   }
 

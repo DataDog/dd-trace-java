@@ -875,12 +875,6 @@ class ConfigurationPollerSpecification extends DDSpecification {
       JsonOutput.toJson(it)
     } | 'No content for employee/ASM_DD/1.recommended.json/config'
 
-    // no target_files
-    SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
-      it.remove('target_files')
-      JsonOutput.toJson(it)
-    } | 'target_files not present'
-
     // in target_files, but not targets.signed.targets
     SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       def targetDecoded = Base64.decoder.decode(it['targets'])

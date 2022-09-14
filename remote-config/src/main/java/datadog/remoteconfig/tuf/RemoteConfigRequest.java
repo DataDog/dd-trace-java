@@ -86,7 +86,7 @@ public class RemoteConfigRequest {
       this.id = id;
       this.products = productNames;
       this.tracerInfo = tracerInfo;
-      this.capabilities = new byte[] { (byte) capabilities };
+      this.capabilities = new byte[] {(byte) capabilities};
     }
 
     public static class ClientState {

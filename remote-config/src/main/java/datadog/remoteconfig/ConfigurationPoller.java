@@ -687,7 +687,7 @@ public class ConfigurationPoller
 
   private void verifyTargetsPresence(RemoteConfigResponse resp) {
     if (resp.targetFiles == null) {
-      throw new ReportableException("target_files not present");
+      return;
     }
     for (RemoteConfigResponse.TargetFile file : resp.targetFiles) {
       RemoteConfigResponse.Targets.ConfigTarget target = resp.getTarget(file.path);
