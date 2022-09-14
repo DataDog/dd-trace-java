@@ -742,7 +742,7 @@ public class Snapshot {
     private final WeakReference<Object> rawValueRef;
     private final Map<String, CapturedValue> fields;
     private final Limits limits;
-    private final String reasonNotCaptured;
+    private final String notCapturedReason;
 
     private CapturedValue(
         String name,
@@ -750,14 +750,14 @@ public class Snapshot {
         Object value,
         Limits limits,
         Map<String, CapturedValue> fields,
-        String reasonNotCaptured) {
+        String notCapturedReason) {
       this.name = name;
       this.type = type;
       this.rawValueRef = new WeakReference<>(value);
       this.value = value;
       this.fields = fields;
       this.limits = limits;
-      this.reasonNotCaptured = reasonNotCaptured;
+      this.notCapturedReason = notCapturedReason;
     }
 
     public String getName() {
@@ -788,8 +788,8 @@ public class Snapshot {
       return limits;
     }
 
-    public String getReasonNotCaptured() {
-      return reasonNotCaptured;
+    public String getNotCapturedReason() {
+      return notCapturedReason;
     }
 
     public void setName(String name) {
@@ -820,7 +820,7 @@ public class Snapshot {
           null);
     }
 
-    public static Snapshot.CapturedValue reasonNotCaptured(
+    public static Snapshot.CapturedValue notCapturedReason(
         String name, String type, String reason) {
       return build(name, type, null, Limits.DEFAULT, reason);
     }
@@ -840,9 +840,9 @@ public class Snapshot {
     }
 
     private static CapturedValue build(
-        String name, String type, Object value, Limits limits, String reasonNotCaptured) {
+        String name, String type, Object value, Limits limits, String notCapturedReason) {
       CapturedValue val =
-          new CapturedValue(name, type, value, limits, Collections.emptyMap(), reasonNotCaptured);
+          new CapturedValue(name, type, value, limits, Collections.emptyMap(), notCapturedReason);
       val.strValue = DebuggerContext.serializeValue(val);
       if (val.strValue != null) {
         // if serialization has happened, release the value object
@@ -860,12 +860,12 @@ public class Snapshot {
           && Objects.equals(type, that.type)
           && Objects.equals(value, that.value)
           && Objects.equals(fields, that.fields)
-          && Objects.equals(reasonNotCaptured, that.reasonNotCaptured);
+          && Objects.equals(notCapturedReason, that.notCapturedReason);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(name, type, value, fields, reasonNotCaptured);
+      return Objects.hash(name, type, value, fields, notCapturedReason);
     }
 
     @Override
@@ -882,8 +882,8 @@ public class Snapshot {
           + '\''
           + ", fields="
           + fields
-          + ", reasonNotCaptured='"
-          + reasonNotCaptured
+          + ", notCapturedReason='"
+          + notCapturedReason
           + '\''
           + '}';
     }

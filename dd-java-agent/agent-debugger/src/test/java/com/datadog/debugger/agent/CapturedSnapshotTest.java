@@ -592,7 +592,8 @@ public class CapturedSnapshotTest {
     Assert.assertEquals("101", String.valueOf(s1Fields.get("intValue").getValue()));
     Assert.assertEquals("foo1", s1Fields.get("strValue").getValue());
     Assert.assertEquals("null", String.valueOf(s1Fields.get("listValue").getValue()));
-    Assert.assertEquals(DEPTH_REASON, String.valueOf(s1Fields.get("listValue").getReasonNotCaptured()));
+    Assert.assertEquals(
+        DEPTH_REASON, String.valueOf(s1Fields.get("listValue").getNotCapturedReason()));
   }
 
   @Test
@@ -631,7 +632,7 @@ public class CapturedSnapshotTest {
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
     Map<String, Snapshot.CapturedValue> fields = getFields(simpleData);
     Assert.assertEquals(1, fields.size());
-    Assert.assertEquals(DEPTH_REASON, fields.get("@"+NOT_CAPTURED_REASON).getReasonNotCaptured());
+    Assert.assertEquals(DEPTH_REASON, fields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
   }
 
   @Test
@@ -650,7 +651,8 @@ public class CapturedSnapshotTest {
         snapshot.getCaptures().getReturn().getLocals().get("simpleData");
     Map<String, Snapshot.CapturedValue> simpleDataFields = getFields(simpleData);
     Assert.assertEquals(1, simpleDataFields.size());
-    Assert.assertEquals(DEPTH_REASON, simpleDataFields.get("@"+NOT_CAPTURED_REASON).getReasonNotCaptured());
+    Assert.assertEquals(
+        DEPTH_REASON, simpleDataFields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
   }
 
   @Test
@@ -671,7 +673,7 @@ public class CapturedSnapshotTest {
     Assert.assertEquals(3, simpleDataFields.size());
     Assert.assertEquals("foo", simpleDataFields.get("strValue").getValue());
     Assert.assertEquals(42, simpleDataFields.get("intValue").getValue());
-    Assert.assertEquals(DEPTH_REASON, simpleDataFields.get("listValue").getReasonNotCaptured());
+    Assert.assertEquals(DEPTH_REASON, simpleDataFields.get("listValue").getNotCapturedReason());
   }
 
   @Test
@@ -691,7 +693,8 @@ public class CapturedSnapshotTest {
     Assert.assertEquals("CapturedSnapshot04$CompositeData", returnValue.getType());
     Map<String, Snapshot.CapturedValue> fields = getFields(returnValue);
     Assert.assertEquals(3, fields.size());
-    Assert.assertEquals(FIELD_COUNT_REASON, fields.get("@"+NOT_CAPTURED_REASON).getReasonNotCaptured());
+    Assert.assertEquals(
+        FIELD_COUNT_REASON, fields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
     Map<String, Snapshot.CapturedValue> s1Fields =
         (Map<String, Snapshot.CapturedValue>) fields.get("s1").getValue();
     Assert.assertEquals("foo1", s1Fields.get("strValue").getValue());
@@ -706,7 +709,8 @@ public class CapturedSnapshotTest {
     Map<String, Snapshot.CapturedValue> compositeDataFields = getFields(compositeData);
     Assert.assertEquals(3, compositeDataFields.size());
     Assert.assertEquals(
-        FIELD_COUNT_REASON, compositeDataFields.get("@"+NOT_CAPTURED_REASON).getReasonNotCaptured());
+        FIELD_COUNT_REASON,
+        compositeDataFields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
     Assert.assertTrue(compositeDataFields.containsKey("s1"));
     Assert.assertTrue(compositeDataFields.containsKey("s2"));
   }
@@ -1301,9 +1305,9 @@ public class CapturedSnapshotTest {
     for (Map.Entry<String, String> entry : expectedFields.entrySet()) {
       Assert.assertTrue(fields.containsKey(entry.getKey()));
       Snapshot.CapturedValue fieldCapturedValue = fields.get(entry.getKey());
-      if (fieldCapturedValue.getReasonNotCaptured() != null) {
+      if (fieldCapturedValue.getNotCapturedReason() != null) {
         Assert.assertEquals(
-            entry.getValue(), String.valueOf(fieldCapturedValue.getReasonNotCaptured()));
+            entry.getValue(), String.valueOf(fieldCapturedValue.getNotCapturedReason()));
       } else {
         Assert.assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
       }
@@ -1352,10 +1356,10 @@ public class CapturedSnapshotTest {
     try {
       Snapshot.CapturedValue valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
       Map<String, Snapshot.CapturedValue> results = new HashMap<>();
-      if (valued.getReasonNotCaptured() != null) {
+      if (valued.getNotCapturedReason() != null) {
         results.put(
             "@" + NOT_CAPTURED_REASON,
-            Snapshot.CapturedValue.reasonNotCaptured(null, null, valued.getReasonNotCaptured()));
+            Snapshot.CapturedValue.notCapturedReason(null, null, valued.getNotCapturedReason()));
       }
       if (valued.getValue() == null) {
         return results;

@@ -31,10 +31,7 @@ public class FieldExtractorTest {
     Map<String, Snapshot.CapturedValue> map = FieldExtractor.extract(new Object(), DEPTH_0);
     assertTrue(map.isEmpty());
     map = FieldExtractor.extract("null", DEPTH_0);
-    assertTrue(map.size() > 0);
-    assertTrue(map.containsKey("hash"));
-    assertTrue(map.containsKey("value"));
-    // other fields are implementation defined and vary from version to version
+    assertTrue(map.isEmpty()); // String trated as primitive, no field extraction
   }
 
   @Test
@@ -117,7 +114,7 @@ public class FieldExtractorTest {
     assertTrue(fields.containsKey("f04"));
     assertEquals(
         "Max 5 fields reached, 6 fields were not captured",
-        fields.get("@status").getReasonNotCaptured());
+        fields.get("@status").getNotCapturedReason());
   }
 
   static class Person {

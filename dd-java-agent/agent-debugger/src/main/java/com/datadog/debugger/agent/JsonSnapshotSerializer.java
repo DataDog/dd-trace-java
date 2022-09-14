@@ -88,11 +88,19 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
       Map<String, Snapshot.CapturedValue> fields, String fieldName) {
     Snapshot.CapturedValue fieldValue = fields.get(fieldName);
     if (fieldValue != null) {
+      return getValue(fieldValue, fieldName);
+    }
+    return null;
+  }
+
+  public static String getValue(Snapshot.CapturedValue capturedValue, String name) {
+    if (capturedValue != null) {
       try {
-        Snapshot.CapturedValue capturedValue = VALUE_ADAPTER.fromJson(fieldValue.getStrValue());
-        return String.valueOf(capturedValue.getValue());
+        Snapshot.CapturedValue deserializedValue =
+            VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+        return String.valueOf(deserializedValue.getValue());
       } catch (IOException e) {
-        LOG.warn("Cannot deserialize " + fieldName, e);
+        LOG.warn("Cannot deserialize " + name, e);
       }
     }
     return null;

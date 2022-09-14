@@ -68,6 +68,11 @@ public class Fields {
     if (clazz == Boolean.class) {
       return true;
     }
+    // String is treated as primitive here, because we don't want to extract fields of a String,
+    // only the actual sequence of chars is relevant
+    if (clazz == String.class) {
+      return true;
+    }
     return false;
   }
 }

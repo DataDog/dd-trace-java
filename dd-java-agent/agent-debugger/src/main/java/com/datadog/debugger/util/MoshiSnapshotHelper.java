@@ -78,42 +78,6 @@ public class MoshiSnapshotHelper {
     return false;
   }
 
-  public static Object convertPrimitive(String strValue, String type) {
-    if (type == null) {
-      return null;
-    }
-    switch (type) {
-      case "byte":
-      case "java.lang.Byte":
-        return Byte.parseByte(strValue);
-      case "short":
-      case "java.lang.Short":
-        return Short.parseShort(strValue);
-      case "char":
-      case "java.lang.Character":
-        return strValue.charAt(0);
-      case "int":
-      case "java.lang.Integer":
-        return Integer.parseInt(strValue);
-      case "long":
-      case "java.lang.Long":
-        return Long.parseLong(strValue);
-      case "boolean":
-      case "java.lang.Boolean":
-        return Boolean.parseBoolean(strValue);
-      case "float":
-      case "java.lang.Float":
-        return Float.parseFloat(strValue);
-      case "double":
-      case "java.lang.Double":
-        return Double.parseDouble(strValue);
-      case "String":
-      case "java.lang.String":
-        return strValue;
-    }
-    return null;
-  }
-
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
     @Override
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
@@ -273,21 +237,15 @@ public class MoshiSnapshotHelper {
       }
       jsonWriter.beginObject();
       jsonWriter.name(ARGUMENTS);
-      if (capturedContext.getFields() == null || capturedContext.getFields().isEmpty()) {
-        jsonWriter.beginObject();
-        toJsonCapturedValues(
-            jsonWriter, capturedContext.getArguments(), capturedContext.getLimits());
-        jsonWriter.endObject();
-      } else {
-        jsonWriter.beginObject();
+      jsonWriter.beginObject();
+      if (capturedContext.getFields() != null && !capturedContext.getFields().isEmpty()) {
         jsonWriter.name(THIS);
         jsonWriter.beginObject();
         toJsonCapturedValues(jsonWriter, capturedContext.getFields(), capturedContext.getLimits());
         jsonWriter.endObject();
-        toJsonCapturedValues(
-            jsonWriter, capturedContext.getArguments(), capturedContext.getLimits());
-        jsonWriter.endObject();
       }
+      toJsonCapturedValues(jsonWriter, capturedContext.getArguments(), capturedContext.getLimits());
+      jsonWriter.endObject();
       jsonWriter.name(LOCALS);
       jsonWriter.beginObject();
       toJsonCapturedValues(jsonWriter, capturedContext.getLocals(), capturedContext.getLimits());
@@ -333,7 +291,8 @@ public class MoshiSnapshotHelper {
       Object value = null;
       String notCapturedReason = null;
       while (jsonReader.hasNext()) {
-        switch (jsonReader.nextName()) {
+        String name = jsonReader.nextName();
+        switch (name) {
           case TYPE:
             type = jsonReader.nextString();
             break;
@@ -392,6 +351,8 @@ public class MoshiSnapshotHelper {
           case SIZE:
             jsonReader.nextString(); // consume size value
             break;
+          default:
+            throw new RuntimeException("Unknown attribute: " + name);
         }
       }
       jsonReader.endObject();
@@ -418,16 +379,13 @@ public class MoshiSnapshotHelper {
         jsonWriter.value(true);
       } else if (isPrimitive(type)) {
         jsonWriter.name(VALUE);
-        if (!writePrimitive(jsonWriter, value, limits)) {
-          jsonWriter.name(TRUNCATED);
-          jsonWriter.value(true);
-        }
+        writePrimitive(jsonWriter, value, limits);
       } else if (value.getClass().isArray() && limits.maxReferenceDepth > 0) {
         jsonWriter.name(ELEMENTS);
         jsonWriter.beginArray();
         SerializationResult result;
         if (value.getClass().getComponentType().isPrimitive()) {
-          result = serializePrimArray(jsonWriter, value, limits);
+          result = serializePrimitiveArray(jsonWriter, value, limits);
         } else {
           result = serializeObjectArray(jsonWriter, (Object[]) value, limits);
         }
@@ -468,7 +426,7 @@ public class MoshiSnapshotHelper {
             (field, val, maxDepth) -> {
               try {
                 jsonWriter.name(field.getName());
-                Limits newLimits = decDepthLimits(maxDepth, limits);
+                Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
                 serializeValue(jsonWriter, val, field.getType().getName(), newLimits);
               } catch (IOException ex) {
                 LOG.debug("Exception when extracting field={}", field.getName(), ex);
@@ -526,12 +484,12 @@ public class MoshiSnapshotHelper {
             jsonWriter,
             entry.getKey(),
             entry.getKey().getClass().getName(),
-            decDepthLimits(limits.maxReferenceDepth, limits));
+            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
         serializeValue(
             jsonWriter,
             entry.getValue(),
             entry.getValue().getClass().getName(),
-            decDepthLimits(limits.maxReferenceDepth, limits));
+            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
         jsonWriter.endArray();
         i++;
       }
@@ -551,14 +509,14 @@ public class MoshiSnapshotHelper {
             jsonWriter,
             val,
             val.getClass().getName(),
-            decDepthLimits(limits.maxReferenceDepth, limits));
+            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
         i++;
       }
       return new SerializationResult(colSize, maxSize == colSize);
     }
 
-    private SerializationResult serializeObjectArray(JsonWriter jsonWriter, Object[] objArray, Limits limits)
-        throws IOException {
+    private SerializationResult serializeObjectArray(
+        JsonWriter jsonWriter, Object[] objArray, Limits limits) throws IOException {
       int maxSize = Math.min(objArray.length, limits.maxCollectionSize);
       int i = 0;
       while (i < maxSize) {
@@ -567,14 +525,14 @@ public class MoshiSnapshotHelper {
             jsonWriter,
             val,
             val != null ? val.getClass().getName() : "java.lang.Object",
-            decDepthLimits(limits.maxReferenceDepth, limits));
+            Limits.decDepthLimits(limits.maxReferenceDepth, limits));
         i++;
       }
       return new SerializationResult(objArray.length, maxSize == objArray.length);
     }
 
-    private SerializationResult serializePrimArray(JsonWriter jsonWriter, Object value, Limits limits)
-        throws IOException {
+    private SerializationResult serializePrimitiveArray(
+        JsonWriter jsonWriter, Object value, Limits limits) throws IOException {
       Class<?> componentType = value.getClass().getComponentType();
       if (componentType == long.class) {
         return serializeLongArray(jsonWriter, (long[]) value, limits.maxCollectionSize);
@@ -603,8 +561,8 @@ public class MoshiSnapshotHelper {
       throw new IllegalArgumentException("Unsupported primitive array: " + value.getClass());
     }
 
-    private static SerializationResult serializeLongArray(JsonWriter jsonWriter, long[] longArray, int maxSize)
-        throws IOException {
+    private static SerializationResult serializeLongArray(
+        JsonWriter jsonWriter, long[] longArray, int maxSize) throws IOException {
       maxSize = Math.min(longArray.length, maxSize);
       int i = 0;
       while (i < maxSize) {
@@ -616,8 +574,8 @@ public class MoshiSnapshotHelper {
       return new SerializationResult(longArray.length, maxSize == longArray.length);
     }
 
-    private static SerializationResult serializeIntArray(JsonWriter jsonWriter, int[] intArray, int maxSize)
-        throws IOException {
+    private static SerializationResult serializeIntArray(
+        JsonWriter jsonWriter, int[] intArray, int maxSize) throws IOException {
       maxSize = Math.min(intArray.length, maxSize);
       int i = 0;
       while (i < maxSize) {
@@ -642,8 +600,8 @@ public class MoshiSnapshotHelper {
       return new SerializationResult(shortArray.length, maxSize == shortArray.length);
     }
 
-    private static SerializationResult serializeCharArray(JsonWriter jsonWriter, char[] charArray, int maxSize)
-        throws IOException {
+    private static SerializationResult serializeCharArray(
+        JsonWriter jsonWriter, char[] charArray, int maxSize) throws IOException {
       maxSize = Math.min(charArray.length, maxSize);
       int i = 0;
       while (i < maxSize) {
@@ -655,8 +613,8 @@ public class MoshiSnapshotHelper {
       return new SerializationResult(charArray.length, maxSize == charArray.length);
     }
 
-    private static SerializationResult serializeByteArray(JsonWriter jsonWriter, byte[] byteArray, int maxSize)
-        throws IOException {
+    private static SerializationResult serializeByteArray(
+        JsonWriter jsonWriter, byte[] byteArray, int maxSize) throws IOException {
       maxSize = Math.min(byteArray.length, maxSize);
       int i = 0;
       while (i < maxSize) {
@@ -717,7 +675,7 @@ public class MoshiSnapshotHelper {
       jsonWriter.endObject();
     }
 
-    private static boolean writePrimitive(JsonWriter jsonWriter, Object value, Limits limits)
+    private static void writePrimitive(JsonWriter jsonWriter, Object value, Limits limits)
         throws IOException {
       // primitive values are stored as String
       if (value instanceof String) {
@@ -730,10 +688,11 @@ public class MoshiSnapshotHelper {
         }
         jsonWriter.value(strValue);
         if (!isComplete) {
+          jsonWriter.name(TRUNCATED);
+          jsonWriter.value(true);
           jsonWriter.name(SIZE);
           jsonWriter.value(String.valueOf(originalLength));
         }
-        return isComplete;
       } else if (value instanceof Long
           || value instanceof Integer
           || value instanceof Double
@@ -746,12 +705,42 @@ public class MoshiSnapshotHelper {
       } else {
         throw new IOException("Cannot convert value: " + value);
       }
-      return true;
     }
 
-    private static Limits decDepthLimits(int maxDepth, Limits current) {
-      return new Limits(
-          maxDepth - 1, current.maxCollectionSize, current.maxLength, current.maxFieldCount);
+    private static Object convertPrimitive(String strValue, String type) {
+      if (type == null) {
+        return null;
+      }
+      switch (type) {
+        case "byte":
+        case "java.lang.Byte":
+          return Byte.parseByte(strValue);
+        case "short":
+        case "java.lang.Short":
+          return Short.parseShort(strValue);
+        case "char":
+        case "java.lang.Character":
+          return strValue.charAt(0);
+        case "int":
+        case "java.lang.Integer":
+          return Integer.parseInt(strValue);
+        case "long":
+        case "java.lang.Long":
+          return Long.parseLong(strValue);
+        case "boolean":
+        case "java.lang.Boolean":
+          return Boolean.parseBoolean(strValue);
+        case "float":
+        case "java.lang.Float":
+          return Float.parseFloat(strValue);
+        case "double":
+        case "java.lang.Double":
+          return Double.parseDouble(strValue);
+        case "String":
+        case "java.lang.String":
+          return strValue;
+      }
+      return null;
     }
 
     private static class SerializationResult {

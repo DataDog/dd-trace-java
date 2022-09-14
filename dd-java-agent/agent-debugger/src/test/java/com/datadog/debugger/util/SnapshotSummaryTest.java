@@ -3,6 +3,7 @@ package com.datadog.debugger.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.debugger.agent.DenyListHelper;
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Snapshot;
@@ -12,6 +13,7 @@ import datadog.trace.bootstrap.debugger.Snapshot.ProbeDetails;
 import datadog.trace.bootstrap.debugger.Snapshot.ProbeLocation;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ public class SnapshotSummaryTest {
   public void setup() {
     // initialise the deny list so the ValueConverter works with most classes
     DebuggerContext.initClassFilter(new DenyListHelper(null));
+    DebuggerContext.initSnapshotSerializer(new JsonSnapshotSerializer());
   }
 
   @Test
@@ -40,9 +43,9 @@ public class SnapshotSummaryTest {
     CapturedContext entry = new CapturedContext();
     entry.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", "java.lang.String", "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", "List", Arrays.asList("a", "b", "c"))
+          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
         });
     snapshot.setEntry(entry);
     assertEquals(
@@ -64,15 +67,15 @@ public class SnapshotSummaryTest {
     CapturedContext entry = new CapturedContext();
     entry.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", "java.lang.String", "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", "List", Arrays.asList("a", "b", "c"))
+          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
         });
     entry.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", "java.lang.String", "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", "List", Arrays.asList("1", "2", "3"))
+          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3"))
         });
     snapshot.setEntry(entry);
     assertEquals(
@@ -83,9 +86,9 @@ public class SnapshotSummaryTest {
     CapturedContext exit = new CapturedContext();
     exit.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", "java.lang.String", "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", "List", Arrays.asList("1", "2", "3")),
+          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3")),
           CapturedValue.of("@return", "double", 2.0)
         });
     snapshot.setExit(exit);
@@ -110,13 +113,13 @@ public class SnapshotSummaryTest {
     CapturedContext lineCapture = new CapturedContext();
     lineCapture.addLocals(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("str", "java.lang.String", "this is a local string"),
+          Snapshot.CapturedValue.of("str", String.class.getName(), "this is a local string"),
           Snapshot.CapturedValue.of("i", "int", 1001),
-          Snapshot.CapturedValue.of("list", "List", Arrays.asList("1", "2", "3"))
+          Snapshot.CapturedValue.of("list", List.class.getName(), Arrays.asList("1", "2", "3"))
         });
     lineCapture.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", "java.lang.String", "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 23);
@@ -150,7 +153,7 @@ public class SnapshotSummaryTest {
     lineCapture.addLocals(new Snapshot.CapturedValue[] {});
     lineCapture.addArguments(
         new Snapshot.CapturedValue[] {
-          Snapshot.CapturedValue.of("arg1", "java.lang.String", "this is a string"),
+          Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
         });
     snapshot.addLine(lineCapture, 13);

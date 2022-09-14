@@ -47,10 +47,10 @@ public class FieldExtractor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Cannot extract field[{}] from class[{}]", fieldName, className, ex);
     }
-    Snapshot.CapturedValue reasonNotCaptured =
-        Snapshot.CapturedValue.reasonNotCaptured(
+    Snapshot.CapturedValue notCapturedReason =
+        Snapshot.CapturedValue.notCapturedReason(
             fieldName, field.getType().getName(), ex.toString());
-    results.put(fieldName, reasonNotCaptured);
+    results.put(fieldName, notCapturedReason);
   }
 
   private static void onMaxFieldCount(
@@ -59,7 +59,7 @@ public class FieldExtractor {
         String.format(
             "Max %d fields reached, %d fields were not captured",
             maxFieldCount, totalFields - maxFieldCount);
-    results.put("@status", Snapshot.CapturedValue.reasonNotCaptured("@status", "", msg));
+    results.put("@status", Snapshot.CapturedValue.notCapturedReason("@status", "", msg));
   }
 
   public static Map<String, Snapshot.CapturedValue> extract(Object obj, Limits limits) {
