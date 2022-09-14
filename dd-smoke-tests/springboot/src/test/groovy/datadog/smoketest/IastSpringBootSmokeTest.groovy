@@ -41,6 +41,11 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       if (it.contains("IAST is starting")) {
         startMsg = it
       }
+      // Check that there's no logged exception about missing classes from Datadog.
+      // We had this problem before with JDK9StackWalker.
+      if (it.contains("java.lang.ClassNotFoundException: datadog/")) {
+        errorMsg = it
+      }
     }
 
     then: 'there are no errors in the log and IAST has started'
