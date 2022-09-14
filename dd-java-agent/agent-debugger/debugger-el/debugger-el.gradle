@@ -28,6 +28,7 @@ dependencies {
 
   implementation deps.slf4j
   implementation deps.moshi
-  testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.0")
+  testImplementation deps.junit5
+  testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.1")
   testImplementation deps.mockito
 }

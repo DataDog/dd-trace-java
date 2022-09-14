@@ -219,7 +219,7 @@ public final class MethodProbeInstrumentor extends Instrumentor {
     insnList.add(new InsnNode(Opcodes.DUP)); // stack: [snapshot, capturedcontext, capturedcontext]
     invokeConstructor(insnList, CAPTURE_CONTEXT_TYPE);
     collectArguments(insnList); // stack: [snapshot, capturedcontext]
-    collectFields(insnList); // stack: [snapshot, capturecontetx]
+    collectFields(insnList); // stack: [snapshot, capturedcontext]
     if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION && kind != Snapshot.Kind.HANDLED_EXCEPTION) {
       /*
        * It makes no sense collecting local variables for exceptions - the ones contributing to the exception

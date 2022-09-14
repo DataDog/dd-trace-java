@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -165,6 +164,10 @@ public class Snapshot {
       }
       return;
     }
+    if (!ProbeRateLimiter.tryProbe(probe.id)) {
+      DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.RATE);
+      return;
+    }
     // generates id only when effectively committing
     this.id = UUID.randomUUID().toString();
     /*
@@ -211,18 +214,22 @@ public class Snapshot {
 
   private boolean checkCapture(CapturedContext capture) {
     DebuggerScript script = probe.getScript();
-    if (!executeScript(script, capture, probe.getId())) {
+    if (!executeScript(script, capture, probe.id)) {
       capturingProbeIds.remove(probe.id);
     }
     List<ProbeDetails> additionalProbes = probe.additionalProbes;
     if (!additionalProbes.isEmpty()) {
       for (ProbeDetails additionalProbe : additionalProbes) {
-        if (executeScript(additionalProbe.getScript(), capture, additionalProbe.getId())) {
-          capturingProbeIds.add(additionalProbe.getId());
+        if (executeScript(additionalProbe.getScript(), capture, additionalProbe.id)) {
+          capturingProbeIds.add(additionalProbe.id);
         }
       }
     }
-    return isCapturing();
+    boolean ret = isCapturing();
+    if (ret) {
+      capture.freeze();
+    }
+    return ret;
   }
 
   private static boolean executeScript(
@@ -545,7 +552,7 @@ public class Snapshot {
       }
       target = followReferences(target, parts);
 
-      return target instanceof CapturedValue ? ((CapturedValue) target).getRawValue() : target;
+      return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
     }
 
     private Object tryRetrieveField(String name) {
@@ -596,18 +603,22 @@ public class Snapshot {
         }
         if (target instanceof CapturedValue) {
           Map<String, CapturedValue> fields = ((CapturedValue) target).fields;
-          if (fields != null && fields.containsKey(parts[i])) {
+          if (fields.containsKey(parts[i])) {
             target = fields.get(parts[i]);
           } else {
-            target = ((CapturedValue) target).getRawValue();
+            CapturedValue capturedTarget = ((CapturedValue) target);
+            target = capturedTarget.getValue();
+            CapturedValue cValue = null;
             if (target != null) {
-              target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+              // resolve to a CapturedValue instance
+              cValue = ReflectiveFieldValueResolver.resolve(capturedTarget, target, parts[i]);
+              target = cValue.getValue();
             } else {
               target = Values.UNDEFINED_OBJECT;
             }
           }
         } else {
-          target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), parts[i]);
+          target = ReflectiveFieldValueResolver.resolveObject(target, target.getClass(), parts[i]);
         }
       }
       return target;
@@ -702,6 +713,22 @@ public class Snapshot {
       return limits;
     }
 
+    /**
+     * 'Freeze' the context. The contained arguments, locals and fields are converted from their
+     * Java instance representation into the corresponding string value.
+     */
+    public void freeze() {
+      if (arguments != null) {
+        arguments.values().forEach(CapturedValue::freeze);
+      }
+      if (locals != null) {
+        locals.values().forEach(CapturedValue::freeze);
+      }
+      if (fields != null) {
+        fields.values().forEach(CapturedValue::freeze);
+      }
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
@@ -735,11 +762,12 @@ public class Snapshot {
 
   /** Stores a captured value */
   public static class CapturedValue {
+    public static final CapturedValue UNDEFINED = CapturedValue.of(null, Values.UNDEFINED_OBJECT);
+
     private String name;
     private final String type;
     private Object value;
     private String strValue;
-    private final WeakReference<Object> rawValueRef;
     private final Map<String, CapturedValue> fields;
     private final Limits limits;
     private final String notCapturedReason;
@@ -753,11 +781,14 @@ public class Snapshot {
         String notCapturedReason) {
       this.name = name;
       this.type = type;
-      this.rawValueRef = new WeakReference<>(value);
       this.value = value;
-      this.fields = fields;
+      this.fields = fields == null ? Collections.emptyMap() : fields;
       this.limits = limits;
       this.notCapturedReason = notCapturedReason;
+    }
+
+    public boolean isResolved() {
+      return true;
     }
 
     public String getName() {
@@ -774,10 +805,6 @@ public class Snapshot {
 
     public String getStrValue() {
       return strValue;
-    }
-
-    Object getRawValue() {
-      return rawValueRef.get();
     }
 
     public Map<String, CapturedValue> getFields() {
@@ -802,6 +829,10 @@ public class Snapshot {
 
     public static Snapshot.CapturedValue of(String name, String type, Object value) {
       return build(name, type, value, Limits.DEFAULT, null);
+    }
+
+    public Snapshot.CapturedValue derive(String name, String type, Object value) {
+      return build(name, type, value, limits, null);
     }
 
     public static Snapshot.CapturedValue of(
@@ -831,24 +862,32 @@ public class Snapshot {
     }
 
     public static Snapshot.CapturedValue raw(
+        String name,
         String type,
         Object value,
         Limits limits,
         Map<String, CapturedValue> fields,
         String notCapturedReason) {
-      return new CapturedValue(null, type, value, limits, fields, notCapturedReason);
+      return new CapturedValue(name, type, value, limits, fields, notCapturedReason);
     }
 
     private static CapturedValue build(
         String name, String type, Object value, Limits limits, String notCapturedReason) {
       CapturedValue val =
           new CapturedValue(name, type, value, limits, Collections.emptyMap(), notCapturedReason);
-      val.strValue = DebuggerContext.serializeValue(val);
-      if (val.strValue != null) {
-        // if serialization has happened, release the value object
-        val.value = null;
-      }
       return val;
+    }
+
+    public void freeze() {
+      if (this.strValue != null) {
+        // already frozen
+        return;
+      }
+      this.strValue = DebuggerContext.serializeValue(this);
+      if (this.strValue != null) {
+        // if serialization has happened, release the value object
+        this.value = null;
+      }
     }
 
     @Override

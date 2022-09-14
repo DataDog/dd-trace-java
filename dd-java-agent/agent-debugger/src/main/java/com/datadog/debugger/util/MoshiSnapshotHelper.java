@@ -235,6 +235,8 @@ public class MoshiSnapshotHelper {
         jsonWriter.nullValue();
         return;
       }
+      // need to 'freeze' the context before serializing it
+      capturedContext.freeze();
       jsonWriter.beginObject();
       jsonWriter.name(ARGUMENTS);
       jsonWriter.beginObject();
@@ -507,7 +509,7 @@ public class MoshiSnapshotHelper {
       } else if (isPrimitive(type)) {
         jsonWriter.name(VALUE);
         writePrimitive(jsonWriter, value, limits);
-      } else if (value.getClass().isArray() && limits.maxReferenceDepth > 0) {
+      } else if (value.getClass().isArray() && (limits.maxReferenceDepth > 0)) {
         jsonWriter.name(ELEMENTS);
         jsonWriter.beginArray();
         SerializationResult result;
@@ -523,7 +525,7 @@ public class MoshiSnapshotHelper {
         }
         jsonWriter.name(SIZE);
         jsonWriter.value(String.valueOf(result.size));
-      } else if (value instanceof Collection && limits.maxReferenceDepth > 0) {
+      } else if (value instanceof Collection && (limits.maxReferenceDepth > 0)) {
         Collection<?> col = (Collection<?>) value;
         jsonWriter.name(ELEMENTS);
         jsonWriter.beginArray();
@@ -535,7 +537,7 @@ public class MoshiSnapshotHelper {
         }
         jsonWriter.name(SIZE);
         jsonWriter.value(String.valueOf(result.size));
-      } else if (value instanceof Map && limits.maxReferenceDepth > 0) {
+      } else if (value instanceof Map && (limits.maxReferenceDepth > 0)) {
         Map<?, ?> map = (Map<?, ?>) value;
         Set<? extends Map.Entry<?, ?>> entries = map.entrySet();
         jsonWriter.name(ENTRIES);
@@ -556,7 +558,13 @@ public class MoshiSnapshotHelper {
               try {
                 jsonWriter.name(field.getName());
                 Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
-                serializeValue(jsonWriter, val, field.getType().getTypeName(), newLimits);
+                serializeValue(
+                    jsonWriter,
+                    val instanceof Snapshot.CapturedValue
+                        ? ((Snapshot.CapturedValue) val).getValue()
+                        : val,
+                    field.getType().getTypeName(),
+                    newLimits);
               } catch (IOException ex) {
                 LOG.debug("Exception when extracting field={}", field.getName(), ex);
               }
@@ -609,6 +617,8 @@ public class MoshiSnapshotHelper {
       while (i < maxSize && it.hasNext()) {
         Map.Entry<?, ?> entry = (Map.Entry<?, ?>) it.next();
         jsonWriter.beginArray();
+        Object keyObj = entry.getKey();
+        Object valObj = entry.getValue();
         serializeValue(
             jsonWriter,
             entry.getKey(),

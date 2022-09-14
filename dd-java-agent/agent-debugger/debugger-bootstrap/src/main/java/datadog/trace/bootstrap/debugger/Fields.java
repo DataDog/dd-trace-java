@@ -32,7 +32,7 @@ public class Fields {
         processing.accept(field, value, maxDepth);
         processedFieldCount++;
         if (processedFieldCount >= maxFieldCount) {
-          int total = (int) Arrays.stream(fields).filter(f -> filteringIn.test(f)).count();
+          int total = (int) Arrays.stream(fields).filter(filteringIn::test).count();
           onMaxFieldCount.accept(field, total);
           break;
         }
