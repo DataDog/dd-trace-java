@@ -47,7 +47,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
     for (ClassPath.ClassInfo info : ClasspathUtils.getTestClasspath().getAllClasses()) {
       for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
-          if (!jfrSupported && info.name.startsWith("datadog.trace.bootstrap.instrumentation.exceptions.")) {
+          if (!jfrSupported && info.name.startsWith("datadog.trace.bootstrap.instrumentation.jfr.")) {
             continue // skip exception-profiling classes - they won't load if JFR is not available
           } else if (!IS_AT_LEAST_JAVA_8 && info.name.startsWith("datadog.trace.bootstrap.instrumentation.api8.")) {
             continue // Java8+ classes that will only be loaded on Java8+

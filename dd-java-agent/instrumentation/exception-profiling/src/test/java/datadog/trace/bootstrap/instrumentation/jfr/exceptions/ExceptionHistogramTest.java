@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.exceptions;
+package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;

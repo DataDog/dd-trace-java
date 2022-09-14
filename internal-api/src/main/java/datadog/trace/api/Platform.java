@@ -9,6 +9,16 @@ public final class Platform {
   private static final Version JAVA_VERSION = parseJavaVersion(System.getProperty("java.version"));
   private static final JvmRuntime RUNTIME = new JvmRuntime();
 
+  public static boolean hasJfr() {
+    /* Check only for the open-sources JFR implementation.
+     * If it is ever needed to support also the closed sourced JDK 8 version the check should be
+     * enhanced.
+     * Need this custom check because ClassLoaderMatchers.hasClassesNamed() does not support bootstrap class loader yet.
+     * Note: the downside of this is that we load some JFR classes at startup.
+     */
+    return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+  }
+
   /* The method splits java version string by digits. Delimiters are: dot, underscore and plus */
   private static List<Integer> splitDigits(String str) {
     List<Integer> results = new ArrayList<>();

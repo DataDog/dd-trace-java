@@ -4,9 +4,9 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionProfiling;
-import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampleEvent;
 import datadog.trace.bootstrap.instrumentation.exceptions.ExceptionSampling;
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent;
 import net.bytebuddy.asm.Advice;
 
 public class ThrowableInstanceAdvice {
