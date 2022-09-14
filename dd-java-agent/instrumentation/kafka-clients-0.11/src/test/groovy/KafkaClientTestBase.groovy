@@ -24,6 +24,7 @@ import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Requires
+import spock.lang.Retry
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -870,6 +871,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
   }
 }
 
+@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -894,6 +896,7 @@ class KafkaClientForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -919,6 +922,7 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -942,6 +946,7 @@ class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
