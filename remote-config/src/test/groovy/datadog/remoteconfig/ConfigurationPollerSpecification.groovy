@@ -202,6 +202,117 @@ class ConfigurationPollerSpecification extends DDSpecification {
     0 * _._
   }
 
+  void 'processing happens in a specific order'() {
+    def deserializer = Mock(ConfigurationDeserializer)
+    List<ConfigurationChangesListener> listeners = (1..5).collect { Mock(ConfigurationChangesListener) }
+    def respBody = JsonOutput.toJson(
+      client_configs: [
+        'datadog/2/FEATURES/asm_features_activation/config',
+        'foo/ASM_DD/bar/config',
+        'foo/ASM/bar/config',
+        'foo/ASM_DATA/bar/config',
+        'foo/LIVE_DEBUGGING/bar/config',
+      ],
+      roots: [],
+      target_files: [
+        [
+          path: 'datadog/2/FEATURES/asm_features_activation/config',
+          raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
+        ],
+        [
+          path: 'foo/ASM_DD/bar/config',
+          raw: ''
+        ],
+        [
+          path: 'foo/ASM/bar/config',
+          raw: ''
+        ],
+        [
+          path: 'foo/ASM_DATA/bar/config',
+          raw: ''
+        ],
+        [
+          path: 'foo/LIVE_DEBUGGING/bar/config',
+          raw: ''
+        ],
+      ],
+      targets: signAndBase64EncodeTargets(
+      signed: [
+        expires: '2022-09-17T12:49:15Z',
+        spec_version: '1.0.0',
+        targets: [
+          'datadog/2/FEATURES/asm_features_activation/config': [
+            custom: [ v: 1 ],
+            hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
+            length : 24,
+          ],
+          'foo/ASM_DD/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+          'foo/ASM/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+          'foo/ASM_DATA/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+          'foo/LIVE_DEBUGGING/bar/config': [
+            custom: [v:1],
+            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+            length : 0,
+          ],
+        ],
+        version: 1
+      ]
+      ))
+
+    when:
+    poller.addListener(Product.ASM_DD, deserializer, listeners[1])
+    poller.addListener(Product.ASM, deserializer, listeners[2])
+    poller.addListener(Product.ASM_DATA, deserializer, listeners[3])
+    poller.addListener(Product.LIVE_DEBUGGING, deserializer, listeners[0])
+    poller.addFeaturesListener('asm', deserializer, listeners[4])
+    poller.start()
+
+    then:
+    1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> { task = it[0]; scheduled }
+
+    when:
+    task.run(poller)
+
+    then:
+    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
+    1 * call.execute() >> { buildOKResponse(respBody) }
+
+    then:
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[0].accept(*_)
+
+    then:
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[1].accept(*_)
+
+    then:
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[2].accept(*_)
+
+    then:
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[3].accept(*_)
+
+    then:
+    1 * deserializer.deserialize(_) >> true
+    1 * listeners[4].accept(*_)
+
+    then:
+    0 * _
+  }
+
   void 'reschedules if instructed to do so'() {
     when:
     poller.addListener(Product.ASM_DD,
@@ -746,14 +857,14 @@ class ConfigurationPollerSpecification extends DDSpecification {
     with(body) {
       client.state.config_states.size() == 2
       with(client.state.config_states[0]) {
-        id == 'employee/ASM_DD/1.recommended.json/config'
-        product == 'ASM_DD'
-        version == 1
-      }
-      with(client.state.config_states[1]) {
         id == newConfigKey
         product == 'LIVE_DEBUGGING'
         version == 3
+      }
+      with(client.state.config_states[1]) {
+        id == 'employee/ASM_DD/1.recommended.json/config'
+        product == 'ASM_DD'
+        version == 1
       }
     }
   }

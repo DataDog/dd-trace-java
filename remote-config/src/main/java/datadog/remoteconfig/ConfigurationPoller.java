@@ -1,5 +1,6 @@
 package datadog.remoteconfig;
 
+import static java.util.Comparator.comparing;
 
 import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
@@ -30,6 +31,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -316,7 +318,10 @@ public class ConfigurationPoller
       return;
     }
 
-    List<String> configsToApply = fleetResponse.getClientConfigs();
+    Iterable<String> configsToApply =
+        fleetResponse.getClientConfigs().stream()
+                .sorted(comparing(ConfigurationPoller::extractProductFromKey))
+            ::iterator;
     String errorMessage = null;
     this.durationHint = null;
     this.collectedCfgErrors.clear();
@@ -355,7 +360,7 @@ public class ConfigurationPoller
   }
 
   private DeserializerAndListener<?> extractDeserializerAndListenerFromKey(String configKey) {
-    String productName = extractProductFromKey(configKey);
+    String productName = extractProductNameFromKey(configKey);
     if (productName == null) {
       throw new ReportableException("Cannot extract product from key " + configKey);
     }
@@ -485,7 +490,7 @@ public class ConfigurationPoller
       configState.setState(
           configKey,
           version,
-          extractProductFromKey(configKey),
+          extractProductNameFromKey(configKey),
           this.collectedCfgErrors.get(configKey));
     }
     // remove excess configStates
@@ -541,12 +546,21 @@ public class ConfigurationPoller
   private static final Pattern EXTRACT_PRODUCT_REGEX =
       Pattern.compile("[^/]+(?:/\\d+)?/([^/]+)/[^/]+/config");
 
-  private static String extractProductFromKey(String configKey) {
+  private static String extractProductNameFromKey(String configKey) {
     Matcher matcher = EXTRACT_PRODUCT_REGEX.matcher(configKey);
     if (!matcher.matches()) {
       throw new ReportableException("Not a valid config key: " + configKey);
     }
     return matcher.group(1);
+  }
+
+  private static Product extractProductFromKey(String configKey) {
+    String name = extractProductNameFromKey(configKey);
+    try {
+      return Product.valueOf(name.toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException iae) {
+      return Product._UNKNOWN;
+    }
   }
 
   private void rescheduleBaseOnConfiguration(Duration hint) {
