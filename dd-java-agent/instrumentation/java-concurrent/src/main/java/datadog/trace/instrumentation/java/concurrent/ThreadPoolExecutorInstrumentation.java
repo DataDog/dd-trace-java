@@ -91,7 +91,10 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$Init");
     transformation.applyAdvice(
-        named("execute").and(isMethod()).and(NO_WRAPPING_BEFORE_DELEGATION),
+        named("execute")
+            .and(isMethod())
+            .and(NO_WRAPPING_BEFORE_DELEGATION)
+            .and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Execute");
     transformation.applyAdvice(
         named("beforeExecute")
