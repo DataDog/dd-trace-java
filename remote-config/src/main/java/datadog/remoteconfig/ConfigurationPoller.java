@@ -1,8 +1,5 @@
 package datadog.remoteconfig;
 
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
 
 import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
@@ -75,6 +72,7 @@ public class ConfigurationPoller
   private final AtomicInteger startCount = new AtomicInteger(0);
   private final Moshi moshi;
   private PollerRequestFactory requestFactory;
+  private long capabilities;
 
   private Duration durationHint;
   private final Map<String /*cfg key*/, String /*error msg*/> collectedCfgErrors = new HashMap<>();
@@ -184,6 +182,14 @@ public class ConfigurationPoller
     this.fileListeners.put(file, new DeserializerAndListener<>(deserializer, listener));
   }
 
+  public synchronized void addCapabilities(long flags) {
+    capabilities |= flags;
+  }
+
+  public synchronized void removeCapabilities(long flags) {
+    capabilities &= ~flags;
+  }
+
   @Override
   public ConfigurationPoller get() {
     return this;
@@ -230,18 +236,12 @@ public class ConfigurationPoller
             getSubscribedProductNames(),
             this.nextClientState,
             this.cachedTargetFiles.values(),
-            calculateCapabilities());
+            capabilities);
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }
     Call call = this.httpClient.newCall(request);
     return call.execute();
-  }
-
-  private long calculateCapabilities() {
-    return (this.featureListeners.containsKey("asm") ? CAPABILITY_ASM_ACTIVATION : 0)
-        | (this.listeners.containsKey(Product.ASM_DATA.name()) ? CAPABILITY_ASM_IP_BLOCKING : 0)
-        | (this.listeners.containsKey(Product.ASM_DD.name()) ? CAPABILITY_ASM_DD_RULES : 0);
   }
 
   private Collection<String> getSubscribedProductNames() {
@@ -333,12 +333,12 @@ public class ConfigurationPoller
         successes++;
       } catch (ReportableException rpe) {
         this.ratelimitedLogger.warn(
-            "Error processing config key {}: {}", configKey, rpe.getMessage());
+            "Error processing config key {}: {}", configKey, rpe.getMessage(), rpe);
         failures++;
         errorMessage = rpe.getMessage();
       } catch (Exception e) {
         this.ratelimitedLogger.warn(
-            "Error processing config key {}: {}", configKey, e.getMessage());
+            "Error processing config key {}: {}", configKey, e.getMessage(), e);
         this.collectedCfgErrors.put(configKey, e.getMessage());
         failures++;
       }
@@ -681,7 +681,8 @@ public class ConfigurationPoller
     }
     boolean valid = this.key.verify(canonicalTargetsSigned, sig);
     if (!valid) {
-      throw new ReportableException("Signature verification failed for targets.signed");
+      throw new ReportableException(
+          "Signature verification failed for targets.signed. Key id: " + this.keyId);
     }
   }
 

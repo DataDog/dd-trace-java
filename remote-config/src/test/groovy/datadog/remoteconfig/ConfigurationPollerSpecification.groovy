@@ -897,7 +897,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
       targets['signatures'][0]['sig'] = '59a6478aba87d171261e6995faaa8e36c95c3e75436c4e82f11ac625220e13b703ce9b912ee0731415121b5a47aa2abdb398a60656b7701b15e606c6327c880e'
       it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(targets).getBytes('UTF-8'))
       JsonOutput.toJson(it)
-    } | 'Signature verification failed for targets.signed'
+    } | 'Signature verification failed for targets.signed. Key id: TEST_KEY_ID'
 
     // Structurally invalid signature
     SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {

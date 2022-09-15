@@ -70,8 +70,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver {
   }
 
   // Should be called by only one thread
-  // Should return true if configuration is correctly applied/un-applied
-  // otherwise false to indicate a probelem
+  // Should throw a runtime exception if there is a problem. The message of
+  // the exception will be reported in the next request to the conf service
   public void accept(Configuration configuration) {
     try {
       // handle null configuration
