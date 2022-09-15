@@ -12,7 +12,7 @@ dependencies {
   }
   api deps.slf4j
   api project(':internal-api')
-  implementation 'org.yaml:snakeyaml:1.31' // override to mitigate CVE-2022-25857 until jmxfetch is fixed
+  implementation 'org.yaml:snakeyaml:1.32' // override to mitigate CVE-2022-38752 until jmxfetch is fixed
 }
 
 shadowJar {
