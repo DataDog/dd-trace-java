@@ -7,12 +7,30 @@ apply from: "$rootDir/gradle/tries.gradle"
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
+sourceSets {
+  test_java11 {
+    java {
+      srcDirs = [file('src/test/java11')]
+    }
+  }
+  test {
+    groovy {
+      compileClasspath += sourceSets.test_java11.output
+      runtimeClasspath += sourceSets.test_java11.output
+    }
+  }
+}
+
 configurations {
   // classpath used by the instrumentation muzzle plugin
   instrumentationMuzzle {
     canBeConsumed = true
     canBeResolved = false
     extendsFrom implementation
+  }
+
+  test_java11Implementation {
+    extendsFrom testImplementation
   }
 }
 
@@ -49,8 +67,19 @@ forbiddenApisJmh {
   ignoreFailures = true
 }
 
-final compileTestJava = project.tasks.compileTestJava
-compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
+forbiddenApisTest_java11 {
+  // it will fail due to missing JDK >= 9 classes
+  // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
+  failOnMissingClasses = false
+}
+
+project.tasks.compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
+project.tasks.compileTestGroovy.dependsOn(project.tasks.compileTest_java11Java)
+project.tasks.compileTest_java11Java.configure {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+  setJavaVersion(it, 11)
+}
 
 final jmh = project.tasks.jmh
 jmh.outputs.upToDateWhen { false }

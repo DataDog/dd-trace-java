@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.HasFlags.COMPUTE_MAX_STACK;
+
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.Pointcut;
@@ -13,6 +15,7 @@ import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.ClassReader;
+import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.utility.OpenedClassReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +32,7 @@ public class Advices {
       new Advices(
           Collections.<String, Map<String, Map<String, CallSiteAdvice>>>emptyMap(),
           new String[0],
+          0,
           AdviceIntrospector.NoOpAdviceInstrospector.INSTANCE) {
         @Override
         public boolean isEmpty() {
@@ -42,12 +46,16 @@ public class Advices {
 
   private final AdviceIntrospector introspector;
 
+  private final int flags;
+
   private Advices(
       final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
       final String[] helpers,
+      final int flags,
       final AdviceIntrospector introspector) {
     this.advices = Collections.unmodifiableMap(advices);
     this.helpers = helpers;
+    this.flags = flags;
     this.introspector = introspector;
   }
 
@@ -64,15 +72,16 @@ public class Advices {
       @Nonnull final AdviceIntrospector introspector) {
     final Map<String, Map<String, Map<String, CallSiteAdvice>>> adviceMap = new HashMap<>();
     final Set<String> helperSet = new HashSet<>();
-    for (CallSiteAdvice advice : advices) {
-      addAdvice(adviceMap, helperSet, advice);
+    int flags = 0;
+    for (final CallSiteAdvice advice : advices) {
+      flags |= addAdvice(adviceMap, helperSet, advice);
     }
     return adviceMap.isEmpty()
         ? EMPTY
-        : new Advices(adviceMap, helperSet.toArray(new String[0]), introspector);
+        : new Advices(adviceMap, helperSet.toArray(new String[0]), flags, introspector);
   }
 
-  private static void addAdvice(
+  private static int addAdvice(
       @Nonnull final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices,
       @Nonnull final Set<String> helpers,
       @Nonnull final CallSiteAdvice advice) {
@@ -100,6 +109,9 @@ public class Advices {
         Collections.addAll(helpers, helperClassNames);
       }
     }
+    return advice instanceof CallSiteAdvice.HasFlags
+        ? ((CallSiteAdvice.HasFlags) advice).flags()
+        : 0;
   }
 
   /**
@@ -116,6 +128,10 @@ public class Advices {
   // used for testing
   public CallSiteAdvice findAdvice(@Nonnull final Pointcut pointcut) {
     return findAdvice(pointcut.type(), pointcut.method(), pointcut.descriptor());
+  }
+
+  public CallSiteAdvice findAdvice(@Nonnull final Handle handle) {
+    return findAdvice(handle.getOwner(), handle.getName(), handle.getDesc());
   }
 
   /**
@@ -150,6 +166,14 @@ public class Advices {
 
   public boolean isEmpty() {
     return advices.isEmpty();
+  }
+
+  public boolean hasFlag(final int flag) {
+    return (this.flags & flag) > 0;
+  }
+
+  public boolean computeMaxStack() {
+    return hasFlag(COMPUTE_MAX_STACK);
   }
 
   /**
@@ -191,7 +215,7 @@ public class Advices {
       private static final Map<Integer, ConstantPoolHandler> CP_HANDLERS;
 
       static {
-        final Map<Integer, ConstantPoolHandler> handlers = new HashMap<>(2);
+        final Map<Integer, ConstantPoolHandler> handlers = new HashMap<>(4);
         final ConstantPoolHandler methodRefHandler = new MethodRefHandler();
         handlers.put(CONSTANT_METHOD_REF, methodRefHandler);
         handlers.put(CONSTANT_INTERFACE_METHOD_REF, methodRefHandler);
@@ -210,6 +234,7 @@ public class Advices {
           }
           final Map<String, Map<String, Map<String, CallSiteAdvice>>> adviceMap = new HashMap<>();
           final Set<String> helperSet = new HashSet<>();
+          int flags = 0;
           final ClassReader reader = OpenedClassReader.of(resolution.resolve());
           final char[] buffer = new char[reader.getMaxStringLength()];
           for (int i = 0; i < reader.getItemCount(); i++) {
@@ -220,15 +245,15 @@ public class Advices {
               if (handler != null) {
                 final CallSiteAdvice advice = handler.findAdvice(advices, reader, offset, buffer);
                 if (advice != null) {
-                  addAdvice(adviceMap, helperSet, advice);
+                  flags |= addAdvice(adviceMap, helperSet, advice);
                 }
               }
             }
           }
           return adviceMap.isEmpty()
               ? EMPTY
-              : new Advices(adviceMap, helperSet.toArray(new String[0]), this);
-        } catch (Throwable e) {
+              : new Advices(adviceMap, helperSet.toArray(new String[0]), flags, this);
+        } catch (final Throwable e) {
           if (LOG.isErrorEnabled()) {
             LOG.error(String.format("Failed to introspect %s constant pool", type), e);
           }

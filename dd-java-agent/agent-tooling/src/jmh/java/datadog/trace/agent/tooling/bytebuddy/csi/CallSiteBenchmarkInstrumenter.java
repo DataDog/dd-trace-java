@@ -2,12 +2,12 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.HasHelpers;
+import datadog.trace.agent.tooling.csi.InvokeAdvice;
 import datadog.trace.agent.tooling.csi.Pointcut;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -42,7 +42,7 @@ public class CallSiteBenchmarkInstrumenter extends CallSiteInstrumenter
     return Collections.<CallSiteAdvice>singletonList(new GetParameterCallSite());
   }
 
-  private static class GetParameterCallSite implements CallSiteAdvice, HasHelpers, Pointcut {
+  private static class GetParameterCallSite implements InvokeAdvice, HasHelpers, Pointcut {
 
     @Override
     public Pointcut pointcut() {
@@ -51,13 +51,13 @@ public class CallSiteBenchmarkInstrumenter extends CallSiteInstrumenter
 
     @Override
     public void apply(
-        final MethodVisitor mv,
+        final MethodHandler handler,
         final int opcode,
         final String owner,
         final String name,
         final String descriptor,
         final boolean isInterface) {
-      mv.visitMethodInsn(
+      handler.method(
           Opcodes.INVOKESTATIC,
           "datadog/trace/agent/tooling/bytebuddy/csi/CallSiteBenchmarkHelper",
           "adviceCallSite",
