@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Field;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +17,7 @@ public class JbossVirtualFileHelper {
 
   private final MethodHandle getPhysicalFile;
   private final MethodHandle getName;
+  private final Field fileField;
 
   private static JbossVirtualFileHelper jbossVirtualFileHelper;
   public static final JbossVirtualFileHelper FAILED_HELPER = new JbossVirtualFileHelper();
@@ -27,11 +30,28 @@ public class JbossVirtualFileHelper {
     getPhysicalFile =
         lookup.findVirtual(virtualFileCls, "getPhysicalFile", MethodType.methodType(File.class));
     getName = lookup.findVirtual(virtualFileCls, "getName", MethodType.methodType(String.class));
+    Class<?> vfsFileUrlConnectionCls =
+        loader.loadClass("org.jboss.vfs.protocol.VirtualFileURLConnection");
+    fileField = vfsFileUrlConnectionCls.getDeclaredField("file");
+    fileField.setAccessible(true);
   }
 
   private JbossVirtualFileHelper() {
     getPhysicalFile = null;
     getName = null;
+    fileField = null;
+  }
+
+  public Object getVirtualFile(final URLConnection connection) {
+    try {
+      if (connection.getContentType() == null) {
+        return connection.getContent();
+      } else {
+        return fileField.get(connection);
+      }
+    } catch (Throwable e) {
+      throw new UndeclaredThrowableException(e);
+    }
   }
 
   public File getPhysicalFile(Object virtualFile) {
@@ -56,14 +76,14 @@ public class JbossVirtualFileHelper {
       return null;
     }
 
-    Object virtualFile;
+    URLConnection connection;
     try {
-      virtualFile = location.openConnection().getContent();
+      connection = location.openConnection();
     } catch (IOException e) {
       // silently ignored
       return null;
     }
-    if (virtualFile == null) {
+    if (connection == null) {
       return null;
     }
 
@@ -71,12 +91,14 @@ public class JbossVirtualFileHelper {
       try {
         jbossVirtualFileHelper =
             JbossVirtualFileHelper.jbossVirtualFileHelper =
-                new JbossVirtualFileHelper(virtualFile.getClass().getClassLoader());
+                new JbossVirtualFileHelper(connection.getClass().getClassLoader());
       } catch (Exception e) {
         log.warn("Error preparing for inspection of jboss virtual files", e);
         return null;
       }
     }
+
+    final Object virtualFile = jbossVirtualFileHelper.getVirtualFile(connection);
 
     // call VirtualFile.getPhysicalFile
     File physicalFile = jbossVirtualFileHelper.getPhysicalFile(virtualFile);

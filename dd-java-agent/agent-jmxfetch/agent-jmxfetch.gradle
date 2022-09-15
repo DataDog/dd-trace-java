@@ -4,14 +4,15 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  api('com.datadoghq:jmxfetch:0.45.3') {
+  api('com.datadoghq:jmxfetch:0.47.0') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'org.yaml', module: 'snakeyaml'
+    exclude group: 'com.beust', module: 'jcommander'
   }
   api deps.slf4j
   api project(':internal-api')
-  implementation 'org.yaml:snakeyaml:1.31' // override to mitigate CVE-2022-25857 until jmxfetch is fixed
+  implementation 'org.yaml:snakeyaml:1.32' // override to mitigate CVE-2022-38752 until jmxfetch is fixed
 }
 
 shadowJar {
