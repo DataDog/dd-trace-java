@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -76,7 +77,7 @@ public class Agent {
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
     TELEMETRY("dd.instrumentation.telemetry.enabled", false),
-    DEBUGGER("dd.debugger.enabled", false);
+    DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
