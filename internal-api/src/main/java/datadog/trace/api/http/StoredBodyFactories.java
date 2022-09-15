@@ -46,17 +46,8 @@ public class StoredBodyFactories {
   }
 
   @SuppressWarnings("Duplicates")
-  public static Flow<Void> maybeDeliverBodyInOneGo(Supplier<CharSequence> supplier) {
-    AgentSpan agentSpan = AgentTracer.activeSpan();
-    if (agentSpan == null) {
-      return Flow.ResultFlow.empty();
-    }
-
-    RequestContext requestContext = agentSpan.getRequestContext();
-    if (requestContext == null) {
-      return Flow.ResultFlow.empty();
-    }
-
+  public static Flow<Void> maybeDeliverBodyInOneGo(
+      Supplier<CharSequence> supplier, RequestContext requestContext) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
         cbp.getCallback(EVENTS.requestBodyStart());
@@ -71,14 +62,15 @@ public class StoredBodyFactories {
     return requestEndedCb.apply(requestContext, wrappedSupplier);
   }
 
-  public static Flow<Void> maybeDeliverBodyInOneGo(final String str) {
+  public static Flow<Void> maybeDeliverBodyInOneGo(final String str, RequestContext reqCtx) {
     return maybeDeliverBodyInOneGo(
         new Supplier<CharSequence>() {
           @Override
           public CharSequence get() {
             return str;
           }
-        });
+        },
+        reqCtx);
   }
 
   public static class ConstantBodySupplier implements StoredBodySupplier {

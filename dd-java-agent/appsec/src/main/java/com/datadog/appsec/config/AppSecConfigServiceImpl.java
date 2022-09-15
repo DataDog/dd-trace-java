@@ -2,6 +2,7 @@ package com.datadog.appsec.config;
 
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
 
+import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -37,6 +38,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private final ConfigurationPoller configurationPoller;
 
+  private boolean hasUserConfig;
+
   public AppSecConfigServiceImpl(
       Config tracerConfig, @Nullable ConfigurationPoller configurationPoller) {
     this.tracerConfig = tracerConfig;
@@ -49,12 +52,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         AppSecConfigDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
           if (newConfig == null) {
-            // TODO: disable appsec
+            log.warn("AppSec configuration was pulled out by remote config. This has no effect");
             return true;
           }
           Map<String, AppSecConfig> configMap = Collections.singletonMap("waf", newConfig);
           distributeSubConfigurations(configMap);
           this.lastConfig.set(configMap);
+          log.info(
+              "New AppSec configuration has been applied. AppSec status: {}",
+              AppSecSystem.ACTIVE ? "active" : "inactive");
           return true;
         });
 
@@ -62,7 +68,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         "asm",
         AppSecFeaturesDeserializer.INSTANCE,
         (product, newConfig, hinter) -> {
-          // TODO: disable appsec
+          if (AppSecSystem.ACTIVE != newConfig.enabled) {
+            log.warn("AppSec {} (runtime)", newConfig.enabled ? "enabled" : "disabled");
+          }
+          AppSecSystem.ACTIVE = newConfig.enabled;
           return true;
         });
   }
@@ -87,6 +96,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     Map<String, AppSecConfig> config;
     try {
       config = loadUserConfig(tracerConfig);
+      hasUserConfig = config != null;
     } catch (Exception e) {
       log.error("Error loading user-provided config", e);
       throw new AbortStartupException("Error loading user-provided config", e);
@@ -100,7 +110,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
     }
     lastConfig.set(config);
-    if (this.configurationPoller != null) {
+  }
+
+  @Override
+  public void maybeInitPoller() {
+    if (!hasUserConfig && this.configurationPoller != null) {
       subscribeConfigurationPoller();
       configurationPoller.start();
     }
