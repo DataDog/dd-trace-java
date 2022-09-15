@@ -2981,6 +2981,8 @@ public class Config {
         + remoteConfigInitialPollInterval
         + ", remoteConfigMaxPayloadSize="
         + remoteConfigMaxPayloadSize
+        + ", remoteConfigIntegrityCheckEnabled="
+        + remoteConfigIntegrityCheckEnabled
         + ", debuggerEnabled="
         + debuggerEnabled
         + ", debuggerSnapshotUrl="

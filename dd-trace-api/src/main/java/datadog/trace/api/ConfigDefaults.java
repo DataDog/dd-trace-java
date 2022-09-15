@@ -91,7 +91,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = false;
-  static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = true;
+  static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
   static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final int DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL = 5; // s
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID =

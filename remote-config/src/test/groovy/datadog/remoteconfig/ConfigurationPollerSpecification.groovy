@@ -63,6 +63,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     injectSysConfig('dd.rc.targets.key', new BigInteger(1, PUBLIC_KEY.toByteArray()).toString(16))
     injectSysConfig('dd.service', 'my_service')
     injectSysConfig('dd.env', 'my_env')
+    injectSysConfig('dd.remote_config.integrity_check.enabled', 'true')
     poller = new ConfigurationPoller(
       Config.get(),
       '0.0.0',
