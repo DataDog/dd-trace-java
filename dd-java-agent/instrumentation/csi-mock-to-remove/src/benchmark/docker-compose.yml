@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:latest
+    container_name: benchmark-datadog-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    ports:
+      - "8126:8126"
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+      DD_SITE: "datadoghq.eu"
+      DD_APM_ENABLED: true
+      DD_APM_NON_LOCAL_TRAFFIC: true
+    restart: unless-stopped
+
+  app:
+    image: springcommunity/spring-framework-petclinic
+    container_name: benchmark-app
+    volumes:
+      - ./agent/dd-java-agent.jar:/dd-java-agent.jar
+    environment:
+      DD_ENV: prod
+      DD_SERVICE: benchmark
+      DD_VERSION: 1.0
+      DD_PROFILING_ENABLED: true
+      DD_LOGS_INJECTION: true
+      DD_AGENT_HOST: datadog-agent
+      DD_TRACE_AGENT_PORT: 8126
+      DD_TRACE_DEBUG: ${DD_TRACE_DEBUG}
+      DD_IAST_ENABLED: ${DD_IAST_ENABLED}
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    entrypoint: "/usr/bin/java ${JAVA_OPTS:-} ${EXTRA_JAVA_OPTS:-} -jar /jetty/start.jar"
