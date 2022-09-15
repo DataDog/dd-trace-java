@@ -86,10 +86,10 @@ public class DebuggerAgentTest {
   public void runDisabled() {
     setFieldInConfig(Config.get(), "debuggerEnabled", false);
     URL probeDefinitionUrl = DebuggerAgentTest.class.getResource("/test_probe.json");
-    System.setProperty("dd.debugger.config-file", probeDefinitionUrl.getFile());
+    System.setProperty("dd.dynamic.instrumentation.config-file", probeDefinitionUrl.getFile());
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
     verify(inst, never()).addTransformer(any(), eq(true));
-    System.clearProperty("dd.debugger.config-file");
+    System.clearProperty("dd.dynamic.instrumentation.config-file");
   }
 
   @Test
