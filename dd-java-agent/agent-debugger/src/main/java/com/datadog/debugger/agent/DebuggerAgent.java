@@ -87,7 +87,6 @@ public class DebuggerAgent {
     configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
     if (configurationPoller != null) {
       subscribeConfigurationPoller(configurationUpdater);
-      configurationPoller.start();
 
       try {
         /*
