@@ -1,0 +1,8 @@
+name: Update download releases
+on: workflow_dispatch
+jobs:
+  update-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update download releases
+        uses: DataDog/download-release-action@ea1f13c0cad08eafeebec8b7d9b2d6ee74efb92a # 0.0.2
