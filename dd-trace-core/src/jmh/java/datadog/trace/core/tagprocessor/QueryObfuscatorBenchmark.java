@@ -16,6 +16,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 5, time = 200, timeUnit = MILLISECONDS)
 @Measurement(iterations = 5, time = 500, timeUnit = MILLISECONDS)
@@ -45,7 +46,7 @@ public class QueryObfuscatorBenchmark {
   }
 
   @Benchmark
-  public void processTagsQuery() {
-    obfuscator.processTags(tags);
+  public void processTagsQuery(final Blackhole bh) {
+    bh.consume(obfuscator.processTags(tags));
   }
 }
