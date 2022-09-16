@@ -100,7 +100,7 @@ public class DebuggerAgent {
         // The JVM is already shutting down.
       }
     } else {
-      log.warn("No configuration poller available from SharedCommunicationObjects");
+      log.debug("No configuration poller available from SharedCommunicationObjects");
     }
   }
 
