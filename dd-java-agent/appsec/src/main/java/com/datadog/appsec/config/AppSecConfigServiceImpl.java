@@ -116,7 +116,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   public void maybeInitPoller() {
     if (!hasUserConfig && this.configurationPoller != null) {
       subscribeConfigurationPoller();
-      configurationPoller.start();
     }
   }
 
