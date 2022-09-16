@@ -378,11 +378,11 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
-      maybeStartRemoteConfig(scoClass, sco);
-
       if (debuggerEnabled) {
+        // start debugger before remote config to subscribe to it before starting to poll
         startDebuggerAgent(instrumentation, scoClass, sco);
       }
+      maybeStartRemoteConfig(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);

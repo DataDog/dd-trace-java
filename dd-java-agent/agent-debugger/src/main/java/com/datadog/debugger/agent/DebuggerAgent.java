@@ -99,6 +99,8 @@ public class DebuggerAgent {
       } catch (final IllegalStateException ex) {
         // The JVM is already shutting down.
       }
+    } else {
+      log.warn("No configuration poller available from SharedCommunicationObjects");
     }
   }
 
