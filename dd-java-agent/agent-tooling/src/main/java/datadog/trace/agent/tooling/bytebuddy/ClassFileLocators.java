@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.URL;
+import java.net.URLConnection;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.ClassFileLocator.Resolution;
 import net.bytebuddy.utility.StreamDrainer;
@@ -122,8 +123,12 @@ public final class ClassFileLocators {
 
     @Override
     public byte[] resolve() {
-      try (InputStream in = url.openStream()) {
-        return StreamDrainer.DEFAULT.drain(in);
+      try {
+        URLConnection uc = url.openConnection();
+        uc.setUseCaches(false);
+        try (InputStream in = uc.getInputStream()) {
+          return StreamDrainer.DEFAULT.drain(in);
+        }
       } catch (IOException e) {
         throw new IllegalStateException("Error while reading class file", e);
       }
