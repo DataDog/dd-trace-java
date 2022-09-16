@@ -176,6 +176,7 @@ public class ConfigurationPoller
   }
 
   public void start() {
+    log.debug("starting ConfigurationPoller", new RuntimeException("ConfigurationPoller.start"));
     int prevCount = this.startCount.getAndIncrement();
     if (prevCount == 0) {
       scheduler.start();
