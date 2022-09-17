@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -34,7 +34,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.junit.platform.launcher.Launcher");
+    return hasClassNamed("org.junit.platform.launcher.Launcher");
   }
 
   @Override

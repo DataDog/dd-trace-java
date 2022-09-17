@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -19,7 +19,7 @@ public class CalleeBenchmarkInstrumenter extends Instrumenter.Default
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("javax.servlet.http.HttpServlet");
+    return hasClassNamed("javax.servlet.http.HttpServlet");
   }
 
   @Override

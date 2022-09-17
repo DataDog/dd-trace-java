@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
@@ -28,7 +28,7 @@ public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Tracin
   }
 
   static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("javax.ws.rs.container.AsyncResponse");
+      hasClassNamed("javax.ws.rs.container.AsyncResponse");
 
   @Override
   public Map<String, String> contextStore() {

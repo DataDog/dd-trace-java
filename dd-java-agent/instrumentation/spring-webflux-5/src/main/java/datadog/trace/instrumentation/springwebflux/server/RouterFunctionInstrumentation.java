@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
@@ -26,15 +26,15 @@ public final class RouterFunctionInstrumentation extends AbstractWebfluxInstrume
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.springframework.web.reactive.function.server.ServerRequest");
+    return hasClassNamed("org.springframework.web.reactive.function.server.ServerRequest");
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    // TODO: this doesn't handle nested routes (DefaultNestedRouterFunction)
     return not(isAbstract())
         .and(
             extendsClass(
-                // TODO: this doesn't handle nested routes (DefaultNestedRouterFunction)
                 named(
                     "org.springframework.web.reactive.function.server.RouterFunctions$DefaultRouterFunction")));
   }

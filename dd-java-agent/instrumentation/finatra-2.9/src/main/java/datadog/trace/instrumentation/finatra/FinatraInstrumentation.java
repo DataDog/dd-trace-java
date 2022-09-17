@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.finatra;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -42,14 +42,13 @@ public class FinatraInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.twitter.finatra.http.internal.routing.Route");
+    return hasClassNamed("com.twitter.finatra.http.internal.routing.Route");
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("com.twitter.finatra.")
-        .<TypeDescription>and(
-            extendsClass(named("com.twitter.finatra.http.internal.routing.Route")));
+        .and(extendsClass(named("com.twitter.finatra.http.internal.routing.Route")));
   }
 
   @Override

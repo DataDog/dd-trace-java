@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -21,7 +21,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing
   }
 
   private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("javax.servlet.http.HttpServletResponse");
+      hasClassNamed("javax.servlet.http.HttpServletResponse");
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {

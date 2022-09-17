@@ -96,6 +96,9 @@ public interface Instrumenter {
     void adviceTransformations(AdviceTransformation transformation);
   }
 
+  /** Instrumentation that transforms types on the bootstrap class-path. */
+  interface ForBootstrap {}
+
   /**
    * Indicates the applicability of an {@linkplain Instrumenter} to the given system.<br>
    *

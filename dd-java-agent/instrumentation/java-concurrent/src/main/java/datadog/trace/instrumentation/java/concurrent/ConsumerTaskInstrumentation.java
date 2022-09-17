@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class ConsumerTaskInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
   public ConsumerTaskInstrumentation() {
     super(EXEC_NAME, "consumer-task");
   }

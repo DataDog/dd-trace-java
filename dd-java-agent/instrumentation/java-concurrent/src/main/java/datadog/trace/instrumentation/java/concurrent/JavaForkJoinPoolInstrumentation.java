@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public JavaForkJoinPoolInstrumentation() {
     super("java_concurrent", "fjp");
