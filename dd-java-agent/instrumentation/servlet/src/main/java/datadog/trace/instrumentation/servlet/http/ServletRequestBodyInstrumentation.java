@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.servlet.http;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -52,14 +51,13 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassNamed("javax.servlet.http.HttpServlet");
+  public String hierarchyMarkerType() {
+    return "javax.servlet.ServletRequest";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.ServletRequest"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

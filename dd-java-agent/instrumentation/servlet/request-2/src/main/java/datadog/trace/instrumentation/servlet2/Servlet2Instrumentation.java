@@ -24,15 +24,18 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
     super("servlet", "servlet-2");
   }
 
+  // Avoid matching servlet 3 which has its own instrumentation
   static final ElementMatcher<ClassLoader> NOT_SERVLET_3 =
-      // Optimization for expensive typeMatcher.
-      hasClassNamed("javax.servlet.http.HttpServletResponse")
-          // ...but avoid matching servlet 3 which has its own instrumentation
-          .and(not(hasClassNamed("javax.servlet.AsyncEvent")));
+      not(hasClassNamed("javax.servlet.AsyncEvent"));
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     return NOT_SERVLET_3;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "javax.servlet.http.HttpServlet";
   }
 
   @Override

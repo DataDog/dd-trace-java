@@ -28,6 +28,11 @@ public final class RmiClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("sun.rmi.server.UnicastRef"));
   }

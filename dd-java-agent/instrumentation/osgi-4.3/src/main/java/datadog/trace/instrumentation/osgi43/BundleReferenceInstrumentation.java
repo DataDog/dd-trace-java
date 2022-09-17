@@ -34,9 +34,14 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.osgi.framework.BundleReference";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("java.lang.ClassLoader"))
-        .and(implementsInterface(named("org.osgi.framework.BundleReference")));
+        .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override

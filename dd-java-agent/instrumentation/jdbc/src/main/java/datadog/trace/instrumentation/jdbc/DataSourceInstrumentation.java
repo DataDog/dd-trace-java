@@ -37,6 +37,11 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("javax.sql.DataSource"));
   }

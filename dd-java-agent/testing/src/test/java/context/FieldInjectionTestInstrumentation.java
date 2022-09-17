@@ -22,6 +22,11 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // no particular marker type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith(getClass().getName() + "$");
   }

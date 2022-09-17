@@ -42,8 +42,13 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.hibernate.Query";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.Query"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

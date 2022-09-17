@@ -39,6 +39,11 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME)));
   }

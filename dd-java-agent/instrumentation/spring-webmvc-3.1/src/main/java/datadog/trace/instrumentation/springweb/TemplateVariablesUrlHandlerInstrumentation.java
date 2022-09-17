@@ -34,8 +34,8 @@ public class TemplateVariablesUrlHandlerInstrumentation extends Instrumenter.App
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed(
-        "org.springframework.web.servlet.handler.AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor");
+    // Only apply to versions of spring-webmvc that include request mapping information
+    return hasClassNamed("org.springframework.web.servlet.mvc.method.RequestMappingInfo");
   }
 
   @Override

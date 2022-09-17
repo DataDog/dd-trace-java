@@ -37,10 +37,13 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassNamed("com.twilio.Twilio")
-        // ...but only apply instrumentation when guava's ListenableFuture is also deployed.
-        .and(hasClassNamed("com.google.common.util.concurrent.ListenableFuture"));
+    // Only apply instrumentation when guava's ListenableFuture is also deployed.
+    return hasClassNamed("com.google.common.util.concurrent.ListenableFuture");
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "com.twilio.base.Resource"; // implies existence of Twilio service classes
   }
 
   /** Match any child class of the base Twilio service classes. */
