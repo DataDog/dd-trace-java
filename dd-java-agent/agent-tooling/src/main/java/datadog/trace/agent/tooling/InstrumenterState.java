@@ -18,7 +18,7 @@ public final class InstrumenterState {
 
   private static final int STATUS_BITS = 0b11;
 
-  static int wordsPerClassLoaderState;
+  private static long[] defaultState = {};
 
   /** Tracks which instrumentations were applied (per-class-loader) and which were blocked. */
   private static final WeakCache<ClassLoader, AtomicLongArray> classLoaderStates =
@@ -28,7 +28,7 @@ public final class InstrumenterState {
       new Function<ClassLoader, AtomicLongArray>() {
         @Override
         public AtomicLongArray apply(ClassLoader input) {
-          return new AtomicLongArray(wordsPerClassLoaderState);
+          return new AtomicLongArray(defaultState);
         }
       };
 
@@ -36,8 +36,10 @@ public final class InstrumenterState {
 
   /** Pre-sizes internals to fit the largest expected instrumentation-id. */
   public static void presize(int maxInstrumentationId) {
-    wordsPerClassLoaderState =
+    int wordsPerClassLoaderState =
         ((maxInstrumentationId << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+
+    defaultState = new long[wordsPerClassLoaderState];
   }
 
   /**
@@ -50,14 +52,24 @@ public final class InstrumenterState {
     return status == 0 ? null : status == APPLIED;
   }
 
-  /** Record that the instrumentation was applied to the given class-loader. */
+  /** Records that the instrumentation was applied to the given class-loader. */
   public static void applyInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, APPLIED);
   }
 
-  /** Record that the instrumentation was blocked for the given class-loader. */
+  /** Records that the instrumentation is blocked for the given class-loader. */
   public static void blockInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, BLOCKED);
+  }
+
+  /** Records that the instrumentation is blocked by default. */
+  public static void blockInstrumentation(int instrumentationId) {
+    int bitIndex = instrumentationId << 1;
+    int wordIndex = bitIndex >> ADDRESS_BITS_PER_WORD;
+    long bitsToSet = ((long) BLOCKED) << (bitIndex & BIT_INDEX_MASK);
+    synchronized (defaultState) {
+      defaultState[wordIndex] |= bitsToSet;
+    }
   }
 
   private static int currentState(ClassLoader classLoader, int instrumentationId) {
