@@ -265,7 +265,6 @@ public class HealthMetrics implements AutoCloseable {
           target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
       reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
       reportIfChanged(target.statsd, "trace.pending.created", target.createdTraces, NO_TAGS);
-      reportIfChanged(target.statsd, "trace.manual.created", target.manualTraces, NO_TAGS);
       reportIfChanged(target.statsd, "span.pending.created", target.createdSpans, NO_TAGS);
       reportIfChanged(
           target.statsd, "span.continuations.canceled", target.cancelledContinuations, NO_TAGS);
