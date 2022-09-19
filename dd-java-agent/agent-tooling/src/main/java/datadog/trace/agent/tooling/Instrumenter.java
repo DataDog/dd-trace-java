@@ -162,11 +162,8 @@ public interface Instrumenter {
     /** Matches classes for which instrumentation is not muzzled. */
     public final boolean muzzleMatches(
         final ClassLoader classLoader, final Class<?> classBeingRedefined) {
-      /* Optimization: calling getInstrumentationMuzzle() inside this method
-       * prevents unnecessary loading of muzzle references during agentBuilder
-       * setup.
-       */
-      final ReferenceMatcher muzzle = getInstrumentationMuzzle();
+      // Optimization: we delay calling getInstrumentationMuzzle() until we need the references
+      ReferenceMatcher muzzle = getInstrumentationMuzzle();
       if (null != muzzle) {
         final boolean isMatch = muzzle.matches(classLoader);
         if (!isMatch) {
@@ -176,13 +173,13 @@ public interface Instrumenter {
             log.debug(
                 "Muzzled - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={}",
                 Strings.join(",", instrumentationNames),
-                Instrumenter.Default.this.getClass().getName(),
+                getClass().getName(),
                 classLoader);
             for (final Reference.Mismatch mismatch : mismatches) {
               log.debug(
                   "Muzzled mismatch - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} muzzle.mismatch=\"{}\"",
                   Strings.join(",", instrumentationNames),
-                  Instrumenter.Default.this.getClass().getName(),
+                  getClass().getName(),
                   classLoader,
                   mismatch);
             }
@@ -192,7 +189,7 @@ public interface Instrumenter {
             log.debug(
                 "Instrumentation applied - instrumentation.names=[{}] instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
                 Strings.join(",", instrumentationNames),
-                Instrumenter.Default.this.getClass().getName(),
+                getClass().getName(),
                 classLoader,
                 classBeingRedefined == null ? "null" : classBeingRedefined.getName());
           }
@@ -202,13 +199,25 @@ public interface Instrumenter {
       return true;
     }
 
-    /**
-     * This method is implemented dynamically by compile-time bytecode transformations.
-     *
-     * <p>{@see datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin}
-     */
-    protected ReferenceMatcher getInstrumentationMuzzle() {
-      return null;
+    public final ReferenceMatcher getInstrumentationMuzzle() {
+      String muzzleClassName = getClass().getName() + "$Muzzle";
+      try {
+        // Muzzle class contains static references captured at build-time
+        // see datadog.trace.agent.tooling.muzzle.MuzzleGenerator
+        ReferenceMatcher muzzle =
+            (ReferenceMatcher)
+                getClass()
+                    .getClassLoader()
+                    .loadClass(muzzleClassName)
+                    .getConstructor()
+                    .newInstance();
+        // mix in any additional references captured at runtime
+        muzzle.withReferenceProvider(runtimeMuzzleReferences());
+        return muzzle;
+      } catch (Throwable e) {
+        log.warn("Failed to load - muzzle.class={}", muzzleClassName, e);
+        return null;
+      }
     }
 
     /** @return Class names of helpers to inject into the user's classloader */
@@ -216,7 +225,7 @@ public interface Instrumenter {
       return new String[0];
     }
 
-    /* Classes that the muzzle plugin assumes will be injected */
+    /** Classes that the muzzle plugin assumes will be injected */
     public String[] muzzleIgnoredClassNames() {
       return helperClassNames();
     }
