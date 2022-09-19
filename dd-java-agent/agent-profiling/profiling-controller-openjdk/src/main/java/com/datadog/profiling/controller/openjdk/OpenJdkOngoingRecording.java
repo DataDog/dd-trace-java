@@ -149,4 +149,16 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       auxiliaryRecording.close();
     }
   }
+
+  @Override
+  public boolean enableEvent(String eventName) {
+    recording.enable(eventName);
+    return true;
+  }
+
+  @Override
+  public boolean disableEvent(String eventName) {
+    recording.disable(eventName);
+    return true;
+  }
 }

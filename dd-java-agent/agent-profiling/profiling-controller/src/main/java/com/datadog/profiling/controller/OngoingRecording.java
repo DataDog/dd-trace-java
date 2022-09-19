@@ -28,4 +28,20 @@ public interface OngoingRecording extends Closeable {
   /** Close recording without capturing any data */
   @Override
   void close();
+
+  /**
+   * Enables the event if the underlying profiler implementation allows it.
+   *
+   * @param eventName the name of the event
+   * @return whether the setting change was successful.
+   */
+  boolean enableEvent(String eventName);
+
+  /**
+   * Disables the event if the underlying profiler implementation allows it.
+   *
+   * @param eventName the name of the event
+   * @return whether the setting change was successful.
+   */
+  boolean disableEvent(String eventName);
 }

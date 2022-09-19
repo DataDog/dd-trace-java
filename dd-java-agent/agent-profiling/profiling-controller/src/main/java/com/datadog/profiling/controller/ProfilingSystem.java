@@ -185,6 +185,25 @@ public final class ProfilingSystem {
     shutdown(false);
   }
 
+  public void enableEvent(String eventName) {
+    if (!recording.enableEvent(eventName)) {
+      onConfigChangeFailed("enable", eventName);
+    }
+  }
+
+  public void disableEvent(String eventName) {
+    if (!recording.disableEvent(eventName)) {
+      onConfigChangeFailed("disable", eventName);
+    }
+  }
+
+  private void onConfigChangeFailed(String verb, String eventName) {
+    log.warn(
+        "failed to {} profiling event {} - it may not be supported on this platform",
+        verb,
+        eventName);
+  }
+
   /** Shuts down the profiling system. */
   public final void shutdown(boolean snapshot) {
     scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);

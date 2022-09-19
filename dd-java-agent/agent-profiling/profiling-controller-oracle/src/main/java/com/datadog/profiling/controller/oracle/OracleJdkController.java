@@ -2,7 +2,6 @@ package com.datadog.profiling.controller.oracle;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -48,8 +47,7 @@ public final class OracleJdkController implements Controller {
 
   @Override
   @Nonnull
-  public OracleJdkOngoingRecording createRecording(@Nonnull final String recordingName)
-      throws UnsupportedEnvironmentException {
+  public OracleJdkOngoingRecording createRecording(@Nonnull final String recordingName) {
     try {
       log.debug("Attempting to create a new recording with name '{}'", recordingName);
       return new OracleJdkOngoingRecording(
