@@ -34,13 +34,13 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
     where:
     // spotless:off
-    assertPass | instCP                                                           | userCP
-    true       | [EmptyInst]                                                      | []
-    false      | [BasicInst, SomeAdvice]                                          | []
-    false      | [BasicInst, SomeAdvice]                                          | [AdviceParameter, AdviceStaticReference]
-    false      | [BasicInst, SomeAdvice]                                          | [AdviceParameter, AdviceReference]
-    true       | [BasicInst, SomeAdvice]                                          | [AdviceParameter, AdviceReference, AdviceStaticReference]
-    false      | [HelperInst, SomeAdvice, AdviceReference, AdviceStaticReference] | [] // Matching applies before helpers are injected
+    assertPass | instCP                                                                              | userCP
+    true       | [EmptyInst, EmptyInst.Muzzle]                                                       | []
+    false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | []
+    false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceStaticReference]
+    false      | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceReference]
+    true       | [BasicInst, BasicInst.Muzzle, SomeAdvice]                                           | [AdviceParameter, AdviceReference, AdviceStaticReference]
+    false      | [HelperInst, HelperInst.Muzzle, SomeAdvice, AdviceReference, AdviceStaticReference] | [] // Matching applies before helpers are injected
     // FIXME: AdviceParameter and AdviceMethodReturn are not validated
     // spotless:on
   }
@@ -63,15 +63,15 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
     where:
     // spotless:off
-    instCP                  | _
-    [BasicInst, SomeAdvice] | _
+    instCP                                    | _
+    [BasicInst, BasicInst.Muzzle, SomeAdvice] | _
     // spotless:on
   }
 
   def "test assertInstrumentationMuzzled helpers"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default, BaseInst,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst)
+      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
     def userClassLoader = new AddableClassLoader()
 
@@ -83,16 +83,16 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
     where:
     // spotless:off
-    inst                   | helpers
-    ValidHelperInst        | [HelperClass, NestedHelperClass]
-    InvalidOrderHelperInst | [HelperClass, NestedHelperClass]
+    inst                   | muzzle                        | helpers
+    ValidHelperInst        | ValidHelperInst.Muzzle        | [HelperClass, NestedHelperClass]
+    InvalidOrderHelperInst | InvalidOrderHelperInst.Muzzle | [HelperClass, NestedHelperClass]
     // spotless:on
   }
 
   def "test nested helpers failure"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, Instrumenter.Default, BaseInst,
-      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst)
+      ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
     def userClassLoader = new AddableClassLoader()
 
@@ -105,8 +105,8 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
     where:
     // spotless:off
-    inst                     | helpers
-    InvalidMissingHelperInst | [NestedHelperClass]
+    inst                     | muzzle                        | helpers
+    InvalidMissingHelperInst | InvalidOrderHelperInst.Muzzle | [NestedHelperClass]
     // spotless:on
   }
 }

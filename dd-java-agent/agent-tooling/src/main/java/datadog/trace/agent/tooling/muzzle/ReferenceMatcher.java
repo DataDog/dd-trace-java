@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
-public final class ReferenceMatcher {
+public class ReferenceMatcher {
   private final WeakCache<ClassLoader, Boolean> mismatchCache = WeakCaches.newWeakCache();
   private final Reference[] references;
 

@@ -52,43 +52,36 @@ public class MuzzleVersionScanPlugin {
         // only default Instrumenters use muzzle. Skip custom instrumenters.
         continue;
       }
-      Method m = null;
-      try {
-        m = instrumenter.getClass().getDeclaredMethod("getInstrumentationMuzzle");
-        m.setAccessible(true);
-        final ReferenceMatcher muzzle = (ReferenceMatcher) m.invoke(instrumenter);
-        final List<Reference.Mismatch> mismatches =
-            muzzle.getMismatchedReferenceSources(userClassLoader);
 
-        ClassLoaderMatchers.reset();
+      final ReferenceMatcher muzzle =
+          ((Instrumenter.Default) instrumenter).getInstrumentationMuzzle();
+      final List<Reference.Mismatch> mismatches =
+          muzzle.getMismatchedReferenceSources(userClassLoader);
 
-        final boolean classLoaderMatch =
-            ((Instrumenter.Default) instrumenter).classLoaderMatcher().matches(userClassLoader);
-        final boolean passed = mismatches.isEmpty() && classLoaderMatch;
+      ClassLoaderMatchers.reset();
 
-        if (passed && !assertPass) {
-          System.err.println(
-              "MUZZLE PASSED "
-                  + instrumenter.getClass().getSimpleName()
-                  + " BUT FAILURE WAS EXPECTED");
-          throw new RuntimeException("Instrumentation unexpectedly passed Muzzle validation");
-        } else if (!passed && assertPass) {
-          System.err.println(
-              "FAILED MUZZLE VALIDATION: " + instrumenter.getClass().getName() + " mismatches:");
+      final boolean classLoaderMatch =
+          ((Instrumenter.Default) instrumenter).classLoaderMatcher().matches(userClassLoader);
+      final boolean passed = mismatches.isEmpty() && classLoaderMatch;
 
-          if (!classLoaderMatch) {
-            System.err.println("-- classloader mismatch");
-          }
+      if (passed && !assertPass) {
+        System.err.println(
+            "MUZZLE PASSED "
+                + instrumenter.getClass().getSimpleName()
+                + " BUT FAILURE WAS EXPECTED");
+        throw new RuntimeException("Instrumentation unexpectedly passed Muzzle validation");
+      } else if (!passed && assertPass) {
+        System.err.println(
+            "FAILED MUZZLE VALIDATION: " + instrumenter.getClass().getName() + " mismatches:");
 
-          for (final Reference.Mismatch mismatch : mismatches) {
-            System.err.println("-- " + mismatch);
-          }
-          throw new RuntimeException("Instrumentation failed Muzzle validation");
+        if (!classLoaderMatch) {
+          System.err.println("-- classloader mismatch");
         }
-      } finally {
-        if (null != m) {
-          m.setAccessible(false);
+
+        for (final Reference.Mismatch mismatch : mismatches) {
+          System.err.println("-- " + mismatch);
         }
+        throw new RuntimeException("Instrumentation failed Muzzle validation");
       }
     }
     // run helper injector on all instrumenters
