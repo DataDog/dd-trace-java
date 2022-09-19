@@ -1,5 +1,7 @@
 package datadog.remoteconfig;
 
+import java.util.Arrays;
+
 public class HexUtils {
   private static final int[] DEC =
       new int[] {
@@ -18,13 +20,17 @@ public class HexUtils {
 
     int bufferSize = input.length() / 2 > 32 ? 64 : 32;
     int diff = bufferSize * 2 - input.length();
+    char[] inputChars;
     if (diff < 0) {
       throw new IllegalArgumentException("Hex data is too large");
     } else if (diff > 0) {
-      input = new String(new char[diff]).replace('\0', '0') + input;
+      inputChars = new char[diff + input.length()];
+      Arrays.fill(inputChars, 0, diff, '0');
+      System.arraycopy(input.toCharArray(), 0, inputChars, diff, input.length());
+    } else {
+      inputChars = input.toCharArray();
     }
-    char[] inputChars = input.toCharArray();
-    byte[] result = new byte[input.length() / 2];
+    byte[] result = new byte[inputChars.length / 2];
 
     for (int i = 0; i < result.length; ++i) {
       result[i] = (byte) ((getDec(inputChars[2 * i]) << 4) + getDec(inputChars[2 * i + 1]));
