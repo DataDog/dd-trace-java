@@ -313,7 +313,9 @@ public class GatewayBridge {
         EVENTS.requestInferredClientAddress(),
         (ctx_, ip) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          ctx.setInferredClientIp(ip);
+          if (ctx != null) {
+            ctx.setInferredClientIp(ip);
+          }
           return NoopFlow.INSTANCE; // expected to be called before requestClientSocketAddress
         });
 
