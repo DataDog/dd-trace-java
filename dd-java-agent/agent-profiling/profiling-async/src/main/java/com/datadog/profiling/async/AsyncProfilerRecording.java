@@ -67,6 +67,16 @@ final class AsyncProfilerRecording implements OngoingRecording {
     }
   }
 
+  @Override
+  public boolean enableEvent(String eventName) {
+    return false;
+  }
+
+  @Override
+  public boolean disableEvent(String eventName) {
+    return false;
+  }
+
   // used for tests only
   Path getRecordingFile() {
     return recordingFile;

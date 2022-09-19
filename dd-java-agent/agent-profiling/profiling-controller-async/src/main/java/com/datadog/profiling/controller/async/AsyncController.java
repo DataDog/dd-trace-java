@@ -15,8 +15,6 @@
  */
 package com.datadog.profiling.controller.async;
 
-import static com.datadog.profiling.controller.ProfilingSupport.*;
-
 import com.datadog.profiling.async.AsyncProfiler;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;

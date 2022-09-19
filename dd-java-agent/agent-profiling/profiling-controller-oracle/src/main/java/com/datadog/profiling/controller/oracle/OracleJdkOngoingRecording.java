@@ -85,6 +85,16 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     }
   }
 
+  @Override
+  public boolean enableEvent(String eventName) {
+    return false;
+  }
+
+  @Override
+  public boolean disableEvent(String eventName) {
+    return false;
+  }
+
   private static Instant getEndTime(
       JfrMBeanHelper helper, ObjectName recordingId, Instant defaultEndTime) {
     try {

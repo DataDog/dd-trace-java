@@ -59,4 +59,14 @@ public class AsyncOngoingRecording implements OngoingRecording {
   public void close() {
     recording.close();
   }
+
+  @Override
+  public boolean enableEvent(String eventName) {
+    return recording.enableEvent(eventName);
+  }
+
+  @Override
+  public boolean disableEvent(String eventName) {
+    return recording.disableEvent(eventName);
+  }
 }

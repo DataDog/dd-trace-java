@@ -18,11 +18,12 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary-async')
   api project(':dd-java-agent:agent-profiling:profiling-context')
-  api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-async')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+  api project(':dd-java-agent:agent-profiling:profiling-leak-monitor')
+  api project(':dd-java-agent:agent-profiling:profiling-uploader')
 }
 
 Project parent_project = project

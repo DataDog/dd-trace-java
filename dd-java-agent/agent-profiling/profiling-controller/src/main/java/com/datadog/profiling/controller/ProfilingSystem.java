@@ -20,6 +20,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDI
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
@@ -47,6 +49,8 @@ public final class ProfilingSystem {
   private OngoingRecording recording;
   private SnapshotRecording snapshotRecording;
   private volatile boolean started = false;
+
+  private Object leakMonitor;
 
   /**
    * Constructor.
@@ -142,6 +146,7 @@ public final class ProfilingSystem {
     try {
       final Instant now = Instant.now();
       recording = controller.createRecording(RECORDING_NAME);
+      setupLeakMonitor(recording);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
           snapshotRecording = createSnapshotRecording(now),
@@ -182,8 +187,46 @@ public final class ProfilingSystem {
     return new SnapshotRecording(now);
   }
 
+  private void setupLeakMonitor(OngoingRecording recording) {
+    Object leakMonitor = null;
+    try {
+      Class<?> leakMonitorClass =
+          Class.forName(
+              "com.datadog.profiling.leakmonitor.LiveHeapSizeMonitor",
+              false,
+              ProfilingSystem.class.getClassLoader());
+      leakMonitor =
+          MethodHandles.publicLookup()
+              .findConstructor(
+                  leakMonitorClass, MethodType.methodType(void.class, OngoingRecording.class))
+              .invoke(recording);
+    } catch (Throwable t) {
+      log.debug("failed to init leak monitor", t);
+    }
+    this.leakMonitor = leakMonitor;
+  }
+
   void shutdown() {
     shutdown(false);
+  }
+
+  public void enableEvent(String eventName) {
+    if (!recording.enableEvent(eventName)) {
+      onConfigChangeFailed("enable", eventName);
+    }
+  }
+
+  public void disableEvent(String eventName) {
+    if (!recording.disableEvent(eventName)) {
+      onConfigChangeFailed("disable", eventName);
+    }
+  }
+
+  private void onConfigChangeFailed(String verb, String eventName) {
+    log.warn(
+        "failed to {} profiling event {} - it may not be supported on this platform",
+        verb,
+        eventName);
   }
 
   /** Shuts down the profiling system. */

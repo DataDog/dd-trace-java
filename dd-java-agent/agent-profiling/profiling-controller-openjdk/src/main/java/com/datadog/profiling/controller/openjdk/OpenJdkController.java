@@ -15,11 +15,12 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
-import static com.datadog.profiling.controller.ProfilingSupport.*;
+import static com.datadog.profiling.controller.ProfilingSupport.isNativeMethodSampleAvailable;
+import static com.datadog.profiling.controller.ProfilingSupport.isObjectAllocationSampleAvailable;
+import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.config.ProfilingConfig;
@@ -157,8 +158,7 @@ public final class OpenJdkController implements Controller {
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName)
-      throws UnsupportedEnvironmentException {
+  public OpenJdkOngoingRecording createRecording(final String recordingName) {
     return new OpenJdkOngoingRecording(
         recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE);
   }
