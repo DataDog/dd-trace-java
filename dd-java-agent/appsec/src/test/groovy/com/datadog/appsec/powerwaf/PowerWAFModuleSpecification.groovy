@@ -372,6 +372,43 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
   }
 
+  void 'rule toggling data given through configuration'() {
+    setupWithStubConfigService()
+    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    ChangeableFlow flow = Mock()
+
+    when:
+    service.listeners['waf_rules_override'].onNewSubconfig([
+      'ua0-600-12x': false
+    ],
+    reconf
+    )
+    dataListener = pwafModule.dataSubscriptions.first()
+    eventListener = pwafModule.eventSubscriptions.first()
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    0 * _
+
+    when:
+    service.listeners['waf_rules_override'].onNewSubconfig([:], reconf )
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    eventListener.onEvent(ctx, EventType.REQUEST_END)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getWafMetrics()
+    1 * ctx.setBlocked(true)
+    1 * flow.setAction({ it.blocking })
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
+    1 * ctx.closeAdditive()
+    0 * _
+  }
+
   void 'initial configuration has unknown addresses'() {
     def cfgService = new StubAppSecConfigService(waf: AppSecConfig.valueOf([
       version: '2.1',

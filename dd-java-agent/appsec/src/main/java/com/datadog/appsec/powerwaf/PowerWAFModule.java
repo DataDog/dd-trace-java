@@ -116,6 +116,8 @@ public class PowerWAFModule implements AppSecModule {
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
   private AtomicReference<List<Map<String, Object>>> wafData =
       new AtomicReference<>(Collections.emptyList());
+  private final AtomicReference<Map<String, Boolean>> wafRulesOverride =
+      new AtomicReference<>(Collections.emptyMap());
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
@@ -128,12 +130,19 @@ public class PowerWAFModule implements AppSecModule {
     if (initialData.isPresent()) {
       this.wafData.set((List<Map<String, Object>>) initialData.get());
     }
+    Optional<Object> initialRuleStatus =
+        appSecConfigService.addSubConfigListener(
+            "waf_rules_override", this::updateWafRulesOverride);
+    if (initialRuleStatus.isPresent()) {
+      this.wafRulesOverride.set((Map<String, Boolean>) initialRuleStatus.get());
+    }
 
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
     if (!initialConfig.isPresent()) {
       throw new AppSecModuleActivationException("No initial config for WAF");
     }
+
     try {
       applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
     } catch (ClassCastException e) {
@@ -158,6 +167,18 @@ public class PowerWAFModule implements AppSecModule {
     CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
     if (curCtxAndAddr != null) {
       curCtxAndAddr.ctx.updateRuleData(data);
+    }
+  }
+
+  private void updateWafRulesOverride(
+      Object data_, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
+    Map<String, Boolean> data = (Map<String, Boolean>) data_;
+    this.wafRulesOverride.set(data);
+    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
+    if (curCtxAndAddr != null) {
+      Map<String, Boolean> toggleSpec =
+          new FilledInRuleTogglingMap(data, curCtxAndAddr.rulesInfoMap.keySet());
+      curCtxAndAddr.ctx.toggleRules(toggleSpec);
     }
   }
 
@@ -191,8 +212,14 @@ public class PowerWAFModule implements AppSecModule {
         newPwafCtx.updateRuleData(wafData);
       }
 
-      Map<String, RuleInfo> rulesInfoMap = new HashMap<>();
-      config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
+      Map<String, RuleInfo> rulesInfoMap =
+          config.getRules().stream()
+              .collect(Collectors.toMap(AppSecConfig.Rule::getId, rule -> new RuleInfo(rule)));
+
+      Map<String, Boolean> rulesOverride = this.wafRulesOverride.get();
+      if (!rulesOverride.isEmpty()) {
+        newPwafCtx.toggleRules(new FilledInRuleTogglingMap(rulesOverride, rulesInfoMap.keySet()));
+      }
 
       newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap);
       if (initReport != null) {
@@ -592,6 +619,55 @@ public class PowerWAFModule implements AppSecModule {
 
     @Override
     public Object setValue(Object value) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  class FilledInRuleTogglingMap extends AbstractMap<String, Boolean> {
+    final Map<String, Boolean> explicitCfg;
+    final Set<String> rulesNames;
+    private int size = -1;
+
+    FilledInRuleTogglingMap(Map<String, Boolean> explicitCfg, Set<String> allRuleNames) {
+      this.explicitCfg = explicitCfg;
+      this.rulesNames = allRuleNames;
+    }
+
+    @Override
+    public Set<Entry<String, Boolean>> entrySet() {
+      return this.rulesNames.stream()
+          .map(
+              ruleName ->
+                  new RuleEnabledEntry(
+                      ruleName,
+                      this.explicitCfg.containsKey(ruleName)
+                          ? this.explicitCfg.get(ruleName)
+                          : Boolean.TRUE))
+          .collect(Collectors.toSet());
+    }
+  }
+
+  static class RuleEnabledEntry implements Map.Entry<String, Boolean> {
+    final String ruleName;
+    final boolean enabled;
+
+    RuleEnabledEntry(String ruleName, boolean enabled) {
+      this.ruleName = ruleName;
+      this.enabled = enabled;
+    }
+
+    @Override
+    public String getKey() {
+      return this.ruleName;
+    }
+
+    @Override
+    public Boolean getValue() {
+      return this.enabled;
+    }
+
+    @Override
+    public Boolean setValue(Boolean value) {
       throw new UnsupportedOperationException();
     }
   }

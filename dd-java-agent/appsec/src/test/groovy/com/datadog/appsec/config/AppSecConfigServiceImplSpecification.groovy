@@ -19,7 +19,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
 
   void cleanup() {
-    appSecConfigService.close()
+    appSecConfigService?.close()
   }
 
   void 'maybeStartConfigPolling subscribes to the configuration poller'() {
@@ -88,14 +88,18 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   void 'provides updated configuration to waf subscription'() {
     AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
     AppSecModuleConfigurer.SubconfigListener wafDataListener = Mock()
+    AppSecModuleConfigurer.SubconfigListener wafRulesOverrideListener = Mock()
     ConfigurationDeserializer<AppSecConfig> savedConfDeserializer
     ConfigurationChangesListener<AppSecConfig> savedConfChangesListener
     ConfigurationDeserializer<List<Map<String, Object>>> savedWafDataDeserializer
     ConfigurationChangesListener<List<Map<String, Object>>> savedWafDataChangesListener
+    ConfigurationDeserializer<Map<String, Boolean>> savedWafRulesOverrideDeserializer
+    ConfigurationChangesListener<Map<String, Boolean>> savedWafRulesOverrideListener
     ConfigurationDeserializer<AppSecFeatures> savedFeaturesDeserializer
     ConfigurationChangesListener<AppSecFeatures> savedFeaturesListener
     def initialWafConfig
     def initialWafData
+    def initialRulesOverride
 
     when:
     AppSecSystem.ACTIVE = false
@@ -104,6 +108,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
     initialWafData = configurer.addSubConfigListener("waf_data", wafDataListener)
+    initialRulesOverride = configurer.addSubConfigListener("waf_rules_override", wafRulesOverrideListener)
     configurer.commit()
 
     then:
@@ -117,6 +122,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       savedWafDataDeserializer = it[1]
       savedWafDataChangesListener = it[2]
     }
+    1 * poller.addListener(Product.ASM, _, _) >> {
+      savedWafRulesOverrideDeserializer = it[1]
+      savedWafRulesOverrideListener = it[2]
+    }
     1 * poller.addFeaturesListener('asm', _, _) >> {
       savedFeaturesDeserializer = it[1]
       savedFeaturesListener = it[2]
@@ -126,6 +135,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     0 * _._
     initialWafConfig.get() != null
     initialWafData.present == false
+    initialRulesOverride.present == false
 
     when:
     savedConfChangesListener.accept(
@@ -136,6 +146,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       'ignored config key',
       savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null
       )
+    savedWafRulesOverrideListener.accept(
+      'ignored config key',
+      savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"id": "foo", "enabled":false}]}'.bytes), null
+      )
     savedFeaturesListener.accept(
       'ignored config key',
       savedFeaturesDeserializer.deserialize(
@@ -144,6 +158,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']), _)
     1 * wafDataListener.onNewSubconfig([[id: 'foo', type: '', data: []]], _)
+    1 * wafRulesOverrideListener.onNewSubconfig([foo: false], _)
     0 * _._
     AppSecSystem.ACTIVE == true
 
@@ -157,6 +172,21 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     cleanup:
     AppSecSystem.ACTIVE = true
+  }
+
+  void 'stopping appsec unsubscribes from the poller'() {
+    setup:
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    when:
+    appSecConfigService.close()
+    poller = null
+
+    then:
+    1 * poller.removeCapabilities(14)
+    3 * poller.removeListener(_)
+    1 * poller.removeFeaturesListener(_)
+    1 * poller.stop()
   }
 
   void 'error in one listener does not prevent others from running'() {

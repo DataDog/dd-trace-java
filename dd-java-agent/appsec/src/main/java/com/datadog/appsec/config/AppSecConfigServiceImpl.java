@@ -88,9 +88,18 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
               wafData.addConfig(configKey, newConfig);
             }
           }
-          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", wafData);
           this.lastConfig.put("waf_data", wafData);
+          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", wafData);
           distributeSubConfigurations(wafDataConfigMap, reconfiguration);
+        });
+    this.configurationPoller.addListener(
+        Product.ASM,
+        AppSecRuleTogglingDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          this.lastConfig.put("waf_rules_override", newConfig);
+          Map<String, Object> wafRulesOverride =
+              Collections.singletonMap("waf_rules_override", newConfig);
+          distributeSubConfigurations(wafRulesOverride, reconfiguration);
         });
 
     this.configurationPoller.addFeaturesListener(
@@ -249,6 +258,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
     this.configurationPoller.removeListener(Product.ASM_DD);
     this.configurationPoller.removeListener(Product.ASM_DATA);
+    this.configurationPoller.removeListener(Product.ASM);
     this.configurationPoller.removeFeaturesListener("asm");
     this.configurationPoller.stop();
   }
