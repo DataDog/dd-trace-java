@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -56,6 +57,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
   final StatsDClient statsDClient;
+  private final HealthMetrics healthMetrics;
 
   private final int depthLimit;
   private final boolean strictMode;
@@ -69,6 +71,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
+    this.healthMetrics = new HealthMetrics(statsDClient);
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
@@ -164,6 +167,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       scopeStack.cleanup();
       if (finishSpan) {
         top.span.finishWithEndToEnd();
+        healthMetrics.onFinishContinuation();
       }
     }
   }

@@ -2,9 +2,11 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDId;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -42,20 +44,24 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     private final PendingTraceBuffer pendingTraceBuffer;
     private final TimeSource timeSource;
     private final boolean strictTraceWrites;
+    private final HealthMetrics healthMetrics;
 
     Factory(
         CoreTracer tracer,
         PendingTraceBuffer pendingTraceBuffer,
         TimeSource timeSource,
-        boolean strictTraceWrites) {
+        boolean strictTraceWrites,
+        StatsDClient statsDClient) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
       this.timeSource = timeSource;
       this.strictTraceWrites = strictTraceWrites;
+      this.healthMetrics = new HealthMetrics(statsDClient);
     }
 
     PendingTrace create(@Nonnull DDId traceId) {
-      return new PendingTrace(tracer, traceId, pendingTraceBuffer, timeSource, strictTraceWrites);
+      return new PendingTrace(
+          tracer, traceId, pendingTraceBuffer, timeSource, strictTraceWrites, healthMetrics);
     }
   }
 
@@ -66,7 +72,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final PendingTraceBuffer pendingTraceBuffer;
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
-
+  private final HealthMetrics healthMetrics;
   private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
@@ -108,12 +114,14 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull DDId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
       @Nonnull TimeSource timeSource,
-      boolean strictTraceWrites) {
+      boolean strictTraceWrites,
+      HealthMetrics healthMetrics) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.timeSource = timeSource;
     this.strictTraceWrites = strictTraceWrites;
+    this.healthMetrics = healthMetrics;
   }
 
   CoreTracer getTracer() {
@@ -156,6 +164,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     if (span.hasCheckpoints()) {
       tracer.onStart(span);
     }
+    healthMetrics.onCreateSpan();
   }
 
   void onFinish(final DDSpan span) {
@@ -200,6 +209,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   @Override
   public void cancelContinuation(final AgentScope.Continuation continuation) {
     decrementRefAndMaybeWrite(false);
+    healthMetrics.onCancelContinuation();
   }
 
   enum PublishState {
@@ -240,6 +250,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   /** Important to note: may be called multiple times. */
   private void partialFlush() {
     int size = write(true);
+    healthMetrics.onPartialFlush(size);
     if (log.isDebugEnabled()) {
       log.debug("t_id={} -> wrote partial trace of size {}", traceId, size);
     }
@@ -281,6 +292,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         if (!trace.isEmpty()) {
           COMPLETED_SPAN_COUNT.addAndGet(this, -trace.size());
           tracer.write(trace);
+          healthMetrics.onCreateTrace();
           return trace.size();
         }
       }
