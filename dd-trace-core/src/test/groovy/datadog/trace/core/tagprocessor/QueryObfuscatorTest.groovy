@@ -7,11 +7,10 @@ import datadog.trace.test.util.DDSpecification
 class QueryObfuscatorTest extends DDSpecification {
 
   final url = 'http://site.com/index'
-  QueryObfuscator obfuscator = new QueryObfuscator(null)
 
   def "disabled obfuscator"() {
     given:
-    QueryObfuscator obfuscator = new QueryObfuscator("")
+    def obfuscator = new QueryObfuscator("")
     def tags = [
       (Tags.HTTP_URL)    : url,
       (DDTags.HTTP_QUERY): input
@@ -31,6 +30,7 @@ class QueryObfuscatorTest extends DDSpecification {
 
   def "redact query parameters"() {
     setup:
+    def obfuscator = new QueryObfuscator(null)
     String input = null
     String expected = null
     switch (position) {
@@ -119,6 +119,7 @@ class QueryObfuscatorTest extends DDSpecification {
 
   def "redact query strings"() {
     setup:
+    def obfuscator = new QueryObfuscator(null)
     final url = 'http://site.com/index'
     def tags = [
       (Tags.HTTP_URL)    : url,
@@ -139,12 +140,5 @@ class QueryObfuscatorTest extends DDSpecification {
     'json="token":"sekrit"&key=val'                                                                                                        | 'json="<redacted>&key=val'
     'itoken=sekrit'                                                                                                                        | 'i<redacted>'
     'custom=Bearer 00D2w000000kc19'                                                                                                        | 'custom=<redacted>'
-  }
-
-  Map<String, String> prepareTags(String query) {
-    [
-      (Tags.HTTP_URL)    : 'http://site.com/index',
-      (DDTags.HTTP_QUERY): query
-    ]
   }
 }
