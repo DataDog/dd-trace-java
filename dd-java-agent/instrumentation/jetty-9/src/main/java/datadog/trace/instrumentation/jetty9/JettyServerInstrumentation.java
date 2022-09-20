@@ -7,6 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -22,8 +24,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
@@ -61,16 +61,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
                         // In 9.0.3 the handle logic was extracted out to "handle"
                         // but we still want to instrument run in case handle is missing
                         // (without the risk of double instrumenting).
-                        named("run")
-                            .and(
-                                new ElementMatcher.Junction.ForNonNullValues<MethodDescription>() {
-                                  @Override
-                                  protected boolean doMatch(MethodDescription target) {
-                                    // TODO this could probably be made into a nicer matcher.
-                                    return !declaresMethod(named("handle"))
-                                        .matches(target.getDeclaringType().asErasure());
-                                  }
-                                }))),
+                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
         JettyServerInstrumentation.class.getName() + "$HandleAdvice");
     transformation.applyAdvice(
         // name changed to recycle in 9.3.0
