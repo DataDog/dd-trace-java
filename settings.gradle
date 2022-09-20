@@ -203,6 +203,7 @@ include ':dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handl
 include ':dd-java-agent:instrumentation:jax-ws-annotations-1'
 include ':dd-java-agent:instrumentation:jax-ws-annotations-2'
 include ':dd-java-agent:instrumentation:jboss-logmanager'
+include ':dd-java-agent:instrumentation:jboss-modules'
 include ':dd-java-agent:instrumentation:jdbc'
 include ':dd-java-agent:instrumentation:jdbc:scalikejdbc'
 include ':dd-java-agent:instrumentation:jedis-1.4'
