@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.resteasy
 
 import org.jboss.resteasy.plugins.server.netty.NettyJaxrsServer
 import org.jboss.resteasy.spi.ResteasyDeployment
+import spock.lang.Ignore
 import spock.lang.Shared
 
+@Ignore("Regularly times out the build completely https://github.com/DataDog/dd-trace-java/issues/3862")
 class NettyResteasyAppsecTest extends AbstractResteasyAppsecTest {
   private final static int PORT = 59152
 
