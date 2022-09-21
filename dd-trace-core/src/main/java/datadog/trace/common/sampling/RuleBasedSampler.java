@@ -3,6 +3,7 @@ package datadog.trace.common.sampling;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
+import datadog.trace.common.sampling.SamplingRule.ExactMatchSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
 import datadog.trace.core.CoreSpan;
@@ -37,8 +38,9 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
   }
 
   public static <T extends CoreSpan<T>> RuleBasedSampler<T> build(
-      final Map<String, String> serviceRules,
-      final Map<String, String> operationRules,
+      @Deprecated final Map<String, String> serviceRules,
+      @Deprecated final Map<String, String> operationRules,
+      final JsonSamplingRules traceSamplingRules,
       final Double defaultRate,
       final int rateLimit) {
 
@@ -67,6 +69,17 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
           samplingRules.add(samplingRule);
         } catch (final NumberFormatException e) {
           log.error("Unable to parse rate for operation: {}", entry, e);
+        }
+      }
+    }
+
+    if (traceSamplingRules != null) {
+      for (JsonSamplingRules.Rule rule : traceSamplingRules.getRules()) {
+        if (rule.service != null || rule.name != null) {
+          ExactMatchSamplingRule<T> samplingRule =
+              new ExactMatchSamplingRule<>(
+                  rule.service, rule.name, new DeterministicSampler<T>(rule.sample_rate));
+          samplingRules.add(samplingRule);
         }
       }
     }

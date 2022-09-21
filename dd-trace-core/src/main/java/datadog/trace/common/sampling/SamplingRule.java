@@ -73,4 +73,24 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
       return span.getOperationName();
     }
   }
+
+  public static final class ExactMatchSamplingRule<T extends CoreSpan<T>> extends SamplingRule<T> {
+
+    private final String serviceName;
+    private final String operationName;
+
+    public ExactMatchSamplingRule(
+        final String serviceName, final String operationName, final RateSampler<T> sampler) {
+      super(sampler);
+      this.serviceName = serviceName;
+      this.operationName = operationName;
+    }
+
+    @Override
+    public boolean matches(T span) {
+      return serviceName == null
+          || serviceName.equals(span.getServiceName()) && operationName == null
+          || operationName.contentEquals(span.getOperationName());
+    }
+  }
 }
