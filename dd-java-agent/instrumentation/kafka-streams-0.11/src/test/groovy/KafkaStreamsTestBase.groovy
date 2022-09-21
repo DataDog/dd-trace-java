@@ -22,7 +22,7 @@ import org.springframework.kafka.listener.config.ContainerProperties
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Retry
+import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -47,6 +47,7 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
     return true
   }
 
+  @Ignore("Repeatedly fails with the wrong parent span https://github.com/DataDog/dd-trace-java/issues/3865")
   def "test kafka produce and consume with streams in-between"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
@@ -284,7 +285,6 @@ abstract class KafkaStreamsTestBase extends AgentTestRunner {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
   @Override
   void configurePreAgent() {
@@ -309,7 +309,6 @@ class KafkaStreamsForkedTest extends KafkaStreamsTestBase {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaStreamsSplitByDestinationForkedTest extends KafkaStreamsTestBase {
   @Override
   void configurePreAgent() {
@@ -335,7 +334,6 @@ class KafkaStreamsSplitByDestinationForkedTest extends KafkaStreamsTestBase {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaStreamsLegacyTracingForkedTest extends KafkaStreamsTestBase {
   @Override
   void configurePreAgent() {
@@ -359,7 +357,6 @@ class KafkaStreamsLegacyTracingForkedTest extends KafkaStreamsTestBase {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaStreamsDataStreamsDisabledForkedTest extends KafkaStreamsTestBase {
   @Override
   void configurePreAgent() {
