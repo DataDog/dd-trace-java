@@ -275,6 +275,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     null
   }
 
+  boolean testMultipleHeader() {
+    true
+  }
+
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
     CREATED("created", 201, "created"),
@@ -691,6 +695,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test success with multiple header attached parent"() {
     setup:
+    assumeTrue(testMultipleHeader())
     def traceId = 123G
     def parentId = 456G
     def request = request(SUCCESS, method, body)

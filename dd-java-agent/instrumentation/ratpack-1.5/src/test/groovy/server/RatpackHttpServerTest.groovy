@@ -211,6 +211,12 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  boolean testMultipleHeader() {
+    // @Ignore("This test is flaky https://github.com/DataDog/dd-trace-java/issues/3867")
+    false
+  }
+
+  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
