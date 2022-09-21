@@ -4,6 +4,7 @@ import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.agent.test.utils.ThreadUtils
 import okhttp3.Request
 import spock.lang.AutoCleanup
+import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.util.concurrent.ThreadLocalRandom
@@ -11,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
+@Ignore("Fails sometimes when the TestHttp server returns a 'Not Found' https://github.com/DataDog/dd-trace-java/issues/3868")
 class PlayNettySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
