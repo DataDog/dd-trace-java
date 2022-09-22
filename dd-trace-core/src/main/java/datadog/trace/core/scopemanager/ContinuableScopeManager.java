@@ -71,11 +71,12 @@ public final class ContinuableScopeManager implements AgentScopeManager {
 
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
-    this.healthMetrics = new HealthMetrics(statsDClient);
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
+    this.healthMetrics = new HealthMetrics(statsDClient);
+    healthMetrics.start();
   }
 
   @Override

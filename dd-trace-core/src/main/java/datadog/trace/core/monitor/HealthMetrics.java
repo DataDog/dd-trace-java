@@ -170,6 +170,7 @@ public class HealthMetrics implements AutoCloseable {
 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
+    // api.errors???
   }
 
   public void onCreateSpan() {

@@ -57,6 +57,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       this.timeSource = timeSource;
       this.strictTraceWrites = strictTraceWrites;
       this.healthMetrics = new HealthMetrics(statsDClient);
+      this.healthMetrics.start();
     }
 
     PendingTrace create(@Nonnull DDId traceId) {
