@@ -28,7 +28,7 @@ public class IastSystem {
     }
     log.debug("IAST is starting");
 
-    final Reporter reporter = new Reporter();
+    final Reporter reporter = new Reporter(config);
     final OverheadController overheadController =
         new OverheadController(config, AgentTaskScheduler.INSTANCE);
     final IastModule iastModule = new IastModuleImpl(config, reporter, overheadController);
