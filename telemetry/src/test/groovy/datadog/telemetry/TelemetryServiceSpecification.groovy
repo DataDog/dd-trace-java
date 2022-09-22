@@ -20,7 +20,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   TimeSource timeSource = Mock()
   RequestBuilder requestBuilder = Mock()
   TelemetryServiceImpl telemetryService =
-  new TelemetryServiceImpl(requestBuilder, timeSource)
+  new TelemetryServiceImpl(requestBuilder, timeSource, 60)
 
   void 'addStartedRequest adds app_started event'() {
     when:

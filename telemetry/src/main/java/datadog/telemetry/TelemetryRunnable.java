@@ -91,8 +91,12 @@ public class TelemetryRunnable implements Runnable {
 
   private void successWait() {
     consecutiveFailures = 0;
-    int waitSeconds = 10;
-    sleeper.sleep(waitSeconds * 1000L);
+    int waitSeconds = telemetryService.getIntervalSeconds();
+
+    // Wait between iterations no longer than 10 seconds
+    if (waitSeconds > 10) waitSeconds = 10;
+
+    sleeper.sleep(waitSeconds);
   }
 
   private void failureWait() {
