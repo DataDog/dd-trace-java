@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -14,8 +16,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class JettyServerInstrumentation extends Instrumenter.Tracing
@@ -54,16 +54,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
                         // In 9.0.3 the handle logic was extracted out to "handle"
                         // but we still want to instrument run in case handle is missing
                         // (without the risk of double instrumenting).
-                        named("run")
-                            .and(
-                                new ElementMatcher.Junction.ForNonNullValues<MethodDescription>() {
-                                  @Override
-                                  protected boolean doMatch(MethodDescription target) {
-                                    // TODO this could probably be made into a nicer matcher.
-                                    return !declaresMethod(named("handle"))
-                                        .matches(target.getDeclaringType().asErasure());
-                                  }
-                                }))),
+                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
         packageName + ".JettyServerAdvice$HandleAdvice");
     transformation.applyAdvice(
         // name changed to recycle in 9.3.0
