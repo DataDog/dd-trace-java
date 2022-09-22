@@ -234,9 +234,15 @@ project.afterEvaluate {
     tasks.withType(type).configureEach {
       if (options.fork) {
         options.forkOptions.with {
-          memoryMaximumSize = "512M"
+          memoryMaximumSize = "256M"
         }
       }
+    }
+  }
+
+  tasks.withType(JavaExec).configureEach {
+    if (!it.maxHeapSize) {
+      it.maxHeapSize('256M')
     }
   }
 }
