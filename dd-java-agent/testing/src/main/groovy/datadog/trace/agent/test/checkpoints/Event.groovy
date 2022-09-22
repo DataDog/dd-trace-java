@@ -4,6 +4,7 @@ import static datadog.trace.api.Checkpointer.*
 import datadog.trace.api.DDId
 
 class Event {
+  private static final boolean DUMP_STACKTRACES = Boolean.parseBoolean(System.getProperty("dd.checkpoints.dump.stacktraces", "false"))
   private final int flags
   private final DDId traceId
   private final DDId spanId
@@ -16,21 +17,25 @@ class Event {
     this.spanId = spanId
     this.thread = thread
 
-    def idx = -1
-    def strace = thread.stackTrace
-    for (int i = 0; i < strace.length; i++) {
-      def frame = strace[i]
-      if (frame.className == "datadog.trace.api.SamplingCheckpointer" || frame.className == "datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker") {
-        // this is SamplingCheckpointer.checkpoint()
-        // the interesting information is in the next frame
-        idx = i + 1
-        break
+    if (DUMP_STACKTRACES) {
+      def idx = -1
+      def strace = thread.stackTrace
+      for (int i = 0; i < strace.length; i++) {
+        def frame = strace[i]
+        if (frame.className == "datadog.trace.api.SamplingCheckpointer" || frame.className == "datadog.trace.agent.test.checkpoints.TimelineTracingContextTracker") {
+          // this is SamplingCheckpointer.checkpoint()
+          // the interesting information is in the next frame
+          idx = i + 1
+          break
+        }
       }
-    }
-    if (idx > -1) {
-      stackTrace = Arrays.copyOfRange(strace, idx, strace.length - 1)
+      if (idx > -1) {
+        stackTrace = Arrays.copyOfRange(strace, idx, strace.length - 1)
+      } else {
+        stackTrace = new StackTraceElement[0]
+      }
     } else {
-      stackTrace = new StackTraceElement[0]
+      stackTrace = null
     }
   }
 
