@@ -316,25 +316,54 @@ public class MoshiSnapshotHelper {
             value = fields;
             break;
           case ELEMENTS:
-            jsonReader.beginArray();
-            List<Snapshot.CapturedValue> values = new ArrayList<>();
-            while (jsonReader.hasNext()) {
-              Snapshot.CapturedValue elementValue = fromJson(jsonReader);
-              values.add(elementValue);
-            }
-            jsonReader.endArray();
-            if ("java.util.List".equals(type)) {
-              List<Object> list = new ArrayList<>();
-              for (Snapshot.CapturedValue cValue : values) {
-                list.add(cValue.getValue());
+            {
+              jsonReader.beginArray();
+              List<Snapshot.CapturedValue> values = new ArrayList<>();
+              while (jsonReader.hasNext()) {
+                Snapshot.CapturedValue elementValue = fromJson(jsonReader);
+                values.add(elementValue);
               }
-              value = list;
-            } else {
-              throw new RuntimeException("TODO: implement!");
+              jsonReader.endArray();
+              if (List.class.getName().equals(type)) {
+                List<Object> list = new ArrayList<>();
+                for (Snapshot.CapturedValue cValue : values) {
+                  list.add(cValue.getValue());
+                }
+                value = list;
+              } else {
+                throw new RuntimeException("TODO: implement!");
+              }
+              break;
             }
-            break;
           case ENTRIES:
-            throw new RuntimeException("TODO: implement!");
+            {
+              jsonReader.beginArray();
+              List<Snapshot.CapturedValue> values = new ArrayList<>();
+              while (jsonReader.hasNext()) {
+                jsonReader.beginArray();
+                Snapshot.CapturedValue elementValue = fromJson(jsonReader);
+                values.add(elementValue);
+                elementValue = fromJson(jsonReader);
+                values.add(elementValue);
+                jsonReader.endArray();
+              }
+              jsonReader.endArray();
+              if (Map.class.getName().equals(type)) {
+                Map<Object, Object> entries = new HashMap<>();
+                for (int i = 0; i < values.size(); i += 2) {
+                  Object entryKey = values.get(i).getValue();
+                  if (i + 1 >= values.size()) {
+                    break;
+                  }
+                  Object entryValue = values.get(i + 1).getValue();
+                  entries.put(entryKey, entryValue);
+                }
+                value = entries;
+              } else {
+                throw new RuntimeException("TODO: implement!");
+              }
+              break;
+            }
           case IS_NULL:
             jsonReader.nextBoolean();
             value = null;

@@ -13,7 +13,9 @@ import datadog.trace.bootstrap.debugger.Snapshot.ProbeDetails;
 import datadog.trace.bootstrap.debugger.Snapshot.ProbeLocation;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,22 +43,25 @@ public class SnapshotSummaryTest {
   public void testSummaryEntryExitSnapshot() {
     Snapshot snapshot = new Snapshot(Thread.currentThread(), PROBE_DETAILS);
     CapturedContext entry = new CapturedContext();
+    HashMap<String, String> argMap = new HashMap<>();
+    argMap.put("foo", "bar");
     entry.addArguments(
         new Snapshot.CapturedValue[] {
           Snapshot.CapturedValue.of("arg1", String.class.getName(), "this is a string"),
           Snapshot.CapturedValue.of("arg2", "int", 42),
-          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c"))
+          Snapshot.CapturedValue.of("arg3", List.class.getName(), Arrays.asList("a", "b", "c")),
+          Snapshot.CapturedValue.of("arg4", Map.class.getName(), argMap)
         });
     snapshot.setEntry(entry);
     assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c])",
+        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar})",
         SnapshotSummary.formatMessage(snapshot));
 
     CapturedContext exit = new CapturedContext();
     exit.addLocals(new Snapshot.CapturedValue[] {CapturedValue.of("@return", "double", 2.0)});
     snapshot.setExit(exit);
     assertEquals(
-        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c]): 2.0\n"
+        "SomeClass.someMethod(arg1=this is a string, arg2=42, arg3=[a, b, c], arg4={foo=bar}): 2.0\n"
             + "@return=2.0",
         SnapshotSummary.formatMessage(snapshot));
   }
