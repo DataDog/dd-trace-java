@@ -38,6 +38,7 @@ class ReporterTest extends DDSpecification {
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
     batch.toString() == '{"vulnerabilities":[{"evidence":{"value":"MD5"},"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"}]}'
+    1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
 
@@ -72,6 +73,7 @@ class ReporterTest extends DDSpecification {
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
     batch.toString() == '{"vulnerabilities":[{"evidence":{"value":"MD5"},"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"},{"evidence":{"value":"MD4"},"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"}]}'
+    1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
 
