@@ -1,16 +1,9 @@
 package datadog.trace.core.monitor
 
-import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.time.SystemTimeSource
-import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteWriter
-import datadog.trace.core.CoreTracer
-import datadog.trace.core.PendingTrace
-import datadog.trace.core.PendingTraceBuffer
-import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 import spock.lang.Subject
@@ -19,39 +12,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.config.GeneralConfig.ENV
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
-import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
-import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
-import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
-import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
-import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
-import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
-import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 class HealthMetricsTest extends DDSpecification {
   def statsD = Mock(StatsDClient)
-  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE)
-  def bufferSpy = Spy(buffer)
 
-  def tracer = Mock(CoreTracer)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false,statsD)
   @Subject
   def healthMetrics = new HealthMetrics(statsD)
-
-  def setupEnv(){
-    injectSysConfig("agent.port" , "777")
-    injectSysConfig("trace.agent.port" , "9999")
-    injectSysConfig(HEALTH_METRICS_ENABLED , "true")
-    injectSysConfig(SERVICE_NAME , "test")
-    injectSysConfig(ENV , "test")
-    injectSysConfig(PRIORITY_SAMPLING , "true")
-    injectSysConfig(WRITER_TYPE , "DDAgentWriter")
-    injectSysConfig(SERVICE_MAPPING , "a:one, a:two, a:three")
-    injectSysConfig(SPAN_TAGS , "a:one, a:two, a:three")
-    injectSysConfig(HEADER_TAGS , "a:one, a:two, a:three")
-    injectSysConfig(AGENT_UNIX_DOMAIN_SOCKET , "asdf")
-  }
 
   // This fails because RemoteWriter isn't an interface and the mock doesn't prevent the call.
   @Ignore
@@ -276,40 +242,6 @@ class HealthMetricsTest extends DDSpecification {
     1 * statsD.count("span.continuations.finished", 1, _)
     cleanup:
     healthMetrics.close()
-  }
-
-  //spotless:off
-  @Ignore
-  def "full health metrics test"(){
-    setup:
-    setupEnv()
-    def writer = Mock(DDAgentWriter)
-    def statsSpy = Spy(StatsDClient)
-    CoreTracer tracer = CoreTracer.builder().statsDClient(statsD)
-      .writer(writer)
-      .scopeManager(
-        new ContinuableScopeManager(100,statsSpy,false,false)
-      ).build()
-    when:
-    def span = tracer.buildSpan("test").start()
-    then:
-    1 * statsSpy.count(_,_,_)
-    when:
-    span.finish()
-    then:
-    1 * span.context().trace.healthMetrics.onCreateTrace()
-
-  }
-  //spotless:on
-  @Ignore
-  def "metric test"(){
-    setup:
-    setupEnv()
-    def writer = Mock(DDAgentWriter)
-    when:
-    def span = factory.create(new DDId(0,"test"))
-    then:
-    1 * statsD.count(_,_,_)
   }
 
   private static class Latched implements StatsDClient {
