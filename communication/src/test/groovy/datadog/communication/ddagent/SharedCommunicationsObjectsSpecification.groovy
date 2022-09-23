@@ -5,24 +5,16 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import org.junit.Assume
+
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
-  private static ensureJava8() {
-    def exc
-    try {
-      Class.forName('java.util.Optional')
-    } catch (Throwable t) {
-      exc = t
-    }
-    Assume.assumeNoException(exc)
-  }
-
   void 'nothing populated'() {
-    ensureJava8()
-
+    given:
+    assumeTrue isJavaVersionAtLeast(8)
     Config config = Mock()
 
     when:
@@ -64,7 +56,8 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
   }
 
   void 'populates ConfigurationPoller even without config endpoint'() {
-    ensureJava8()
+    given:
+    assumeTrue isJavaVersionAtLeast(8)
     Config config = Mock()
 
     when:
