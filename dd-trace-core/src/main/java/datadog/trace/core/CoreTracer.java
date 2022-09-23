@@ -516,7 +516,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(this.timeSource);
     pendingTraceFactory =
-        new PendingTrace.Factory(this, pendingTraceBuffer, this.timeSource, strictTraceWrites);
+        new PendingTrace.Factory(
+            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, statsDClient);
     pendingTraceBuffer.start();
 
     this.writer.start();
@@ -1068,10 +1069,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                 .getConstructor(Config.class, SharedCommunicationObjects.class, TimeSource.class)
                 .newInstance(config, sharedCommunicationObjects, timeSource);
       } catch (InstantiationException
-          | InvocationTargetException
-          | NoSuchMethodException
-          | IllegalAccessException
-          | ClassNotFoundException e) {
+               | InvocationTargetException
+               | NoSuchMethodException
+               | IllegalAccessException
+               | ClassNotFoundException e) {
         log.error("Failed to instantiate data streams checkpointer", e);
         return new StubDataStreamsCheckpointer();
       }

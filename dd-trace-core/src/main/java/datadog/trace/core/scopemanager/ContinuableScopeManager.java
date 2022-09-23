@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -56,6 +57,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
   final StatsDClient statsDClient;
+  private final HealthMetrics healthMetrics;
 
   private final int depthLimit;
   private final boolean strictMode;
@@ -73,6 +75,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
+    this.healthMetrics = new HealthMetrics(statsDClient);
+    healthMetrics.start();
   }
 
   @Override
@@ -120,8 +124,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         overrideAsyncPropagation
             ? isAsyncPropagating
             : inheritAsyncPropagation && top != null
-                ? top.isAsyncPropagating()
-                : DEFAULT_ASYNC_PROPAGATING;
+            ? top.isAsyncPropagating()
+            : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
 
@@ -164,6 +168,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
       scopeStack.cleanup();
       if (finishSpan) {
         top.span.finishWithEndToEnd();
+        healthMetrics.onFinishContinuation();
       }
     }
   }
@@ -255,7 +260,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private volatile Object wrapper;
     private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
         WRAPPER_FIELD_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
+        AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
 
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
