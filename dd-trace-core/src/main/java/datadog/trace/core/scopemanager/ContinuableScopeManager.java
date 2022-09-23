@@ -124,8 +124,8 @@ public final class ContinuableScopeManager implements AgentScopeManager {
         overrideAsyncPropagation
             ? isAsyncPropagating
             : inheritAsyncPropagation && top != null
-            ? top.isAsyncPropagating()
-            : DEFAULT_ASYNC_PROPAGATING;
+                ? top.isAsyncPropagating()
+                : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope = new ContinuableScope(this, span, source, asyncPropagation);
 
@@ -260,7 +260,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     private volatile Object wrapper;
     private static final AtomicReferenceFieldUpdater<ContinuableScope, Object>
         WRAPPER_FIELD_UPDATER =
-        AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
+            AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
 
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
