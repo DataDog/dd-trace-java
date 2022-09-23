@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
+import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Unroll
@@ -443,6 +444,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
+  @Ignore("Fails with Too many invocations https://github.com/DataDog/dd-trace-java/issues/3885")
   @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
