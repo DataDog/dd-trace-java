@@ -59,4 +59,6 @@ dependencies {
   // For spring security
   testImplementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
   testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
+
+  testImplementation group: 'org.jboss.resteasy', name: 'resteasy-spring', version: '3.0.0.Final'
 }
