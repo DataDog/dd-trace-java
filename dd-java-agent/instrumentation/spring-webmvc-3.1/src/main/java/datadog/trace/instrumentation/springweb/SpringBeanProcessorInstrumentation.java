@@ -37,6 +37,11 @@ public class SpringBeanProcessorInstrumentation extends Instrumenter.Tracing
         SpringBeanProcessorInstrumentation.class.getName() + "$SkipBeanClassAdvice");
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "resteasy-spring";
+  }
+
   public static class SkipBeanClassAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(3) final BeanDefinition beanDefinition) {
