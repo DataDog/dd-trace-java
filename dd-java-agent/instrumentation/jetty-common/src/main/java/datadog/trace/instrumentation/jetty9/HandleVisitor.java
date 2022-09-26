@@ -15,7 +15,47 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Instruments the handle (or run) method to put the calls to <code>getServer().handle(this)</code>
- * under a condition.
+ * under a condition, for the {@link org.eclipse.jetty.server.HttpChannel} class.
+ *
+ * <p>In particular, for earlier versions of jetty: <code>
+ *   case REQUEST_DISPATCH:
+ *   // ...
+ *   getServer().handle(this);
+ * </code> is replaced with: <code>
+ *   case REQUEST_DISPATCH:
+ *   // ...
+ *   if (span != null && span.isToBeBlocked()) {
+ *     JettyBlockingHelper.block(this.getRequest(), this.getResponse());
+ *   } else {
+ *     getServer().handle(this);
+ *   }
+ * </code> And for later versions of Jetty, <code>
+ *   case DISPATCH:
+ *   {
+ *     // ...
+ *     dispatch(DispatcherType.REQUEST, () ->
+ *       {
+ *         // ...
+ *         getServer().handle(HttpChannel.this);
+ *       });
+ * </code> is replaced with: <code>
+ *   case DISPATCH:
+ *   {
+ *     // ...
+ *     if (span != null && span.isToBeBlocked()) {
+ *       Request req = getRequest(); // actually on the stack only
+ *       Response resp = getResponse(); // idem
+ *       dispatch(DispatcherType.REQUEST, () -> {
+ *         JettyBlockingHelper.block(request, response);
+ *       });
+ *     } else {
+ *     dispatch(DispatcherType.REQUEST, () ->
+ *       {
+ *         // ...
+ *         getServer().handle(HttpChannel.this);
+ *       });
+ *   }
+ * </code>
  */
 public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);

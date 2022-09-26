@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
-import org.eclipse.jetty.io.RuntimeIOException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.slf4j.Logger;
@@ -46,7 +45,5 @@ public class JettyBlockingHelper {
         log.info("Error committing blocking response", e);
       }
     }
-    // throw this type of exception to avoid jetty calling response#sendError
-    throw new RuntimeIOException("Interrupted request (blocking)");
   }
 }

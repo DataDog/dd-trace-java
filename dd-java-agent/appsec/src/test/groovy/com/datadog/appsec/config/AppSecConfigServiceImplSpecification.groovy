@@ -122,7 +122,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       savedFeaturesListener = it[2]
       true
     }
-    1 * poller.start()
     0 * _._
     initialWafConfig.get() != null
     initialWafData.present == false

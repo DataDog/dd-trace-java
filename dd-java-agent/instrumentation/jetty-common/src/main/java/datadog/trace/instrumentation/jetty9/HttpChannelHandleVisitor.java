@@ -1,12 +1,9 @@
 package datadog.trace.instrumentation.jetty9;
 
 import net.bytebuddy.jar.asm.ClassVisitor;
-import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.MethodVisitor;
 
 public class HttpChannelHandleVisitor extends ClassVisitor {
-  private Handle lambdaMethod;
-
   public HttpChannelHandleVisitor(int api, ClassVisitor classVisitor) {
     super(api, classVisitor);
   }
