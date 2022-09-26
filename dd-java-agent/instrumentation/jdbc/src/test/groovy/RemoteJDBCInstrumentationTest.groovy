@@ -7,7 +7,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
-import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Unroll
