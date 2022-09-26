@@ -32,7 +32,7 @@ dependencies {
 
   testImplementation deps.junit5
   testImplementation deps.mockito
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 }
 

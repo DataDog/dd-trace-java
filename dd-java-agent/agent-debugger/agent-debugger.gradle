@@ -49,7 +49,7 @@ dependencies {
   testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.7.0")
   testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${versions.junit5}")
   testImplementation deps.mockito
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
   testImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '2.3.5.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.30'

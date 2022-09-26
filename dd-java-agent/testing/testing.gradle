@@ -36,7 +36,7 @@ dependencies {
 
   api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
   // ^ 9.2 last to support java 7
-  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp
+  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp_legacy
 
   api project(':dd-java-agent:agent-tooling')
   api project(':dd-java-agent:agent-builder')
