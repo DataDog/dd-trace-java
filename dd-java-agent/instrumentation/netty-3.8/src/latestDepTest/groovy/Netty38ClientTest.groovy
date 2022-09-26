@@ -80,7 +80,6 @@ class Netty38ClientTest extends HttpClientTest {
 
     when:
     runUnderTrace("parent") {
-    runUnderTrace("parent") {
       doRequest(method, uri)
     }
 
