@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -21,13 +20,13 @@ public final class FilterInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.glassfish.grizzly.filterchain.BaseFilter");
+  public String hierarchyMarkerType() {
+    return "org.glassfish.grizzly.filterchain.BaseFilter";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
+    return extendsClass(named(hierarchyMarkerType()))
         // HttpCodecFilter is instrumented in the server instrumentation
         .and(not(named("org.glassfish.grizzly.http.HttpCodecFilter")))
         .and(not(named("org.glassfish.grizzly.http.HttpServerFilter")));

@@ -43,10 +43,15 @@ import sun.rmi.transport.Connection;
  */
 @AutoService(Instrumenter.class)
 public class RmiClientContextInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RmiClientContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override

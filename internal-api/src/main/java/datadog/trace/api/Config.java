@@ -38,6 +38,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
@@ -149,6 +152,9 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
+import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -509,7 +515,7 @@ public class Config {
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
 
-  private final boolean appSecEnabled;
+  private final ProductActivationConfig appSecEnabled;
   private final boolean appSecReportingInband;
   private final String appSecRulesFile;
   private final int appSecReportMinTimeout;
@@ -520,6 +526,9 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
 
   private final boolean iastEnabled;
+  private final int iastMaxConcurrentRequests;
+  private final int iastVulnerabilitiesPerRequest;
+  private final float iastRequestSampling;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1065,7 +1074,8 @@ public class Config {
 
     telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
 
-    appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
+    String appSecEnabled = configProvider.getString(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
+    this.appSecEnabled = ProductActivationConfig.fromString(appSecEnabled);
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
@@ -1085,6 +1095,14 @@ public class Config {
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
 
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+    iastMaxConcurrentRequests =
+        configProvider.getInteger(
+            IAST_MAX_CONCURRENT_REQUESTS, DEFAULT_IAST_MAX_CONCURRENT_REQUESTS);
+    iastVulnerabilitiesPerRequest =
+        configProvider.getInteger(
+            IAST_VULNERABILITIES_PER_REQUEST, DEFAULT_IAST_VULNERABILITIES_PER_REQUEST);
+    iastRequestSampling =
+        configProvider.getFloat(IAST_REQUEST_SAMPLING, DEFAULT_IAST_REQUEST_SAMPLING);
     iastWeakHashAlgorithms =
         tryMakeImmutableSet(
             configProvider.getSet(IAST_WEAK_HASH_ALGORITHMS, DEFAULT_IAST_WEAK_HASH_ALGORITHMS));
@@ -1732,7 +1750,7 @@ public class Config {
     return telemetryEnabled;
   }
 
-  public boolean isAppSecEnabled() {
+  public ProductActivationConfig getAppSecEnabledConfig() {
     return appSecEnabled;
   }
 
@@ -1766,6 +1784,18 @@ public class Config {
 
   public boolean isIastEnabled() {
     return iastEnabled;
+  }
+
+  public int getIastMaxConcurrentRequests() {
+    return iastMaxConcurrentRequests;
+  }
+
+  public int getIastVulnerabilitiesPerRequest() {
+    return iastVulnerabilitiesPerRequest;
+  }
+
+  public float getIastRequestSampling() {
+    return iastRequestSampling;
   }
 
   public boolean isCiVisibilityEnabled() {

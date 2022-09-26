@@ -17,6 +17,7 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
@@ -232,18 +233,22 @@ public final class ProfilingSystem {
       snapshot(false);
     }
 
-    public void snapshot(boolean sync) {
+    public void snapshot(boolean onShutdown) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        final RecordingData recordingData = recording.snapshot(lastSnapshot);
+        final RecordingData recordingData =
+            recording.snapshot(
+                lastSnapshot,
+                onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC);
+        log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be
           // the last recording end time plus one nano second. The reason for this is that when
           // JFR is filtering the stream it will only discard earlier chunks that have an end
           // time that is before (not before or equal to) the requested start time of the filter.
           lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
-          dataListener.onNewData(recordingType, recordingData, sync);
+          dataListener.onNewData(recordingType, recordingData, onShutdown);
         } else {
           lastSnapshot = Instant.now();
         }

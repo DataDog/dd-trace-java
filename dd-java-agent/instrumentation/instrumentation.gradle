@@ -32,7 +32,8 @@ subprojects { Project subProj ->
 
   instrument.plugins = [
     'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin'
+    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
+    'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
   ]
 
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }

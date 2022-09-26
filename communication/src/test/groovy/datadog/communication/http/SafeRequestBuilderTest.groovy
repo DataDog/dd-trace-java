@@ -7,6 +7,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import org.junit.Test
 import org.junit.Assert
+import com.google.common.truth.Truth
 
 class SafeRequestBuilderTest {
   SafeRequestBuilder testBuilder = new SafeRequestBuilder()
@@ -27,18 +28,36 @@ class SafeRequestBuilderTest {
     builder = SafeRequestBuilder.addHeader(builder,"test","test")
     Assert.assertEquals(builder.build().headers().get("test"),"test")
   }
-  @Test (expected = IllegalArgumentException)
+  @Test
   void "test bad static add header"(){
+    def name = 'bad_s'
+    def password = 'very-secret-password'
     Request.Builder builder = new Request.Builder().url("http://localhost")
-    builder = SafeRequestBuilder.addHeader(builder,"\n\n","\n\n")
+    IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException, {
+      builder = SafeRequestBuilder.addHeader(builder, name, "$password\n")
+    })
+    Truth.assertThat(ex).hasMessageThat().contains(name)
+    Truth.assertThat(ex).hasMessageThat().doesNotContain(password)
   }
-  @Test(expected = IllegalArgumentException)
+  @Test
   void "test adding bad header"(){
-    testBuilder.url("http:localhost").addHeader("\n\n","\n\n")
+    def name = 'bad'
+    def password = 'very-secret-password'
+    IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException, {
+      testBuilder.url("http:localhost").addHeader(name, "$password\n")
+    })
+    Truth.assertThat(ex).hasMessageThat().contains(name)
+    Truth.assertThat(ex).hasMessageThat().doesNotContain(password)
   }
-  @Test (expected = IllegalArgumentException)
+  @Test
   void "test adding bad header2"(){
-    testBuilder.url("localhost").header("\u0019","\u0080")
+    def name = '\u0019'
+    def password = 'very-secret-password'
+    IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException, {
+      testBuilder.url("http:localhost").addHeader(name, "\u0080$password")
+    })
+    Truth.assertThat(ex).hasMessageThat().contains(name)
+    Truth.assertThat(ex).hasMessageThat().doesNotContain(password)
   }
   @Test
   void "test building result"(){

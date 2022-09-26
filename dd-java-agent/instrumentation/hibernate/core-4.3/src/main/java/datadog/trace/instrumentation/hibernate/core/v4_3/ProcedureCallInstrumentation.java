@@ -40,12 +40,6 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return SessionInstrumentation.CLASS_LOADER_MATCHER;
-  }
-
-  @Override
   public boolean onlyMatchKnownTypes() {
     return isShortcutMatchingEnabled(true);
   }
@@ -56,8 +50,13 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.hibernate.procedure.ProcedureCall";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.procedure.ProcedureCall"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.logback;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
@@ -36,14 +35,13 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("ch.qos.logback.classic.spi.ILoggingEvent");
+  public String hierarchyMarkerType() {
+    return "ch.qos.logback.classic.spi.ILoggingEvent";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("ch.qos.logback.classic.spi.ILoggingEvent"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

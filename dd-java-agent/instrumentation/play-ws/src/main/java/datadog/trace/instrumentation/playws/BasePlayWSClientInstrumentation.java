@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.playws;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -20,9 +19,8 @@ public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("play.shaded.ahc.org.asynchttpclient.AsyncHttpClient");
+  public String hierarchyMarkerType() {
+    return "play.shaded.ahc.org.asynchttpclient.AsyncHttpClient";
   }
 
   @Override
@@ -30,8 +28,8 @@ public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Traci
     // CachingAsyncHttpClient rejects overrides to AsyncHandler
     // It also delegates to another AsyncHttpClient
     return nameStartsWith("play.")
-        .<TypeDescription>and(
-            implementsInterface(named("play.shaded.ahc.org.asynchttpclient.AsyncHttpClient"))
+        .and(
+            implementsInterface(named(hierarchyMarkerType()))
                 .and(not(named("play.api.libs.ws.ahc.cache.CachingAsyncHttpClient"))));
   }
 

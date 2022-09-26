@@ -111,7 +111,8 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
         new MockResponse()
             .setHeadersDelay(REQUEST_WAIT_TIMEOUT * 2, TimeUnit.SECONDS)
             .setResponseCode(200));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "2").start();
+    // wait for 3 snapshots (2 status + 1 snapshot)
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);

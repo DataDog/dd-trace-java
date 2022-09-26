@@ -26,7 +26,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class WebServiceInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   private static final String WEB_SERVICE_ANNOTATION_NAME = "javax.jws.WebService";
 
   public WebServiceInstrumentation() {
@@ -36,6 +36,11 @@ public final class WebServiceInstrumentation extends Instrumenter.Tracing
   @Override
   protected boolean defaultEnabled() {
     return false;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override

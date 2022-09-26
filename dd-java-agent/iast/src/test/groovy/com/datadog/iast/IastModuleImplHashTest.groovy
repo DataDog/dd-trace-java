@@ -17,6 +17,7 @@ class IastModuleImplHashTest extends IastModuleImplTestBase {
 
     then:
     1 * tracer.activeSpan()
+    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _) >> { args ->
       Vulnerability vuln = args[1] as Vulnerability
       assert vuln != null

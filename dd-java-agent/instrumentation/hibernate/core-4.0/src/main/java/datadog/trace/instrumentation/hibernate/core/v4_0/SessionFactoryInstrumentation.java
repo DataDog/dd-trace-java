@@ -37,8 +37,13 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.hibernate.SessionFactory";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.SessionFactory"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.osgi43;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -29,13 +29,19 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.osgi.framework.wiring.BundleWiring");
+    // Avoid matching older versions of OSGi that don't have the wiring API.
+    return hasClassNamed("org.osgi.framework.wiring.BundleWiring");
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "org.osgi.framework.BundleReference";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("java.lang.ClassLoader"))
-        .and(implementsInterface(named("org.osgi.framework.BundleReference")));
+        .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override

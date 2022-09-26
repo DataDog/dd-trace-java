@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
@@ -32,12 +31,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.apache.hc.client5.http.classic.HttpClient");
-  }
-
-  @Override
   public boolean onlyMatchKnownTypes() {
     return isShortcutMatchingEnabled(false);
   }
@@ -51,8 +44,13 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.apache.hc.client5.http.classic.HttpClient";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.apache.hc.client5.http.classic.HttpClient"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

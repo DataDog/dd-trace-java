@@ -59,7 +59,9 @@ public abstract class BaseIntegrationTest {
   private HttpUrl snapshotUrl;
   protected Path logFilePath;
   protected Process targetProcess;
-  private volatile Configuration currentConfiguration;
+  private Configuration currentConfiguration;
+  private boolean configProvided;
+  protected final Object configLock = new Object();
 
   @BeforeAll
   static void setupAll() throws Exception {
@@ -112,16 +114,20 @@ public abstract class BaseIntegrationTest {
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=info",
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
-            "-Ddd.debugger.enabled=true",
+            "-Ddd.dynamic.instrumentation.enabled=true",
             "-Ddd.remote_config.enabled=true",
             "-Ddd.remote_config.initial.poll.interval=1",
-            "-Ddd.debugger.probe.url=http://localhost:" + probeServer.getPort() + PROBE_URL_PATH,
-            "-Ddd.debugger.snapshot.url=http://localhost:"
+            "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
+                + probeServer.getPort()
+                + PROBE_URL_PATH,
+            "-Ddd.dynamic.instrumentation.snapshot.url=http://localhost:"
                 + snapshotServer.getPort()
                 + SNAPSHOT_URL_PATH,
             "-Ddd.trace.agent.url=http://localhost:" + probeServer.getPort(),
-            "-Ddd.debugger.upload.batch.size=1", // to verify each snapshot upload one by one
-            "-Ddd.debugger.upload.flush.interval=100" // flush uploads every 100ms to have quick
+            "-Ddd.dynamic.instrumentation.upload.batch.size=1", // to verify each snapshot upload
+            // one by one
+            "-Ddd.dynamic.instrumentation.upload.flush.interval=100" // flush uploads every 100ms to
+            // have quick
             // tests
             ));
   }
@@ -157,7 +163,12 @@ public abstract class BaseIntegrationTest {
     if (request.getPath().equals("/info")) {
       return agentInfoResponse;
     }
-    Configuration configuration = getCurrentConfiguration();
+    Configuration configuration;
+    synchronized (configLock) {
+      configuration = getCurrentConfiguration();
+      configProvided = true;
+      configLock.notifyAll();
+    }
     if (configuration == null) {
       configuration = createConfig(Collections.emptyList());
     }
@@ -173,7 +184,15 @@ public abstract class BaseIntegrationTest {
   }
 
   private Configuration getCurrentConfiguration() {
-    return currentConfiguration;
+    synchronized (configLock) {
+      return currentConfiguration;
+    }
+  }
+
+  protected boolean isConfigProvided() {
+    synchronized (configLock) {
+      return configProvided;
+    }
   }
 
   protected JsonAdapter<List<SnapshotSink.IntakeRequest>> createAdapterForSnapshot() {
@@ -182,7 +201,10 @@ public abstract class BaseIntegrationTest {
   }
 
   protected void setCurrentConfiguration(Configuration configuration) {
-    this.currentConfiguration = configuration;
+    synchronized (configLock) {
+      this.currentConfiguration = configuration;
+      configProvided = false;
+    }
   }
 
   protected Configuration createConfig(SnapshotProbe snapshotProbe) {

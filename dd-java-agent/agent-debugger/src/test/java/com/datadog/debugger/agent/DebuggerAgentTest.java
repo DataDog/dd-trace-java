@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import com.datadog.debugger.util.RemoteConfigHelper;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -86,10 +87,10 @@ public class DebuggerAgentTest {
   public void runDisabled() {
     setFieldInConfig(Config.get(), "debuggerEnabled", false);
     URL probeDefinitionUrl = DebuggerAgentTest.class.getResource("/test_probe.json");
-    System.setProperty("dd.debugger.config-file", probeDefinitionUrl.getFile());
+    System.setProperty("dd.dynamic.instrumentation.config-file", probeDefinitionUrl.getFile());
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
     verify(inst, never()).addTransformer(any(), eq(true));
-    System.clearProperty("dd.debugger.config-file");
+    System.clearProperty("dd.dynamic.instrumentation.config-file");
   }
 
   @Test
@@ -119,7 +120,11 @@ public class DebuggerAgentTest {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    DebuggerAgent.run(inst, new SharedCommunicationObjects());
+    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
+    DebuggerAgent.run(inst, sharedCommunicationObjects);
+    ConfigurationPoller configurationPoller =
+        (ConfigurationPoller) sharedCommunicationObjects.configurationPoller(Config.get());
+    configurationPoller.start();
     RecordedRequest request = datadogAgentServer.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
     assertEquals("/info", request.getPath());

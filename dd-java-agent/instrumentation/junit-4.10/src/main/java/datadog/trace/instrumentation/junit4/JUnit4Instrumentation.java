@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -24,13 +23,13 @@ public class JUnit4Instrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("org.junit.runner.Runner"));
+  public String hierarchyMarkerType() {
+    return "org.junit.runner.Runner";
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.junit.runner.Runner");
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springweb;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -32,14 +31,13 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.springframework.web.servlet.HandlerAdapter");
+  public String hierarchyMarkerType() {
+    return "org.springframework.web.servlet.HandlerAdapter";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.springframework.web.servlet.HandlerAdapter"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

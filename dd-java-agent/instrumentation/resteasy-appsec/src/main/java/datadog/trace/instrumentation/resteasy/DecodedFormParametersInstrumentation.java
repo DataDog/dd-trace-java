@@ -66,18 +66,20 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
 
   @Override
   public ReferenceProvider runtimeMuzzleReferences() {
-    return new ReferenceProvider() {
-      @Override
-      public Iterable<Reference> buildReferences(TypePool typePool) {
-        List<Reference> references = new ArrayList<>();
-        references.add(BASE_HTTP_REQUEST_DECODED_PARAMETERS);
-        references.add(HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS);
-        if (typePool.describe(NETTY_HTTP_REQUEST_CLASS_NAME).isResolved()) {
-          references.add(NETTY_HTTP_REQUEST_DECODED_PARAMETERS);
-        }
-        return references;
+    return new CustomReferenceProvider();
+  }
+
+  static class CustomReferenceProvider implements ReferenceProvider {
+    @Override
+    public Iterable<Reference> buildReferences(TypePool typePool) {
+      List<Reference> references = new ArrayList<>();
+      references.add(BASE_HTTP_REQUEST_DECODED_PARAMETERS);
+      references.add(HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS);
+      if (typePool.describe(NETTY_HTTP_REQUEST_CLASS_NAME).isResolved()) {
+        references.add(NETTY_HTTP_REQUEST_DECODED_PARAMETERS);
       }
-    };
+      return references;
+    }
   }
 
   public static class GetDecodedFormParametersAdvice {

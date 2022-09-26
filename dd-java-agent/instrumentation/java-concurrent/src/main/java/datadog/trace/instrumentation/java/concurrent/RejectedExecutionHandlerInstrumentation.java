@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.ForBootstrap, Instrumenter.CanShortcutTypeMatching {
 
   public RejectedExecutionHandlerInstrumentation() {
     super("java_concurrent", "rejected-execution-handler");
@@ -42,6 +42,11 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
       "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
       "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy"
     };
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override
