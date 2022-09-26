@@ -25,5 +25,5 @@ public interface TelemetryService {
 
   Queue<Request> prepareRequests();
 
-  int getIntervalSeconds();
+  int getIntervalMs();
 }

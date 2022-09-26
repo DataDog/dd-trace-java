@@ -37,10 +37,10 @@ public class TelemetryServiceImpl implements TelemetryService {
   private long lastPreparationTimestamp;
 
   public TelemetryServiceImpl(
-      RequestBuilder requestBuilder, TimeSource timeSource, int heartBeatInterval) {
+      RequestBuilder requestBuilder, TimeSource timeSource, int heartBeatIntervalSec) {
     this.requestBuilder = requestBuilder;
     this.timeSource = timeSource;
-    this.heartbeatIntervalMs = heartBeatInterval * 1000; // we use time in milliseconds
+    this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
   }
 
   @Override
@@ -136,7 +136,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   @Override
-  public int getIntervalSeconds() {
+  public int getIntervalMs() {
     return heartbeatIntervalMs;
   }
 
