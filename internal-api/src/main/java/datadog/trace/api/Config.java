@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
@@ -151,6 +152,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
@@ -621,6 +623,8 @@ public class Config {
   private final Set<String> iastWeakHashAlgorithms;
 
   private final Pattern iastWeakCipherAlgorithms;
+
+  private final boolean iastDeduplicationEnabled;
 
   private final boolean telemetryEnabled;
 
@@ -1110,6 +1114,8 @@ public class Config {
         getPattern(
             DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS,
             configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
+    iastDeduplicationEnabled =
+        configProvider.getBoolean(IAST_DEDUPLICATION_ENABLED, DEFAULT_IAST_DEDUPLICATION_ENABLED);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1392,6 +1398,10 @@ public class Config {
 
   public Pattern getIastWeakCipherAlgorithms() {
     return iastWeakCipherAlgorithms;
+  }
+
+  public boolean isIastDeduplicationEnabled() {
+    return iastDeduplicationEnabled;
   }
 
   public Map<String, String> getServiceMapping() {
