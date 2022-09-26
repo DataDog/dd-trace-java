@@ -2,6 +2,7 @@ package com.datadog.profiling.async;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.RecordingData;
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,7 +19,7 @@ final class AsyncProfilerRecording implements OngoingRecording {
   private final Instant started = Instant.now();
 
   /**
-   * Do not use this constructor directly. Rather use {@linkplain AuxiliaryAsyncProfiler#start()}
+   * Do not use this constructor directly. Rather use {@linkplain AsyncProfiler#start()}
    *
    * @param profiler the associated profiler
    * @throws IOException
@@ -32,14 +33,20 @@ final class AsyncProfilerRecording implements OngoingRecording {
   @Override
   public RecordingData stop() {
     profiler.stopProfiler();
-    return new AsyncProfilerRecordingData(recordingFile, started, Instant.now());
+    return new AsyncProfilerRecordingData(
+        recordingFile, started, Instant.now(), ProfilingSnapshot.Kind.PERIODIC);
+  }
+
+  // @VisibleForTesting
+  final RecordingData snapshot(@Nonnull Instant start) {
+    return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }
 
   @Nonnull
   @Override
-  public RecordingData snapshot(@Nonnull Instant start) {
+  public RecordingData snapshot(@Nonnull Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     profiler.stop(this);
-    RecordingData data = new AsyncProfilerRecordingData(recordingFile, start, Instant.now());
+    RecordingData data = new AsyncProfilerRecordingData(recordingFile, start, Instant.now(), kind);
     try {
       recordingFile = profiler.newRecording();
     } catch (IOException | IllegalStateException e) {

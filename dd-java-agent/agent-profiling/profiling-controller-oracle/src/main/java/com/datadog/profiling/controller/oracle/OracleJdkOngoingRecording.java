@@ -1,6 +1,7 @@
 package com.datadog.profiling.controller.oracle;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,7 +39,12 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
       helper.stopRecording(recordingId);
       OracleJdkRecordingData data =
           new OracleJdkRecordingData(
-              name, recordingId, start, getEndTime(helper, recordingId, Instant.now()), helper);
+              name,
+              recordingId,
+              start,
+              getEndTime(helper, recordingId, Instant.now()),
+              ProfilingSnapshot.Kind.PERIODIC,
+              helper);
       log.debug("Recording {} has been stopped and its data collected", name);
       return data;
     } catch (IOException e) {
@@ -46,9 +52,15 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     }
   }
 
+  // @VisibleForTesting
+  final OracleJdkRecordingData snapshot(@Nonnull final Instant start) {
+    return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
+  }
+
   @Override
   @Nonnull
-  public OracleJdkRecordingData snapshot(@Nonnull final Instant start) {
+  public OracleJdkRecordingData snapshot(
+      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     log.debug("Taking recording snapshot for time range {} - {}", start, Instant.now());
     ObjectName targetName = recordingId;
     try {
@@ -58,7 +70,7 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
 
       targetName = helper.cloneRecording(targetName);
       return new OracleJdkRecordingData(
-          name, targetName, start, getEndTime(helper, targetName, Instant.now()), helper);
+          name, targetName, start, getEndTime(helper, targetName, Instant.now()), kind, helper);
     } catch (IOException e) {
       throw new RuntimeException("Unable to take snapshot for recording " + name, e);
     }

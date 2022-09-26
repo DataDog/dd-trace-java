@@ -63,6 +63,9 @@ class ProfilingIntegrationTest {
   private static final String BOGUS_API_KEY = "bogus";
   private static final int PROFILING_START_DELAY_SECONDS = 1;
   private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 5;
+
+  private static final int PROFILING_UPLOAD_TIMEOUT_SECONDS = 1;
+
   private static final boolean LEGACY_TRACING_INTEGRATION = true; // default
   private static final boolean ENDPOINT_COLLECTION_ENABLED = true; // default
   // Set the request timeout value to the sum of the initial delay and the upload period
@@ -404,7 +407,7 @@ class ProfilingIntegrationTest {
   void testShutdown(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () -> {
-          final int exitDelay =
+          final int duration =
               PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
           try {
             targetProcess =
@@ -415,7 +418,7 @@ class ProfilingIntegrationTest {
                         PROFILING_UPLOAD_PERIOD_SECONDS,
                         LEGACY_TRACING_INTEGRATION,
                         ENDPOINT_COLLECTION_ENABLED,
-                        exitDelay,
+                        duration,
                         logFilePath)
                     .start();
 
@@ -424,9 +427,11 @@ class ProfilingIntegrationTest {
             assertFalse(logHasErrors(logFilePath));
             assertTrue(request.getBodySize() > 0);
 
-            // Wait for the app exit with some extra time.
+            // Wait for the app exit with some extra time to accommodate profile upload on shutdown.
             // The expectation is that agent doesn't prevent app from exiting.
-            assertTrue(targetProcess.waitFor(exitDelay + 10, TimeUnit.SECONDS));
+            assertTrue(
+                targetProcess.waitFor(
+                    duration + PROFILING_UPLOAD_TIMEOUT_SECONDS + 1, TimeUnit.SECONDS));
           } finally {
             if (targetProcess != null) {
               targetProcess.destroyForcibly();
@@ -623,6 +628,7 @@ class ProfilingIntegrationTest {
             "-Ddd.profiling.hotspots.enabled=true",
             "-Ddd.profiling.legacy.tracing.integration=" + legacyTracingIntegration,
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
+            "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
