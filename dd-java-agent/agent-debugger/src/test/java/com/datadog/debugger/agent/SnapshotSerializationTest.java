@@ -276,6 +276,36 @@ public class SnapshotSerializationTest {
     assertArrayItem(locals, "localObjArray", "foo", null, "42");
   }
 
+  class ObjetArrayClass {
+    ComplexClass[] complexClasses = new ComplexClass[3];
+  }
+
+  @Test
+  public void fieldObjectArray() throws IOException {
+    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    Snapshot snapshot =
+        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot.CapturedContext context = new Snapshot.CapturedContext();
+    Snapshot.CapturedValue localObj =
+        capturedValueDepth("localObj", ObjetArrayClass.class.getName(), new ObjetArrayClass(), 3);
+    context.addLocals(new Snapshot.CapturedValue[] {localObj});
+    captures.setReturn(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
+    Map<String, Object> localObjMap = (Map<String, Object>) locals.get("localObj");
+    Map<String, Object> localObjFieldsMap = (Map<String, Object>) localObjMap.get(FIELDS);
+    Map<String, Object> complexClasses =
+        (Map<String, Object>) localObjFieldsMap.get("complexClasses");
+    Assert.assertEquals(
+        "com.datadog.debugger.agent.SnapshotSerializationTest$ComplexClass[]",
+        complexClasses.get(TYPE));
+  }
+
   @Test
   public void depthLevel0() throws IOException, URISyntaxException {
     Map<String, Object> returnJson = doRefDepth(0);

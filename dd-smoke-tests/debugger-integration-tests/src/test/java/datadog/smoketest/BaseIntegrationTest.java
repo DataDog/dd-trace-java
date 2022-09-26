@@ -225,7 +225,12 @@ public abstract class BaseIntegrationTest {
       Snapshot.CapturedContext context, String name, String typeName, String value) {
     Snapshot.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
-    assertEquals(value, capturedValue.getValue());
+    Object objValue = capturedValue.getValue();
+    if (objValue.getClass().isArray()) {
+      assertEquals(value, Arrays.toString((Object[]) objValue));
+    } else {
+      assertEquals(value, String.valueOf(objValue));
+    }
   }
 
   protected void assertCaptureLocals(

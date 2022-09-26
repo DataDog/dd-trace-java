@@ -78,6 +78,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertNotNull(snapshotRequest);
     String bodyStr = snapshotRequest.getBody().readUtf8();
     JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
     JsonSnapshotSerializer.IntakeRequest request = adapter.fromJson(bodyStr).get(0);
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());

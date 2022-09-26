@@ -155,7 +155,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-    assertNull(snapshot.getCaptures().getEntry().getLocals());
+    assertEquals(0, snapshot.getCaptures().getEntry().getLocals().size());
     assertNull(snapshot.getCaptures().getEntry().getThrowable());
     assertNull(snapshot.getCaptures().getEntry().getFields());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());

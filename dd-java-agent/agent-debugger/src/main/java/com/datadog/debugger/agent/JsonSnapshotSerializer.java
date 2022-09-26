@@ -7,7 +7,6 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Snapshot;
-import java.io.IOException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +98,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
         Snapshot.CapturedValue deserializedValue =
             VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
         return String.valueOf(deserializedValue.getValue());
-      } catch (IOException e) {
+      } catch (Exception e) {
         LOG.warn("Cannot deserialize " + name, e);
       }
     }

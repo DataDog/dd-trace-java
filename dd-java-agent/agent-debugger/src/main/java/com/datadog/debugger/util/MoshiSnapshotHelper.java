@@ -186,7 +186,7 @@ public class MoshiSnapshotHelper {
               if ("this".equals(argName)) {
                 jsonReader.nextName(); // consume "this"
                 capturedContext.addFields(fromJsonCapturedValues(jsonReader));
-                break;
+                continue;
               }
               argName = jsonReader.nextName();
               Snapshot.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
@@ -317,6 +317,9 @@ public class MoshiSnapshotHelper {
             break;
           case ELEMENTS:
             {
+              if (type == null) {
+                throw new RuntimeException("type is null");
+              }
               jsonReader.beginArray();
               List<Snapshot.CapturedValue> values = new ArrayList<>();
               while (jsonReader.hasNext()) {
@@ -324,14 +327,21 @@ public class MoshiSnapshotHelper {
                 values.add(elementValue);
               }
               jsonReader.endArray();
-              if (List.class.getName().equals(type)) {
+              if (type.equals(List.class.getName()) || type.equals(ArrayList.class.getName())) {
                 List<Object> list = new ArrayList<>();
                 for (Snapshot.CapturedValue cValue : values) {
                   list.add(cValue.getValue());
                 }
                 value = list;
+              } else if (type.endsWith("[]")) {
+                String componentType = type.substring(0, type.indexOf('['));
+                if (isPrimitive(componentType)) {
+                  value = createPrimitiveArray(componentType, values);
+                } else {
+                  value = values.stream().map(Snapshot.CapturedValue::getValue).toArray();
+                }
               } else {
-                throw new RuntimeException("TODO: implement!");
+                throw new RuntimeException("Cannot deserialize type: " + type);
               }
               break;
             }
@@ -348,7 +358,7 @@ public class MoshiSnapshotHelper {
                 jsonReader.endArray();
               }
               jsonReader.endArray();
-              if (Map.class.getName().equals(type)) {
+              if (type.equals(Map.class.getName()) || type.equals(HashMap.class.getName())) {
                 Map<Object, Object> entries = new HashMap<>();
                 for (int i = 0; i < values.size(); i += 2) {
                   Object entryKey = values.get(i).getValue();
@@ -360,7 +370,7 @@ public class MoshiSnapshotHelper {
                 }
                 value = entries;
               } else {
-                throw new RuntimeException("TODO: implement!");
+                throw new RuntimeException("Cannot deserialize type: " + type);
               }
               break;
             }
@@ -386,6 +396,94 @@ public class MoshiSnapshotHelper {
       }
       jsonReader.endObject();
       return Snapshot.CapturedValue.raw(type, value, notCapturedReason);
+    }
+
+    private Object createPrimitiveArray(String componentType, List<Snapshot.CapturedValue> values) {
+      switch (componentType) {
+        case "byte":
+          {
+            byte[] bytes = new byte[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              bytes[i++] = (Byte) capturedValue.getValue();
+            }
+            return bytes;
+          }
+        case "boolean":
+          {
+            boolean[] booleans = new boolean[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              booleans[i++] = (Boolean) capturedValue.getValue();
+            }
+            return booleans;
+          }
+        case "short":
+          {
+            short[] shorts = new short[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              shorts[i++] = (Short) capturedValue.getValue();
+            }
+            return shorts;
+          }
+        case "char":
+          {
+            char[] chars = new char[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              chars[i++] = (Character) capturedValue.getValue();
+            }
+            return chars;
+          }
+        case "int":
+          {
+            int[] ints = new int[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              ints[i++] = (Integer) capturedValue.getValue();
+            }
+            return ints;
+          }
+        case "long":
+          {
+            long[] longs = new long[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              longs[i++] = (Long) capturedValue.getValue();
+            }
+            return longs;
+          }
+        case "float":
+          {
+            float[] floats = new float[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              floats[i++] = (Float) capturedValue.getValue();
+            }
+            return floats;
+          }
+        case "double":
+          {
+            double[] doubles = new double[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              doubles[i++] = (Double) capturedValue.getValue();
+            }
+            return doubles;
+          }
+        case "java.lang.String":
+          {
+            String[] strings = new String[values.size()];
+            int i = 0;
+            for (Snapshot.CapturedValue capturedValue : values) {
+              strings[i++] = (String) capturedValue.getValue();
+            }
+            return strings;
+          }
+        default:
+          throw new RuntimeException("unsupported primitive type: " + componentType);
+      }
     }
 
     @Override
@@ -456,7 +554,7 @@ public class MoshiSnapshotHelper {
               try {
                 jsonWriter.name(field.getName());
                 Limits newLimits = Limits.decDepthLimits(maxDepth, limits);
-                serializeValue(jsonWriter, val, field.getType().getName(), newLimits);
+                serializeValue(jsonWriter, val, field.getType().getTypeName(), newLimits);
               } catch (IOException ex) {
                 LOG.debug("Exception when extracting field={}", field.getName(), ex);
               }
