@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.datanucleus;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -28,14 +27,6 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing
     super("datanucleus");
   }
 
-  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("org.datanucleus.ExecutionContext");
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
-  }
-
   @Override
   public boolean onlyMatchKnownTypes() {
     return isShortcutMatchingEnabled(false);
@@ -49,8 +40,13 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.datanucleus.ExecutionContext";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.datanucleus.ExecutionContext"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

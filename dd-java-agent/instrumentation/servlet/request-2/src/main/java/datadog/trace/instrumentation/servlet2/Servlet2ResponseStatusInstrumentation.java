@@ -18,15 +18,19 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
     super("servlet", "servlet-2");
   }
 
-  // this is required to make sure servlet 2 instrumentation won't apply to servlet 3
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return Servlet2Instrumentation.CLASS_LOADER_MATCHER;
+    return Servlet2Instrumentation.NOT_SERVLET_3;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "javax.servlet.http.HttpServletResponse";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.http.HttpServletResponse"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

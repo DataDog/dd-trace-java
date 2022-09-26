@@ -16,7 +16,7 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll(["-Ddd.appsec.enabled=true", "-Ddd.iast.enabled=true"])
+    command.addAll(["-Ddd.appsec.enabled=true", "-Ddd.iast.enabled=true", "-Ddd.iast-request-sampling=100"])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -40,6 +40,11 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       }
       if (it.contains("IAST is starting")) {
         startMsg = it
+      }
+      // Check that there's no logged exception about missing classes from Datadog.
+      // We had this problem before with JDK9StackWalker.
+      if (it.contains("java.lang.ClassNotFoundException: datadog/")) {
+        errorMsg = it
       }
     }
 

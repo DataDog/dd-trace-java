@@ -25,10 +25,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Instrument {@link Runnable} */
 @AutoService(Instrumenter.class)
 public final class RunnableInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RunnableInstrumentation() {
     super(AbstractExecutorInstrumentation.EXEC_NAME, "runnable");
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override

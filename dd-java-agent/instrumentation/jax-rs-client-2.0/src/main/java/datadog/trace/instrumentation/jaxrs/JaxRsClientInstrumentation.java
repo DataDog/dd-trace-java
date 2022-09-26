@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jaxrs;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -23,14 +22,13 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.ws.rs.client.ClientBuilder");
+  public String hierarchyMarkerType() {
+    return "javax.ws.rs.client.ClientBuilder";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("javax.ws.rs.client.ClientBuilder"));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

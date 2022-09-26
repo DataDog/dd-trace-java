@@ -15,6 +15,8 @@ excludedClassesCoverage += [
   "datadog.trace.api.TraceSegment.NoOp",
   "datadog.trace.api.intake.TrackType",
   "datadog.trace.api.gateway.Events.ET",
+  "datadog.trace.api.profiling.ProfilingSnapshot.Kind",
+  // an enum
   "datadog.trace.api.sampling.AdaptiveSampler",
   // this one is covered by tests in internal-api-8 together with AdaptiveSampler8
   "datadog.trace.api.sampling.AdaptiveSampler7*",
@@ -63,6 +65,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.IntegrationsCollector.Holder",
   "datadog.trace.api.ConfigCollector.Holder"
 ]
+excludedClassesBranchCoverage = ['datadog.trace.api.ProductActivationConfig',]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 

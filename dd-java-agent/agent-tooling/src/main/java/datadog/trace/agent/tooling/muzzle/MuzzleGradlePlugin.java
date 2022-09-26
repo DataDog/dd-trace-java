@@ -38,7 +38,7 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
       final ClassFileLocator classFileLocator) {
-    return builder.visit(new MuzzleVisitor(targetDir));
+    return builder.visit(new MuzzleGenerator(targetDir));
   }
 
   @Override

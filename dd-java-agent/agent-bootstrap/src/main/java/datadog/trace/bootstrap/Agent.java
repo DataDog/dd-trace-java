@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import static datadog.trace.api.Platform.getRuntimeVendor;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -76,7 +77,7 @@ public class Agent {
     CIVISIBILITY("dd.civisibility.enabled", false),
     CIVISIBILITY_AGENTLESS("dd.civisibility.agentless.enabled", false),
     TELEMETRY("dd.instrumentation.telemetry.enabled", false),
-    DEBUGGER("dd.debugger.enabled", false);
+    DEBUGGER("dd." + DEBUGGER_ENABLED, false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -110,9 +111,10 @@ public class Agent {
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
-  private static boolean appSecEnabled = false;
+  private static boolean appSecEnabled;
+  private static boolean appSecFullyDisabled;
+  private static boolean remoteConfigEnabled;
   private static boolean iastEnabled = false;
-  private static boolean remoteConfigEnabled = true;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean telemetryEnabled = false;
@@ -150,8 +152,9 @@ public class Agent {
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
-    appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
+    appSecFullyDisabled = isAppSecFullyDisabled();
     remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
@@ -375,11 +378,9 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
+      // start debugger before remote config to subscribe to it before starting to poll
+      maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-
-      if (debuggerEnabled) {
-        startDebuggerAgent(instrumentation, scoClass, sco);
-      }
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -574,18 +575,20 @@ public class Agent {
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
-    if (appSecEnabled) {
-      if (isJavaVersionAtLeast(8)) {
-        try {
-          SubscriptionService ss =
-              AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
-          startAppSec(ss, scoClass, o);
-        } catch (Exception e) {
-          log.error("Error starting AppSec System", e);
-        }
-      } else {
-        log.warn("AppSec System requires Java 8 or later to run");
-      }
+    if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
+      return;
+    }
+
+    if (!isJavaVersionAtLeast(8)) {
+      log.warn("AppSec System requires Java 8 or later to run");
+      return;
+    }
+
+    try {
+      SubscriptionService ss = AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+      startAppSec(ss, scoClass, o);
+    } catch (Exception e) {
+      log.error("Error starting AppSec System", e);
     }
   }
 
@@ -760,8 +763,19 @@ public class Agent {
     }
   }
 
+  private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (!debuggerEnabled) {
+      return;
+    }
+    if (!remoteConfigEnabled) {
+      log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not enabled");
+      return;
+    }
+    startDebuggerAgent(inst, scoClass, sco);
+  }
+
   private static synchronized void startDebuggerAgent(
-      final Instrumentation inst, Class<?> scoClass, Object sco) {
+      Instrumentation inst, Class<?> scoClass, Object sco) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
@@ -834,6 +848,7 @@ public class Agent {
 
   /** @return {@code true} if the agent feature is enabled */
   private static boolean isFeatureEnabled(AgentFeature feature) {
+    // must be kept in sync with logic from Config!
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     if (featureEnabled == null) {
@@ -847,6 +862,22 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
+  }
+
+  /** @see datadog.trace.api.ProductActivationConfig#fromString(String) */
+  private static boolean isAppSecFullyDisabled() {
+    // must be kept in sync with logic from Config!
+    final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
+    String settingValue = System.getProperty(featureEnabledSysprop);
+    if (settingValue == null) {
+      settingValue = ddGetEnv(featureEnabledSysprop);
+    }
+
+    // defaults to inactive
+    return !(settingValue == null
+        || settingValue.equalsIgnoreCase("true")
+        || settingValue.equalsIgnoreCase("1")
+        || settingValue.equalsIgnoreCase("inactive"));
   }
 
   /** @return configured JMX start delay in seconds */

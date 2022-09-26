@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.twilio;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -37,9 +37,13 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed(
-        "com.twilio.Twilio", "com.google.common.util.concurrent.ListenableFuture");
+    // Only apply instrumentation when guava's ListenableFuture is also deployed.
+    return hasClassNamed("com.google.common.util.concurrent.ListenableFuture");
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return "com.twilio.base.Resource"; // implies existence of Twilio service classes
   }
 
   /** Match any child class of the base Twilio service classes. */

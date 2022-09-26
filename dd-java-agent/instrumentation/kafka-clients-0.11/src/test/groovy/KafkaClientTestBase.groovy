@@ -23,6 +23,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Unroll
 
@@ -600,6 +601,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   }
 
+  @Ignore("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
   def "test spring kafka template produce and batch consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())

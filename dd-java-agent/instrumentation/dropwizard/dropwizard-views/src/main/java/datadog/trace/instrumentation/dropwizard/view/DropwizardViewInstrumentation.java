@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.dropwizard.view;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -29,12 +28,6 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("io.dropwizard.views.ViewRenderer");
-  }
-
-  @Override
   public boolean onlyMatchKnownTypes() {
     return isShortcutMatchingEnabled(true);
   }
@@ -48,8 +41,13 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "io.dropwizard.views.ViewRenderer";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("io.dropwizard.views.ViewRenderer"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

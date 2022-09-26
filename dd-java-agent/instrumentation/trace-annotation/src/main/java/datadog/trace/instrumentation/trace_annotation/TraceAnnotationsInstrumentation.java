@@ -60,6 +60,11 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // no particular marker type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return declaresMethod(isAnnotatedWith(methodTraceMatcher));
   }

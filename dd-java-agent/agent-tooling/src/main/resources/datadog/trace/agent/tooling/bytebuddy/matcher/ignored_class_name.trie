@@ -46,6 +46,7 @@
 0 java.lang.Throwable
 0 java.net.HttpURLConnection
 0 java.net.URL
+0 java.nio.DirectByteBuffer
 0 java.rmi.*
 0 java.util.concurrent.*
 1 java.util.concurrent.ConcurrentHashMap*

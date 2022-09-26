@@ -6,12 +6,14 @@ import net.bytebuddy.build.gradle.IncrementalResolver
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.DynamicType
+import org.gradle.api.DefaultTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.Directory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.compile.AbstractCompile
-import org.gradle.api.tasks.testing.Test
+
+import java.util.regex.Matcher
 
 class InstrumentPlugin implements Plugin<Project> {
 
@@ -19,8 +21,12 @@ class InstrumentPlugin implements Plugin<Project> {
   void apply(Project project) {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
-    project.tasks.matching { it.name in ['compileJava', 'compileScala', 'compileKotlin'] }.all {
+    project.tasks.matching {
+      it.name in ['compileJava', 'compileScala', 'compileKotlin'] ||
+        it.name =~ /compileMain_java(?:\d+)Java/
+    }.all {
       AbstractCompile compileTask = it as AbstractCompile
+      Matcher versionMatcher = it.name =~ /compileMain_java(\d+)Java/
       project.afterEvaluate {
         if (!compileTask.source.empty) {
           String instrumentName = compileTask.name.replace('compile', 'instrument')
@@ -37,13 +43,23 @@ class InstrumentPlugin implements Plugin<Project> {
           byteBuddyTask.extendedParsing = false
           byteBuddyTask.discovery = Discovery.NONE
           byteBuddyTask.threads = 0
-          byteBuddyTask.classFileVersion = ClassFileVersion.JAVA_V7
+
+          String javaVersion
+          if (versionMatcher.matches()) {
+            javaVersion = versionMatcher.group(1)
+          }
+          if (javaVersion) {
+            byteBuddyTask.classFileVersion = ClassFileVersion."JAVA_V${javaVersion}"
+          } else {
+            byteBuddyTask.classFileVersion = ClassFileVersion.JAVA_V7
+          }
 
           byteBuddyTask.incrementalResolver = IncrementalResolver.ForChangedFiles.INSTANCE
 
           // use intermediate 'raw' directory for unprocessed classes
           Directory classesDir = compileTask.destinationDirectory.get()
-          Directory rawClassesDir = classesDir.dir('../raw/')
+          Directory rawClassesDir = classesDir.dir(
+            "../raw${javaVersion ? "_java${javaVersion}" : ''}/")
 
           byteBuddyTask.source = rawClassesDir
           byteBuddyTask.target = classesDir
@@ -51,7 +67,8 @@ class InstrumentPlugin implements Plugin<Project> {
           compileTask.destinationDir = rawClassesDir.asFile
 
           byteBuddyTask.classPath.from((project.configurations.findByName('instrumentationMuzzle') ?: []) +
-              project.configurations.compileClasspath + compileTask.destinationDir)
+            project.configurations.compileClasspath.findAll { it.name != 'previous-compilation-data.bin' } +
+            compileTask.destinationDir)
 
           byteBuddyTask.transformation {
             it.plugin = InstrumentLoader
@@ -61,9 +78,26 @@ class InstrumentPlugin implements Plugin<Project> {
           }
 
           // insert task between compile and jar, and before test*
-          byteBuddyTask.dependsOn(compileTask)
-          project.tasks.named(project.sourceSets.main.classesTaskName).configure {
-            dependsOn(byteBuddyTask)
+          byteBuddyTask.inputs.dir(compileTask.destinationDirectory)
+
+          if (javaVersion) {
+            // the main classes depend on versioned classes (see java_no_deps.gradle)
+            project.tasks.findAll { it.name =~ /\A(compile|instrument)(Java|Groovy|Scala)\z/}.each {
+              it.inputs.dir(byteBuddyTask.target)
+            }
+
+            // avoid warning saying it depends on resources task
+            def processTask = project.tasks[
+              instrumentName.replace('instrument', 'process').replace('Java', 'Resources')]
+            byteBuddyTask.dependsOn(processTask)
+
+            it.tasks.named(project.sourceSets."main_java${javaVersion}".classesTaskName) { DefaultTask task ->
+              task.dependsOn(byteBuddyTask)
+            }
+          } else {
+            it.tasks.named(project.sourceSets.main.classesTaskName) { DefaultTask task ->
+              task.dependsOn(byteBuddyTask)
+            }
           }
         }
       }

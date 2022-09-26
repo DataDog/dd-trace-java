@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");

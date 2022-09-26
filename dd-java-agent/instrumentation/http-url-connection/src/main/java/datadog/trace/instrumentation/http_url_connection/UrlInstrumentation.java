@@ -21,7 +21,8 @@ import java.net.URLStreamHandler;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class UrlInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
+public class UrlInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public static final String COMPONENT = "UrlConnection";
 

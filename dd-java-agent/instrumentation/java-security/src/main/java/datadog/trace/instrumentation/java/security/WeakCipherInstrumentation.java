@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public class WeakCipherInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public WeakCipherInstrumentation() {
     super("weakcipher");

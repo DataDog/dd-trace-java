@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.grizzly.client;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -21,7 +20,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
@@ -31,17 +29,9 @@ public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing
     super("grizzly-client", "ning");
   }
 
-  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("com.ning.http.client.AsyncHandler");
-
   @Override
   public Map<String, String> contextStore() {
     return singletonMap("com.ning.http.client.AsyncHandler", Pair.class.getName());
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
   }
 
   @Override

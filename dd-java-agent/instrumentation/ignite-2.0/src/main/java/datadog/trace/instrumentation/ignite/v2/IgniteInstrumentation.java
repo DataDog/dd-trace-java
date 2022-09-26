@@ -34,8 +34,13 @@ public class IgniteInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.apache.ignite.Ignite";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.apache.ignite.Ignite"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

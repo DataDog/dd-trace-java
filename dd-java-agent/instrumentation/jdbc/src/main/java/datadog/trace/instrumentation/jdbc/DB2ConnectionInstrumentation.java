@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.jdbc.DB2PreparedStatementInstrumentation.CLASS_LOADER_MATCHER;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,12 +16,12 @@ public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentat
   }
 
   @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("com.ibm.db2.jcc.DB2Connection"));
+  public String hierarchyMarkerType() {
+    return "com.ibm.db2.jcc.DB2Connection";
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 }

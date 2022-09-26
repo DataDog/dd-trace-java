@@ -87,7 +87,6 @@ public class DebuggerAgent {
     configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
     if (configurationPoller != null) {
       subscribeConfigurationPoller(configurationUpdater);
-      configurationPoller.start();
 
       try {
         /*
@@ -99,6 +98,8 @@ public class DebuggerAgent {
       } catch (final IllegalStateException ex) {
         // The JVM is already shutting down.
       }
+    } else {
+      log.debug("No configuration poller available from SharedCommunicationObjects");
     }
   }
 

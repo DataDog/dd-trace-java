@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(Instrumenter.class)
 public class ShutdownInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public ShutdownInstrumentation() {
     super("shutdown");
@@ -23,7 +23,7 @@ public class ShutdownInstrumentation extends Instrumenter.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return true;
   }
 
   @Override

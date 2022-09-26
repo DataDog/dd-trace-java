@@ -57,7 +57,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(Instrumenter.class)
 public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   private static final String TPE = "java.util.concurrent.ThreadPoolExecutor";
 
@@ -71,6 +71,11 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
 
   public ThreadPoolExecutorInstrumentation() {
     super(EXEC_NAME);
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override
@@ -91,7 +96,10 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$Init");
     transformation.applyAdvice(
-        named("execute").and(isMethod()).and(NO_WRAPPING_BEFORE_DELEGATION),
+        named("execute")
+            .and(isMethod())
+            .and(NO_WRAPPING_BEFORE_DELEGATION)
+            .and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Execute");
     transformation.applyAdvice(
         named("beforeExecute")
