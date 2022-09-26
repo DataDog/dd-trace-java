@@ -100,9 +100,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_, _)
-    1 * ctx.setBlocked(true)
     0 * ctx._(*_)
     flow.blocking == true
+    flow.action.statusCode == 418
+    flow.action.blockingContentType == Flow.Action.BlockingContentType.HTML
   }
 
   void 'no metrics are set if waf metrics are off'() {
@@ -121,7 +122,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics() >> null
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_, _)
-    1 * ctx.setBlocked(true)
     0 * ctx._(*_)
     metrics == null
   }
@@ -172,7 +172,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     1 * ctx.getWafMetrics() >> metrics
     1 * ctx.reportEvents(*_)
-    1 * ctx.setBlocked(true)
     0 * ctx._(*_)
     flow.blocking == true
   }
@@ -366,7 +365,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.getWafMetrics()
-    1 * ctx.setBlocked(true)
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive()
     0 * _
@@ -402,7 +400,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
     1 * ctx.getWafMetrics()
-    1 * ctx.setBlocked(true)
     1 * flow.setAction({ it.blocking })
     1 * ctx.reportEvents(_ as Collection<AppSecEvent100>, _)
     1 * ctx.closeAdditive()

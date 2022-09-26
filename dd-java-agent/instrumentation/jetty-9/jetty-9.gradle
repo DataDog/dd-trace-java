@@ -46,3 +46,7 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.+'
   latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty-appsec-9.3')
 }
+latestDepTest {
+  jvmArgs += "-Dnet.bytebuddy.dump=/tmp/abc"
+}
+
