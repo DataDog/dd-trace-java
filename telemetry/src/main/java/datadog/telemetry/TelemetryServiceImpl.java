@@ -21,13 +21,11 @@ import org.slf4j.LoggerFactory;
 
 public class TelemetryServiceImpl implements TelemetryService {
 
-  private static final int HEARTBEAT_INTERVAL_MS = 60 * 1000;
-
   private static final Logger log = LoggerFactory.getLogger(TelemetryServiceImpl.class);
 
   private final RequestBuilder requestBuilder;
   private final TimeSource timeSource;
-
+  private final int heartbeatIntervalMs;
   private final BlockingQueue<KeyValue> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
@@ -38,9 +36,11 @@ public class TelemetryServiceImpl implements TelemetryService {
 
   private long lastPreparationTimestamp;
 
-  public TelemetryServiceImpl(RequestBuilder requestBuilder, TimeSource timeSource) {
+  public TelemetryServiceImpl(
+      RequestBuilder requestBuilder, TimeSource timeSource, int heartBeatIntervalSec) {
     this.requestBuilder = requestBuilder;
     this.timeSource = timeSource;
+    this.heartbeatIntervalMs = heartBeatIntervalSec * 1000; // we use time in milliseconds
   }
 
   @Override
@@ -126,13 +126,18 @@ public class TelemetryServiceImpl implements TelemetryService {
     if (!queue.isEmpty()) {
       lastPreparationTimestamp = curTime;
     }
-    if (curTime - lastPreparationTimestamp > HEARTBEAT_INTERVAL_MS) {
+    if (curTime - lastPreparationTimestamp > heartbeatIntervalMs) {
       Request request = requestBuilder.build(RequestType.APP_HEARTBEAT);
       queue.offer(request);
       lastPreparationTimestamp = curTime;
     }
 
     return queue;
+  }
+
+  @Override
+  public int getHeartbeatInterval() {
+    return heartbeatIntervalMs;
   }
 
   private static <T> List<T> drainOrNull(BlockingQueue<T> srcQueue) {

@@ -2,6 +2,9 @@
 import http.server
 import socketserver
 from http import HTTPStatus
+from datetime import datetime
+
+PORT = 8126
 
 req_types = [
   'app-started',
@@ -12,16 +15,18 @@ req_types = [
   'generate-metrics'
 ]
 
-def print_split_line():
-    print(f'\033[0;32m════════════════════════════════════════════════════════════\033[0m')
+def print_line():
+    cur_time = datetime.now().strftime('%H:%M:%S')
+    print(f'\n\033[0;32m══[{cur_time}]════════════════════════════════════════════════\033[0m')
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        print_line()
         print(self.headers)
         self.send_response(HTTPStatus.OK)
         self.end_headers()
-        print_split_line()
     def do_POST(self):
+        print_line()
         headers = str(self.headers)
         for type in req_types:
           headers = headers.replace(type, f'\033[0;33m{type}\033[1;30m')
@@ -36,10 +41,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(body)
             #print(f'\033[0;33m{body}\033[0m')
             #self.wfile.write(b'Hello world')
-        print_split_line()
     def log_message(self, format, *args):
         return
 
-httpd = socketserver.TCPServer(('', 8126), Handler)
-print_split_line()
+
+httpd = socketserver.TCPServer(('', PORT), Handler)
+print(f'\033[1;30m════════════════════════════════════════════════════════════')
+print(f'  Started Telemetry Intake Emulator.')
+print(f'  Listening request on port: {PORT}')
+print(f'════════════════════════════════════════════════════════════\033[0m')
 httpd.serve_forever()
