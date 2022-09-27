@@ -4,6 +4,7 @@ import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
+import java.security.ProtectionDomain;
 import javax.annotation.Nonnull;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -33,7 +34,8 @@ public class CallSiteTransformer implements Instrumenter.AdviceTransformer {
       @Nonnull final DynamicType.Builder<?> builder,
       @Nonnull final TypeDescription type,
       final ClassLoader classLoader,
-      final JavaModule module) {
+      final JavaModule module,
+      final ProtectionDomain pd) {
     Advices discovered = advices.findAdvices(type, classLoader);
     return discovered.isEmpty() ? builder : builder.visit(new CallSiteVisitorWrapper(discovered));
   }
