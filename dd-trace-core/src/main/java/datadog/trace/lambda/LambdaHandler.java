@@ -118,7 +118,8 @@ public class LambdaHandler {
       return false;
     }
     RequestBody body = RequestBody.create(jsonMediaType, "{}");
-    Request.Builder builder = new Request.Builder()
+    Request.Builder builder =
+        new Request.Builder()
             .url(EXTENSION_BASE_URL + END_INVOCATION)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())

@@ -155,7 +155,9 @@ public final class OkHttpUtils {
                 final String credential =
                     Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-                return response.request().newBuilder()
+                return response
+                    .request()
+                    .newBuilder()
                     .header("Proxy-Authorization", credential)
                     .build();
               }
