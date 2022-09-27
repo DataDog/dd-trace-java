@@ -156,13 +156,22 @@ jobs:
           <<: *cache_keys
 
       - run:
+          name: Pull out some info
+          background: true
+          command: |
+            mkdir -p ./libs
+            sleep 4m
+            jps -v | sort -g -k1 > ./libs/jps.txt
+            ps -Ao pmem,pcpu,pid,args | sort -r -k1 > ./libs/ps.txt
+
+      - run:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dkotlin.daemon.jvm.options=-Xmx512M -Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
-            --max-workers=4
+            --max-workers=4 --debug
 
       - run:
           name: Collect Libs
@@ -532,107 +541,107 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build
 
-  - base_tests:
-      requires:
-        - build
-      name: z_test_<< matrix.testJvm >>_base
-      matrix:
-        <<: *test_matrix
-
-  - base_tests:
-      requires:
-        - build
-      name: z_test_8_base
-      testTask: test jacocoTestReport jacocoTestCoverageVerification
-      testJvm: "8"
-
-  - instrumentation_tests:
-      requires:
-        - build
-      name: z_test_<< matrix.testJvm >>_inst
-      matrix:
-        <<: *test_matrix
-
-  - instrumentation_tests:
-      requires:
-        - build
-      name: z_test_8_inst
-      testJvm: "8"
-
-  - instrumentation_tests:
-      requires:
-        - build
-      name: test_8_inst_latest
-      testTask: latestDepTest
-      testJvm: "8"
-
-  - smoke_tests:
-      requires:
-        - build
-      name: z_test_<< matrix.testJvm >>_smoke
-      matrix:
-        <<: *test_matrix
-
-  - smoke_tests:
-      requires:
-        - build
-      name: z_test_8_smoke
-      testJvm: "8"
-
-  - fan_in:
-      requires:
-        - z_test_<< matrix.testJvm >>_base
-        - z_test_<< matrix.testJvm >>_inst
-        - z_test_<< matrix.testJvm >>_smoke
-      name: test_<< matrix.testJvm >>
-      matrix:
-        <<: *test_matrix
-
-  - fan_in:
-      requires:
-        - z_test_8_base
-        - z_test_8_inst
-        - z_test_8_smoke
-      name: test_8
-      testJvm: "8"
-
-  - agent_integration_tests:
-      requires:
-        - build
-      testTask: traceAgentTest
-
-  - check:
-      requires:
-        - build
-
-  - muzzle:
-      requires:
-        - build
-      filters:
-        branches:
-          ignore:
-            - master
-            - project/*
-            - release/*
-
-  - system-tests:
-      requires:
-        - build
-
-  # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
-  # and it will be simpler to require different JVM versions for different branches and old releases
-  - fan_in:
-      requires:
-        - check
-        - agent_integration_tests
-        - test_7
-        - test_8
-        - test_11
-        - test_15
-        - test_17
-        - test_ZULU8
-      name: required
-      testJvm: "required tasks" # only used in a print statement
+#  - base_tests:
+#      requires:
+#        - build
+#      name: z_test_<< matrix.testJvm >>_base
+#      matrix:
+#        <<: *test_matrix
+#
+#  - base_tests:
+#      requires:
+#        - build
+#      name: z_test_8_base
+#      testTask: test jacocoTestReport jacocoTestCoverageVerification
+#      testJvm: "8"
+#
+#  - instrumentation_tests:
+#      requires:
+#        - build
+#      name: z_test_<< matrix.testJvm >>_inst
+#      matrix:
+#        <<: *test_matrix
+#
+#  - instrumentation_tests:
+#      requires:
+#        - build
+#      name: z_test_8_inst
+#      testJvm: "8"
+#
+#  - instrumentation_tests:
+#      requires:
+#        - build
+#      name: test_8_inst_latest
+#      testTask: latestDepTest
+#      testJvm: "8"
+#
+#  - smoke_tests:
+#      requires:
+#        - build
+#      name: z_test_<< matrix.testJvm >>_smoke
+#      matrix:
+#        <<: *test_matrix
+#
+#  - smoke_tests:
+#      requires:
+#        - build
+#      name: z_test_8_smoke
+#      testJvm: "8"
+#
+#  - fan_in:
+#      requires:
+#        - z_test_<< matrix.testJvm >>_base
+#        - z_test_<< matrix.testJvm >>_inst
+#        - z_test_<< matrix.testJvm >>_smoke
+#      name: test_<< matrix.testJvm >>
+#      matrix:
+#        <<: *test_matrix
+#
+#  - fan_in:
+#      requires:
+#        - z_test_8_base
+#        - z_test_8_inst
+#        - z_test_8_smoke
+#      name: test_8
+#      testJvm: "8"
+#
+#  - agent_integration_tests:
+#      requires:
+#        - build
+#      testTask: traceAgentTest
+#
+#  - check:
+#      requires:
+#        - build
+#
+#  - muzzle:
+#      requires:
+#        - build
+#      filters:
+#        branches:
+#          ignore:
+#            - master
+#            - project/*
+#            - release/*
+#
+#  - system-tests:
+#      requires:
+#        - build
+#
+#  # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
+#  # and it will be simpler to require different JVM versions for different branches and old releases
+#  - fan_in:
+#      requires:
+#        - check
+#        - agent_integration_tests
+#        - test_7
+#        - test_8
+#        - test_11
+#        - test_15
+#        - test_17
+#        - test_ZULU8
+#      name: required
+#      testJvm: "required tasks" # only used in a print statement
 
 workflows:
   build_test:
