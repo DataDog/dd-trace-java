@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.Config;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -361,6 +362,7 @@ public interface Instrumenter {
         DynamicType.Builder<?> builder,
         TypeDescription typeDescription,
         ClassLoader classLoader,
-        JavaModule module);
+        JavaModule module,
+        ProtectionDomain pd);
   }
 }

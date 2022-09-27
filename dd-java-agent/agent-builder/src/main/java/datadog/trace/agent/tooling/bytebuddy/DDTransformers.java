@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import java.security.ProtectionDomain;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.TypeConstantAdjustment;
 import net.bytebuddy.description.type.TypeDescription;
@@ -15,7 +16,8 @@ public class DDTransformers {
             final DynamicType.Builder<?> builder,
             final TypeDescription typeDescription,
             final ClassLoader classLoader,
-            final JavaModule javaModule) {
+            final JavaModule javaModule,
+            final ProtectionDomain pd) {
           return builder.visit(TypeConstantAdjustment.INSTANCE);
         }
       };

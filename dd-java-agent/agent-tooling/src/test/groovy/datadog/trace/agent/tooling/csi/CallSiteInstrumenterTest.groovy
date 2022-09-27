@@ -19,7 +19,7 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
 
     when:
     final transformer = instrumenter.transformer()
-    final result = transformer.transform(builder, type, getClass().getClassLoader(), null)
+    final result = transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
     result == builder
@@ -63,7 +63,7 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     when:
     final instrumenter = buildInstrumenter(TestCallSiteAdvice)
     final transformer = instrumenter.transformer()
-    transformer.transform(builder, type, getClass().getClassLoader(), null)
+    transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
     transformer != null
@@ -80,7 +80,7 @@ class CallSiteInstrumenterTest extends BaseCallSiteTest {
     when:
     final instrumenter = buildInstrumenter(CallSiteAdvice)
     final transformer = instrumenter.transformer()
-    transformer.transform(builder, type, getClass().getClassLoader(), null)
+    transformer.transform(builder, type, getClass().getClassLoader(), null, null)
 
     then:
     0 * builder.visit(_ as AsmVisitorWrapper) >> builder

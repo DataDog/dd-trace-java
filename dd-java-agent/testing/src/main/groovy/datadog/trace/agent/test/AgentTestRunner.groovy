@@ -55,6 +55,7 @@ import java.lang.instrument.Instrumentation
 import java.lang.reflect.InvocationTargetException
 import java.nio.ByteBuffer
 import java.nio.file.Files
+import java.security.ProtectionDomain
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
@@ -246,7 +247,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .type(named("datadog.trace.api.Config"))
       .transform(new AgentBuilder.Transformer() {
         @Override
-        DynamicType.Builder<?> transform(DynamicType.Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
+        DynamicType.Builder<?> transform(
+          DynamicType.Builder<?> builder,
+          TypeDescription typeDescription,
+          ClassLoader classLoader,
+          JavaModule module,
+          ProtectionDomain pd) {
           builder.method(named("isAppSecEnabled")).intercept(FixedValue.value(true))
         }
       }).installOn(INSTRUMENTATION)
