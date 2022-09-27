@@ -136,7 +136,7 @@ public class TelemetryServiceImpl implements TelemetryService {
   }
 
   @Override
-  public int getIntervalMs() {
+  public int getHeartbeatInterval() {
     return heartbeatIntervalMs;
   }
 

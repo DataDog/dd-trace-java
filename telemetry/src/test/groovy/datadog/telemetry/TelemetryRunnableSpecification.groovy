@@ -20,7 +20,7 @@ class TelemetryRunnableSpecification extends DDSpecification {
   OkHttpClient okHttpClient = Mock()
   TelemetryRunnable.ThreadSleeper sleeper = Mock()
   TelemetryServiceImpl telemetryService = Mock {
-    getIntervalMs() >> 10000
+    getHeartbeatInterval() >> 10000
   }
   TelemetryRunnable.TelemetryPeriodicAction periodicAction = Mock()
   TelemetryRunnable runnable = new TelemetryRunnable(okHttpClient, telemetryService, [periodicAction], sleeper)
