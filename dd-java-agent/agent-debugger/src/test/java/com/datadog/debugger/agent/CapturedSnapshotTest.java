@@ -810,6 +810,14 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void mergedProbesWithAllConditionsTrueTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+        2);
+  }
+
+  @Test
   public void mergedProbesWithAllConditionsFalseTest() throws IOException, URISyntaxException {
     doMergedProbeConditions(
         new ProbeCondition(DSL.when(DSL.FALSE), "false"),

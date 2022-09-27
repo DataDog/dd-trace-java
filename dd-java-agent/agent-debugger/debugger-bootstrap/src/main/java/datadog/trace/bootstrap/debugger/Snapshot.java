@@ -38,7 +38,6 @@ public class Snapshot {
   private final transient Set<String> capturingProbeIds = new HashSet<>();
   private String traceId; // trace_id
   private String spanId; // span_id
-  private transient boolean isCapturing = true;
 
   public Snapshot(java.lang.Thread thread, ProbeDetails probe) {
     this.startTs = System.nanoTime();
@@ -48,6 +47,7 @@ public class Snapshot {
     this.language = LANGUAGE;
     this.thread = new CapturedThread(thread);
     this.probe = probe;
+    addCapturingProbeId(probe);
   }
 
   public Snapshot(
@@ -74,6 +74,13 @@ public class Snapshot {
     this.thread = thread;
     this.traceId = traceId;
     this.spanId = spanId;
+    addCapturingProbeId(probe);
+  }
+
+  private void addCapturingProbeId(ProbeDetails probe) {
+    if (probe != null) {
+      capturingProbeIds.add(probe.id);
+    }
   }
 
   public void setEntry(CapturedContext context) {
@@ -151,7 +158,7 @@ public class Snapshot {
   }
 
   public void commit() {
-    if (!isCapturing) {
+    if (!isCapturing()) {
       DebuggerContext.skipSnapshot(probe.id, DebuggerContext.SkipCause.CONDITION);
       for (ProbeDetails probeDetails : probe.additionalProbes) {
         DebuggerContext.skipSnapshot(probeDetails.id, DebuggerContext.SkipCause.CONDITION);
@@ -175,46 +182,47 @@ public class Snapshot {
     }
     for (ProbeDetails additionalProbe : probe.additionalProbes) {
       if (capturingProbeIds.contains(additionalProbe.id)) {
-        DebuggerContext.addSnapshot(
-            new Snapshot(
-                UUID.randomUUID().toString(),
-                version,
-                timestamp,
-                duration,
-                stack,
-                captures,
-                new ProbeDetails(additionalProbe.id, probe.location, probe.script, probe.tags),
-                language,
-                thread,
-                traceId,
-                spanId));
+        DebuggerContext.addSnapshot(copy(additionalProbe.id, UUID.randomUUID().toString()));
       } else {
         DebuggerContext.skipSnapshot(additionalProbe.id, DebuggerContext.SkipCause.CONDITION);
       }
     }
   }
 
+  private Snapshot copy(String probeId, String newSnapshotId) {
+    return new Snapshot(
+        newSnapshotId,
+        version,
+        timestamp,
+        duration,
+        stack,
+        captures,
+        new ProbeDetails(probeId, probe.location, probe.script, probe.tags),
+        language,
+        thread,
+        traceId,
+        spanId);
+  }
+
   // /!\ Called by instrumentation /!\
   public boolean isCapturing() {
-    return isCapturing;
+    return !capturingProbeIds.isEmpty();
   }
 
   private boolean checkCapture(CapturedContext capture) {
     DebuggerScript script = probe.getScript();
-    isCapturing = executeScript(script, capture, probe.getId());
-    if (isCapturing) {
-      capturingProbeIds.add(probe.id);
+    if (!executeScript(script, capture, probe.getId())) {
+      capturingProbeIds.remove(probe.id);
     }
     List<ProbeDetails> additionalProbes = probe.additionalProbes;
     if (!additionalProbes.isEmpty()) {
       for (ProbeDetails additionalProbe : additionalProbes) {
         if (executeScript(additionalProbe.getScript(), capture, additionalProbe.getId())) {
-          isCapturing = true; // force capturing the current Snapshot
           capturingProbeIds.add(additionalProbe.getId());
         }
       }
     }
-    return isCapturing;
+    return isCapturing();
   }
 
   private static boolean executeScript(
