@@ -131,7 +131,7 @@ final class CachedData {
       exclude(dependency('org.slf4j::'))
 
       // okhttp and its transitives
-      exclude(dependency('com.squareup.okhttp3:okhttp'))
+      exclude(dependency('com.datadoghq.okhttp3:okhttp'))
       exclude(dependency('com.squareup.okio:okio'))
 
       // dogstatsd and its transitives
