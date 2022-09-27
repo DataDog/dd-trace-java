@@ -242,7 +242,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
-import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
@@ -579,7 +578,6 @@ public class Config {
 
   private final boolean igniteCacheIncludeKeys;
 
-  private final int osgiSearchDepth;
   private final String obfuscationQueryRegexp;
 
   // TODO: remove at a future point.
@@ -1229,8 +1227,6 @@ public class Config {
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
-
-    osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
     obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
 
@@ -1962,10 +1958,6 @@ public class Config {
 
   public boolean isIgniteCacheIncludeKeys() {
     return igniteCacheIncludeKeys;
-  }
-
-  public int getOsgiSearchDepth() {
-    return osgiSearchDepth;
   }
 
   public String getObfuscationQueryRegexp() {
@@ -3005,8 +2997,6 @@ public class Config {
         + hystrixMeasuredEnabled
         + ", igniteCacheIncludeKeys="
         + igniteCacheIncludeKeys
-        + ", osgiSearchDepth="
-        + osgiSearchDepth
         + ", servletPrincipalEnabled="
         + servletPrincipalEnabled
         + ", servletAsyncTimeoutError="
