@@ -6,6 +6,6 @@ public enum Product {
   ASM_DD,
   ASM,
   ASM_DATA,
-  FEATURES,
+  ASM_FEATURES,
   _UNKNOWN,
 }

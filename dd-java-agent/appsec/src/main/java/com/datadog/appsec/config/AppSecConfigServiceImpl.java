@@ -101,15 +101,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
               Collections.singletonMap("waf_rules_override", newConfig);
           distributeSubConfigurations(wafRulesOverride, reconfiguration);
         });
-
-    this.configurationPoller.addFeaturesListener(
-        "asm",
+    this.configurationPoller.addListener(
+        Product.ASM_FEATURES,
         AppSecFeaturesDeserializer.INSTANCE,
-        (product, newConfig, hinter) -> {
-          if (AppSecSystem.ACTIVE != newConfig.enabled) {
-            log.warn("AppSec {} (runtime)", newConfig.enabled ? "enabled" : "disabled");
+        (configKey, newConfig, hinter) -> {
+          if (AppSecSystem.ACTIVE != newConfig.asm.enabled) {
+            log.warn("AppSec {} (runtime)", newConfig.asm.enabled ? "enabled" : "disabled");
           }
-          AppSecSystem.ACTIVE = newConfig.enabled;
+          AppSecSystem.ACTIVE = newConfig.asm.enabled;
         });
 
     this.configurationPoller.addCapabilities(
@@ -259,7 +258,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.removeListener(Product.ASM_DD);
     this.configurationPoller.removeListener(Product.ASM_DATA);
     this.configurationPoller.removeListener(Product.ASM);
-    this.configurationPoller.removeFeaturesListener("asm");
+    this.configurationPoller.removeListener(Product.ASM_FEATURES);
     this.configurationPoller.stop();
   }
 }
