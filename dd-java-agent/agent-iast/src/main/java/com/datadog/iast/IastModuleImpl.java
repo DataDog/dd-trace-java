@@ -48,13 +48,7 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the callee of MessageDigest
-    StackTraceElement stackTraceElement =
-        stackWalker.walk(
-            stack ->
-                stack
-                    .filter(s -> !s.getClassName().equals("javax.crypto.Cipher"))
-                    .findFirst()
-                    .get());
+    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -77,13 +71,7 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the caller of MessageDigest
-    StackTraceElement stackTraceElement =
-        stackWalker.walk(
-            stack ->
-                stack
-                    .filter(s -> !s.getClassName().equals("java.security.MessageDigest"))
-                    .findFirst()
-                    .get());
+    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
 
     Vulnerability vulnerability =
         new Vulnerability(
