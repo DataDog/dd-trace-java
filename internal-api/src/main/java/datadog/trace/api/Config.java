@@ -42,6 +42,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
@@ -162,6 +163,7 @@ import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
+import static datadog.trace.api.config.IastConfig.IAST_TAINT_TRAKING_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
@@ -548,6 +550,7 @@ public class Config {
   private final int iastMaxConcurrentRequests;
   private final int iastVulnerabilitiesPerRequest;
   private final float iastRequestSampling;
+  private final boolean iastTaintTrackingDebugEnabled;
 
   private final boolean ciVisibilityEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1144,6 +1147,11 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
 
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
+
+    iastTaintTrackingDebugEnabled =
+        configProvider.getBoolean(
+            IAST_TAINT_TRAKING_DEBUG_ENABLED, DEFAULT_IAST_TAINT_TRACKING_DEBUG_ENABLED);
+
     iastMaxConcurrentRequests =
         configProvider.getInteger(
             IAST_MAX_CONCURRENT_REQUESTS, DEFAULT_IAST_MAX_CONCURRENT_REQUESTS);
@@ -1864,6 +1872,10 @@ public class Config {
 
   public boolean isIastEnabled() {
     return iastEnabled;
+  }
+
+  public boolean isIastTaintTrackingDebugEnabled() {
+    return iastTaintTrackingDebugEnabled;
   }
 
   public int getIastMaxConcurrentRequests() {
