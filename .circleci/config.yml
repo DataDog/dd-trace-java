@@ -187,10 +187,10 @@ jobs:
             - .gradle
             - workspace
 
-      - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-          <<: *save_cache_paths
-
+#      - save_cache:
+#          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+#          <<: *save_cache_paths
+#
       - display_memory_usage
 
   build_clean_cache:
