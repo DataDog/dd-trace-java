@@ -57,8 +57,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     }
     List<String> commandParams = getDebuggerCommandParams();
     targetProcess =
-        ProcessBuilderHelper.createProcessBuilder(
-                classpath, commandParams, logFilePath, "App", SINGLE_EXPECTED_UPLOAD)
+        ProcessBuilderHelper.createProcessBuilder(classpath, commandParams, logFilePath, "App", "3")
             .start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
@@ -133,6 +132,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
+    Thread.sleep(10000);
   }
 
   @Test
