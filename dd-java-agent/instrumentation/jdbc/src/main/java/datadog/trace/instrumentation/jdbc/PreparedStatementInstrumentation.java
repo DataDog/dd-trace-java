@@ -7,6 +7,10 @@ import datadog.trace.api.Config;
 @AutoService(Instrumenter.class)
 public final class PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
+  @Override
+  protected boolean defaultEnabled() {
+    return !Config.get().getJdbcUseHierarchyMatcher() && Config.get().isIntegrationsEnabled();
+  }
 
   private static final String[] CONCRETE_TYPES = {
     // redshift

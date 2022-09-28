@@ -8,6 +8,11 @@ import datadog.trace.api.Config;
 public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 
+  @Override
+  protected boolean defaultEnabled() {
+    return !Config.get().getJdbcUseHierarchyMatcher() && Config.get().isIntegrationsEnabled();
+  }
+
   private static final String[] CONCRETE_TYPES = {
     // redshift
     "com.amazon.redshift.jdbc.RedshiftConnectionImpl",

@@ -237,7 +237,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_MATCHER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_USE_HIERARCHY_MATCHER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
@@ -1205,7 +1204,8 @@ public class Config {
 
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
-    jdbcUseHierarchyMatcher = configProvider.getBoolean(JDBC_USE_HIERARCHY_MATCHER,DEFAULT_JDBC_USE_HIERARCHY_MATCHER);
+    jdbcUseHierarchyMatcher =
+        configProvider.getBoolean(JDBC_USE_HIERARCHY_MATCHER, DEFAULT_JDBC_USE_HIERARCHY_MATCHER);
     awsPropagationEnabled = isPropagationEnabled(true, "aws");
     sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
 
