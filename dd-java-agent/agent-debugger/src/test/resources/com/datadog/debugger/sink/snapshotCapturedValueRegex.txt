@@ -4,7 +4,7 @@
 "arguments":\{
 "this":\{
 "normalNullField":\{
-"type":"String",
+"type":"java.lang.String",
 "isNull":true
 \},
 "notCapturedField":\{
@@ -28,7 +28,7 @@
 \}
 \}\},
 "normalValuedField":\{
-"type":"String",
+"type":"java.lang.String",
 "value":"foobar"
 \}
 \}

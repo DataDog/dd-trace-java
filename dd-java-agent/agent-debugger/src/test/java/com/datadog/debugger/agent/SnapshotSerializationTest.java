@@ -84,7 +84,7 @@ public class SnapshotSerializationTest {
     // this object generates InaccessibleObjectException since JDK16 when extracting its fields
     Snapshot.CapturedValue notCapturedField =
         Snapshot.CapturedValue.of(
-            NOT_CAPTURED_REASON,
+            "notCapturedField",
             OperatingSystemMXBean.class.getName(),
             ManagementFactory.getOperatingSystemMXBean());
     context.addFields(
@@ -107,7 +107,7 @@ public class SnapshotSerializationTest {
     Assert.assertNull(normalNullField.getValue());
     Assert.assertEquals(String.class.getName(), normalNullField.getType());
     Assert.assertNull(normalNullField.getNotCapturedReason());
-    notCapturedField = fields.get(NOT_CAPTURED_REASON);
+    notCapturedField = fields.get("notCapturedField");
     Map<String, Snapshot.CapturedValue> notCapturedFields =
         (Map<String, Snapshot.CapturedValue>) notCapturedField.getValue();
     Snapshot.CapturedValue processLoadTicks = notCapturedFields.get("processLoadTicks");
