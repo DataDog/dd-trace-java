@@ -1,3 +1,7 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -29,6 +33,8 @@ testSets {
 }
 
 dependencies {
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
   // jdbc unit testing
   testImplementation group: 'com.h2database', name: 'h2', version: '[1.3.168,1.3.169]'// first jdk 1.6 compatible
   testImplementation group: 'org.apache.derby', name: 'derby', version: '10.6.1.0'
@@ -72,7 +78,7 @@ dependencies {
   latestDepJava11TestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
 }
 
-tasks.named("test").configure {
+tasks.named("check").configure {
   dependsOn "oldH2Test"
   dependsOn "oldPostgresTest"
 }

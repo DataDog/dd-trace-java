@@ -1,6 +1,7 @@
 plugins {
   id 'com.github.johnrengelman.shadow'
   id 'me.champeau.jmh'
+  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -13,8 +14,9 @@ dependencies {
   implementation project(':internal-api:internal-api-9')
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
+  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':utils:test-utils')
   testImplementation deps.bytebuddy
-  testImplementation project(':utils:test-utils')
 
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')

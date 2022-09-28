@@ -19,8 +19,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -258,6 +260,59 @@ public final class IastModuleImpl implements IastModule {
       }
     }
     taintedObjects.taint(result, targetRanges);
+  }
+
+  @Override
+  public void onJdbcQuery(@Nonnull String queryString) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    final IastRequestContext ctx = IastRequestContext.get(span);
+    if (ctx == null) {
+      return;
+    }
+    TaintedObject taintedObject = ctx.getTaintedObjects().get(queryString);
+    if (taintedObject == null) {
+      return;
+    }
+
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findFirstFrameForSecondPackage);
+
+    Vulnerability vulnerability =
+        new Vulnerability(
+            VulnerabilityType.SQL_INJECTION,
+            Location.forSpanAndStack(span.getSpanId(), stackTraceElement),
+            new Evidence(queryString, taintedObject.getRanges()));
+    reporter.report(span, vulnerability);
+  }
+
+  private static StackTraceElement findFirstFrameForSecondPackage(
+      Stream<StackTraceElement> stream) {
+    Iterator<StackTraceElement> iterator = stream.iterator();
+    if (!iterator.hasNext()) {
+      return null;
+    }
+    String firstPackage = packageFor(iterator.next().getClassName());
+    while (iterator.hasNext()) {
+      StackTraceElement ste = iterator.next();
+      String className = ste.getClassName();
+      if (packageFor(className).equals(firstPackage)) {
+        continue;
+      }
+      return ste;
+    }
+    return null;
+  }
+
+  private static String packageFor(String className) {
+    int i = className.lastIndexOf('.');
+    if (i == -1) {
+      return "";
+    }
+    return className.substring(0, i);
   }
 
   private static Range[] getRanges(final TaintedObject taintedObject) {
