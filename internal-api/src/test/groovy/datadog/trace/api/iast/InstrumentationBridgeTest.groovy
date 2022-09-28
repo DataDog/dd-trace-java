@@ -76,4 +76,17 @@ class InstrumentationBridgeTest extends DDSpecification {
     1 * module.onCipherAlgorithm(_) >> { throw new Error('Boom!!!') }
     noExceptionThrown()
   }
+
+  def "bridge calls don't leak exceptions for onParameterName and onParameterValue on null parameters"() {
+    setup:
+    final module = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    InstrumentationBridge.onParameterValue(null, null)
+    InstrumentationBridge.onParameterName()
+
+    then:
+    noExceptionThrown()
+  }
 }
