@@ -22,6 +22,11 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll(["-Ddd.appsec.enabled=true", "-Ddd.iast.enabled=true", "-Ddd.iast-request-sampling=100"])
+    command.addAll([
+      "-Ddd.appsec.enabled=true",
+      "-Ddd.iast.enabled=true",
+      "-Ddd.iast.request-sampling=100"
+    ])
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -95,5 +100,26 @@ class IastSpringBootSmokeTest extends AbstractServerSmokeTest {
       }
     }
     foundEnabledTag
+  }
+
+  def "weak hash vulnerability is present"() {
+    setup:
+    String url = "http://localhost:${httpPort}/weakhash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+
+    then:
+    response.body().string().contains("MessageDigest.getInstance executed")
+    Thread.sleep(100) //This is needed so we allow enough time for the log to be written
+    Boolean vulnerabilityFound = false
+    checkLog {
+      if (it.contains("MD5")) {
+        vulnerabilityFound = true
+      }
+    }
+    vulnerabilityFound
   }
 }

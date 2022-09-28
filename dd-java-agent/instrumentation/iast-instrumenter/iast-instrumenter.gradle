@@ -8,7 +8,6 @@ apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/tries.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
-apply plugin: 'call-site-instrumentation'
 
 testSets {
   latestDepTest {
