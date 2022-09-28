@@ -780,27 +780,23 @@ public class CapturedSnapshotTest {
   public void simpleConditionTest() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     SnapshotProbe snapshotProbe =
-        new SnapshotProbe(
-            LANGUAGE,
-            PROBE_ID,
-            true,
-            null,
-            new Where(CLASS_NAME, "doit", "int (java.lang.String)", new String[0], null),
-            new ProbeCondition(
-                DSL.when(
-                    DSL.and(
-                        // this is always true
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
                         DSL.and(
-                            // this reference is resolved directly from the snapshot
-                            DSL.eq(DSL.ref(".fld"), DSL.value(11)),
-                            // this reference chain needs to use reflection
-                            DSL.eq(DSL.ref(".typed.fld.fld.msg"), DSL.value("hello"))),
-                        DSL.or(
-                            DSL.eq(DSL.ref(ValueReferences.argument("arg")), DSL.value("5")),
-                            DSL.gt(DSL.ref(ValueReferences.DURATION_REF), DSL.value(500_000L))))),
-                "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' || @duration > 500000)"),
-            null,
-            null);
+                            // this is always true
+                            DSL.and(
+                                // this reference is resolved directly from the snapshot
+                                DSL.eq(DSL.ref(".fld"), DSL.value(11)),
+                                // this reference chain needs to use reflection
+                                DSL.eq(DSL.ref(".typed.fld.fld.msg"), DSL.value("hello"))),
+                            DSL.or(
+                                DSL.eq(DSL.ref(ValueReferences.argument("arg")), DSL.value("5")),
+                                DSL.gt(
+                                    DSL.ref(ValueReferences.DURATION_REF), DSL.value(500_000L))))),
+                    "(.fld == 11 && .typed.fld.fld.msg == 'hello') && (#arg == '5' || @duration > 500000)"))
+            .build();
     DebuggerTransformerTest.TestSnapshotListener listener =
         installProbes(CLASS_NAME, snapshotProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -809,10 +805,66 @@ public class CapturedSnapshotTest {
       Assert.assertTrue((i == 2 && result == 2) || result == 3);
     }
     Assert.assertEquals(1, listener.snapshots.size());
-    Snapshot.CapturedValue argument =
-        listener.snapshots.get(0).getCaptures().getEntry().getArguments().get("arg");
-    Assert.assertEquals("5", argument.getValue());
-    Assert.assertEquals("java.lang.String", argument.getType());
+    assertCaptureArgs(
+        listener.snapshots.get(0).getCaptures().getEntry(), "arg", String.class.getName(), "5");
+  }
+
+  @Test
+  public void mergedProbesWithAllConditionsTrueTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+        new ProbeCondition(DSL.when(DSL.TRUE), "true"),
+        2);
+  }
+
+  @Test
+  public void mergedProbesWithAllConditionsFalseTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(
+        new ProbeCondition(DSL.when(DSL.FALSE), "false"),
+        new ProbeCondition(DSL.when(DSL.FALSE), "false"),
+        0);
+  }
+
+  @Test
+  public void mergedProbesWithMainProbeConditionTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.TRUE), "true"), null, 2);
+  }
+
+  @Test
+  public void mergedProbesWithAdditionalProbeConditionTest()
+      throws IOException, URISyntaxException {
+    doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.TRUE), "true"), 2);
+  }
+
+  @Test
+  public void mergedProbesWithMainProbeConditionFalseTest() throws IOException, URISyntaxException {
+    doMergedProbeConditions(new ProbeCondition(DSL.when(DSL.FALSE), "false"), null, 1);
+  }
+
+  @Test
+  public void mergedProbesWithAdditionalProbeConditionFalseTest()
+      throws IOException, URISyntaxException {
+    doMergedProbeConditions(null, new ProbeCondition(DSL.when(DSL.FALSE), "false"), 1);
+  }
+
+  private void doMergedProbeConditions(
+      ProbeCondition probeCondition1, ProbeCondition probeCondition2, int expectedSnapshots)
+      throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    SnapshotProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(probeCondition1)
+            .build();
+    SnapshotProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(probeCondition2)
+            .build();
+    probe1.addAdditionalProbe(probe2);
+    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    Assert.assertEquals(3, result);
+    Assert.assertEquals(expectedSnapshots, listener.snapshots.size());
   }
 
   @Test
