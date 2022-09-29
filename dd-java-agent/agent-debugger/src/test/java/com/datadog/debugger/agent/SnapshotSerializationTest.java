@@ -306,6 +306,47 @@ public class SnapshotSerializationTest {
         complexClasses.get(TYPE));
   }
 
+  class PrimitiveArrayClass {
+    byte[] byteArray = new byte[] {1, 2, 3};
+    short[] shortArray = new short[] {128, 129, 130};
+    char[] charArray = new char[] {'a', 'b', 'c'};
+    int[] intArray = new int[] {128_001, 128_002, 128_003};
+    long[] longArray = new long[] {3_000_000_000L, 3_000_000_001L, 3_000_000_002L};
+    boolean[] booleanArray = new boolean[] {true, false, true};
+    float[] floatArray = new float[] {3.14F, 3.15F, 3.16F};
+    double[] doubleArray = new double[] {2.612, 2.613, 2.614};
+  }
+
+  @Test
+  public void fieldPrimitiveArray() throws IOException {
+    JsonAdapter<Snapshot> adapter = MoshiHelper.createMoshiSnapshot().adapter(Snapshot.class);
+    Snapshot snapshot =
+        new Snapshot(Thread.currentThread(), new Snapshot.ProbeDetails(PROBE_ID, PROBE_LOCATION));
+    Snapshot.Captures captures = snapshot.getCaptures();
+    Snapshot.CapturedContext context = new Snapshot.CapturedContext();
+    Snapshot.CapturedValue localObj =
+        capturedValueDepth(
+            "localObj", PrimitiveArrayClass.class.getName(), new PrimitiveArrayClass(), 3);
+    context.addLocals(new Snapshot.CapturedValue[] {localObj});
+    captures.setReturn(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    Map<String, Object> locals = (Map<String, Object>) returnJson.get(LOCALS);
+    Map<String, Object> localObjMap = (Map<String, Object>) locals.get("localObj");
+    Map<String, Object> localObjFieldsMap = (Map<String, Object>) localObjMap.get(FIELDS);
+    assertArrayItem(localObjFieldsMap, "byteArray", "1", "2", "3");
+    assertArrayItem(localObjFieldsMap, "shortArray", "128", "129", "130");
+    assertArrayItem(localObjFieldsMap, "charArray", "a", "b", "c");
+    assertArrayItem(localObjFieldsMap, "intArray", "128001", "128002", "128003");
+    assertArrayItem(localObjFieldsMap, "longArray", "3000000000", "3000000001", "3000000002");
+    assertArrayItem(localObjFieldsMap, "booleanArray", "true", "false", "true");
+    assertArrayItem(localObjFieldsMap, "floatArray", "3.14", "3.15", "3.16");
+    assertArrayItem(localObjFieldsMap, "doubleArray", "2.612", "2.613", "2.614");
+  }
+
   @Test
   public void depthLevel0() throws IOException, URISyntaxException {
     Map<String, Object> returnJson = doRefDepth(0);

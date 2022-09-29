@@ -834,11 +834,11 @@ public class CapturedSnapshotTest {
       Assert.assertTrue((i == 2 && result == 2) || result == 3);
     }
     Assert.assertEquals(1, listener.snapshots.size());
-     Snapshot.CapturedValue argument =
+    Snapshot.CapturedValue argument =
         listener.snapshots.get(0).getCaptures().getEntry().getArguments().get("arg");
     Assert.assertEquals("5", getValue(argument));
     Assert.assertEquals("java.lang.String", argument.getType());
- }
+  }
 
   @Test
   public void mergedProbesWithAllConditionsTrueTest() throws IOException, URISyntaxException {
