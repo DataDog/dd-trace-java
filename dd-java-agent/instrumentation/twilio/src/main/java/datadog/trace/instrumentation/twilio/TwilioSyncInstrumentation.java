@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.twilio;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -32,9 +31,8 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.twilio.Twilio");
+  public String hierarchyMarkerType() {
+    return "com.twilio.base.Resource"; // implies existence of Twilio service classes
   }
 
   /** Match any child class of the base Twilio service classes. */

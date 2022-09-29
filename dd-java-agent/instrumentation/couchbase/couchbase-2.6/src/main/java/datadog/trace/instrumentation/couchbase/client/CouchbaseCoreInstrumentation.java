@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing
@@ -24,11 +23,6 @@ public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing
 
   public CouchbaseCoreInstrumentation() {
     super("couchbase");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CouchbaseNetworkInstrumentation.CLASS_LOADER_MATCHER;
   }
 
   @Override

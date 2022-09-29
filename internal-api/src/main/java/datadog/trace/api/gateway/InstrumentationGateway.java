@@ -261,6 +261,24 @@ public class InstrumentationGateway {
                 return callback.equals(obj);
               }
             };
+      case REQUEST_INFERRED_CLIENT_ADDRESS_ID:
+        return (C)
+            new BiFunction<RequestContext, String, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, String ip) {
+                try {
+                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, ip);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+              // Make testing easier by delegating equals
+              @Override
+              public boolean equals(Object obj) {
+                return callback.equals(obj);
+              }
+            };
       case REQUEST_BODY_START_ID:
         return (C)
             new BiFunction<RequestContext, StoredBodySupplier, Void>() {

@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenters;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -51,41 +52,36 @@ public class MuzzleVersionScanPlugin {
         // only default Instrumenters use muzzle. Skip custom instrumenters.
         continue;
       }
-      Method m = null;
-      try {
-        m = instrumenter.getClass().getDeclaredMethod("getInstrumentationMuzzle");
-        m.setAccessible(true);
-        final ReferenceMatcher muzzle = (ReferenceMatcher) m.invoke(instrumenter);
-        final List<Reference.Mismatch> mismatches =
-            muzzle.getMismatchedReferenceSources(userClassLoader);
 
-        final boolean classLoaderMatch =
-            ((Instrumenter.Default) instrumenter).classLoaderMatcher().matches(userClassLoader);
-        final boolean passed = mismatches.isEmpty() && classLoaderMatch;
+      final ReferenceMatcher muzzle =
+          ((Instrumenter.Default) instrumenter).getInstrumentationMuzzle();
+      final List<Reference.Mismatch> mismatches =
+          muzzle.getMismatchedReferenceSources(userClassLoader);
 
-        if (passed && !assertPass) {
-          System.err.println(
-              "MUZZLE PASSED "
-                  + instrumenter.getClass().getSimpleName()
-                  + " BUT FAILURE WAS EXPECTED");
-          throw new RuntimeException("Instrumentation unexpectedly passed Muzzle validation");
-        } else if (!passed && assertPass) {
-          System.err.println(
-              "FAILED MUZZLE VALIDATION: " + instrumenter.getClass().getName() + " mismatches:");
+      ClassLoaderMatchers.reset();
 
-          if (!classLoaderMatch) {
-            System.err.println("-- classloader mismatch");
-          }
+      final boolean classLoaderMatch =
+          ((Instrumenter.Default) instrumenter).classLoaderMatcher().matches(userClassLoader);
+      final boolean passed = mismatches.isEmpty() && classLoaderMatch;
 
-          for (final Reference.Mismatch mismatch : mismatches) {
-            System.err.println("-- " + mismatch);
-          }
-          throw new RuntimeException("Instrumentation failed Muzzle validation");
+      if (passed && !assertPass) {
+        System.err.println(
+            "MUZZLE PASSED "
+                + instrumenter.getClass().getSimpleName()
+                + " BUT FAILURE WAS EXPECTED");
+        throw new RuntimeException("Instrumentation unexpectedly passed Muzzle validation");
+      } else if (!passed && assertPass) {
+        System.err.println(
+            "FAILED MUZZLE VALIDATION: " + instrumenter.getClass().getName() + " mismatches:");
+
+        if (!classLoaderMatch) {
+          System.err.println("-- classloader mismatch");
         }
-      } finally {
-        if (null != m) {
-          m.setAccessible(false);
+
+        for (final Reference.Mismatch mismatch : mismatches) {
+          System.err.println("-- " + mismatch);
         }
+        throw new RuntimeException("Instrumentation failed Muzzle validation");
       }
     }
     // run helper injector on all instrumenters
@@ -113,7 +109,7 @@ public class MuzzleVersionScanPlugin {
             new HelperInjector(
                     MuzzleVersionScanPlugin.class.getSimpleName(),
                     createHelperMap(defaultInstrumenter))
-                .transform(null, null, userClassLoader, null);
+                .transform(null, null, userClassLoader, null, null);
           }
         } catch (final Exception e) {
           System.err.println(

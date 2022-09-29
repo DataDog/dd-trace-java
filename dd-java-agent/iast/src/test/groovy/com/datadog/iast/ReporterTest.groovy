@@ -11,6 +11,12 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
+
 class ReporterTest extends DDSpecification {
 
   void 'basic vulnerability reporting'() {
@@ -37,7 +43,8 @@ class ReporterTest extends DDSpecification {
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
-    batch.toString() == '{"vulnerabilities":[{"evidence":{"value":"MD5"},"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"}]}'
+    batch.toString() == '{"vulnerabilities":[{"evidence":{"value":"MD5"},"hash":1042880134,"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"}]}'
+    1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
 
@@ -61,7 +68,7 @@ class ReporterTest extends DDSpecification {
       )
     final v2 = new Vulnerability(
       VulnerabilityType.WEAK_HASH,
-      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 2)),
       new Evidence("MD4")
       )
 
@@ -71,7 +78,8 @@ class ReporterTest extends DDSpecification {
 
     then:
     1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
-    batch.toString() == '{"vulnerabilities":[{"evidence":{"value":"MD5"},"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"},{"evidence":{"value":"MD4"},"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"}]}'
+    batch.toString() == '{"vulnerabilities":[{"evidence":{"value":"MD5"},"hash":1042880134,"location":{"line":1,"path":"foo"},"type":"WEAK_HASH"},{"evidence":{"value":"MD4"},"hash":748468584,"location":{"line":2,"path":"foo"},"type":"WEAK_HASH"}]}'
+    1 * traceSegment.setTagTop('manual.keep', true)
     0 * _
   }
 
@@ -134,5 +142,170 @@ class ReporterTest extends DDSpecification {
     1 * span.getRequestContext() >> reqCtx
     1 * reqCtx.getData(RequestContextSlot.IAST)
     0 * _
+  }
+
+  void 'Vulnerabilities with same type and location are equals'() {
+    given:
+    final vulnerability1 = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("GOOD")
+      )
+    final vulnerability2 = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("BAD")
+      )
+
+    expect:
+    vulnerability1 == vulnerability2
+  }
+
+  void 'Vulnerabilities with same type and different location are not equals'() {
+    given:
+    final vulnerability1 = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("GOOD")
+      )
+    final vulnerability2 = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 2)),
+      new Evidence("BAD")
+      )
+
+    expect:
+    vulnerability1 != vulnerability2
+  }
+
+  void 'Reporter when IAST_DEDUPLICATION_ENABLED is enabled prevents duplicates'() {
+    given:
+    injectSysConfig(IAST_DEDUPLICATION_ENABLED, "true")
+    final Reporter reporter = new Reporter()
+    final batch = new VulnerabilityBatch()
+    final span = spanWithBatch(batch)
+    final vulnerability = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("GOOD")
+      )
+
+    when: 'first time a vulnerability is reported'
+    reporter.report(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 1
+
+    when: 'second time the a vulnerability is reported'
+    reporter.report(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 1
+  }
+
+  void 'Reporter when IAST_DEDUPLICATION_ENABLED is disabled does not prevent duplicates'() {
+    given:
+    injectSysConfig(IAST_DEDUPLICATION_ENABLED, "false")
+    final Reporter reporter = new Reporter()
+    final batch = new VulnerabilityBatch()
+    final span = spanWithBatch(batch)
+    final vulnerability = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forStack(new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("GOOD")
+      )
+
+    when: 'first time a vulnerability is reported'
+    reporter.report(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 1
+
+    when: 'second time the a vulnerability is reported'
+    reporter.report(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 2
+  }
+
+  void 'Reporter when IAST_DEDUPLICATION_ENABLED is enabled clears the cache after 1000 different vulnerabilities'() {
+    given:
+    injectSysConfig(IAST_DEDUPLICATION_ENABLED, "true")
+    final vulnerabilityBuilder = { int index ->
+      new Vulnerability(
+        VulnerabilityType.WEAK_HASH,
+        Location.forStack(new StackTraceElement(index.toString(), index.toString(), index.toString(), index)),
+        new Evidence("GOOD")
+        )
+    }
+    final deduplicationRange = (0..Reporter.HashBasedDeduplication.DEFAULT_MAX_SIZE - 1)
+    final Reporter reporter = new Reporter()
+    final batch = new VulnerabilityBatch()
+    final span = spanWithBatch(batch)
+
+    when: 'the deduplication cache is filled for the first time'
+    deduplicationRange.each { i -> reporter.report(span, vulnerabilityBuilder.call(i)) }
+
+    then: 'all vulnerabilities are reported'
+    batch.vulnerabilities.size() == Reporter.HashBasedDeduplication.DEFAULT_MAX_SIZE
+
+    when: 'duplicated vulnerabilities are checked'
+    deduplicationRange.each { i -> reporter.report(span, vulnerabilityBuilder.call(i)) }
+
+    then: 'no vulnerabilities are reported'
+    batch.vulnerabilities.size() == Reporter.HashBasedDeduplication.DEFAULT_MAX_SIZE
+
+    when: 'a new vulnerability pops up'
+    reporter.report(span, vulnerabilityBuilder.call(Reporter.HashBasedDeduplication.DEFAULT_MAX_SIZE))
+    deduplicationRange.each { i -> reporter.report(span, vulnerabilityBuilder.call(i)) }
+
+    then: 'the new vulnerability is reported and the cache cleared'
+    batch.vulnerabilities.size() == 2 * Reporter.HashBasedDeduplication.DEFAULT_MAX_SIZE + 1
+  }
+
+  void 'test hash based deduplication under concurrency'() {
+    given:
+    final executors = Executors.newCachedThreadPool()
+    final vulnerabilityBuilder = { int index ->
+      new Vulnerability(
+        VulnerabilityType.WEAK_HASH,
+        Location.forStack(new StackTraceElement(index.toString(), index.toString(), index.toString(), index)),
+        new Evidence("GOOD")
+        )
+    }
+    final int size = 32
+    final latch = new CountDownLatch(size)
+    final predicate = new Reporter.HashBasedDeduplication(size >> 3) // maximum of 4 hashes
+    final Reporter reporter = new Reporter({ final Vulnerability vul ->
+      latch.countDown()
+      predicate.test(vul)
+    })
+    final batch = new VulnerabilityBatch()
+    final span = spanWithBatch(batch)
+
+    when: 'a few duplicates are reported in a concurrent scenario'
+    (0..size).each { index ->
+      executors.execute({ reporter.report(span, vulnerabilityBuilder.call(index % 16)) }) // 8 different vuls
+    }
+
+    then: 'there are vulnerabilities reported'
+    executors.shutdown()
+    executors.awaitTermination(5, TimeUnit.SECONDS)
+    executors.isTerminated()
+    batch.vulnerabilities.size() >= 8
+  }
+
+  private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {
+    final traceSegment = Mock(TraceSegment)
+    final ctx = Mock(IastRequestContext) {
+      it.getVulnerabilityBatch() >> batch
+    }
+    final reqCtx = Stub(RequestContext) {
+      it.getData(RequestContextSlot.IAST) >> ctx
+      it.getTraceSegment() >> traceSegment
+    }
+    final span = Mock(AgentSpan)
+    span.getRequestContext() >> reqCtx
+    return span
   }
 }

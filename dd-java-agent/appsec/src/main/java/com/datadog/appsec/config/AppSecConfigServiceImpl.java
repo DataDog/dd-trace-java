@@ -3,6 +3,7 @@ package com.datadog.appsec.config;
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
 
 import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -14,11 +15,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,23 +31,27 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private static final String DEFAULT_CONFIG_LOCATION = "default_config.json";
 
   // for new subconfig subscribers
-  private final AtomicReference<Map<String, AppSecConfig>> lastConfig =
-      new AtomicReference<>(Collections.emptyMap());
+  private final ConcurrentHashMap<String, Object> lastConfig = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private final ConfigurationPoller configurationPoller;
+  private final AppSecModuleConfigurer.Reconfiguration reconfiguration;
 
-  private boolean hasUserConfig;
+  private boolean hasUserWafConfig;
 
   public AppSecConfigServiceImpl(
-      Config tracerConfig, @Nullable ConfigurationPoller configurationPoller) {
+      Config tracerConfig,
+      @Nullable ConfigurationPoller configurationPoller,
+      AppSecModuleConfigurer.Reconfiguration reconfig) {
     this.tracerConfig = tracerConfig;
     this.configurationPoller = configurationPoller;
+    this.reconfiguration = reconfig;
   }
 
   private void subscribeConfigurationPoller() {
+    // see also close() method
     this.configurationPoller.addListener(
         Product.ASM_DD,
         AppSecConfigDeserializer.INSTANCE,
@@ -55,12 +60,24 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             log.warn("AppSec configuration was pulled out by remote config. This has no effect");
             return true;
           }
-          Map<String, AppSecConfig> configMap = Collections.singletonMap("waf", newConfig);
-          distributeSubConfigurations(configMap);
-          this.lastConfig.set(configMap);
+          Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
+          this.lastConfig.put("waf", newConfig);
+          distributeSubConfigurations(configMap, reconfiguration);
           log.info(
               "New AppSec configuration has been applied. AppSec status: {}",
               AppSecSystem.ACTIVE ? "active" : "inactive");
+          return true;
+        });
+    this.configurationPoller.addListener(
+        Product.ASM_DATA,
+        AppSecDataDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          if (newConfig == null) {
+            newConfig = Collections.emptyList();
+          }
+          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", newConfig);
+          this.lastConfig.put("waf_data", wafDataConfigMap);
+          distributeSubConfigurations(wafDataConfigMap, reconfiguration);
           return true;
         });
 
@@ -76,7 +93,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         });
   }
 
-  private void distributeSubConfigurations(Map<String, AppSecConfig> newConfig) {
+  private void distributeSubConfigurations(
+      Map<String, Object> newConfig, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
     for (Map.Entry<String, SubconfigListener> entry : subconfigListeners.entrySet()) {
       String key = entry.getKey();
       if (!newConfig.containsKey(key)) {
@@ -84,7 +102,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
       SubconfigListener listener = entry.getValue();
       try {
-        listener.onNewSubconfig(newConfig.get(key));
+        listener.onNewSubconfig(newConfig.get(key), reconfiguration);
       } catch (Exception rte) {
         log.warn("Error updating configuration of app sec module listening on key " + key, rte);
       }
@@ -93,50 +111,75 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   @Override
   public void init() {
-    Map<String, AppSecConfig> config;
+    AppSecConfig wafConfig;
+    hasUserWafConfig = false;
     try {
-      config = loadUserConfig(tracerConfig);
-      hasUserConfig = config != null;
+      wafConfig = loadUserWafConfig(tracerConfig);
     } catch (Exception e) {
       log.error("Error loading user-provided config", e);
       throw new AbortStartupException("Error loading user-provided config", e);
     }
-    if (config == null) {
+    if (wafConfig == null) {
       try {
-        config = loadDefaultConfig();
+        wafConfig = loadDefaultWafConfig();
       } catch (IOException e) {
         log.error("Error loading default config", e);
         throw new AbortStartupException("Error loading default config", e);
       }
+    } else {
+      hasUserWafConfig = true;
     }
-    lastConfig.set(config);
+    lastConfig.put("waf", wafConfig);
   }
 
-  @Override
-  public void maybeInitPoller() {
-    if (!hasUserConfig && this.configurationPoller != null) {
-      subscribeConfigurationPoller();
-      configurationPoller.start();
+  public void maybeStartConfigPolling() {
+    if (this.configurationPoller != null) {
+      if (hasUserWafConfig) {
+        log.info("AppSec will not use remote config because there is a custom user configuration");
+      } else {
+        subscribeConfigurationPoller();
+      }
     }
-  }
-
-  @Override
-  public Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener) {
-    this.subconfigListeners.put(key, listener);
-    Map<String, AppSecConfig> lastConfig = this.lastConfig.get();
-    return Optional.ofNullable(lastConfig.get(key));
-  }
-
-  @Override
-  public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
-    this.traceSegmentPostProcessors.add(interceptor);
   }
 
   public List<TraceSegmentPostProcessor> getTraceSegmentPostProcessors() {
     return traceSegmentPostProcessors;
   }
 
-  private static Map<String, AppSecConfig> loadDefaultConfig() throws IOException {
+  /**
+   * Implementation of {@link AppSecModuleConfigurer} that solves two problems: - Avoids the
+   * submodules receiving configuration changes before their initial config is completed. - Avoid
+   * submodules being (partially) subscribed to configuration changes even if their initial config
+   * failed.
+   */
+  private class TransactionalAppSecModuleConfigurerImpl
+      implements TransactionalAppSecModuleConfigurer {
+    private Map<String, SubconfigListener> listenerMap = new HashMap<>();
+    private List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
+
+    @Override
+    public Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
+      listenerMap.put(key, listener);
+      return Optional.ofNullable(lastConfig.get(key));
+    }
+
+    @Override
+    public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {
+      postProcessors.add(interceptor);
+    }
+
+    public void commit() {
+      AppSecConfigServiceImpl.this.subconfigListeners.putAll(listenerMap);
+      AppSecConfigServiceImpl.this.traceSegmentPostProcessors.addAll(postProcessors);
+    }
+  }
+
+  @Override
+  public TransactionalAppSecModuleConfigurer createAppSecModuleConfigurer() {
+    return new TransactionalAppSecModuleConfigurerImpl();
+  }
+
+  private static AppSecConfig loadDefaultWafConfig() throws IOException {
     try (InputStream is =
         AppSecConfigServiceImpl.class
             .getClassLoader()
@@ -145,8 +188,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
 
-      Map<String, AppSecConfig> ret =
-          Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(is));
+      AppSecConfig ret = AppSecConfigDeserializer.INSTANCE.deserialize(is);
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, "<bundled config>");
       if (log.isInfoEnabled()) {
@@ -157,14 +199,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  private static Map<String, AppSecConfig> loadUserConfig(Config tracerConfig) throws IOException {
+  private static AppSecConfig loadUserWafConfig(Config tracerConfig) throws IOException {
     String filename = tracerConfig.getAppSecRulesFile();
     if (filename == null) {
       return null;
     }
     try (InputStream is = new FileInputStream(filename)) {
-      Map<String, AppSecConfig> ret =
-          Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(is));
+      AppSecConfig ret = AppSecConfigDeserializer.INSTANCE.deserialize(is);
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, filename);
       if (log.isInfoEnabled()) {
@@ -181,10 +222,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  /** Provide total amount of all events from all configs */
-  private static int countRules(Map<String, AppSecConfig> config) {
-    // get sum for each config->AppSecConfig.getEvents().size()
-    return config.values().stream().map(AppSecConfig::getRules).mapToInt(List::size).sum();
+  private static int countRules(AppSecConfig config) {
+    return config.getRules().size();
   }
 
   @Override
@@ -193,6 +232,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       return;
     }
     this.configurationPoller.removeListener(Product.ASM_DD);
+    this.configurationPoller.removeListener(Product.ASM_DATA);
     this.configurationPoller.removeFeaturesListener("asm");
     this.configurationPoller.stop();
   }

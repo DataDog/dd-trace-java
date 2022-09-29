@@ -43,16 +43,15 @@ public final class JakartaRsAnnotationsInstrumentation extends Instrumenter.Trac
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return JakartaRsAsyncResponseInstrumentation.CLASS_LOADER_MATCHER;
+  public String hierarchyMarkerType() {
+    return "jakarta.ws.rs.Path";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(
-        declaresAnnotation(named("jakarta.ws.rs.Path"))
-            .or(declaresMethod(isAnnotatedWith(named("jakarta.ws.rs.Path")))));
+        declaresAnnotation(named(hierarchyMarkerType()))
+            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
   }
 
   @Override

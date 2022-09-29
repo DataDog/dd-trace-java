@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
@@ -17,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask requires special treatment and can't
@@ -29,14 +27,6 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
     implements Instrumenter.ForSingleType {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // prevents Runnable from being instrumented unless this
-    // instrumentation would take effect (unless something else
-    // instruments it).
-    return hasClassesNamed("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask");
   }
 
   @Override

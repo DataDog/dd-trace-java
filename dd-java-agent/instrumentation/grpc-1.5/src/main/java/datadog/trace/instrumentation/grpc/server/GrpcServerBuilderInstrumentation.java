@@ -46,8 +46,13 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "io.grpc.ServerBuilder";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("io.grpc.ServerBuilder"));
+    return extendsClass(named(hierarchyMarkerType()));
   }
 
   @Override

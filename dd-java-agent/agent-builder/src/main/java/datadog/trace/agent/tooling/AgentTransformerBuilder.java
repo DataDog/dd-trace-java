@@ -2,6 +2,8 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -124,8 +126,10 @@ public class AgentTransformerBuilder
                     DynamicType.Builder<?> builder,
                     TypeDescription typeDescription,
                     ClassLoader classLoader,
-                    JavaModule module) {
-                  return customTransformer.transform(builder, typeDescription, classLoader, module);
+                    JavaModule module,
+                    ProtectionDomain pd) {
+                  return customTransformer.transform(
+                      builder, typeDescription, classLoader, module, pd);
                 }
               });
     }
@@ -137,6 +141,8 @@ public class AgentTransformerBuilder
 
   private AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
     ElementMatcher<? super TypeDescription> typeMatcher;
+    String hierarchyHint = null;
+
     if (instrumenter instanceof Instrumenter.ForSingleType) {
       String name = ((Instrumenter.ForSingleType) instrumenter).instrumentedType();
       typeMatcher = new SingleTypeMatcher(name);
@@ -145,6 +151,7 @@ public class AgentTransformerBuilder
       typeMatcher = new KnownTypesMatcher(names);
     } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
       typeMatcher = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher();
+      hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
     } else if (instrumenter instanceof Instrumenter.ForConfiguredType) {
       typeMatcher = none(); // handle below, just like when it's combined with other matchers
     } else if (instrumenter instanceof Instrumenter.ForCallSite) {
@@ -159,6 +166,7 @@ public class AgentTransformerBuilder
       typeMatcher =
           new ElementMatcher.Junction.Disjunction(
               typeMatcher, ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMatcher());
+      hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
     }
 
     if (instrumenter instanceof Instrumenter.ForConfiguredType) {
@@ -179,7 +187,12 @@ public class AgentTransformerBuilder
 
     ElementMatcher<ClassLoader> classLoaderMatcher = instrumenter.classLoaderMatcher();
 
-    if (classLoaderMatcher == ANY_CLASS_LOADER && typeMatcher instanceof AgentBuilder.RawMatcher) {
+    if (null != hierarchyHint) {
+      // use hint to limit expensive type matching to class-loaders with marker type
+      classLoaderMatcher = requireBoth(hasClassNamed(hierarchyHint), classLoaderMatcher);
+    }
+
+    if (ANY_CLASS_LOADER == classLoaderMatcher && typeMatcher instanceof AgentBuilder.RawMatcher) {
       // optimization when using raw (named) type matcher with no classloader filtering
       return (AgentBuilder.RawMatcher) typeMatcher;
     }
@@ -222,23 +235,51 @@ public class AgentTransformerBuilder
                 .advice(not(ignoreMatcher).and(matcher), name));
   }
 
-  static AgentBuilder.Transformer wrapVisitor(final AsmVisitorWrapper visitor) {
+  private static AgentBuilder.Transformer wrapVisitor(final AsmVisitorWrapper visitor) {
     return new AgentBuilder.Transformer() {
       @Override
       public DynamicType.Builder<?> transform(
           final DynamicType.Builder<?> builder,
           final TypeDescription typeDescription,
           final ClassLoader classLoader,
-          final JavaModule module) {
+          final JavaModule module,
+          final ProtectionDomain pd) {
         return builder.visit(visitor);
       }
     };
   }
 
+  private static ElementMatcher<ClassLoader> requireBoth(
+      ElementMatcher<ClassLoader> lhs, ElementMatcher<ClassLoader> rhs) {
+    if (ANY_CLASS_LOADER == lhs) {
+      return rhs;
+    } else if (ANY_CLASS_LOADER == rhs) {
+      return lhs;
+    } else {
+      return new ElementMatcher.Junction.Conjunction<>(lhs, rhs);
+    }
+  }
+
   /** Tracks which class-loader matchers are associated with each store request. */
   private void registerContextStoreInjection(
       Map<String, String> contextStore, Instrumenter.Default instrumenter) {
-    ElementMatcher<ClassLoader> activation = instrumenter.classLoaderMatcher();
+    ElementMatcher<ClassLoader> activation;
+
+    if (instrumenter instanceof Instrumenter.ForBootstrap) {
+      activation = ANY_CLASS_LOADER;
+    } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
+      String hierarchyHint = ((Instrumenter.ForTypeHierarchy) instrumenter).hierarchyMarkerType();
+      activation = null != hierarchyHint ? hasClassNamed(hierarchyHint) : ANY_CLASS_LOADER;
+    } else if (instrumenter instanceof Instrumenter.ForSingleType) {
+      activation = hasClassNamed(((Instrumenter.ForSingleType) instrumenter).instrumentedType());
+    } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
+      activation =
+          hasClassNamedOneOf(((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes());
+    } else {
+      activation = ANY_CLASS_LOADER;
+    }
+
+    activation = requireBoth(activation, instrumenter.classLoaderMatcher());
 
     for (Map.Entry<String, String> storeEntry : contextStore.entrySet()) {
       ElementMatcher<ClassLoader> oldActivation = contextStoreInjection.get(storeEntry);

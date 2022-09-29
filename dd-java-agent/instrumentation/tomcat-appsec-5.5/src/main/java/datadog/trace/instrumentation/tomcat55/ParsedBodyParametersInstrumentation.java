@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.tomcat55;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -33,8 +33,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // class that's not present in tomcat 5.0.x, which we don't support in the tomcat-5.5 instr
-    return hasClassesNamed("org.apache.tomcat.util.buf.StringCache");
+    // Avoid matching Tomcat 5.0.x which is not supported by this instrumentation.
+    return hasClassNamed("org.apache.tomcat.util.buf.StringCache");
   }
 
   @Override

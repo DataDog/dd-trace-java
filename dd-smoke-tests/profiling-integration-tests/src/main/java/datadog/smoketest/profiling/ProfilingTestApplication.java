@@ -13,19 +13,19 @@ public class ProfilingTestApplication {
   private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
 
   public static void main(final String[] args) throws InterruptedException {
-    long exitDelay = -1;
+    long duration = -1;
     if (args.length > 0) {
-      exitDelay = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
+      duration = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
     }
     setupDeadlock();
     final long startTime = System.currentTimeMillis();
     while (true) {
       tracedMethod();
-      if (exitDelay > 0 && exitDelay + startTime < System.currentTimeMillis()) {
+      if (duration > 0 && duration + startTime < System.currentTimeMillis()) {
         break;
       }
     }
-    System.out.println("Exiting (" + exitDelay + ")");
+    System.out.println("Exiting (" + duration + ")");
   }
 
   @Trace

@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import okhttp3.Request
 import okhttp3.Response
+import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -30,6 +31,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     return processBuilder
   }
 
+  @Ignore("Fails sometimes with 400 status code https://github.com/DataDog/dd-trace-java/issues/3871")
   def "Test trace snapshot of sending single request to Openliberty server"() {
     setup:
     Response response

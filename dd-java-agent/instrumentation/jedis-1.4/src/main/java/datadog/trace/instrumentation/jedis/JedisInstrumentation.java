@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jedis;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -32,8 +32,8 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Avoid matching 3.x
-    return not(hasClassesNamed("redis.clients.jedis.commands.ProtocolCommand"));
+    // Avoid matching Jedis 3+ which has its own instrumentation.
+    return not(hasClassNamed("redis.clients.jedis.commands.ProtocolCommand"));
   }
 
   @Override

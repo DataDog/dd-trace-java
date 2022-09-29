@@ -51,8 +51,13 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.hibernate.SharedSessionContract";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.hibernate.SharedSessionContract"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

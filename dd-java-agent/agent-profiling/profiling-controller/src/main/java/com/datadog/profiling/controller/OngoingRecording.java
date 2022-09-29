@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.Closeable;
 import java.time.Instant;
 import javax.annotation.Nonnull;
@@ -20,10 +21,11 @@ public interface OngoingRecording extends Closeable {
    * called.
    *
    * @param start start time of the snapshot
+   * @param kind the snapshot reason
    * @return {@link RecordingData} with snapshot information
    */
   @Nonnull
-  RecordingData snapshot(@Nonnull final Instant start);
+  RecordingData snapshot(@Nonnull final Instant start, ProfilingSnapshot.Kind kind);
 
   /** Close recording without capturing any data */
   @Override

@@ -9,7 +9,7 @@ import datadog.trace.api.Platform;
 /** Provides instrumentation of {@linkplain Throwable} constructor. */
 @AutoService(Instrumenter.class)
 public final class ThrowableInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public ThrowableInstrumentation() {
     super("throwables");

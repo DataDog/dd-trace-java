@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -39,14 +38,13 @@ public class SessionInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.jms.Session");
+  public String hierarchyMarkerType() {
+    return "javax.jms.Session";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.jms.Session"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

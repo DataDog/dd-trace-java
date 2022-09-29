@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
@@ -19,7 +20,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -35,14 +35,19 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
   public RunnableFutureInstrumentation() {
     super("java_concurrent", "runnable-future");
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return NameMatchers.<TypeDescription>notExcludedByName(RUNNABLE_FUTURE)
+    return notExcludedByName(RUNNABLE_FUTURE)
         .and(
             extendsClass(
                 named("java.util.concurrent.FutureTask")

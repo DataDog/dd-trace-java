@@ -24,7 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing
+    implements Instrumenter.ForBootstrap {
 
   public AbstractPreparedStatementInstrumentation(
       String instrumentationName, String... additionalNames) {

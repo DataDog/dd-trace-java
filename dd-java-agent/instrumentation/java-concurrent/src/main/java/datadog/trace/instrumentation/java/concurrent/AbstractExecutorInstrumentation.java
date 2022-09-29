@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class AbstractExecutorInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.CanShortcutTypeMatching {
+    implements Instrumenter.ForBootstrap, Instrumenter.CanShortcutTypeMatching {
 
   private static final Logger log = LoggerFactory.getLogger(AbstractExecutorInstrumentation.class);
 
@@ -58,6 +58,11 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
   @Override
   public String[] knownMatchingTypes() {
     return PERMITTED_EXECUTORS;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override

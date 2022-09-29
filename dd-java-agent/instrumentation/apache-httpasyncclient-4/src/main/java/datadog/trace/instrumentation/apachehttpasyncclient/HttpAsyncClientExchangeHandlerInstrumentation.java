@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -27,11 +26,6 @@ public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler");
-  }
-
-  @Override
   public boolean onlyMatchKnownTypes() {
     return isShortcutMatchingEnabled(false);
   }
@@ -46,9 +40,13 @@ public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(
-        named("org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override

@@ -36,8 +36,9 @@ public class OracleJdkRecordingData extends RecordingData {
       @Nonnull ObjectName recordingId,
       @Nonnull Instant start,
       @Nonnull Instant end,
+      @Nonnull Kind kind,
       @Nonnull JfrMBeanHelper helper) {
-    super(start, end);
+    super(start, end, kind);
     this.name = name;
     this.recordingId = recordingId;
     this.helper = helper;
@@ -58,11 +59,6 @@ public class OracleJdkRecordingData extends RecordingData {
   @Nonnull
   public String getName() {
     return name;
-  }
-
-  @Override
-  public String toString() {
-    return "OracleJdkRecording: " + getName();
   }
 
   private class JfrRecordingStream extends InputStream {

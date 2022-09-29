@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class DataSourceInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   public DataSourceInstrumentation() {
     super("jdbc-datasource");
   }
@@ -34,6 +34,11 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing
     return new String[] {
       packageName + ".DataSourceDecorator",
     };
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override

@@ -31,7 +31,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(Instrumenter.class)
 public final class ClassloadingInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForTypeHierarchy {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   public ClassloadingInstrumentation() {
     super("classloading");
   }
@@ -39,6 +39,11 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing
   @Override
   protected boolean defaultEnabled() {
     return true;
+  }
+
+  @Override
+  public String hierarchyMarkerType() {
+    return null; // bootstrap type
   }
 
   @Override

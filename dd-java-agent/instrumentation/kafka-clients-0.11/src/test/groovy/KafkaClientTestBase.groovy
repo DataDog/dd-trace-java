@@ -23,8 +23,8 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Ignore
 import spock.lang.Requires
-import spock.lang.Retry
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -601,6 +601,7 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
 
   }
 
+  @Ignore("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
   def "test spring kafka template produce and batch consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
@@ -871,7 +872,6 @@ abstract class KafkaClientTestBase extends AgentTestRunner {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -896,7 +896,6 @@ class KafkaClientForkedTest extends KafkaClientTestBase {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -922,7 +921,6 @@ class KafkaClientSplitByDestinationForkedTest extends KafkaClientTestBase {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {
@@ -946,7 +944,6 @@ class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
   }
 }
 
-@Retry(count = 5, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   void configurePreAgent() {

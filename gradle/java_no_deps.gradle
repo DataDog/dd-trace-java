@@ -205,7 +205,7 @@ project.afterEvaluate {
       def allowedOrForced = !isJdkExcluded(testJvm) &&
         (isJavaLanguageVersionAllowed(metadata.languageVersion, it.name) || isJdkForced(testJvm))
       javaLauncher = javaTestLauncher
-      onlyIf {allowedOrForced  }
+      onlyIf { allowedOrForced }
       if (applyCodeCoverage) {
         jacoco {
           // Disable jacoco for additional JVM tests to speed things up a bit
@@ -227,6 +227,32 @@ project.afterEvaluate {
         def latestTestArtifacts = configurations.latestDepTestRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
         assert testArtifacts != latestTestArtifacts: "latestDepTest dependencies are identical to test"
       }
+    }
+  }
+
+  [JavaCompile, ScalaCompile, GroovyCompile].each { type ->
+    tasks.withType(type).configureEach {
+      if (options.fork) {
+        options.forkOptions.with {
+          memoryMaximumSize = "256M"
+        }
+      }
+    }
+  }
+
+  if (project.plugins.hasPlugin('kotlin')) {
+    ['compileKotlin', 'compileTestKotlin'].each { type ->
+      tasks.named(type).configure {
+        kotlinOptions {
+          freeCompilerArgs += '-Xmx256m'
+        }
+      }
+    }
+  }
+
+  tasks.withType(JavaExec).configureEach {
+    if (!it.maxHeapSize) {
+      it.maxHeapSize('256M')
     }
   }
 }

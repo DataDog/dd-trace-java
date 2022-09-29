@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.servlet.http;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -27,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
+import java.security.ProtectionDomain;
 import java.security.SecureClassLoader;
 import java.util.Collections;
 import java.util.Map;
@@ -52,14 +52,13 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.servlet.http.HttpServlet");
+  public String hierarchyMarkerType() {
+    return "javax.servlet.ServletRequest";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.servlet.ServletRequest"));
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -102,75 +101,78 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
 
   @Override
   public AdviceTransformer transformer() {
-    // transformer possible adding extra 3 methods to ServletInputStreamWrapper
-    return new AdviceTransformer() {
-      private final Map<ClassLoader, Boolean> injectedClassLoaders =
-          Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>());
+    return new CustomTransformer();
+  }
 
-      @Override
-      public DynamicType.Builder<?> transform(
-          DynamicType.Builder<?> builder,
-          TypeDescription typeDescription,
-          ClassLoader classLoader,
-          JavaModule module) {
-        if (classLoader == null) {
-          classLoader = BOOTSTRAP_CLASSLOADER_PLACEHOLDER;
-        }
+  // transformer possible adding extra 3 methods to ServletInputStreamWrapper
+  static class CustomTransformer implements AdviceTransformer {
+    private static final String STREAM_WRAPPER_TYPE =
+        "datadog.trace.instrumentation.servlet.http.ServletInputStreamWrapper";
+    private final Map<ClassLoader, Boolean> injectedClassLoaders =
+        Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>());
 
-        if (injectedClassLoaders.containsKey(classLoader)) {
-          return builder;
-        }
-        injectedClassLoaders.put(classLoader, Boolean.TRUE);
-
-        TypePool.Resolution readListenerRes;
-        TypePool typePoolUserCl;
-        if (classLoader != BOOTSTRAP_CLASSLOADER_PLACEHOLDER) {
-          typePoolUserCl = TypePool.Default.of(classLoader);
-        } else {
-          typePoolUserCl = TypePool.Default.ofBootLoader();
-        }
-        readListenerRes = typePoolUserCl.describe("javax.servlet.ReadListener");
-        if (!readListenerRes.isResolved()) {
-          // likely servlet < 3.1
-          // inject original
-          return new HelperInjector(
-                  "servlet-request-body", new String[] {packageName + ".ServletInputStreamWrapper"})
-              .transform(builder, typeDescription, classLoader, module);
-        }
-
-        // else at the very least servlet 3.1+ classes are available
-        // modify ServletInputStreamWrapper before injecting it. This should be harmless even if
-        // servlet 3.1 is on the
-        // classpath without the implementation supporting it
-        ClassFileLocator compoundLocator =
-            new ClassFileLocator.Compound(
-                ClassFileLocator.ForClassLoader.of(getClass().getClassLoader()),
-                ClassFileLocator.ForClassLoader.of(classLoader));
-
-        TypePool.Resolution origWrapperRes =
-            TypePool.Default.of(compoundLocator)
-                .describe(packageName + ".ServletInputStreamWrapper");
-        if (!origWrapperRes.isResolved()) {
-          throw new RuntimeException("Could not load original ServletInputStreamWrapper");
-        }
-        TypeDescription origWrapperType = origWrapperRes.resolve();
-
-        DynamicType.Unloaded<?> unloaded =
-            new ByteBuddy()
-                .rebase(origWrapperType, compoundLocator)
-                .method(named("isFinished").and(takesNoArguments()))
-                .intercept(MethodDelegation.toField("is"))
-                .method(named("isReady").and(takesNoArguments()))
-                .intercept(MethodDelegation.toField("is"))
-                .method(named("setReadListener").and(takesArguments(readListenerRes.resolve())))
-                .intercept(MethodDelegation.toField("is"))
-                .make();
-        return new HelperInjector(
-                "servlet-request-body",
-                Collections.singletonMap(origWrapperType.getName(), unloaded.getBytes()))
-            .transform(builder, typeDescription, classLoader, module);
+    @Override
+    public DynamicType.Builder<?> transform(
+        DynamicType.Builder<?> builder,
+        TypeDescription typeDescription,
+        ClassLoader classLoader,
+        JavaModule module,
+        ProtectionDomain pd) {
+      if (classLoader == null) {
+        classLoader = BOOTSTRAP_CLASSLOADER_PLACEHOLDER;
       }
-    };
+
+      if (injectedClassLoaders.containsKey(classLoader)) {
+        return builder;
+      }
+      injectedClassLoaders.put(classLoader, Boolean.TRUE);
+
+      TypePool.Resolution readListenerRes;
+      TypePool typePoolUserCl;
+      if (classLoader != BOOTSTRAP_CLASSLOADER_PLACEHOLDER) {
+        typePoolUserCl = TypePool.Default.of(classLoader);
+      } else {
+        typePoolUserCl = TypePool.Default.ofBootLoader();
+      }
+      readListenerRes = typePoolUserCl.describe("javax.servlet.ReadListener");
+      if (!readListenerRes.isResolved()) {
+        // likely servlet < 3.1
+        // inject original
+        return new HelperInjector("servlet-request-body", STREAM_WRAPPER_TYPE)
+            .transform(builder, typeDescription, classLoader, module, pd);
+      }
+
+      // else at the very least servlet 3.1+ classes are available
+      // modify ServletInputStreamWrapper before injecting it. This should be harmless even if
+      // servlet 3.1 is on the
+      // classpath without the implementation supporting it
+      ClassFileLocator compoundLocator =
+          new ClassFileLocator.Compound(
+              ClassFileLocator.ForClassLoader.of(getClass().getClassLoader()),
+              ClassFileLocator.ForClassLoader.of(classLoader));
+
+      TypePool.Resolution origWrapperRes =
+          TypePool.Default.of(compoundLocator).describe(STREAM_WRAPPER_TYPE);
+      if (!origWrapperRes.isResolved()) {
+        throw new RuntimeException("Could not load original ServletInputStreamWrapper");
+      }
+      TypeDescription origWrapperType = origWrapperRes.resolve();
+
+      DynamicType.Unloaded<?> unloaded =
+          new ByteBuddy()
+              .rebase(origWrapperType, compoundLocator)
+              .method(named("isFinished").and(takesNoArguments()))
+              .intercept(MethodDelegation.toField("is"))
+              .method(named("isReady").and(takesNoArguments()))
+              .intercept(MethodDelegation.toField("is"))
+              .method(named("setReadListener").and(takesArguments(readListenerRes.resolve())))
+              .intercept(MethodDelegation.toField("is"))
+              .make();
+      return new HelperInjector(
+              "servlet-request-body",
+              Collections.singletonMap(origWrapperType.getName(), unloaded.getBytes()))
+          .transform(builder, typeDescription, classLoader, module, pd);
+    }
   }
 
   @SuppressWarnings("Duplicates")

@@ -11,7 +11,7 @@ import datadog.trace.api.Platform;
 
 @AutoService(Instrumenter.class)
 public final class DirectByteBufferInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public DirectByteBufferInstrumentation() {
     super("directbytebuffer", "directallocation");

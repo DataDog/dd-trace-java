@@ -378,11 +378,9 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
+      // start debugger before remote config to subscribe to it before starting to poll
+      maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
-
-      if (debuggerEnabled) {
-        startDebuggerAgent(instrumentation, scoClass, sco);
-      }
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -765,8 +763,19 @@ public class Agent {
     }
   }
 
+  private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (!debuggerEnabled) {
+      return;
+    }
+    if (!remoteConfigEnabled) {
+      log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not enabled");
+      return;
+    }
+    startDebuggerAgent(inst, scoClass, sco);
+  }
+
   private static synchronized void startDebuggerAgent(
-      final Instrumentation inst, Class<?> scoClass, Object sco) {
+      Instrumentation inst, Class<?> scoClass, Object sco) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
