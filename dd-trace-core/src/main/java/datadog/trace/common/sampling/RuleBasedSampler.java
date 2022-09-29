@@ -38,6 +38,11 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
   }
 
   public static <T extends CoreSpan<T>> RuleBasedSampler<T> build(
+      final JsonSamplingRules traceSamplingRules, final Double defaultRate, final int rateLimit) {
+    return build(null, null, traceSamplingRules, defaultRate, rateLimit);
+  }
+
+  public static <T extends CoreSpan<T>> RuleBasedSampler<T> build(
       @Deprecated final Map<String, String> serviceRules,
       @Deprecated final Map<String, String> operationRules,
       final JsonSamplingRules traceSamplingRules,

@@ -88,9 +88,8 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
 
     @Override
     public boolean matches(T span) {
-      return serviceName == null
-          || serviceName.equals(span.getServiceName()) && operationName == null
-          || operationName.contentEquals(span.getOperationName());
+      return (serviceName == null || serviceName.equals(span.getServiceName()))
+          && (operationName == null || operationName.contentEquals(span.getOperationName()));
     }
   }
 }

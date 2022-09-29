@@ -2856,6 +2856,8 @@ public class Config {
         + traceSamplingServiceRules
         + ", traceSamplingOperationRules="
         + traceSamplingOperationRules
+        + ", traceSamplingJsonRules="
+        + traceSamplingJsonRules
         + ", traceSampleRate="
         + traceSampleRate
         + ", traceRateLimit="
