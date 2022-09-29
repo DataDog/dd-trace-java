@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.ConnectionHandleRequestVisitor;
+import java.security.ProtectionDomain;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -88,7 +89,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
           DynamicType.Builder<?> builder,
           TypeDescription typeDescription,
           ClassLoader classLoader,
-          JavaModule module) {
+          JavaModule module,
+          ProtectionDomain pd) {
         return builder.visit(new ConnectionHandleRequestVisitorWrapper());
       }
     };

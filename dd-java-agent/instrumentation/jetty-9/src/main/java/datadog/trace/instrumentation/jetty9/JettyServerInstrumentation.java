@@ -21,6 +21,7 @@ import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -103,7 +104,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
           DynamicType.Builder<?> builder,
           TypeDescription typeDescription,
           ClassLoader classLoader,
-          JavaModule module) {
+          JavaModule module,
+          ProtectionDomain pd) {
         return builder.visit(new HttpChannelHandleVisitorWrapper());
       }
     };
