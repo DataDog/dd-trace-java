@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.HashMap;
@@ -55,7 +56,8 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the callee of MessageDigest
-    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -78,7 +80,8 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     // get StackTraceElement for the caller of MessageDigest
-    StackTraceElement stackTraceElement = stackWalker.walk(stack -> stack.findFirst().get());
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -279,7 +282,7 @@ public final class IastModuleImpl implements IastModule {
     }
 
     StackTraceElement stackTraceElement =
-        stackWalker.walk(IastModuleImpl::findFirstFrameForSecondPackage);
+        stackWalker.walk(IastModuleImpl::findValidPackageForVulnerability);
 
     Vulnerability vulnerability =
         new Vulnerability(
@@ -289,30 +292,19 @@ public final class IastModuleImpl implements IastModule {
     reporter.report(span, vulnerability);
   }
 
-  private static StackTraceElement findFirstFrameForSecondPackage(
+  private static StackTraceElement findValidPackageForVulnerability(
       Stream<StackTraceElement> stream) {
-    Iterator<StackTraceElement> iterator = stream.iterator();
-    if (!iterator.hasNext()) {
-      return null;
-    }
-    String firstPackage = packageFor(iterator.next().getClassName());
-    while (iterator.hasNext()) {
-      StackTraceElement ste = iterator.next();
-      String className = ste.getClassName();
-      if (packageFor(className).equals(firstPackage)) {
-        continue;
-      }
-      return ste;
-    }
-    return null;
-  }
-
-  private static String packageFor(String className) {
-    int i = className.lastIndexOf('.');
-    if (i == -1) {
-      return "";
-    }
-    return className.substring(0, i);
+    final StackTraceElement[] first = new StackTraceElement[1];
+    return stream
+        .filter(
+            stack -> {
+              if (first[0] == null) {
+                first[0] = stack;
+              }
+              return IastExclusionTrie.apply(stack.getClassName()) != 1;
+            })
+        .findFirst()
+        .orElse(first[0]);
   }
 
   private static Range[] getRanges(final TaintedObject taintedObject) {

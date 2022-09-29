@@ -9,6 +9,10 @@ apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api deps.slf4j
+
+  compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-8')
   implementation project(':internal-api:internal-api-9')
