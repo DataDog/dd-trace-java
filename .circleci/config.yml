@@ -171,6 +171,7 @@ jobs:
             GRADLE_OPTS="-Dkotlin.daemon.jvm.options=-Xmx512M -Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
+            --max-workers=8
 
       - run:
           name: Collect Libs
