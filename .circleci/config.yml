@@ -39,7 +39,7 @@ save_cache_paths: &save_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15", "17" ]
+    testJvm: [ "7" ]
 
 parameters:
   gradle_flags:
@@ -626,10 +626,7 @@ build_test_jobs: &build_test_jobs
         - check
         - agent_integration_tests
         - test_8
-        - test_11
-        - test_15
-        - test_17
-        - test_ZULU8
+        - test_7
       name: required
       testJvm: "required tasks" # only used in a print statement
 
