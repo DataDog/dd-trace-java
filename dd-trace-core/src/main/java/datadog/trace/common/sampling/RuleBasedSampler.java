@@ -1,5 +1,6 @@
 package datadog.trace.common.sampling;
 
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
@@ -51,40 +52,51 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
 
     final List<SamplingRule<T>> samplingRules = new ArrayList<>();
 
-    if (serviceRules != null) {
-      for (final Entry<String, String> entry : serviceRules.entrySet()) {
-        try {
-          final double rateForEntry = Double.parseDouble(entry.getValue());
-          final SamplingRule<T> samplingRule =
-              new ServiceSamplingRule<>(entry.getKey(), new DeterministicSampler<T>(rateForEntry));
-          samplingRules.add(samplingRule);
-        } catch (final NumberFormatException e) {
-          log.error("Unable to parse rate for service: {}", entry, e);
-        }
-      }
-    }
-
-    if (operationRules != null) {
-      for (final Entry<String, String> entry : operationRules.entrySet()) {
-        try {
-          final double rateForEntry = Double.parseDouble(entry.getValue());
-          final SamplingRule<T> samplingRule =
-              new OperationSamplingRule<>(
-                  entry.getKey(), new DeterministicSampler<T>(rateForEntry));
-          samplingRules.add(samplingRule);
-        } catch (final NumberFormatException e) {
-          log.error("Unable to parse rate for operation: {}", entry, e);
-        }
-      }
-    }
-
     if (traceSamplingRules != null) {
+      if ((!serviceRules.isEmpty() || !operationRules.isEmpty()) && !traceSamplingRules.isEmpty()) {
+        log.warn(
+            "Both {} and/or {} as well as {} are defined. Only {} will be used for rule-based sampling",
+            TracerConfig.TRACE_SAMPLING_SERVICE_RULES,
+            TracerConfig.TRACE_SAMPLING_OPERATION_RULES,
+            TracerConfig.TRACE_SAMPLING_RULES,
+            TracerConfig.TRACE_SAMPLING_RULES);
+      }
+      // Ignore serviceRules & operationRules if traceSamplingRules are defined
       for (JsonSamplingRules.Rule rule : traceSamplingRules.getRules()) {
         if (rule.service != null || rule.name != null) {
           ExactMatchSamplingRule<T> samplingRule =
               new ExactMatchSamplingRule<>(
                   rule.service, rule.name, new DeterministicSampler<T>(rule.sample_rate));
           samplingRules.add(samplingRule);
+        }
+      }
+    } else {
+      // Take into account serviceRules & operationRules only if traceSamplingRules are NOT defined
+      if (serviceRules != null) {
+        for (final Entry<String, String> entry : serviceRules.entrySet()) {
+          try {
+            final double rateForEntry = Double.parseDouble(entry.getValue());
+            final SamplingRule<T> samplingRule =
+                new ServiceSamplingRule<>(
+                    entry.getKey(), new DeterministicSampler<T>(rateForEntry));
+            samplingRules.add(samplingRule);
+          } catch (final NumberFormatException e) {
+            log.error("Unable to parse rate for service: {}", entry, e);
+          }
+        }
+      }
+
+      if (operationRules != null) {
+        for (final Entry<String, String> entry : operationRules.entrySet()) {
+          try {
+            final double rateForEntry = Double.parseDouble(entry.getValue());
+            final SamplingRule<T> samplingRule =
+                new OperationSamplingRule<>(
+                    entry.getKey(), new DeterministicSampler<T>(rateForEntry));
+            samplingRules.add(samplingRule);
+          } catch (final NumberFormatException e) {
+            log.error("Unable to parse rate for operation: {}", entry, e);
+          }
         }
       }
     }
