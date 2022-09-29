@@ -42,7 +42,6 @@ public final class TraceInstrumentationConfig {
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
-  public static final String JDBC_USE_HIERARCHY_MATCHER = "trace.jdbc.use.hierarchy.matcher";
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =

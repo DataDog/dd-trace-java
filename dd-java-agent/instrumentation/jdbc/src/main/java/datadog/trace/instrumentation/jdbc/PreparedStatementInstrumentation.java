@@ -3,13 +3,14 @@ package datadog.trace.instrumentation.jdbc;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import java.util.Collections;
 
 @AutoService(Instrumenter.class)
 public final class PreparedStatementInstrumentation extends AbstractPreparedStatementInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
   @Override
   protected boolean defaultEnabled() {
-    return !Config.get().getJdbcUseHierarchyMatcher() && Config.get().isIntegrationsEnabled();
+    return !Config.get().isIntegrationEnabled(Collections.singletonList("greenplum"), false);
   }
 
   private static final String[] CONCRETE_TYPES = {

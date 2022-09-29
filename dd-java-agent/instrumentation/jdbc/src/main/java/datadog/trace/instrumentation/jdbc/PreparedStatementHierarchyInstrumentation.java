@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -13,12 +12,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class PreparedStatementHierarchyInstrumentation
     extends AbstractPreparedStatementInstrumentation implements Instrumenter.ForTypeHierarchy {
   public PreparedStatementHierarchyInstrumentation() {
-    super("jdbc", "jdbcMatcher");
+    super("jdbc", "greenplum");
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().getJdbcUseHierarchyMatcher() && Config.get().isIntegrationsEnabled();
+    return false;
   }
 
   @Override

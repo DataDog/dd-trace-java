@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import java.util.Collections;
 
 @AutoService(Instrumenter.class)
 public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
@@ -10,7 +11,7 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
 
   @Override
   protected boolean defaultEnabled() {
-    return !Config.get().getJdbcUseHierarchyMatcher() && Config.get().isIntegrationsEnabled();
+    return !Config.get().isIntegrationEnabled(Collections.singletonList("greenplum"), false);
   }
 
   private static final String[] CONCRETE_TYPES = {

@@ -45,7 +45,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_VULNERABILITIES_PER_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JDBC_USE_HIERARCHY_MATCHER;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
@@ -237,7 +236,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_USE_HIERARCHY_MATCHER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
@@ -612,7 +610,6 @@ public class Config {
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
-  private final boolean jdbcUseHierarchyMatcher;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -1204,8 +1201,6 @@ public class Config {
 
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
-    jdbcUseHierarchyMatcher =
-        configProvider.getBoolean(JDBC_USE_HIERARCHY_MATCHER, DEFAULT_JDBC_USE_HIERARCHY_MATCHER);
     awsPropagationEnabled = isPropagationEnabled(true, "aws");
     sqsPropagationEnabled = awsPropagationEnabled && isPropagationEnabled(true, "sqs");
 
@@ -2088,10 +2083,6 @@ public class Config {
 
   public String getJdbcConnectionClassName() {
     return jdbcConnectionClassName;
-  }
-
-  public boolean getJdbcUseHierarchyMatcher() {
-    return jdbcUseHierarchyMatcher;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {

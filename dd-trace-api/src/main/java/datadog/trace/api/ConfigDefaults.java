@@ -64,7 +64,6 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
-  static final boolean DEFAULT_JDBC_USE_HIERARCHY_MATCHER = false;
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
