@@ -32,7 +32,7 @@ public final class ConfigProvider {
     this.sources = sources;
   }
 
-  public final String getConfigFileStatus() {
+  public String getConfigFileStatus() {
     for (ConfigProvider.Source source : sources) {
       if (source instanceof PropertiesConfigSource) {
         String configFileStatus = ((PropertiesConfigSource) source).getConfigFileStatus();
@@ -44,11 +44,11 @@ public final class ConfigProvider {
     return "no config file present";
   }
 
-  public final String getString(String key) {
+  public String getString(String key) {
     return getString(key, null);
   }
 
-  public final <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
+  public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
     String value = getString(key);
     if (null != value) {
       try {
@@ -60,7 +60,7 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
-  public final String getString(String key, String defaultValue, String... aliases) {
+  public String getString(String key, String defaultValue, String... aliases) {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
@@ -70,7 +70,7 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
-  public final String getStringExcludingSource(
+  public String getStringExcludingSource(
       String key,
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
@@ -88,60 +88,60 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
-  public final boolean isSet(String key) {
+  public boolean isSet(String key) {
     String value = getString(key);
     return value != null && !value.isEmpty();
   }
 
-  public final Boolean getBoolean(String key) {
+  public Boolean getBoolean(String key) {
     return get(key, null, Boolean.class);
   }
 
-  public final Boolean getBoolean(String key, String... aliases) {
+  public Boolean getBoolean(String key, String... aliases) {
     return get(key, null, Boolean.class, aliases);
   }
 
-  public final boolean getBoolean(String key, boolean defaultValue, String... aliases) {
+  public boolean getBoolean(String key, boolean defaultValue, String... aliases) {
     return get(key, defaultValue, Boolean.class, aliases);
   }
 
-  public final Integer getInteger(String key) {
+  public Integer getInteger(String key) {
     return get(key, null, Integer.class);
   }
 
-  public final Integer getInteger(String key, String... aliases) {
+  public Integer getInteger(String key, String... aliases) {
     return get(key, null, Integer.class, aliases);
   }
 
-  public final int getInteger(String key, int defaultValue, String... aliases) {
+  public int getInteger(String key, int defaultValue, String... aliases) {
     return get(key, defaultValue, Integer.class, aliases);
   }
 
-  public final Long getLong(String key) {
+  public Long getLong(String key) {
     return get(key, null, Long.class);
   }
 
-  public final Long getLong(String key, String... aliases) {
+  public Long getLong(String key, String... aliases) {
     return get(key, null, Long.class, aliases);
   }
 
-  public final long getLong(String key, long defaultValue, String... aliases) {
+  public long getLong(String key, long defaultValue, String... aliases) {
     return get(key, defaultValue, Long.class, aliases);
   }
 
-  public final Float getFloat(String key, String... aliases) {
+  public Float getFloat(String key, String... aliases) {
     return get(key, null, Float.class, aliases);
   }
 
-  public final float getFloat(String key, float defaultValue) {
+  public float getFloat(String key, float defaultValue) {
     return get(key, defaultValue, Float.class);
   }
 
-  public final Double getDouble(String key) {
+  public Double getDouble(String key) {
     return get(key, null, Double.class);
   }
 
-  public final double getDouble(String key, double defaultValue) {
+  public double getDouble(String key, double defaultValue) {
     return get(key, defaultValue, Double.class);
   }
 
@@ -161,11 +161,11 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
-  public final List<String> getList(String key) {
+  public List<String> getList(String key) {
     return ConfigConverter.parseList(getString(key));
   }
 
-  public final Set<String> getSet(String key, Set<String> defaultValue) {
+  public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
       return defaultValue;
@@ -174,11 +174,11 @@ public final class ConfigProvider {
     }
   }
 
-  public final List<String> getSpacedList(String key) {
+  public List<String> getSpacedList(String key) {
     return ConfigConverter.parseList(getString(key), " ");
   }
 
-  public final Map<String, String> getMergedMap(String key) {
+  public Map<String, String> getMergedMap(String key) {
     Map<String, String> merged = new HashMap<>();
     // System properties take precedence over env
     // prior art:
@@ -191,7 +191,7 @@ public final class ConfigProvider {
     return merged;
   }
 
-  public final Map<String, String> getOrderedMap(String key) {
+  public Map<String, String> getOrderedMap(String key) {
     LinkedHashMap<String, String> map = new LinkedHashMap<>();
     // System properties take precedence over env
     // prior art:
@@ -204,7 +204,7 @@ public final class ConfigProvider {
     return map;
   }
 
-  public final Map<String, String> getMergedMapWithOptionalMappings(
+  public Map<String, String> getMergedMapWithOptionalMappings(
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
     Map<String, String> merged = new HashMap<>();
     // System properties take precedence over env
