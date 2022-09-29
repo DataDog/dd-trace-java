@@ -15,6 +15,27 @@ public class TestStringSuite {
     return result;
   }
 
+  public static String substring(String self, int beginIndex, int endIndex) {
+    LOGGER.debug("Before string substring {} from {} to {}", self, beginIndex, endIndex);
+    final String result = self.substring(beginIndex, endIndex);
+    LOGGER.debug("After string substring {}", result);
+    return result;
+  }
+
+  public static String substring(String self, int beginIndex) {
+    LOGGER.debug("Before string substring {} from {}", self, beginIndex);
+    final String result = self.substring(beginIndex);
+    LOGGER.debug("After string substring {}", result);
+    return result;
+  }
+
+  public static CharSequence subSequence(String self, Integer beginIndex, Integer endIndex) {
+    LOGGER.debug("Before string subSequence {} from {} to {}", self, beginIndex, endIndex);
+    final CharSequence result = self.subSequence(beginIndex, endIndex);
+    LOGGER.debug("After string subSequence {}", result);
+    return result;
+  }
+
   public static String stringToUpperCase(String in, Locale locale) {
     LOGGER.debug("Before string toUppercase {} ", in);
     if (null == locale) {

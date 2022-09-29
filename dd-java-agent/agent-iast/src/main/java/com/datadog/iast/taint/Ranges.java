@@ -208,62 +208,71 @@ public final class Ranges {
     }
   }
 
+  public static Range[] forSubstring(int offset, int length, final @Nonnull Range[] ranges) {
+
+    int[] includedRangesInterval = getIncludedRangesInterval(offset, length, ranges);
+
+    // No ranges in the interval
+    if (includedRangesInterval[0] == -1) {
+      return null;
+    }
+    final int firstRangeIncludedIndex = includedRangesInterval[0];
+    final int lastRangeIncludedIndex =
+        includedRangesInterval[1] != -1 ? includedRangesInterval[1] : ranges.length;
+    final int newRagesSize = lastRangeIncludedIndex - firstRangeIncludedIndex;
+    Range[] newRanges = new Range[newRagesSize];
+    for (int rangeIndex = firstRangeIncludedIndex, newRangeIndex = 0;
+        newRangeIndex < newRagesSize;
+        rangeIndex++, newRangeIndex++) {
+      Range range = ranges[rangeIndex];
+      if (offset == 0) {
+        newRanges[newRangeIndex] = range;
+      } else {
+        int newStart = range.getStart() - offset;
+        int newLength = range.getLength();
+        final int newEnd = newStart + newLength;
+        if (newStart < 0) {
+          newLength = newLength + newStart;
+          newStart = 0;
+        }
+        if (newEnd > length) {
+          newLength = length - newStart;
+        }
+        if (newLength > 0) {
+          newRanges[newRangeIndex] = new Range(newStart, newLength, range.getSource());
+        }
+      }
+    }
+
+    return newRanges;
+  }
+
+  public static int[] getIncludedRangesInterval(
+      int offset, int length, final @Nonnull Range[] ranges) {
+    // index of the first included range
+    int start = -1;
+    // index of the first not included range
+    int end = -1;
+    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+      final Range rangeSelf = ranges[rangeIndex];
+      if (rangeSelf.getStart() < offset + length
+          && rangeSelf.getStart() + rangeSelf.getLength() > offset) {
+        if (start == -1) {
+          start = rangeIndex;
+        }
+      } else if (start != -1) {
+        end = rangeIndex;
+        break;
+      }
+    }
+    return new int[] {start, end};
+  }
+
   public static Range createIfDifferent(Range range, int start, int length) {
     if (start != range.getStart() || length != range.getLength()) {
       return new Range(start, length, range.getSource());
     } else {
       return range;
     }
-  }
-
-  public static Range[] forSubstring(int offset, int length, @Nonnull Range[] ranges) {
-    // calculate how many skipped ranges are there
-    int skippedRanges = 0;
-    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
-      final Range rangeSelf = ranges[rangeIndex];
-      if (rangeSelf.getStart() + rangeSelf.getLength() <= offset) {
-        skippedRanges++;
-      } else {
-        break;
-      }
-    }
-
-    for (int rangeIndex = ranges.length - 1; rangeIndex >= 0; rangeIndex--) {
-      final Range rangeSelf = ranges[rangeIndex];
-      if (rangeSelf.getStart() - offset >= length) {
-        skippedRanges++;
-      } else {
-        break;
-      }
-    }
-
-    // Range adjusting
-
-    if (0 == ranges.length - skippedRanges) {
-      return null;
-    }
-
-    Range[] newRanges = new Range[ranges.length - skippedRanges];
-    int newRangeIndex = 0;
-    for (int rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
-      final Range rangeSelf = ranges[rangeIndex];
-
-      int newStart = rangeSelf.getStart() - offset;
-      int newLength = rangeSelf.getLength();
-      final int newEnd = newStart + newLength;
-      if (newStart < 0) {
-        newLength = newLength + newStart;
-        newStart = 0;
-      }
-      if (newEnd > length) {
-        newLength = length - newStart;
-      }
-      if (newLength > 0) {
-        newRanges[newRangeIndex] = createIfDifferent(rangeSelf, newStart, newLength);
-        newRangeIndex++;
-      }
-    }
-
-    return newRanges;
   }
 }

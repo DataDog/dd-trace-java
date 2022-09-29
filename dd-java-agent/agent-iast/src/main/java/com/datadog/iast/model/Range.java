@@ -30,8 +30,12 @@ public final class Range {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Range range = (Range) o;
     return start == range.start && length == range.length && Objects.equals(source, range.source);
   }

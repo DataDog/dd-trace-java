@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
@@ -182,6 +183,32 @@ public final class IastModuleImpl implements IastModule {
       return;
     }
     taintedObjects.taint(builder, paramTainted.getRanges());
+  }
+
+  @Override
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
+  public void onStringSubSequence(
+      @Nullable String self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+    if (!canBeTaintedNullSafe(self) || !canBeTaintedNullSafe(result) || self == result) {
+      return;
+    }
+    final IastRequestContext ctx = IastRequestContext.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject selfTainted = taintedObjects.get(self);
+    if (selfTainted == null) {
+      return;
+    }
+    final Range[] rangesSelf = selfTainted.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+    Range[] newRanges = Ranges.forSubstring(beginIndex, result.length(), rangesSelf);
+    if (newRanges != null && newRanges.length > 0) {
+      taintedObjects.taint(result, newRanges);
+    }
   }
 
   @Override

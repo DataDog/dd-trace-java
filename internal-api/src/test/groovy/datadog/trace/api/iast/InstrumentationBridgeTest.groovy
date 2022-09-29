@@ -40,6 +40,8 @@ class InstrumentationBridgeTest extends DDSpecification {
     new BridgeMethod('onPathTraversal', ['/var', ['log', 'log.txt'] as String[]], 'onPathTraversal'),
     new BridgeMethod('onPathTraversal', [new File('/var'), '/log/log.txt'], 'onPathTraversal'),
     new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
+    new BridgeMethod('onStringSubSequence', ["Hello", 1, 3, "el"], 'onStringSubSequence'),
+    new BridgeMethod('onPathTraversal', [new URI('file:/tmp')], 'onPathTraversal'),
     new BridgeMethod('onDirContextSearch', [null, 'filter', null], 'onDirContextSearch')
   ]
 
@@ -69,7 +71,9 @@ class InstrumentationBridgeTest extends DDSpecification {
     then:
     1 * module."${bridgeMethod.moduleMethod}"(*_) >> { List args ->
       try {
-        args.size().times { assert args[it].is(bridgeMethod.params[it]) }
+        args.size().times {
+          assert args[it].is(bridgeMethod.params[it])
+        }
       } catch (Throwable t) {
         exception = t
       }
@@ -90,7 +94,9 @@ class InstrumentationBridgeTest extends DDSpecification {
     InstrumentationBridge."${bridgeMethod.bridgeMethod}"(*bridgeMethod.params)
 
     then:
-    1 * module."${bridgeMethod.moduleMethod}"(*_) >> { throw new Throwable('should not leak') }
+    1 * module."${bridgeMethod.moduleMethod}"(*_) >> {
+      throw new Throwable('should not leak')
+    }
     0 * _
     noExceptionThrown()
 
