@@ -37,6 +37,14 @@ public final class TestSpan implements AgentSpan {
   }
 
   @Override
+  public void markForBlocking() {}
+
+  @Override
+  public boolean isToBeBlocked() {
+    return false;
+  }
+
+  @Override
   public AgentSpan setTag(final String tag, final Number value) {
     return this;
   }

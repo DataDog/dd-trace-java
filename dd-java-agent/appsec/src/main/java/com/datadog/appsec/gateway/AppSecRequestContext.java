@@ -60,6 +60,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean finishedResponseHeaders;
   private String peerAddress;
   private int peerPort;
+  private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
@@ -270,6 +271,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setPeerPort(int peerPort) {
     this.peerPort = peerPort;
+  }
+
+  void setInferredClientIp(String ipAddress) {
+    this.inferredClientIp = ipAddress;
+  }
+
+  String getInferredClientIp() {
+    return inferredClientIp;
   }
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {

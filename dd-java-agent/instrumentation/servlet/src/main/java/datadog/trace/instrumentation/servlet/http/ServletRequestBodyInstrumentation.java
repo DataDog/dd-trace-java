@@ -26,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
+import java.security.ProtectionDomain;
 import java.security.SecureClassLoader;
 import java.util.Collections;
 import java.util.Map;
@@ -115,7 +116,8 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
         DynamicType.Builder<?> builder,
         TypeDescription typeDescription,
         ClassLoader classLoader,
-        JavaModule module) {
+        JavaModule module,
+        ProtectionDomain pd) {
       if (classLoader == null) {
         classLoader = BOOTSTRAP_CLASSLOADER_PLACEHOLDER;
       }
@@ -137,7 +139,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
         // likely servlet < 3.1
         // inject original
         return new HelperInjector("servlet-request-body", STREAM_WRAPPER_TYPE)
-            .transform(builder, typeDescription, classLoader, module);
+            .transform(builder, typeDescription, classLoader, module, pd);
       }
 
       // else at the very least servlet 3.1+ classes are available
@@ -169,7 +171,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec
       return new HelperInjector(
               "servlet-request-body",
               Collections.singletonMap(origWrapperType.getName(), unloaded.getBytes()))
-          .transform(builder, typeDescription, classLoader, module);
+          .transform(builder, typeDescription, classLoader, module, pd);
     }
   }
 

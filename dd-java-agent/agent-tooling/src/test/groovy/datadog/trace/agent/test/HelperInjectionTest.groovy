@@ -31,7 +31,7 @@ class HelperInjectionTest extends DDSpecification {
     thrown ClassNotFoundException
 
     when:
-    injector.transform(null, null, emptyLoader.get(), null)
+    injector.transform(null, null, emptyLoader.get(), null, null)
     emptyLoader.get().loadClass(HELPER_CLASS_NAME)
     then:
     isClassLoaded(HELPER_CLASS_NAME, emptyLoader.get())
@@ -61,7 +61,7 @@ class HelperInjectionTest extends DDSpecification {
     thrown ClassNotFoundException
 
     when:
-    injector.transform(null, null, BOOTSTRAP_CLASSLOADER, null)
+    injector.transform(null, null, BOOTSTRAP_CLASSLOADER, null, null)
     Class<?> helperClass = bootstrapChild.loadClass(HELPER_CLASS_NAME)
     then:
     helperClass.getClassLoader() == BOOTSTRAP_CLASSLOADER

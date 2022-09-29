@@ -146,6 +146,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
     assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(flow);
+    ss.registerCallback(events.requestInferredClientAddress(), callback);
+    assertThat(cbp.getCallback(events.requestInferredClientAddress()).apply(null, null))
+        .isEqualTo(flow);
     ss.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
     assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
     ss.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
@@ -188,6 +191,9 @@ public class InstrumentationGatewayTest {
         .isEqualTo(Flow.ResultFlow.empty());
     ss.registerCallback(events.requestClientSocketAddress(), throwback.asClientSocketAddress());
     assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
+        .isEqualTo(Flow.ResultFlow.empty());
+    ss.registerCallback(events.requestInferredClientAddress(), throwback.asInferredClientAddress());
+    assertThat(cbp.getCallback(events.requestInferredClientAddress()).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
     ss.registerCallback(events.requestBodyStart(), throwback.asRequestBodyStart());
     assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
@@ -479,6 +485,16 @@ public class InstrumentationGatewayTest {
       return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
         @Override
         public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
+          count++;
+          throw new IllegalArgumentException();
+        }
+      };
+    }
+
+    public BiFunction<RequestContext, String, Flow<Void>> asInferredClientAddress() {
+      return new BiFunction<RequestContext, String, Flow<Void>>() {
+        @Override
+        public Flow<Void> apply(RequestContext requestContext, String s) {
           count++;
           throw new IllegalArgumentException();
         }

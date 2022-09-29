@@ -92,6 +92,8 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
@@ -244,7 +246,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
-import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
@@ -528,6 +529,8 @@ public class Config {
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
+  private final String appSecHttpBlockedTemplateHtml;
+  private final String appSecHttpBlockedTemplateJson;
 
   private final boolean iastEnabled;
   private final int iastMaxConcurrentRequests;
@@ -581,7 +584,6 @@ public class Config {
 
   private final boolean igniteCacheIncludeKeys;
 
-  private final int osgiSearchDepth;
   private final String obfuscationQueryRegexp;
 
   // TODO: remove at a future point.
@@ -1111,6 +1113,11 @@ public class Config {
     appSecObfuscationParameterValueRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
 
+    appSecHttpBlockedTemplateHtml =
+        configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
+    appSecHttpBlockedTemplateJson =
+        configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
+
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
     iastMaxConcurrentRequests =
         configProvider.getInteger(
@@ -1242,8 +1249,6 @@ public class Config {
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
-
-    osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
     obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
 
@@ -1809,6 +1814,14 @@ public class Config {
     return appSecObfuscationParameterValueRegexp;
   }
 
+  public String getAppSecHttpBlockedTemplateHtml() {
+    return appSecHttpBlockedTemplateHtml;
+  }
+
+  public String getAppSecHttpBlockedTemplateJson() {
+    return appSecHttpBlockedTemplateJson;
+  }
+
   public boolean isIastEnabled() {
     return iastEnabled;
   }
@@ -1979,10 +1992,6 @@ public class Config {
 
   public boolean isIgniteCacheIncludeKeys() {
     return igniteCacheIncludeKeys;
-  }
-
-  public int getOsgiSearchDepth() {
-    return osgiSearchDepth;
   }
 
   public String getObfuscationQueryRegexp() {
@@ -3022,8 +3031,6 @@ public class Config {
         + hystrixMeasuredEnabled
         + ", igniteCacheIncludeKeys="
         + igniteCacheIncludeKeys
-        + ", osgiSearchDepth="
-        + osgiSearchDepth
         + ", servletPrincipalEnabled="
         + servletPrincipalEnabled
         + ", servletAsyncTimeoutError="
@@ -3074,6 +3081,10 @@ public class Config {
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
+        + ", appSecHttpBlockedTemplateHtml="
+        + appSecHttpBlockedTemplateHtml
+        + ", appSecHttpBlockedTemplateJson="
+        + appSecHttpBlockedTemplateJson
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="

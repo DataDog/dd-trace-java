@@ -109,7 +109,7 @@ public class MuzzleVersionScanPlugin {
             new HelperInjector(
                     MuzzleVersionScanPlugin.class.getSimpleName(),
                     createHelperMap(defaultInstrumenter))
-                .transform(null, null, userClassLoader, null);
+                .transform(null, null, userClassLoader, null, null);
           }
         } catch (final Exception e) {
           System.err.println(

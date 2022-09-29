@@ -50,6 +50,7 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
       packageName + ".Servlet2Decorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HttpServletRequestExtractAdapter",
+      "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };
   }
 
