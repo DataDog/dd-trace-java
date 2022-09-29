@@ -1,5 +1,6 @@
 package com.datadog.profiling.context;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -10,7 +11,8 @@ public final class AsyncProfilerTracingContextTrackerFactory
     implements TracingContextTrackerFactory.Implementation {
 
   public static boolean isEnabled(ConfigProvider configProvider) {
-    return configProvider.getBoolean(
+    return Platform.isLinux()
+        && configProvider.getBoolean(
             ProfilingConfig.PROFILING_ASYNC_ENABLED,
             ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
         && configProvider.getBoolean(

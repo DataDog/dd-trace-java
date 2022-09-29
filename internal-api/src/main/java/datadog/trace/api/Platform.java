@@ -204,6 +204,10 @@ public final class Platform {
     return JAVA_VERSION.isBetween(fromMajor, fromMinor, fromUpdate, toMajor, toMinor, toUpdate);
   }
 
+  public static boolean isLinux() {
+    return System.getProperty("os.name").toLowerCase().contains("linux");
+  }
+
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
     final String os = System.getProperty("os.name").toLowerCase();
