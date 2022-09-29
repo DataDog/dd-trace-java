@@ -43,6 +43,7 @@ dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  implementation project(':dd-java-agent:instrumentation:jetty-common')
 
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:testing')) {

@@ -4,7 +4,7 @@ import static java.util.Collections.*;
 
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
-import com.datadog.appsec.config.AppSecConfigService;
+import com.datadog.appsec.config.AppSecModuleConfigurer;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
@@ -114,20 +114,28 @@ public class PowerWAFModule implements AppSecModule {
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
+  private AtomicReference<List<Map<String, Object>>> wafData =
+      new AtomicReference<>(Collections.emptyList());
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
 
   @Override
-  public void config(AppSecConfigService appSecConfigService)
+  public void config(AppSecModuleConfigurer appSecConfigService)
       throws AppSecModuleActivationException {
-    Optional<AppSecConfig> initialConfig =
+    Optional<Object> initialData =
+        appSecConfigService.addSubConfigListener("waf_data", this::updateWafData);
+    if (initialData.isPresent()) {
+      this.wafData.set((List<Map<String, Object>>) initialData.get());
+    }
+
+    Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
     if (!initialConfig.isPresent()) {
       throw new AppSecModuleActivationException("No initial config for WAF");
     }
     try {
-      applyConfig(initialConfig.get());
+      applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
     } catch (ClassCastException e) {
       throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
     }
@@ -138,10 +146,26 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
-  private void applyConfig(AppSecConfig config) throws AppSecModuleActivationException {
-    if (log.isDebugEnabled()) {
-      log.info("Configuring WAF");
+  // after the initial config, changes in ctxAndAddresses and wafData
+  // should happen on the same thread (the remote config thread), so it can't
+  // happen that ctxAndAddresses is replaced before we have a chance of
+  // updating the rule data.
+  // We need to protect against races with the thread doing initial config though
+  private void updateWafData(Object data_, AppSecModuleConfigurer.Reconfiguration ignoredReconf) {
+    List<Map<String, Object>> data = (List<Map<String, Object>>) data_;
+
+    this.wafData.set(data); // save for reapplying data on future rule updates
+    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
+    if (curCtxAndAddr != null) {
+      curCtxAndAddr.ctx.updateRuleData(data);
     }
+  }
+
+  private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
+      throws AppSecModuleActivationException {
+    log.info("Configuring WAF");
+
+    AppSecConfig config = (AppSecConfig) config_;
 
     CtxAndAddresses prevContextAndAddresses = this.ctxAndAddresses.get();
     CtxAndAddresses newContextAndAddresses;
@@ -161,6 +185,11 @@ public class PowerWAFModule implements AppSecModule {
 
       initReport = newPwafCtx.getRuleSetInfo();
       Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
+
+      List<Map<String, Object>> wafData = this.wafData.get();
+      if (!wafData.isEmpty()) {
+        newPwafCtx.updateRuleData(wafData);
+      }
 
       Map<String, RuleInfo> rulesInfoMap = new HashMap<>();
       config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
@@ -191,6 +220,8 @@ public class PowerWAFModule implements AppSecModule {
     if (prevContextAndAddresses != null) {
       prevContextAndAddresses.ctx.delReference();
     }
+
+    reconf.reloadSubscriptions();
   }
 
   private PowerwafConfig createPowerwafConfig() {
@@ -275,7 +306,7 @@ public class PowerWAFModule implements AppSecModule {
     @Override
     public void onDataAvailable(
         ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData, boolean isTransient) {
-      Powerwaf.ActionWithData actionWithData;
+      Powerwaf.ResultWithData resultWithData;
       CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
       if (ctxAndAddr == null) {
         log.debug("Skipped; the WAF is not configured");
@@ -288,7 +319,7 @@ public class PowerWAFModule implements AppSecModule {
           start = System.currentTimeMillis();
         }
 
-        actionWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
+        resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
 
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
@@ -300,23 +331,33 @@ public class PowerWAFModule implements AppSecModule {
         return;
       }
 
-      StandardizedLogging.inAppWafReturn(log, actionWithData);
+      StandardizedLogging.inAppWafReturn(log, resultWithData);
 
-      if (actionWithData.action != Powerwaf.Action.OK) {
+      if (resultWithData.result != Powerwaf.Result.OK) {
         if (log.isDebugEnabled()) {
-          log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
+          log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
         }
-        flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
-        if (actionWithData.action == Powerwaf.Action.BLOCK) {
-          reqCtx.setBlocked(true);
+        if (resultWithData.actions.length > 0) {
+          boolean isBlocking = false;
+          for (String action : resultWithData.actions) {
+            if ("block".equals(action) || "block_request".equals(action)) {
+              isBlocking = true;
+              break;
+            }
+          }
+
+          if (isBlocking) {
+            flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
+            reqCtx.setBlocked(true);
+          }
         }
-        Collection<AppSecEvent100> events = buildEvents(actionWithData, ctxAndAddr.rulesInfoMap);
+        Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
         reqCtx.reportEvents(events, null);
       }
     }
 
-    private Powerwaf.ActionWithData doRunPowerwaf(
+    private Powerwaf.ResultWithData doRunPowerwaf(
         AppSecRequestContext reqCtx,
         DataBundle newData,
         CtxAndAddresses ctxAndAddr,
@@ -334,7 +375,7 @@ public class PowerWAFModule implements AppSecModule {
       }
     }
 
-    private Powerwaf.ActionWithData runPowerwafAdditive(
+    private Powerwaf.ResultWithData runPowerwafAdditive(
         Additive additive, PowerwafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
         throws AbstractPowerwafException {
       return additive.run(
@@ -342,7 +383,7 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
-  private Powerwaf.ActionWithData runPowerwafTransient(
+  private Powerwaf.ResultWithData runPowerwafTransient(
       PowerwafMetrics metrics, DataBundle bundle, CtxAndAddresses ctxAndAddr)
       throws AbstractPowerwafException {
     return ctxAndAddr.ctx.runRules(
@@ -350,7 +391,7 @@ public class PowerWAFModule implements AppSecModule {
   }
 
   private Collection<AppSecEvent100> buildEvents(
-      Powerwaf.ActionWithData actionWithData, Map<String, RuleInfo> rulesInfoMap) {
+      Powerwaf.ResultWithData actionWithData, Map<String, RuleInfo> rulesInfoMap) {
     Collection<PowerWAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
