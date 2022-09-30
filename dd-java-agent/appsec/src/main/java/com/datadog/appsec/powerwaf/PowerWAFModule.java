@@ -1,6 +1,7 @@
 package com.datadog.appsec.powerwaf;
 
 import static java.util.Collections.*;
+import static java.util.stream.Collectors.toMap;
 
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
@@ -80,18 +81,31 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
+  private static class ActionInfo {
+    final String type;
+    final Map<String, Object> parameters;
+
+    private ActionInfo(String type, Map<String, Object> parameters) {
+      this.type = type;
+      this.parameters = parameters;
+    }
+  }
+
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final PowerwafContext ctx;
     final Map<String, RuleInfo> rulesInfoMap;
+    final Map<String /* id */, ActionInfo> actionInfoMap;
 
     private CtxAndAddresses(
         Collection<Address<?>> addressesOfInterest,
         PowerwafContext ctx,
-        Map<String, RuleInfo> rulesInfoMap) {
+        Map<String, RuleInfo> rulesInfoMap,
+        Map<String, ActionInfo> actionInfoMap) {
       this.addressesOfInterest = addressesOfInterest;
       this.ctx = ctx;
       this.rulesInfoMap = rulesInfoMap;
+      this.actionInfoMap = actionInfoMap;
     }
   }
 
@@ -214,14 +228,27 @@ public class PowerWAFModule implements AppSecModule {
 
       Map<String, RuleInfo> rulesInfoMap =
           config.getRules().stream()
-              .collect(Collectors.toMap(AppSecConfig.Rule::getId, rule -> new RuleInfo(rule)));
+              .collect(toMap(AppSecConfig.Rule::getId, rule -> new RuleInfo(rule)));
+
+      Map<String, ActionInfo> actionInfoMap =
+          ((List<Map<String, Object>>)
+                  config.getRawConfig().getOrDefault("actions", Collections.emptyList()))
+              .stream()
+                  .collect(
+                      toMap(
+                          m -> (String) m.get("id"),
+                          m ->
+                              new ActionInfo(
+                                  (String) m.get("type"),
+                                  (Map<String, Object>) m.get("parameters"))));
 
       Map<String, Boolean> rulesOverride = this.wafRulesOverride.get();
       if (!rulesOverride.isEmpty()) {
         newPwafCtx.toggleRules(new FilledInRuleTogglingMap(rulesOverride, rulesInfoMap.keySet()));
       }
 
-      newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap);
+      newContextAndAddresses =
+          new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.fileVersion;
       }
@@ -366,21 +393,43 @@ public class PowerWAFModule implements AppSecModule {
         }
 
         if (resultWithData.actions.length > 0) {
-          boolean isBlocking = false;
           for (String action : resultWithData.actions) {
-            if ("block".equals(action) || "block_request".equals(action)) {
-              isBlocking = true;
+            ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
+            if (actionInfo == null) {
+              log.warn(
+                  "WAF indicated action {}, but such action id is unknown (not one from {})",
+                  action,
+                  ctxAndAddr.actionInfoMap.keySet());
+            } else if ("block_request".equals(actionInfo.type)) {
+              Flow.Action.RequestBlockingAction rba = createRequestBlockingAction(actionInfo);
+              flow.setAction(rba);
               break;
+            } else {
+              log.info("Ignoring action with type {}", actionInfo.type);
             }
-          }
-
-          if (isBlocking) {
-            flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
-            reqCtx.setBlocked(true);
           }
         }
         Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
         reqCtx.reportEvents(events, null);
+      }
+    }
+
+    private Flow.Action.RequestBlockingAction createRequestBlockingAction(ActionInfo actionInfo) {
+      try {
+        int statusCode =
+            ((Number) actionInfo.parameters.getOrDefault("status_code", 403)).intValue();
+        String contentType = (String) actionInfo.parameters.getOrDefault("type", "auto");
+        Flow.Action.BlockingContentType blockingContentType = Flow.Action.BlockingContentType.AUTO;
+        try {
+          blockingContentType =
+              Flow.Action.BlockingContentType.valueOf(contentType.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException iae) {
+          log.warn("Unknown content type: {}; using auto", contentType);
+        }
+        return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
+      } catch (RuntimeException cce) {
+        log.warn("Invalid blocking action data", cce);
+        return null;
       }
     }
 

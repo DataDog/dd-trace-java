@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
@@ -73,8 +74,9 @@ public class Servlet3Advice {
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
-    if (span.isToBeBlocked()) {
-      ServletBlockingHelper.commitBlockingResponse(httpServletRequest, httpServletResponse);
+    Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+    if (rba != null) {
+      ServletBlockingHelper.commitBlockingResponse(httpServletRequest, httpServletResponse, rba);
       return true; // skip method body
     }
 

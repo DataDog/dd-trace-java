@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
@@ -27,14 +28,15 @@ public class JettyBlockingHelper {
 
   private JettyBlockingHelper() {}
 
-  public static void block(Request request, Response response) {
+  public static void block(
+      Request request, Response response, Flow.Action.RequestBlockingAction rba) {
     if (GET_OUTPUT_STREAM != null && !response.isCommitted()) {
       try {
         OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
-        response.setStatus(BlockingActionHelper.getHttpCode(0));
+        response.setStatus(BlockingActionHelper.getHttpCode(rba.getStatusCode()));
         String acceptHeader = request.getHeader("Accept");
         BlockingActionHelper.TemplateType type =
-            BlockingActionHelper.determineTemplateType(acceptHeader);
+            BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
         response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
         byte[] template = BlockingActionHelper.getTemplate(type);
         response.setHeader("Content-length", Integer.toString(template.length));

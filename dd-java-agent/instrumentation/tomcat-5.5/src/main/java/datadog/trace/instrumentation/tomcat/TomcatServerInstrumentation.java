@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -167,8 +168,9 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
                 ? (AgentSpan.Context.Extracted) ctxObj
                 : null;
         DECORATE.onRequest(span, req, req, ctx);
-        if (span.isToBeBlocked()) {
-          TomcatBlockingHelper.commitBlockingResponse(req, resp);
+        Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+        if (rba != null) {
+          TomcatBlockingHelper.commitBlockingResponse(req, resp, rba);
           ret = false; // skip pipeline
         }
       }

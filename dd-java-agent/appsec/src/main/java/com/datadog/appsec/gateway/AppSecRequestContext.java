@@ -65,7 +65,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
   private int responseStatus;
-  private boolean blocked;
 
   private boolean reqDataPublished;
   private boolean rawReqBodyPublished;
@@ -291,14 +290,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setResponseStatus(int responseStatus) {
     this.responseStatus = responseStatus;
-  }
-
-  public boolean isBlocked() {
-    return blocked;
-  }
-
-  public void setBlocked(boolean blocked) {
-    this.blocked = blocked;
   }
 
   public boolean isReqDataPublished() {
