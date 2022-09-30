@@ -119,8 +119,6 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_URL;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
@@ -547,8 +545,6 @@ public class Config {
   private final long remoteConfigMaxPayloadSize;
 
   private final boolean debuggerEnabled;
-  private final String debuggerSnapshotUrl;
-  private final String debuggerProbeUrl;
   private final int debuggerUploadTimeout;
   private final int debuggerUploadFlushInterval;
   private final boolean debuggerClassFileDumpEnabled;
@@ -1171,8 +1167,6 @@ public class Config {
             * 1024;
 
     debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
-    debuggerSnapshotUrl = configProvider.getString(DEBUGGER_SNAPSHOT_URL);
-    debuggerProbeUrl = configProvider.getString(DEBUGGER_PROBE_URL);
     debuggerUploadTimeout =
         configProvider.getInteger(DEBUGGER_UPLOAD_TIMEOUT, DEFAULT_DEBUGGER_UPLOAD_TIMEOUT);
     debuggerUploadFlushInterval =
@@ -1919,17 +1913,11 @@ public class Config {
   }
 
   public String getFinalDebuggerProbeUrl() {
-    if (debuggerProbeUrl != null) {
-      return debuggerProbeUrl;
-    }
     // by default poll from datadog agent
     return "http://" + agentHost + ":" + agentPort;
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    if (debuggerSnapshotUrl != null) {
-      return debuggerSnapshotUrl;
-    }
     // by default send to datadog agent
     return agentUrl + "/debugger/v1/input";
   }
@@ -2973,10 +2961,6 @@ public class Config {
         + remoteConfigMaxPayloadSize
         + ", debuggerEnabled="
         + debuggerEnabled
-        + ", debuggerSnapshotUrl="
-        + debuggerSnapshotUrl
-        + ", debuggerProbeUrl="
-        + debuggerProbeUrl
         + ", debuggerUploadTimeout="
         + debuggerUploadTimeout
         + ", debuggerUploadFlushInterval="
