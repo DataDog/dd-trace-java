@@ -92,3 +92,17 @@ tasks.withType(Test).configureEach {
     }
   }
 }
+
+Project parent_project = project
+subprojects { Project subProj ->
+  subProj.tasks.withType(Test).configureEach { subTask ->
+    onlyIf { !project.rootProject.hasProperty("skipDebuggerTests") }
+
+    // Make it so all instrumentation subproject tests can be run with a single command.
+    if (parent_project.hasProperty(subTask.name)) {
+      parent_project.tasks.named(subTask.name).configure {
+        dependsOn(subTask)
+      }
+    }
+  }
+}
