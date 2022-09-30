@@ -2,6 +2,7 @@ package com.datadog.profiling.auxiliary;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.ServiceLoader;
@@ -37,9 +38,10 @@ public final class AuxiliaryProfiler {
 
   AuxiliaryProfiler(ConfigProvider configProvider) {
     String auxilliaryType =
-        configProvider.getBoolean(
-                ProfilingConfig.PROFILING_ASYNC_ENABLED,
-                ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
+        Platform.isLinux()
+                && configProvider.getBoolean(
+                    ProfilingConfig.PROFILING_ASYNC_ENABLED,
+                    ProfilingConfig.PROFILING_ASYNC_ENABLED_DEFAULT)
             ? "async"
             : configProvider.getString(
                 ProfilingConfig.PROFILING_AUXILIARY_TYPE,

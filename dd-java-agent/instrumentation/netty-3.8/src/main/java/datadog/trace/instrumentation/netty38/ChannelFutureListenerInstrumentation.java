@@ -76,10 +76,10 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing
       /*
       Idea here is:
        - To return scope only if we have captured it.
-       - To capture scope only in case of error.
+       - To capture scope only in case of error on a non-null channel.
        */
       final Throwable cause = future.getCause();
-      if (cause == null) {
+      if (cause == null || future.getChannel() == null) {
         return null;
       }
 

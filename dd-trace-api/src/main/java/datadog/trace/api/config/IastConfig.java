@@ -9,6 +9,7 @@ public final class IastConfig {
   public static final String IAST_MAX_CONCURRENT_REQUESTS = "iast.max-concurrent-request";
   public static final String IAST_VULNERABILITIES_PER_REQUEST = "iast.vulnerabilities-per-request";
   public static final String IAST_REQUEST_SAMPLING = "iast.request-sampling";
+  public static final String IAST_DEDUPLICATION_ENABLED = "iast.deduplication.enabled";
 
   private IastConfig() {}
 }

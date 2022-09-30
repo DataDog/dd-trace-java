@@ -211,7 +211,6 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
     prop.setProperty(DEBUGGER_ENABLED, "true")
-    prop.setProperty(DEBUGGER_SNAPSHOT_URL, "snapshot url")
     prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
     prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
     prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
@@ -296,7 +295,7 @@ class ConfigTest extends DDSpecification {
     config.remoteConfigMaxPayloadSizeBytes == 2048
 
     config.debuggerEnabled == true
-    config.getFinalDebuggerSnapshotUrl() == "snapshot url"
+    config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
     config.debuggerProbeFileLocation == "file location"
     config.debuggerUploadTimeout == 10
     config.debuggerUploadFlushInterval == 1000

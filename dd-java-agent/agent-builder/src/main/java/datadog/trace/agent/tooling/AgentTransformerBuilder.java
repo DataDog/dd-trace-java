@@ -126,8 +126,10 @@ public class AgentTransformerBuilder
                     DynamicType.Builder<?> builder,
                     TypeDescription typeDescription,
                     ClassLoader classLoader,
-                    JavaModule module) {
-                  return customTransformer.transform(builder, typeDescription, classLoader, module);
+                    JavaModule module,
+                    ProtectionDomain pd) {
+                  return customTransformer.transform(
+                      builder, typeDescription, classLoader, module, pd);
                 }
               });
     }
@@ -240,7 +242,8 @@ public class AgentTransformerBuilder
           final DynamicType.Builder<?> builder,
           final TypeDescription typeDescription,
           final ClassLoader classLoader,
-          final JavaModule module) {
+          final JavaModule module,
+          final ProtectionDomain pd) {
         return builder.visit(visitor);
       }
     };
