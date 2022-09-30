@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -19,11 +18,6 @@ public class ConnectionHierarchyInstrumentation extends AbstractConnectionInstru
   @Override
   protected boolean defaultEnabled() {
     return false;
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return Config.get().getJdbcUseHierarchyMatcher() && Config.get().isIntegrationsEnabled();
   }
 
   @Override
