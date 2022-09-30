@@ -79,7 +79,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
     RecordedRequest request = retrieveSnapshotRequest();
     assertFalse(logHasErrors(logFilePath, it -> false));
@@ -128,7 +128,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
@@ -145,7 +145,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));

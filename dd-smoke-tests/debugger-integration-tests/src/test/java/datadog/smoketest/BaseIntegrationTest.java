@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 public abstract class BaseIntegrationTest {
   protected static final Logger LOG = LoggerFactory.getLogger(BaseIntegrationTest.class);
-  protected static final String SINGLE_EXPECTED_UPLOAD = "1";
   protected static final String PROBE_URL_PATH = "/v0.7/config";
   protected static final String SNAPSHOT_URL_PATH = "/debugger/v1/input";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
