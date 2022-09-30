@@ -105,8 +105,6 @@ class EventDispatcherSpecification extends DDSpecification {
   }
 
   void 'blocking interrupts data listener calls'() {
-    def exception = new RuntimeException()
-
     given:
     DataListener dataListener1 = Mock()
     DataListener dataListener2 = Mock()
@@ -127,11 +125,12 @@ class EventDispatcherSpecification extends DDSpecification {
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true) >> {
       ChangeableFlow flow = it.first()
-      flow.action = new Flow.Action.Throw(exception)
+      flow.action = new Flow.Action.RequestBlockingAction(404, Flow.Action.BlockingContentType.AUTO)
     }
     0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean)
     assert resultFlow.blocking
-    assert resultFlow.action.blockingException.is(exception)
+    assert resultFlow.action.statusCode == 404
+    assert resultFlow.action.blockingContentType == Flow.Action.BlockingContentType.AUTO
   }
 
   void 'non transient data publishing saves the bundle in the context'() {

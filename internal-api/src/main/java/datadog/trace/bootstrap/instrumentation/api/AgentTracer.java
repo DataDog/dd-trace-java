@@ -8,6 +8,7 @@ import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.function.Consumer;
 import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
@@ -442,11 +443,11 @@ public class AgentTracer {
     }
 
     @Override
-    public void markForBlocking() {}
+    public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {}
 
     @Override
-    public boolean isToBeBlocked() {
-      return false;
+    public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
+      return null;
     }
 
     @Override

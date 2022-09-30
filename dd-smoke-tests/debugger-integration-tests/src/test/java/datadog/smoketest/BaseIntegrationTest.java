@@ -109,15 +109,13 @@ public abstract class BaseIntegrationTest {
             "-Ddd.dynamic.instrumentation.enabled=true",
             "-Ddd.remote_config.enabled=true",
             "-Ddd.remote_config.initial.poll.interval=1",
-            // "-Ddd.remote_config.url=http://localhost:" + probeServer.getPort(),
-            /*
+            /*"-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
                 + probeServer.getPort()
                 + PROBE_URL_PATH,
             "-Ddd.dynamic.instrumentation.snapshot.url=http://localhost:"
                 + snapshotServer.getPort()
-                + SNAPSHOT_URL_PATH,
-             */
+                + SNAPSHOT_URL_PATH,*/
             "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
             // to verify each snapshot upload one by one
             "-Ddd.dynamic.instrumentation.upload.batch.size=1",

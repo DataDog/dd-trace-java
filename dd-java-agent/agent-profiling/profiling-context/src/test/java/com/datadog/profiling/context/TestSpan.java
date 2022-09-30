@@ -1,6 +1,7 @@
 package com.datadog.profiling.context;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -37,11 +38,11 @@ public final class TestSpan implements AgentSpan {
   }
 
   @Override
-  public void markForBlocking() {}
+  public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {}
 
   @Override
-  public boolean isToBeBlocked() {
-    return false;
+  public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
+    return null;
   }
 
   @Override

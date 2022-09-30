@@ -121,10 +121,12 @@ public class InstrumentationGatewayTest {
   }
 
   @Test
-  public void testThrownAction() {
-    Flow.Action.Throw thrown = new Flow.Action.Throw(new Exception("my message"));
-    assertThat(thrown.isBlocking()).isTrue();
-    assertThat(thrown.getBlockingException().getMessage()).isEqualTo("my message");
+  public void testRequestBlockingAction() {
+    Flow.Action.RequestBlockingAction rba =
+        new Flow.Action.RequestBlockingAction(400, Flow.Action.BlockingContentType.HTML);
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(400);
+    assertThat(rba.getBlockingContentType()).isEqualTo(Flow.Action.BlockingContentType.HTML);
   }
 
   @Test
@@ -323,7 +325,7 @@ public class InstrumentationGatewayTest {
         new Flow.ResultFlow<Void>(null) {
           @Override
           public Action getAction() {
-            return new Action.Throw(new Exception());
+            return new Action.RequestBlockingAction(410, Action.BlockingContentType.AUTO);
           }
         };
 

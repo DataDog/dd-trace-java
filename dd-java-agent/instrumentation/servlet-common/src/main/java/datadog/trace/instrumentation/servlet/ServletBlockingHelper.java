@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import java.io.IOException;
@@ -13,14 +14,17 @@ public class ServletBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(ServletBlockingHelper.class);
 
   public static void commitBlockingResponse(
-      HttpServletRequest httpServletRequest, HttpServletResponse resp) {
-    int statusCode = BlockingActionHelper.getHttpCode(0);
+      HttpServletRequest httpServletRequest,
+      HttpServletResponse resp,
+      Flow.Action.RequestBlockingAction rba) {
+    int statusCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
     if (!start(resp, statusCode)) {
       return;
     }
 
     String acceptHeader = httpServletRequest.getHeader("Accept");
-    TemplateType type = BlockingActionHelper.determineTemplateType(acceptHeader);
+    TemplateType type =
+        BlockingActionHelper.determineTemplateType(rba.getBlockingContentType(), acceptHeader);
     byte[] template = BlockingActionHelper.getTemplate(type);
     String contentType = BlockingActionHelper.getContentType(type);
 

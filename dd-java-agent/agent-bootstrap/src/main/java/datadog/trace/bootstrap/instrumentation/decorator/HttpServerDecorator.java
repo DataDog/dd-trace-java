@@ -96,8 +96,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     AgentSpan span =
         tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
-    if (flow.getAction().isBlocking()) {
-      span.markForBlocking();
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
     return span;
   }
@@ -162,8 +162,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
           Flow<Void> flow = callIGCallbackURI(span, url, method);
-          if (flow.getAction().isBlocking()) {
-            span.markForBlocking();
+          if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+            span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
           }
           if (SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
@@ -207,8 +207,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     setPeerPort(span, port);
     Flow<Void> flow = callIGCallbackAddressAndPort(span, ip, port, inferredAddressStr);
-    if (flow.getAction().isBlocking()) {
-      span.markForBlocking();
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
 
     return span;
