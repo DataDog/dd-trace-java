@@ -45,6 +45,10 @@ dependencies {
   api group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
   api deps.okio
 
+  // unused dependencies to test CI
+  implementation 'com.alibaba:daybits:1.0.0'
+  implementation 'com.contaazul:date-dsl:0.6'
+
   testImplementation project(":dd-java-agent:testing")
 
   ot31CompatabilityTestImplementation('io.opentracing:opentracing-api:0.31.0') {
