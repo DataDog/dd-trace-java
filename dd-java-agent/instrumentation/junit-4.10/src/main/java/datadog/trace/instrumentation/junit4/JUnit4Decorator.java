@@ -51,7 +51,7 @@ public class JUnit4Decorator extends TestDecorator {
     span.setTag(Tags.TEST_NAME, normalizedTestName);
 
     // If the fullTestName != normalizedTestName, we assume it is a parameterized test.
-    if (!fullTestName.equals(normalizedTestName)) {
+    if (fullTestName != null && !fullTestName.equals(normalizedTestName)) {
       // No public access to the test parameters map in JUnit4.
       // In this case, we store the fullTestName in the "metadata.test_name" object.
       span.setTag(
