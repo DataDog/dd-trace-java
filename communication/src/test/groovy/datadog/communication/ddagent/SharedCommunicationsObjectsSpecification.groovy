@@ -5,16 +5,18 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import spock.lang.Requires
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
-import static org.junit.jupiter.api.Assumptions.assumeTrue
 
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
   void 'nothing populated'() {
     given:
-    assumeTrue isJavaVersionAtLeast(8)
     Config config = Mock()
 
     when:
@@ -57,7 +59,6 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
 
   void 'populates ConfigurationPoller even without config endpoint'() {
     given:
-    assumeTrue isJavaVersionAtLeast(8)
     Config config = Mock()
 
     when:

@@ -7,7 +7,6 @@ import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
-import datadog.remoteconfig.tuf.FeaturesConfig;
 import datadog.remoteconfig.tuf.InstantJsonAdapter;
 import datadog.remoteconfig.tuf.RawJsonAdapter;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
@@ -67,8 +66,6 @@ public class ConfigurationPoller
   private final Map<String, DeserializerAndListener<?>> listeners = new HashMap<>();
 
   private final Map<File, DeserializerAndListener<?>> fileListeners = new HashMap<>();
-  private final Map<String, DeserializerAndListener<?>> featureListeners = new HashMap<>();
-  private FeaturesConfig lastFeaturesConfig;
   private final ClientState nextClientState = new ClientState();
   private final Map<String /*cfg key*/, CachedTargetFile> cachedTargetFiles = new HashMap<>();
   private final AtomicInteger startCount = new AtomicInteger(0);
@@ -136,45 +133,6 @@ public class ConfigurationPoller
 
   public synchronized void removeListener(Product product) {
     this.listeners.remove(product.name());
-  }
-
-  public <T> void addFeaturesListener(
-      String name,
-      ConfigurationDeserializer<T> deserializer,
-      ConfigurationChangesListener<T> listener) {
-
-    DeserializerAndListener<T> dl = new DeserializerAndListener<>(deserializer, listener);
-    byte[] productFeaturesByteArray;
-    synchronized (this) {
-      this.featureListeners.put(name, dl);
-      if (!listeners.containsKey(Product.FEATURES.name())) {
-        addListener(
-            Product.FEATURES,
-            new FeaturesConfig.FeaturesConfigDeserializer(moshi),
-            this::featuresChangeListener);
-      }
-
-      // if we already have some saved features, call listener on them
-      if (this.lastFeaturesConfig == null) {
-        return;
-      }
-      productFeaturesByteArray = this.lastFeaturesConfig.getProductFeaturesByteArray(name);
-    }
-
-    if (productFeaturesByteArray != null) {
-      try {
-        dl.deserializeAndAccept(name, productFeaturesByteArray, PollingRateHinter.NOOP);
-      } catch (RuntimeException | IOException e) {
-        log.warn("Error applying features for {}", name, e);
-      }
-    }
-  }
-
-  public synchronized void removeFeaturesListener(String name) {
-    this.featureListeners.remove(name);
-    if (this.featureListeners.isEmpty()) {
-      removeListener(Product.FEATURES);
-    }
   }
 
   public synchronized <T> void addFileListener(
@@ -598,34 +556,6 @@ public class ConfigurationPoller
       ExceptionHelper.rateLimitedLogException(
           ratelimitedLogger, log, ex, "Unable to load config file: {}.", file);
     }
-  }
-
-  // marked as synchronized only to satisfy spotbugs,
-  // because this method is only called from synchronized methods anyway
-  private synchronized boolean featuresChangeListener(
-      String configKey, FeaturesConfig fconfig, PollingRateHinter hinter) {
-    if (fconfig == null) {
-      log.warn("Features configuration was pulled, which is unexpected");
-      return true;
-    }
-
-    this.lastFeaturesConfig = fconfig;
-
-    for (String product : fconfig.getProducts()) {
-      DeserializerAndListener<?> dl = this.featureListeners.get(product);
-      if (dl == null) {
-        log.debug("Not interested in features for {}", product);
-        continue;
-      }
-
-      try {
-        byte[] productFeaturesByteArray = fconfig.getProductFeaturesByteArray(product);
-        dl.deserializeAndAccept(product, productFeaturesByteArray, hinter);
-      } catch (IOException | RuntimeException e) {
-        ratelimitedLogger.warn("Error processing features for {}", product);
-      }
-    }
-    return true;
   }
 
   @Override

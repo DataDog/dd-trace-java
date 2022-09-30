@@ -31,7 +31,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * poller.addListener(Product.ASM_DD, _, _)
-    1 * poller.addFeaturesListener('asm', _, _)
+    1 * poller.addListener(Product.ASM_FEATURES, _, _)
   }
 
   void 'can load from a different location'() {
@@ -126,7 +126,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       savedWafRulesOverrideDeserializer = it[1]
       savedWafRulesOverrideListener = it[2]
     }
-    1 * poller.addFeaturesListener('asm', _, _) >> {
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       savedFeaturesDeserializer = it[1]
       savedFeaturesListener = it[2]
       true
@@ -153,7 +153,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     savedFeaturesListener.accept(
       'ignored config key',
       savedFeaturesDeserializer.deserialize(
-      '{"enabled": true}'.bytes), null)
+      '{"asm":{"enabled": true}}'.bytes), null)
 
     then:
     1 * subconfigListener.onNewSubconfig(AppSecConfig.valueOf([version: '2.0']), _)
@@ -164,7 +164,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     savedFeaturesListener.accept('config_key',
-      savedFeaturesDeserializer.deserialize('{"enabled": false}'.bytes),
+      savedFeaturesDeserializer.deserialize('{"asm":{"enabled": false}}'.bytes),
       ConfigurationChangesListener.PollingRateHinter.NOOP)
 
     then:
@@ -184,8 +184,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * poller.removeCapabilities(14)
-    3 * poller.removeListener(_)
-    1 * poller.removeFeaturesListener(_)
+    4 * poller.removeListener(_)
     1 * poller.stop()
   }
 
