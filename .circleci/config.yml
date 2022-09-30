@@ -48,6 +48,12 @@ parameters:
     default: "--stacktrace --no-daemon"
 
 commands:
+  skip-unless-files-changed:
+    parameters:
+      pattern:
+        type: string
+    steps:
+      - run: git show -m HEAD --name-only --pretty="" | egrep -q
   setup_code:
     steps:
       - checkout
@@ -440,6 +446,10 @@ jobs:
     parallelism: 3
     steps:
       - setup_code
+
+      # only run muzzle if instrumentation changes have been made
+      - skip-unless-files-changed:
+          pattern: .*/instrumentation/*
 
       # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
       # ends up taking more time restoring/saving than the actual increase in time it takes just
