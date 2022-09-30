@@ -202,18 +202,18 @@ jobs:
                 key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
                 <<: *dependency_cache_paths
 
-      # Save a full dependency the first time any other PR branch is built (will be skipped
-      # during other runs since the cache name will already exist)
-      - when:
-          condition:
-            not:
-              matches:
-                pattern: "^(master|project/.+)$"
-                value: << pipeline.git.branch >>
-          steps:
-            - save_cache:
-                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-base
-                <<: *dependency_cache_paths
+#      # Save a full dependency the first time any other PR branch is built (will be skipped
+#      # during other runs since the cache name will already exist)
+#      - when:
+#          condition:
+#            not:
+#              matches:
+#                pattern: "^(master|project/.+)$"
+#                value: << pipeline.git.branch >>
+#          steps:
+#            - save_cache:
+#                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-base
+#                <<: *dependency_cache_paths
 
       # Save the small build cache
       - save_cache:
