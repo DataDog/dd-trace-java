@@ -8,6 +8,28 @@
       "id": "bad rule"
     },
     {
+      "id": "ip_match_rule",
+      "name": "rule1",
+      "tags": {
+        "type": "flow1",
+        "category": "category1"
+      },
+      "conditions": [
+        {
+          "operator": "ip_match",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "ip_data"
+          }
+        }
+      ],
+      "on_match": ["block"]
+    },
+    {
       "id": "crs-913-110",
       "name": "Found request header associated with Acunetix security scanner",
       "tags": {
@@ -3770,7 +3792,8 @@
           "operator": "match_regex"
         }
       ],
-      "transformers": []
+      "transformers": [],
+      "on_match": ["block"]
     },
     {
       "id": "ua0-600-13x",

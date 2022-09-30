@@ -1,10 +1,10 @@
 package com.datadog.appsec.event
 
-import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.event.data.CaseInsensitiveMap
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
+import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 
@@ -179,5 +179,16 @@ class EventDispatcherSpecification extends DDSpecification {
     then:
     expect dispatcher.allSubscribedDataAddresses(), containsInAnyOrder(KnownAddresses.REQUEST_CLIENT_IP)
     expect dispatcher.allSubscribedEvents(), containsInAnyOrder(EventType.REQUEST_END)
+  }
+
+  void 'throws ExpiredSubscriberInfo if it is from a different EventDispatcher'() {
+    when:
+    EventDispatcher anotherDispatcher = new EventDispatcher()
+    EventProducerService.DataSubscriberInfo subInfo =
+      anotherDispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
+    dispatcher.publishDataEvent(subInfo, Mock(AppSecRequestContext), Mock(DataBundle), false)
+
+    then:
+    thrown ExpiredSubscriberInfoException
   }
 }

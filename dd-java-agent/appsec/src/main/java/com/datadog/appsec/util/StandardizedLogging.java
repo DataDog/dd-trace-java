@@ -126,8 +126,8 @@ public class StandardizedLogging {
    */
 
   // D5
-  public static void inAppWafReturn(Logger logger, Powerwaf.ActionWithData actionWithData) {
-    logger.debug("AppSec In-App WAF returned: {}", actionWithData);
+  public static void inAppWafReturn(Logger logger, Powerwaf.ResultWithData resultWithData) {
+    logger.debug("AppSec In-App WAF returned: {}", resultWithData);
   }
 
   // D6, I5

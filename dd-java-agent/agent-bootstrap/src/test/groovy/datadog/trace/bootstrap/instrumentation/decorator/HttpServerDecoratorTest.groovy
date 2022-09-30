@@ -33,17 +33,17 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, null, req, null)
+    decorator.onRequest(this.span, null, req, null)
 
     then:
     if (req) {
-      1 * span.setTag(Tags.HTTP_METHOD, "test-method")
-      1 * span.setTag(DDTags.HTTP_QUERY, _)
-      1 * span.setTag(DDTags.HTTP_FRAGMENT, _)
-      1 * span.setTag(Tags.HTTP_URL, url)
-      1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
-      1 * span.getRequestContext()
-      1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+      1 * this.span.setTag(Tags.HTTP_METHOD, "test-method")
+      1 * this.span.setTag(DDTags.HTTP_QUERY, _)
+      1 * this.span.setTag(DDTags.HTTP_FRAGMENT, _)
+      1 * this.span.setTag(Tags.HTTP_URL, url)
+      1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
+      1 * this.span.getRequestContext()
+      1 * this.span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     }
     0 * _
 
@@ -63,26 +63,26 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, null, req, null)
+    decorator.onRequest(this.span, null, req, null)
 
     then:
     if (expectedUrl) {
-      1 * span.setTag(Tags.HTTP_URL, expectedUrl)
-      1 * span.getRequestContext()
+      1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * this.span.getRequestContext()
     }
     if (expectedUrl && tagQueryString) {
-      1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
-      1 * span.setTag(DDTags.HTTP_FRAGMENT, expectedFragment)
+      1 * this.span.setTag(DDTags.HTTP_QUERY, expectedQuery)
+      1 * this.span.setTag(DDTags.HTTP_FRAGMENT, expectedFragment)
     }
     if (url != null) {
-      1 * span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+      1 * this.span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
       if (req.url.host != null) {
-        1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
+        1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
       }
     } else {
-      1 * span.setResourceName({ it as String == expectedPath })
+      1 * this.span.setResourceName({ it as String == expectedPath })
     }
-    1 * span.setTag(Tags.HTTP_METHOD, null)
+    1 * this.span.setTag(Tags.HTTP_METHOD, null)
     0 * _
 
     where:
@@ -112,16 +112,16 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, null, req, null)
+    decorator.onRequest(this.span, null, req, null)
 
     then:
-    1 * span.setTag(Tags.HTTP_URL, expectedUrl)
-    1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
-    1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
-    1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
-    1 * span.getRequestContext()
-    1 * span.setResourceName({ it as String == expectedResource }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
-    1 * span.setTag(Tags.HTTP_METHOD, null)
+    1 * this.span.setTag(Tags.HTTP_URL, expectedUrl)
+    1 * this.span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
+    1 * this.span.setTag(DDTags.HTTP_QUERY, expectedQuery)
+    1 * this.span.setTag(DDTags.HTTP_FRAGMENT, null)
+    1 * this.span.getRequestContext()
+    1 * this.span.setResourceName({ it as String == expectedResource }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    1 * this.span.setTag(Tags.HTTP_METHOD, null)
     0 * _
 
     where:
@@ -140,7 +140,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, conn, null, ctx)
+    decorator.onRequest(this.span, conn, null, ctx)
 
     then:
     _ * ctx.getForwarded() >> null
@@ -159,20 +159,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     _ * ctx.getTrueClientIp() >> null
     _ * ctx.getVia() >> null
     if (conn) {
-      1 * span.setTag(Tags.PEER_PORT, 555)
+      1 * this.span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
-        1 * span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
-        1 * span.setTag(Tags.HTTP_CLIENT_IP, "10.0.0.1")
+        1 * this.span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
+        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, "10.0.0.1")
       } else if (ipv4 != null) {
-        1 * span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
-        1 * span.setTag(Tags.HTTP_CLIENT_IP, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
+        1 * this.span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
+        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
       }
     }
-    _ * span.getRequestContext() >> null
+    _ * this.span.getRequestContext() >> null
     0 * _
 
     when:
-    decorator.onRequest(span, conn, null, ctx)
+    decorator.onRequest(this.span, conn, null, ctx)
 
     then:
     _ * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
@@ -190,27 +190,27 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     _ * ctx.getCustomIpHeader() >> null
     _ * ctx.getTrueClientIp() >> null
     _ * ctx.getVia() >> null
-    1 * span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
-    1 * span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
-    1 * span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
+    1 * this.span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
+    1 * this.span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
+    1 * this.span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
     if (ipv4) {
-      1 * span.setTag(Tags.HTTP_FORWARDED_IP, "10.1.1.1, 192.168.1.1")
-      1 * span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
+      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "10.1.1.1, 192.168.1.1")
+      1 * this.span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
     } else if (conn?.ip) {
-      1 * span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
-      1 * span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
+      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
+      1 * this.span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
     } else {
-      1 * span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
+      1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, "0::1")
     }
-    1 * span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
+    1 * this.span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
     if (conn) {
-      1 * span.setTag(Tags.PEER_PORT, 555)
+      1 * this.span.setTag(Tags.PEER_PORT, 555)
       if (conn.ip) {
-        1 * span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
+        1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
       }
     }
-    1 * span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
-    _ * span.getRequestContext() >> null
+    1 * this.span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
+    _ * this.span.getRequestContext() >> null
     0 * _
 
     where:
@@ -226,20 +226,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onResponse(span, resp)
+    decorator.onResponse(this.span, resp)
 
     then:
     if (status) {
-      1 * span.setHttpStatusCode(status)
+      1 * this.span.setHttpStatusCode(status)
     }
     if (error) {
-      1 * span.setError(true)
+      1 * this.span.setError(true)
     }
     if (status == 404) {
-      1 * span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
+      1 * this.span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
     }
     if (resp) {
-      1 * span.getRequestContext()
+      1 * this.span.getRequestContext()
     }
     0 * _
 
@@ -409,7 +409,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     Flow<Void> apply(RequestContext requestContext) {
       assert (requestContext.getData(RequestContextSlot.APPSEC) == this.data)
       reqHeaderDoneCount++
-      return null
+      Flow.ResultFlow.empty()
     }
 
     int getReqStartedCount() {

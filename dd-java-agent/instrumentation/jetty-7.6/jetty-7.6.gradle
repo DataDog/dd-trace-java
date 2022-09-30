@@ -20,6 +20,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
+  implementation project(':dd-java-agent:instrumentation:jetty-common')
 
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:testing')) {
