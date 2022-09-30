@@ -256,7 +256,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONU
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
@@ -589,8 +588,6 @@ public class Config {
   private final boolean servletAsyncTimeoutError;
 
   private final int xDatadogTagsMaxLength;
-
-  private final boolean tempJarsCleanOnBoot;
 
   private final boolean traceAgentV05Enabled;
 
@@ -1255,9 +1252,6 @@ public class Config {
             TRACE_X_DATADOG_TAGS_MAX_LENGTH, DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
-
-    tempJarsCleanOnBoot =
-        configProvider.getBoolean(TEMP_JARS_CLEAN_ON_BOOT, false) && isWindowsOS();
 
     debugEnabled = isDebugMode();
 
@@ -2000,10 +1994,6 @@ public class Config {
 
   public boolean isServletAsyncTimeoutError() {
     return servletAsyncTimeoutError;
-  }
-
-  public boolean isTempJarsCleanOnBoot() {
-    return tempJarsCleanOnBoot;
   }
 
   public boolean isTraceAgentV05Enabled() {
@@ -3021,8 +3011,6 @@ public class Config {
         + servletAsyncTimeoutError
         + ", datadogTagsLimit="
         + xDatadogTagsMaxLength
-        + ", tempJarsCleanOnBoot="
-        + tempJarsCleanOnBoot
         + ", traceAgentV05Enabled="
         + traceAgentV05Enabled
         + ", debugEnabled="
