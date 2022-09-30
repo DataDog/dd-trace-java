@@ -38,6 +38,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private final Thread serializerThread;
   private final int capacity;
 
+  private final SpanProcessingWorker spanProcessingWorker;
+
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
@@ -49,8 +51,9 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
+    this.spanProcessingWorker = SpanProcessingWorker.build(capacity, primaryQueue);
     this.prioritizationStrategy =
-        prioritization.create(primaryQueue, secondaryQueue, droppingPolicy);
+        prioritization.create(primaryQueue, secondaryQueue, droppingPolicy, spanProcessingWorker);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);

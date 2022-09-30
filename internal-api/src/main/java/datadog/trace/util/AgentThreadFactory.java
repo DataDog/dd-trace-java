@@ -16,6 +16,7 @@ public final class AgentThreadFactory implements ThreadFactory {
     TRACE_STARTUP("dd-agent-startup-datadog-tracer"),
     TRACE_MONITOR("dd-trace-monitor"),
     TRACE_PROCESSOR("dd-trace-processor"),
+    SPAN_PROCESSOR("dd-span-processor"),
     TRACE_CASSANDRA_ASYNC_SESSION("dd-cassandra-session-executor"),
 
     METRICS_AGGREGATOR("dd-metrics-aggregator"),
