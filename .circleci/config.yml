@@ -532,50 +532,54 @@ jobs:
 build_test_jobs: &build_test_jobs
   - build
 
-  - base_tests:
+  - check:
       requires:
         - build
+
+  - base_tests:
+      requires:
+        - check
       name: z_test_<< matrix.testJvm >>_base
       matrix:
         <<: *test_matrix
 
   - base_tests:
       requires:
-        - build
+        - check
       name: z_test_8_base
       testTask: test jacocoTestReport jacocoTestCoverageVerification
       testJvm: "8"
 
   - instrumentation_tests:
       requires:
-        - build
+        - check
       name: z_test_<< matrix.testJvm >>_inst
       matrix:
         <<: *test_matrix
 
   - instrumentation_tests:
       requires:
-        - build
+        - check
       name: z_test_8_inst
       testJvm: "8"
 
   - instrumentation_tests:
       requires:
-        - build
+        - check
       name: test_8_inst_latest
       testTask: latestDepTest
       testJvm: "8"
 
   - smoke_tests:
       requires:
-        - build
+        - check
       name: z_test_<< matrix.testJvm >>_smoke
       matrix:
         <<: *test_matrix
 
   - smoke_tests:
       requires:
-        - build
+        - check
       name: z_test_8_smoke
       testJvm: "8"
 
@@ -598,16 +602,12 @@ build_test_jobs: &build_test_jobs
 
   - agent_integration_tests:
       requires:
-        - build
+        - check
       testTask: traceAgentTest
-
-  - check:
-      requires:
-        - build
 
   - muzzle:
       requires:
-        - build
+        - check
       filters:
         branches:
           ignore:
@@ -617,7 +617,7 @@ build_test_jobs: &build_test_jobs
 
   - system-tests:
       requires:
-        - build
+        - check
 
   # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
   # and it will be simpler to require different JVM versions for different branches and old releases
