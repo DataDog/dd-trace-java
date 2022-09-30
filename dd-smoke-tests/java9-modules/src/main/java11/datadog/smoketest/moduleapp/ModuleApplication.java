@@ -3,9 +3,9 @@ package datadog.smoketest.moduleapp;
 public class ModuleApplication {
   public static void main(final String[] args) throws InterruptedException {
     Thread.sleep(600);
-    ModuleApplication.testBaeModuleRead();
+    ModuleApplication.testBaseModuleRead();
   }
-  public static void testBaeModuleRead() {
+  public static void testBaseModuleRead() {
     Module base = Object.class.getModule();
     Module thisModule = ModuleApplication.class.getModule();
 
