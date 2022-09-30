@@ -10,21 +10,16 @@ defaults: &defaults
 # 2) Cache keys are prefix matched, and the most recently updated cache that matches will be picked
 #
 # There is a weekly job that runs on Monday mornings that builds a new cache from scratch.
-#
-# The cache is also saved using the unique git revision to enable the dependent build steps to get a fully populated
-# cache to work from.
-cache_keys: &cache_keys
+dependency_cache_keys: &dependency_cache_keys
   keys:
-    # Dependent steps will find this cache
-    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
     # New branch commits will find this cache
-    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+    - dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
-    - dd-trace-java-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
+    - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
     # Fall back on the previous cache scheme to not start from scratch when switching
-    - dd-trace-java-v3-master-
+    - dd-trace-java-v4-master-
 
-save_cache_paths: &save_cache_paths
+dependency_cache_paths: &dependency_cache_paths
   paths:
     # Cached dependencies and wrappers for gradle
     - ~/.gradle
@@ -36,6 +31,23 @@ save_cache_paths: &save_cache_paths
     - ~/.ivy2
     # Cached dependencies for sbt handled by coursier
     - ~/.cache/coursier
+
+build_cache_keys: &build_cache_keys
+  keys:
+    # Dependent steps will find this cache
+    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+    # New branch commits will find this cache
+    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+    # New branches fall back on main build caches
+    - dd-trace-java-build-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
+
+build_cache_paths: &build_cache_paths
+  paths:
+    # Gradle version specific cache for incremental builds needs to match version in
+    # gradle/wrapper/gradle-wrapper.properties
+    - ~/.gradle/caches/7.5.1
+    # Makes it easier to upgrade gradle versions
+    - ~/.gradle/wrapper
 
 test_matrix: &test_matrix
   parameters:
@@ -153,7 +165,7 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
 
       - run:
           name: Build Project
@@ -163,6 +175,7 @@ jobs:
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
+            --rerun-tasks
 
       - run:
           name: Collect Libs
@@ -178,9 +191,34 @@ jobs:
             - .gradle
             - workspace
 
+      # Save a full dependency cache when building on master or a base project branch
+      - when:
+          condition:
+            matches:
+              pattern: "^(master|project/.+)$"
+              value: << pipeline.git.branch >>
+          steps:
+            - save_cache:
+                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+                <<: *dependency_cache_paths
+
+      # Save a full dependency the first time any other PR branch is built (will be skipped
+      # during other runs since the cache name will already exist)
+      - when:
+          condition:
+            not:
+              matches:
+                pattern: "^(master|project/.+)$"
+                value: << pipeline.git.branch >>
+          steps:
+            - save_cache:
+                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-base
+                <<: *dependency_cache_paths
+
+      # Save the small build cache
       - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-          <<: *save_cache_paths
+          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          <<: *build_cache_paths
 
       - display_memory_usage
 
@@ -199,10 +237,15 @@ jobs:
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
+            --rerun-tasks
 
       - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
-          <<: *save_cache_paths
+          key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
+          <<: *dependency_cache_paths
+
+      - save_cache:
+          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
+          <<: *build_cache_paths
 
       - display_memory_usage
 
@@ -225,7 +268,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Run tests
@@ -274,7 +320,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - setup_testcontainers
 
@@ -325,7 +374,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - setup_testcontainers
 
@@ -403,7 +455,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Build Project
@@ -447,7 +502,10 @@ jobs:
       #
       # Let's at least restore the build cache to have something to start from.
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Gather muzzle tasks
@@ -489,7 +547,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Install good version of docker-compose
