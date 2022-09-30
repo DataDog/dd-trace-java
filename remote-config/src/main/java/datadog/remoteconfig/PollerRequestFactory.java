@@ -45,7 +45,8 @@ public class PollerRequestFactory {
     this.env = config.getEnv();
     this.ddVersion = config.getVersion();
     this.hostName = config.getHostName();
-    this.tracerVersion = tracerVersion;
+    // Semantic Versioning requires build separated with `+`
+    this.tracerVersion = tracerVersion.replace('~', '+');
     this.containerId = containerId;
     this.url = parseUrl(url);
     this.moshi = moshi;
