@@ -1,7 +1,7 @@
 scmVersion {
   tag {
-    prefix = 'v'
-    versionSeparator = ''
+    prefix = 'test-ver-ignore'
+    versionSeparator = '-'
   }
 
   versionIncrementer 'incrementMinor'
