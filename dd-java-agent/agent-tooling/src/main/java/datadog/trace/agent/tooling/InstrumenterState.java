@@ -8,6 +8,10 @@ import java.util.concurrent.atomic.AtomicLongArray;
 /** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
 public final class InstrumenterState {
 
+  public interface Observer {
+    void applied(Iterable<String> instrumentationNames);
+  }
+
   // constants for representing a bitset as a series of words
   private static final int ADDRESS_BITS_PER_WORD = 6;
   private static final int BITS_PER_WORD = 1 << ADDRESS_BITS_PER_WORD;
@@ -35,7 +39,14 @@ public final class InstrumenterState {
         }
       };
 
+  private static Observer observer;
+
   private InstrumenterState() {}
+
+  /** Registers an observer to be notified whenever an instrumentation is applied. */
+  public static void setObserver(Observer observer) {
+    InstrumenterState.observer = observer;
+  }
 
   /** Registers an instrumentation's primary name plus zero or more aliases. */
   public static void registerInstrumentationNames(int instrumentationId, Iterable<String> names) {
@@ -70,6 +81,9 @@ public final class InstrumenterState {
   /** Records that the instrumentation was applied to the given class-loader. */
   public static void applyInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, APPLIED);
+    if (null != observer) {
+      observer.applied(instrumentationNames.get(instrumentationId));
+    }
   }
 
   /** Records that the instrumentation is blocked for the given class-loader. */
