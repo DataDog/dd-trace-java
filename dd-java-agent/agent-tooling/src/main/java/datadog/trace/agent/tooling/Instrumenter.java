@@ -123,6 +123,7 @@ public interface Instrumenter {
   abstract class Default implements Instrumenter, HasAdvice {
     private static final Logger log = LoggerFactory.getLogger(Default.class);
 
+    private final int instrumentationId;
     private final List<String> instrumentationNames;
     private final String instrumentationPrimaryName;
     private final boolean enabled;
@@ -130,6 +131,7 @@ public interface Instrumenter {
     protected final String packageName = Strings.getPackageName(getClass().getName());
 
     public Default(final String instrumentationName, final String... additionalNames) {
+      instrumentationId = Instrumenters.currentInstrumentationId();
       instrumentationNames = new ArrayList<>(1 + additionalNames.length);
       instrumentationNames.add(instrumentationName);
       addAll(instrumentationNames, additionalNames);
@@ -149,6 +151,7 @@ public interface Instrumenter {
     @Override
     public final void instrument(TransformerBuilder transformerBuilder) {
       if (isEnabled()) {
+        InstrumenterState.registerInstrumentationNames(instrumentationId, instrumentationNames);
         transformerBuilder.applyInstrumentation(this);
       } else {
         if (log.isDebugEnabled()) {

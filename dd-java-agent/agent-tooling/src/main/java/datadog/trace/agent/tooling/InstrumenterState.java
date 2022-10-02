@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 /** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
@@ -17,6 +18,8 @@ public final class InstrumenterState {
   private static final int APPLIED = 0b10;
 
   private static final int STATUS_BITS = 0b11;
+
+  private static final ArrayList<Iterable<String>> instrumentationNames = new ArrayList<>();
 
   private static long[] defaultState = {};
 
@@ -34,10 +37,22 @@ public final class InstrumenterState {
 
   private InstrumenterState() {}
 
-  /** Pre-sizes internals to fit the largest expected instrumentation-id. */
-  public static void presize(int maxInstrumentationId) {
+  /** Registers an instrumentation's primary name plus zero or more aliases. */
+  public static void registerInstrumentationNames(int instrumentationId, Iterable<String> names) {
+    instrumentationNames.ensureCapacity(instrumentationId);
+    instrumentationNames.set(instrumentationId, names);
+  }
+
+  /** Resets the default instrumentation state so nothing is blocked or applied. */
+  public static void resetDefaultState() {
+    int instrumenterCount = instrumentationNames.size();
+
     int wordsPerClassLoaderState =
-        ((maxInstrumentationId << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+        ((instrumenterCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+
+    if (defaultState.length > 0) {
+      classLoaderStates.clear();
+    }
 
     defaultState = new long[wordsPerClassLoaderState];
   }

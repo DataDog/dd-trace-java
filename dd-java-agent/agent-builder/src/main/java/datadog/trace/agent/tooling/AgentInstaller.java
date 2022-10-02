@@ -163,6 +163,7 @@ public class AgentInstaller {
       log.debug("Installed {} instrumenter(s)", installedCount);
     }
 
+    InstrumenterState.resetDefaultState();
     try {
       return transformerBuilder.installOn(inst);
     } finally {
