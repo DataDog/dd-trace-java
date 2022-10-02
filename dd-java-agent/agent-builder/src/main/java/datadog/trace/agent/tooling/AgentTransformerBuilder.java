@@ -14,12 +14,12 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.MuzzleMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
 import datadog.trace.api.Config;
-import datadog.trace.api.IntegrationsCollector;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -80,22 +80,7 @@ public class AgentTransformerBuilder
         agentBuilder
             .type(matcher)
             .and(NOT_DECORATOR_MATCHER)
-            .and(
-                new AgentBuilder.RawMatcher() {
-                  @Override
-                  public boolean matches(
-                      TypeDescription typeDescription,
-                      ClassLoader classLoader,
-                      JavaModule module,
-                      Class<?> classBeingRedefined,
-                      ProtectionDomain protectionDomain) {
-                    boolean isMatch = instrumenter.muzzleMatches(classLoader, classBeingRedefined);
-                    if (isMatch && Config.get().isTelemetryEnabled()) {
-                      IntegrationsCollector.get().update(instrumenter.names(), true);
-                    }
-                    return isMatch;
-                  }
-                })
+            .and(new MuzzleMatcher(instrumenter))
             .transform(defaultTransformers());
 
     String[] helperClassNames = instrumenter.helperClassNames();
