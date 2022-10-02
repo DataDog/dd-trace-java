@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.api.Config;
+import datadog.trace.api.IntegrationsCollector;
 import datadog.trace.api.ProductActivationConfig;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -161,6 +162,16 @@ public class AgentInstaller {
     }
     if (DEBUG) {
       log.debug("Installed {} instrumenter(s)", installedCount);
+    }
+
+    if (Config.get().isTelemetryEnabled()) {
+      InstrumenterState.setObserver(
+          new InstrumenterState.Observer() {
+            @Override
+            public void applied(Iterable<String> instrumentationNames) {
+              IntegrationsCollector.get().update(instrumentationNames, true);
+            }
+          });
     }
 
     InstrumenterState.resetDefaultState();
