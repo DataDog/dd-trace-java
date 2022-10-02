@@ -140,6 +140,10 @@ public interface Instrumenter {
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
     }
 
+    public int instrumentationId() {
+      return instrumentationId;
+    }
+
     public String name() {
       return instrumentationPrimaryName;
     }
