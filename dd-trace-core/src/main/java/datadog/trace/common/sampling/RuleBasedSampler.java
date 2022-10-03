@@ -39,14 +39,14 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
   }
 
   public static <T extends CoreSpan<T>> RuleBasedSampler<T> build(
-      final JsonSamplingRules traceSamplingRules, final Double defaultRate, final int rateLimit) {
+      final TraceSamplingRules traceSamplingRules, final Double defaultRate, final int rateLimit) {
     return build(null, null, traceSamplingRules, defaultRate, rateLimit);
   }
 
   public static <T extends CoreSpan<T>> RuleBasedSampler<T> build(
       @Deprecated final Map<String, String> serviceRules,
       @Deprecated final Map<String, String> operationRules,
-      final JsonSamplingRules traceSamplingRules,
+      final TraceSamplingRules traceSamplingRules,
       final Double defaultRate,
       final int rateLimit) {
 
@@ -62,13 +62,13 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
             TracerConfig.TRACE_SAMPLING_RULES);
       }
       // Ignore serviceRules & operationRules if traceSamplingRules are defined
-      for (JsonSamplingRules.Rule rule : traceSamplingRules.getRules()) {
-        if (rule.service != null || rule.name != null) {
-          ExactMatchSamplingRule<T> samplingRule =
-              new ExactMatchSamplingRule<>(
-                  rule.service, rule.name, new DeterministicSampler<T>(rule.sample_rate));
-          samplingRules.add(samplingRule);
-        }
+      for (TraceSamplingRules.Rule rule : traceSamplingRules.getRules()) {
+        ExactMatchSamplingRule<T> samplingRule =
+            new ExactMatchSamplingRule<>(
+                rule.getService(),
+                rule.getName(),
+                new DeterministicSampler<T>(rule.getSampleRate()));
+        samplingRules.add(samplingRule);
       }
     } else {
       // Take into account serviceRules & operationRules only if traceSamplingRules are NOT defined

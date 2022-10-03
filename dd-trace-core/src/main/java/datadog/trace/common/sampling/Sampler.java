@@ -34,10 +34,10 @@ public interface Sampler<T extends CoreSpan<T>> {
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
         String traceSamplingRulesJson = config.getTraceSamplingJsonRules();
-        JsonSamplingRules traceSamplingRules = null;
+        TraceSamplingRules traceSamplingRules = null;
         if (traceSamplingRulesJson != null) {
           try {
-            traceSamplingRules = JsonSamplingRules.deserialize(traceSamplingRulesJson);
+            traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
           } catch (IOException e) {
             log.error("Couldn't parse trace sampling rules from JSON", e);
           }
