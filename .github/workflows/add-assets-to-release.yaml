@@ -3,11 +3,13 @@ on:
   release:
     types: [published]
 env:
-  VERSION: ${{ github.event.release.name }}  #Can't use GITHUB_REF because it starts with a "v"
+  TAG_NAME: ${{ github.event.release.tag_name }}
 jobs:
   dd-java-agent:
     runs-on: ubuntu-latest
     steps:
+      - name: Strip leading 'v' from tag, if present
+        run: echo "VERSION=$(echo ${TAG_NAME/#v/})" >> $GITHUB_ENV
       - name: Download from Sonatype
         run: |
           wget https://oss.sonatype.org/service/local/repositories/releases/content/com/datadoghq/dd-java-agent/$VERSION/dd-java-agent-$VERSION.jar
@@ -33,6 +35,8 @@ jobs:
   dd-trace-api:
     runs-on: ubuntu-latest
     steps:
+      - name: Strip leading 'v' from tag, if present
+        run: echo "VERSION=$(echo ${TAG_NAME/#v/})" >> $GITHUB_ENV
       - name: Download from Sonatype
         run: |
           wget https://oss.sonatype.org/service/local/repositories/releases/content/com/datadoghq/dd-trace-api/$VERSION/dd-trace-api-$VERSION.jar
@@ -48,6 +52,8 @@ jobs:
   dd-trace-ot:
     runs-on: ubuntu-latest
     steps:
+      - name: Strip leading 'v' from tag, if present
+        run: echo "VERSION=$(echo ${TAG_NAME/#v/})" >> $GITHUB_ENV
       - name: Download from Sonatype
         run: |
           wget https://oss.sonatype.org/service/local/repositories/releases/content/com/datadoghq/dd-trace-ot/$VERSION/dd-trace-ot-$VERSION.jar
