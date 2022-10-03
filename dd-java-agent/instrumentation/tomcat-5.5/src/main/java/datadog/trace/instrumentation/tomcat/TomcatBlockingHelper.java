@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.tomcat;
 
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
 import java.io.OutputStream;
@@ -26,13 +27,16 @@ public class TomcatBlockingHelper {
     GET_OUTPUT_STREAM = mh;
   }
 
-  public static void commitBlockingResponse(Request request, Response resp) {
-    int httpCode = BlockingActionHelper.getHttpCode(0);
+  public static void commitBlockingResponse(
+      Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
+    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
     if (!start(resp, httpCode) || GET_OUTPUT_STREAM == null) {
       return;
     }
 
-    TemplateType type = BlockingActionHelper.determineTemplateType(request.getHeader("Accept"));
+    TemplateType type =
+        BlockingActionHelper.determineTemplateType(
+            rba.getBlockingContentType(), request.getHeader("Accept"));
     byte[] template = BlockingActionHelper.getTemplate(type);
 
     resp.setHeader("Content-length", Integer.toString(template.length));

@@ -1,6 +1,9 @@
 package com.datadog.appsec.config;
 
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
@@ -58,7 +61,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         (configKey, newConfig, hinter) -> {
           if (newConfig == null) {
             log.warn("AppSec configuration was pulled out by remote config. This has no effect");
-            return true;
+            return;
           }
           Map<String, Object> configMap = Collections.singletonMap("waf", newConfig);
           this.lastConfig.put("waf", newConfig);
@@ -66,31 +69,50 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           log.info(
               "New AppSec configuration has been applied. AppSec status: {}",
               AppSecSystem.ACTIVE ? "active" : "inactive");
-          return true;
         });
     this.configurationPoller.addListener(
         Product.ASM_DATA,
         AppSecDataDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
-          if (newConfig == null) {
-            newConfig = Collections.emptyList();
+          MergedAsmData wafData = (MergedAsmData) this.lastConfig.get("waf_data");
+          if (wafData == null) {
+            if (newConfig == null) {
+              return;
+            }
+            wafData = new MergedAsmData(new HashMap<>());
+            wafData.addConfig(configKey, newConfig);
+          } else {
+            if (newConfig == null) {
+              wafData.removeConfig(configKey);
+            } else {
+              wafData.addConfig(configKey, newConfig);
+            }
           }
-          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", newConfig);
-          this.lastConfig.put("waf_data", wafDataConfigMap);
+          this.lastConfig.put("waf_data", wafData);
+          Map<String, Object> wafDataConfigMap = Collections.singletonMap("waf_data", wafData);
           distributeSubConfigurations(wafDataConfigMap, reconfiguration);
-          return true;
+        });
+    this.configurationPoller.addListener(
+        Product.ASM,
+        AppSecRuleTogglingDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          this.lastConfig.put("waf_rules_override", newConfig);
+          Map<String, Object> wafRulesOverride =
+              Collections.singletonMap("waf_rules_override", newConfig);
+          distributeSubConfigurations(wafRulesOverride, reconfiguration);
+        });
+    this.configurationPoller.addListener(
+        Product.ASM_FEATURES,
+        AppSecFeaturesDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          if (AppSecSystem.ACTIVE != newConfig.asm.enabled) {
+            log.warn("AppSec {} (runtime)", newConfig.asm.enabled ? "enabled" : "disabled");
+          }
+          AppSecSystem.ACTIVE = newConfig.asm.enabled;
         });
 
-    this.configurationPoller.addFeaturesListener(
-        "asm",
-        AppSecFeaturesDeserializer.INSTANCE,
-        (product, newConfig, hinter) -> {
-          if (AppSecSystem.ACTIVE != newConfig.enabled) {
-            log.warn("AppSec {} (runtime)", newConfig.enabled ? "enabled" : "disabled");
-          }
-          AppSecSystem.ACTIVE = newConfig.enabled;
-          return true;
-        });
+    this.configurationPoller.addCapabilities(
+        CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
   }
 
   private void distributeSubConfigurations(
@@ -132,7 +154,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     lastConfig.put("waf", wafConfig);
   }
 
-  public void maybeStartConfigPolling() {
+  public void maybeSubscribeConfigPolling() {
     if (this.configurationPoller != null) {
       if (hasUserWafConfig) {
         log.info("AppSec will not use remote config because there is a custom user configuration");
@@ -231,9 +253,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (this.configurationPoller == null) {
       return;
     }
+    this.configurationPoller.removeCapabilities(
+        CAPABILITY_ASM_ACTIVATION | CAPABILITY_ASM_DD_RULES | CAPABILITY_ASM_IP_BLOCKING);
     this.configurationPoller.removeListener(Product.ASM_DD);
     this.configurationPoller.removeListener(Product.ASM_DATA);
-    this.configurationPoller.removeFeaturesListener("asm");
+    this.configurationPoller.removeListener(Product.ASM);
+    this.configurationPoller.removeListener(Product.ASM_FEATURES);
     this.configurationPoller.stop();
   }
 }

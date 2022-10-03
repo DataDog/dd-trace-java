@@ -1,6 +1,7 @@
 package com.datadog.appsec.powerwaf;
 
 import static java.util.Collections.*;
+import static java.util.stream.Collectors.toMap;
 
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecConfig;
@@ -80,18 +81,31 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
+  private static class ActionInfo {
+    final String type;
+    final Map<String, Object> parameters;
+
+    private ActionInfo(String type, Map<String, Object> parameters) {
+      this.type = type;
+      this.parameters = parameters;
+    }
+  }
+
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final PowerwafContext ctx;
     final Map<String, RuleInfo> rulesInfoMap;
+    final Map<String /* id */, ActionInfo> actionInfoMap;
 
     private CtxAndAddresses(
         Collection<Address<?>> addressesOfInterest,
         PowerwafContext ctx,
-        Map<String, RuleInfo> rulesInfoMap) {
+        Map<String, RuleInfo> rulesInfoMap,
+        Map<String, ActionInfo> actionInfoMap) {
       this.addressesOfInterest = addressesOfInterest;
       this.ctx = ctx;
       this.rulesInfoMap = rulesInfoMap;
+      this.actionInfoMap = actionInfoMap;
     }
   }
 
@@ -116,6 +130,8 @@ public class PowerWAFModule implements AppSecModule {
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
   private AtomicReference<List<Map<String, Object>>> wafData =
       new AtomicReference<>(Collections.emptyList());
+  private final AtomicReference<Map<String, Boolean>> wafRulesOverride =
+      new AtomicReference<>(Collections.emptyMap());
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
@@ -128,12 +144,19 @@ public class PowerWAFModule implements AppSecModule {
     if (initialData.isPresent()) {
       this.wafData.set((List<Map<String, Object>>) initialData.get());
     }
+    Optional<Object> initialRuleStatus =
+        appSecConfigService.addSubConfigListener(
+            "waf_rules_override", this::updateWafRulesOverride);
+    if (initialRuleStatus.isPresent()) {
+      this.wafRulesOverride.set((Map<String, Boolean>) initialRuleStatus.get());
+    }
 
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
     if (!initialConfig.isPresent()) {
       throw new AppSecModuleActivationException("No initial config for WAF");
     }
+
     try {
       applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
     } catch (ClassCastException e) {
@@ -158,6 +181,18 @@ public class PowerWAFModule implements AppSecModule {
     CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
     if (curCtxAndAddr != null) {
       curCtxAndAddr.ctx.updateRuleData(data);
+    }
+  }
+
+  private void updateWafRulesOverride(
+      Object data_, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
+    Map<String, Boolean> data = (Map<String, Boolean>) data_;
+    this.wafRulesOverride.set(data);
+    CtxAndAddresses curCtxAndAddr = this.ctxAndAddresses.get();
+    if (curCtxAndAddr != null) {
+      Map<String, Boolean> toggleSpec =
+          new FilledInRuleTogglingMap(data, curCtxAndAddr.rulesInfoMap.keySet());
+      curCtxAndAddr.ctx.toggleRules(toggleSpec);
     }
   }
 
@@ -191,10 +226,29 @@ public class PowerWAFModule implements AppSecModule {
         newPwafCtx.updateRuleData(wafData);
       }
 
-      Map<String, RuleInfo> rulesInfoMap = new HashMap<>();
-      config.getRules().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
+      Map<String, RuleInfo> rulesInfoMap =
+          config.getRules().stream()
+              .collect(toMap(AppSecConfig.Rule::getId, rule -> new RuleInfo(rule)));
 
-      newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap);
+      Map<String, ActionInfo> actionInfoMap =
+          ((List<Map<String, Object>>)
+                  config.getRawConfig().getOrDefault("actions", Collections.emptyList()))
+              .stream()
+                  .collect(
+                      toMap(
+                          m -> (String) m.get("id"),
+                          m ->
+                              new ActionInfo(
+                                  (String) m.get("type"),
+                                  (Map<String, Object>) m.get("parameters"))));
+
+      Map<String, Boolean> rulesOverride = this.wafRulesOverride.get();
+      if (!rulesOverride.isEmpty()) {
+        newPwafCtx.toggleRules(new FilledInRuleTogglingMap(rulesOverride, rulesInfoMap.keySet()));
+      }
+
+      newContextAndAddresses =
+          new CtxAndAddresses(addresses, newPwafCtx, rulesInfoMap, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.fileVersion;
       }
@@ -339,21 +393,43 @@ public class PowerWAFModule implements AppSecModule {
         }
 
         if (resultWithData.actions.length > 0) {
-          boolean isBlocking = false;
           for (String action : resultWithData.actions) {
-            if ("block".equals(action) || "block_request".equals(action)) {
-              isBlocking = true;
+            ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
+            if (actionInfo == null) {
+              log.warn(
+                  "WAF indicated action {}, but such action id is unknown (not one from {})",
+                  action,
+                  ctxAndAddr.actionInfoMap.keySet());
+            } else if ("block_request".equals(actionInfo.type)) {
+              Flow.Action.RequestBlockingAction rba = createRequestBlockingAction(actionInfo);
+              flow.setAction(rba);
               break;
+            } else {
+              log.info("Ignoring action with type {}", actionInfo.type);
             }
-          }
-
-          if (isBlocking) {
-            flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
-            reqCtx.setBlocked(true);
           }
         }
         Collection<AppSecEvent100> events = buildEvents(resultWithData, ctxAndAddr.rulesInfoMap);
         reqCtx.reportEvents(events, null);
+      }
+    }
+
+    private Flow.Action.RequestBlockingAction createRequestBlockingAction(ActionInfo actionInfo) {
+      try {
+        int statusCode =
+            ((Number) actionInfo.parameters.getOrDefault("status_code", 403)).intValue();
+        String contentType = (String) actionInfo.parameters.getOrDefault("type", "auto");
+        Flow.Action.BlockingContentType blockingContentType = Flow.Action.BlockingContentType.AUTO;
+        try {
+          blockingContentType =
+              Flow.Action.BlockingContentType.valueOf(contentType.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException iae) {
+          log.warn("Unknown content type: {}; using auto", contentType);
+        }
+        return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
+      } catch (RuntimeException cce) {
+        log.warn("Invalid blocking action data", cce);
+        return null;
       }
     }
 
@@ -592,6 +668,55 @@ public class PowerWAFModule implements AppSecModule {
 
     @Override
     public Object setValue(Object value) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  class FilledInRuleTogglingMap extends AbstractMap<String, Boolean> {
+    final Map<String, Boolean> explicitCfg;
+    final Set<String> rulesNames;
+    private int size = -1;
+
+    FilledInRuleTogglingMap(Map<String, Boolean> explicitCfg, Set<String> allRuleNames) {
+      this.explicitCfg = explicitCfg;
+      this.rulesNames = allRuleNames;
+    }
+
+    @Override
+    public Set<Entry<String, Boolean>> entrySet() {
+      return this.rulesNames.stream()
+          .map(
+              ruleName ->
+                  new RuleEnabledEntry(
+                      ruleName,
+                      this.explicitCfg.containsKey(ruleName)
+                          ? this.explicitCfg.get(ruleName)
+                          : Boolean.TRUE))
+          .collect(Collectors.toSet());
+    }
+  }
+
+  static class RuleEnabledEntry implements Map.Entry<String, Boolean> {
+    final String ruleName;
+    final boolean enabled;
+
+    RuleEnabledEntry(String ruleName, boolean enabled) {
+      this.ruleName = ruleName;
+      this.enabled = enabled;
+    }
+
+    @Override
+    public String getKey() {
+      return this.ruleName;
+    }
+
+    @Override
+    public Boolean getValue() {
+      return this.enabled;
+    }
+
+    @Override
+    public Boolean setValue(Boolean value) {
       throw new UnsupportedOperationException();
     }
   }

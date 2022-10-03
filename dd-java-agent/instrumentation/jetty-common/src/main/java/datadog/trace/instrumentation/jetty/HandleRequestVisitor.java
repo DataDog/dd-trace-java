@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty;
 
+import datadog.trace.api.gateway.Flow;
 import java.util.List;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
@@ -13,8 +14,8 @@ import org.slf4j.LoggerFactory;
  * and replaces it with:
  *
  * <pre>
- * if (span != null && span.isToBeBlocked()) {
- *   JettyBlockingHelper.block(this.getRequest(), this.getResponse());
+ * if (span != null && span.getRequestBlockingAction()) {
+ *   JettyBlockingHelper.block(this.getRequest(), this.getResponse(), span.getRequestBlockingAction());
  * } else {
  *   server.handle(this);
  * }
@@ -76,10 +77,10 @@ public class HandleRequestVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "isToBeBlocked",
-          "()Z",
+          "getRequestBlockingAction",
+          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
-      super.visitJumpInsn(Opcodes.IFNE, doBlockLabel);
+      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
       super.visitJumpInsn(Opcodes.GOTO, beforeHandle);
 
       super.visitLabel(doBlockLabel);
@@ -100,11 +101,20 @@ public class HandleRequestVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
+      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitMethodInsn(
+          Opcodes.INVOKEINTERFACE,
+          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
+          "getRequestBlockingAction",
+          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
+          true);
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
-          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)V",
+          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
+              + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
+              + ")V",
           false);
       super.visitJumpInsn(Opcodes.GOTO, afterHandle);
 

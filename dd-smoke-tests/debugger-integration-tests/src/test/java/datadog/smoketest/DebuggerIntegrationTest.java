@@ -51,7 +51,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   void testLatestJdk() throws Exception {
     SnapshotProbe probe = SnapshotProbe.builder().where("App", "getGreeting").build();
     setCurrentConfiguration(createConfig(probe));
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200));
     String classpath = System.getProperty("datadog.smoketest.shadowJar.external.path");
     if (classpath == null) {
       return; // execute test only if classpath is provided for the latest jdk
@@ -81,7 +80,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
 
     RecordedRequest request = retrieveSnapshotRequest();
@@ -104,10 +102,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200)); // for status RECEIVED
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200)); // for status INSTALLED
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200)); // for snapshot
-    snapshotServer.enqueue(
+    datadogAgentServer.enqueue(
         new MockResponse()
             .setHeadersDelay(REQUEST_WAIT_TIMEOUT * 2, TimeUnit.SECONDS)
             .setResponseCode(200));
@@ -134,7 +129,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
@@ -151,13 +145,13 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    snapshotServer.enqueue(new MockResponse().setResponseCode(200));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
     JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    System.out.println(bodyStr);
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
@@ -202,11 +196,6 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     setCurrentConfiguration(createConfig(probes));
     final int NB_SNAPSHOTS = 10;
     int expectedSnapshotUploads = NB_SNAPSHOTS * 3;
-    for (int i = 0;
-        i < expectedSnapshotUploads;
-        i++) { // * 3 for status upload (received and installed)
-      snapshotServer.enqueue(new MockResponse().setResponseCode(200));
-    }
     targetProcess =
         createProcessBuilder(logFilePath, METHOD_NAME, String.valueOf(expectedSnapshotUploads))
             .start();

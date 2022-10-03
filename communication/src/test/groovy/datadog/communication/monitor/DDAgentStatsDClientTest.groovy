@@ -162,7 +162,7 @@ class DDAgentStatsDClientTest extends DDSpecification {
 
     String waitForMessage() {
       while (null == lastMessage) {
-        yield()
+        Thread.yield()
       }
       try {
         return lastMessage.trim()

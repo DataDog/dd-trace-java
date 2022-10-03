@@ -4,7 +4,7 @@ import java.time.Duration;
 import javax.annotation.Nullable;
 
 public interface ConfigurationChangesListener<T> {
-  boolean accept(
+  void accept(
       String configKey,
       @Nullable T configuration, // null to "unapply" the configuration
       PollingRateHinter pollingRateHinter);

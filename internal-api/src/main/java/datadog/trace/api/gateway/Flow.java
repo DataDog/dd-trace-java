@@ -23,19 +23,33 @@ public interface Flow<T> {
       }
     }
 
-    final class Throw implements Action {
-      private final Exception exception;
+    enum BlockingContentType {
+      AUTO,
+      HTML,
+      JSON,
+    }
 
-      public Throw(Exception exception) {
-        this.exception = exception;
+    class RequestBlockingAction implements Action {
+      private final int statusCode;
+
+      private final BlockingContentType blockingContentType;
+
+      public RequestBlockingAction(int statusCode, BlockingContentType blockingContentType) {
+        this.statusCode = statusCode;
+        this.blockingContentType = blockingContentType;
       }
 
+      @Override
       public boolean isBlocking() {
         return true;
       }
 
-      public Exception getBlockingException() {
-        return this.exception;
+      public int getStatusCode() {
+        return statusCode;
+      }
+
+      public BlockingContentType getBlockingContentType() {
+        return blockingContentType;
       }
     }
   }

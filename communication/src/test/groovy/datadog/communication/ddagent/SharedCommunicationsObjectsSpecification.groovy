@@ -5,20 +5,18 @@ import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import org.junit.Assume
+import spock.lang.Requires
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
+
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
 
   void 'nothing populated'() {
-    def exc
-    try {
-      Class.forName('java.util.Optional')
-    } catch (Throwable t) {
-      exc = t
-    }
-    Assume.assumeNoException(exc)
-
+    given:
     Config config = Mock()
 
     when:
@@ -54,6 +52,24 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     then:
     1 * config.remoteConfigEnabled >> true
     1 * config.finalRemoteConfigUrl >> 'http://localhost:8080/config'
+    1 * config.remoteConfigTargetsKeyId >> Config.get().remoteConfigTargetsKeyId
+    1 * config.remoteConfigTargetsKey >> Config.get().remoteConfigTargetsKey
+    sco.configurationPoller != null
+  }
+
+  void 'populates ConfigurationPoller even without config endpoint'() {
+    given:
+    Config config = Mock()
+
+    when:
+    sco.configurationPoller(config)
+
+    then:
+    1 * config.agentUrl >> 'http://example.com/'
+    1 * config.remoteConfigEnabled >> true
+    1 * config.finalRemoteConfigUrl >> null
+    1 * config.remoteConfigTargetsKeyId >> Config.get().remoteConfigTargetsKeyId
+    1 * config.remoteConfigTargetsKey >> Config.get().remoteConfigTargetsKey
     sco.configurationPoller != null
   }
 
