@@ -43,11 +43,12 @@ build_cache_keys: &build_cache_keys
 
 build_cache_paths: &build_cache_paths
   paths:
-    # Gradle version specific cache for incremental builds needs to match version in
+    # Gradle version specific cache for incremental builds. Needs to match version in
     # gradle/wrapper/gradle-wrapper.properties
-    - ~/.gradle/caches/7.5.1
-    # Makes it easier to upgrade gradle versions
-    - ~/.gradle/wrapper
+    - ~/.gradle/caches/7.5.47-20220929220000+0000
+    # Save the downloaded distribution. Needs to match version in
+    # gradle/wrapper/gradle-wrapper.properties
+    - ~/.gradle/wrapper/dists/gradle-7.5.47-all
 
 test_matrix: &test_matrix
   parameters:
