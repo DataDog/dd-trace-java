@@ -2,7 +2,6 @@ package com.datadog.debugger.agent;
 
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotHelper;
-import com.datadog.debugger.util.SnapshotSummary;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -141,7 +140,7 @@ public class JsonSnapshotSerializer implements DebuggerContext.SnapshotSerialize
     public IntakeRequest(String service, DebuggerIntakeRequestData debugger) {
       this.service = service;
       this.debugger = debugger;
-      this.message = SnapshotSummary.formatMessage(debugger.snapshot);
+      this.message = debugger.snapshot.getSummary();
       this.ddtags = debugger.snapshot.getProbe().getTags();
       this.timestamp = debugger.snapshot.getTimestamp();
     }
