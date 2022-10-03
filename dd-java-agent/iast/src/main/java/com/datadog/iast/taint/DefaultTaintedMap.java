@@ -97,7 +97,8 @@ public final class DefaultTaintedMap implements TaintedMap {
   }
 
   /**
-   * Put a new {@link TaintedObject} in the hash table.
+   * Put a new {@link TaintedObject} in the hash table. This method will lose puts in concurrent
+   * scenarios.
    *
    * @param entry Tainted object.
    */
@@ -164,7 +165,8 @@ public final class DefaultTaintedMap implements TaintedMap {
   }
 
   /**
-   * Removes a {@link TaintedObject} from the hash table.
+   * Removes a {@link TaintedObject} from the hash table. This method will lose puts in concurrent
+   * scenarios.
    *
    * @param entry
    * @return Number of removed elements.
