@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.api.function.Function;
 import datadog.trace.bootstrap.WeakCache;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 /** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
@@ -23,7 +23,7 @@ public final class InstrumenterState {
 
   private static final int STATUS_BITS = 0b11;
 
-  private static final ArrayList<Iterable<String>> instrumentationNames = new ArrayList<>();
+  private static Iterable<String>[] instrumentationNames = new Iterable[0];
 
   private static long[] defaultState = {};
 
@@ -43,25 +43,33 @@ public final class InstrumenterState {
 
   private InstrumenterState() {}
 
+  /** Pre-sizes internal structures to accommodate the highest expected id. */
+  public static void setMaxInstrumentationId(int maxInstrumentationId) {
+    instrumentationNames = Arrays.copyOf(instrumentationNames, maxInstrumentationId + 1);
+  }
+
+  /** Registers an instrumentation's primary name plus zero or more aliases. */
+  public static void registerInstrumentationNames(int instrumentationId, Iterable<String> names) {
+    if (instrumentationId >= instrumentationNames.length) {
+      // note: setMaxInstrumentationId pre-sizes array to avoid repeated allocations here
+      instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationId + 16);
+    }
+    instrumentationNames[instrumentationId] = names;
+  }
+
   /** Registers an observer to be notified whenever an instrumentation is applied. */
   public static void setObserver(Observer observer) {
     InstrumenterState.observer = observer;
   }
 
-  /** Registers an instrumentation's primary name plus zero or more aliases. */
-  public static void registerInstrumentationNames(int instrumentationId, Iterable<String> names) {
-    instrumentationNames.ensureCapacity(instrumentationId);
-    instrumentationNames.set(instrumentationId, names);
-  }
-
   /** Resets the default instrumentation state so nothing is blocked or applied. */
   public static void resetDefaultState() {
-    int instrumenterCount = instrumentationNames.size();
+    int instrumentationCount = instrumentationNames.length;
 
     int wordsPerClassLoaderState =
-        ((instrumenterCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+        ((instrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
 
-    if (defaultState.length > 0) {
+    if (defaultState.length > 0) { // optimization: skip clear if there's no old state
       classLoaderStates.clear();
     }
 
@@ -82,7 +90,7 @@ public final class InstrumenterState {
   public static void applyInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, APPLIED);
     if (null != observer) {
-      observer.applied(instrumentationNames.get(instrumentationId));
+      observer.applied(instrumentationNames[instrumentationId]);
     }
   }
 

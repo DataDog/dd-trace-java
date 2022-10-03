@@ -73,12 +73,13 @@ public class AgentTransformerBuilder
   }
 
   private AgentBuilder buildInstrumentation(final Instrumenter.Default instrumenter) {
-    AgentBuilder.RawMatcher matcher = matcher(instrumenter);
+    InstrumenterState.registerInstrumentationNames(
+        instrumenter.instrumentationId(), instrumenter.names());
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
     adviceBuilder =
         agentBuilder
-            .type(matcher)
+            .type(typeMatcher(instrumenter))
             .and(NOT_DECORATOR_MATCHER)
             .and(new MuzzleMatcher(instrumenter))
             .transform(defaultTransformers());
@@ -124,7 +125,7 @@ public class AgentTransformerBuilder
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
+  private AgentBuilder.RawMatcher typeMatcher(Instrumenter.Default instrumenter) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     String hierarchyHint = null;
 

@@ -155,7 +155,6 @@ public interface Instrumenter {
     @Override
     public final void instrument(TransformerBuilder transformerBuilder) {
       if (isEnabled()) {
-        InstrumenterState.registerInstrumentationNames(instrumentationId, instrumentationNames);
         transformerBuilder.applyInstrumentation(this);
       } else {
         if (log.isDebugEnabled()) {
