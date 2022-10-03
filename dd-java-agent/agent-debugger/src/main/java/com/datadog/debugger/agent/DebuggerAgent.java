@@ -130,15 +130,9 @@ public class DebuggerAgent {
     configurationPoller.addListener(
         Product.LIVE_DEBUGGING,
         ConfigurationDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> configurationUpdater.accept(newConfig));
-
-    configurationPoller.addFeaturesListener(
-        // what is live debugger feature name?
-        "live_debugging",
-        DebuggerFeaturesDeserializer.INSTANCE,
-        (prod, newConfig, hinter) -> {
+        (configKey, newConfig, hinter) -> {
+          configurationUpdater.accept(newConfig);
           // TODO: disable debugger
-          return true;
         });
   }
 

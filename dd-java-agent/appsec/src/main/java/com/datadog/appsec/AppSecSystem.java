@@ -1,7 +1,9 @@
 package com.datadog.appsec;
 
+import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
+import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.util.AbortStartupException;
@@ -21,6 +23,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +33,9 @@ public class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
-  private static final Map<String, String> STARTED_MODULES_INFO = new HashMap<>();
+  private static final Map<AppSecModule, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
+  private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -54,27 +58,31 @@ public class AppSecSystem {
     log.info("AppSec is starting ({})", appSecEnabledConfig);
 
     ACTIVE = appSecEnabledConfig == ProductActivationConfig.FULLY_ENABLED;
+    REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
+    EventDispatcher eventDispatcher = new EventDispatcher();
+    REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    sco.createRemaining(config);
     ConfigurationPoller configurationPoller = (ConfigurationPoller) sco.configurationPoller(config);
     // may throw and abort startup
-    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, configurationPoller);
+    APP_SEC_CONFIG_SERVICE =
+        new AppSecConfigServiceImpl(
+            config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
     APP_SEC_CONFIG_SERVICE.init();
 
     sco.createRemaining(config);
 
-    EventDispatcher eventDispatcher = new EventDispatcher();
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
-            eventDispatcher,
+            REPLACEABLE_EVENT_PRODUCER,
             rateLimiter,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher);
     gatewayBridge.init();
-    APP_SEC_CONFIG_SERVICE.maybeInitPoller();
+
+    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 
     STARTED.set(true);
 
@@ -113,14 +121,15 @@ public class AppSecSystem {
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {
-        module.config(APP_SEC_CONFIG_SERVICE);
+        AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject;
+        cfgObject = APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
+        module.config(cfgObject);
+        cfgObject.commit();
       } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
         log.error("Startup of appsec module {} failed", module.getName(), t);
         continue;
       }
 
-      // TODO: the set needs to be updated upon runtime module reconfiguration (when supported)
-      //       (and the subscription caches invalidated)
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
         eventSubscriptionSet.addSubscription(sub.eventType, sub);
       }
@@ -129,11 +138,35 @@ public class AppSecSystem {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
 
-      STARTED_MODULES_INFO.put(module.getName(), module.getInfo());
+      STARTED_MODULES_INFO.put(module, module.getInfo());
     }
 
     eventDispatcher.subscribeEvents(eventSubscriptionSet);
     eventDispatcher.subscribeDataAvailable(dataSubscriptionSet);
+  }
+
+  private static void reloadSubscriptions(
+      ReplaceableEventProducerService replaceableEventProducerService) {
+    EventDispatcher.EventSubscriptionSet eventSubscriptionSet =
+        new EventDispatcher.EventSubscriptionSet();
+    EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
+        new EventDispatcher.DataSubscriptionSet();
+
+    EventDispatcher newEd = new EventDispatcher();
+    for (AppSecModule module : STARTED_MODULES_INFO.keySet()) {
+      for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
+        eventSubscriptionSet.addSubscription(sub.eventType, sub);
+      }
+
+      for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
+        dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
+      }
+    }
+
+    newEd.subscribeEvents(eventSubscriptionSet);
+    newEd.subscribeDataAvailable(dataSubscriptionSet);
+
+    replaceableEventProducerService.replaceEventProducerService(newEd);
   }
 
   public static boolean isStarted() {
@@ -142,7 +175,9 @@ public class AppSecSystem {
 
   public static Set<String> getStartedModulesInfo() {
     if (isStarted()) {
-      return Collections.unmodifiableSet(STARTED_MODULES_INFO.keySet());
+      return STARTED_MODULES_INFO.keySet().stream()
+          .map(AppSecModule::getName)
+          .collect(Collectors.toSet());
     } else {
       return Collections.emptySet();
     }

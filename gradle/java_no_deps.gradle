@@ -214,11 +214,21 @@ project.afterEvaluate {
     }
   }
 
-  [JavaCompile, ScalaCompile].each { type ->
+  [JavaCompile, ScalaCompile, GroovyCompile].each { type ->
     tasks.withType(type).configureEach {
       if (options.fork) {
         options.forkOptions.with {
           memoryMaximumSize = "256M"
+        }
+      }
+    }
+  }
+
+  if (project.plugins.hasPlugin('kotlin')) {
+    ['compileKotlin', 'compileTestKotlin'].each { type ->
+      tasks.named(type).configure {
+        kotlinOptions {
+          freeCompilerArgs += '-Xmx256m'
         }
       }
     }

@@ -14,6 +14,7 @@ import net.bytebuddy.utility.JavaModule
 import net.bytebuddy.utility.nullability.MaybeNull
 
 import java.lang.reflect.Method
+import java.security.ProtectionDomain
 
 import static net.bytebuddy.matcher.ElementMatchers.any
 import static net.bytebuddy.matcher.ElementMatchers.named
@@ -108,9 +109,10 @@ class BaseCallSiteTest extends DDSpecification {
         DynamicType.Builder<?> transform(final DynamicType.Builder<?> builder,
           final TypeDescription typeDescription,
           final @MaybeNull ClassLoader classLoader,
-          final @MaybeNull JavaModule module) {
+          final @MaybeNull JavaModule module,
+          final ProtectionDomain pd) {
           return transformer
-            .transform(builder, typeDescription, classLoader, module)
+            .transform(builder, typeDescription, classLoader, module, pd)
             .name(target.className)
         }
       })

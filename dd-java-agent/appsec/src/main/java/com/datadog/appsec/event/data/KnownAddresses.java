@@ -17,11 +17,14 @@ public interface KnownAddresses {
   /** The unparsed request uri, incl. the query string. */
   Address<String> REQUEST_URI_RAW = new Address<>("server.request.uri.raw");
 
-  /** The deduced IP address of the client. */
+  /** The socket IP address of the client. */
   Address<String> REQUEST_CLIENT_IP = new Address<>("server.request.client_ip");
 
   /** The peer port */
   Address<Integer> REQUEST_CLIENT_PORT = new Address<>("_server.request.client_port");
+
+  /** The inferred IP address of the client */
+  Address<String> REQUEST_INFERRED_CLIENT_IP = new Address<>("http.client_ip");
 
   /** The verb of the HTTP request. */
   Address<String> REQUEST_METHOD = new Address<>("server.request.method");
@@ -104,6 +107,8 @@ public interface KnownAddresses {
         return REQUEST_CLIENT_IP;
       case "_server.request.client_port":
         return REQUEST_CLIENT_PORT;
+      case "http.client_ip":
+        return REQUEST_INFERRED_CLIENT_IP;
       case "server.request.method":
         return REQUEST_METHOD;
       case "server.request.path_params":

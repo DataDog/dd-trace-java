@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REQUEST_SAMPLING;
@@ -57,7 +58,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_OUTLINE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_TYPE_POOL_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -68,6 +72,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -90,6 +95,8 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
@@ -115,8 +122,6 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_URL;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
@@ -145,12 +150,14 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
@@ -210,7 +217,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INITIAL_POLL_INTERVAL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -240,7 +250,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
-import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
@@ -524,6 +533,8 @@ public class Config {
   private final boolean appSecWafMetrics;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
+  private final String appSecHttpBlockedTemplateHtml;
+  private final String appSecHttpBlockedTemplateJson;
 
   private final boolean iastEnabled;
   private final int iastMaxConcurrentRequests;
@@ -535,13 +546,14 @@ public class Config {
   private final String ciVisibilityAgentlessUrl;
 
   private final boolean remoteConfigEnabled;
+  private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
   private final int remoteConfigInitialPollInterval;
   private final long remoteConfigMaxPayloadSize;
+  private final String remoteConfigTargetsKeyId;
+  private final String remoteConfigTargetsKey;
 
   private final boolean debuggerEnabled;
-  private final String debuggerSnapshotUrl;
-  private final String debuggerProbeUrl;
   private final int debuggerUploadTimeout;
   private final int debuggerUploadFlushInterval;
   private final boolean debuggerClassFileDumpEnabled;
@@ -577,7 +589,6 @@ public class Config {
 
   private final boolean igniteCacheIncludeKeys;
 
-  private final int osgiSearchDepth;
   private final String obfuscationQueryRegexp;
 
   // TODO: remove at a future point.
@@ -622,7 +633,10 @@ public class Config {
 
   private final Pattern iastWeakCipherAlgorithms;
 
+  private final boolean iastDeduplicationEnabled;
+
   private final boolean telemetryEnabled;
+  private final int telemetryHeartbeatInterval;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -1073,6 +1087,16 @@ public class Config {
     crashTrackingTags = configProvider.getMergedMap(CRASH_TRACKING_TAGS);
 
     telemetryEnabled = configProvider.getBoolean(TELEMETRY_ENABLED, DEFAULT_TELEMETRY_ENABLED);
+    int telemetryInterval =
+        configProvider.getInteger(
+            TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
+    if (telemetryInterval < 1 || telemetryInterval > 3600) {
+      log.warn(
+          "Wrong Telemetry heartbeat interval: {}. The value must be in range 1-3600",
+          telemetryInterval);
+      telemetryInterval = DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+    }
+    telemetryHeartbeatInterval = telemetryInterval;
 
     String appSecEnabled = configProvider.getString(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     this.appSecEnabled = ProductActivationConfig.fromString(appSecEnabled);
@@ -1094,6 +1118,11 @@ public class Config {
     appSecObfuscationParameterValueRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, null);
 
+    appSecHttpBlockedTemplateHtml =
+        configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
+    appSecHttpBlockedTemplateJson =
+        configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
+
     iastEnabled = configProvider.getBoolean(IAST_ENABLED, DEFAULT_IAST_ENABLED);
     iastMaxConcurrentRequests =
         configProvider.getInteger(
@@ -1110,6 +1139,8 @@ public class Config {
         getPattern(
             DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS,
             configProvider.getString(IAST_WEAK_CIPHER_ALGORITHMS));
+    iastDeduplicationEnabled =
+        configProvider.getBoolean(IAST_DEDUPLICATION_ENABLED, DEFAULT_IAST_DEDUPLICATION_ENABLED);
 
     ciVisibilityEnabled =
         configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -1135,6 +1166,9 @@ public class Config {
 
     remoteConfigEnabled =
         configProvider.getBoolean(REMOTE_CONFIG_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED);
+    remoteConfigIntegrityCheckEnabled =
+        configProvider.getBoolean(
+            REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
     remoteConfigUrl = configProvider.getString(REMOTE_CONFIG_URL);
     remoteConfigInitialPollInterval =
         configProvider.getInteger(
@@ -1143,10 +1177,13 @@ public class Config {
         configProvider.getInteger(
                 REMOTE_CONFIG_MAX_PAYLOAD_SIZE, DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE)
             * 1024;
+    remoteConfigTargetsKeyId =
+        configProvider.getString(
+            REMOTE_CONFIG_TARGETS_KEY_ID, DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID);
+    remoteConfigTargetsKey =
+        configProvider.getString(REMOTE_CONFIG_TARGETS_KEY, DEFAULT_REMOTE_CONFIG_TARGETS_KEY);
 
     debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
-    debuggerSnapshotUrl = configProvider.getString(DEBUGGER_SNAPSHOT_URL);
-    debuggerProbeUrl = configProvider.getString(DEBUGGER_PROBE_URL);
     debuggerUploadTimeout =
         configProvider.getInteger(DEBUGGER_UPLOAD_TIMEOUT, DEFAULT_DEBUGGER_UPLOAD_TIMEOUT);
     debuggerUploadFlushInterval =
@@ -1223,8 +1260,6 @@ public class Config {
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
-
-    osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
     obfuscationQueryRegexp = configProvider.getString(OBFUSCATION_QUERY_STRING_REGEXP);
 
@@ -1392,6 +1427,10 @@ public class Config {
 
   public Pattern getIastWeakCipherAlgorithms() {
     return iastWeakCipherAlgorithms;
+  }
+
+  public boolean isIastDeduplicationEnabled() {
+    return iastDeduplicationEnabled;
   }
 
   public Map<String, String> getServiceMapping() {
@@ -1750,6 +1789,10 @@ public class Config {
     return telemetryEnabled;
   }
 
+  public int getTelemetryHeartbeatInterval() {
+    return telemetryHeartbeatInterval;
+  }
+
   public ProductActivationConfig getAppSecEnabledConfig() {
     return appSecEnabled;
   }
@@ -1780,6 +1823,14 @@ public class Config {
 
   public String getAppSecObfuscationParameterValueRegexp() {
     return appSecObfuscationParameterValueRegexp;
+  }
+
+  public String getAppSecHttpBlockedTemplateHtml() {
+    return appSecHttpBlockedTemplateHtml;
+  }
+
+  public String getAppSecHttpBlockedTemplateJson() {
+    return appSecHttpBlockedTemplateJson;
   }
 
   public boolean isIastEnabled() {
@@ -1822,12 +1873,24 @@ public class Config {
     return remoteConfigEnabled;
   }
 
+  public boolean isRemoteConfigIntegrityCheckEnabled() {
+    return remoteConfigIntegrityCheckEnabled;
+  }
+
   public String getFinalRemoteConfigUrl() {
     return remoteConfigUrl;
   }
 
   public int getRemoteConfigInitialPollInterval() {
     return remoteConfigInitialPollInterval;
+  }
+
+  public String getRemoteConfigTargetsKeyId() {
+    return remoteConfigTargetsKeyId;
+  }
+
+  public String getRemoteConfigTargetsKey() {
+    return remoteConfigTargetsKey;
   }
 
   public boolean isDebuggerEnabled() {
@@ -1879,17 +1942,11 @@ public class Config {
   }
 
   public String getFinalDebuggerProbeUrl() {
-    if (debuggerProbeUrl != null) {
-      return debuggerProbeUrl;
-    }
     // by default poll from datadog agent
     return "http://" + agentHost + ":" + agentPort;
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    if (debuggerSnapshotUrl != null) {
-      return debuggerSnapshotUrl;
-    }
     // by default send to datadog agent
     return agentUrl + "/debugger/v1/input";
   }
@@ -1952,10 +2009,6 @@ public class Config {
 
   public boolean isIgniteCacheIncludeKeys() {
     return igniteCacheIncludeKeys;
-  }
-
-  public int getOsgiSearchDepth() {
-    return osgiSearchDepth;
   }
 
   public String getObfuscationQueryRegexp() {
@@ -2935,12 +2988,10 @@ public class Config {
         + remoteConfigInitialPollInterval
         + ", remoteConfigMaxPayloadSize="
         + remoteConfigMaxPayloadSize
+        + ", remoteConfigIntegrityCheckEnabled="
+        + remoteConfigIntegrityCheckEnabled
         + ", debuggerEnabled="
         + debuggerEnabled
-        + ", debuggerSnapshotUrl="
-        + debuggerSnapshotUrl
-        + ", debuggerProbeUrl="
-        + debuggerProbeUrl
         + ", debuggerUploadTimeout="
         + debuggerUploadTimeout
         + ", debuggerUploadFlushInterval="
@@ -2995,8 +3046,6 @@ public class Config {
         + hystrixMeasuredEnabled
         + ", igniteCacheIncludeKeys="
         + igniteCacheIncludeKeys
-        + ", osgiSearchDepth="
-        + osgiSearchDepth
         + ", servletPrincipalEnabled="
         + servletPrincipalEnabled
         + ", servletAsyncTimeoutError="
@@ -3047,6 +3096,10 @@ public class Config {
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
+        + ", appSecHttpBlockedTemplateHtml="
+        + appSecHttpBlockedTemplateHtml
+        + ", appSecHttpBlockedTemplateJson="
+        + appSecHttpBlockedTemplateJson
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="

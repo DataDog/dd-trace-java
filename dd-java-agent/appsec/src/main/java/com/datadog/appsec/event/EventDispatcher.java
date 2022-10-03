@@ -180,7 +180,12 @@ public class EventDispatcher implements EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean isTransient) {
+      boolean isTransient)
+      throws ExpiredSubscriberInfoException {
+    if (!((DataSubscriberInfoImpl) subscribers).isEventDispatcher(this)) {
+      throw new ExpiredSubscriberInfoException();
+    }
+
     if (!isTransient) {
       ctx.addAll(newData);
     }
@@ -216,7 +221,7 @@ public class EventDispatcher implements EventProducerService {
     return allSubscribedAddresses;
   }
 
-  private static class DataSubscriberInfoImpl implements DataSubscriberInfo {
+  private class DataSubscriberInfoImpl implements DataSubscriberInfo {
     final char[] listenerIndices;
 
     private DataSubscriberInfoImpl(char[] listenerIndices) {
@@ -226,6 +231,10 @@ public class EventDispatcher implements EventProducerService {
     @Override
     public boolean isEmpty() {
       return listenerIndices.length == 0;
+    }
+
+    boolean isEventDispatcher(EventDispatcher ed) {
+      return ed == EventDispatcher.this;
     }
   }
 }

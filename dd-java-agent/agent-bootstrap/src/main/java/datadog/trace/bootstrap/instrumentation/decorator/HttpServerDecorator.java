@@ -36,6 +36,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
+  private static final int UNSET_PORT = 0;
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
@@ -94,7 +95,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpan.Context.Extracted context) {
     AgentSpan span =
         tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
-    callIGCallbackRequestHeaders(span, carrier);
+    Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    }
     return span;
   }
 
@@ -157,7 +161,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
-          callIGCallbackURI(span, url, method);
+          Flow<Void> flow = callIGCallbackURI(span, url, method);
+          if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+            span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+          }
           if (SHOULD_SET_URL_RESOURCE_NAME) {
             HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
@@ -170,23 +177,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String ip = null;
+    int port = UNSET_PORT;
     if (connection != null) {
       ip = peerHostIP(connection);
-      final int port = peerPort(connection);
-      if (ip != null) {
-        if (ip.indexOf(':') > 0) {
-          span.setTag(Tags.PEER_HOST_IPV6, ip);
-        } else {
-          span.setTag(Tags.PEER_HOST_IPV4, ip);
-        }
-      }
-      setPeerPort(span, port);
-      // TODO: blocking
-      callIGCallbackSocketAddress(span, ip, port);
+      port = peerPort(connection);
     }
 
+    String inferredAddressStr = null;
     if (config.isTraceClientIpResolverEnabled()) {
-      InetAddress inferredAddress = ClientIpAddressResolver.doResolve(context);
+      InetAddress inferredAddress = ClientIpAddressResolver.resolve(context);
       // As a fallback, if no IP was resolved, the peer IP address should be checked
       // to see if it is public and used as the resolved IP if it is.
       // If no public IP address, then a private IP address should reported as a fall back.
@@ -194,8 +193,22 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         inferredAddress = ClientIpAddressResolver.parseIpAddress(ip);
       }
       if (inferredAddress != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddress.getHostAddress());
+        inferredAddressStr = inferredAddress.getHostAddress();
+        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
       }
+    }
+
+    if (ip != null) {
+      if (ip.indexOf(':') > 0) {
+        span.setTag(Tags.PEER_HOST_IPV6, ip);
+      } else {
+        span.setTag(Tags.PEER_HOST_IPV4, ip);
+      }
+    }
+    setPeerPort(span, port);
+    Flow<Void> flow = callIGCallbackAddressAndPort(span, ip, port, inferredAddressStr);
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
 
     return span;
@@ -271,12 +284,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return context;
   }
 
-  private void callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
+  private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (requestContext == null || cbp == null || getter == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
     IGKeyClassifier igKeyClassifier =
         IGKeyClassifier.create(
@@ -285,8 +298,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             cbp.getCallback(EVENTS.requestHeaderDone()));
     if (null != igKeyClassifier) {
       getter.forEachKey(carrier, igKeyClassifier);
-      igKeyClassifier.done();
+      return igKeyClassifier.done();
     }
+    return Flow.ResultFlow.empty();
   }
 
   private void callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
@@ -315,20 +329,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
-  private void callIGCallbackURI(
+  private Flow<Void> callIGCallbackURI(
       @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
     // TODO:appsec there must be some better way to do this?
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (requestContext == null || cbp == null) {
-      return;
+      return Flow.ResultFlow.empty();
     }
 
     TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestMethodUriRaw());
     if (callback != null) {
-      callback.apply(requestContext, method, url);
+      return callback.apply(requestContext, method, url);
     }
+    return Flow.ResultFlow.empty();
   }
 
   @Override
@@ -352,17 +367,32 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
-  private Flow<Void> callIGCallbackSocketAddress(
-      @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
+  private Flow<Void> callIGCallbackAddressAndPort(
+      @Nonnull final AgentSpan span,
+      final String ip,
+      final int port,
+      final String inferredClientIp) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    if (cbp == null || (ip == null && port == UNSET_PORT)) {
+    if (cbp == null || (ip == null && inferredClientIp == null && port == UNSET_PORT)) {
       return Flow.ResultFlow.empty();
     }
     RequestContext ctx = span.getRequestContext();
-    if (ctx != null) {
+    if (ctx == null) {
+      return Flow.ResultFlow.empty();
+    }
+
+    if (inferredClientIp != null) {
+      BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
+          cbp.getCallback(EVENTS.requestInferredClientAddress());
+      if (inferredAddrCallback != null) {
+        inferredAddrCallback.apply(ctx, inferredClientIp);
+      }
+    }
+
+    if (ip != null || port != UNSET_PORT) {
       TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
           cbp.getCallback(EVENTS.requestClientSocketAddress());
-      if (null != addrCallback) {
+      if (addrCallback != null) {
         return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
       }
     }
@@ -401,10 +431,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return true;
     }
 
-    public void done() {
+    public Flow<Void> done() {
       if (null != doneCallback) {
-        doneCallback.apply(requestContext);
+        return doneCallback.apply(requestContext);
       }
+      return Flow.ResultFlow.empty();
     }
   }
 

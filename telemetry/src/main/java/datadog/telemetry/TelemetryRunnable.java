@@ -91,8 +91,12 @@ public class TelemetryRunnable implements Runnable {
 
   private void successWait() {
     consecutiveFailures = 0;
-    int waitSeconds = 10;
-    sleeper.sleep(waitSeconds * 1000L);
+    int waitMs = telemetryService.getHeartbeatInterval();
+
+    // Wait between iterations no longer than 10 seconds
+    if (waitMs > 10000) waitMs = 10000;
+
+    sleeper.sleep(waitMs);
   }
 
   private void failureWait() {

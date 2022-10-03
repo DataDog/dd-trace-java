@@ -20,7 +20,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-abstract class Jetty70Test extends HttpServerTest<Server> {
+class Jetty70Test extends HttpServerTest<Server> {
 
   class JettyServer implements HttpServer {
     def port = 0
@@ -91,6 +91,11 @@ abstract class Jetty70Test extends HttpServerTest<Server> {
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBlocking() {
     true
   }
 

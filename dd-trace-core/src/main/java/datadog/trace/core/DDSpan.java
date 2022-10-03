@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.ToIntFunction;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.profiling.TracingContextTracker;
 import datadog.trace.api.profiling.TracingContextTrackerFactory;
@@ -99,6 +100,9 @@ public class DDSpan
   private volatile Object wrapper;
   private static final AtomicReferenceFieldUpdater<DDSpan, Object> WRAPPER_FIELD_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, Object.class, "wrapper");
+
+  // the request is to be blocked (AppSec)
+  private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -421,6 +425,16 @@ public class DDSpan
   public final DDSpan setTag(final String tag, final boolean value) {
     context.setTag(tag, value);
     return this;
+  }
+
+  @Override
+  public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {
+    this.requestBlockingAction = rba;
+  }
+
+  @Override
+  public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
+    return requestBlockingAction;
   }
 
   @Override

@@ -68,6 +68,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestMethodURICB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> pathParamsCB
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
+  BiFunction<RequestContext, String, Flow<Void>> requestInferredAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> requestBodyProcessedCB
@@ -258,6 +259,24 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.REQUEST_CLIENT_PORT) == 5555
   }
 
+  void 'the inferred ip address is distributed if published before the socket address'() {
+    DataBundle bundle
+
+    when:
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    and:
+    reqHeadersDoneCB.apply(ctx)
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
+    requestInferredAddressCB.apply(ctx, '1.2.3.4')
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_INFERRED_CLIENT_IP) == '1.2.3.4'
+  }
+
   void 'setting headers then request uri triggers initial data event'() {
     DataBundle bundle
 
@@ -377,6 +396,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { reqHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { reqHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestInferredClientAddress(), _) >> { requestInferredAddressCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
@@ -526,7 +546,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 
-  void 'request body does not published twice'() {
+  void 'request body does not get published twice'() {
     StoredBodySupplier supplier = Mock()
     Flow flow
 
