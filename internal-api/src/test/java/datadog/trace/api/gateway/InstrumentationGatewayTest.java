@@ -121,10 +121,12 @@ public class InstrumentationGatewayTest {
   }
 
   @Test
-  public void testThrownAction() {
-    Flow.Action.Throw thrown = new Flow.Action.Throw(new Exception("my message"));
-    assertThat(thrown.isBlocking()).isTrue();
-    assertThat(thrown.getBlockingException().getMessage()).isEqualTo("my message");
+  public void testRequestBlockingAction() {
+    Flow.Action.RequestBlockingAction rba =
+        new Flow.Action.RequestBlockingAction(400, Flow.Action.BlockingContentType.HTML);
+    assertThat(rba.isBlocking()).isTrue();
+    assertThat(rba.getStatusCode()).isEqualTo(400);
+    assertThat(rba.getBlockingContentType()).isEqualTo(Flow.Action.BlockingContentType.HTML);
   }
 
   @Test
@@ -145,6 +147,9 @@ public class InstrumentationGatewayTest {
     assertThat(cbp.getCallback(events.requestPathParams()).apply(null, null)).isEqualTo(flow);
     ss.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
     assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
+        .isEqualTo(flow);
+    ss.registerCallback(events.requestInferredClientAddress(), callback);
+    assertThat(cbp.getCallback(events.requestInferredClientAddress()).apply(null, null))
         .isEqualTo(flow);
     ss.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
     assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
@@ -188,6 +193,9 @@ public class InstrumentationGatewayTest {
         .isEqualTo(Flow.ResultFlow.empty());
     ss.registerCallback(events.requestClientSocketAddress(), throwback.asClientSocketAddress());
     assertThat(cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
+        .isEqualTo(Flow.ResultFlow.empty());
+    ss.registerCallback(events.requestInferredClientAddress(), throwback.asInferredClientAddress());
+    assertThat(cbp.getCallback(events.requestInferredClientAddress()).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
     ss.registerCallback(events.requestBodyStart(), throwback.asRequestBodyStart());
     assertThat(cbp.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
@@ -317,7 +325,7 @@ public class InstrumentationGatewayTest {
         new Flow.ResultFlow<Void>(null) {
           @Override
           public Action getAction() {
-            return new Action.Throw(new Exception());
+            return new Action.RequestBlockingAction(410, Action.BlockingContentType.AUTO);
           }
         };
 
@@ -479,6 +487,16 @@ public class InstrumentationGatewayTest {
       return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
         @Override
         public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
+          count++;
+          throw new IllegalArgumentException();
+        }
+      };
+    }
+
+    public BiFunction<RequestContext, String, Flow<Void>> asInferredClientAddress() {
+      return new BiFunction<RequestContext, String, Flow<Void>>() {
+        @Override
+        public Flow<Void> apply(RequestContext requestContext, String s) {
           count++;
           throw new IllegalArgumentException();
         }

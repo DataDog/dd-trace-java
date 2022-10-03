@@ -13,7 +13,7 @@ def appBuildDir = "$buildDir/application"
 // define the task that builds the quarkus project
 tasks.register('quarkusBuild', Exec) {
   workingDir "$appDir"
-  environment += ["GRADLE_OPTS": "-Xmx512M"]
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
   commandLine "$rootDir/gradlew", "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archivePath}"
   outputs.dir(appBuildDir)
   inputs.dir(appDir)

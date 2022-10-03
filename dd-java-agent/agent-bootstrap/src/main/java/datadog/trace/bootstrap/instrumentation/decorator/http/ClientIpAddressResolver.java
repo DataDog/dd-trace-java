@@ -37,7 +37,7 @@ public class ClientIpAddressResolver {
     }
   }
 
-  public static InetAddress doResolve(AgentSpan.Context.Extracted context) {
+  private static InetAddress doResolve(AgentSpan.Context.Extracted context) {
     if (context == null) {
       return null;
     }

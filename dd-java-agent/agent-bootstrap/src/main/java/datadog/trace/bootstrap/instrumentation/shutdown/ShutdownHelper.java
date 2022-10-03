@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.shutdown;
+package datadog.trace.bootstrap.instrumentation.shutdown;
 
 import datadog.trace.bootstrap.Agent;
 import org.slf4j.Logger;

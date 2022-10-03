@@ -12,6 +12,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.ProtectionDomain;
 import java.security.SecureClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
@@ -113,7 +114,8 @@ public class HelperInjector implements Instrumenter.AdviceTransformer {
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
       ClassLoader classLoader,
-      final JavaModule module) {
+      final JavaModule module,
+      final ProtectionDomain pd) {
     if (!helperClassNames.isEmpty()) {
       if (classLoader == null) {
         classLoader = BOOTSTRAP_CLASSLOADER_PLACEHOLDER;

@@ -128,8 +128,7 @@ public class ProfilingAgent {
   private static boolean isStartForceFirstSafe() {
     return Platform.isJavaVersionAtLeast(14)
         || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
-        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8))
-        || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 272));
+        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8));
   }
 
   public static void shutdown() {

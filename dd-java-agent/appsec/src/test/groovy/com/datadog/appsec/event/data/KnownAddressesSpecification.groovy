@@ -15,6 +15,7 @@ class KnownAddressesSpecification extends Specification {
       "server.request.uri.raw",
       "server.request.client_ip",
       "_server.request.client_port",
+      "http.client_ip",
       "server.request.method",
       "server.request.path_params",
       "server.request.cookies",
@@ -33,7 +34,7 @@ class KnownAddressesSpecification extends Specification {
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 19
+    Address.instanceCount() == 20
     KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE.serial == Address.instanceCount() - 1
   }
 }

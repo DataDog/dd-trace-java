@@ -490,7 +490,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanWritten(_, _, _)
     _ * TEST_CHECKPOINTER.onRootSpanStarted(_)
-    0 * _
+
 
     cleanup:
     statement.close()

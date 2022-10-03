@@ -66,7 +66,7 @@ abstract class DDSpecification extends Specification {
         ClassFileLocator.ForClassLoader.ofSystemLoader()))
         .ignore(none()) // Allow transforming bootstrap classes
         .type(named(CONFIG))
-        .transform { builder, typeDescription, classLoader, module ->
+        .transform { builder, typeDescription, classLoader, module, pd ->
           builder
             .field(named("INSTANCE"))
             .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE))

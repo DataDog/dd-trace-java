@@ -16,7 +16,8 @@ public class JettyServerAdvice {
   public static class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This final HttpChannel channel) {
+    public static AgentScope onEnter(
+        @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
@@ -27,7 +28,8 @@ public class JettyServerAdvice {
       }
 
       final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
-      final AgentSpan span = DECORATE.startSpan(req, extractedContext).setMeasured(true);
+      span = DECORATE.startSpan(req, extractedContext);
+      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 

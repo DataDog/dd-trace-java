@@ -1,10 +1,10 @@
 package com.datadog.appsec.event
 
-import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.event.data.CaseInsensitiveMap
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
+import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
 
@@ -105,8 +105,6 @@ class EventDispatcherSpecification extends DDSpecification {
   }
 
   void 'blocking interrupts data listener calls'() {
-    def exception = new RuntimeException()
-
     given:
     DataListener dataListener1 = Mock()
     DataListener dataListener2 = Mock()
@@ -127,11 +125,12 @@ class EventDispatcherSpecification extends DDSpecification {
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true) >> {
       ChangeableFlow flow = it.first()
-      flow.action = new Flow.Action.Throw(exception)
+      flow.action = new Flow.Action.RequestBlockingAction(404, Flow.Action.BlockingContentType.AUTO)
     }
     0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean)
     assert resultFlow.blocking
-    assert resultFlow.action.blockingException.is(exception)
+    assert resultFlow.action.statusCode == 404
+    assert resultFlow.action.blockingContentType == Flow.Action.BlockingContentType.AUTO
   }
 
   void 'non transient data publishing saves the bundle in the context'() {
@@ -179,5 +178,16 @@ class EventDispatcherSpecification extends DDSpecification {
     then:
     expect dispatcher.allSubscribedDataAddresses(), containsInAnyOrder(KnownAddresses.REQUEST_CLIENT_IP)
     expect dispatcher.allSubscribedEvents(), containsInAnyOrder(EventType.REQUEST_END)
+  }
+
+  void 'throws ExpiredSubscriberInfo if it is from a different EventDispatcher'() {
+    when:
+    EventDispatcher anotherDispatcher = new EventDispatcher()
+    EventProducerService.DataSubscriberInfo subInfo =
+      anotherDispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
+    dispatcher.publishDataEvent(subInfo, Mock(AppSecRequestContext), Mock(DataBundle), false)
+
+    then:
+    thrown ExpiredSubscriberInfoException
   }
 }

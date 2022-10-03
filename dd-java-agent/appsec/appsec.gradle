@@ -24,7 +24,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '4.4.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '5.0.3'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
@@ -118,6 +118,7 @@ ext {
   minimumBranchCoverage = 0.6
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
+    'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
     'com.datadog.appsec.powerwaf.LibSqreenInitialization',
     'com.datadog.appsec.report.raw.events.*',
     'com.datadog.appsec.report.AppSecEventWrapper',
@@ -126,6 +127,7 @@ ext {
     'com.datadog.appsec.util.AbortStartupException',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
+    'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

@@ -9,6 +9,7 @@ import de.flapdoodle.embed.mongo.config.Net
 import de.flapdoodle.embed.mongo.distribution.Version
 import de.flapdoodle.embed.process.runtime.Network
 import org.apache.commons.io.FileUtils
+import spock.lang.Ignore
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
@@ -18,6 +19,7 @@ import java.nio.file.StandardOpenOption
 /**
  * Testing needs to be in a centralized project.
  */
+@Ignore("Fails sometimes with java.io.IOException https://github.com/DataDog/dd-trace-java/issues/3884")
 class MongoBaseTest extends AgentTestRunner {
 
   @Shared

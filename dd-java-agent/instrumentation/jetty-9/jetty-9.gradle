@@ -22,6 +22,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
+  implementation project(':dd-java-agent:instrumentation:jetty-common')
 
   // Don't want to conflict with jetty from the test server.
   testImplementation(project(':dd-java-agent:testing')) {
@@ -45,3 +46,4 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.+'
   latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty-appsec-9.3')
 }
+
