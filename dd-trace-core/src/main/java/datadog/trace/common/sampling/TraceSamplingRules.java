@@ -28,14 +28,12 @@ public class TraceSamplingRules {
     }
 
     public static Rule create(String service, String name, String sample_rate) {
-      Rule result;
       if (sample_rate == null) {
-        logError(service, name, null, "sample_rate is mandatory");
+        logError(service, name, null, "missing mandatory sample_rate");
         return null;
       }
       try {
-        double sampleRate = Double.parseDouble(sample_rate);
-        return create(service, name, sampleRate);
+        return create(service, name, Double.parseDouble(sample_rate));
       } catch (NumberFormatException ex) {
         logError(service, name, sample_rate, "sample_rate must be a number between 0.0 and 1.0");
         return null;

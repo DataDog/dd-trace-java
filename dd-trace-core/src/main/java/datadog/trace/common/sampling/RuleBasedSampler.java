@@ -4,9 +4,9 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
-import datadog.trace.common.sampling.SamplingRule.ExactMatchSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
+import datadog.trace.common.sampling.SamplingRule.TraceSamplingRule;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
 import java.util.ArrayList;
@@ -63,8 +63,8 @@ public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, Prio
       }
       // Ignore serviceRules & operationRules if traceSamplingRules are defined
       for (TraceSamplingRules.Rule rule : traceSamplingRules.getRules()) {
-        ExactMatchSamplingRule<T> samplingRule =
-            new ExactMatchSamplingRule<>(
+        TraceSamplingRule<T> samplingRule =
+            new TraceSamplingRule<>(
                 rule.getService(),
                 rule.getName(),
                 new DeterministicSampler<T>(rule.getSampleRate()));
