@@ -328,7 +328,7 @@ class TaintedMapTest extends DDSpecification {
     and: 'all objects are as expected'
     for (final CircularBuffer<Object> objectHolder : objectHolders) {
       assert objectHolder.count {
-        map.get(it).get() == it
+        map.get(it) != null && map.get(it).get() == it
       } >= nRetainedObjectsPerThread * maxAcceptableLossPerThread
     }
 
