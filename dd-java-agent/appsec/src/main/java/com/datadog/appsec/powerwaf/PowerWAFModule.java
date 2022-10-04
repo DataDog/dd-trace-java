@@ -400,7 +400,7 @@ public class PowerWAFModule implements AppSecModule {
                   "WAF indicated action {}, but such action id is unknown (not one from {})",
                   action,
                   ctxAndAddr.actionInfoMap.keySet());
-            } else if ("block_request".equals(actionInfo.type)) {
+            } else if ("block".equals(actionInfo.type)) {
               Flow.Action.RequestBlockingAction rba = createRequestBlockingAction(actionInfo);
               flow.setAction(rba);
               break;
