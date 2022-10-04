@@ -183,7 +183,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
 
     // Matching neither with default rate
     "[{\"sample_rate\": 1}]"                                                                                                                             | "1"         | "50"      | 1.0              | 50                | null              | USER_KEEP
-    "[{\"sample_rate\": 1}]"                                                                                                                             | "0"         | "50"      | 0                | null              | null              | USER_DROP
+    "[{\"sample_rate\": 0}]"                                                                                                                             | "0"         | "50"      | 0                | null              | null              | USER_DROP
     "[]"                                                                                                                                                 | "0"         | "50"      | 0                | null              | null              | USER_DROP
     "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        | "1"         | "50"      | 1.0              | 50                | null              | USER_KEEP
     "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                           | "1"         | "50"      | 1.0              | 50                | null              | USER_KEEP
