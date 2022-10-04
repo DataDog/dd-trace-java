@@ -497,7 +497,7 @@ public class Config {
 
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
-  private final String traceSamplingJsonRules;
+  private final String traceSamplingRules;
   private final Double traceSampleRate;
   private final int traceRateLimit;
 
@@ -1002,7 +1002,7 @@ public class Config {
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
-    traceSamplingJsonRules = configProvider.getString(TRACE_SAMPLING_RULES);
+    traceSamplingRules = configProvider.getString(TRACE_SAMPLING_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
@@ -1700,8 +1700,8 @@ public class Config {
     return traceSamplingOperationRules;
   }
 
-  public String getTraceSamplingJsonRules() {
-    return traceSamplingJsonRules;
+  public String getTraceSamplingRules() {
+    return traceSamplingRules;
   }
 
   public Double getTraceSampleRate() {
@@ -2939,7 +2939,7 @@ public class Config {
         + ", traceSamplingOperationRules="
         + traceSamplingOperationRules
         + ", traceSamplingJsonRules="
-        + traceSamplingJsonRules
+        + traceSamplingRules
         + ", traceSampleRate="
         + traceSampleRate
         + ", traceRateLimit="

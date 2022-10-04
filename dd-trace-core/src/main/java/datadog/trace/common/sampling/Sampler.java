@@ -33,7 +33,7 @@ public interface Sampler<T extends CoreSpan<T>> {
       if (config != null) {
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
-        String traceSamplingRulesJson = config.getTraceSamplingJsonRules();
+        String traceSamplingRulesJson = config.getTraceSamplingRules();
         TraceSamplingRules traceSamplingRules = null;
         if (traceSamplingRulesJson != null) {
           try {
