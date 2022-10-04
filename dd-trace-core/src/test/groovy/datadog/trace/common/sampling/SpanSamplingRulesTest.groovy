@@ -2,21 +2,21 @@ package datadog.trace.common.sampling
 
 import datadog.trace.core.test.DDCoreSpecification
 
-class TraceSamplingRulesTest extends DDCoreSpecification {
+class SpanSamplingRulesTest extends DDCoreSpecification {
 
-  def "Deserialize empty list of Trace Sampling rules from JSON"() {
+  def "Deserialize empty list of Span Sampling rules from JSON"() {
     when:
-    def rules = TraceSamplingRules.deserialize("[]")
+    def rules = SpanSamplingRules.deserialize("[]")
     then:
     rules.rules.size() == 0
   }
 
-  def "Deserialize Trace Sampling rules from JSON"() {
+  def "Deserialize Span Sampling rules from JSON"() {
     when:
-    def rules = TraceSamplingRules.deserialize("""[
+    def rules = SpanSamplingRules.deserialize("""[
       {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": 0.0}, 
       {\"service\": \"service-name\", \"sample_rate\": 0.5}, 
-      {\"name\": \"operation-name\", \"sample_rate\": 0.75}, 
+      {\"name\": \"operation-name\", \"sample_rate\": 0.75, \"max_per_second\": 10}, 
       {\"sample_rate\": 0.25}
     ]""")
     then:
@@ -25,23 +25,27 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
     rules.rules[0].service == "usersvc"
     rules.rules[0].name == "healthcheck"
     rules.rules[0].sampleRate == 0.0d
+    rules.rules[0].maxPerSecond == Integer.MAX_VALUE
 
     rules.rules[1].service == "service-name"
     rules.rules[1].name == null
     rules.rules[1].sampleRate == 0.5d
+    rules.rules[1].maxPerSecond == Integer.MAX_VALUE
 
     rules.rules[2].service == null
     rules.rules[2].name == "operation-name"
     rules.rules[2].sampleRate == 0.75d
+    rules.rules[2].maxPerSecond == 10
 
     rules.rules[3].service == null
     rules.rules[3].name == null
     rules.rules[3].sampleRate == 0.25d
+    rules.rules[3].maxPerSecond == Integer.MAX_VALUE
   }
 
-  def "Skip Trace Sampling Rules with invalid rate values"() {
+  def "Skip Span Sampling Rules with invalid sample_rate values"() {
     when:
-    def rules = TraceSamplingRules.deserialize("""[
+    def rules = SpanSamplingRules.deserialize("""[
       {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"sample_rate\": $rate}
     ]""")
 
@@ -52,9 +56,22 @@ class TraceSamplingRulesTest extends DDCoreSpecification {
     rate << ["-0.1", "-11", "1.2", "100", null, "\"zero\"", "\"\""]
   }
 
-  def "Skip Trace Sampling Rules when incorrect JSON provided"() {
+  def "Skip Span Sampling Rules with invalid max_per_second values"() {
     when:
-    def rules = TraceSamplingRules.deserialize(jsonRules)
+    def rules = SpanSamplingRules.deserialize("""[
+      {\"service\": \"usersvc\", \"name\": \"healthcheck\", \"max_per_second\": $limit}
+    ]""")
+
+    then:
+    rules.rules.size() == 0
+
+    where:
+    limit << ["0", "-11", null, "\"zero\"", "\"\""]
+  }
+
+  def "Skip Span Sampling Rules when incorrect JSON provided"() {
+    when:
+    def rules = SpanSamplingRules.deserialize(jsonRules)
 
     then:
     rules == null

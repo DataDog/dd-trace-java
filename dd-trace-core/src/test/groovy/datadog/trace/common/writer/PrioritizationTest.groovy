@@ -20,7 +20,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, { false }, spanProcessingWorker)
+    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, { false }, null)
 
     when:
     blocking.publish(Mock(DDSpan), priority, trace)
@@ -49,7 +49,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, { false }, spanProcessingWorker)
+    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, { false }, null)
 
     when:
     fastLane.publish(Mock(DDSpan), priority, trace)
@@ -73,7 +73,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, { true }, spanProcessingWorker)
+    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, { true }, null)
 
     when:
     boolean published = drop.publish(Mock(DDSpan), priority, trace)
@@ -98,7 +98,7 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = strategy.create(primary, secondary, { false }, spanProcessingWorker)
+    PrioritizationStrategy fastLane = strategy.create(primary, secondary, { false }, null)
     when:
     fastLane.flush(100, TimeUnit.MILLISECONDS)
     then:
@@ -114,7 +114,7 @@ class PrioritizationTest extends DDSpecification {
     Queue<Object> primary = Mock(Queue)
     PrioritizationStrategy drop = strategy.create(primary, null, {
       true
-    }, spanProcessingWorker)
+    }, null)
     DDSpan root = Mock(DDSpan)
     List<DDSpan> trace = [root]
 

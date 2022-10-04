@@ -124,6 +124,7 @@ public enum Prioritization {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
+          // send dropped traces for single span sampling
           if (spanProcessingWorker != null) {
             return spanProcessingWorker.publish(trace);
           }

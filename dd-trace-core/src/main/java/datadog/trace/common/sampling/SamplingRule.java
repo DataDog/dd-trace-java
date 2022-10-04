@@ -1,6 +1,8 @@
 package datadog.trace.common.sampling;
 
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.util.GlobPattern;
+import datadog.trace.core.util.SimpleRateLimiter;
 import java.util.regex.Pattern;
 
 public abstract class SamplingRule<T extends CoreSpan<T>> {
@@ -75,7 +77,6 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
   }
 
   public static final class TraceSamplingRule<T extends CoreSpan<T>> extends SamplingRule<T> {
-
     private final String serviceName;
     private final String operationName;
 
@@ -92,6 +93,32 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     public boolean matches(T span) {
       return (serviceName == null || serviceName.equals(span.getServiceName()))
           && (operationName == null || operationName.contentEquals(span.getOperationName()));
+    }
+  }
+
+  // TODO how to combine this with a rate-limiter?
+  public static final class SpanSamplingRule<T extends CoreSpan<T>> extends SamplingRule<T> {
+    private final Pattern servicePattern;
+    private final Pattern operationPattern;
+
+    private final SimpleRateLimiter rateLimiter;
+
+    public SpanSamplingRule(
+        final String serviceNameGlob,
+        final String operationNameGlob,
+        final RateSampler<T> sampler) {
+      super(sampler);
+      servicePattern = GlobPattern.globToRegexPattern(serviceNameGlob);
+      operationPattern = GlobPattern.globToRegexPattern(operationNameGlob);
+      rateLimiter = null; // TODO
+    }
+
+    @Override
+    public boolean matches(T span) {
+      // TODO do we run rateLimiter here or in the sample method? Before or after the match.
+      return (servicePattern == null || servicePattern.matcher(span.getServiceName()).matches())
+          && (operationPattern == null
+              || operationPattern.matcher(span.getOperationName()).matches());
     }
   }
 }

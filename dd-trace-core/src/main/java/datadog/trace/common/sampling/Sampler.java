@@ -8,7 +8,6 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
-import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -36,11 +35,7 @@ public interface Sampler<T extends CoreSpan<T>> {
         String traceSamplingRulesJson = config.getTraceSamplingRules();
         TraceSamplingRules traceSamplingRules = null;
         if (traceSamplingRulesJson != null) {
-          try {
-            traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
-          } catch (IOException e) {
-            log.error("Couldn't parse trace sampling rules from JSON", e);
-          }
+          traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
         }
         boolean serviceRulesDefined = serviceRules != null && !serviceRules.isEmpty();
         boolean operationRulesDefined = operationRules != null && !operationRules.isEmpty();

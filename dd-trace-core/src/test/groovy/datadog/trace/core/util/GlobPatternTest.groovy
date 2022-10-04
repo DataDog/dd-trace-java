@@ -10,7 +10,8 @@ class GlobPatternTest extends DDSpecification {
 
     where:
     globPattern | expectedRegex
-    "*"         | "^.+\$"
+    "*"         | null
+    "Foo*"      | "^Foo.+\$"
     "abc"       | "^abc\$"
     "?"         | "^.\$"
   }

@@ -12,32 +12,33 @@ public class SpanProcessingWorker implements AutoCloseable {
 
   private final Thread samplingThread;
   private final SamplingHandler samplingHandler;
-  private final MpscBlockingConsumerArrayQueue<Object> spanQueue;
-  private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
+  private final MpscBlockingConsumerArrayQueue<Object> spanInQueue;
+  private final MpscBlockingConsumerArrayQueue<Object> spanOutQueue;
 
   public static SpanProcessingWorker build(
-      int capacity, MpscBlockingConsumerArrayQueue<Object> primaryQueue) {
+      int capacity, MpscBlockingConsumerArrayQueue<Object> spanOutQueue) {
     // TODO return null when Single Span Sampling rules are empty
-    return new SpanProcessingWorker(capacity, primaryQueue);
+    return new SpanProcessingWorker(capacity, spanOutQueue);
   }
 
   private static final class SamplingHandler implements Runnable {
 
     @Override
     public void run() {
-      // TODO consume from the queue and filter spans by Single Span Sampling rules
+      // TODO consume from the queue
+      // TODO filter spans by Single Span Sampling rules
       // TODO add necessary tags
-      // TODO send sampled spans to the primaryQueue
+      // TODO send sampled spans to the spanOutQueue
     }
   }
   // TODO pass the primaryQueue here for sending sampled spans to the Agent
 
-  public SpanProcessingWorker(int capacity, MpscBlockingConsumerArrayQueue<Object> primaryQueue) {
+  public SpanProcessingWorker(int capacity, MpscBlockingConsumerArrayQueue<Object> spanOutQueue) {
     // TODO read Single Span Sampling Rules
     this.samplingHandler = new SamplingHandler();
     this.samplingThread = newAgentThread(SPAN_PROCESSOR, samplingHandler);
-    this.spanQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
-    this.primaryQueue = primaryQueue;
+    this.spanInQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.spanOutQueue = spanOutQueue;
   }
 
   public void start() {
@@ -45,7 +46,7 @@ public class SpanProcessingWorker implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     samplingThread.interrupt();
     try {
       samplingThread.join(THREAD_JOIN_TIMOUT_MS);
@@ -54,6 +55,6 @@ public class SpanProcessingWorker implements AutoCloseable {
   }
 
   public <T extends CoreSpan<T>> boolean publish(List<T> trace) {
-    return spanQueue.offer(trace);
+    return spanInQueue.offer(trace);
   }
 }
