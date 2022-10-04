@@ -247,7 +247,6 @@ class TaintedMapTest extends DDSpecification {
     int nThreads = 32
     int nObjectsPerThread = (int) Math.floor((DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD - 4096) / nThreads)
     int nRetainedObjectsPerThread = 16
-    int nTotalObjects = nThreads * nObjectsPerThread
     def executorService = Executors.newFixedThreadPool(nThreads)
     def startLatch = new CountDownLatch(nThreads)
     def map = new DefaultTaintedMap()
