@@ -172,6 +172,17 @@ public final class DefaultTaintedMap implements TaintedMap {
    * @return Number of removed elements.
    */
   private int remove(final TaintedObject entry) {
+    // A remove might be lost when it is concurrent to puts. If that happens, the object will not be
+    // removed again,
+    // (until the map goes to flat mode). When a remove is lost under concurrency, this method will
+    // still return 1, and
+    // it will still be subtracted from the map size estimate. If this is infrequent enough, this
+    // would lead to a
+    // performance degradation of get opertions. If this happens extremely frequently, like number
+    // of lost removals
+    // close to number of puts, it could prevent the map from ever going into flat mode, and its
+    // size might become
+    // effectively unbound.
     final int index = index(entry.positiveHashCode);
     TaintedObject cur = table[index];
     if (cur == entry) {
