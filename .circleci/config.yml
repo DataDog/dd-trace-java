@@ -10,21 +10,16 @@ defaults: &defaults
 # 2) Cache keys are prefix matched, and the most recently updated cache that matches will be picked
 #
 # There is a weekly job that runs on Monday mornings that builds a new cache from scratch.
-#
-# The cache is also saved using the unique git revision to enable the dependent build steps to get a fully populated
-# cache to work from.
-cache_keys: &cache_keys
+dependency_cache_keys: &dependency_cache_keys
   keys:
-    # Dependent steps will find this cache
-    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
     # New branch commits will find this cache
-    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+    - dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
-    - dd-trace-java-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
+    - dd-trace-java-dep-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
     # Fall back on the previous cache scheme to not start from scratch when switching
-    - dd-trace-java-v3-master-
+    - dd-trace-java-v4-master-
 
-save_cache_paths: &save_cache_paths
+dependency_cache_paths: &dependency_cache_paths
   paths:
     # Cached dependencies and wrappers for gradle
     - ~/.gradle
@@ -37,9 +32,31 @@ save_cache_paths: &save_cache_paths
     # Cached dependencies for sbt handled by coursier
     - ~/.cache/coursier
 
+build_cache_keys: &build_cache_keys
+  keys:
+    # Dependent steps will find this cache
+    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+    # New branch commits will find this cache
+    - dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+    # New branches fall back on main build caches
+    - dd-trace-java-build-v1-master-{{ checksum "_circle_ci_cache_base_id" }}-
+
+build_cache_paths: &build_cache_paths
+  paths:
+    # Gradle version specific cache for incremental builds. Needs to match version in
+    # gradle/wrapper/gradle-wrapper.properties
+    - ~/.gradle/caches/7.5.47-20220929220000+0000
+    # Save the downloaded distribution. Needs to match version in
+    # gradle/wrapper/gradle-wrapper.properties
+    - ~/.gradle/wrapper/dists/gradle-7.5.47-all
+
 test_matrix: &test_matrix
   parameters:
-    testJvm: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15", "17" ]
+    testJvm: [ "7", "IBM8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
+
+profiling_test_matrix: &profiling_test_matrix
+  parameters:
+    testJvm: [ "8", "ZULU8", "ORACLE8", "11", "ZULU11", "17" ]
 
 parameters:
   gradle_flags:
@@ -137,6 +154,27 @@ commands:
               circleci step halt
             fi
 
+  skip_unless_matching_files_changed:
+    description: >-
+      If files matching the regular expression haven't changed in the commit, then skip the job
+    parameters:
+      pattern:
+        type: string
+    steps:
+      - run: |
+          if [ -n $CIRCLE_PULL_REQUEST ]; then
+            PR=$(echo https://api.github.com/repos/${CIRCLE_PULL_REQUEST:19} | sed "s/\/pull\//\/pulls\//")
+            TARGET_BRANCH=$(curl -s -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${GH_TOKEN}" $PR | jq '.base.ref')
+            if [ -z "$TARGET_BRANCH" ]; then
+              echo "Defaulting target branch to master. Set up GH_TOKEN with a valid GitHub PAT to get correct target branch"
+              TARGET_BRANCH="master"
+            fi
+            BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+            if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
+              git diff "$TARGET_BRANCH" --name-only --no-color --pretty="" | grep -E "gradle/|<< parameters.pattern >>" || circleci step halt
+            fi
+          fi
+
   display_memory_usage:
     steps:
       - run:
@@ -153,7 +191,7 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
 
       - run:
           name: Build Project
@@ -163,6 +201,7 @@ jobs:
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
+            --rerun-tasks
 
       - run:
           name: Collect Libs
@@ -178,9 +217,36 @@ jobs:
             - .gradle
             - workspace
 
+      # Save a full dependency cache when building on master or a base project branch
+      - when:
+          condition:
+            matches:
+              pattern: "^(master|project/.+)$"
+              value: << pipeline.git.branch >>
+          steps:
+            - save_cache:
+                key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+                <<: *dependency_cache_paths
+
+      # This part is now disable to speed up builds at the cost of downloading new dependencies a few more times
+      #
+      ## Save a full dependency the first time any other PR branch is built (will be skipped
+      ## during other runs since the cache name will already exist)
+      #- when:
+      #    condition:
+      #      not:
+      #        matches:
+      #          pattern: "^(master|project/.+)$"
+      #          value: << pipeline.git.branch >>
+      #    steps:
+      #      - save_cache:
+      #          key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-base
+      #          <<: *dependency_cache_paths
+
+      # Save the small build cache
       - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
-          <<: *save_cache_paths
+          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          <<: *build_cache_paths
 
       - display_memory_usage
 
@@ -199,10 +265,15 @@ jobs:
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
             --max-workers=4
+            --rerun-tasks
 
       - save_cache:
-          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
-          <<: *save_cache_paths
+          key: dd-trace-java-dep-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
+          <<: *dependency_cache_paths
+
+      - save_cache:
+          key: dd-trace-java-build-v1-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
+          <<: *build_cache_paths
 
       - display_memory_usage
 
@@ -225,14 +296,17 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests
+            ./gradlew << parameters.testTask >> -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipIastTests -PskipDebuggerTests
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -263,7 +337,7 @@ jobs:
           when: always
           command: .circleci/upload_ciapp.sh base << parameters.testJvm >> || true
 
-  instrumentation_tests:
+  profiling_tests:
     <<: *base_tests
     resource_class: xlarge
 
@@ -273,8 +347,178 @@ jobs:
     steps:
       - setup_code
 
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/agent-profiling|dd-trace-core/jfr-openjdk"
+
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
+
+      - run:
+          name: Run tests
+          command: >-
+            MAVEN_OPTS="-Xms64M -Xmx512M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=256M -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew :dd-java-agent:agent-profiling:<< parameters.testTask >>
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=6
+            --continue
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect test results
+          when: always
+          command: .circleci/collect_results.sh
+
+      - store_test_results:
+          path: ./results
+
+      - display_memory_usage
+
+      - early_return_for_forked_pull_requests
+
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: .circleci/upload_ciapp.sh profiling << parameters.testJvm >> || true
+
+  iast_tests:
+    <<: *base_tests
+    resource_class: xlarge
+
+    docker:
+      - image: *default_container
+
+    steps:
+      - setup_code
+
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/iast|internal-api|utils/test-utils"
+
+      - restore_cache:
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
+
+      - run:
+          name: Run tests
+          command: >-
+            MAVEN_OPTS="-Xms64M -Xmx512M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=256M -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew :dd-java-agent:iast:<< parameters.testTask >>
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=6
+            --continue
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect test results
+          when: always
+          command: .circleci/collect_results.sh
+
+      - store_test_results:
+          path: ./results
+
+      - display_memory_usage
+
+      - early_return_for_forked_pull_requests
+
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: .circleci/upload_ciapp.sh iast << parameters.testJvm >> || true
+
+  debugger_tests:
+    <<: *base_tests
+    resource_class: xlarge
+
+    docker:
+      - image: *default_container
+
+    steps:
+      - setup_code
+
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
+
+      - restore_cache:
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
+
+      - run:
+          name: Run tests
+          command: >-
+            MAVEN_OPTS="-Xms64M -Xmx512M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=512M"
+            ./gradlew :dd-java-agent:agent-debugger:<< parameters.testTask >>
+            <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=6
+            --continue
+
+      - run:
+          name: Collect reports
+          when: on_fail
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect test results
+          when: always
+          command: .circleci/collect_results.sh
+
+      - store_test_results:
+          path: ./results
+
+      - display_memory_usage
+
+      - early_return_for_forked_pull_requests
+
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: .circleci/upload_ciapp.sh debugger << parameters.testJvm >> || true
+
+  instrumentation_tests:
+    <<: *base_tests
+    resource_class: xlarge
+
+    docker:
+      - image: *default_container
+
+    steps:
+      - setup_code
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-trace-core|dd-trace-api|internal-api"
+
+      - restore_cache:
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - setup_testcontainers
 
@@ -325,7 +569,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - setup_testcontainers
 
@@ -383,6 +630,51 @@ jobs:
           name: All tests for << parameters.testJvm >> passed!
           command: echo 'All tests passed!'
 
+  profiling:
+    resource_class: small
+
+    docker:
+      - image: alpine
+
+    parameters:
+      testJvm:
+        type: string
+
+    steps:
+      - run:
+          name: All profiling tests for << parameters.testJvm >> passed!
+          command: echo 'All profiling tests passed!'
+
+  iast:
+    resource_class: small
+
+    docker:
+      - image: alpine
+
+    parameters:
+      testJvm:
+        type: string
+
+    steps:
+      - run:
+          name: All IAST tests for << parameters.testJvm >> passed!
+          command: echo 'All IAST tests passed!'
+
+  debugger:
+    resource_class: small
+
+    docker:
+      - image: alpine
+
+    parameters:
+      testJvm:
+        type: string
+
+    steps:
+      - run:
+          name: All Debugger tests for << parameters.testJvm >> passed!
+          command: echo 'All Debugger tests passed!'
+
   agent_integration_tests:
     <<: *base_tests
     resource_class: medium
@@ -403,7 +695,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Build Project
@@ -441,13 +736,19 @@ jobs:
     steps:
       - setup_code
 
+      - skip_unless_matching_files_changed:
+          pattern: "dd-java-agent/instrumentation"
+
       # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
       # ends up taking more time restoring/saving than the actual increase in time it takes just
       # downloading the artifacts each time.
       #
       # Let's at least restore the build cache to have something to start from.
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Gather muzzle tasks
@@ -489,7 +790,10 @@ jobs:
       - setup_code
 
       - restore_cache:
-          <<: *cache_keys
+          <<: *dependency_cache_keys
+
+      - restore_cache:
+          <<: *build_cache_keys
 
       - run:
           name: Install good version of docker-compose
@@ -566,6 +870,27 @@ build_test_jobs: &build_test_jobs
       testTask: latestDepTest
       testJvm: "8"
 
+  - profiling_tests:
+      requires:
+        - build
+      name: test_<< matrix.testJvm >>_profiling
+      matrix:
+        <<: *profiling_test_matrix
+
+  - iast_tests:
+      requires:
+        - build
+      name: test_<< matrix.testJvm >>_iast
+      matrix:
+        <<: *profiling_test_matrix
+
+  - debugger_tests:
+      requires:
+        - build
+      name: test_<< matrix.testJvm >>_debugger
+      matrix:
+        <<: *profiling_test_matrix
+
   - smoke_tests:
       requires:
         - build
@@ -619,6 +944,42 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
 
+  - profiling:
+      requires:
+        - check
+        - test_8_profiling
+        - test_ORACLE8_profiling
+        - test_ZULU8_profiling
+        - test_ZULU11_profiling
+        - test_11_profiling
+        - test_17_profiling
+      name: profiling
+      testJvm: "required tasks" # only used in a print statement
+
+  - debugger:
+      requires:
+        - check
+        - test_8_debugger
+        - test_ORACLE8_debugger
+        - test_ZULU8_debugger
+        - test_ZULU11_debugger
+        - test_11_debugger
+        - test_17_debugger
+      name: debugger
+      testJvm: "required tasks" # only used in a print statement
+
+  - iast:
+      requires:
+        - check
+        - test_8_iast
+        - test_ORACLE8_iast
+        - test_ZULU8_iast
+        - test_ZULU11_iast
+        - test_11_iast
+        - test_17_iast
+      name: iast
+      testJvm: "required tasks" # only used in a print statement
+
   # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
   # and it will be simpler to require different JVM versions for different branches and old releases
   - fan_in:
@@ -628,9 +989,11 @@ build_test_jobs: &build_test_jobs
         - test_7
         - test_8
         - test_11
-        - test_15
         - test_17
         - test_ZULU8
+        - profiling
+        - iast
+        - debugger
       name: required
       testJvm: "required tasks" # only used in a print statement
 

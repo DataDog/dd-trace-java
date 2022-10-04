@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty9;
 
 import datadog.trace.api.function.Function;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -113,10 +114,10 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "isToBeBlocked",
-          "()Z",
+          "getRequestBlockingAction",
+          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
-      super.visitJumpInsn(Opcodes.IFNE, doBlockLabel);
+      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
       super.visitJumpInsn(Opcodes.GOTO, beforeHandle);
 
       super.visitLabel(doBlockLabel);
@@ -135,11 +136,20 @@ public class HandleVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
+      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitMethodInsn(
+          Opcodes.INVOKEINTERFACE,
+          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
+          "getRequestBlockingAction",
+          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
+          true);
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
-          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)V",
+          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
+              + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
+              + ")V",
           false);
       super.visitJumpInsn(Opcodes.GOTO, afterHandle);
 
@@ -198,10 +208,10 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "isToBeBlocked",
-          "()Z",
+          "getRequestBlockingAction",
+          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
-      super.visitJumpInsn(Opcodes.IFNE, doBlockLabel);
+      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
       super.visitJumpInsn(Opcodes.GOTO, beforeRegularDispatch);
 
       super.visitLabel(doBlockLabel);
@@ -210,7 +220,8 @@ public class HandleVisitor extends MethodVisitor {
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
       List<Function> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
       mv.commitVisitations(loadThisAndEnum);
-      // set up the arguments to the method underlying the lambda (Request, Response)
+      // set up the arguments to the method underlying the lambda (Request, Response,
+      // RequestBlockingAction)
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
@@ -225,11 +236,20 @@ public class HandleVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
+      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitMethodInsn(
+          Opcodes.INVOKEINTERFACE,
+          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
+          "getRequestBlockingAction",
+          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
+          true);
 
       // create the lambda
       super.visitInvokeDynamicInsn(
           "dispatch",
-          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
+          "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
+              + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
+              + ")Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
           new Handle(
               Opcodes.H_INVOKESTATIC,
               "java/lang/invoke/LambdaMetafactory",
@@ -242,7 +262,9 @@ public class HandleVisitor extends MethodVisitor {
                 Opcodes.H_INVOKESTATIC,
                 Type.getInternalName(JettyBlockingHelper.class),
                 "block",
-                "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;)V",
+                "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
+                    + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
+                    + ")V",
                 false),
             Type.getType("()V")
           });

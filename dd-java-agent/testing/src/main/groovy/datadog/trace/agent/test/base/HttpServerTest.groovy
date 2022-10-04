@@ -1069,13 +1069,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlocking())
 
     def request = request(SUCCESS, 'GET', null)
-      .addHeader(IG_BLOCK_HEADER, 'true')
+      .addHeader(IG_BLOCK_HEADER, 'auto')
       .addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
       .build()
     def response = client.newCall(request).execute()
 
     expect:
-    response.code() == 403
+    response.code() == 418
     response.header('Content-type') =~ /(?i)\Atext\/html;\s?charset=utf-8\z/
     response.body().charStream().text.contains("<title>You've been blocked</title>")
 
@@ -1085,7 +1085,31 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     trace.size() == 1
-    trace[0].tags['http.status_code'] == 403
+    trace[0].tags['http.status_code'] == 418
+  }
+
+  def 'test blocking of request with json response'() {
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'json')
+      .addHeader('Accept', 'text/html')  // preference for html will be ignored
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 418
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title": "You\'ve been blocked"')
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    trace.size() == 1
+    trace[0].tags['http.status_code'] == 418
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
@@ -1214,7 +1238,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       HashMap<String, String> tags = new HashMap<>()
       StoredBodySupplier requestBodySupplier
       String responseEncoding
-      boolean foundBlockingHeader
+      String blockingContentType
     }
 
     static final String stringOrEmpty(String string) {
@@ -1251,7 +1275,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.extraSpanName = value
       }
       if (IG_BLOCK_HEADER.equalsIgnoreCase(key)) {
-        context.foundBlockingHeader = true
+        context.blockingContentType = value
       }
     } as TriConsumer<RequestContext, String, String>
 
@@ -1262,11 +1286,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
       }
 
-      if (context.foundBlockingHeader) {
+      if (context.blockingContentType) {
         new Flow.ResultFlow<Void>(null) {
             @Override
             Flow.Action getAction() {
-              new Flow.Action.Throw(new RuntimeException('block'))
+              new Flow.Action.RequestBlockingAction(418,
+                Flow.Action.BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT)))
             }
           }
       } else {

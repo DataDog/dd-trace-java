@@ -5,6 +5,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE
 import static java.lang.ClassLoader.getSystemClassLoader;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.gateway.Flow;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -55,7 +56,15 @@ public class BlockingActionHelper {
     }
   }
 
-  public static TemplateType determineTemplateType(String acceptHeader) {
+  public static TemplateType determineTemplateType(
+      Flow.Action.BlockingContentType blockingContentType, String acceptHeader) {
+    if (blockingContentType == Flow.Action.BlockingContentType.HTML) {
+      return TemplateType.HTML;
+    }
+    if (blockingContentType == Flow.Action.BlockingContentType.JSON) {
+      return TemplateType.JSON;
+    }
+
     float jsonPref = 0;
     Specificity curJsonSpecificity = Specificity.UNSPECIFIED;
     float htmlPref = 0;

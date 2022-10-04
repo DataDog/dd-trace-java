@@ -14,12 +14,12 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafeRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.KnownTypesMatcher;
+import datadog.trace.agent.tooling.bytebuddy.matcher.MuzzleMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ShouldInjectFieldsRawMatcher;
 import datadog.trace.agent.tooling.bytebuddy.matcher.SingleTypeMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
 import datadog.trace.api.Config;
-import datadog.trace.api.IntegrationsCollector;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -73,29 +73,15 @@ public class AgentTransformerBuilder
   }
 
   private AgentBuilder buildInstrumentation(final Instrumenter.Default instrumenter) {
-    AgentBuilder.RawMatcher matcher = matcher(instrumenter);
+    InstrumenterState.registerInstrumentationNames(
+        instrumenter.instrumentationId(), instrumenter.names());
 
     ignoreMatcher = instrumenter.methodIgnoreMatcher();
     adviceBuilder =
         agentBuilder
-            .type(matcher)
+            .type(typeMatcher(instrumenter))
             .and(NOT_DECORATOR_MATCHER)
-            .and(
-                new AgentBuilder.RawMatcher() {
-                  @Override
-                  public boolean matches(
-                      TypeDescription typeDescription,
-                      ClassLoader classLoader,
-                      JavaModule module,
-                      Class<?> classBeingRedefined,
-                      ProtectionDomain protectionDomain) {
-                    boolean isMatch = instrumenter.muzzleMatches(classLoader, classBeingRedefined);
-                    if (isMatch && Config.get().isTelemetryEnabled()) {
-                      IntegrationsCollector.get().update(instrumenter.names(), true);
-                    }
-                    return isMatch;
-                  }
-                })
+            .and(new MuzzleMatcher(instrumenter))
             .transform(defaultTransformers());
 
     String[] helperClassNames = instrumenter.helperClassNames();
@@ -139,7 +125,7 @@ public class AgentTransformerBuilder
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher matcher(Instrumenter.Default instrumenter) {
+  private AgentBuilder.RawMatcher typeMatcher(Instrumenter.Default instrumenter) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     String hierarchyHint = null;
 

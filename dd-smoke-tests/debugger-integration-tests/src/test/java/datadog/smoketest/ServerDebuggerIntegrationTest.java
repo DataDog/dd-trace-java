@@ -149,14 +149,14 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertEquals(1, snapshots.size());
     assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
 
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect BLOCKED status
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect BLOCKED status
     Configuration.FilterList denyList =
         new Configuration.FilterList(asList("datadog.smoketest.debugger"), Collections.emptyList());
     setCurrentConfiguration(createConfig(asList(snapshotProbe), null, denyList));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
 
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
     addProbe(snapshotProbe);
     // waitForInstrumentation(appUrl);
     waitForReTransformation(appUrl);
@@ -186,14 +186,14 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
     assertEquals(1, snapshots.size());
     assertEquals(FULL_METHOD_NAME, snapshots.get(0).getProbe().getLocation().getMethod());
 
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect BLOCKED status
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect BLOCKED status
     Configuration.FilterList allowList =
         new Configuration.FilterList(asList("datadog.not.debugger"), Collections.emptyList());
     setCurrentConfiguration(createConfig(asList(snapshotProbe), allowList, null));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
 
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
     addProbe(snapshotProbe);
     // waitForInstrumentation(appUrl);
     waitForReTransformation(appUrl);
@@ -251,7 +251,7 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void execute(String appUrl, String methodName) throws IOException {
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect 1 snapshot
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect 1 snapshot
     String url = String.format(appUrl + "/execute?methodname=%s", methodName);
     sendRequest(url);
     LOG.info("Execution done");
@@ -293,8 +293,8 @@ public class ServerDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private void addProbe(SnapshotProbe snapshotProbe) {
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect RECEIVED status
-    snapshotServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect RECEIVED status
+    datadogAgentServer.enqueue(EMPTY_HTTP_200); // expect INSTALLED status
     setCurrentConfiguration(createConfig(snapshotProbe));
   }
 

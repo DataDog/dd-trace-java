@@ -39,8 +39,8 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseIntegrationTest {
   protected static final Logger LOG = LoggerFactory.getLogger(BaseIntegrationTest.class);
   protected static final String SINGLE_EXPECTED_UPLOAD = "1";
-  protected static final String PROBE_URL_PATH = "/configurations";
-  protected static final String SNAPSHOT_URL_PATH = "/snapshots";
+  protected static final String PROBE_URL_PATH = "/v0.7/config";
+  protected static final String SNAPSHOT_URL_PATH = "/debugger/v1/input";
   protected static final int REQUEST_WAIT_TIMEOUT = 10;
   private static final Path LOG_FILE_BASE =
       Paths.get(
@@ -50,9 +50,7 @@ public abstract class BaseIntegrationTest {
   private static final MockResponse agentInfoResponse =
       new MockResponse().setResponseCode(200).setBody(INFO_CONTENT);
 
-  protected MockWebServer snapshotServer;
-  private MockDispatcher snapshotMockDispatcher;
-  protected MockWebServer probeServer;
+  protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
 
   private HttpUrl probeUrl;
@@ -70,15 +68,13 @@ public abstract class BaseIntegrationTest {
 
   @BeforeEach
   void setup(TestInfo testInfo) throws Exception {
-    probeServer = new MockWebServer();
+    datadogAgentServer = new MockWebServer();
     probeMockDispatcher = new MockDispatcher();
-    probeMockDispatcher.setDispatcher(this::provideProbes);
-    probeServer.setDispatcher(probeMockDispatcher);
-    probeUrl = probeServer.url(PROBE_URL_PATH);
-    LOG.info("ProbeServer on {}", probeServer.getPort());
-    snapshotServer = new MockWebServer();
-    snapshotUrl = snapshotServer.url(SNAPSHOT_URL_PATH);
-    LOG.info("SnapshotServer on {}", snapshotServer.getPort());
+    probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
+    datadogAgentServer.setDispatcher(probeMockDispatcher);
+    probeUrl = datadogAgentServer.url(PROBE_URL_PATH);
+    LOG.info("DatadogAgentServer on {}", datadogAgentServer.getPort());
+    snapshotUrl = datadogAgentServer.url(SNAPSHOT_URL_PATH);
     logFilePath = LOG_FILE_BASE.resolve(testInfo.getDisplayName() + ".log");
   }
 
@@ -87,11 +83,7 @@ public abstract class BaseIntegrationTest {
     if (targetProcess != null) {
       targetProcess.destroyForcibly();
     }
-    try {
-      snapshotServer.shutdown();
-    } finally {
-      probeServer.shutdown();
-    }
+    datadogAgentServer.shutdown();
   }
 
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -117,19 +109,18 @@ public abstract class BaseIntegrationTest {
             "-Ddd.dynamic.instrumentation.enabled=true",
             "-Ddd.remote_config.enabled=true",
             "-Ddd.remote_config.initial.poll.interval=1",
+            /*"-Ddd.remote_config.integrity_check.enabled=false",
             "-Ddd.dynamic.instrumentation.probe.url=http://localhost:"
                 + probeServer.getPort()
                 + PROBE_URL_PATH,
             "-Ddd.dynamic.instrumentation.snapshot.url=http://localhost:"
                 + snapshotServer.getPort()
-                + SNAPSHOT_URL_PATH,
-            "-Ddd.trace.agent.url=http://localhost:" + probeServer.getPort(),
-            "-Ddd.dynamic.instrumentation.upload.batch.size=1", // to verify each snapshot upload
-            // one by one
-            "-Ddd.dynamic.instrumentation.upload.flush.interval=100" // flush uploads every 100ms to
-            // have quick
-            // tests
-            ));
+                + SNAPSHOT_URL_PATH,*/
+            "-Ddd.trace.agent.url=http://localhost:" + datadogAgentServer.getPort(),
+            // to verify each snapshot upload one by one
+            "-Ddd.dynamic.instrumentation.upload.batch.size=1",
+            // flush uploads every 100ms to have quick tests
+            "-Ddd.dynamic.instrumentation.upload.flush.interval=100"));
   }
 
   protected RecordedRequest retrieveSnapshotRequest() throws Exception {
@@ -137,9 +128,10 @@ public abstract class BaseIntegrationTest {
     RecordedRequest request;
 
     do {
-      request = snapshotServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+      request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
     } while (request != null
-        && request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) > -1);
+        && (!request.getPath().startsWith(SNAPSHOT_URL_PATH)
+            || request.getBody().indexOf(ByteString.encodeUtf8("diagnostics")) > -1));
     long dur = System.nanoTime() - ts;
     LOG.info(
         "request retrieved in {} seconds", TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS));
@@ -147,7 +139,10 @@ public abstract class BaseIntegrationTest {
   }
 
   protected ProbeStatus retrieveProbeStatusRequest() throws Exception {
-    RecordedRequest request = snapshotServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+    RecordedRequest request;
+    do {
+      request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+    } while (request != null && !request.getPath().startsWith(SNAPSHOT_URL_PATH));
     assertNotNull(request);
     JsonAdapter<List<ProbeStatus>> adapter =
         MoshiHelper.createMoshiProbeStatus()
@@ -159,9 +154,12 @@ public abstract class BaseIntegrationTest {
     return probeStatuses.get(0);
   }
 
-  private MockResponse provideProbes(RecordedRequest request) {
+  private MockResponse datadogAgentDispatch(RecordedRequest request) {
     if (request.getPath().equals("/info")) {
       return agentInfoResponse;
+    }
+    if (request.getPath().startsWith(SNAPSHOT_URL_PATH)) {
+      return new MockResponse().setResponseCode(200);
     }
     Configuration configuration;
     synchronized (configLock) {

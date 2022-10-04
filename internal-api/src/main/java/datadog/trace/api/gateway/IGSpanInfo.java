@@ -13,7 +13,7 @@ public interface IGSpanInfo {
 
   AgentSpan setTag(String key, boolean value);
 
-  void markForBlocking();
+  void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba);
 
-  boolean isToBeBlocked();
+  Flow.Action.RequestBlockingAction getRequestBlockingAction();
 }

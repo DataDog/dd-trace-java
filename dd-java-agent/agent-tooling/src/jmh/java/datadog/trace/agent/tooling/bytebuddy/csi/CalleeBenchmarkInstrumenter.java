@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Set;
 
 public class CalleeBenchmarkInstrumenter extends Instrumenter.Default
@@ -40,4 +41,6 @@ public class CalleeBenchmarkInstrumenter extends Instrumenter.Default
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
     return true;
   }
+
+  public static class Muzzle extends ReferenceMatcher {}
 }

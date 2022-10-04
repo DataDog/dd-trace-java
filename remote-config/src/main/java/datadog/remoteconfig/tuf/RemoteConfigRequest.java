@@ -20,14 +20,16 @@ public class RemoteConfigRequest {
       String serviceVersion,
       List<String> tags,
       ClientInfo.ClientState clientState,
-      Collection<CachedTargetFile> cachedTargetFiles) {
+      Collection<CachedTargetFile> cachedTargetFiles,
+      long capabilities) {
 
     ClientInfo.TracerInfo tracerInfo =
         new RemoteConfigRequest.ClientInfo.TracerInfo(
             runtimeId, tracerVersion, serviceName, serviceEnv, serviceVersion, tags);
 
     ClientInfo clientInfo =
-        new RemoteConfigRequest.ClientInfo(clientState, clientId, productNames, tracerInfo);
+        new RemoteConfigRequest.ClientInfo(
+            clientState, clientId, productNames, tracerInfo, capabilities);
 
     return new RemoteConfigRequest(clientInfo, cachedTargetFiles);
   }
@@ -50,6 +52,10 @@ public class RemoteConfigRequest {
 
   /** Stores client information for Remote Configuration */
   public static class ClientInfo {
+    public static final long CAPABILITY_ASM_ACTIVATION = 1 << 1;
+    public static final long CAPABILITY_ASM_IP_BLOCKING = 1 << 2;
+    public static final long CAPABILITY_ASM_DD_RULES = 1 << 3;
+
     @Json(name = "state")
     private final ClientState clientState;
 
@@ -68,15 +74,19 @@ public class RemoteConfigRequest {
     @Json(name = "is_agent")
     private final Boolean isAgent = null; // MUST NOT be set;
 
+    private final byte[] capabilities;
+
     public ClientInfo(
         ClientState clientState,
         String id,
         Collection<String> productNames,
-        TracerInfo tracerInfo) {
+        TracerInfo tracerInfo,
+        long capabilities) {
       this.clientState = clientState;
       this.id = id;
       this.products = productNames;
       this.tracerInfo = tracerInfo;
+      this.capabilities = new byte[] {(byte) capabilities};
     }
 
     public static class ClientState {
@@ -110,14 +120,25 @@ public class RemoteConfigRequest {
       }
 
       public static class ConfigState {
+        public static final int APPLY_STATE_ACKNOWLEDGED = 2;
+        public static final int APPLY_STATE_ERROR = 3;
+
         private String id;
         private long version;
         public String product;
 
-        public void setState(String id, long version, String product) {
+        @Json(name = "apply_state")
+        public int applyState;
+
+        @Json(name = "apply_error")
+        public String applyError;
+
+        public void setState(String id, long version, String product, String error) {
           this.id = id;
           this.version = version;
           this.product = product;
+          this.applyState = error == null ? APPLY_STATE_ACKNOWLEDGED : APPLY_STATE_ERROR;
+          this.applyError = error;
         }
       }
     }
