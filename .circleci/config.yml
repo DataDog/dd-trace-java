@@ -161,19 +161,21 @@ commands:
       pattern:
         type: string
     steps:
-      - run: |
-          if [ -n $CIRCLE_PULL_REQUEST ]; then
-            PR=$(echo https://api.github.com/repos/${CIRCLE_PULL_REQUEST:19} | sed "s/\/pull\//\/pulls\//")
-            TARGET_BRANCH=$(curl -s -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${GH_TOKEN}" $PR | jq '.base.ref' | tr -d '"')
-            if [ -z "$TARGET_BRANCH" ]; then
-              echo "Defaulting target branch to master. Set up GH_TOKEN with a valid GitHub PAT to get correct target branch"
-              TARGET_BRANCH="master"
+      - run:
+          name: "Check if file relevant to job have changed"
+          command: |
+            if [ -n $CIRCLE_PULL_REQUEST ]; then
+              PR=$(echo https://api.github.com/repos/${CIRCLE_PULL_REQUEST:19} | sed "s/\/pull\//\/pulls\//")
+              TARGET_BRANCH=$(curl -s -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${GH_TOKEN}" $PR | jq '.base.ref' | tr -d '"')
+              if [ -z "$TARGET_BRANCH" ]; then
+                echo "Defaulting target branch to master. Set up GH_TOKEN with a valid GitHub PAT to get correct target branch"
+                TARGET_BRANCH="master"
+              fi
+              BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+              if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
+                git diff "$TARGET_BRANCH" --name-only --no-color --pretty="" | grep -E "gradle/|<< parameters.pattern >>" || circleci step halt
+              fi
             fi
-            BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-            if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
-              git diff "$TARGET_BRANCH" --name-only --no-color --pretty="" | grep -E "gradle/|<< parameters.pattern >>" || circleci step halt
-            fi
-          fi
 
   display_memory_usage:
     steps:
