@@ -42,10 +42,17 @@ public class DebuggerContext {
     void histogram(String name, long value, String[] tags);
   }
 
+  public interface SnapshotSerializer {
+    String serializeSnapshot(String serviceName, Snapshot snapshot);
+
+    String serializeValue(Snapshot.CapturedValue value);
+  }
+
   private static volatile Sink sink;
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
+  private static volatile SnapshotSerializer snapshotSerializer;
 
   public static void init(Sink sink, ProbeResolver probeResolver, MetricForwarder metricForwarder) {
     DebuggerContext.sink = sink;
@@ -57,6 +64,14 @@ public class DebuggerContext {
     DebuggerContext.classFilter = classFilter;
   }
 
+  public static void initSnapshotSerializer(SnapshotSerializer snapshotSerializer) {
+    DebuggerContext.snapshotSerializer = snapshotSerializer;
+  }
+
+  /**
+   * Notifies the underlying sink that the snapshot was skipped for one of the SkipCause reason
+   * No-op if no implementation available
+   */
   public static void skipSnapshot(String probeId, SkipCause cause) {
     Sink localSink = sink;
     if (localSink == null) {
@@ -65,6 +80,7 @@ public class DebuggerContext {
     localSink.skipSnapshot(probeId, cause);
   }
 
+  /** Adds a snapshot to the underlying sink No-op if no implementation available */
   public static void addSnapshot(Snapshot snapshot) {
     Sink localSink = sink;
     if (localSink == null) {
@@ -73,6 +89,7 @@ public class DebuggerContext {
     localSink.addSnapshot(snapshot);
   }
 
+  /** Add diagnostics message to the underlying sink No-op if not implementation available */
   public static void reportDiagnostics(String probeId, List<DiagnosticMessage> messages) {
     Sink localSink = sink;
     if (localSink == null) {
@@ -81,6 +98,10 @@ public class DebuggerContext {
     localSink.addDiagnostics(probeId, messages);
   }
 
+  /**
+   * Returns the probe details based on the probe id provided. If no probe is found, try to
+   * re-transform the class using the callingClass parameter No-op if no implementation available
+   */
   public static Snapshot.ProbeDetails resolveProbe(String id, Class<?> callingClass) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
@@ -89,6 +110,10 @@ public class DebuggerContext {
     return resolver.resolve(id, callingClass);
   }
 
+  /**
+   * Indicates if the fully-qualifed-class-name is denied to be intstrumented Returns true if no
+   * implementation is available
+   */
   public static boolean isDenied(String fullyQualifiedClassName) {
     ClassFilter filter = classFilter;
     if (filter == null) {
@@ -98,6 +123,7 @@ public class DebuggerContext {
     return filter.isDenied(fullyQualifiedClassName);
   }
 
+  /** Increments the specified counter metric No-op if no implementation is available */
   public static void count(String name, long delta, String[] tags) {
     MetricForwarder forwarder = metricForwarder;
     if (forwarder == null) {
@@ -106,6 +132,7 @@ public class DebuggerContext {
     forwarder.count(name, delta, tags);
   }
 
+  /** Updates the specified gauge metric No-op if no implementation is available */
   public static void gauge(String name, long value, String[] tags) {
     MetricForwarder forwarder = metricForwarder;
     if (forwarder == null) {
@@ -114,11 +141,32 @@ public class DebuggerContext {
     forwarder.gauge(name, value, tags);
   }
 
+  /** Updates the specified histogram metric No-op if no implementation is available */
   public static void histogram(String name, long value, String[] tags) {
     MetricForwarder forwarder = metricForwarder;
     if (forwarder == null) {
       return;
     }
     forwarder.histogram(name, value, tags);
+  }
+
+  /** Serializes the specified Snapshot as string Returns null if no implementation is available */
+  public static String serializeSnapshot(String serviceName, Snapshot snapshot) {
+    SnapshotSerializer serializer = snapshotSerializer;
+    if (serializer == null) {
+      LOGGER.warn("Cannot serialize snapshots, no serializer set");
+      return null;
+    }
+    return serializer.serializeSnapshot(serviceName, snapshot);
+  }
+
+  /** Serializes the specified value as string Returns null if no implementation is available */
+  public static String serializeValue(Snapshot.CapturedValue value) {
+    SnapshotSerializer serializer = snapshotSerializer;
+    if (serializer == null) {
+      LOGGER.warn("Cannot serialize value, no serializer set");
+      return null;
+    }
+    return serializer.serializeValue(value);
   }
 }

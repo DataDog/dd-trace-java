@@ -6,8 +6,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.SnapshotProbe;
-import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.util.TagsHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Platform;
@@ -57,15 +57,14 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
     }
     List<String> commandParams = getDebuggerCommandParams();
     targetProcess =
-        ProcessBuilderHelper.createProcessBuilder(
-                classpath, commandParams, logFilePath, "App", SINGLE_EXPECTED_UPLOAD)
+        ProcessBuilderHelper.createProcessBuilder(classpath, commandParams, logFilePath, "App", "3")
             .start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
     LOG.info("got snapshot: {}", bodyStr);
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertNotNull(snapshot);
   }
@@ -80,7 +79,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
 
     RecordedRequest request = retrieveSnapshotRequest();
     assertFalse(logHasErrors(logFilePath, it -> false));
@@ -129,10 +128,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
+    Thread.sleep(10000);
   }
 
   @Test
@@ -145,17 +145,17 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
             .where("DebuggerTestApplication", METHOD_NAME)
             .build();
     setCurrentConfiguration(createConfig(probe));
-    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, SINGLE_EXPECTED_UPLOAD).start();
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, "3").start();
     RecordedRequest request = retrieveSnapshotRequest();
     assertNotNull(request);
     assertFalse(logHasErrors(logFilePath, it -> false));
     String bodyStr = request.getBody().readUtf8();
-    JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
+    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
     System.out.println(bodyStr);
     Snapshot snapshot = adapter.fromJson(bodyStr).get(0).getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
-    assertNull(snapshot.getCaptures().getEntry().getLocals());
+    assertEquals(0, snapshot.getCaptures().getEntry().getLocals().size());
     assertNull(snapshot.getCaptures().getEntry().getThrowable());
     assertNull(snapshot.getCaptures().getEntry().getFields());
     assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
@@ -205,11 +205,11 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
       RecordedRequest request = retrieveSnapshotRequest();
       assertNotNull(request);
       String bodyStr = request.getBody().readUtf8();
-      JsonAdapter<List<SnapshotSink.IntakeRequest>> adapter = createAdapterForSnapshot();
-      List<SnapshotSink.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
+      JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
+      List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(bodyStr);
       snapshotCount += intakeRequests.size();
       System.out.println("received " + intakeRequests.size() + " snapshots");
-      for (SnapshotSink.IntakeRequest intakeRequest : intakeRequests) {
+      for (JsonSnapshotSerializer.IntakeRequest intakeRequest : intakeRequests) {
         Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
         probeIds.add(snapshot.getProbe().getId());
       }
