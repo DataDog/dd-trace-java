@@ -626,56 +626,14 @@ jobs:
     parameters:
       testJvm:
         type: string
-
-    steps:
-      - run:
-          name: All tests for << parameters.testJvm >> passed!
-          command: echo 'All tests passed!'
-
-  profiling:
-    resource_class: small
-
-    docker:
-      - image: alpine
-
-    parameters:
-      testJvm:
+        default: "all configured JVMs"
+      stage:
         type: string
 
     steps:
       - run:
-          name: All profiling tests for << parameters.testJvm >> passed!
-          command: echo 'All profiling tests passed!'
-
-  iast:
-    resource_class: small
-
-    docker:
-      - image: alpine
-
-    parameters:
-      testJvm:
-        type: string
-
-    steps:
-      - run:
-          name: All IAST tests for << parameters.testJvm >> passed!
-          command: echo 'All IAST tests passed!'
-
-  debugger:
-    resource_class: small
-
-    docker:
-      - image: alpine
-
-    parameters:
-      testJvm:
-        type: string
-
-    steps:
-      - run:
-          name: All Debugger tests for << parameters.testJvm >> passed!
-          command: echo 'All Debugger tests passed!'
+          name: Completed stage << parameters.stage >> on << parameters.testJvm >> passed!
+          command: echo '<< parameters.stage >> completed!'
 
   agent_integration_tests:
     <<: *base_tests
@@ -912,6 +870,7 @@ build_test_jobs: &build_test_jobs
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
       name: test_<< matrix.testJvm >>
+      stage: tracing
       matrix:
         <<: *test_matrix
 
@@ -921,6 +880,7 @@ build_test_jobs: &build_test_jobs
         - z_test_8_inst
         - z_test_8_smoke
       name: test_8
+      stage: tracing
       testJvm: "8"
 
   - agent_integration_tests:
@@ -946,7 +906,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - build
 
-  - profiling:
+  - fan_in:
       requires:
         - check
         - test_8_profiling
@@ -956,9 +916,9 @@ build_test_jobs: &build_test_jobs
         - test_11_profiling
         - test_17_profiling
       name: profiling
-      testJvm: "required tasks" # only used in a print statement
+      stage: profiling
 
-  - debugger:
+  - fan_in:
       requires:
         - check
         - test_8_debugger
@@ -968,9 +928,9 @@ build_test_jobs: &build_test_jobs
         - test_11_debugger
         - test_17_debugger
       name: debugger
-      testJvm: "required tasks" # only used in a print statement
+      stage: debugger
 
-  - iast:
+  - fan_in:
       requires:
         - check
         - test_8_iast
@@ -980,7 +940,7 @@ build_test_jobs: &build_test_jobs
         - test_11_iast
         - test_17_iast
       name: iast
-      testJvm: "required tasks" # only used in a print statement
+      stage: iast
 
   # This job requires all the jobs needed for a successful build, so github only needs to enforce this one
   # and it will be simpler to require different JVM versions for different branches and old releases
@@ -997,7 +957,7 @@ build_test_jobs: &build_test_jobs
         - iast
         - debugger
       name: required
-      testJvm: "required tasks" # only used in a print statement
+      stage: required
 
 workflows:
   build_test:
