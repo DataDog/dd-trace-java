@@ -724,10 +724,21 @@ build_test_jobs: &build_test_jobs
         - build
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :dd-smoke-test"
-      maxHeapSize: "1750M"
+      maxHeapSize: "1G"
       stage: smoke
+      maxWorkers: 6
       matrix:
         <<: *test_matrix
+
+  - xlarge_tests:
+      requires:
+        - build
+      name: z_test_8_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test"
+      maxHeapSize: "1G"
+      stage: smoke
+      maxWorkers: 6
+      testJvm: "8"
 
   - xlarge_tests:
       requires:
@@ -736,6 +747,7 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :dd-smoke-test"
       maxHeapSize: "1G"
       stage: smoke
+      maxWorkers: 6
       testJvm: "IBM11"
 
   - xlarge_tests:
@@ -745,17 +757,8 @@ build_test_jobs: &build_test_jobs
       gradleTarget: "stageMainDist :dd-smoke-test"
       maxHeapSize: "1G"
       stage: smoke
+      maxWorkers: 6
       testJvm: "IBM17"
-
-
-  - tests:
-      requires:
-        - build
-      name: z_test_8_smoke
-      gradleTarget: "stageMainDist :dd-smoke-test"
-      maxHeapSize: "1750M"
-      stage: smoke
-      testJvm: "8"
 
   - fan_in:
       requires:
