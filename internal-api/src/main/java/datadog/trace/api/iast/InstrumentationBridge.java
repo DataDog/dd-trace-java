@@ -216,6 +216,16 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  public static void onStringTrim(@Nullable String self, @Nullable String result) {
+    try {
+      if (MODULE != null) {
+        MODULE.onStringTrim(self, result);
+      }
+    } catch (final Throwable t) {
+      onUnexpectedException("Callback for onStringTrim threw.", t);
+    }
+  }
+
   public static void onDirContextSearch(String name, String filterExpr, Object[] filterArgs) {
     LOG.debug("Start onDirContextSearch");
     try {

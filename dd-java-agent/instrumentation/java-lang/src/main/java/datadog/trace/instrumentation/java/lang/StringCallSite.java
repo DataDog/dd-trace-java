@@ -18,4 +18,11 @@ public class StringCallSite {
     InstrumentationBridge.onStringConcat(self, param, result);
     return result;
   }
+
+  @CallSite.After("java.lang.String java.lang.String.trim()")
+  public static String afterTrim(
+      @CallSite.This final String self, @CallSite.Return final String result) {
+    InstrumentationBridge.onStringTrim(self, result);
+    return result;
+  }
 }

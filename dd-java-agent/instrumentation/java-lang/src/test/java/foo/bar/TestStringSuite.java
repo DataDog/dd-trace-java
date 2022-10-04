@@ -13,4 +13,11 @@ public class TestStringSuite {
     LOGGER.debug("After string concat {}", result);
     return result;
   }
+
+  public static String stringTrim(final String self) {
+    LOGGER.debug("Before string trim {} ", self);
+    final String result = self.trim();
+    LOGGER.debug("After string trim {}", result);
+    return result;
+  }
 }

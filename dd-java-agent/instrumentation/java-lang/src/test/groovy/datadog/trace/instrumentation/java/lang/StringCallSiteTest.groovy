@@ -25,4 +25,18 @@ class StringCallSiteTest extends AgentTestRunner {
     1 * iastModule.onStringConcat('Hello ', 'World!', 'Hello World!')
     0 * _
   }
+
+  def 'test string trim call site'() {
+    setup:
+    final iastModule = Mock(IastModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+
+    when:
+    final result = TestStringSuite.stringTrim(' hello ')
+
+    then:
+    result == 'hello'
+    1 * iastModule.onStringTrim(' hello ', 'hello')
+    0 * _
+  }
 }
