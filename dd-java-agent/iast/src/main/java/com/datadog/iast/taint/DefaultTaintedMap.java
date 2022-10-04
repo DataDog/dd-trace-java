@@ -265,4 +265,9 @@ public final class DefaultTaintedMap implements TaintedMap {
   public Iterator<TaintedObject> iterator() {
     return iterator(0, table.length);
   }
+
+  /** Testing only. */
+  boolean isFlat() {
+    return isFlat;
+  }
 }

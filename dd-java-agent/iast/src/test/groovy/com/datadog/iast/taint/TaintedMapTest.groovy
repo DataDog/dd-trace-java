@@ -79,6 +79,7 @@ class TaintedMapTest extends DDSpecification {
     }
 
     then:
+    !map.isFlat()
     final entries = map.toList()
     entries.size() <= nRetainedObjects + nObjectsPerIter
     entries.findAll { it.get() != null}.size() == nRetainedObjects
@@ -128,7 +129,10 @@ class TaintedMapTest extends DDSpecification {
       map.put(to)
     }
 
-    then: 'map contains exact amount of objects'
+    then: 'map is not in flat mode'
+    !map.isFlat()
+
+    and: 'map contains exact amount of objects'
     map.toList().size() == nTotalObjects
 
     and: 'all objects are as expected'
@@ -152,7 +156,10 @@ class TaintedMapTest extends DDSpecification {
       map.put(to)
     }
 
-    then: 'map contains enough objects'
+    then: 'map is in flat mode'
+    map.isFlat()
+
+    and: 'map contains enough objects'
     map.toList().size() >= DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 0.9
 
     and: 'all objects are as expected'
@@ -177,7 +184,10 @@ class TaintedMapTest extends DDSpecification {
       map.put(to)
     }
 
-    then: 'map contains enough objects'
+    then: 'map is in flat mode'
+    map.isFlat()
+
+    and: 'map contains enough objects'
     map.toList().size() >= DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD * 0.6
 
     and: 'all objects are as expected'
@@ -221,6 +231,9 @@ class TaintedMapTest extends DDSpecification {
       it.get()
     })
 
+    then: 'map is not in flat mode'
+    !map.isFlat()
+
     then: 'map does not contain extra objects'
     map.toList().size() <= nTotalObjects
 
@@ -244,9 +257,19 @@ class TaintedMapTest extends DDSpecification {
     given:
     float maxAcceptableLoss = 0.999
     float maxAcceptableLossPerThread = 0.9
-    int nThreads = 32
-    int nObjectsPerThread = (int) Math.floor((DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD - 4096) / nThreads)
-    int nRetainedObjectsPerThread = 16
+    int nThreads = 16
+    int nObjectsPerThread = (int) Math.floor(DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD / nThreads) * 2
+    int nRetainedObjectsPerThread = 128
+    // Each thread will wait for garbage collection after this number of puts.
+    int nBeforeWaitGC = 64
+
+    // Total number of puts should go over the flat mode threshold.
+    assert nObjectsPerThread * nThreads > DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD
+    // Total retained objects (plus a wide margin given the probabilistic size estimate) should not go
+    // over the flat mode threshold.
+    assert nRetainedObjectsPerThread * 2 * nThreads < DefaultTaintedMap.DEFAULT_FLAT_MODE_THRESHOLD
+    assert nBeforeWaitGC <= nRetainedObjectsPerThread
+
     def executorService = Executors.newFixedThreadPool(nThreads)
     def startLatch = new CountDownLatch(nThreads)
     def map = new DefaultTaintedMap()
@@ -268,7 +291,7 @@ class TaintedMapTest extends DDSpecification {
         startLatch.countDown()
         startLatch.await()
         for (int i = 1; i <= nObjectsPerThread; i++) {
-          if (i % nRetainedObjectsPerThread == 0) {
+          if (i % nBeforeWaitGC == 0) {
             GCUtils.awaitGC()
           }
           def tuple = tuples.poll()
@@ -287,10 +310,13 @@ class TaintedMapTest extends DDSpecification {
     })
     GCUtils.awaitGC()
 
-    then: 'map does not contain too many extra entries'
+    then: 'map is not in flat mode'
+    !map.isFlat()
+
+    and: 'map does not contain too many extra entries'
     map.toList().size() <= nThreads * nRetainedObjectsPerThread * 2
 
-    then: 'map does not contain extra objects'
+    and: 'map does not contain extra objects'
     map.toList().findAll { it.get() != null }.size() <= nThreads * nRetainedObjectsPerThread
 
     and: 'map did not lose too many objects'
