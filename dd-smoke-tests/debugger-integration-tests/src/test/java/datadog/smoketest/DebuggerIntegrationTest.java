@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
+import org.junit.Ignore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -120,6 +121,7 @@ public class DebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   @Test
+  @Ignore("flaky test: close https://github.com/DataDog/dd-trace-java/issues/3948 when fixed")
   @DisplayName("testInaccessibleObject")
   void testInaccessibleObject() throws Exception {
     final String METHOD_NAME = "managementMethod";
