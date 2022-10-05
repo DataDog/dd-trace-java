@@ -63,6 +63,19 @@ public class PowerWAFModule implements AppSecModule {
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
+  private static final Map<String, ActionInfo> defaultActions =
+      Collections.singletonMap(
+          "block",
+          new ActionInfo(
+              "block_request",
+              new HashMap<String, Object>() {
+                {
+                  put("status_code", 403);
+                  put("type", "json");
+                  put("grpc_status_code", 10);
+                }
+              }));
+
   private static class RuleInfo {
     final String name;
     final String type;
@@ -227,10 +240,10 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       Map<String, RuleInfo> rulesInfoMap =
-          config.getRules().stream()
-              .collect(toMap(AppSecConfig.Rule::getId, rule -> new RuleInfo(rule)));
+          config.getRules().stream().collect(toMap(AppSecConfig.Rule::getId, RuleInfo::new));
 
-      Map<String, ActionInfo> actionInfoMap =
+      Map<String, ActionInfo> actionInfoMap = new HashMap<>(defaultActions);
+      actionInfoMap.putAll(
           ((List<Map<String, Object>>)
                   config.getRawConfig().getOrDefault("actions", Collections.emptyList()))
               .stream()
@@ -240,7 +253,7 @@ public class PowerWAFModule implements AppSecModule {
                           m ->
                               new ActionInfo(
                                   (String) m.get("type"),
-                                  (Map<String, Object>) m.get("parameters"))));
+                                  (Map<String, Object>) m.get("parameters")))));
 
       Map<String, Boolean> rulesOverride = this.wafRulesOverride.get();
       if (!rulesOverride.isEmpty()) {
