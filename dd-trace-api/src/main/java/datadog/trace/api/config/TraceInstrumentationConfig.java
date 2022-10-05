@@ -87,8 +87,6 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";
 
-  public static final String TEMP_JARS_CLEAN_ON_BOOT = "temp.jars.clean.on.boot";
-
   public static final String RESOLVER_OUTLINE_POOL_ENABLED = "resolver.outline.pool.enabled";
   public static final String RESOLVER_OUTLINE_POOL_SIZE = "resolver.outline.pool.size";
   public static final String RESOLVER_TYPE_POOL_SIZE = "resolver.type.pool.size";
