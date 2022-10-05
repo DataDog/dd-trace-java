@@ -127,16 +127,16 @@ tasks.named("test").configure {
 }
 
 compileBaseTestGroovy {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDir))
+  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
   dependsOn "compileBaseTestScala"
 }
 
 compileVersion101TestGroovy {
-  classpath = classpath.plus(files(compileVersion101TestScala.destinationDir))
+  classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
   dependsOn "compileVersion101TestScala"
 }
 
 compileLatestDepTestGroovy {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDir))
+  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
   dependsOn "compileLatestDepTestScala"
 }
