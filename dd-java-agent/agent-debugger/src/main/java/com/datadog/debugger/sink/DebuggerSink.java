@@ -12,6 +12,7 @@ import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,17 +82,29 @@ public class DebuggerSink implements DebuggerContext.Sink {
       ProbeStatusSink probeStatusSink,
       SnapshotSink snapshotSink) {
     this.batchUploader = batchUploader;
-    tags =
+    tags = buildTags(config);
+    this.debuggerMetrics = debuggerMetrics;
+    this.probeStatusSink = probeStatusSink;
+    this.snapshotSink = snapshotSink;
+    this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
+  }
+
+  private static String buildTags(Config config) {
+    String debuggerTags =
         JsonSnapshotSerializer.IntakeRequest.concatTags(
             "env:" + config.getEnv(),
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,
             "agent_version:" + DebuggerAgent.getAgentVersion(),
             "host_name:" + config.getHostName());
-    this.debuggerMetrics = debuggerMetrics;
-    this.probeStatusSink = probeStatusSink;
-    this.snapshotSink = snapshotSink;
-    this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
+    if (config.getGlobalTags().isEmpty()) {
+      return debuggerTags;
+    }
+    String globalTags =
+        config.getGlobalTags().entrySet().stream()
+            .map(e -> e.getKey() + ":" + e.getValue())
+            .collect(Collectors.joining(","));
+    return debuggerTags + "," + globalTags;
   }
 
   public void start() {
