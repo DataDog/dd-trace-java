@@ -21,6 +21,7 @@ dd-java-agent/agent-debugger/ @DataDog/debugger-java
 dd-smoke-tests/debugger-integration-tests/ @DataDog/debugger-java
 
 # @DataDog/iast-java
-**/iast/          @DataDog/iast-java
-**/Iast*.java     @DataDog/iast-java
-**/Iast*.groovy   @DataDog/iast-java
+dd-java-agent/agent-iast/   @DataDog/iast-java
+**/iast/                    @DataDog/iast-java
+**/Iast*.java               @DataDog/iast-java
+**/Iast*.groovy             @DataDog/iast-java
