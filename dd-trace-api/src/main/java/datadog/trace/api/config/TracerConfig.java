@@ -32,8 +32,15 @@ public final class TracerConfig {
 
   public static final String SPAN_TAGS = "trace.span.tags";
   public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
+
+  @Deprecated
   public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
+
+  @Deprecated
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
+  // JSON rules
+  public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
+  // a global rate used for all services (that don’t have a dedicated rule defined).
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
