@@ -44,6 +44,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
 
+  private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
+
   static final Batch POISON_PILL = Batch.NULL;
 
   private final Set<String> ignoredResources;
@@ -198,7 +200,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
             span.getType(),
-            span.getHttpStatusCode());
+            span.getHttpStatusCode(),
+            isSynthetic(span));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
@@ -231,6 +234,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     inbox.offer(batch);
     // force keep keys we haven't seen before or errors
     return isNewKey || span.getError() > 0;
+  }
+
+  private static boolean isSynthetic(CoreSpan<?> span) {
+    return span.getOrigin() != null && SYNTHETICS_ORIGIN.equals(span.getOrigin().toString());
   }
 
   private Batch newBatch(MetricKey key) {
