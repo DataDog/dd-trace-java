@@ -355,6 +355,9 @@ jobs:
       maxWorkers:
         type: integer
         default: 2
+      profile:
+        type: boolean
+        default: false
 
 
 
@@ -381,8 +384,13 @@ jobs:
       - run:
           name: Run tests
           command: >-
+            if [[ << parameters.profile >> ]] && [[ << parameters.testJvm >> != "IBM8" ]] && [[ << parameters.testJvm >> != "ORACLE8" ]]; 
+            then
+              PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
+            fi
+            
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxHeapSize >> -Xmx<< parameters.maxHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew <<# parameters.gradleTarget >><< parameters.gradleTarget >>:<</ parameters.gradleTarget >><< parameters.testTask >> << parameters.gradleParameters >>
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -396,6 +404,18 @@ jobs:
 
       - store_artifacts:
           path: ./reports
+
+      - when:
+          condition:
+            equal: [true, << parameters.profile >>]
+          steps:
+            - run:
+                name: Collect profiles
+                when: always
+                command: .circleci/collect_profiles.sh
+
+            - store_artifacts:
+                path: ./profiles
 
       - run:
           name: Collect test results
